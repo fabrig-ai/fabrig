@@ -90,7 +90,7 @@ The fleet child domain knows the hosts and the runs they host:
   taking. So an ask to resume places on the channel again once the
   worker says it takes work, and a channel lost and dialled again by a
   worker that kept its pause stays out from its word after its hello.
-  A worker whose version cannot hear the ask is still placed nothing:
+  A worker whose layout cannot hear the ask is still placed nothing:
   the pause is the engine's placement, and only the drain needs the
   worker. A worker's new process starts taking: its restart ends its
   pause. A host's view says each channel's pause (`workers.md`, 6).

@@ -197,7 +197,8 @@ impl Referee<Process> for ResetJudge {
 /// The enclosing box world kills the supervised tree after this check returns.
 #[must_use]
 pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
-    let program = std::fs::canonicalize(skein_scratch::paths::binary("temper-box")).expect("temper binary");
+    let program =
+        std::fs::canonicalize(skein_scratch::paths::built("temper-box", "temper-box")).expect("temper binary");
     let parent = binary
         .tree_status()
         .live_pids

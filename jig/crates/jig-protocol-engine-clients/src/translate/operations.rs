@@ -1,5 +1,6 @@
 //! General operation targets and template overrides, translated into people records.
 use super::{Untranslatable, asks};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
@@ -33,8 +34,7 @@ pub(super) fn decide(project: u32, on: w::DecideOn) -> Result<p::Ask, Untranslat
                 proposal: v.proposal.number,
                 decision: asks::proposal_decision(v.decision)?,
                 running: match v.running {
-                    Some(w::Running::Stays) => Some(p::Running::Stays),
-                    Some(w::Running::Moves) => Some(p::Running::Moves),
+                    Some(value) => Some(mapped::running_to_domain(value)),
                     None => None,
                 },
             }
@@ -54,56 +54,24 @@ pub(super) fn templates(value: w::PolicyEditTemplates) -> p::PolicyChange {
     p::PolicyChange::Templates { overrides: overrides(value.overrides) }
 }
 pub(super) fn overrides(values: List<w::TemplateOverride>) -> Box<[p::TemplateOverride]> {
-    let mut overrides = List::with_capacity(values.capacity());
+    let mut overrides = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        let v = value;
-        overrides
-            .push(p::TemplateOverride {
-                template: v.template,
-                executor: match v.executor {
-                    Some(value) => Some(executor(value)),
-                    None => None,
-                },
-                budget: match v.budget {
-                    Some(value) => Some(budget(value)),
-                    None => None,
-                },
-                deadline: match v.deadline {
-                    Some(value) => Some(deadline(value)),
-                    None => None,
-                },
-                priority: v.priority,
-            })
-            .expect("same capacity");
+        overrides.push(mapped::template_override_to_domain(value)).expect("same count");
     }
     overrides.into_boxed()
 }
 pub(super) fn executor(value: w::TemplateExecutor) -> p::TemplateExecutor {
-    match value {
-        w::TemplateExecutor::Charter(v) => p::TemplateExecutor::Charter(v.value),
-        w::TemplateExecutor::Chosen => p::TemplateExecutor::Chosen,
-    }
+    mapped::template_executor_to_domain(value)
 }
 pub(super) fn budget(value: w::TemplateBudget) -> p::TemplateBudget {
-    match value {
-        w::TemplateBudget::Amount(v) => p::TemplateBudget::Amount(v.value),
-        w::TemplateBudget::AsAllowed(v) => p::TemplateBudget::AsAllowed { cap: v.cap },
-        w::TemplateBudget::Given => p::TemplateBudget::Given,
-    }
+    mapped::template_budget_to_domain(value)
 }
 pub(super) fn deadline(value: w::TemplateDeadline) -> p::TemplateDeadline {
-    match value {
-        w::TemplateDeadline::None => p::TemplateDeadline::None,
-        w::TemplateDeadline::Span(v) => p::TemplateDeadline::Span(v.value),
-        w::TemplateDeadline::Given => p::TemplateDeadline::Given,
-    }
+    mapped::template_deadline_to_domain(value)
 }
 
 pub(super) fn tracking(value: w::Tracking) -> p::Tracking {
-    match value {
-        w::Tracking::Tracked(v) => p::Tracking::Tracked { priority: v.priority },
-        w::Tracking::Untracked => p::Tracking::Untracked,
-    }
+    mapped::tracking_to_domain(value)
 }
 
 /// Decode the pieces before anything reaches the core.
@@ -152,7 +120,7 @@ fn operation_to_people(
         },
         w::Operation::Cancel(v) => p::Operation::Cancel { task: v.task, reason: v.reason, grace: v.grace },
         w::Operation::Release(v) => p::Operation::Release { task: v.task, revision: v.revision.value, again: v.again },
-        w::Operation::Stop(v) => p::Operation::Stop { task: v.task },
+        w::Operation::Stop(v) => p::Operation::Stop { task: v.task, reason: v.reason },
         w::Operation::MoveTask(v) => p::Operation::Move { task: v.task, reason: v.reason },
     })
 }
@@ -313,45 +281,30 @@ fn member(
     let spec = asks::spec(v.spec);
     let mut dependencies = List::with_capacity(v.dependencies.len());
     for dependency in v.dependencies.into_boxed() {
-        dependencies
-            .push(match dependency {
-                w::TaskRef::Member(v) => p::Dependency::Batch(v.value),
-                w::TaskRef::Task(v) => p::Dependency::Existing(v.value),
-            })
-            .expect("same capacity");
+        dependencies.push(mapped::task_ref_to_domain(dependency)).expect("same capacity");
     }
     if v.symbols.len() > limits.new_task_symbols {
         return Err(Untranslatable { path: w::paths::NEW_TASK_SYMBOLS });
     }
     let mut symbols = List::with_capacity(v.symbols.len());
     for symbol in v.symbols.into_boxed() {
-        symbols.push(p::Symbol { connector: symbol.connector, symbol: symbol.symbol }).expect("same capacity");
+        symbols.push(mapped::symbol_to_domain(symbol)).expect("same capacity");
     }
-    let flags = v.flags;
     Ok(p::Member {
         symbols: symbols.into_boxed(),
-        deadline: match v.deadline {
-            w::NewDeadline::Named => p::Deadline::Named,
-            w::NewDeadline::Span(value) => p::Deadline::Span(value.value),
-        },
+        deadline: mapped::new_deadline_to_domain(v.deadline),
         executor: match v.executor {
             w::Executor::Job(_) => return Err(Untranslatable { path: w::paths::NEW_TASK_EXECUTOR }),
             w::Executor::Agent(v) => p::TaskExecutor::Agent { charter: v.charter },
             w::Executor::Procedure(v) => p::TaskExecutor::Procedure { connector: v.connector, code: v.code },
-            w::Executor::Person(v) => p::TaskExecutor::Person(match &v.value {
-                w::PersonAddress::Party(v) => p::PersonAddress::Person(v.value),
-                w::PersonAddress::Role(v) => p::PersonAddress::Role(v.value),
-            }),
+            w::Executor::Person(v) => p::TaskExecutor::Person(mapped::person_address_to_domain(v.value)),
         },
         words: spec.words,
         parameters: spec.parameters,
         inputs: spec.inputs,
-        contract: new_contract(v.contract),
+        contract: mapped::new_contract_to_domain(v.contract),
         authority: asks::authority(v.authority, limits, names)?,
-        budget: match v.budget {
-            w::NewBudget::Named => p::Budget::Named,
-            w::NewBudget::AsAllowed(v) => p::Budget::AsAllowed { cap: v.cap },
-        },
+        budget: mapped::new_budget_to_domain(v.budget),
         wake: match v.wake {
             Some(wake) => Some(asks::wake(wake)),
             None => None,
@@ -360,50 +313,9 @@ fn member(
         named: asks::grants(&v.named, limits.new_task_named, w::paths::NEW_TASK_NAMED, limits)?,
         tracked: v.tracked,
         label: v.label,
-        flags: p::Flags {
-            ended_by: match flags.ended_by {
-                w::EndedBy::Result => p::EndedBy::Result,
-                w::EndedBy::Requester => p::EndedBy::Requester,
-                w::EndedBy::Standing => p::EndedBy::Standing,
-                w::EndedBy::Closer(closer) => {
-                    p::EndedBy::Closer(p::Closer { connector: closer.connector, code: closer.code })
-                }
-            },
-            conversation: flags.conversation,
-            listed: flags.listed,
-            retention: match flags.retention {
-                w::Retention::Kept => p::Retention::Kept,
-                w::Retention::ForgottenOnceRead => p::Retention::ForgottenOnceRead,
-            },
-        },
+        flags: mapped::task_flags_to_domain(v.flags),
         llm: super::llm::people(v.llm, models, w::paths::NEW_TASK_LLM)?,
     })
-}
-fn new_contract(value: w::NewContract) -> p::Contract {
-    match value {
-        w::NewContract::Report(v) => p::Contract::Report { words: v.words },
-        w::NewContract::Change(v) => p::Contract::Change { connector: v.connector, kind: v.kind, words: v.words },
-        w::NewContract::Verdict(v) => {
-            let mut choices = List::with_capacity(v.choices.len());
-            for choice in v.choices.into_boxed() {
-                let v = choice;
-                let mut fields = List::with_capacity(v.fields.len());
-                for field in v.fields.into_boxed() {
-                    let v = field;
-                    fields.push(p::FieldRule { name: v.name, max: v.max }).expect("same capacity");
-                }
-                choices
-                    .push(p::Verdict {
-                        code: v.code,
-                        words: v.words,
-                        followups: v.followups,
-                        fields: fields.into_boxed(),
-                    })
-                    .expect("same capacity");
-            }
-            p::Contract::Verdict { choices: choices.into_boxed() }
-        }
-    }
 }
 
 pub(super) fn propose(

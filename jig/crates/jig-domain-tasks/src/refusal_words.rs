@@ -1,5 +1,5 @@
 //! The short words of task admission, without the problem's associated rows.
-use crate::{AccountWhy, LlmFault, Refusal};
+use crate::{AccountWhy, LlmFault, QuestionAnswerer, Refusal};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, bytes::concat};
 
@@ -35,6 +35,7 @@ impl Refusal {
             Self::Dependencies => b"dependencies",
             Self::Circle { .. } => b"these tasks would wait for one another",
             Self::DependencyEnded { .. } => b"a dependency has ended",
+            Self::QuestionAnswered { question, by } => return concat(&[b"Refused: ", &by.answered_words(question)]),
             Self::PersonAnswers { .. } => b"the person answers this question",
             Self::Kept | Self::KeptQuestion { .. } => b"kept",
             Self::Executor => b"executor",
@@ -73,5 +74,23 @@ impl Refusal {
             },
         };
         concat(&[b"Refused: ", reason])
+    }
+}
+
+impl QuestionAnswerer {
+    /// The first answer's author, in tool answer words.
+    #[must_use]
+    pub fn answered_words(self, question: u64) -> Box<[u8]> {
+        let (kind, number) = match self {
+            Self::Task(task) => (b"task ".as_slice(), task),
+            Self::Person(person) => (b"person ".as_slice(), person),
+        };
+        concat(&[
+            b"question ",
+            Decimal::of(question).as_bytes(),
+            b" was answered by ",
+            kind,
+            Decimal::of(number).as_bytes(),
+        ])
     }
 }

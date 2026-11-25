@@ -30,7 +30,7 @@ pub enum TaskState {
     /// Retained after ending.
     Ended(tasks::Status),
 }
-/// Current independent hold revision and the connector's bounded account.
+/// Current independent hold revision and the bounded hold explanation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskHold {
     pub revision: u64,
@@ -74,7 +74,7 @@ pub fn answer_carrier_bound(limits: &Limits) -> Option<u64> {
             u64::from(limits.tasks.inbox_messages)
                 .checked_mul(u64::try_from(size_of::<tasks::QuestionCredit>()).ok()?)?,
         )?
-        .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))
+        .checked_add(u64::try_from(tasks::HOLD_WORDS).ok()?)
 }
 /// Maximum task-read carrier and payload under the admitted limits.
 #[must_use]

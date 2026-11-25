@@ -39,6 +39,7 @@ pub fn adoption_refusal_words(why: people::Refusal) -> Box<[u8]> {
         people::Refusal::SignInRedirect { .. } => b"adopt sign-in redirect was refused",
         people::Refusal::Circle { .. } => b"adopt has a dependency circle",
         people::Refusal::Dependency { .. } => b"adopt prerequisite failed",
+        people::Refusal::QuestionAnswered { .. } => b"question already answered",
         people::Refusal::Unlinked { .. } => b"worker is unlinked",
         people::Refusal::Concluded { .. } => b"adopt gathering is concluded",
         people::Refusal::Kept { .. } => b"adopt waits for prerequisites",

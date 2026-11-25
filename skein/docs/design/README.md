@@ -62,11 +62,8 @@ code is from this design and how to roll up the status files.
 | DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
 | codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs and bounds generated from them, their bytes pinned once by the `every` fixture | [data/codec/README.md](data/codec/README.md), [data/codec/golden.md](data/codec/golden.md), [data/codec/run-time.md](data/codec/run-time.md), [data/codec/fingerprints.md](data/codec/fingerprints.md) |
-| schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |
-| record patches | `skein-codec` | versioned patch files for wires and transcripts' frames | [data/codec/patches.md](data/codec/patches.md) |
-| layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |
-| the patch command | `skein-codegen` | keeping a crate's patches, generated files and drift check | [data/codec/command.md](data/codec/command.md) |
-| bridges | `skein-codec`, `skein-codegen` | a wire's reverses, its floor and breaking declarations, and the bridge that translates a record between the versions a build speaks | [data/codec/bridges.md](data/codec/bridges.md) |
+| layouts and derived plans | `skein-codec` | a value type's layout, and the plan, in Read or Keep mode, that converts a value from one layout to another, either way, for the store and every wire | [data/codec/layouts.md](data/codec/layouts.md) |
+| the command | `skein-codegen` | an owner's schema files, and the command that generates a family's records or translation | [data/codec/command.md](data/codec/command.md) |
 | translation from maps | `skein-codegen`, `skein-codec` | a family's maps file, the translation between its records and the domain's types generated from it, and the shared converters | [data/codec/maps.md](data/codec/maps.md) |
 | TLS | `skein-tls` | the TLS client, a stream over rustls's unbuffered connection, with ring | [net/tls.md](net/tls.md) |
 | Web Push | `skein-push` | a push message sealed for a browser's subscription and signed with the service's VAPID key, and its answer read | [net/push.md](net/push.md) |

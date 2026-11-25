@@ -13,6 +13,7 @@ use skein_lib::{Map, Queue, Time, Token};
 use smith_channel::Record;
 use smith_host_domain::channel;
 
+use crate::generated::channel as mapped;
 use crate::limits::{Error, Limits};
 use crate::translate::{Values, encode_reply, encode_start};
 
@@ -34,14 +35,14 @@ enum State {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CallKey {
-    activation: u64,
-    completion: u32,
-    position: u32,
+    pub(crate) activation: u64,
+    pub(crate) completion: u32,
+    pub(crate) position: u32,
 }
 
 impl CallKey {
     fn from_wire(name: &smith_channel::CallName) -> CallKey {
-        CallKey { activation: name.activation, completion: name.completion, position: name.position }
+        mapped::call_name_to_domain(name.clone())
     }
 
     fn domain(self) -> channel::CallName {

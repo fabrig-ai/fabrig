@@ -132,7 +132,7 @@ fn a_metadata_command_never_scans_the_worktree_or_unneeded_git_directories() {
     let mut net = Net::new(vec![]);
     let remote = b"http://127.0.0.1:4000/acme/app.git";
     let answer = disk.run(
-        spawn(&Command::Remote { remote: remote.as_slice().into(), format: invocation::Format::Sha1 }),
+        &spawn(&Command::Remote { remote: remote.as_slice().into(), format: invocation::Format::Sha1 }),
         &mut net,
         b"",
     );
@@ -152,7 +152,7 @@ fn staging_reads_the_worktree_without_scanning_its_object_store() {
     files.push((b"repo/new/file".to_vec(), b"new\n".to_vec()));
     let mut disk = Disk::new(&files);
     let mut net = Net::new(vec![]);
-    let answer = disk.run(spawn(&Command::Add), &mut net, b"");
+    let answer = disk.run(&spawn(&Command::Add), &mut net, b"");
     assert_eq!(answer.exit, 0, "{}", String::from_utf8_lossy(&answer.stderr));
     assert_eq!(disk.read(b"repo/.git/temper-index/new/file").as_deref(), Some(b"new\n".as_slice()));
     assert_eq!(disk.read(b"repo/.git/objects/1").as_deref(), Some(b"".as_slice()));
@@ -169,7 +169,7 @@ fn a_bare_format_query_leaves_the_object_store_unscanned() {
     ];
     let mut disk = Disk::new(&files);
     let mut net = Net::new(vec![]);
-    let answer = disk.run(spawn(&Command::Format), &mut net, b"");
+    let answer = disk.run(&spawn(&Command::Format), &mut net, b"");
     assert_eq!(answer, crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
     assert_eq!(disk.read(b"repo/objects/1").as_deref(), Some(b"".as_slice()));
     assert!(!disk.opened.iter().any(|path| path.starts_with(b"repo/objects")), "format needs no object scan");
@@ -186,7 +186,7 @@ fn an_explicit_store_format_is_read_relative_to_the_working_directory() {
         let mut net = Net::new(vec![]);
         let mut request = spawn(&Command::Format);
         request.args = invocation::arguments_at(&Command::Format, Some(directory), None);
-        let answer = disk.run(request, &mut net, b"");
+        let answer = disk.run(&request, &mut net, b"");
         assert_eq!(answer, crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
     }
 }
@@ -217,7 +217,7 @@ fn explicit_metadata_never_discovers_the_runs_git_or_scans_objects() {
         let mut net = Net::new(vec![]);
         let mut spawn = spawn(&command);
         spawn.args = invocation::arguments_at(&command, Some(b"worker-git"), work_tree);
-        let answer = disk.run(spawn, &mut net, b"");
+        let answer = disk.run(&spawn, &mut net, b"");
         assert_eq!(answer, crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
         assert_eq!(disk.read(b"repo/worker-git/temper-remote").as_deref(), Some(remote.as_slice()));
         assert_eq!(disk.read(b"repo/worktree/.git").as_deref(), Some(b"gitdir: untrusted\n".as_slice()));
@@ -237,7 +237,7 @@ fn explicit_staging_skips_the_runs_git_and_the_workers_object_store() {
     let mut net = Net::new(vec![]);
     let mut spawn = spawn(&Command::Add);
     spawn.args = invocation::arguments_at(&Command::Add, Some(b"worker-git"), Some(b"worktree"));
-    let answer = disk.run(spawn, &mut net, b"");
+    let answer = disk.run(&spawn, &mut net, b"");
     assert_eq!(answer.exit, 0, "{}", String::from_utf8_lossy(&answer.stderr));
     assert_eq!(disk.read(b"repo/worker-git/temper-index/new/file").as_deref(), Some(b"new\n".as_slice()));
     assert_eq!(disk.read(b"repo/worktree/.git").as_deref(), Some(b"gitdir: untrusted\n".as_slice()));
@@ -251,6 +251,27 @@ fn explicit_staging_skips_the_runs_git_and_the_workers_object_store() {
         !disk.opened.iter().any(|path| path.starts_with(b"repo/worker-git/objects")),
         "staging needs no object scan"
     );
+}
+
+#[test]
+fn named_git_paths_are_relative_to_the_working_directory() {
+    let files = vec![
+        (b"worker/gitdirs/1/app/HEAD".to_vec(), b"ref: refs/heads/main\n".to_vec()),
+        (b"worker/gitdirs/1/app/object-format".to_vec(), b"sha256\n".to_vec()),
+        (b"worker/workspaces/1/app/README".to_vec(), b"app\n".to_vec()),
+    ];
+    let mut disk = Disk::new(&files);
+    let mut net = Net::new(vec![]);
+    let mut call = spawn(&Command::Format);
+    call.dir = b"worker".as_slice().into();
+    call.args = invocation::arguments_at(&Command::Format, Some(b"gitdirs/1/app"), None);
+    assert_eq!(disk.run(&call, &mut net, b""), crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
+
+    let mut call = spawn(&Command::Add);
+    call.dir = b"worker".as_slice().into();
+    call.args = invocation::arguments_at(&Command::Add, Some(b"gitdirs/1/app"), Some(b"workspaces/1/app"));
+    assert_eq!(disk.run(&call, &mut net, b""), crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
+    assert_eq!(disk.read(b"worker/gitdirs/1/app/temper-index/README").as_deref(), Some(b"app\n".as_slice()));
 }
 
 fn object_call(commit: u64) -> Call {
@@ -332,7 +353,7 @@ fn create_call() -> Call {
 fn run(command: &Command, script: Vec<(Call, Response)>) -> (crate::Answer, Disk, Net) {
     let mut disk = Disk::new(&files(REMOTE));
     let mut net = Net::new(script);
-    let answer = disk.run(spawn(command), &mut net, b"message\n");
+    let answer = disk.run(&spawn(command), &mut net, b"message\n");
     (answer, disk, net)
 }
 #[test]
@@ -472,7 +493,7 @@ fn the_listener_comes_from_the_named_remote_or_clones_metadata() {
         let mut disk = Disk::new(&files(remote));
         let mut net = Net::new(script);
         net.piece = 1;
-        let answer = disk.run(spawn(&command), &mut net, b"");
+        let answer = disk.run(&spawn(&command), &mut net, b"");
         assert_eq!(answer.exit, 0);
         assert_eq!(net.connected, [([127, 0, 0, 1], port).into()]);
     }
@@ -518,7 +539,7 @@ fn failures_without_a_fault_result_end_with_the_requested_git_diagnostic() {
         let expected_calls: Vec<_> = script.iter().map(|(call, _)| call.clone()).collect();
         let mut net = Net::new(script);
         net.refused = refused;
-        let answer = disk.run(spawn(&command), &mut net, input);
+        let answer = disk.run(&spawn(&command), &mut net, input);
         assert_eq!(answer.exit, exit, "{name}");
         assert_eq!(answer.stderr, stderr, "{name}");
         assert_eq!(net.seen, expected_calls, "{name}: only scripted requests sent");
@@ -561,7 +582,7 @@ fn repository_failures_are_logged_and_classified_without_retrying_a_write() {
         let mut disk = Disk::new(&files(REMOTE));
         let mut net = Net::new(if refused { vec![] } else { vec![(clone_call(), response)] });
         net.refused = refused;
-        let answer = disk.run(spawn(&clone_command()), &mut net, b"");
+        let answer = disk.run(&spawn(&clone_command()), &mut net, b"");
         assert_eq!(answer.exit, 128);
         assert_eq!(output::classify(&answer.stderr, temper_worker_domain_checkout::git::Kind::Store), expected);
     }
@@ -582,7 +603,7 @@ fn hosts_without_an_ip_and_port_fail_before_opening_a_socket() {
         let mut disk = Disk::new(&files(REMOTE));
         let mut net = Net::new(vec![]);
         let answer = disk.run(
-            spawn(&Command::Store { remote: remote.into(), directory: b"copy".as_slice().into() }),
+            &spawn(&Command::Store { remote: remote.into(), directory: b"copy".as_slice().into() }),
             &mut net,
             b"",
         );
@@ -918,7 +939,7 @@ fn create_by_push_uses_one_cas_and_reports_both_existing_branch_statuses() {
 fn history_comparison_has_no_fake_blob_work() {
     let mut disk = Disk::new(&files(REMOTE));
     let mut net = Net::new(vec![]);
-    let answer = disk.run(spawn(&Command::MergeHistory { theirs: commit(TOPIC) }), &mut net, b"");
+    let answer = disk.run(&spawn(&Command::MergeHistory { theirs: commit(TOPIC) }), &mut net, b"");
     assert_eq!(answer, crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
     assert_eq!(disk.opened, Vec::<Vec<u8>>::new());
     assert_eq!(net.seen, Vec::<Call>::new());

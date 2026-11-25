@@ -62,6 +62,7 @@ pub fn recovery(object: &Object) -> Recovery {
             | Refusal::AccountMove { .. }
             | Refusal::Provider
             | Refusal::Unlinked { .. }
+            | Refusal::QuestionAnswered { .. }
             | Refusal::Concluded { .. }
             | Refusal::KeyConflict => {}
         },

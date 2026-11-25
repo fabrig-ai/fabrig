@@ -563,7 +563,7 @@ fn a_stopped_change_stays_held_at_a_green_head() {
         reply_to: ReplyTo::new(Token::new(970)),
         sign_in: world.signed_in.expect("owner"),
         key: [97; 16],
-        ask: people::Ask::Stop { project: 1, task: change },
+        ask: people::Ask::Stop { project: 1, task: change, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     for _ in 0..STEPS {
         world.tick();
@@ -699,7 +699,7 @@ fn a_stop_during_the_green_read_leaves_the_next_release_safe() {
         reply_to: ReplyTo::new(Token::new(970)),
         sign_in: world.signed_in.expect("owner"),
         key: [97; 16],
-        ask: people::Ask::Stop { project: 1, task: change },
+        ask: people::Ask::Stop { project: 1, task: change, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     world.advance_ticks(STEPS);
     assert!(live_task(&world, change).placed.is_some());

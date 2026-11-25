@@ -269,12 +269,15 @@ fn a_parked_delegate_past_its_wall_is_held_and_its_creator_told() {
     world.park_for_message(0);
     assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
     let deadline = live_row(&world, child).authority.budget.deadline.expect("span wall");
-    world.fire_due(Time::from_nanos(deadline.as_nanos()), deadline);
+    let before = Wall::from_nanos(deadline.as_nanos() - 1);
+    world.fire_due(Time::from_nanos(before.as_nanos()), before);
     assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
-    let past = Wall::from_nanos(deadline.as_nanos() + 1);
-    world.fire_due(Time::from_nanos(past.as_nanos()), past);
-    assert!(matches!(live_row(&world, child).phase, tasks::Phase::Held { why: tasks::Hold::Deadline, .. }));
-    world.fire_due(Time::from_nanos(past.as_nanos() + 1), past);
+    world.fire_due(Time::from_nanos(deadline.as_nanos()), deadline);
+    assert!(matches!(
+        live_row(&world, child).phase,
+        tasks::Phase::Held { why: tasks::Hold::Deadline, source: Some(_), .. }
+    ));
+    world.fire_due(Time::from_nanos(deadline.as_nanos() + 1), deadline);
     assert!(matches!(live_row(&world, child).escalation,
         tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(task), .. } if task == creator.0));
     let notices = world

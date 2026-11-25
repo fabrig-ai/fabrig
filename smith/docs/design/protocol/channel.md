@@ -94,8 +94,8 @@ of domain/host.md, section 2.
   1). The engine talks to the worker on jig's channel, not this one:
   restarting the engine leaves the worker and its agents together;
   replacing the configured agent program cannot change a running
-  worker's later spawns. This is the per-build exemption in temper's
-  bridge inventory (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
+  worker's later spawns. So nothing converts this channel between
+  builds (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
   4.4). A connected agent spanning builds needs a compatibility contract
   before that shape is supported (README.md, sections 4 and 11).
 - **The credential** is empty over a spawned agent's pipes. A connected
@@ -105,9 +105,10 @@ of domain/host.md, section 2.
 - **Required and optional kinds.** Each version names the kinds it
   requires each side to take, and any it leaves optional: a peer that
   does not take an optional kind leaves it out of its terms, and the
-  writer, refused at its entrance, carries on without it. A kind is
-  never added within a version: a new kind, required or optional, is a
-  new version.
+  writer, refused at its entrance, carries on without it. A new kind,
+  required or optional, changes the channel's layout and not its
+  version, which is frozen (README.md, section 8): a worker and its
+  agents are one build (above), so they take the same kinds.
 - **Terms.** Each side checks the other's terms for every required kind it
   may send, and refuses with *limits*, naming the kind, when one is missing
   or too small. The agent's sending bounds come from its configuration, and
@@ -361,8 +362,8 @@ label, 1 to 32 printable ASCII bytes; its length, an optional
 `duration`; its share used, optional basis points from 0 to 10,000; its
 reset, the provider's optional wall time in Unix seconds, as given, never
 a duration, so that two reports of one reset are equal; and its state,
-`UsageState`: open, warned or limited. The channel is per-build, so the
-version moves with no bridge (temper's `draft/archive/redeploys.md`, 4.4).
+`UsageState`: open, warned or limited. The channel is per-build, so
+nothing converts it across builds (temper's `draft/archive/redeploys.md`, 4.4).
 
 **How a run ended** (domain/run.md, section 9):
 

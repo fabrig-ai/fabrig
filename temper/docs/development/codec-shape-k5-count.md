@@ -1,7 +1,7 @@
 # codec-shape K5: the stores' translation, counted
 
 2026-11-21, on the goal branch at `845423850d`, before K5's changes. The
-count `temper/docs/design/draft/codec-shape.md`, 4.1 asks of goal K5,
+count `temper/docs/design/draft/archive/codec-shape.md`, 4.1 asks of goal K5,
 owner by owner: each record and enumeration of the stores' schemas,
 read against its hand-written translation and its domain type. Read-only
 surveys, declaration by declaration; the lines are approximate, a mixed

@@ -1,0 +1,23 @@
+records smith_channel::v14
+use r = smith_domain::run
+use s = skein_codec::convert
+direction to record
+
+record CallName = r::CallName
+record CallName = crate::component::CallKey to domain
+enum Reply by hand
+record Message = r::Message to domain { name via s::token }
+enum MessageRefusal = r::MessageRefusal
+enum Effect = r::HostEffect
+record Field = r::outcome::Field { text = value }
+record DeliverAsk = r::outcome::Change { fields slice }
+record Turn by hand
+enum PartKind = smith_domain_session::record::PartKind both ways
+record Part by hand
+record KeptPart by hand
+enum Operation = smith_domain::Operation { check = Checks }
+record Unauthorized = smith_domain::GrantName
+enum UsageState = smith_domain::UsageState
+record UsageWindow = smith_domain::UsageWindow
+enum FactKind by hand
+record Live by hand

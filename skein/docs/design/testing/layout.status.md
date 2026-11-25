@@ -2,6 +2,8 @@
 
 2026-11-24. Where the tree's code lags or departs from [layout.md](layout.md).
 
+
+
 - **Departs:** 1: step tests belong in `src/tests.rs` and `src/tests/`, but
   `skein-shell/src/listener_calls.rs` loads sibling `listener_tests.rs`
   through `#[path]`, as other crates load `*_tests.rs`, and

@@ -206,17 +206,11 @@ fingerprint (README.md, section 8).
 - **A writer writes the version of its release.** `smith check` prints the
   version an agent reads (`../shell/README.md`), so a writer and its
   agents that differ find out before a run.
-- **Version 5 is current,** adding the host tools' `contract` to
-  `Tools`. Both versioned records, Charter and RunResult, carry family
-  version 5. Version 4 is kept, its forward patch giving `contract` 1,
-  and its reverse taking a charter whose contract is 1 down to it; the
-  floor is 4. Versions 1–3 are refused, with no decoder of their own.
-- **Before v0.1.0 a format changes in place.** The `save` grant (section
-  2) was added to version 4 as it is, with no new version (the owner,
-  2026-11-09), and so was the charter's last field, the checks' bound
-  (2026-11-11): a writer and its agents of different builds are of one
-  release only once v0.1.0 is cut, and until then they are built
-  together.
+- **Version 5 is the one,** frozen. Both versioned records, Charter and
+  RunResult, carry family version 5, and the crate keeps no older text:
+  a change of the charter is a change of its layout in its current
+  text, which a host converts as above. Any other version is refused,
+  with no decoder of its own.
 
 ## 6. Limits
 
@@ -260,7 +254,7 @@ and a refusal names what was too large.
 - **The codec:**
   - records-only drift (skein's
     `data/codec/golden.md`, section 1); tests build values with
-    public fields or take fixed-rule values from embedded current or kept
+    public fields or take fixed-rule values from the embedded current
     text, without stored golden bytes or generated test targets;
   - each decoder fuzzed.
 - **The domain's entrance,** from encoded charters:

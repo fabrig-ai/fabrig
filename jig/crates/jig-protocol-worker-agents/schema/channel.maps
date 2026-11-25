@@ -1,0 +1,18 @@
+records smith_channel::v14
+use h = smith_host_domain
+use hand = crate::route
+by hand crate::route
+refuses hand::delivered_to_domain
+refuses hand::delivery_refusal_to_domain
+direction to domain
+
+record CallName = h::CallName to record
+record Receipt by hand
+record Delivered by hand
+record Marker by hand
+record DeliveryRefusal by hand
+enum DeliveryReason = h::DeliveryReason
+record DeliveryFailure by hand
+enum Delivery = h::Delivery { delivered tuple, refused tuple, failed tuple }
+enum FactKind = jig_domain_link::CountKind
+enum LiveKind by hand

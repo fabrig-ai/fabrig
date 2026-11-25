@@ -5,11 +5,11 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 pub const CLIENT_SCHEMA: &str =
-    concat!(include_str!("../schema/client-v44.schema"), include_str!("../schema/client-v44-part1.schema"));
+    concat!(include_str!("../schema/client-v45.schema"), include_str!("../schema/client-v45-part1.schema"));
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
-pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
+pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v2.schema");
 
 mod approval;
 pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};

@@ -59,6 +59,10 @@ impl Tier {
     /// Run the standalone scripted model until this guard leaves the story.
     #[must_use]
     pub fn scripted_model(&self) -> temper_box_kit::parent::Guard {
+        self.scripted_model_with_parking(None)
+    }
+
+    pub(crate) fn scripted_model_with_parking(&self, charter: Option<u32>) -> temper_box_kit::parent::Guard {
         let directory = self.scratch.path();
         let [socket] = temper_fixtures::ports::addresses::<1>(&[]);
         let key = directory.join("browser-model.key");
@@ -74,13 +78,10 @@ impl Tier {
                 serde_json::from_slice(&fs::read(limits).expect("browser limits")).expect("limits JSON");
             settings["items"].as_array_mut().expect("items").push(json!({"setting":{"kind":"limits"},"set":values}));
         }
-        configuration::private(
-            &directory.join("browser-model-settings.json"),
-            &serde_json::to_vec(&settings).expect("model settings"),
-        );
         let log = directory.join("browser-model.log");
         let output = fs::File::create(&log).expect("model log");
-        let child = Command::new(temper())
+        let mut command = Command::new(temper());
+        command
             .args(["fake", "llm", "--document"])
             .arg(doc)
             .arg("--scripts")
@@ -88,9 +89,8 @@ impl Tier {
             .args(["--ready", "browser model "])
             .stdin(Stdio::null())
             .stdout(output.try_clone().expect("log clone"))
-            .stderr(output)
-            .spawn()
-            .expect("standalone scripted model");
+            .stderr(output);
+        let child = spawn_model(&mut command).expect("standalone scripted model");
         let mut patience = temper_box_kit::patience::Patience::arm("the browser's scripted model", WITHIN);
         patience.watch_process(child.id());
         let guard = temper_box_kit::parent::Guard::new(child);
@@ -104,31 +104,34 @@ impl Tier {
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        bootstrap(directory, &key);
+        bootstrap(directory, &key, settings, charter);
         guard
     }
 }
 
+fn spawn_model(command: &mut Command) -> std::io::Result<std::process::Child> {
+    // A harness exit can bypass the guard. Bind this separately launched peer to its owner too.
+    skein_shell::spawn_dying_with_parent(command, skein_io::kernel::Signal::Kill)
+}
+
 /// A no-task sitting commits the settings and restarts before any browser link is held.
-fn bootstrap(directory: &Path, key: &Path) {
+fn bootstrap(directory: &Path, key: &Path, settings: Value, charter: Option<u32>) {
     use temper_box_kit::{
         boxed,
         ctl::{Call, Step},
     };
-    let settings = directory.join("browser-model-settings.json");
-    let settings_calls = vec![
-        Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&[
-            "settings",
-            "apply",
-            settings.to_str().expect("settings path"),
-            "--against",
-            "1",
-            "--key",
-            "browser-model",
-        ])),
-        Step::Run(Call::new(&["sign-out"])),
-    ];
+    let file = directory.join("browser-model-settings.json");
+    let mut settings_calls = vec![Step::Run(Call::sign_in())];
+    if let Some(charter) = charter {
+        settings_calls.push(Step::Run(Call::new(&["settings", "show", "charter", &charter.to_string(), "--json"])));
+        settings_calls.push(Step::Then(Box::new(move |calls| {
+            let read = temper_box_kit::ctl::json(&calls[1]);
+            apply_model_settings(&file, &parking_settings(settings.clone(), read))
+        })));
+    } else {
+        settings_calls.push(Step::Run(apply_model_settings(&file, &settings)));
+    }
+    settings_calls.push(Step::Run(Call::new(&["sign-out"])));
     let account_calls = vec![
         Step::Run(Call::sign_in()),
         Step::Run(Call::new(&[
@@ -164,5 +167,68 @@ fn bootstrap(directory: &Path, key: &Path) {
         if held.is_file() {
             fs::remove_file(held).expect("release browser limit settings");
         }
+    }
+}
+
+fn parking_settings(mut settings: Value, mut read: Value) -> Value {
+    read["value"]["waiting"] = json!(0);
+    let tools = &mut read["value"]["tools"];
+    *tools = json!(tools.as_u64().expect("charter tool families") | crate::public::SUBSCRIBE);
+    settings["items"]
+        .as_array_mut()
+        .expect("settings items")
+        .push(json!({"setting":read["setting"],"set":read["value"]}));
+    settings
+}
+
+fn apply_model_settings(file: &Path, settings: &Value) -> temper_box_kit::ctl::Call {
+    configuration::private(file, &serde_json::to_vec(settings).expect("model settings"));
+    temper_box_kit::ctl::Call::new(&[
+        "settings",
+        "apply",
+        file.to_str().expect("settings path"),
+        "--against",
+        "1",
+        "--key",
+        "browser-model",
+    ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[expect(clippy::disallowed_methods, reason = "Linux delivers parent death on the spawning thread's exit")]
+    fn the_scripted_model_dies_with_its_spawning_thread() {
+        let thread = std::thread::spawn(|| {
+            let child =
+                spawn_model(Command::new("/bin/cat").stdin(Stdio::piped()).stdout(Stdio::null())).expect("model child");
+            let guard = temper_box_kit::parent::Guard::new(child);
+            let pid = guard.child.as_ref().expect("guarded model").id();
+            let fd = skein_shell::keeper::open_child_pidfd(pid, std::process::id()).expect("model identity");
+            (guard, fd)
+        });
+        // The still-open stdin keeps cat alive if the parent-death signal was not armed.
+        let (guard, fd) = thread.join().expect("model's owner thread");
+        let exited = skein_shell::keeper::wait_readable(fd, skein_lib::Duration::from_secs(1));
+        skein_shell::keeper::close_keeper_fd(fd);
+        drop(guard);
+        assert_eq!(exited, Ok(true), "the child must die even when its owner skips dropping the guard");
+    }
+
+    #[test]
+    fn a_parked_charter_preserves_the_rest_of_the_model_settings() {
+        let settings = settings("127.0.0.1:8370");
+        let charter = json!({"number":2,"waiting":10_000_000_000_u64,"tools":514,"instructions":"Produce the change."});
+        let setting = json!({"kind":"charter","number":2});
+        let mut patched = parking_settings(settings.clone(), json!({"setting":setting,"value":charter}));
+        let item = patched["items"].as_array_mut().expect("settings items").pop().expect("charter update");
+        assert_eq!(patched, settings);
+        assert_eq!(
+            item,
+            json!({"setting":setting,"set":{"number":2,"waiting":0,"tools":546,"instructions":"Produce the change."}})
+        );
     }
 }

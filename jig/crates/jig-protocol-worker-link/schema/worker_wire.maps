@@ -1,0 +1,164 @@
+records jig_protocol_worker_wire::v22
+use d = jig_domain_host
+use l = jig_domain_link
+use s = skein_codec::convert
+use h = crate::translate
+by hand crate::translate
+context [jig_protocol_worker_wire::Part]
+refuses h::preparation_to_record
+with context h::preparation_to_record
+direction to record
+
+# The worker's credential
+record Wire by hand
+record Credential by hand
+
+# The worker's hello and agent bounds
+record JobBound = l::JobBound { kind via h::job_kind }
+record EndpointBound = l::EndpointBound
+record Bounds = l::Bounds { endpoints slice, program_endpoints slice }
+enum Phase = l::Phase
+record Hosting = l::Hosting { task = run via s::token, attempt via s::token }
+record Hello by hand
+
+# Other worker-to-engine records
+enum MessageRefusal = d::MessageRefusal
+record Refused = d::Refused { name via s::token }
+record Turn by hand
+record Call by hand
+enum StartCause = d::StartCause
+record InvalidStart
+enum Invalid = d::Invalid
+record InvalidValue by hand
+record Mismatch = d::Mismatch
+enum Refusal by hand
+record RefusalValue by hand
+record Work by hand
+record Ended by hand
+record Parked by hand
+record Resource by hand
+enum Preparation by hand
+record PreparationValue stands for value
+record LimitedAccount
+record RefusedAccount
+enum Bound = d::Bound
+record Exceeded = d::Exceeded
+enum RunFailure = d::RunFailure { exceeded tuple }
+record RunFailureValue stands for value
+enum AgentFailure = d::AgentFailure
+record AgentFailureValue stands for value
+enum CancelReason = d::Reason
+record CancelReasonValue stands for value
+enum Failure = d::Failure { unprepared tuple, run tuple, agent tuple, cancelled tuple }
+enum ModelFailureKind = d::ModelFailureKind
+enum ModelEvidence = d::ModelEvidence
+record ModelFailure = d::ModelFailure
+record Failed by hand
+enum Ending by hand
+record Answer by hand
+enum Operation = l::Operation
+record Long by hand
+enum CountKind = l::CountKind
+record Count by hand
+record PhaseValue by hand
+record InputCall
+enum LiveKind = d::LiveKind { input { id = call } }
+record Piece = d::Piece
+enum FactValue by hand
+record Fact by hand
+record Unauthorized by hand
+record Limited by hand
+record AccountRefused by hand
+
+# Engine-to-worker records
+record Message = d::StartMessage to domain { name via s::token }
+record Workspace by hand
+record HostAnswer
+enum DeliveryOutcome = d::DeliveryOutcome both ways
+record DeliveryAnswer
+enum SettledAnswer = d::SettledAnswer to domain
+record AnsweredCall = d::AnsweredCall to domain
+enum Scheme = l::Scheme to domain
+record CredentialValue by hand
+record ApplicationValue by hand
+record ProgramValue by hand
+enum GrantValue by hand
+record Grant by hand
+record LiveAsk = d::LiveAsk to domain
+
+# Parts of a turn
+enum PartKind = l::PartKind both ways
+record Part by hand
+record PartKept by hand
+record PartBusy by hand
+record KeptPart = l::KeptPart to domain
+record Assignment by hand
+
+# Jobs carry the application's bytes
+record Job by hand
+record JobInvalidStart
+enum JobInvalid = d::JobInvalid
+record JobInvalidValue by hand
+enum JobRefusal by hand
+record JobRefusalValue by hand
+record JobFinished by hand
+record DeliveryOutcomeValue stands for value
+enum JobFailure = d::JobFailure { unprepared tuple, undelivered tuple, cancelled tuple }
+record JobFailed by hand
+enum JobEnding by hand
+record JobAnswer by hand
+record Inbound by hand
+record RelayText
+enum RelayAnswer = d::Relayed to domain { text = Answer }
+record Relayed by hand
+record TurnKept by hand
+record TurnBusy by hand
+record Acknowledge by hand
+record Cancel by hand
+record Granted by hand
+
+# Host-wide program sources
+record ProgramSource by hand
+record Sources by hand
+record Check by hand
+record SignOut by hand
+enum SourceFailure = l::SourceFailure
+record SourceFailed
+record LoginOtherwise stands for method via h::login_method
+enum LoginState = l::LoginState { signed_in_otherwise tuple }
+record Login = l::Login { name via h::source_name }
+record Logins by hand
+enum SignOutResult = l::SignOutResult
+record SignedOut by hand
+
+# Account list reads
+record ReadList by hand
+record ListRow = l::ListedModel { efforts slice }
+record ListRefused
+enum ListFailed = l::ListFailure
+record ListedRows stands for rows slice
+record ListFailureValue stands for value
+enum ListOutcome = l::ListOutcome { listed tuple, failed tuple }
+record ListRead by hand
+
+# Usage windows
+record UsageWindow by hand
+record Usage by hand
+record UsageWindows stands for windows slice
+enum UsageOutcome = l::UsageOutcome { read tuple }
+record UsageRead by hand
+record ReadUsage by hand
+
+# Application reads
+record Ask by hand
+record AskBytes stands for bytes
+enum AskAnswer = l::AskAnswer to domain { bytes tuple }
+record Asked by hand
+
+record Restarting by hand
+
+# Pausing and draining
+enum PauseMode = l::PauseMode to domain
+record Pause by hand
+enum PauseState = l::PauseState
+record Paused by hand

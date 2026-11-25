@@ -2,6 +2,7 @@ mod account_key;
 mod cluster_start;
 mod copy;
 mod core_after_project;
+mod drain;
 mod github;
 mod golden;
 mod held_program;

@@ -61,7 +61,7 @@ fn an_unanswered_named_act_is_kept_for_same_key() {
 }
 #[test]
 fn an_unanswered_drawn_act_is_kept_for_next_call() {
-    let mut f = act(&[b"task", b"stop", b"7"]);
+    let mut f = act(&[b"task", b"stop", b"7", b"Parked"]);
     f.sign_in_then_deliver_me();
     deadline(&mut f, OUTCOME, KEPT_DRAWN);
     assert_eq!(f.kept_records(), fixtures::local::ACT_WITH_STREAM);

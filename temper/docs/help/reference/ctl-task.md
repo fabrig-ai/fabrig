@@ -180,12 +180,15 @@ itself lifts its hold, with every task the hold holds.
 ## task stop
 
 ```
-task stop TASK [--key KEY]
+task stop TASK REASON [--key KEY]
   TASK (task): a number; required. The task's number
+  REASON (reason): text, at most 1048576 bytes, or - to read stdin; required. Why
 Hold a task and every task below it, stopping their runs
 Prints: `done: task N, stop`
 --json: the record stop.
 Key: --key KEY, optional.
+Separate reason words are joined with spaces. Without a reason,
+usage exits 2 before sending anything.
 The stop is a placed hold of yours over the task's subtree. The
 tasks stay held until task release of the stopped task lifts it,
 hold lift lifts it, or task cancel ends them.

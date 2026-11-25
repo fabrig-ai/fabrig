@@ -46,3 +46,7 @@ record Packet = d::Packet {
 }
 record Root by hand
 enum LongChoice = d::LongChoice
+record Rows stands for rows slice
+record RowsNotice = d::SentRows to record { payload = rows }
+record RowsExchange = d::SentRows to record { payload = rows }
+record RowsExchange = d::ReceivedRows to domain { payload = received }

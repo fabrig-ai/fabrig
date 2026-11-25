@@ -85,7 +85,11 @@ fn released() -> Released {
     let mut first =
         world::scripted_waiting_agent_with_guide(&director, None, script(Box::new([call(b"wait", b"{}")])), OLD_GUIDE);
     world::run_assignment(&mut root, &director, &mut first);
-    ask(&mut root, 41, people::Ask::Stop { project: 1, task: director.task });
+    ask(
+        &mut root,
+        41,
+        people::Ask::Stop { project: 1, task: director.task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     root.answer(CHANNEL, owner.task, owner.attempt, 0, tasks::End::Parked, engine::Parts::none());
     root.settle();
     let revision = root.task(director.task).expect("held director").revisions.hold;

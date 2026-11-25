@@ -863,6 +863,7 @@ mod tests {
                         answerer: tasks::Party::Task(2),
                         asked: tasks::Party::Task(2),
                         line: row.activity,
+                        offer: None,
                     }]);
                 }
             } else {
@@ -891,7 +892,8 @@ mod tests {
                     },
                 ]);
                 if question {
-                    row.question_lines = Box::new([tasks::QuestionLine { message: 76, line: 0, answer: None }]);
+                    row.question_lines =
+                        Box::new([tasks::QuestionLine { message: 76, line: 0, answer: None, resolution: None }]);
                 }
             }
             rows.push(row).expect("four fixture rows");

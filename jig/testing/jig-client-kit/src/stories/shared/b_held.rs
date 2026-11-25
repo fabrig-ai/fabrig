@@ -47,7 +47,10 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall) {
             Box::new([
                 Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
                 Act::Request { key: [81; 16], ask: Ask::Chat { words: b"Hello".as_slice().into() } },
-                Act::Request { key: [82; 16], ask: Ask::Stop { task: Task::Number(1) } },
+                Act::Request {
+                    key: [82; 16],
+                    ask: Ask::Stop { task: Task::Number(1), reason: Box::from(b"Parking the task".as_slice()) },
+                },
             ]),
         ),
         now,

@@ -1,6 +1,6 @@
 //! The committed records and bounds (skein/docs/design/data/codec/golden.md, 1).
 use skein_codec::bounds::Declaration;
-use skein_codegen::{bounds_text, generate, values};
+use skein_codegen::{Schema, bounds_text, generate, values};
 use std::fs;
 use std::path::Path;
 
@@ -21,6 +21,17 @@ fn schema_matches(
 
     let path = skein_scratch::paths::package().join("bounds").join(format!("{module}.bounds"));
     check_text(&path, &bounds_text(declarations, ceilings), write);
+}
+
+fn translation_matches(schema: &Schema, maps: &str, codec_crate: &str, module: &str) {
+    let translation = skein_codegen::translate(schema, maps)
+        .unwrap_or_else(|problem| panic!("{codec_crate}/{module}.maps: {problem}"));
+    let path = skein_scratch::paths::tree()
+        .join("crates")
+        .join(codec_crate)
+        .join("src/generated")
+        .join(format!("{module}.rs"));
+    check_text(&path, &translation, temper_test_env::rewrite());
 }
 
 const AGAIN: &str =
@@ -49,6 +60,32 @@ fn worker_wire_schema_matches_generated_code() {
 }
 
 #[test]
+fn channel_translation_matches_its_maps() {
+    let schema = &values(smith_channel::CHANNEL_SCHEMA).schema;
+    let root = skein_scratch::paths::tree().join("crates/temper-worker-service");
+    let maps = fs::read_to_string(root.join("schema/channel.maps")).expect("read channel maps");
+    let output = skein_codegen::translate(schema, &maps).expect("channel maps valid");
+    check_text(&root.join("src/generated/channel.rs"), &output, temper_test_env::rewrite());
+}
+
+#[test]
+fn worker_wire_translations_match_generated_code() {
+    let schema = &values(temper_protocol_worker_wire::SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    for (owner, maps) in [
+        (
+            "temper-engine-service-vocabulary",
+            include_str!("../../../../crates/temper-engine-service-vocabulary/schema/worker_wire.maps"),
+        ),
+        ("temper-worker-service", include_str!("../../../../crates/temper-worker-service/schema/worker_wire.maps")),
+    ] {
+        let translation = skein_codegen::translate(schema, maps).unwrap_or_else(|error| panic!("{owner}: {error:?}"));
+        let path = crates.join(owner).join("src/generated/worker_wire.rs");
+        check_text(&path, &translation, temper_test_env::rewrite());
+    }
+}
+
+#[test]
 fn client_wire_schema_matches_generated_code() {
     use temper_client_protocol_wire::{CLIENT_SCHEMA, v1 as codec};
     schema_matches(
@@ -58,6 +95,50 @@ fn client_wire_schema_matches_generated_code() {
         codec::DECLARATIONS,
         codec::CEILINGS.values().as_slice(),
     );
+    let schema = &values(CLIENT_SCHEMA).schema;
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-domain-forge-vocabulary/schema/client_wire.maps"),
+        "temper-engine-domain-forge-vocabulary",
+        "client_wire",
+    );
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-service-component/schema/client_wire.maps"),
+        "temper-engine-service-component",
+        "client_wire",
+    );
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-smith/schema/client_wire.maps"),
+        "temper-engine-smith",
+        "client_wire",
+    );
+    for (owner, maps) in [
+        (
+            "temper-client-domain-forge",
+            include_str!("../../../../crates/temper-client-domain-forge/schema/client_wire.maps"),
+        ),
+        (
+            "temper-client-domain-pages",
+            include_str!("../../../../crates/temper-client-domain-pages/schema/client_wire.maps"),
+        ),
+        ("temper-client-tools", include_str!("../../../../crates/temper-client-tools/schema/client_wire.maps")),
+        ("temper-protocol-reaches", include_str!("../../../../crates/temper-protocol-reaches/schema/client_wire.maps")),
+        ("temper-settings-form", include_str!("../../../../crates/temper-settings-form/schema/client_wire.maps")),
+    ] {
+        translation_matches(schema, maps, owner, "client_wire");
+    }
+}
+
+#[test]
+fn client_wire_maps_match_generated_engine_translation() {
+    let schema = &values(temper_client_protocol_wire::CLIENT_SCHEMA).schema;
+    let maps = include_str!("../../../../crates/temper-engine-service-vocabulary/schema/client_wire.maps");
+    let translation = skein_codegen::translate(schema, maps).expect("engine client wire maps valid");
+    let path =
+        skein_scratch::paths::tree().join("crates/temper-engine-service-vocabulary/src/generated/client_wire.rs");
+    check_text(&path, &translation, temper_test_env::rewrite());
 }
 
 #[test]
@@ -98,5 +179,12 @@ fn public_wire_schema_matches_generated_code() {
         PUBLIC_SCHEMA,
         codec::DECLARATIONS,
         codec::CEILINGS.values().as_slice(),
+    );
+    let schema = &values(PUBLIC_SCHEMA).schema;
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-domain-forge/schema/public.maps"),
+        "temper-engine-domain-forge",
+        "public",
     );
 }

@@ -740,7 +740,10 @@ impl Calls {
                 bytes
             }
         };
-        let program = call.program.or(call.ctl_program).unwrap_or_else(|| skein_scratch::paths::binary("temper-box"));
+        let program = call
+            .program
+            .or(call.ctl_program)
+            .unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
         self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
             self.started.as_mut().expect("started call").0.kind = kind;
@@ -1032,7 +1035,7 @@ impl Calls {
                 self.action = Some(Action::Run);
                 let args = super::terminal::open_arguments(Path::new(directory), self.link());
                 self.spawn(
-                    skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into(),
+                    skein_scratch::paths::built("temper-box", "temper-box").as_os_str().as_bytes().into(),
                     args,
                     Vec::new(),
                     false,

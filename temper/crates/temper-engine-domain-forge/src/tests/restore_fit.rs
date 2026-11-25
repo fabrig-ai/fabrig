@@ -20,6 +20,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             closer: temper_engine_domain_forge_closer::Closer::new(),
             making: None,
             close_changes: Box::new([]),
+            superseded: Box::new([]),
             landing_changes: Box::new([]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,

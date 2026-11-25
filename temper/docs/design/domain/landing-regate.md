@@ -156,8 +156,8 @@ findings are `findings.md`'s, and a repair, its result and its release
   added field, false by default; and its hold, `ChangeHold`'s added
   arm `no_test` after `flake`, as `Hold::NoTest` in the change's
   policy. The hold reaches the client's wire and the public one as an
-  arm `no_test` of `Hold` and `PublicHold`: each moves its version,
-  unbridged (`../draft/archive/redeploys.md`).
+  arm `no_test` of `Hold` and `PublicHold`: each changes its layout,
+  its version frozen (`../protocol/wires.md`, 9).
 - **No store version moves:** each is a registered family's added
   field or arm (`../protocol/store-versions.md`, section 1).
 

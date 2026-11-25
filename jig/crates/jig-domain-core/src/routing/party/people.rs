@@ -376,7 +376,7 @@ pub(crate) fn tag_people_part(
                             crate::admission::person_task::Action::Answer { task, revision, result },
                         );
                     }
-                    people::Ask::Stop { task, .. } => stop_request(core, env, &mut routed, party, task),
+                    people::Ask::Stop { task, reason, .. } => stop_request(core, env, &mut routed, party, task, reason),
                     people::Ask::Conclude { task, .. } => {
                         super::controls::conclude_request(core, env, &mut routed, party, task);
                     }

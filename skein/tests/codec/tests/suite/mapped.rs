@@ -86,6 +86,18 @@ fn mapped_values_round_trip_through_records_and_wire() {
 }
 
 #[test]
+fn one_way_and_split_maps_translate_a_stands_for_slice() {
+    let sent = d::SentRows { rows: Box::new([3, 1, 4, 2]) };
+    let direct = r::RowsNotice { payload: r::Rows { rows: List::from_boxed(sent.rows.clone()) } };
+    assert_eq!(maps::rows_notice_to_record(&sent), Ok(direct));
+
+    let record = maps::rows_exchange_to_record(&sent).expect("outgoing rows");
+    let bytes = record.encode(&r::CEILINGS).expect("encode");
+    let decoded = r::RowsExchange::decode(&r::CEILINGS, &mut Reader::new(&bytes)).expect("decode");
+    assert_eq!(maps::rows_exchange_to_domain(decoded), d::ReceivedRows { received: sent.rows });
+}
+
+#[test]
 #[cfg(target_pointer_width = "64")]
 fn mapped_slice_count_past_u32_refuses_before_iteration() {
     let context = d::Context { permitted: 7 };

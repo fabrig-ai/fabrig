@@ -255,7 +255,7 @@ fn a_remade_goal_landing_ignores_its_ended_predecessors_news() {
         reply_to: ReplyTo::new(Token::new(970)),
         sign_in: world.signed_in.expect("owner signed in"),
         key: [97; 16],
-        ask: people::Ask::Stop { project: 1, task: second },
+        ask: people::Ask::Stop { project: 1, task: second, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     quiet(&mut world);
     assert!(matches!(live_task(&world, second).phase, tasks::Phase::Held { .. }));

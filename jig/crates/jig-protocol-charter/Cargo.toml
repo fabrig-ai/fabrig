@@ -13,6 +13,7 @@ jig-domain-brief.workspace = true
 jig-protocol-tools.workspace = true
 jig-domain-core-vocabulary.workspace = true
 jig-domain-tasks.workspace = true
+skein-codec.workspace = true
 skein-lib.workspace = true
 smith-domain-run.workspace = true
 smith-charter.workspace = true

@@ -163,17 +163,14 @@ pub fn prepare_agent(bytes: Box<[u8]>) -> temper_worker_shell::agent::Prepared {
 
 /// The same preparation, keeping a refusal for a caller to label.
 pub fn try_prepare_agent(bytes: Box<[u8]>) -> Result<temper_worker_shell::agent::Prepared, String> {
+    let trust = skein_tls_kit::pki::client(&[]);
     temper_worker_shell::agent::prepare_bytes_resolving(
         bytes,
         |_| Ok(()),
         |decoded| {
             decoded.resolve_with(
                 |address| Ok(address.parse().unwrap_or_else(|_| ([127, 0, 0, 1], 9).into())),
-                |_, _| {
-                    let (trust, _) =
-                        skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[]).expect("fixture trust");
-                    Ok(trust)
-                },
+                Some(&trust),
                 |_| None,
             )
         },

@@ -56,7 +56,7 @@ fn recovery(hold: &c::ChipHold, vocabulary: &dyn Parts) -> &'static [u8] {
             b"reduce calls per response or raise agent.json's calls_per_response, then "
         }
         c::HoldCategory::Exceeded(_) => b"reduce the request or raise its configured allowance, then ",
-        c::HoldCategory::Budget => b"",
+        c::HoldCategory::Budget | c::HoldCategory::Waited => b"",
         c::HoldCategory::Deadline => b"amend the task's deadline, then ",
         c::HoldCategory::Effects | c::HoldCategory::EffectFailed => b"review and resolve the effects, then ",
         c::HoldCategory::Failures { .. } => vocabulary.failures_recovery(),
@@ -128,6 +128,7 @@ fn owner(reason: &c::HoldCategory, out: &mut Text) {
         | c::HoldCategory::EffectFailed
         | c::HoldCategory::Budget
         | c::HoldCategory::Deadline
+        | c::HoldCategory::Waited
         | c::HoldCategory::HoldsWaited
         | c::HoldCategory::Circle
         | c::HoldCategory::ResourceUnavailable
@@ -168,6 +169,7 @@ fn owner(reason: &c::HoldCategory, out: &mut Text) {
         | c::HoldCategory::Uncertain { .. }
         | c::HoldCategory::Budget
         | c::HoldCategory::Deadline
+        | c::HoldCategory::Waited
         | c::HoldCategory::HoldsWaited
         | c::HoldCategory::Circle
         | c::HoldCategory::ResourceUnavailable

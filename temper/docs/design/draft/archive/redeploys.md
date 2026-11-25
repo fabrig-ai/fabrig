@@ -1,18 +1,18 @@
 # redeploys: a new build reaches a deployment without stopping its work
 
-Draft, 2026-11-12, with 5.2 and 5.3 amended on 2026-11-15. How a deployment takes a new build of temper while its work goes on: the engine restarted alone while the workers keep their runs, a worker restarted with its agents resuming where they left off, and each part speaking the previous version of the wires between them. It comes from a session with the user on 2026-11-12, after redeploys of dev.fabrig.ai that each cost minutes of failed preparations and held goals, and from a read of main at `ee03a1159c`. The user's word that day: wire versions are no longer changed in place; the store and the wires upgrade from now on, heading to v0.1.0, and dev.fabrig.ai exercises both. The store's half is `../upgrades.md` and `../staged-upgrades.md`. This draft is the processes' half, and replaces `../upgrades.md`, section 9.
+Draft, 2026-11-12, with 5.2 and 5.3 amended on 2026-11-15, and its versions and bridges (sections 1, 3, 4, 7, 8, 10, 11 and 12) revised on 2026-11-25 to carry `../layouts-both-ways.md`, sections 3 to 7: frozen versions, layouts by fingerprint, and one conversion, in the engine, either way. How a deployment takes a new build of temper while its work goes on: the engine restarted alone while the workers keep their runs, a worker restarted with its agents resuming where they left off, and each part speaking the previous version of the wires between them. It comes from a session with the user on 2026-11-12, after redeploys of dev.fabrig.ai that each cost minutes of failed preparations and held goals, and from a read of main at `ee03a1159c`. The user's word that day: wire versions are no longer changed in place; the store and the wires upgrade from now on, heading to v0.1.0, and dev.fabrig.ai exercises both. The store's half is `../upgrades.md` and `../staged-upgrades.md`. This draft is the processes' half, and replaces `../upgrades.md`, section 9.
 
 ## 1. In one page
 
-- **Versions move with their layouts, from now** (section 3). Every wire between the engine, its workers and their agents takes a new version at the landing that changes its layout and keeps the old version's text. A wire that spans builds brings its bridge; smith's channel is declared per-build (4.4). The gate refuses a layout changed in place.
-- **Each side states what it speaks, by layout** (3.2): at the opening, each wire's range of versions and each version's fingerprint. An in-place change the gate missed is refused there, named, rather than met by a task's first assignment.
-- **A version mismatch is never a task's failure** (3.4): what a worker cannot read waits for one that can, spending no try.
-- **The newer side bridges** (section 4). It speaks every version of a wire from its floor up, translating up by the forward patch and down by its reverse. What the older side cannot hold is never sent to it. A change no bridge can carry is declared breaking, and raises the floor.
+- **Versions frozen, layouts by fingerprint** (section 3). Every wire between the engine, its workers and their agents keeps its version; a change of layout is made in its current text, with no old text kept. smith's channel is per-build (4.4).
+- **Each side states what it speaks, by layout** (3.2): at the opening, the worker states each wire's fingerprint and sends its text. A worker whose layouts give the engine no plan is refused there, named, rather than met by a task's first assignment.
+- **A mismatch is never a task's failure** (3.4): what a worker cannot keep waits for one that can, spending no try.
+- **The engine converts** (section 4), whichever side is newer: what it receives by Read plans to its own layouts, what it sends by Keep plans to the worker's. What the worker's layout cannot keep is never sent to it.
 - **An agent is always its worker's build** (4.4): the worker pins its agent's program and configuration at its start, so the channel between them never spans two builds.
 - **The engine alone, by default** (section 5). A check says when the workers may stay; the stop settles and tells the workers it restarts, they keep their runs through a restart wait of 20 minutes, and ride it.
 - **A worker drains, then starts warm** (section 6): it takes no new work, stops each agent at the end of its turn within a bound, saves the work, and ends each attempt interrupted with no try spent. It keeps its stores and admits preparations a few at a time.
-- **Workers in turn** (section 7): a redeploy restarts the engine alone, then the workers one at a time when asked or required, and every part together only across a breaking change.
-- **Clients are refused and reload** (section 8): a page or a client of another version is told so, and reloads or upgrades. Bridging them is later.
+- **Workers in turn** (section 7): a redeploy restarts the engine alone, then the workers one at a time when asked or required, and every part together only across a change of the opening itself.
+- **Clients are refused and reload** (section 8): a page or a client of another layout is told so, and reloads or upgrades. Converting for them is later.
 - **dev.fabrig.ai exercises it** (7.5): every redeploy is a drill, with a referee.
 
 ## 2. What a redeploy costs today
@@ -27,115 +27,113 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 | An agent | Spawned from the path and configuration the worker was given, read again at each spawn, so an old worker that starts an agent after the swap starts a new one. |
 | A client | A page or a client of another build is refused (`version not served`), or meets a record it cannot decode. |
 
-## 3. Versions that move
+## 3. Versions frozen, layouts by fingerprint
 
-### 3.1 With every layout change
+### 3.1 No version moves
 
-- **The rule reversed** (the user, 2026-11-12). Until now, a change a reader would notice was made in place, its version unmoved, until v0.1.0 (jig's `protocol/README.md`, section 7; skein's `data/codec/README.md`, section 5). From now, the wires this draft names take a new version at the landing that changes their layout.
-- **The wires,** each a schema with its own version:
+- **Every wire's version is frozen** at its header's, as the store's families' are (`../layouts-both-ways.md`, 3; `../../protocol/wires.md`, 3.1). A change of layout is made in the wire's current text alone, with no old text kept and no patch; what it costs a deployment is the engine's plans' (4.1).
+- **The wires,** each a schema of its own:
   - jig's worker channel, its kinds' table included: each kind's number, its direction and the record it carries;
   - temper's payloads in it, a git identity's value among them (`../../protocol/channel.md`, section 6);
   - smith's charter with its result, and smith's turns, which the channel carries as bytes;
   - the pieces of smith's channel the engine keeps or sees: a call's name, and a delivery's evidence, which the engine keeps and hands to the run's next worker (`../../protocol/channel.md`, section 2);
-  - the host tools' contract: each tool's name, its input and what it means (4.2);
-  - each job kind's request and result (`../../domain/worker/jobs.md`);
-  - smith's channel between a worker and its agents, which has no bridge (4.4).
+  - smith's channel between a worker and its agents, per-build (4.4).
 
-  Clients' wires are section 8's.
-- **The old version's text is kept,** with its golden bytes (skein's `data/codec/command.md`, section 7), and a wire that spans builds brings its bridge (section 4). The bridge inventory (4.2) also names per-build wires, whose exemption is from translation, never from version moves or kept text.
-- **The gate refuses** a wire whose layout differs from its latest kept text with its version unmoved.
-- **The churn it meets** (main, 2026-10-15 to 11-12): 29 in-place changes to the schemas of jig's channel (14), temper's payloads (4), smith's charter (4), its turns (2) and its channel (5); 14 of them a field, an option or a variant appended; and 19 version moves beside them.
+  Versioned otherwise: the host tools' contract, each tool's name, its input and what it means, versioned whole by its author's hand (4.2; `../../protocol/wires.md`, 7); and each job kind's request and result, files the worker carries unread, which are no wire between temper's builds (`../../protocol/wires.md`, section 8). Clients' wires are section 8's.
+- **Nothing old in the repository:** no kept text, no patch, no golden file of another version and no list of layouts (`../layouts-both-ways.md`, 5 and 9). `smith-transcript`'s version 7 text stays as the store's seed alone (`../../protocol/wires.md`, 3.1).
+- **Frozen, not judged by a gate:** each worker wire's crate holds its version equal to its frozen number (`../../protocol/wires.md`, 3.1), and `fabrig-boundary`'s `client_layouts` holds the clients' (jig's `protocol/client/versions.md`, 1). A layout changed in place is the ordinary change, met by the engine's plans.
+- **The churn it meets** (main, 2026-10-15 to 11-12): 29 in-place changes to the schemas of jig's channel (14), temper's payloads (4), smith's charter (4), its turns (2) and its channel (5); 14 of them a field, an option or a variant appended, each of which a plan derives.
 
-### 3.2 Fingerprints at the opening
+### 3.2 Layouts and texts at the opening
 
-- **Each side states, for each wire, the versions it speaks** and each one's layout fingerprint (skein's `data/codec/fingerprints.md`, section 1). jig's channel agrees its own version from both sides' ranges, as skein's opening does (skein's `net/channel.md`, 5.2); the others are agreed beside it.
-- **Agreed per wire:** the highest version both speak. The engine keeps each worker's agreed versions with its channel, and the fleet places by them (4.3).
-- **Terms and limits are the agreed versions'.** Each side states the largest body of each kind as the agreed versions encode it, after translation, and checks the other's against the same; a configured limit both sides must share is stated beside them. So an appended field fails no terms that its translated value fits.
-- **A version both sides name with different fingerprints** is an in-place change past the gate. The opening refuses it, naming the wire, the version and both fingerprints, and the worker redials as after any refusal.
-- **No version in common** refuses the opening likewise, naming the wire and both ranges.
-- **`versions` prints them** (`../../protocol/binaries.md`): each wire's range, each version's fingerprint, and its floor (3.3).
+- **A worker states each wire's layout,** its family fingerprint (skein's `data/codec/fingerprints.md`, section 1), and sends each wire's text in its credential, once per connection (jig's `protocol/channel/wires.md`, 2). jig's channel agrees its framing version as skein's opening does (skein's `net/channel.md`, 5.2), one frozen version on each side.
+- **A layout equal to the engine's** converts nothing, and its text is not parsed: every part of one build meets this case (jig's `protocol/channel/layouts.md`, 2.3).
+- **A layout that differs** has a plan derived for each value type the wire carries, each way, kept by the worker's text, so a fleet on one build derives once (jig's `protocol/channel/layouts.md`, 3).
+- **Refused by name:** a text that does not parse, a value type with no plan and no written converter, or a `smith-pieces` layout other than the engine's refuses the opening, naming the wire, and the worker redials as after any refusal (jig's `protocol/channel/wires.md`, 3). The worker is drained and restarted on the new build (6.1).
+- **Terms are the worker's layout's.** The engine accepts with the worker's kinds' table, so frames cross at the worker's layout and their bounds are that table's (skein's `net/channel.md`, 5.2; jig's `protocol/channel/wires.md`, 4 and 5).
+- **`versions` prints each wire's layout,** its fingerprint, in place of a range and a floor (`../../protocol/wires.md`, section 10).
 
 ### 3.3 The floor
 
-- **Each build speaks every version of a wire from its floor to its current.** The floor is kept in the repository, one per wire.
-- **It bounds what is spoken, not what is read.** A kept text and its forward patch stay for good (skein's `data/codec/command.md`, section 7), since stored turns, calls' names and deliveries' evidence keep the versions they were written in. Below the floor, a build no longer negotiates the version or translates down to it.
-- **It moves only by a landing that says so:** one that raises it once no deployment speaks the versions below, or a breaking change (4.5), which raises it to its own version.
-- **At least the previous version, for a wire that spans builds.** A landing that moves its version leaves its floor at or below the previous one, unless the change is breaking. A wire declared per-build in the bridge inventory (4.2) speaks only its build's version and needs no breaking declaration for that move.
-- **Until bridges are built,** each build's floor is its current version: versions move and are compared, and nothing is translated. A worker of another layout is then refused at the opening by name, and the check (5.1) says it may not stay.
-- **Workers keep up with it:** dev.fabrig.ai's workers are restarted in turn (7.2) before a new build's floor passes the versions they speak, which the check says.
+- **No wire keeps a floor.** A build speaks its own layouts alone, and the engine converts for any worker whose layouts its plans derive from, older or newer.
+- **What no plan derives is kept to the floor of what dev.fabrig.ai runs** (`../layouts-both-ways.md`, 7.4): a tombstone for a dropped field, a written converter for a retype (jig's `protocol/channel/layouts.md`, 6). Each goes once dev.fabrig.ai and every part it runs are at or past the layout that made it needed; a worker still at that layout then has no plan, and is refused at its opening by name.
+- **The host tools' contract keeps its floor** (`../../protocol/wires.md`, 7): the engine answers every version from it, so an adopted run's calls are answered as before.
+- **Workers keep up with it:** dev.fabrig.ai's workers are restarted in turn (7.2) before a landing removes what their layouts need, which the check (5.1) says.
 
 ### 3.4 A mismatch costs no task
 
-- **What a worker cannot read is a host's refusal, not a run's failure.** An assignment refused for the version of its charter, its items or its transcript, which the opening should have prevented, ends its claim refused: the task claims again after a pause and spends no try (jig's `domain/tasks/lifecycle.md`, 2), and the fleet places no such assignment on that worker while its channel stands.
-- **It is told as a mismatch,** naming the wire and both sides' versions, in the engine's log and the task's retry notice, never as a bare `charter`.
-- **What the engine cannot read once the opening agreed** is a bridge's bug, caught by each bridge's tests (section 10). A result fails its run as invalid, as today. A turn is kept as its bytes and read later; one that cannot be read when its window is resumed closes the window, as today (jig's `domain/engine/executors-transcripts.md`, 1).
+- **What a worker's layout cannot keep is refused before it is sent** (4.3), as a typed answer to the domain that sent it: an assignment or a job whose charter, items or transcript the worker can't keep ends its claim refused, *untranslated*, spending no try (jig's `domain/tasks/lifecycle.md`, 2), and the fleet keeps that task off that channel while it stands (jig's `protocol/channel/layouts.md`, 5.1).
+- **It is told as a mismatch,** naming the wire, the declaration and the part, in the engine's log and the task's retry notice, never as a bare `charter`.
+- **A worker's own refusal for a version** (jig's `protocol/channel/wires.md`, 6) is a conversion's bug past the opening, and spends no try either.
+- **What the engine cannot read,** its Read plan refusing it, is a body that does not decode (jig's `protocol/channel/layouts.md`, 5.3). A result fails its run as invalid. A turn is kept as its bytes and read later; one that cannot be read when its window is resumed closes the window (jig's `domain/engine/executors-transcripts.md`, 1).
 
-## 4. Bridges
+## 4. Conversion
 
-### 4.1 The newer side translates
+### 4.1 The engine converts
 
-- **In the shared protocol crates,** which both sides link. The side whose current version is newer than the agreed one translates what it sends down and what it receives up. The older side runs as if nothing had changed.
-- **Up, by the forward patch:** each kept version to the next by the patch the command writes (skein's `data/codec/command.md`, section 3), over generic values (skein's `data/codec/run-time.md`, section 2), chained from the agreed version to the current. It is total: an added field takes the value every older record takes (`../upgrades.md`, 4.3).
-- **Down, by its reverse.** The command derives it wherever the forward patch is derived: an added field is dropped when it holds the value the older side assumes (an option at none, a list empty); a widened integer is narrowed when it fits; a dropped field goes down with the value its author declares the older side should assume. Otherwise the author writes the reverse, or declares which values the older side cannot hold (4.3).
-- **Nothing goes up only to come down again.** Bytes kept in a version the reader speaks (a stored turn, a call's name, a delivery's evidence) cross as they were written. What crosses down is what the newer side's own code made.
-- **What the older side must get back is not dropped.** A field an older side sends and expects to meet again (an identity it echoes, a value it resumes from) stays in the schema until the floor passes the versions that need it; dropping it sooner is a breaking change.
-- **Written once, at the landing,** with its tests (section 10). The common change, an option appended, costs its author nothing beyond running the command.
+- **In the engine's workers component,** whichever side is newer (jig's `protocol/channel/layouts.md`): what it receives runs through a Read plan from the worker's layout to its own, then its own decoder; what it sends is encoded at its own layout, then runs through a Keep plan to the worker's (skein's `data/codec/layouts.md`, 2). The worker, and the agent its build pins (4.4), speak their own layouts alone and know nothing of other builds.
+- **Why the engine:** it is the one side that holds every connection, and a redeploy restarts it first (7.1). The plans need no age, so a worker newer than the engine converts the same way, and a redeploy's order costs refusals, never correctness (`../layouts-both-ways.md`, 6.1).
+- **Read skips, Keep refuses:** what the engine receives is used as its own, what its layout lacks skipped; what it sends must mean the same at the worker, so what the worker's layout lacks is dropped only at its default or where the engine's text marks it `droppable`, and anything else refuses the value (4.3).
+- **Nothing goes up only to come down again.** Bytes kept at the layout they were written in (a stored turn, a call's name, a delivery's evidence) are converted from that layout, never through the engine's: a stored turn by the layout the store's registry names for it (jig's `protocol/store/transcripts.md`, 6), a call's name and a delivery's evidence not at all (4.2).
+- **What the worker must get back is not dropped.** A field a worker sends and expects to meet again (an identity it echoes, a value it resumes from) keeps a tombstone once dropped, so the engine's Keep plan writes it back (3.3).
+- **Written once, in the schema:** the common changes, a field added with a default, a field dropped with its tombstone, a variant added, a bound widened, cost their author nothing beyond the schema's line; a retype or a reshape takes a written converter (3.3).
 
 ### 4.2 What crosses
 
-| Wire | Sent by | Down, to an older side | Up, from an older side |
+| Wire | Sent by | Engine to worker, Keep | Worker to engine, Read |
 |---|---|---|---|
-| jig's channel records | both | each record by its kind's reverse | forward |
-| temper's payloads | both | items, job specs, preparations | forward |
-| a git identity's value | the engine | encoded for each channel in its agreed version, at the assignment and at each renewal, keeping its number, generation and validity | — |
-| smith's charter | the engine | written in the worker's agreed version | — |
-| smith's result | the agent | — | in its charter's version, read forward |
-| smith's turns | the agent; the engine, resuming | a window resumed on an older worker | kept as written, read forward (`../upgrades.md`, 7.2) |
-| a call's name, a delivery's evidence | the agent; the engine, resuming | kept as written, crossing as written to a worker that reads it | kept as written, read forward |
+| jig's channel records | both | each frame as its kind's enumeration, `FromEngine` | each frame, `FromWorker` |
+| temper's payloads | both | items, job specs, answers to asks | what a run left and saved, preparations, asks |
+| a git identity's value | the engine | its `Grant` converted at the assignment, the job and each renewal, keeping its number, generation and validity | — |
+| smith's charter | the engine | converted to the worker's layout | — |
+| smith's result | the agent | — | an ended run's outcome |
+| smith's turns | the agent; the engine, resuming | each turn of a window resumed, and each part's body | each turn and part as it arrives |
+| a call's name, a delivery's evidence (`smith-pieces`) | the agent; the engine, resuming | never converted: kept as bytes that name no layout, they cross as written, and the opening requires the worker's layout to be the engine's | the same |
 | a host tool's input | the agent | — | by the tools' contract of the run's charter (below) |
-| a job's request and result | the engine; the worker | by the kind's reverse | forward |
-| smith's channel (`smith-channel`), per-build (4.4) | the worker; its spawned agent | no bridge: the worker pins its agent's program and configuration at startup | no bridge: a restarted worker spawns fresh agents, adopting none |
+| a job's request and result files | the engine; the worker | carried unread: no wire between builds (3.1) | the same |
+| smith's channel (`smith-channel`), per-build (4.4) | the worker; its spawned agent | nothing: the worker pins its agent's program and configuration at startup | nothing: a restarted worker spawns fresh agents, adopting none |
 
-- **Stored turns are never rewritten.** The engine keeps a turn's bytes in the version its agent wrote, and patches them forward as it reads them (`../upgrades.md`, 7.2; smith's `protocol/README.md`, section 8). A window resumed on a worker of an older version crosses as written when that worker reads it, goes down otherwise, or is placed elsewhere (4.3).
-- **A git identity's value is a secret inside a grant,** opaque to jig's records, so its translation is temper's, for each channel, where it encodes the value (`../../protocol/channel.md`, section 6). The two newest generations are kept in each version a connected worker speaks.
-- **The host tools' contract is versioned whole.** A run's charter names the version its tools were written in, and a run adopted across an engine restart keeps calling them. The engine answers every version from its floor: a tool removed, renamed or changed in its input or meaning keeps its old contract until the floor passes it, so an adopted run's calls are answered as before. Dropping an old contract sooner is a breaking change.
-- **A job's retained answer,** kept by a worker across the engine's restart, is read forward like any message.
+- **Each value type of each wire** is planned in each direction it crosses, and no other (jig's `protocol/channel/layouts.md`, 2.1, which lists them).
+- **Stored turns are never rewritten.** The engine keeps a turn's bytes at the layout its agent wrote, which the store's registry names, and reads them by that layout's plan (jig's `protocol/store/transcripts.md`, 6). A window resumed on a worker is converted turn by turn to the worker's layout; one turn that can't be kept refuses the assignment, which is placed elsewhere (4.3).
+- **A git identity's value is a secret inside a grant,** opaque to jig's records, and its `Grant` is temper's value type, converted by its Keep plan at each send (`../../protocol/wires.md`, 6). The engine keeps its two newest generations at its own layout alone.
+- **The host tools' contract is versioned whole.** A run's charter names the version its tools were written in, and a run adopted across an engine restart keeps calling them. The engine answers every version from its floor: a tool removed, renamed or changed in its input or meaning keeps its old contract until the floor passes it, so an adopted run's calls are answered as before. Dropping an old contract sooner is a breaking change of that contract (`../../protocol/wires.md`, 7).
+- **A job's retained answer,** kept by a worker across the engine's restart, is read by its Read plan like any message.
 
-### 4.3 What cannot go down
+### 4.3 What the worker cannot keep
 
-- **Only at an assignment may something wait.** An assignment whose charter or items use what the worker's version lacks, or whose window holds turns it cannot read, is placed on a worker that reads it. With none, it waits, spending no try and saying why; during a rolling redeploy (7.2), the next worker back takes it.
-- **A running attempt must be reachable.** Everything sent to a run already on a worker (an inbox message, a call's answer, a grant's renewal, a cancel) must go down whole to its worker's agreed version, since that run cannot move. A change whose reverse is not total for these is a breaking change (4.5).
-- **A newer worker before an older engine:** everything the worker sends (turns, results, its payloads, its jobs' results) must go down whole. A worker whose wires cannot is refused at the opening, naming them, so the engine goes first (7.2).
+- **Only at an assignment may something wait.** An assignment or a job whose charter, items or window the worker's layout cannot keep is refused for that worker before anything is sent, *untranslated*, and the fleet keeps the task off that channel; another worker takes it, or it waits, spending no try and saying why; during a rolling redeploy (7.2), the next worker back takes it (jig's `protocol/channel/layouts.md`, 5.1). Whether it goes down depends on its values, not on the layouts alone: an option appended at none goes down, so trying it is the judge.
+- **A running attempt cannot move.** A message to a run already on a worker (an inbox message, a call's answer, a grant's renewal, a cancel) that the worker's layout cannot keep is discarded and logged, and the channel takes no new placement while what it hosts goes on (jig's `protocol/channel/layouts.md`, 5.2). No gate holds these kinds total across layouts: a change their messages cannot carry to the previous build's workers is met by draining those workers (6.1).
+- **A newer worker before an older engine** converts the same way: what it sends is read by the engine's Read plans, what the engine's layout lacks skipped, and a worker whose layouts give no plan is refused at the opening, by name (3.2).
 
 ### 4.4 An agent is its worker's build
 
 - **Pinned at the worker's start.** The worker takes its agent's program and the agent's configuration, as its own configuration names them (`../../domain/worker/agent-processes.md`, section 1; `../../protocol/binaries.md`, section 5), into its own data directory as it starts, and spawns that copy for every run until it exits. A redeploy replacing the program or the configuration changes what the worker's next start pins, never a running worker's agents.
-- **So smith's channel never spans two builds.** It speaks one version and has no bridge. Its version still moves with its layout, so that a misconfigured program is refused at the opening, by name (smith's `protocol/README.md`, section 8). The pieces of it the engine keeps are wires of their own (3.1).
-- **The boundary is local pipes,** from the worker's `smith-host-protocol` to its child agent's `smith-protocol-channel`, one channel per run (`../../domain/worker/agent-processes.md`, section 1; smith's `protocol/channel.md`, section 2). The engine is neither endpoint nor a relay for these frames. An engine-only redeploy leaves the worker and its pinned agents together on their existing build, including agents spawned after the program at its configured path is replaced. A worker restart starts new channels with its newly pinned agent; agents from its previous start are never adopted. Thus the move from channel 6 to 7, adding drain, is a per-build version move, recorded in the bridge inventory (4.2), without a bridge or a breaking declaration for the deployment's cross-build wires.
+- **So smith's channel never spans two builds.** Its version is frozen as every wire's is, and nothing converts it (`../../protocol/wires.md`, section 2). The pieces of it the engine keeps are wires of their own (3.1).
+- **The boundary is local pipes,** from the worker's `smith-host-protocol` to its child agent's `smith-protocol-channel`, one channel per run (`../../domain/worker/agent-processes.md`, section 1; smith's `protocol/channel.md`, section 2). The engine is neither endpoint nor a relay for these frames. An engine-only redeploy leaves the worker and its pinned agents together on their existing build, including agents spawned after the program at its configured path is replaced. A worker restart starts new channels with its newly pinned agent; agents from its previous start are never adopted. So a change of smith's channel, adding drain among them, costs nothing across builds.
 - **Pinning is a prerequisite for keeping a worker.** A worker from before pinning must be stopped before its configured agent program is replaced, then restarted on the new build. Keeping that worker across a swap could make it spawn an agent from another build; the per-build exemption does not cover that rollout. Section 7.3's restart of every part establishes the pinned workers before engine-only redeploys rely on them.
 - **An agent goes with its worker.** A worker that stops or dies takes its agents' process groups with it, and a worker's start finds nothing of its previous life still writing in its workspaces (smith's `domain/host.md`, section 4, whose status records today's gap).
 - **Agents outliving their worker,** adopted by its next start, are later (the user, 2026-11-12; section 12).
 
-### 4.5 Breaking changes
+### 4.5 Changes no plan carries
 
-- **A change no bridge carries is declared breaking** in the landing that makes it: a reverse that can be neither derived nor written, a message to a running attempt that cannot go down whole (4.3), or a change of meaning the older side cannot be told. The gate asks for the declaration, as it asks for a patch.
-- **It raises the wire's floor to its own version** (3.3), so no build speaks across it, and a redeploy across it restarts every part together (7.3).
-- **A fresh mark on smith's turns** (jig's `domain/engine/executors-transcripts.md`, 1) is a breaking change of the turns' wire.
-- **Rare by design:** for each breaking change, the command names what makes it so and the bridgeable alternative, such as a new field beside the old, kept until the floor passes.
+- **No breaking declaration for a wire's schema.** A change no plan derives and no written converter carries refuses each worker whose layout needs it, by name, at its opening (3.2): those workers are drained and restarted on the new build (6.1), while the rest stay.
+- **A change of the opening itself** (the credential, laid out alike in every build) is no layout any plan reads: its landing restarts every part together (7.3), as the landing that froze the versions did (`../../protocol/wires.md`, 3.2).
+- **A change of meaning a worker cannot be told,** a field kept with another sense, is a new field beside the old, kept until the floor passes the old one (3.3).
+- **The host tools' contract keeps its breaking declaration,** which raises that contract's floor (`../../protocol/wires.md`, 7).
 
 ## 5. The engine alone
 
 ### 5.1 When the workers may stay
 
-- **The check** (`upgrade --check`, `../../protocol/binaries.md`), run by the new binary before the swap. It is a rehearsal of the store's registry changes and jobs over a copy, which then restores the copy as a start does, through the domain's fit and link checks, and names the first record a start would refuse, in a start's words (`../store-starts.md`, section 2); its verdict on the workers compares the wire numbers the store keeps (`../upgrades.md`, section 9, before this draft), and says unknown when it keeps none. Judging each worker by its ranges, fingerprints and terms is this draft's, and new. A worker may stay when, for every wire, its stated range meets the new build's range at or above the new build's floor, its fingerprints for the versions both name agree, its terms fit the new build's for the agreed versions (3.2), and no breaking change or fresh mark lies between. It names each worker that may not, and why.
-- **What it reads:** beside the wires the store keeps for the engine (jig's `protocol/store/records.md`, 3), each worker's opening as the engine last authenticated it: its name, its ranges, its fingerprints, its terms and when. So the check runs with the engine stopped.
+- **The check** (`upgrade --check`, `../../protocol/binaries.md`), run by the new binary before the swap. It is a rehearsal of the store's registry changes and jobs over a copy, which then restores the copy as a start does, through the domain's fit and link checks, and names the first record a start would refuse, in a start's words (`../store-starts.md`, section 2); its verdict on the workers compares the wire numbers the store keeps (`../upgrades.md`, section 9, before this draft), and says unknown when it keeps none. Judging each worker by its layouts, texts and terms is this draft's, and new. A worker may stay when the new build's engine would accept its opening: for every wire, its layout is the new build's or its text gives a plan for each value type, its `smith-pieces` layout is the new build's, and its terms fit (3.2), judged by the function the opening judges by (`../../protocol/wires.md`, 10.2). It names each worker that may not, and why.
+- **What it reads:** beside the wires the store keeps for the engine (jig's `protocol/store/records.md`, 3), each worker's opening as the engine last authenticated it: its name, its layouts and texts, its terms and when. So the check runs with the engine stopped.
 - **A worker with no record,** or none since the engine's last start, is reported unknown and treated as one that may not stay.
 - **A worker that may not stay** makes the redeploy one of every part together (7.3).
 
 ### 5.2 The stop settles and says so
 
 - **Told to stop, the engine settles first** (`../upgrades.md`, section 8; jig's `domain/engine/restart.md`, 5): its effects in flight on the forge settle, and no run is placed meanwhile.
-- **Then it says it restarts.** Once settled, the engine keeps in its store that it restarts and how long it asks its workers to wait, its restart wait; then, before it closes their links, it tells each worker so. It says it only on a link whose agreed version of the workers' wire carries the word: at an older version the word is not sent, which is no mismatch and raises no floor (4.3), and that worker keeps its grace. Without the word, a clean close, a reset and a silence look alike to a worker, and each meets the same grace.
+- **Then it says it restarts.** Once settled, the engine keeps in its store that it restarts and how long it asks its workers to wait, its restart wait; then, before it closes their links, it tells each worker so. It says it only on a link whose worker's layout of the workers' wire has the word's kind (jig's `protocol/channel/layouts.md`, 4.1): to a worker without it the word is not sent, which is no mismatch (4.3), and that worker keeps its grace. Without the word, a clean close, a reset and a silence look alike to a worker, and each meets the same grace.
 - **The workers keep their runs.** Their links stay up while the engine settles, and their wait starts when the link drops.
 
 ### 5.3 The window fits the wait
@@ -149,7 +147,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 - **What needs the engine waits within the run's own deadlines.** A relayed call waits within its caller's and its run's deadlines; past them it fails to its agent as any slow call does, and the run goes on. A relayed attempt that its own timeout withdraws while the link is down is tried again with no uncertain effect. A completion that can't be issued for want of a valid grant waits for one, keeping its retries, as a wait its agent's supervision knows of; one already issued runs on under its provider's deadlines, and an account that must be signed in again fails as it does now.
 - **The run's budgets keep counting.** The wait ends cancellation for contact, not the run's own bounds: a run whose time, turns or spend run out meanwhile ends as any run whose budget runs out.
 - **A window past the wait** ends the runs interrupted, with no try spent (jig's `domain/hosts/hub.md`, 6): a slow restart costs turns, never tasks.
-- **Who will not ride it is named.** Before the stop, the redeploy (section 7) reads from the running engine each worker's agreed version of the workers' wire, and names those that will not hear the word and so keep their grace alone. The first redeploy onto the build that brings the word is stopped by an engine that cannot say it, so all its workers keep their grace. The referee (7.5) judges each worker by the wait it was given and its own return.
+- **Who will not ride it is named.** At its settled stop, the engine names in its own lines each worker told it restarts and each not told, whose layout lacks the word and so keeps its grace alone (`../../protocol/wires.md`, section 4). The first redeploy onto the build that brings the word is stopped by an engine that cannot say it, so all its workers keep their grace. The referee (7.5) judges each worker by the wait it was given and its own return.
 
 ### 5.4 The opening
 
@@ -191,14 +189,13 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 7.2 Workers in turn
 
-- **When:** on request, for a change the workers run; or when the check says a coming build's floor would pass them.
+- **When:** on request, for a change the workers run; or when the check says a worker's layouts give the new engine no plan (3.2).
 - **One at a time:** drain (6.1), swap, start, and wait for its hello and its first logins before the next. The other workers serve throughout: two of dev.fabrig.ai's three.
-- **The engine first** whenever a wire moved. A worker goes first only when all its wires go down whole, which its opening checks (4.3).
+- **The engine first,** since it converts for every worker; a worker that goes first is converted the same way (4.3), and its opening says whether its layouts plan.
 
 ### 7.3 Every part together
 
-- **Only across a breaking change or a fresh mark, or with a worker that may not stay:** every worker drained, then the engine's settled stop, every binary swapped, and all started. Runs end interrupted with their work saved; none is lost.
-- **Until sections 3 and 5 are built,** every redeploy is this one, drained once 6.1 is.
+- **Only across a change of the opening itself (4.5), or with a worker that may not stay:** every worker drained, then the engine's settled stop, every binary swapped, and all started. Runs end interrupted with their work saved; none is lost.
 
 ### 7.4 The configuration
 
@@ -206,15 +203,15 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 7.5 Exercised on dev.fabrig.ai
 
-- **Every redeploy is a drill** (the user, 2026-11-12). Its script runs the check, does what the check says, and its referee reports afterwards: each worker's agreed versions; no try spent and no attempt lost because of the redeploy; no goal held for its infrastructure since; each worker's return against the wait it was given, the restart wait or its grace; and no run ended for contact while the engine went alone, though such an end spends no try.
-- **staging.fabrig.ai goes first** with a build that runs a store job (7.1) or carries a breaking change.
+- **Every redeploy is a drill** (the user, 2026-11-12). Its script runs the check, does what the check says, and its referee reports afterwards: each worker's layouts, the engine's or converted, by wire; no try spent and no attempt lost because of the redeploy; no goal held for its infrastructure since; each worker's return against the wait it was given, the restart wait or its grace; and no run ended for contact while the engine went alone, though such an end spends no try.
+- **staging.fabrig.ai goes first** with a build that runs a store job (7.1) or changes the opening (4.5).
 - **The drills run on the deployments after landing.** Plans prove with the focused and fuzzy suites alone (section 10).
 
 ## 8. Clients
 
-- **A client of another version is refused and told** (jig's `protocol/README.md`, section 7): `version not served`, with the ranges served. A page reloads to the engine's bundle, and `temper-client` and the TUI say to upgrade. Requests kept in another version are dropped with a notice (`../upgrades.md`, 7.4).
-- **Their versions move with their layouts too** (3.1), with no kept text and no bridge, so that a client of another layout is always refused by name rather than meeting a record it cannot decode. An engine serves its one version of each.
-- **Not bridged, for now** (the user, 2026-11-12): 198 in-place changes to the clients' wires in the four weeks to 11-12, the most churn of any wire. Bridging them is later (section 12).
+- **A client of another layout is refused and told** (jig's `protocol/client/versions.md`, 1): its families' versions are frozen as every wire's are (3.1), and the stream's hello names the engine's layouts, which the client judges, so a client of another layout is refused by name rather than meeting a record it cannot decode. A page reloads to the engine's bundle, and `temper-client` and the TUI say to upgrade. Requests kept at another layout are dropped with a notice (`../upgrades.md`, 7.4).
+- **No kept text and no conversion** for clients: an engine serves its one layout of each (`../../protocol/wires.md`, section 9).
+- **Not converted, for now** (the user, 2026-11-12): 198 in-place changes to the clients' wires in the four weeks to 11-12, the most churn of any wire. The engine converting for them as it does for workers is later (section 12).
 
 ## 9. Infrastructure failures
 
@@ -225,10 +222,10 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 Plans prove it with the focused and fuzzy suites alone; the drills come after landing (7.5).
 
-- **Each bridge:** the kept version's golden bytes taken up equal the current's, and the current's taken down equal the kept version's. Fuzzy: any current value that can go down comes back up as itself; one that cannot is refused, never altered; any value of an older version taken up reads under the current code.
-- **The gate:** a mutation of each kind it must fail on: a layout changed in place, a kind's number or direction changed, a kept text edited, a bridge missing, a floor raised without a breaking declaration.
-- **The opening:** a worker speaking the floor, one speaking the current, one naming a version with another layout (refused, named), one with no version in common (refused, named), and one whose appended field fits its terms only once translated.
-- **A story across versions** in the one-process world (`../../testing/tiers.md`, 1.5), with a worker made to speak its wires' previous versions: a goal through a landing, a close job, a chat resumed, a run adopted across an engine restart and sent a message, a call's answer and a renewed git identity after it, and a host tool of the previous contract called by that run.
+- **Each plan:** skein's round trip, a value converted by the Keep plan and back by the Read plan coming back as itself, over `every`'s texts and the fuzzy suite's pairs; each refusal and each "no plan" a case of its own (skein's `data/codec/layouts.md`, 6).
+- **The freeze:** a client family's version moved is refused by `client_layouts`, and each worker wire's crate holds its frozen number (3.1).
+- **The opening:** a worker at the engine's layouts, converting nothing; one at another layout, its plans derived; one whose layout gives no plan, refused and named; one whose `smith-pieces` layout differs, refused and named (jig's `protocol/channel/wires.md`, 7).
+- **A story across layouts** in the one-process world (`../../testing/tiers.md`, 1.5), with a worker made to speak other layouts of its wires: a goal through a landing, a close job, a chat resumed, a run adopted across an engine restart and sent a message, a call's answer and a renewed git identity after it, and a host tool of the previous contract called by that run.
 - **The engine alone:** an engine restarted mid-run with its workers kept, the run going on with no new attempt; a window past the grace ending it interrupted.
 - **A restart said:** an engine that announced its restart, back after longer than the grace and within the restart wait, the run's turns and checks going on meanwhile, its relayed call and its completion's grant waiting, and no new attempt; the same window after a link lost without a word, the run ended interrupted after the grace; a worker gone for good across an announced restart, its run placed elsewhere only once the hold has passed; a hello received whose answer never reaches the worker, then the link lost, the hold kept; two restarts in a row, a crash during the start between them, and a shorter restart wait on the second, no hold shortened; a call near its deadline, and an attempt withdrawn by its own timeout while the link is down; a run near its time budget, ending as its budget says; a worker at the version before, sent no word, keeping its grace and its link.
 - **A worker drained:** mid-turn, the turn ends, the work is saved and the next attempt resumes with no try spent; a job drained before its effect ends interrupted; a save past the stop bound abandoned, with nothing written after it.
@@ -241,25 +238,24 @@ Each part is carried by a goal, across the trees.
 
 | Part | Where |
 |---|---|
-| Versions moving with layouts; kept texts, reverses, floors, the breaking declaration and the gate's checks (3.1, 3.3, 4.1, 4.5) | skein's patch command and check; each wire's crate |
-| Fingerprints, ranges and terms at the opening; translation in the channel's components; placement by agreed versions; a mismatch as a refusal (3.2 and 3.4 to 4.3) | jig's channel and fleet; temper's payloads |
-| The charter's, result's and turns' bridges; calls' names and deliveries' evidence; stopping at a turn's end; agents' process groups (4.2, 4.4, 6.1) | smith |
+| Frozen versions, plans between any two layouts in Read and Keep modes, tombstones (3.1, 3.3, 4.1) | skein's codec; each wire's crate |
+| Layouts, texts and terms at the opening; conversion in the engine's workers component; a value the worker can't keep as a refusal; placement around it (3.2 and 3.4 to 4.3) | jig's channel and fleet; temper's payloads |
+| The charter's, result's and turns' value types; calls' names and deliveries' evidence; stopping at a turn's end; agents' process groups (4.2, 4.4, 6.1) | smith |
 | The host tools' contracts; jobs' requests and results; git identities for each channel (4.2) | temper's engine and worker |
 | Agents pinned at the worker's start; the drain and the enforced stop bound; jobs on a drain; preparations a few at a time (4.4, section 6) | temper's worker; jig's hub |
 | A settled stop that places nothing; the graces (5.2, 5.3) | jig's engine; temper's configuration |
 | The restart said on each link whose version carries it, and its wait: kept by the worker, held by the engine over the runs it restores until discharged; a waiting run's relayed calls and grants; the redeploy naming who keeps its grace alone, and its referee judging each worker by its wait (5.2, 5.3, 7.5) | jig's engine, fleet, link and hub; smith's run and session; temper's configuration; the redeploy script and its referee |
-| `versions` and `upgrade --check` with ranges, fingerprints, terms, floors and workers' openings (3.2, 5.1) | temper's binaries |
+| `versions` and `upgrade --check` with fingerprints, texts, terms and workers' openings (3.2, 5.1) | temper's binaries |
 | The policy for infrastructure failures (section 9) | jig's tasks |
 | The redeploy script, its referee and the drills (section 7) | the deployments' operator |
 
 ## 12. Later and open questions
 
 - **Agents outliving their worker** (the user, 2026-11-12: later): a worker's restart adopting its agents still running, which needs their channel over something that outlives the worker, and the worker's state on disk.
-- **Clients bridged:** pages and clients of the previous version served, once their wires settle.
+- **Clients converted:** pages and clients of another layout served, the engine converting for them as it does for workers, once their wires settle (`../layouts-both-ways.md`, 10).
 - **The drain's bound.** Default: 3 minutes.
 - **The workers' grace.** Default: 5 minutes, with the engine's grace above every worker's enforced stop bound.
 - **The restart wait.** Default: 20 minutes, with room over every window measured so far, 6 minutes on 2026-11-15 and 11½ on 2026-11-13's store patch, not a current upgrade path; a worker gone for good across a restart holds its runs that long and the grace after it. It is the engine's to set and say, so one setting serves every worker.
 - **A run's reports to the engine** kept and sent at the relink, as its turns are, rather than dropped while it waits. Later.
-- **How long a floor stays.** Default: until dev.fabrig.ai and staging.fabrig.ai have both run past it for a week.
+- **How long a tombstone or a written converter stays** (3.3). Default: until dev.fabrig.ai and every part it runs are past the layout that needed it (`../layouts-both-ways.md`, 7.4).
 - **The policy for infrastructure failures** (section 9). Default: a bound of its own, in jig.
-- **A newer worker before its engine** (4.3). Default: only when all its wires go down whole.

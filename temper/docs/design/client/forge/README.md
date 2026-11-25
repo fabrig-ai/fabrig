@@ -530,7 +530,7 @@ above:
   its heads with what made each, each context's state and its failing
   job, and a step's and a stall's times, which 2.1's "for how long"
   and 5.1's "since when" need), each a field of `ChangePanel` added in
-  the version move that first needs it.
+  the change of layout that first needs it.
 - **A change's files in the client:** whether the panel lists the files a
   change touches, from the connector's read, short of showing the diff;
   and whether an approval's card lists them with their counts, as

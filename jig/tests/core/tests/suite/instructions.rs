@@ -66,7 +66,7 @@ fn an_instruction_amendment_reaches_the_live_run_after_its_commit_and_future_run
 fn an_instruction_amendment_releases_only_the_displayed_hold_and_keeps_the_new_instructions() {
     let mut w = story::world(181);
     let task = w.assigned.as_ref().expect("the agent run is assigned").task;
-    request(&mut w, 182, people::Ask::Stop { project: 1, task });
+    request(&mut w, 182, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     w.end(tasks::End::Parked, 0);
     let hold = story::row(&w, task).revisions.hold;
     request(

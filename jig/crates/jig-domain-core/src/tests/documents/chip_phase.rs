@@ -14,6 +14,7 @@ fn chip_owner_facts_keep_readiness_retry_hold_and_ending_clocks_distinct() {
         stall: Duration::from_secs(1),
         deadline: Wall::from_nanos(1_000_000_003),
         notice: None,
+        offer: None,
     });
     row.phase = tasks::Phase::Active(tasks::Active::Due);
     let chip = chip_from_row(&limits, &row).unwrap();

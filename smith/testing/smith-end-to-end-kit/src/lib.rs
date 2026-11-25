@@ -29,7 +29,7 @@ use std::{
 /// The fake program built beside this package's shipped binary.
 #[must_use]
 pub fn fake_claude() -> PathBuf {
-    fake_claude_beside(&skein_scratch::paths::binary("smith")).unwrap_or_else(|refusal| panic!("{refusal}"))
+    fake_claude_beside(&skein_scratch::paths::built("smith", "smith")).unwrap_or_else(|refusal| panic!("{refusal}"))
 }
 
 /// The filesystem adapter's observation of the fake program's candidate path.
@@ -258,7 +258,7 @@ fn check_observations(procs: &[Process], saved: bool) -> Result<Seen, String> {
 
 #[must_use]
 pub fn start(arguments: Vec<std::ffi::OsString>, directory: &Path, mode: Mode) -> Binary {
-    start_program(&skein_scratch::paths::binary("smith"), arguments, directory, mode)
+    start_program(&skein_scratch::paths::built("smith", "smith"), arguments, directory, mode)
 }
 
 fn start_program(program: &Path, arguments: Vec<std::ffi::OsString>, directory: &Path, mode: Mode) -> Binary {
@@ -638,7 +638,7 @@ pub fn refusal_program(program: &Path, scratch: &Scratch, arguments: Vec<std::ff
 
 #[must_use]
 pub fn refusal_code(scratch: &Scratch, arguments: Vec<std::ffi::OsString>, code: u8) -> Vec<u8> {
-    refusal_program_code(&skein_scratch::paths::binary("smith"), scratch, arguments, code)
+    refusal_program_code(&skein_scratch::paths::built("smith", "smith"), scratch, arguments, code)
 }
 
 fn refusal_program_code(
@@ -730,7 +730,7 @@ pub fn smith_with_environment(
     environment.extend(additional);
     let mut binary = Binary::start(
         Command {
-            program: skein_scratch::paths::binary("smith"),
+            program: skein_scratch::paths::built("smith", "smith"),
             arguments: arguments.iter().map(std::ffi::OsString::from).collect(),
             environment,
             directory: scratch.path().into(),

@@ -145,6 +145,7 @@ fn hold(value: owner::HoldReason) -> client::HoldCategory {
         owner::HoldReason::ResourceAccess => client::HoldCategory::ResourceAccess,
         owner::HoldReason::Procedure => client::HoldCategory::Procedure,
         owner::HoldReason::Circle => client::HoldCategory::Circle,
+        owner::HoldReason::Waited => client::HoldCategory::Waited,
     }
 }
 fn ending(value: owner::Ending) -> client::Ending {

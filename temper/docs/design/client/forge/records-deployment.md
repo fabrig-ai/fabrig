@@ -175,8 +175,8 @@ This document holds the forge's deployment records, split from [`records.md`](re
   bytes); empty while none is, the forge domain's memory alone, so empty
   after a restart until a table fills again; the engine delivers the
   document again as one is added, its words change or it goes. A field
-  added to a versioned record moves the client wire's version
-  (`../../draft/archive/redeploys.md`). A TUI in front of a box reads it for its welcome's "Signed in
+  added to a versioned record changes the client wire's layout, its
+  version frozen (`../../protocol/wires.md`, 9). A TUI in front of a box reads it for its welcome's "Signed in
   as the owner" (`../tui/box.md`). The read of the forges, the
   tools' `forge list` (`../ctl/areas.md`, area 6), is the watch's first
   document. Text prints `host: HOST`, and JSON carries `host` unchanged

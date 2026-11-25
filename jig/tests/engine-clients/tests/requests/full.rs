@@ -43,7 +43,12 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let (now, _) = world.clocks();
     world.set_clock(now, WALL);
     let sign_in = world.sign_in.expect("member");
-    jig_core_kit::fixtures::ask_as(&mut world, sign_in, FILL_KEY, people::Ask::Stop { project: 1, task: u64::MAX });
+    jig_core_kit::fixtures::ask_as(
+        &mut world,
+        sign_in,
+        FILL_KEY,
+        people::Ask::Stop { project: 1, task: u64::MAX, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let mut peer = Peer::started(&real_core_settings());
     let bearer = bearer(&mut peer, world.sign_in.expect("member"), PARTY);
 

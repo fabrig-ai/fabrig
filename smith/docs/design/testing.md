@@ -357,7 +357,7 @@ The strategy's two suites (testing-strategy.md, section 8) make the gate:
   its jobs' polls, stops and ends among edits (domain/tools.md, section
   7).
 
-Codec patch checks run in the focused codec suite. Kit bounds, parsing and
+Codec layout-plan checks run in skein's focused codec suite. Kit bounds, parsing and
 landed-file mutations belong to skein's tests rather than a second codec
 binary. The fixture owner's landed-data check remains here: the generated
 `current` check compares generated source, not the landed-data findings.

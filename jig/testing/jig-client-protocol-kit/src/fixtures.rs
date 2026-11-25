@@ -326,7 +326,7 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The task owner's open suspension, accumulated gap and restarted mark occupy 48 inline bytes.
 // The worker proof adds eight bytes to each of Row's two record slots and its charged record carrier.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2937;
+pub const TURN_OVERLAP_BYTES: u64 = 3_072;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

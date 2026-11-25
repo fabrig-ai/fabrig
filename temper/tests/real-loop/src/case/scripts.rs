@@ -539,7 +539,7 @@ pub fn step_5_4_rules() -> Box<[Box<[Rule]>]> {
     let director = [
         (STORY_OWNER_REPORT, 1),
         (CROSSED, 1),
-        ("Held task needs a decision", 2),
+        ("Held since ", 2),
         (&format!("{DELEGATED}{STORY_OWNER}, {OVERLAP_OWNER}"), 2),
         (BEGIN, 0),
         ("", 2),

@@ -57,6 +57,7 @@ impl ChipHold {
             | HoldCategory::ResourceAccess
             | HoldCategory::PoolLost { .. }
             | HoldCategory::Circle
+            | HoldCategory::Waited
             | HoldCategory::Procedure => false,
         }
     }

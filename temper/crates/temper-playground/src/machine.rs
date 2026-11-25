@@ -392,6 +392,12 @@ impl Machine {
         });
     }
 }
+/// Returns whether the current thread's agent-root registry is empty, without resetting it.
+#[must_use]
+pub fn roots_are_released() -> bool {
+    ROOTS.with(|roots| roots.borrow().bindings.is_empty())
+}
+
 #[must_use]
 pub fn fresh() -> skein_fake_machine::Machine {
     ROOTS.with(|roots| *roots.borrow_mut() = Roots::default());

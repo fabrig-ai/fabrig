@@ -211,6 +211,9 @@ pub(crate) fn tag_fleet(
                 continue;
             }
             fleet::Request::Observed { run, attempt: _ } => {
+                if core.tasks.task(run.raw()).is_some() {
+                    core.wait_alarms.changed(run.raw());
+                }
                 core.touch_deployment();
                 super::view::routes::touch_number(core, &env.limits, run.raw());
                 continue;

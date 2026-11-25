@@ -43,7 +43,7 @@ fn pending(core: &mut Core, limits: &Limits) -> Token {
             reply_to: ReplyTo::new(Token::new(77)),
             sign_in: 9,
             key: [1; 16],
-            ask: people::Ask::Stop { project: 1, task: 1 },
+            ask: people::Ask::Stop { project: 1, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
         },
         &mut out,
     );

@@ -752,7 +752,7 @@ fn paused_task() -> c::Task {
             owner: c::HoldOwner::Party { person: fixtures::PARTY },
             mode: c::HoldMode::Stop,
             scope: c::HoldScope::Subtree { task: f::TASK },
-            reason: Box::default(),
+            reason: Box::from(b"Paused from ctl".as_slice()),
             placed_at: LATER,
             revision: c::Revision { value: 11 },
             lifted: false,
@@ -778,7 +778,15 @@ fn page_act(h: &mut Harness, act: Act) -> Box<[c::Ask]> {
 #[test]
 fn pause_sends_stop_at_once() {
     let mut h = Harness::new(with_offer(c::ActKind::Stop));
-    assert_eq!(page_act(&mut h, Act::Pause).as_ref(), [c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK }]);
+    assert_eq!(
+        page_act(&mut h, Act::Pause).as_ref(),
+        [c::Ask::Stop {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            reason: jig_client::contract::Text::new(Box::from(b"Paused from the web".as_slice()), u32::MAX)
+                .expect("fixture reason fits")
+        }]
+    );
     assert!(h.pages.confirmation().is_none());
     assert!(h.pages.needs().toast().is_none());
 }

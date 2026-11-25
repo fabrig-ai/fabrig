@@ -1,6 +1,7 @@
 //! Fixture writers find the checkout when they run (skein's testing-strategy.md, 8).
 //! The text check includes comments and strings, and ignores whitespace around
 //! the manifest macro. Its own matcher examples are excluded, as in outward.rs.
+//! Kits find binaries without the caller's Cargo variables (tools/crates/design.md, 3.2).
 //! Codec golden bytes stay with every (skein's data/codec/golden.md, 1).
 
 use std::{fs, path::Path, process::Command};
@@ -27,6 +28,17 @@ fn tracked_files() -> Vec<String> {
         .collect()
 }
 
+fn tracked_source(root: &Path, path: &str) -> String {
+    let absolute = root.join(path);
+    let metadata = fs::symlink_metadata(&absolute).unwrap_or_else(|why| panic!("{path}: {why}"));
+    let bytes = if metadata.is_symlink() {
+        fs::read_link(&absolute).unwrap_or_else(|why| panic!("{path}: {why}")).into_os_string().into_encoded_bytes()
+    } else {
+        fs::read(&absolute).unwrap_or_else(|why| panic!("{path}: {why}"))
+    };
+    String::from_utf8(bytes).unwrap_or_else(|why| panic!("{path}: {why}"))
+}
+
 #[test]
 fn fixture_writers_find_paths_at_run_time() {
     let root = skein_scratch::paths::workspace();
@@ -37,21 +49,56 @@ fn fixture_writers_find_paths_at_run_time() {
         {
             continue;
         }
-        let absolute = root.join(&path);
-        let metadata = fs::symlink_metadata(&absolute).unwrap_or_else(|why| panic!("{path}: {why}"));
-        let bytes = if metadata.is_symlink() {
-            fs::read_link(&absolute).unwrap_or_else(|why| panic!("{path}: {why}")).into_os_string().into_encoded_bytes()
-        } else {
-            fs::read(&absolute).unwrap_or_else(|why| panic!("{path}: {why}"))
-        };
-        let source = std::str::from_utf8(&bytes).unwrap_or_else(|why| panic!("{path}: {why}"));
-        if compiled_fixture_path(source) {
+        if compiled_fixture_path(&tracked_source(&root, &path)) {
             offenders.push(path);
         }
     }
     assert!(
         offenders.is_empty(),
         "Fixture writers must use skein_scratch::paths at run time, not a compiled manifest path:\n{}",
+        offenders.join("\n")
+    );
+}
+
+fn identifier_char(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_'
+}
+
+#[test]
+fn kits_find_built_binaries() {
+    let root = skein_scratch::paths::workspace();
+    let mut offenders = Vec::new();
+    for path in tracked_files() {
+        if Path::new(&path).extension().is_none_or(|extension| extension != "rs")
+            || path == "skein/testing/skein-scratch/src/paths.rs"
+        {
+            continue;
+        }
+        let mut parts = path.split('/');
+        let _tree = parts.next();
+        if parts.next() != Some("testing") || parts.nth(1) != Some("src") {
+            continue;
+        }
+        let source = tracked_source(&root, &path);
+        for (offset, name) in source.match_indices("paths") {
+            let before = &source[..offset];
+            if before.ends_with(identifier_char) {
+                continue;
+            }
+            let suffix = source[offset + name.len()..].trim_start();
+            if suffix
+                .strip_prefix("::")
+                .and_then(|rest| rest.trim_start().strip_prefix("binary"))
+                .is_some_and(|rest| !rest.starts_with(identifier_char))
+            {
+                let line = before.matches('\n').count() + 1;
+                offenders.push(format!("{path}:{line}"));
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "Kits must use paths::built(package, name), not paths::binary:\n{}",
         offenders.join("\n")
     );
 }

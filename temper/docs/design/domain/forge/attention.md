@@ -468,7 +468,7 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
     *Its groups*). On the wire and in the store it is `ReachKind`'s last
     variant, `findings`, appended so that every earlier value keeps its
     encoding (`../../protocol/configuration/settings-kinds.md`, 1): the
-    client wire's version moves with its layout
+    client wire's layout changes, its version frozen
     (`../../protocol/wires.md`, 9), and `temper-store`, a registered
     family, takes the variant in place, its version unmoved and no
     patch written (jig's `protocol/store/layouts.md`).

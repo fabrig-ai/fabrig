@@ -1,11 +1,12 @@
 //! The reference UI's own small-store records (client/domain/view-state.md, 8).
+use crate::generated::{records as map, records_v1 as w};
 use crate::state::address::Address;
 use alloc::boxed::Box;
 use jig_client::contract::Text;
+use skein_codec::Reason;
 use skein_lib::{Reader, Writer, bytes};
 use w::Record as _;
-pub(crate) mod address;
-use crate::generated::records_v1 as w;
+
 /// The reference UI's own record, kept beside the client's records.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Record {
@@ -36,24 +37,11 @@ impl RecordKey {
 /// The key and bytes the application keeps.
 #[must_use]
 pub fn encode(record: &Record) -> (Box<[u8]>, Box<[u8]>) {
-    let (key, record, bounded) = match record {
-        Record::Place { party, address: at } => (
-            RecordKey::Place,
-            w::ViewRecord::Place(w::Place { party: *party, address: address::encode(*at) }),
-            "bounded place",
-        ),
-        Record::Draft { party, task, words, touched } => (
-            RecordKey::Draft { task: *task },
-            w::ViewRecord::Draft(w::Draft {
-                party: *party,
-                task: *task,
-                words: bytes::copy_of(words.bytes()),
-                touched: *touched,
-            }),
-            "bounded draft",
-        ),
+    let (key, bounded) = match record {
+        Record::Place { .. } => (RecordKey::Place, "bounded place"),
+        Record::Draft { task, .. } => (RecordKey::Draft { task: *task }, "bounded draft"),
     };
-    let payload = record.encode(&w::CEILINGS).expect(bounded);
+    let payload = map::view_record_to_record(record).encode(&w::CEILINGS).expect(bounded);
     let record = w::StoredRecord { layout: w::LAYOUT, record: payload };
     (key.encode(), record.encode(&w::CEILINGS).expect("bounded record"))
 }
@@ -70,22 +58,24 @@ pub fn decode(key: &[u8], bytes: &[u8]) -> Option<Record> {
     if payload.remaining() != 0 {
         return None;
     }
-    let (record_key, record) = match page {
-        w::ViewRecord::Place(value) => {
-            (RecordKey::Place, Record::Place { party: value.party, address: address::decode(&value.address) })
-        }
-        w::ViewRecord::Draft(value) => (
-            RecordKey::Draft { task: value.task },
-            Record::Draft {
-                party: value.party,
-                task: value.task,
-                words: Text::new(value.words, w::CEILINGS.draft_words).ok()?,
-                touched: value.touched,
-            },
-        ),
+    let record = map::view_record_to_domain(page).ok()?;
+    let record_key = match &record {
+        Record::Place { .. } => RecordKey::Place,
+        Record::Draft { task, .. } => RecordKey::Draft { task: *task },
     };
     if key != record_key.encode().as_ref() {
         return None;
     }
     Some(record)
+}
+
+pub(crate) fn words_to_record(value: &Text) -> Box<[u8]> {
+    bytes::copy_of(value.bytes())
+}
+pub(crate) fn words_to_domain(value: Box<[u8]>) -> Result<Text, Reason> {
+    match Text::new(value, w::CEILINGS.draft_words) {
+        Ok(text) => Ok(text),
+        Err(value) if value.len() > skein_lib::length::usize_of(w::CEILINGS.draft_words) => Err(Reason::Bound),
+        Err(_) => Err(Reason::Utf8),
+    }
 }

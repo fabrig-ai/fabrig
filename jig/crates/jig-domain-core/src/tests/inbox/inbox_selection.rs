@@ -186,6 +186,9 @@ fn both_save_orders_keep_a_task_need_and_its_party_amendment_until_withdrawn() {
         let (mut core, mut limits) = fixture();
         limits.documents.rows = 1;
         let mut task = core.tasks.task(1).unwrap().clone();
+        task.phase =
+            tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+        task.revisions.hold = 1;
         task.escalation = tasks::Escalation::Waiting {
             revision: 1,
             holder: tasks::EscalationHolder::Person(1),
@@ -907,7 +910,8 @@ fn stored_waiting_and_reply_entries_keep_separate_original_contexts_and_activity
         hits: 0,
         eligible: true,
     }]);
-    owner.question_lines = Box::new([tasks::QuestionLine { message: u64::MAX, line: owner.activity, answer: None }]);
+    owner.question_lines =
+        Box::new([tasks::QuestionLine { message: u64::MAX, line: owner.activity, answer: None, resolution: None }]);
     core.question_activity
         .insert(
             (owner.number, owner.activity),

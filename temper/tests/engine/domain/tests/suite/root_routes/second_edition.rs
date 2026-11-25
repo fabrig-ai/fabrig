@@ -125,7 +125,11 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
         driver.send(protocol::turn(Token::new(7), run.task, run.attempt, 1, 1, None, &run.task.to_be_bytes()));
         driver.settle();
     }
-    person_ask(&mut driver, 80, people::Ask::Stop { project: 1, task: cast.p.task });
+    person_ask(
+        &mut driver,
+        80,
+        people::Ask::Stop { project: 1, task: cast.p.task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     assert!(replied(&driver, &people::Outcome::Stopped { task: cast.p.task }));
     let hold = live(&driver, cast.p.task).placed.expect("person's subtree hold");
     for run in runs {

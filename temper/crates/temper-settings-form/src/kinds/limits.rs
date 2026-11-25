@@ -1,5 +1,6 @@
 //! The two limit settings' shared file form (protocol/configuration/limit-settings.md, 2).
 use crate::file::{Decoder, Error, error, field};
+use crate::generated::client_wire as maps;
 use crate::{Text, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
@@ -29,7 +30,7 @@ pub(super) fn value(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
         overrides
             .push(
                 {
-                    let value = w::LimitOverride { name: value.name, value: value.value, reason: value.reason };
+                    let value = maps::limit_override_to_record(&value);
                     match value.encode(&d.kinds) {
                         Ok(_) => Ok(value),
                         Err(problem) => Err(problem),
@@ -59,8 +60,7 @@ pub(crate) fn decoded(bytes: &[u8]) -> Option<Box<[c::Override]>> {
     }
     let mut values = List::with_capacity(record.overrides.len());
     for value in record.overrides.into_boxed() {
-        let w::LimitOverride { name, value, reason } = value;
-        values.push(c::Override { name, value, reason }).expect("decoded overrides");
+        values.push(maps::limit_override_to_domain(value)).expect("decoded overrides");
     }
     Some(values.into_boxed())
 }

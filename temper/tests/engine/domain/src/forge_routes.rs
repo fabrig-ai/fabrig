@@ -3240,6 +3240,7 @@ impl World {
                 answerer: tasks::Party::Task(change),
                 asked: tasks::Party::Task(change),
                 line: sender.activity,
+                offer: None,
             });
             sender.questions = credits.into_boxed_slice();
         }
@@ -4159,6 +4160,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

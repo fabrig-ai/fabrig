@@ -123,6 +123,9 @@ impl Core {
             }
             Phase::Open => {
                 self.opened = true;
+                self.run_wall = env.wall;
+                self.run_now = env.now;
+                crate::runs::waits::alarm::restore(self, env);
                 for project in self.projects.to_boxed() {
                     crate::public::publish(self, env.limits.public, project);
                 }

@@ -87,6 +87,8 @@ pub(crate) fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
         | MessageKind::Proposal { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::Escalation { .. } => WakeRule::Immediate,
         MessageKind::PersonStalled { .. } => task.wake.news,
         MessageKind::Question => {
@@ -258,6 +260,8 @@ pub(crate) fn after_message(
             | MessageKind::SettingsDecision { .. }
             | MessageKind::ProposalDecision { .. }
             | MessageKind::Proposal { .. }
+            | MessageKind::PassedQuestion { .. }
+            | MessageKind::PassedAnswer { .. }
             | MessageKind::Escalation { .. }
             | MessageKind::Question
             | MessageKind::Answer { .. }
@@ -374,7 +378,11 @@ pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out
         return;
     }
     // Only an idle task judges its entries again: a live run already heard them.
-    for entries in [crate::proposals::waiting_for(domain, number), crate::escalation::waiting_for(domain, number)] {
+    for entries in [
+        crate::proposals::waiting_for(domain, number),
+        crate::escalation::waiting_for(domain, number),
+        crate::questions::waiting_for(domain, number),
+    ] {
         for word in entries {
             if record(domain, number).expect("decision holder live").phase != Phase::Active(Active::Idle) {
                 return;

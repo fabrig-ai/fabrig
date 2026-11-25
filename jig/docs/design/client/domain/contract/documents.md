@@ -203,8 +203,8 @@
     any state, a withdrawn one or a batch of more goals, is a retained
     proposal (`ProposalHistory`) under the party's key, as a party's
     proposal of settings is, its proposer the party's number, its action
-    and state a task-origin one's. Neither form moves the client wire's
-    version;
+    and state a task-origin one's. Neither form changes the client
+    wire's layout;
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a line of a change
     to a proposal of the task's names that proposal's number and says whether
@@ -340,8 +340,8 @@ The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.
 A window's value also carries its rate (`AccountWindow.rate`, `Option<u32>`),
 its share per hour in basis points, or none: the core's memory beside the fact
-(`../../../domain/accounts-lists.md`, 1), never stored. It moved the client wire's
-version, unbridged; the wire's layouts ledger names which.
+(`../../../domain/accounts-lists.md`, 1), never stored. It changed the client
+wire's layout, its version frozen (`../../../protocol/client/versions.md`, 1).
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes

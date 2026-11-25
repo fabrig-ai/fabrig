@@ -97,6 +97,10 @@ impl Own {
         Self { records: Records::new(), hears: Hears::Unread }
     }
 
+    pub(super) const fn unaddressed() -> Self {
+        Self { records: Records::new(), hears: Hears::Read(None) }
+    }
+
     pub(super) fn hears(&mut self, core: &Core, limits: &Limits, row: &TaskRecord) -> Option<Holder> {
         if let Hears::Read(hears) = self.hears {
             return hears;
@@ -143,7 +147,7 @@ impl Own {
                     if let Some(report) = core.reported_waits.get(&row.number) {
                         for wait in report {
                             let since = core.wait_since(wait.kind, wait.since);
-                            let bound = super::reports::bound(limits, row, wait, since);
+                            let bound = super::reports::bound(limits, tasks::deadline(row, core.run_wall), wait, since);
                             self.push(row.number, wait.kind, wait.object.clone(), since, bound);
                         }
                     } else {
@@ -157,15 +161,16 @@ impl Own {
                         row.number,
                         WaitKind::Delegate,
                         WaitObject::Task(*number),
-                        core.wait_since(WaitKind::Delegate, delegate.created_at),
-                        deadline(row),
+                        core.wait_since(WaitKind::Delegate, after_release(row, delegate.created_at)),
+                        deadline(core, row),
                     );
                 }
             }
         }
-        if self.records.len() != 0 {
-            let hears = self.hears(core, limits, row);
-            self.records.address(hears);
+        if self.records.len() != 0
+            && let Some(hears) = self.hears(core, limits, row)
+        {
+            self.records.address(Some(hears));
         }
     }
 
@@ -184,23 +189,24 @@ impl Own {
     }
 
     fn questions(&mut self, core: &Core, limits: &Limits, row: &TaskRecord) {
-        let Party::Task(answerer) = row.requester else { return };
         for credit in &row.questions {
-            if credit.asked != row.requester {
+            let Some((holder, at)) = question_place(core, row, credit) else { continue };
+            let Holder::Task(answerer) = holder else { continue };
+            if credit.offer.is_none() && credit.asked != row.requester {
                 continue;
             }
-            // Restored and newly committed questions have their activity fact.
-            let since = match core.question_activity.get(&(row.number, credit.line)) {
-                Some(line) => line.at,
-                None => row.phase_since,
-            };
-            let since = core.wait_since(WaitKind::Question, since);
+            let since = core.wait_since(WaitKind::Question, at);
             self.push(
                 row.number,
                 WaitKind::Question,
                 WaitObject::Question { number: credit.number, answerer },
                 since,
-                clock(since, limits.waits.question, row.authority.budget.deadline, AtBound::PassUp),
+                clock(
+                    since,
+                    limits.waits.question,
+                    tasks::deadline(row, core.run_wall),
+                    question_bound(core, limits, row, holder),
+                ),
             );
         }
     }
@@ -215,8 +221,8 @@ impl Own {
                         break;
                     }
                 }
-                let since = core.wait_since(WaitKind::Dependency, since);
-                self.push(row.number, WaitKind::Dependency, WaitObject::Task(*number), since, deadline(row));
+                let since = core.wait_since(WaitKind::Dependency, after_release(row, since));
+                self.push(row.number, WaitKind::Dependency, WaitObject::Task(*number), since, deadline(core, row));
             }
         }
     }
@@ -249,19 +255,7 @@ impl Own {
         } else {
             return;
         };
-        let (kind, figure, reset) = match wait {
-            TaskRunWait::Worker { until, .. } => (WaitKind::Host, limits.waits.host, Some(until)),
-            TaskRunWait::Host
-            | TaskRunWait::Refused(_)
-            | TaskRunWait::Account { why: TaskWaitWhy::Host | TaskWaitWhy::Untooled { .. }, .. } => {
-                (WaitKind::Host, limits.waits.host, None)
-            }
-            TaskRunWait::Account {
-                why: TaskWaitWhy::Source(TaskSourceState::Later { until } | TaskSourceState::Limited { until }),
-                ..
-            } => (WaitKind::Account, limits.waits.account, until),
-            TaskRunWait::Account { .. } | TaskRunWait::Credential => (WaitKind::Account, limits.waits.account, None),
-        };
+        let (kind, figure, reset) = run_clock(limits.waits, wait);
         let since = core.wait_since(kind, row.phase_since);
         let from = since.max(reset.unwrap_or(since));
         self.push(
@@ -269,7 +263,7 @@ impl Own {
             kind,
             WaitObject::Run(wait),
             since,
-            clock(from, figure, row.authority.budget.deadline, AtBound::Hold),
+            clock(from, figure, tasks::deadline(row, core.run_wall), AtBound::Hold),
         );
     }
 
@@ -288,14 +282,42 @@ impl Own {
                 tasks::SubscriptionKind::Task { .. } | tasks::SubscriptionKind::Topic { .. } => {}
             }
         }
-        let bound = if row.authority.budget.deadline.is_none()
+        let bound = if tasks::deadline(row, core.run_wall).is_none()
             && (row.flags.conversation || row.flags.ended_by == tasks::EndedBy::Standing)
         {
             Bound::None(Unbounded::Standing)
         } else {
-            clock(since, limits.waits.news, row.authority.budget.deadline, AtBound::Hold)
+            clock(since, limits.waits.news, tasks::deadline(row, core.run_wall), AtBound::Hold)
         };
         self.push(row.number, WaitKind::News, WaitObject::News { subscriptions, timer }, since, bound);
+    }
+}
+
+// Release starts a new task wait. The original additions and delegate
+// creations are still the facts for waits that haven't been released.
+fn after_release(row: &TaskRecord, since: Wall) -> Wall {
+    if row.due_reason == tasks::Why::Released
+        && let Phase::Waiting | Phase::Active(tasks::Active::Idle) = row.phase
+    {
+        since.max(row.phase_since)
+    } else {
+        since
+    }
+}
+
+pub(super) fn run_clock(figures: crate::Figures, wait: TaskRunWait) -> (WaitKind, Duration, Option<Wall>) {
+    match wait {
+        TaskRunWait::Worker { until, .. } => (WaitKind::Host, figures.host, Some(until)),
+        TaskRunWait::Host
+        | TaskRunWait::Refused(_)
+        | TaskRunWait::Account { why: TaskWaitWhy::Host | TaskWaitWhy::Untooled { .. }, .. } => {
+            (WaitKind::Host, figures.host, None)
+        }
+        TaskRunWait::Account {
+            why: TaskWaitWhy::Source(TaskSourceState::Later { until } | TaskSourceState::Limited { until }),
+            ..
+        } => (WaitKind::Account, figures.account, until),
+        TaskRunWait::Account { .. } | TaskRunWait::Credential => (WaitKind::Account, figures.account, None),
     }
 }
 
@@ -357,6 +379,80 @@ pub(super) fn policy_entry(row: &TaskRecord, inbox: &[Entry]) -> Option<Entry> {
     })
 }
 
+fn question_place(core: &Core, row: &TaskRecord, credit: &tasks::QuestionCredit) -> Option<(Holder, Wall)> {
+    if let Some(offer) = &credit.offer {
+        return Some((offer.holder, offer.since));
+    }
+    let holder = match credit.answerer {
+        Party::Task(task) => Holder::Task(task),
+        Party::Person(person) => Holder::Person(person),
+        Party::Deployment { .. } => unreachable!("questions wait at a task or person"),
+    };
+    let question = tasks::OpenQuestion { asker: row.number, number: credit.number, line: credit.line };
+    let since = match core.open_question_fact(question) {
+        Some((at, _)) => at,
+        None => match holder {
+            Holder::Task(_) => row.phase_since,
+            Holder::Person(_) | Holder::Role { .. } => return None,
+        },
+    };
+    Some((holder, since))
+}
+
+fn question_bound(core: &Core, limits: &Limits, row: &TaskRecord, holder: Holder) -> AtBound {
+    if crate::admission::escalation::next_question_holder(core, limits, row, holder).is_some() {
+        AtBound::PassUp
+    } else {
+        AtBound::Overdue
+    }
+}
+
+/// Original and offered inbox entries are two ways to answer, not two waits.
+/// Put every party-held question's wait on its credit owner, even when its
+/// first inbox link is the task the question was asked of.
+pub(super) fn party_entries(core: &Core, limits: &Limits, row: &TaskRecord) -> List<Entry> {
+    let inbox = core.waiting_entries(limits, row);
+    let mut entries = List::uncapped();
+    for fact in inbox.iter().chain(policy_entry(row, &inbox).iter()) {
+        if let EntryKind::Question { message } = fact.kind
+            && core.tasks.question_ticket(row.number, message).is_some()
+        {
+            continue;
+        }
+        if let Some(fact) = party_fact(row, *fact) {
+            entries.push(fact).expect("bounded party facts");
+        }
+    }
+    if crate::inbox::questions_live(&row.phase) {
+        for credit in &row.questions {
+            let Some((holder, at)) = question_place(core, row, credit) else { continue };
+            if let Some(entry) = crate::inbox::question_entry(row, credit.number, holder, at) {
+                entries.push(entry).expect("one fact per open credit");
+            }
+        }
+    }
+    entries
+}
+
+/// The second inbox entry is another way to answer, not another wait.
+fn party_fact(row: &TaskRecord, mut fact: Entry) -> Option<Entry> {
+    match fact.kind {
+        EntryKind::PersonTask => {
+            if let Some(offer) = row.person_wait?.offer {
+                let whom = crate::inbox::person_whom(row.project, offer.holder);
+                if row.taken_by.is_none() && fact.whom != whom {
+                    return None;
+                }
+                fact.whom = whom;
+                fact.at = offer.since;
+            }
+            Some(fact)
+        }
+        EntryKind::Question { .. } | EntryKind::Escalation { .. } | EntryKind::Proposal { .. } => Some(fact),
+        EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => None,
+    }
+}
+
 pub(super) fn party(core: &Core, limits: &Limits, row: &TaskRecord, fact: &Entry, hears: Option<Holder>) -> Wait {
     let at = match fact.whom {
         Whom::Person(person) => Holder::Person(person),
@@ -376,7 +472,7 @@ fn entry(
 ) -> Wait {
     let since = core.wait_since(WaitKind::Party, since);
     let (figure, deadline) = match kind {
-        EntryKind::Question { .. } => (limits.waits.party, row.authority.budget.deadline),
+        EntryKind::Question { .. } => (limits.waits.party, tasks::deadline(row, core.run_wall)),
         EntryKind::Escalation { .. } => (limits.tasks.escalation_stall, None),
         EntryKind::Proposal { .. } => (limits.tasks.proposal_stall, None),
         EntryKind::PersonTask => (row.person_wait.expect("answerable person interval").stall, None),
@@ -388,14 +484,12 @@ fn entry(
             Holder::Task(task) => proposal_passes(core, limits, row, tasks::ProposalHolder::Task(task)),
             Holder::Person(person) => proposal_passes(core, limits, row, tasks::ProposalHolder::Person(person)),
         },
-        EntryKind::PersonTask if core.escalation_fallback(row.project) == Some(at) => false,
-        EntryKind::PersonTask if hears != Some(at) => hears.is_some(),
-        EntryKind::PersonTask | EntryKind::Question { .. } | EntryKind::Escalation { .. } => {
-            match wait_holder(core, limits, row, Some(at)) {
-                Some(next) => next != at,
-                None => false,
-            }
-        }
+        EntryKind::PersonTask => crate::admission::escalation::next_person_holder(core, limits, row).is_some(),
+        EntryKind::Question { .. } => question_bound(core, limits, row, at) == AtBound::PassUp,
+        EntryKind::Escalation { .. } => match wait_holder(core, limits, row, Some(at)) {
+            Some(next) => next != at,
+            None => false,
+        },
         EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => unreachable!("a reply is not a wait"),
     };
     let then = if passes { AtBound::PassUp } else { AtBound::Overdue };
@@ -424,13 +518,17 @@ fn not_before(bound: Bound, since: Wall) -> Bound {
 }
 
 pub(super) fn clock(since: Wall, figure: Duration, deadline: Option<Wall>, then: AtBound) -> Bound {
-    let due = Wall::from_nanos(since.as_nanos().saturating_add(figure.as_nanos()));
+    let due = figure_at(since, figure);
     Bound::At { at: due.min(deadline.unwrap_or(due)), then }
 }
 
-fn deadline(row: &TaskRecord) -> Bound {
-    match row.authority.budget.deadline {
+fn deadline(core: &Core, row: &TaskRecord) -> Bound {
+    match tasks::deadline(row, core.run_wall) {
         Some(at) => Bound::At { at, then: AtBound::Hold },
         None => Bound::None(Unbounded::NoDeadline),
     }
+}
+
+pub(super) fn figure_at(since: Wall, figure: Duration) -> Wall {
+    Wall::from_nanos(since.as_nanos().saturating_add(figure.as_nanos()))
 }

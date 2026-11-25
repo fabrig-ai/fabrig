@@ -13,7 +13,7 @@ pub enum Operation {
     Amend(crate::Amend),
     Release(crate::Release),
     Message(crate::Message),
-    Stop { task: u64, hold: u64 },
+    Stop { task: u64, hold: u64, reason: Box<[u8]> },
 }
 impl Operation {
     pub(crate) fn task(&self) -> u64 {
@@ -432,14 +432,14 @@ fn check(
                 true,
             )?)))
         }
-        Operation::Stop { task, hold } => {
+        Operation::Stop { task, hold, reason } => {
             let placed = crate::PlacedHold {
                 number: hold,
                 project: request.project,
                 owner: crate::Owner::Party { person: person(request.by)? },
                 mode: crate::Mode::Stop,
                 scope: crate::Scope::Subtree { task },
-                reason: Box::new([]),
+                reason,
                 placed_at: env.wall.as_nanos().checked_div(1_000_000).expect("milliseconds divisor"),
                 revision: 1,
                 exempt: Box::new([]),

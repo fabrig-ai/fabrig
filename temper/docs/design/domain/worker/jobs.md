@@ -229,8 +229,8 @@ too (2026-11-09):
 A delivering job's writable repository is the one its items name with a
 branch to push, and the engine names one only for a job its change names
 as its delegate: that change's repository and own branch, on every
-attempt, a released job's too (`../forge/change/repairs.md`, its close job
-held for its failures). Nothing else makes one writable, neither the
+attempt, a released job's too, and a fresh close job's on its change's
+release (`../forge/change/repairs-releases.md`, 1). Nothing else makes one writable, neither the
 job's authority nor the goal's branch, which a close job starts from and
 never pushes. Every other repository of its checkout is read-only, a
 context repository or one whose adopted push the forge has refused

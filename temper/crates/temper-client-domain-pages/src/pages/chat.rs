@@ -1508,7 +1508,7 @@ impl Chat {
                 revision: c::Revision { value: super::task::chip_hold(&task.chip).expect("paused is held") },
                 again: None,
             },
-            Sending::Stop if allowed(task, c::ActKind::Stop) => c::Ask::Stop { project: task.project, task: self.task },
+            Sending::Stop if allowed(task, c::ActKind::Stop) => super::task::pause(task.project, self.task),
             Sending::Stop | Sending::Resume | Sending::Seen | Sending::Close => return,
         };
         for (_, pending) in &self.pending {

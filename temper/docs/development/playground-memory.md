@@ -4,12 +4,14 @@ These are native counting-allocator bytes, not browser memory or resident size.
 The playground binary's test holds the service's first-step held bytes from
 the 2026-11-14 worker-wire v8 table below, and its other bounds from the
 2026-11-14 store-shape S4 merge table, each with a quarter's margin rounded
-up to two significant digits;
-nonservice regression bounds retain their 2026-11-12 figures plus a quarter,
-except that the prepared schemas' bound uses the 2026-11-23 table and the fake
-disk's start bound uses the 2026-11-24 "Openings' kept wire texts" table, both
-plus a quarter ([playground.md, section 9](../design/playground.md)). Sections 8
-and 11 leave the memory's bar itself to the user.
+up to two significant digits.
+The fake disk's start bound uses the 2026-11-25 "Stored stock charters at
+start" table below; the separate bounded-waits run is also recorded there.
+The prepared schemas' bound uses the 2026-11-23 "Prepared schemas before
+start" table. The other nonservice regression bounds retain their
+2026-11-12 figures. Each uses a quarter's margin
+([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
+the memory's bar itself to the user.
 
 ## Commands and scope
 
@@ -370,6 +372,80 @@ schemas table to 294,162 bytes because the openings v2 row keeps each worker's
 wire texts on disk ([records.md, section 3](../../../jig/docs/design/protocol/store/records.md#3-the-format-row)).
 Only the fake disk's start ceiling rises, to 367,702 bytes (294,162 plus a
 quarter, using integer division). No other ceiling moves.
+
+### Stored stock charters at start
+
+Measured 2026-11-25 01:04:26 UTC (`date -u`), from `temper616964/g16966`
+at commit `c51399b8ef6c9153e314813ec73b4c96b0d66441`. All comparisons stayed
+on for the focused run of `story_as_world_at_its_first_step_and_start`.
+First step takes one world step; start takes 181 world steps. The run
+reached both snapshots, then failed the fake disk's start comparison.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 316,890 | 769,758 | 742,429 | 1,119,618 |
+| 1: fake LLM | 28,193 | 28,193 | 28,929 | 28,929 |
+| 2: fake forge HTTP | 31,098 | 31,098 | 31,839 | 31,883 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,530 | 3,530 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 4,509 | 270,963 |
+| Shared forge before start | 7,453 | not separately measured at start |
+| Prepared schemas before start | 711,824 | not separately measured at start |
+
+The larger stock charters in the stored settings account for the rise past
+the old bound: charter 5 grew by 550 bytes to 28,380, and the fake disk's
+retained heap includes durable copies, not just logical file lengths. The
+7,273-byte increase over the 2026-11-23 table is not a charter-only
+comparison: the intervening fake-disk metadata packing commit
+`fce5d990807ebb7b4fdc28f3d1e370046ea8ddab` reported 269,727 bytes at start
+before the charter growth.
+
+Only the fake disk's start bound moves: 270,963 plus a quarter, using
+integer division, gives 338,703 bytes. The same focused test passes after
+repinning, with the same measurements. No runtime limit changes.
+
+With both the kept wire texts and the current stock charters, the focused
+startup test measured 294,977 bytes of fake disk retention on 2026-11-25.
+The tighter 338,703-byte bound still passes and stays in place.
+
+### Fake disk at start after bounded waits
+
+Measured 2026-11-25 UTC with the playground command above, comparing the
+base `975bd2888e` with `78c985f0a4` before moving the ceiling. Both runs kept
+all comparisons enabled and reached the first step after one world step
+and start idle after 181. The base passed; only the disk's start comparison
+failed on the branch.
+
+| Snapshot | Measurement | Base bytes | Branch bytes |
+|---|---|---:|---:|
+| Before start | Prepared schemas retained | 711,346 | 716,053 |
+| Before start | Shared forge retained | 7,453 | 7,453 |
+| First step | Service held / peak | 315,274 / 768,108 | 315,530 / 768,108 |
+| First step | Fake LLM held / peak | 28,193 / 28,193 | 28,193 / 28,193 |
+| First step | Fake forge HTTP held / peak | 31,098 / 31,098 | 31,098 / 31,098 |
+| First step | Visitor held / peak | 1,054 / 1,068 | 1,054 / 1,068 |
+| First step | Fake disk retained | 4,509 | 4,509 |
+| Start idle | Service held / peak | 740,363 / 1,117,706 | 741,734 / 1,122,422 |
+| Start idle | Fake LLM held / peak | 28,929 / 28,929 | 28,929 / 28,929 |
+| Start idle | Fake forge HTTP held / peak | 31,839 / 31,883 | 31,839 / 31,883 |
+| Start idle | Visitor held / peak | 1,054 / 1,068 | 1,054 / 1,068 |
+| Start idle | Hosted git held / peak | 3,530 / 3,530 | 3,530 / 3,530 |
+| Start idle | Fake disk retained | 270,281 | 271,396 |
+
+The disk gains 1,115 bytes as startup writes records with the bounded-waits
+layouts, including the task record's optional hold-start instant. The people
+layout also adds a defaulted stop reason, and the client wire moves to 45.
+The measurement does not attribute bytes to individual fields. The fake disk
+implementation is unchanged: sync trims spare file capacity, shares file
+bytes with the durable view, and clears that file's pending writes. The
+increase is consistent with larger stored records, not an extra retained copy.
+
+Only the exceeded `DISK_START_RETAINED` ceiling moves: 271,396 plus a quarter
+is 339,245, which rounds up to 340,000 bytes at two significant digits,
+replacing 270,797. Every other ceiling stays as it is. No runtime limit changes.
 
 ## Halving the knobs
 

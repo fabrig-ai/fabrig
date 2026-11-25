@@ -362,8 +362,8 @@ versioned record TimesAnswer { result: TimesReply }
   nanoseconds since the epoch, as `History`'s are.
 - **The crate's functions,** `times_answer` and `decode_times_answer`,
   as `history_answer` and `decode_history_answer` are.
-- **No bridge:** the client's wire moves its version alone
-  (`../draft/archive/redeploys.md`, 8).
+- **No conversion:** the client's wire changes its layout alone, its
+  version frozen (`../protocol/wires.md`, 9).
 
 ### 4.8 In the root and the forge
 
@@ -424,7 +424,7 @@ TIME] [--after CURSOR] [--json]`, a read of the forge's family
 
 - **Nothing stored:** no family, record or patch; the read takes
   whatever events remain.
-- **The client's wire** moves its version for the new read (4.7).
+- **The client's wire** changes its layout for the new read (4.7).
 - **A change live at H1's upgrade** reads partial (2.4).
 
 ## 7. Testing

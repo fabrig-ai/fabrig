@@ -228,7 +228,12 @@ pub fn ask(object: &Object, confirmation: &Confirmation, fields: &Fields) -> Opt
                 Some(Ask::Message { project, task, words })
             }
         }
-        ActKind::Stop => Some(Ask::Stop { project, task }),
+        ActKind::Stop => Some(Ask::Stop {
+            project,
+            task,
+            reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                .expect("card stop reason fits"),
+        }),
         ActKind::Cancel => Some(Ask::Cancel { project, task, reason: words(fields, Purpose::Reason)?, grace: None }),
         ActKind::Move => Some(Ask::Move { project, task, reason: words(fields, Purpose::Reason)? }),
         ActKind::EditNote | ActKind::DeleteNote => {

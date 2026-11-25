@@ -221,7 +221,9 @@ fn a_closed_project_refuses_party_asks_as_one_never_made() {
     );
     for project in [PROJECT, 99] {
         let mut operations = List::with_capacity(1);
-        operations.push(p::Operation::Stop { task: 1 }).expect("one operation");
+        operations
+            .push(p::Operation::Stop { task: 1, reason: Box::from(b"Parking the task".as_slice()) })
+            .expect("one operation");
         for ask in [
             Ask::Compound { project, operations },
             Ask::EditNote {
@@ -271,7 +273,7 @@ fn a_closed_project_refuses_party_asks_as_one_never_made() {
             Ask::Adopt { project, adoption: adoption() },
             Ask::Create { project, batch: Box::new([people_member(b"work", 1)]) },
             Ask::Cancel { project, task: 1, grace: None, reason: Box::new([]) },
-            Ask::Stop { project, task: 1 },
+            Ask::Stop { project, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
             Ask::Say { project, task: 1, words: b"hello".as_slice().into() },
             Ask::Application { scope: p::ApplicationScope::Project(project), connector: CONNECTOR, digest: [0; 32] },
         ] {

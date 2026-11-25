@@ -207,6 +207,56 @@ pub(crate) fn wait_holder(
     route(core, limits, &context, core.people.role(requester, row.project), after)
 }
 
+/// Questions do not travel past the project's final role.
+pub(crate) fn next_question_holder(
+    core: &Core,
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    at: tasks::EscalationHolder,
+) -> Option<tasks::EscalationHolder> {
+    match at {
+        tasks::EscalationHolder::Role { .. } => None,
+        tasks::EscalationHolder::Task(_) | tasks::EscalationHolder::Person(_) => {
+            let next = wait_holder(core, limits, row, Some(at))?;
+            if next == at { None } else { Some(next) }
+        }
+    }
+}
+
+/// A person task passes the task holders and uses only the party end of the escalation route.
+pub(crate) fn next_person_holder(
+    core: &Core,
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+) -> Option<tasks::PersonAddress> {
+    use tasks::PersonAddress;
+    let tasks::Executor::Person(first) = row.executor else { return None };
+    let last = match fallback(core, row.project) {
+        Some(tasks::EscalationHolder::Role { role, .. }) => Some(PersonAddress::Role(role)),
+        Some(tasks::EscalationHolder::Person(_) | tasks::EscalationHolder::Task(_)) | None => None,
+    };
+    if last == Some(first) {
+        return None;
+    }
+    if let Some(wait) = row.person_wait
+        && let Some(offer) = wait.offer
+    {
+        return match offer.holder {
+            PersonAddress::Person(_) => last,
+            PersonAddress::Role(_) => None,
+        };
+    }
+    let root = if row.root == row.number { row } else { core.tasks.task(row.root)? };
+    if let tasks::Party::Person(person) = root.requester {
+        let role = core.people.role(person, row.project);
+        let already_addressed = super::person_task::address_matches(first, person, role);
+        if !already_addressed && covers(core, limits, row.project, person, role) {
+            return Some(PersonAddress::Person(person));
+        }
+    }
+    last
+}
+
 impl Core {
     /// Whether a person may see this held decision context.
     #[must_use]

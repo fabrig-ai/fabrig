@@ -29,6 +29,7 @@
         Answers do not wake
         Timers wake
       Held budget
+      `It spent 15; its next run or effect cannot be funded. Held since 1970-01-01T00:00Z. Widen its budget, then release it.`
       Hold revision: 18446744073709551615
       Prior closing effects
       Escalation holder person: 18446744073709551615

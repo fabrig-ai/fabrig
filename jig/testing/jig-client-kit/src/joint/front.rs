@@ -532,7 +532,10 @@ mod tests {
             1_000_000,
             Box::new([
                 Act::SignIn { provider: 0, subject: b"ordinary pressure".as_slice().into() },
-                Act::Request { key: [61; 16], ask: Ask::Stop { task: Task::Number(u64::MAX) } },
+                Act::Request {
+                    key: [61; 16],
+                    ask: Ask::Stop { task: Task::Number(u64::MAX), reason: Box::from(b"Parking the task".as_slice()) },
+                },
             ]),
         )
     }
@@ -567,7 +570,12 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [62; 16],
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: client::Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -674,7 +682,12 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [63; 16],
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: client::Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },

@@ -8,12 +8,12 @@ mod policy;
 pub mod relay;
 mod report;
 mod selection;
-pub use policy::{Child, Closer, Decision, Facts, Hold, Running, Step, Stepped, step};
+pub use policy::{Child, Closer, Decision, Facts, Hold, ReportCheck, ReportRead, Running, Step, Stepped, step};
 pub use selection::{PullSelection, SELECTION_JOBS, SelectionProgress, selection_answer, selection_read};
 #[cfg(test)]
 mod tests;
 
 pub use report::{
-    LOG_START_BYTES, Landed, Landing, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection, Unlanded, Why,
-    first_line, left_section, selection_line, words,
+    LOG_START_BYTES, Landed, Landing, REPORT_OPENING, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection,
+    Unlanded, Why, first_line, goal_left, left_section, selection_line, words,
 };

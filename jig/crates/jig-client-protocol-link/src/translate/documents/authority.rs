@@ -1,13 +1,10 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Limits, List, Reader, Wall, c, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn grant_fields(value: &w::Grant) -> c::Grant {
-    c::Grant {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: crate::translate::answers::pattern(&value.pattern),
-    }
+    client::grant_to_domain(value.clone())
 }
 
 pub(crate) fn grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::Grant>, w::Problem> {
@@ -17,7 +14,7 @@ pub(crate) fn grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<L
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::Grant::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = grant_fields(&row);
+        let row = client::grant_to_domain(row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -26,12 +23,7 @@ pub(crate) fn grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<L
 }
 
 pub(crate) fn authority_executor_fields(value: &w::AuthorityExecutor) -> c::AuthorityExecutor {
-    match value {
-        w::AuthorityExecutor::Job(row) => c::AuthorityExecutor::Job(row.value),
-        w::AuthorityExecutor::Charter(row) => c::AuthorityExecutor::Charter(row.value),
-        w::AuthorityExecutor::Procedure(row) => c::AuthorityExecutor::Procedure(row.value),
-        w::AuthorityExecutor::Role(row) => c::AuthorityExecutor::Role(row.value),
-    }
+    client::authority_executor_to_domain(value.clone())
 }
 
 pub(crate) fn delegation_fields(value: &w::Delegation, limits: &Limits) -> Result<c::Delegation, w::Problem> {
@@ -45,10 +37,6 @@ pub(crate) fn delegation_fields(value: &w::Delegation, limits: &Limits) -> Resul
     Ok(c::Delegation { kinds: list0, tasks: value.tasks, depth: value.depth })
 }
 
-pub(crate) fn resource_scope_fields(value: &w::ResourceScope) -> c::ResourceScope {
-    c::ResourceScope { connector: value.connector, pattern: crate::translate::answers::pattern(&value.pattern) }
-}
-
 pub(crate) fn resource_scope_piece(
     bytes: &[u8],
     limits: &Limits,
@@ -60,7 +48,7 @@ pub(crate) fn resource_scope_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::ResourceScope::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = resource_scope_fields(&row);
+        let row = client::resource_scope_to_domain(row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -89,5 +77,5 @@ pub(crate) fn authority_document_fields(
     value: &w::AuthorityDocument,
     limits: &Limits,
 ) -> Result<c::AuthorityDocument, w::Problem> {
-    Ok(c::AuthorityDocument { authority: authority_fields(&value.authority, limits)?, cut: value.cut })
+    client::authority_document_to_domain(value.clone(), limits)
 }

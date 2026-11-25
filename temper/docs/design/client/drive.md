@@ -84,7 +84,8 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   one, its browser and TUI on the engine's origin. It needs `--ports`.
 - **`--scratch DIR`** is an existing directory, the user's own and not
   open to others; every directory and file the session or what it
-  starts writes is under it (2.2).
+  starts writes is under it, apart from Chromium's temporary files
+  and sockets (2.2).
 - **`--scripts FILE`, `--strict`** are given to the box as they are
   (`../protocol/setup/box-backends.md`, 1), its fake model's scripts and strict
   switch; a recipe's walk gives its chain's scripts (`recipe.md`, 5).
@@ -117,7 +118,8 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
 |---|---|---|
 | `config/`, `data/`, `cache/` | the box's three directories (`../protocol/configuration/directories.md`), given as `--config`, `--data` and `--cache` | across sessions: absent, the box prepares a new sandbox; present, it starts the one they hold, as a place's restored copy (`../draft/archive/landed-qa.md`, 5) |
 | `session/` | the session's own, removed and made again, 0o700, at its start | until the next session |
-| `session/home/`, `session/state/`, `session/tmp/` | `HOME`, `XDG_STATE_HOME` and `TMPDIR` of every program the session starts; `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_DATA_HOME` under `home/` | |
+| `session/home/`, `session/state/` | `HOME` and `XDG_STATE_HOME` of every program the session starts; `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_DATA_HOME` under `home/` | |
+| `session/tmp/` | `TMPDIR` of every program the session starts but Chromium | |
 | `session/runtime/`, `session/tui-runtime/` | `XDG_RUNTIME_DIR` of the box and of the TUI, apart, as `tui/journeys.md`, 8.2 keeps them | |
 | `session/ctl/` | ctl's directory (`ctl/command-line.md`, 1), which its sign-in makes | |
 | `session/browser/` | Chromium's profile and downloads | |
@@ -130,6 +132,12 @@ The box's own environment is the session's: the `PATH` the session was
 given, the directories above, and `TEMPER_INTERNAL_FAKE_BOX_PORTS` where
 `--ports` gives it. The TUI's is `tui/journeys.md`, 8.2's,
 in the session's directories.
+
+Chromium takes the session's directories but for `TMPDIR`, left unset
+as in the browser tier. It puts its singleton socket in the host's
+temporary directory: under `session/tmp/` in a deep scratch directory,
+the Unix socket's path can be too long. Its profile and downloads stay
+in `session/browser/`.
 
 ### 2.3 Its start
 

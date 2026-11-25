@@ -52,8 +52,8 @@ impl Reasons {
     #[must_use]
     pub fn of(kind: &MessageKind) -> Self {
         match kind {
-            MessageKind::Question => Self::QUESTION,
-            MessageKind::QuestionAnswered { .. } => Self::QUESTION_ANSWERED,
+            MessageKind::Question | MessageKind::PassedQuestion { .. } => Self::QUESTION,
+            MessageKind::QuestionAnswered { .. } | MessageKind::PassedAnswer { .. } => Self::QUESTION_ANSWERED,
             MessageKind::QuestionEnded { .. } => Self::QUESTION_ENDED,
             MessageKind::QuestionOwed => Self::QUESTION_OWED,
             MessageKind::Escalation { .. } => Self::ESCALATION,
@@ -134,6 +134,8 @@ pub fn offered(word: &Word, offered: Reasons) -> bool {
         | MessageKind::Met { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::FinishRequested { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::Escalation { .. }
         | MessageKind::Proposal { .. } => true,
         MessageKind::Words => match word.from {

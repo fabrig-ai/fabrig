@@ -59,8 +59,8 @@ fn selecting_the_current_page_is_still_navigation_for_the_referee() {
     assert_eq!(outcome.verdict, Verdict::Passed);
 }
 
-// Peak 772,737 bytes measured 11-18; testing-strategy.md 6.
-const INBOX_FILTER_HEAP_CEILING: u64 = 970_000;
+// Peak 993,759 bytes measured 11-24 with larger view records for menu-button attributes; testing-strategy.md 6.
+const INBOX_FILTER_HEAP_CEILING: u64 = 1_300_000;
 #[test]
 fn a_persons_inbox_filter_changes_visibility_without_deciding_the_proposal() {
     let outcome = random::story(111, Start::Proposal, INBOX_FILTER_HEAP_CEILING);

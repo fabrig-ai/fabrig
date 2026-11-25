@@ -32,7 +32,7 @@ const CLOSING_ANSWER: &[u8] = b"The plan chat is now closed.";
 /// Initialize the shipped document once; give its listeners and fake peers private addresses.
 #[must_use]
 pub fn configuration(directory: &Path) -> oauth::Peer {
-    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+    let initialized = std::process::Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
         .arg("init")
         .arg("--box")
         .args(super::configuration::flags(directory))
@@ -234,7 +234,7 @@ pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
     // A fresh init's demo forge is prepared by box before it starts serve.
     Binary::start(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: super::configuration::flags(directory),
             directory: directory.into(),
             environment: Vec::new(),

@@ -157,7 +157,13 @@ fn an_unknown_kind_a_private_project_an_identifier_naming_nothing_and_a_task_not
         let (reply, message) = admitted(&mut peer);
         assert_eq!(
             message,
-            core::PublicRead { owner: 0, version: 1, kind: 3, project: Some(u64::from(project)), task: Some(task) }
+            core::PublicRead {
+                owner: 0,
+                version: wire::PUBLIC_VERSION,
+                kind: 3,
+                project: Some(u64::from(project)),
+                task: Some(task)
+            }
         );
         peer.public_answer(reply, core::PublicAnswer::Unknown);
         assert!(matches!(peer.public_reply(exchange), Some(PublicReply::Unknown)));
@@ -232,7 +238,10 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
     ] {
         let socket = peer.http(Method::Get, target.as_bytes(), Box::new([]), headers(cookie, bearer));
         let (reply, got) = admitted(&mut peer);
-        assert_eq!(got, core::PublicRead { owner: 0, version: 1, kind: 1, project: None, task: None });
+        assert_eq!(
+            got,
+            core::PublicRead { owner: 0, version: wire::PUBLIC_VERSION, kind: 1, project: None, task: None }
+        );
         peer.public_answer(reply, projects());
         assert!(peer.take_core().is_none(), "only the public read reaches the core");
         assert_eq!(peer.response(socket).0, Some(200));

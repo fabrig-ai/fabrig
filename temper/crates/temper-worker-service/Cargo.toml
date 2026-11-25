@@ -15,6 +15,7 @@ jig-protocol-worker-agents.workspace = true
 jig-protocol-worker-link.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true
+skein-codec.workspace = true
 skein-io.workspace = true
 skein-json.workspace = true
 skein-lib.workspace = true

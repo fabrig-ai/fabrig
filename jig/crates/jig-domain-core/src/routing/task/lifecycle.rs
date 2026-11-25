@@ -197,6 +197,10 @@ pub(crate) fn release(
 }
 
 pub(crate) fn activate(core: &mut Core, context: Box<tasks::RunContext>, out: &mut Queue<Request>) {
+    // A suspension window can activate without publishing (domain/engine/executors.md, 6).
+    if core.tasks.task(context.task).is_some() {
+        core.wait_alarms.changed(context.task);
+    }
     if core.settling || core.pending_note_briefs.get(&context.task) == Some(&crate::routing::NoteBrief::Activation) {
         let _pending = core.pending_note_briefs.remove(&context.task);
         crate::routing::children::remember_due(core, context);

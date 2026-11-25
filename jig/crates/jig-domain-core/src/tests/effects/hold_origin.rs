@@ -322,7 +322,9 @@ fn held_effects_and_procedures_keep_the_connectors_words_in_task_chip_and_escala
         );
         let row = core.tasks.task(2).unwrap();
         let hold = chip_from_row(&limits, row).unwrap().details.hold.unwrap();
-        assert_eq!(hold.words.as_ref().unwrap().bytes.as_ref(), words);
+        let explanation = &hold.words.as_ref().unwrap().bytes;
+        assert!(skein_lib::bytes::find(explanation, words).is_some());
+        assert!(skein_lib::bytes::find(explanation, b"Held since 1970-01-01T00:00Z.").is_some());
         assert_eq!(hold.account, Some(Part { connector: 2, kind: PartKind::Hold, key: PartKey::Number(2) }));
         for subject in [Subject::Task { task: 2 }, Subject::Escalation { task: 2 }] {
             let document = make(&core, &limits, 1, &subject, &window(), Wall::EPOCH).unwrap();

@@ -226,7 +226,11 @@ fn cold_engine_restart_keeps_three_entries_live_work_and_reasks_the_inflight_rea
     owner(&mut world, 190, FollowAct::Start { after: first });
     let producer = delegate(&mut world, first_change, 0);
     let follow_task = row(&world).task.expect("standing follow");
-    party_task(&mut world, 191, people::Ask::Stop { project: 2, task: follow_task });
+    party_task(
+        &mut world,
+        191,
+        people::Ask::Stop { project: 2, task: follow_task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let second = landing(&mut world, b"src/a.c", b"second");
     heard(&mut world, second);
     let third = landing(&mut world, b"src/a.c", b"third");

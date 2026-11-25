@@ -186,7 +186,11 @@ fn drawn_root_stories_reach_every_durable_ending_and_held_route() {
                     reply_to: ReplyTo::new(Token::new(501)),
                     sign_in: driver.session(),
                     key: [6; 16],
-                    ask: people::Ask::Stop { project: 1, task: assignment.task },
+                    ask: people::Ask::Stop {
+                        project: 1,
+                        task: assignment.task,
+                        reason: Box::from(b"Parking the task".as_slice()),
+                    },
                 }));
                 driver.settle();
                 assert!(

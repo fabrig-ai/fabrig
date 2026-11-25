@@ -39,8 +39,9 @@
   or a length known only later (asserted in range). `len`, `room`,
   `capacity`, `as_slice`; `truncate` and `clear` for reuse; `to_boxed`
   copies the bytes out at their exact length, the buffer kept. Its
-  `Debug` shows its length and capacity, never its bytes. A patch builds
-  each record in one, a secret's bytes among them (../data/codec/patches.md).
+  `Debug` shows its length and capacity, never its bytes. A layout
+  plan's pass writes each value into one, a secret's bytes among them
+  (../data/codec/layouts.md, 4).
 - **`Tail`** keeps a stream's newest bytes in a ring: `Tail::with_capacity(n)`
   holds at most n, `push` and `put` drop the oldest once it is full, and a
   capacity of zero keeps nothing. `get` reads a byte in arrival order,

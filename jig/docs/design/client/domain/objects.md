@@ -187,7 +187,9 @@ A held task whose escalation reached the party
 (`../../domain/tasks/lifecycle-holds.md`, 1 and `../../domain/tasks/proposals.md`).
 
 - **The task,** from `Escalation.task`, and **why it is held,**
-  from its hold, in words with the supplied details (the table below).
+  from its hold: its words, which name its cause, its object, since when
+  and its way out (`../../domain/tasks/lifecycle-holds.md`, 3), with the
+  supplied details (the table below).
 - **What it had done:** its phase before the hold; its result, if it was
   closing.
 - **Where it waits:** the hold's supplied escalation state and
@@ -222,6 +224,7 @@ A held task whose escalation reached the party
 | past its deadline | its deadline | move the deadline and release; cancel |
 | stopped | by whom, and when | release; amend and release; cancel |
 | waiting for a hold past its bound | the resource, and who holds it | release, to wait again; amend to drop it; cancel |
+| a wait past its bound | what it waited for, since when, and its figure: its hold's words | release, to wait again; amend; cancel |
 | a circle of waits | the circle's tasks, as chips in order, each waiting for the next; that the hold lifts on its own once the circle breaks (`../../domain/tasks/holds.md`, 7) | amend a task on the circle to drop a dependency; cancel; release, judged afresh |
 | its pool lost its allocation | the pool, and its slots (a part) | release, to wait for a slot; cancel |
 | its procedure needs a decision | the procedure's reason, in its connector's words (a part) | release, its counts reset; amend and release; cancel |

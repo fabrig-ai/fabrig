@@ -112,7 +112,7 @@ fn value(
     let words = super::task_text::chunk(row.number, field, source, from, room.min(limits.call_answer_bytes))
         .or(Err(tasks::Refusal::Unknown))?;
     let state = task_state(row);
-    let hold = task_hold(limits, row)?;
+    let hold = task_hold(&core.tasks, row);
     Ok(TaskRead {
         task: row.number,
         state,
@@ -157,19 +157,10 @@ fn task_state(row: &tasks::TaskRecord) -> TaskState {
     }
 }
 
-fn task_hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<TaskHold>, tasks::Refusal> {
-    Ok(match crate::documents::task_hold(limits, row) {
-        Ok(Some(hold)) => Some(TaskHold {
-            revision: hold.revision,
-            reason: hold.reason,
-            words: match hold.words {
-                Some(text) => Some(text.bytes),
-                None => None,
-            },
-        }),
-        Ok(None) => None,
-        Err(_) => return Err(tasks::Refusal::Busy),
-    })
+fn task_hold(domain: &tasks::Domain, row: &tasks::TaskRecord) -> Option<TaskHold> {
+    let tasks::Phase::Held { why, .. } = row.phase else { return None };
+    let words = tasks::hold_words(Some(domain), row).expect("held task has words");
+    Some(TaskHold { revision: row.revisions.hold, reason: why, words: Some(words.bytes) })
 }
 
 fn answer(to: ReplyTo, key: CallKey, value: Result<TaskRead, tasks::Refusal>) -> Queue<Request> {
@@ -332,8 +323,13 @@ mod tests {
         row.spec.words = skein_lib::bytes::zeroed(64);
         limits.tasks.dependencies = 2;
         row.dependencies = Box::new([1; 2]);
-        let credit =
-            tasks::QuestionCredit { number: 1, answerer: tasks::Party::Task(1), asked: tasks::Party::Task(1), line: 2 };
+        let credit = tasks::QuestionCredit {
+            number: 1,
+            answerer: tasks::Party::Task(1),
+            asked: tasks::Party::Task(1),
+            line: 2,
+            offer: None,
+        };
         limits.tasks.inbox_messages = 2;
         row.questions = Box::new([credit.clone(), credit]);
         row.phase = tasks::Phase::Held {
@@ -342,7 +338,7 @@ mod tests {
             source: Some(Box::new(tasks::HoldSource::Account {
                 connector: 1,
                 entry: None,
-                words: skein_lib::bytes::zeroed(usize::try_from(tasks::HOLD_ACCOUNT_BYTES).unwrap()),
+                words: skein_lib::bytes::zeroed(tasks::HOLD_WORDS),
             })),
         };
         let read = value(
@@ -374,6 +370,7 @@ mod tests {
             answerer: tasks::Party::Task(1),
             asked: tasks::Party::Task(1),
             line: 106,
+            offer: None,
         }]);
         for phase in [
             tasks::Phase::Waiting,
@@ -508,6 +505,7 @@ mod tests {
             answerer: tasks::Party::Task(1),
             asked: tasks::Party::Task(1),
             line: 106,
+            offer: None,
         };
         row.questions = Box::new([credit.clone(), tasks::QuestionCredit { number: 104, ..credit.clone() }]);
         let read =
@@ -549,7 +547,10 @@ mod tests {
         assert_eq!(first.words.next, Some(4));
         let hold = first.hold.expect("connector hold");
         assert_eq!(hold.revision, 7);
-        assert_eq!(hold.words.as_deref(), Some(b"missing grant; amend authority and release".as_slice()));
+        let chip = crate::documents::chip_from_row_with_core(&core, &limits, &row).unwrap();
+        let explanation = chip.details.hold.unwrap().words.unwrap();
+        assert_eq!(hold.words.as_deref(), Some(explanation.bytes.as_ref()));
+        assert_eq!(explanation.bytes.as_ref(), b"Its procedure asked for a decision: missing grant; amend authority and release. Held since 1970-01-01T00:00Z. Release it to reset its counts.");
         assert!(
             in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 2, &[]).is_err(),
             "continuation cannot split UTF-8"

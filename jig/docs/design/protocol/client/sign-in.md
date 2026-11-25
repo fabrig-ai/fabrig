@@ -479,8 +479,8 @@
       against the new digest. A service's sign-in sent to the core before
       the reissue is the core's before it, since the component's events
       reach the core in the order sent, and the reissue ends it.
-    - *Its records,* in `jig-client-protocol-wire`'s schema, from jig's
-      client wire 43, unbridged (`versions.md`, section 1), each appended
+    - *Its records,* in `jig-client-protocol-wire`'s schema, a change
+      of its layout (`versions.md`, section 1), each appended
       last: `record ReissueService { party: u64 }`, `Ask`'s
       `reissue_service: ReissueService`, and `Made`'s `reissued:
       MadeService`, the record a made service is answered with, since

@@ -128,6 +128,11 @@ impl Core {
         if let Some(person) = row.taken_by {
             self.link_person(&source, person)?;
         }
+        if let Some(wait) = row.person_wait
+            && let Some(tasks::PersonOffer { holder: tasks::PersonAddress::Person(person), .. }) = wait.offer
+        {
+            self.link_person(&source, person)?;
+        }
         if let Some(answer) = row.person_answer {
             self.link_person(&source, answer.by)?;
         }

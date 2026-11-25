@@ -657,6 +657,7 @@ pub(crate) fn named_action(
                         | jig_domain_people::Refusal::Role { .. }
                         | jig_domain_people::Refusal::Authority { .. }
                         | jig_domain_people::Refusal::Unlinked { .. }
+                        | jig_domain_people::Refusal::QuestionAnswered { .. }
                         | jig_domain_people::Refusal::Concluded { .. }
                         | jig_domain_people::Refusal::Ended { .. }
                         | jig_domain_people::Refusal::Taken { .. }
@@ -835,6 +836,9 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
             ToolKind::Settings
         }
         NamedAction::MarkRead { .. } => ToolKind::MarkRead,
+        NamedAction::Message { target, kind: tasks::MessageKind::Answer { question }, .. } => {
+            ToolKind::AnswerQuestion { target: *target, question: *question }
+        }
         NamedAction::Message { target, .. } => ToolKind::Message { target: *target },
         NamedAction::Introduce { left, .. } => ToolKind::Message { target: *left },
         NamedAction::Subscribe { .. } | NamedAction::Unsubscribe { .. } => ToolKind::Subscribe,

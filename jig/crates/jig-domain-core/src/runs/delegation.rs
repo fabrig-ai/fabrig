@@ -1,11 +1,8 @@
 //! Generic delegate executor and symbolic-grant decisions owned by the core
 //! (domain/engine/vocabulary.md, 1.4, and domain/engine/settings.md, 3).
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
-    )
+#![expect(
+    clippy::result_large_err,
+    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
 
 pub use jig_domain_core_vocabulary::runs::delegation::*;

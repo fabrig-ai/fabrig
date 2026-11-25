@@ -162,8 +162,8 @@ does: no worker, no listener, no root.
 
 - **Its request** is temper's client family's (`../client/forge/records.md`):
   `Checkpoint`, with no field, keyed as an act is, the key optional. It
-  moves `CLIENT_VERSION` by one, unbridged, as a client's wire moves
-  (`../draft/archive/redeploys.md`, 8).
+  changes the client wire's layout, `CLIENT_VERSION` frozen
+  (`wires.md`, 9).
 - **Its outcome:**
 
 ```

@@ -183,6 +183,8 @@ pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context:
                 | tasks::MessageKind::News { .. }
                 | tasks::MessageKind::Met { .. }
                 | tasks::MessageKind::QuestionEnded { .. }
+                | tasks::MessageKind::PassedQuestion { .. }
+                | tasks::MessageKind::PassedAnswer { .. }
                 | tasks::MessageKind::QuestionAnswered { .. }
                 | tasks::MessageKind::QuestionOwed
                 | tasks::MessageKind::NothingAwaited => {}
