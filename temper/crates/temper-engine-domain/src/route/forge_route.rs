@@ -4081,6 +4081,12 @@ pub(crate) fn outputs(
                 super::kinds::history_answer(domain, env, decision, read, answer);
             }
             forge::Request::LandingRead(note) => super::diagnostics::emit(domain, crate::Fact::LandingRead(note)),
+            forge::Request::LinkDisagreed { change, named, landing } => {
+                super::diagnostics::emit(domain, crate::Fact::LinkDisagreed { change, named, landing });
+            }
+            forge::Request::ConversionAskDropped { change, landing, kind } => {
+                super::diagnostics::emit(domain, crate::Fact::ConversionAskDropped { change, landing, kind });
+            }
             forge::Request::LandingUnmade { task, repository, branch, changes } => {
                 super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
             }

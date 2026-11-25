@@ -992,6 +992,30 @@ fn unmade_landing_and_dropped_hold_warnings_name_the_repaired_rows() {
 }
 
 #[test]
+fn legacy_landing_conversion_warnings_name_the_change_and_landing() {
+    use temper_engine_service::Note;
+    const CHANGE: u64 = 5;
+    const OLD: u64 = 20;
+    const LIVE: u64 = 26;
+    for (note, expected) in [
+        (
+            Note::LinkDisagreed { change: CHANGE, named: OLD, landing: None },
+            "temper-box serve: warning: change 5 named landing 20; by the landings' rows it is in no landing\n",
+        ),
+        (
+            Note::LinkDisagreed { change: CHANGE, named: OLD, landing: Some(LIVE) },
+            "temper-box serve: warning: change 5 named landing 20; by the landings' rows it is in landing 26\n",
+        ),
+        (
+            Note::ConversionAskDropped { change: CHANGE, landing: OLD, kind: "resolve" },
+            "temper-box serve: warning: change 5: its resolve of landing 20 dropped as its asks were converted: its queue is full\n",
+        ),
+    ] {
+        assert_eq!(note_line("temper-box", note), expected);
+    }
+}
+
+#[test]
 fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
     use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind};
     let arguments =

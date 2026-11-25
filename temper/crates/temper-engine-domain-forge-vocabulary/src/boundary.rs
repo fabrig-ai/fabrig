@@ -3394,6 +3394,17 @@ pub enum Request {
         carried: jig_domain_core_vocabulary::Carried,
     },
     LandingRead(LandingReadNote),
+    /// A stored link disagreed with the rows, or an old ask could not fit (domain/landing-members.md, 4.2).
+    LinkDisagreed {
+        change: u64,
+        named: u64,
+        landing: Option<u64>,
+    },
+    ConversionAskDropped {
+        change: u64,
+        landing: u64,
+        kind: &'static str,
+    },
     /// A taskless landing ended in Link (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,

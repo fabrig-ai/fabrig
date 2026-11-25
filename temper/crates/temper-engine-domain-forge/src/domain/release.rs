@@ -358,6 +358,8 @@ fn outputs(
             | Request::Read { .. }
             | Request::RestartDone { .. }
             | Request::Replace { .. }
+            | Request::LinkDisagreed { .. }
+            | Request::ConversionAskDropped { .. }
             | Request::LandingUnmade { .. }
             | Request::LandingRead(_)
             | Request::HoldDropped { .. }

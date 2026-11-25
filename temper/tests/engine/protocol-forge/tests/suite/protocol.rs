@@ -615,6 +615,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::AskDropped { .. }
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
@@ -628,6 +629,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LinkDisagreed { .. }
+                | top::Request::ConversionAskDropped { .. }
                 | top::Request::LandingUnmade { .. }
                 | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }

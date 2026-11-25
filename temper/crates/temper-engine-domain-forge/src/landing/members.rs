@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Map, Queue};
 use temper_engine_domain_forge_change as change;
 
-const ASKS: u32 = 16;
+pub(crate) const ASKS: u32 = 16;
 
 impl Domain {
     /// The oldest live landing whose row holds this change as a member that has not left.
@@ -225,8 +225,8 @@ pub(super) fn asked(row: &ChangeRow, landing: &LandingRow) -> bool {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Kind {
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum Kind {
     Prepare,
     Repair,
     Landed,
@@ -234,7 +234,19 @@ enum Kind {
     Judge,
 }
 
-fn kind(ask: &change::Ask) -> Kind {
+impl Kind {
+    pub(crate) fn words(self) -> &'static str {
+        match self {
+            Self::Prepare => "prepare",
+            Self::Repair => "repair",
+            Self::Landed => "landed",
+            Self::Resolve => "resolve",
+            Self::Judge => "judge",
+        }
+    }
+}
+
+pub(crate) fn kind(ask: &change::Ask) -> Kind {
     match ask {
         change::Ask::Prepare { .. } => Kind::Prepare,
         change::Ask::Repair { .. } => Kind::Repair,

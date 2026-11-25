@@ -2115,6 +2115,8 @@ impl World {
                 other @ (top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LinkDisagreed { .. }
+                | top::Request::ConversionAskDropped { .. }
                 | top::Request::LandingUnmade { .. }
                 | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
@@ -2157,6 +2159,7 @@ impl World {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::AskDropped { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }

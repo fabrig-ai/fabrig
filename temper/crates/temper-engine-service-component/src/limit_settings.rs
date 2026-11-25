@@ -548,6 +548,7 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
         | S::LoggedTiers
         | S::LandingGates
         | S::LandingAsks
+        | S::ChangeLandedAsks
         | S::LandingEntries
         | S::LandingFollows
         | S::LandingReruns

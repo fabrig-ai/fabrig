@@ -656,6 +656,8 @@ fn adoption_reads_permission_before_committing_its_role() {
     let (call, op) = match &sent[0] {
         Request::Call { call, op, .. } => (*call, op.clone()),
         Request::Resource { .. }
+        | Request::LinkDisagreed { .. }
+        | Request::ConversionAskDropped { .. }
         | Request::LandingUnmade { .. }
         | Request::LandingRead(_)
         | Request::HoldDropped { .. }
@@ -769,6 +771,8 @@ fn adoption_reads_permission_before_committing_its_role() {
             *call
         }
         Request::Call { .. }
+        | Request::LinkDisagreed { .. }
+        | Request::ConversionAskDropped { .. }
         | Request::LandingUnmade { .. }
         | Request::LandingRead(_)
         | Request::HoldDropped { .. }
@@ -876,6 +880,8 @@ fn adoption_reads_permission_before_committing_its_role() {
     match &next[0] {
         Request::Call { op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings), .. } => {}
         Request::Call { .. }
+        | Request::LinkDisagreed { .. }
+        | Request::ConversionAskDropped { .. }
         | Request::LandingUnmade { .. }
         | Request::LandingRead(_)
         | Request::HoldDropped { .. }

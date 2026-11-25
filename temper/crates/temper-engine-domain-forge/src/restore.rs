@@ -29,6 +29,9 @@ impl Domain {
         if let Err(failure) = self.restore_memberships() {
             return Err(StartLink::Fit(failure));
         }
+        if let Err(failure) = self.convert_previous(out) {
+            return Err(StartLink::Fit(failure));
+        }
         self.link_landings(tasks, env, out);
         self.link_writers(tasks, env);
         if let Err(failure) = self.fit_restored(&env.limits) {

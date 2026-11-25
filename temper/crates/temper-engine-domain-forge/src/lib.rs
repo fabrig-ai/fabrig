@@ -157,6 +157,7 @@ pub use temper_engine_domain_forge_vocabulary::purpose;
 use temper_engine_domain_forge_vocabulary::red;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::result;
+mod conversion;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod reconcile;
 mod unmade;

@@ -3,6 +3,8 @@ use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_landing as policy;
 #[path = "landing/claimed.rs"]
 mod claimed;
+#[path = "landing/conversion.rs"]
+mod conversion;
 #[path = "landing/flake_rerun.rs"]
 mod flake_rerun;
 #[path = "landing/members.rs"]
