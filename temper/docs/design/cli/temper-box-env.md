@@ -12,6 +12,14 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell-table.md`, 1
 - **Absent:** Set when a worker runs a job's scripts.
 - The job's directory, set for its scripts.
 
+### `TEMPER_CLOSE_REFUSAL`
+
+- **Set:** public
+- **Sets**
+- **Form:** 3
+- **Absent:** The close command uses its exit statuses from before typed refusals.
+- Asks the close command to report a typed refusal with exit status 3.
+
 ### `TEMPER_CHECKPOINT`
 
 - **Set:** public
