@@ -221,3 +221,62 @@ static host), and the Chromium browser process (12.671 CPU s). This is a
 sum of trace allocations, including the journeys discrepancy, not a sum
 of medians. The playground spent another 4.041 traced CPU s *after* the
 harness (2.710 replay and 1.331 gzip), despite having no box start or ctl call.
+
+## After
+
+Both passes were within the **127.5 CPU s** `browser-temper` suite budget.
+Pass 1 used **95.524422 CPU s** (31.975578 s below budget); pass 2 used
+**94.081936 CPU s** (33.418064 s below budget). Each total sums the twelve
+stories' user and system CPU before rounding the individual results.
+
+**Machine:** builder W4, 8 logical CPUs, AMD EPYC-Genoa Processor.
+**Browser:** Chromium 147.0.7727.101 (Debian 13). Both passes measured
+`0f7e243ee80240258a376578f513d2e991e7a7e1`. The before column reuses the
+medians above, measured on this same host at
+`d8e8c48ccad48bffdf35db3eb27278e7f09b6979`.
+
+Each pass ran the twelve `temper-client-browser-world::browser_all` stories
+in the order below, one exact name per nextest command, on the `default`
+profile. The tier's two bundles and native prerequisites were built once
+outside timing; the test build was unoptimized. The same C wrapper counted
+user and system time of the test and its waited-and-reaped descendants,
+excluding Cargo, nextest and the wrapper. Wall time includes settlement.
+All 24 attempts passed and settled without reported leaks or retries.
+
+Load is the host's 1/5/15-minute load average, sampled immediately before
+and after each command. Times are UTC on 2026-11-25; ranges span all those
+samples in the pass.
+
+| Pass | Start–end (UTC) | Start → end load | Load ranges (1 / 5 / 15 min) |
+| --- | --- | --- | --- |
+| 1 | 03:38:35–03:40:09 | 2.36/1.03/1.72 → 2.87/1.59/1.86 | 1.67–3.68 / 0.98–1.59 / 1.69–1.86 |
+| 2 | 03:40:09–03:41:42 | 2.87/1.59/1.86 → 1.61/1.51/1.80 | 1.61–2.87 / 1.45–1.59 / 1.79–1.86 |
+
+Each cell is **user / system / total CPU / wall** in seconds, rounded to
+four places. The before column uses independent medians as above.
+
+| # | Test (`module::test`) | Before (W4 median) | Pass 1 | Pass 2 |
+| ---: | --- | ---: | ---: | ---: |
+| 1 | `browser_sign_in::signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` | 16.3237 / 2.8708 / 19.1724 / 16.1487 | 5.8332 / 2.5478 / 8.3809 / 15.7984 | 5.7173 / 2.5588 / 8.2762 / 15.6209 |
+| 2 | `browser_pages::history_keeps_the_chat_focus_and_filter_across_reload_and_back` | 8.9197 / 3.7425 / 12.6942 / 7.3782 | 8.1267 / 3.4709 / 11.5976 / 6.0747 | 7.9590 / 3.2820 / 11.2410 / 5.9067 |
+| 3 | `browser_pages::enter_starts_one_chat_and_the_composer_keeps_the_focus` | 5.6077 / 2.6048 / 8.1598 / 6.3415 | 5.2670 / 2.4237 / 7.6907 / 4.5470 | 5.0158 / 2.1433 / 7.1591 / 4.2381 |
+| 4 | `browser_attacks::cross_origin_requests_and_framing_cannot_act_as_the_person` | 4.2440 / 2.2004 / 6.4912 / 3.4308 | 3.9240 / 1.9943 / 5.9183 / 2.8640 | 4.0072 / 2.1125 / 6.1197 / 2.9998 |
+| 5 | `browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state` | 13.6623 / 2.0024 / 15.7407 / 13.0400 | 3.5458 / 1.8078 / 5.3536 / 12.5963 | 3.4767 / 1.7553 / 5.2320 / 12.4682 |
+| 6 | `browser_accounts::the_sign_in_opens_a_tab_and_lands_on_accounts` | 7.1748 / 3.1785 / 10.4775 / 6.5364 | 6.6081 / 3.1796 / 9.7877 / 5.4031 | 6.8027 / 3.2259 / 10.0286 / 5.6177 |
+| 7 | `browser_github::the_manifest_posts_once_and_history_waits_for_continue` | 1.4698 / 0.9931 / 2.4495 / 1.8153 | 1.2146 / 0.8185 / 2.0331 / 1.4051 | 1.2881 / 0.8174 / 2.1054 / 1.4129 |
+| 8 | `browser_playground::story_a_walks_on_the_built_playground` | 10.8648 / 1.7864 / 12.6512 / 11.2536 | 10.9088 / 1.7099 / 12.6187 / 10.9744 | 10.7214 / 1.8027 / 12.5241 / 10.9318 |
+| 9 | `browser_public::public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` | 3.3282 / 2.0057 / 5.3075 / 3.9434 | 3.0157 / 1.8743 / 4.8900 / 3.3981 | 3.0377 / 1.8660 / 4.9037 / 3.4657 |
+| 10 | `browser_pages::a_chat_opens_at_its_end_and_reads_back_keeping_its_place` | 10.7236 / 5.3286 / 15.8577 / 10.3709 | 9.9742 / 4.9154 / 14.8895 / 9.4028 | 10.0505 / 4.8698 / 14.9203 / 9.5792 |
+| 11 | `browser_connect_flows::scrolling_the_sheet_reads_more_then_search_picks_and_adopts` | 4.3305 / 2.0663 / 6.3968 / 3.8222 | 4.4545 / 1.8929 / 6.3474 / 3.4295 | 4.3702 / 1.7467 / 6.1169 / 3.4127 |
+| 12 | `browser_journeys::a_browser_journey_looks_and_a_tui_journey_is_approved_in_chromium` | 4.2537 / 1.6039 / 5.8381 / 4.5969 | 4.3311 / 1.6857 / 6.0168 / 4.4842 | 3.8331 / 1.6219 / 5.4550 / 4.2353 |
+
+Chat reading (10), the playground walk (8), history (2), and accounts (6)
+were the four heaviest stories in both passes, in that order. The largest
+CPU drops were in sign-in and reconnect (1) and cross-site authorization
+(5), each down by more than 10 CPU s with wall time down by less than a
+second. This is consistent with the stop wait no longer using a whole
+core; the passes measure all the repairs together and ran at lower host
+load than the baseline, so they do not isolate any one repair's effect.
+Neither pass was within 2.5 CPU s of the budget, so no new process-family
+traces were taken. The baseline journeys accounting discrepancy above
+was not rechecked.
