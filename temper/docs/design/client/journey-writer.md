@@ -3,9 +3,10 @@
 Provisional, 2026-11-21, revised 2026-11-25. Who writes main's journey
 files, and when. One writer, run by a timer after landings, prints
 every journey in a world with `temper-client-walk pages`, renders each
-newly landed look request beside the print, and offers what differs,
-pages and verdicts, as a change of its own; nothing else writes those
-files. The journeys are the browser's (`web/journeys.md`) and the
+newly landed look request beside the print, lists the journeys requests
+left that may be retired, and offers what differs, pages and verdicts,
+as a change of its own; nothing else writes those files. The journeys
+are the browser's (`web/journeys.md`) and the
 TUI's (`tui/journeys.md`); the look requests drawn on their pages are
 `web/look-requests.md`'s.
 
@@ -30,7 +31,8 @@ TUI's (`tui/journeys.md`); the look requests drawn on their pages are
   to write, main's pages are that tip's print.
 - **Goals are kept off** (section 5): the delivery check refuses a
   delivery that changes a written file beside any other file, and a
-  nonempty overlay; the merge job settles a written file's conflict with
+  nonempty overlay, and takes a journey's directory deleted whole as
+  written files; the merge job settles a written file's conflict with
   the landing branch's copy; no test at the gate holds a journey to a
   committed recording or page.
 - **A request is checked against the print** (section 6): whoever
@@ -39,7 +41,7 @@ TUI's (`tui/journeys.md`); the look requests drawn on their pages are
   (6.1). After it lands, the writer's run renders it in Chromium beside
   the print with `look-render` (6.2) and writes the verdict into
   `looks.html` (6.3); `look-refresh.sh` drops the request once main's
-  `looks.html` holds it.
+  `looks.html` holds it. Its foot lists the candidates to retire (6.3).
 - **After a landing, never inside one:** a walk that stops holds no
   landing. It fails the writer's run, an after-landing red of its
   runner's (the user, 2026-11-18).
@@ -52,7 +54,7 @@ Under `web/journeys/` and `tui/journeys/`:
 |---|---|
 | a journey's pages: `NN.html`, and the TUI's `NN.txt`, NN two digits or more | a journey's `walk`, `README.md` and, where it has one, `scripts.json` |
 | beside the browser's journeys, `skein-ui.css` and `journey.js`; beside the TUI's, `theme.css` and `tui-journey.js` | each root's `overlay.css`, empty on main; the `README.md` beside each root |
-| beside each root's journeys, `looks.html`, the render check's verdicts (6.3) | |
+| beside each root's journeys, `looks.html`, the render check's verdicts and the candidates to retire (6.3) | |
 | a leftover `recording`, removed once its journey prints | |
 
 - **A source changes with what a person does:** a change that renames a
@@ -63,6 +65,11 @@ Under `web/journeys/` and `tui/journeys/`:
 - **Pages are replaced whole:** a successful print removes surplus
   numbered pages and its journey's leftover `recording`. A directory
   with no `walk` loses its pages (`journey-walks.md`, 5.2).
+- **A journey retired goes whole:** one change of its own deletes its
+  directory, sources and pages together, taken as written files
+  (section 5); its `walk` never goes alone, since no run removes the
+  pages it leaves. The person says which go, from `looks.html`'s
+  candidates (6.3).
 
 ## 3. The command
 
@@ -218,7 +225,27 @@ Chromium, `SKEIN_TEST_CHROMIUM` naming it, as the browser tiers' does.
      is left changed. The run names why, exits 1, commits and offers
      nothing and finishes no run, so the next tick starts again.
    - Each root's `looks.html` gains its new entries at its top, newest
-     first, and is written only where it gains one.
+     first.
+   - **The candidates to retire** (6.3), once the entries are made, from
+     each root's page as the run leaves it: each request NAME whose
+     entry standing for L, its newest `Look-landed`, has the result
+     `identical`, C that entry's `data-look-commit`.
+     - **What C added:** each journey J whose `J/walk`, under either
+       root, C adds from its parent. Where the checkout lacks C, it
+       fetches `docs/look/NAME` as above first; a branch `origin`
+       lacks, or a fetch that leaves the checkout without C, lists
+       none of NAME's journeys, and stderr says why
+       (`journey-pages: cannot read what NAME added: WHY`). A fetch or
+       git failing otherwise is a check that can't finish.
+     - **A candidate:** such a J that TIP holds as a journey (section
+       3, item 1), where no journey's `walk` at TIP, under either root,
+       has `after J` for its second line (`journey-walks.md`, 2.3),
+       since its going would stop the other.
+     - A request whose newest `Look-landed` has no entry yet lists
+       none: a repair's landing waits for its own verdict. Where no
+       standing entry is `identical`, nothing is read for them.
+   - Each root's `looks.html` is written only where its bytes change:
+     a new entry, or a foot that changes, appears or goes (6.3).
 6. **Nothing differs,** no page and no `looks.html`: the run is
    finished, `journey-pages.finished` taking `TIP NOW`; its last line is
    `main's pages are TIP's print`, its exit the print's, including 1
@@ -313,7 +340,12 @@ lines go to the user journal (`journalctl --user -u journey-pages`).
   refused, naming `cargo run -p temper-client-walk -- print --out DIR`
   for every journey, and how to restore the files; so is a tree whose
   `overlay.css`, under either root, holds a byte. A delivery of written
-  files alone passes it. The written set includes leftover recordings.
+  files alone passes it. The written set includes leftover recordings,
+  and every path of a journey's directory deleted whole, its `walk`
+  among them, so that a journey retired (section 2) passes alone. A
+  `walk` deleted while its directory still holds a written file is
+  refused, naming the walk: no run removes those pages, and a merge
+  that brings main's print back into a retiring branch shows there.
 - **The merge job** (`../protocol/tooling.md`, 4.1;
   `tools/merge/README.md`): a conflict at a written file's path is
   settled with the landing branch's copy, the commit merged in, with no
@@ -618,7 +650,8 @@ entry is in its root's page: the TUI's for a name starting `tui-`
 - **The page:** `<!doctype html>`, `html` with `lang="en"`, the title
   `Look requests rendered · temper`, no script and no stylesheet; a tag
   a line, as a print (`web/journeys.md`, 5.3); an `h1`, then its
-  entries, newest first. A root with no entry has no page.
+  entries, newest first, then its foot where it lists a candidate. A
+  root with no entry has no page.
 - **An entry** is a `section` whose start tag carries, in this order,
   `data-look-request` NAME, `data-look-commit` C, `data-look-landed`
   L, the `Look-landed` commit it checks, `data-look-tip` TIP, the print
@@ -650,6 +683,22 @@ entry is in its root's page: the TUI's for a name starting `tui-`
   next run. A `section` start tag missing one of the five attributes,
   or holding a malformed value, is no entry: a reader passes over it
   with a warning, and the writer keeps its lines as they are.
+- **Its foot, the candidates to retire** (section 2), as section 4,
+  step 5, finds them, each in the page holding its request's entry:
+  one `footer`, the last element of the page's `body`, holding no
+  `section`:
+  - an `h2`, `Journeys to retire`;
+  - a paragraph, `Journeys look requests added whose verdicts stand
+    identical, which no walk starts after. Whoever starts look
+    requests' goals proposes which go.`;
+  - a `ul`, an `li` a candidate, `PATH, added by NAME`, PATH the
+    journey's directory below `temper/docs/design/client/`
+    (`web/journeys/J`), in path order, the browser's root first, PATH
+    escaped as an entry's values are.
+
+  Made afresh each run, it replaces the page's: a page with no
+  candidate has none, and unchanged candidates keep the page's bytes.
+  Readers of entries pass over it.
 - **Read by** the writer's run (section 4, step 5), from its checkout
   at TIP, and the refresh (section 6), from `origin/main`.
 
@@ -708,7 +757,12 @@ Focused and native: no box, browser or terminal starts.
   exit 1, nothing committed or offered; a value holding `<`, `&`, `"`
   and an escaped tab is written escaped; a TUI request's entry goes
   beside the TUI's journeys; the commit's dates are TIP's, and a new
-  offer at the same tip, another commit, gets a new key.
+  offer at the same tip, another commit, gets a new key. Its
+  candidates: a journey a request added, its verdict `identical` and no
+  walk `after` it, listed; one another starts `after`, or whose verdict
+  differs, not; a C the checkout lacks fetched first, a branch `origin`
+  lacks listing none; a foot whose candidate has gone removed, an
+  unchanged one keeping the page's bytes.
 - **The refresh's decisions,** step tests in the same library, the
   `look-refresh` command on canned answers: a request whose trailer is
   on main and not yet printed kept; dropped once a `Printed:` names a
