@@ -7,6 +7,7 @@ use skein_shell::Front;
 use std::path::Path;
 
 mod cadence;
+mod retire;
 mod verdicts;
 
 const CHECKOUT: &str = "/writer";
