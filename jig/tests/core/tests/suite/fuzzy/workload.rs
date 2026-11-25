@@ -41,23 +41,23 @@ fn people_act_on_tasks_at_any_step() -> Result<(), String> {
 #[test]
 fn runs_park_resume_and_move_at_any_step() -> Result<(), String> {
     let configured = [
-        open::PARKS_WITH_A_QUESTION_OPEN,
+        parks::PARKS_WITH_A_QUESTION_OPEN,
         parks::ANSWERED_WHILE_PARKED,
         parks::ANSWERED_AFTER_ITS_END,
         parks::ANSWERED_TO_ITS_SUCCESSOR,
         parks::COORDINATOR_ENDS_WHILE_A_CHILD_WAITS,
+        parks::STUCK_IN_A_CIRCLE,
+        parks::PARKS_ON_NOTHING,
+        parks::WATCHES_A_TASK_THAT_CAN_ANSWER,
     ];
     let mut sweep = Sweep::new("runs_park_resume_and_move_at_any_step");
     for kind in configured {
         sweep.configure(kind);
     }
-    for exclusion in open::EXCLUSIONS {
-        if configured.contains(&exclusion.fault) {
-            sweep.exclude(exclusion)?;
-        }
-    }
-    // Each contributes a different answer/end kind; removing any leaves it unfired.
-    for seed in [11, 20, 33, 37] {
+    // 11 covers the one-goal circle and the answer after ending; 61 covers
+    // the two-goal circle by reading. 1763 parks on nothing and answers a
+    // parked run; 3570 covers the control, successor and coordinator end.
+    for seed in [11, 61, 1763, 3570] {
         eprintln!("parks seed {seed}");
         let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
         eprintln!("parks fell {seed}: {:?}", ledger.fell());

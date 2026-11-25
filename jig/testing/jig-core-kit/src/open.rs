@@ -3,8 +3,6 @@
 
 use skein_world::{faults::Kind, sweep::Exclusion};
 
-pub const PARKS_WITH_A_QUESTION_OPEN: Kind =
-    Kind { family: "runs that park, resume and move", name: "a run parks with a question to its requester open" };
 pub const AMENDS_A_PASSED_DEADLINE: Kind =
     Kind { family: "people and parties", name: "amending a deadline after it has passed" };
 pub const WIDENS_GOAL_AUTHORITY: Kind =
