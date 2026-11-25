@@ -8757,6 +8757,7 @@ dependencies = [
  "smith-host-domain",
  "smith-host-protocol",
  "temper-agent-fixtures",
+ "temper-client-protocol-wire",
  "temper-config-shell",
  "temper-engine-service-vocabulary",
  "temper-launcher",
