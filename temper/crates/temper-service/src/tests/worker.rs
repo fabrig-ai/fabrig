@@ -8,7 +8,8 @@ use temper_protocol_worker_wire::v1::Record;
 fn the_workers_credential_uses_the_engines_table_entry() {
     let settings = fixtures::worker_settings();
     let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();
-    let credential = worker_settings::credential(&settings, b"worker-secret-value", &payload).unwrap();
+    let application = temper_protocol_worker_wire::application(&payload).expect("worker application");
+    let credential = worker_settings::credential(&settings, b"worker-secret-value", application);
     let engine = temper_engine_service::workers::application(&payload).unwrap();
     assert_eq!(credential.application.spoken, engine.spoken);
     assert_eq!(credential.application.roots.len(), engine.roots.len());
@@ -22,7 +23,9 @@ fn the_workers_credential_uses_the_engines_table_entry() {
     let mut found = false;
     for wire in &wires {
         if wire.name == temper_protocol_worker_wire::wire::FAMILY {
-            assert_eq!(credential.application.spoken.as_slice(), core::slice::from_ref(wire));
+            let [spoken] = credential.application.spoken.as_slice() else { panic!("one application wire") };
+            assert_eq!((wire.name, wire.lowest, wire.highest()), (spoken.name, spoken.version, spoken.version));
+            assert_eq!(wire.layouts.as_slice(), &[spoken.layout]);
             found = true;
         }
     }

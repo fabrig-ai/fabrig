@@ -88,16 +88,13 @@ impl Peer {
         use jig_protocol_worker_wire as wire;
         let mut wires = skein_lib::List::with_capacity(4);
         for spoken in &wire::spoken() {
-            let mut spoken = spoken.clone();
-            if matches!(case, Some(Opening::Wires)) && spoken.name == wire::wire::FAMILY {
-                spoken.lowest = spoken.highest().checked_add(1).expect("another version");
-            }
+            let (layout, text) = if matches!(case, Some(Opening::Wires)) && spoken.name == wire::wire::FAMILY {
+                ([0; 32], b"not a schema".as_slice())
+            } else {
+                (spoken.layout, spoken.text.as_bytes())
+            };
             wires
-                .push(wire::Wire {
-                    name: spoken.name.as_bytes().into(),
-                    lowest: spoken.lowest,
-                    layouts: spoken.layouts,
-                })
+                .push(wire::Wire { name: spoken.name.as_bytes().into(), layout, text: text.into() })
                 .expect("four wire slots");
         }
         wires
@@ -188,7 +185,9 @@ impl Peer {
         }
     }
     pub(crate) fn figures_taken(&self) -> bool {
-        self.ended && self.scripted.observed().iter().map(|record| record.kind).collect::<Vec<_>>() == [0x018d, 0x0190]
+        self.ended
+            && self.scripted.observed().iter().map(|record| record.kind).collect::<Vec<_>>()
+                == [jig_protocol_worker_wire::Kind::Figures.number()]
     }
     pub(crate) fn shutdown(&mut self) {
         if !self.closing

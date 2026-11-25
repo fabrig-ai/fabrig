@@ -78,8 +78,8 @@ impl OwnerSets {
   frame's body, its `texts` the core's `current` alone; in smith's,
   smith-transcript, whose `Turn` the body's `transcript` holds, with
   no `keys`, since none of its records is a map's, its `texts`
-  smith-transcript's kept texts, from its generated module (smith's
-  `protocol/transcript.md`, section 12). Every other family's is
+  smith-transcript's `SEED` (smith's `protocol/transcript.md`, section
+  12). Every other family's is
   `None`. A set with a frames' family in another slot, or two in one,
   is refused, `Set`; so is a body whose held turn names a family other
   than smith's frames' one, judged from the frames' texts, at every

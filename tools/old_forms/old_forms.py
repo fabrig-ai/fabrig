@@ -5,8 +5,7 @@ WORDS, EXCLUDE, INCLUDE, EXEMPT and EXEMPT_DIRECTORIES. Regex forms count
 matches; computed forms receive text, relative filename, tree and repository.
 SYNTAX_FORMS see code with literals masked. Other code forms retain strings
 and replace ordinary literal escapes with separators. Comment forms see only
-comments, including doc comments. Generated path components and each crate's
-patches/mod.rs are excluded; authored patch functions and context still count.
+comments, including doc comments. Generated path components are excluded.
 """
 import argparse
 from functools import lru_cache
@@ -129,7 +128,7 @@ def counts(config):
     code_forms = {key: value for key, value in config['FORMS'].items() if key not in syntax_forms}
     for path in paths:
         parts = path.split(b'/')
-        if not path or b'generated' in parts or parts[-2:] == [b'patches', b'mod.rs']:
+        if not path or b'generated' in parts:
             continue
         name = path.decode('utf-8')
         if name.startswith(config.get('EXEMPT_DIRECTORIES', ())):

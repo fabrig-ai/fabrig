@@ -1218,8 +1218,8 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
         statement: engine::WorkerStatement {
             wires: Box::new([engine::OpenedWire {
                 name: "example-wire".into(),
-                lowest: 3,
-                layouts: Box::new([[4; 32], [5; 32]]),
+                layout: [4; 32],
+                text: b"worker-stated wire text".as_slice().into(),
             }]),
             output: 4096,
             terms: Box::new([engine::OpenedTerm { kind: 12, largest: 34 }]),
@@ -1240,8 +1240,8 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
             worker: "w1".into(),
             wires: Box::new([store::OpenedWire {
                 name: "example-wire".into(),
-                lowest: 3,
-                layouts: Box::new([[4; 32], [5; 32]])
+                layout: [4; 32],
+                text: b"worker-stated wire text".as_slice().into()
             }]),
             output: 4096,
             terms: Box::new([store::OpenedTerm { kind: 12, largest: 34 }]),

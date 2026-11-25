@@ -322,7 +322,7 @@ pub enum Note {
     },
     WorkerOpened {
         worker: Box<[u8]>,
-        wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,
+        converted: skein_lib::List<Box<str>>,
     },
     /// A refusal at the opening, including skein's pre-credential refusal.
     WorkerOpeningRefused {
@@ -340,6 +340,11 @@ pub enum Note {
         worker: Box<[u8]>,
         channel: skein_lib::Token,
         unsent: jig_protocol_engine_workers::Unsent,
+    },
+    WorkerUnread {
+        worker: Box<[u8]>,
+        kind: jig_protocol_worker_wire::Kind,
+        text: Box<[u8]>,
     },
     /// An opening ended, suppressed by name and reason until hello (protocol/cluster.md, 3).
     WorkerOpeningEnded {

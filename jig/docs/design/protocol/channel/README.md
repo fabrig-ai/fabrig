@@ -10,8 +10,7 @@ decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
 is tested; `wires.md` holds the wires its opening states,
 `layouts.md` how the engine converts between its layouts and a
-worker's (replacing `bridges.md`, which goes with the code it
-describes),
+worker's,
 `figures.md` what the engine sends a worker at its opening,
 `restart.md` the restart an engine says before it stops, and
 `pause.md` how an engine asks a worker to take no new work, to drain,

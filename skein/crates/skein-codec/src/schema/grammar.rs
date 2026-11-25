@@ -37,10 +37,6 @@ fn tombstone_capacity(tokens: u32) -> u32 {
     tokens.checked_div(6).expect("six tokens per tombstone")
 }
 
-pub(super) fn tombstone_bound(text: u32) -> Option<u64> {
-    List::<Tombstone>::price(tombstone_capacity(text))
-}
-
 #[derive(Debug)]
 pub(super) struct Parser {
     parsed: Parsed,

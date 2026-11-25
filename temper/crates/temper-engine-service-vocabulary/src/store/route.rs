@@ -113,7 +113,7 @@ fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
     let mut wires = List::with_capacity(u32::try_from(opening.statement.wires.len()).expect("opening wires fit u32"));
     for wire in opening.statement.wires {
         wires
-            .push(store::OpenedWire { name: wire.name, lowest: wire.lowest, layouts: wire.layouts })
+            .push(store::OpenedWire { name: wire.name, layout: wire.layout, text: wire.text })
             .expect("one stored wire per opening wire");
     }
     let mut terms = List::with_capacity(u32::try_from(opening.statement.terms.len()).expect("opening terms fit u32"));
