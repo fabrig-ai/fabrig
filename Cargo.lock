@@ -2579,6 +2579,7 @@ version = "0.0.0"
 name = "jig-test-profile"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-authority",
