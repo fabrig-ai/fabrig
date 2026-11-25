@@ -388,3 +388,87 @@ median. Every after attempt of each was lower than both before attempts.
 For chat reading, the larger part of the median drop was in system time;
 for the playground, it was in user time. These combined-snapshot comparisons
 do not attribute the savings to individual repairs.
+
+## Serve and ctl: 06:43:15 UTC
+
+On the base `fb95d279d4`, a `perf record` process-tree profile sampled
+CPU at 599 Hz with DWARF call chains. A probe after the shell wrote a
+listening note bounded the serving phase from each process's last
+announcement. A probe at `temper_client_shell_cli::start::run` identified
+ctl processes (the stories call `temper-box ctl`, so executable name is
+not enough). Counts and inclusive sampled CPU seconds below are from
+one attributed pass per story; the profiles are not part of the timing
+medians. Host: 8 logical CPUs, AMD EPYC-Genoa; Chromium 147.0.7727.101.
+Profiling load ranges were 5.44–6.13 / 2.45–3.12 / 1.82–2.09 (1/5/15 min).
+
+| Story (from the isolated attempts) | Serve after listen | `Engine::next_deadline` | Of that: readiness / wait check / shell timer and other | ctl calls | ctl before entry (loader subset) | ctl after entry |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Chat reading (10) | 2.392 | 0.341 | 0.080 / 0.115 / 0.145 | 44 | 0.698 (0.674) | 0.716 |
+| History (2) | 1.679 | 0.302 | 0.065 / 0.095 / 0.142 | 8 | 0.134 (0.127) | 0.073 |
+| Sign-in (1) | 0.718 | 0.115 | 0.027 / 0.037 / 0.052 | 6 | 0.095 (0.093) | 0.058 |
+| Accounts (6) | 0.881 | 0.164 | 0.037 / 0.035 / 0.092 | 6 | 0.092 (0.090) | 0.055 |
+
+`Engine::next_deadline` folds the store, workers, domain (including jig
+core timers and forge timers), accounts, setup, and client deadlines. The
+shell uses the aggregate for a bounded wait. The debug wait check also
+asks whether anything can wake the service, including queued work and
+then the earliest deadline if needed. `Engine::pending_with_clients`,
+reached by both readiness checks, gathered all deadlines eagerly even
+when queued work already made the turn runnable. The repair makes that
+read conditional; it does not cache timers or change when any is due.
+The focused test `queued_root_input_needs_no_deadline_scan_for_readiness`
+asserts zero deadline reads when a queued input makes the running engine
+ready. Restoring the eager read produces one and fails the test.
+
+The dynamic loader repeated ELF relocations on every ctl invocation.
+In reading, `Connections::pump` (0.282 sampled CPU s inclusive) went
+through `Stream::body` and `Stream::piece` to `skein_http::sse::pump`
+(0.207 s); `Intake::meet` accounted for 0.107 s inclusive. The latter
+path meets an `Arrived` demand after each byte, copying and handing off
+one byte at a time. In history, sign-in and accounts, the ctl loop
+`drive_with` was the largest post-entry phase identifiable as useful work
+(0.025, 0.022 and 0.012 s respectively), including client iteration, link
+progress, and io_uring submission. No ctl, SSE, or loader change was made.
+
+### Alternating attempts
+
+Five before/after pairs per story, on the same host, from 06:38:13 to
+06:45:35 UTC. The tier bundles and native prerequisites were built
+outside timing. Each attempt selected one exact story in `browser_all`
+under nextest's `default` profile and the C accounting wrapper. The
+other stories were compiled only. All 40 timed attempts passed and the
+wrapper recorded settlement with no leaks. The wrapper covers waited
+and reaped descendants; this is not a complete-tree CPU guarantee.
+
+Independent medians are **user / system / total CPU / wall** in seconds.
+Load ranges are sampled before and after the invocations (1/5/15 min).
+
+| Story | Before | After | Load ranges |
+| --- | ---: | ---: | --- |
+| Chat reading | 9.6422 / 4.2967 / 13.9247 / 9.2007 | 9.8268 / 4.4081 / 14.2295 / 9.1726 | 1.88–2.54 / 2.29–2.65 / 2.06–2.16 |
+| History | 8.0328 / 3.4849 / 11.3260 / 6.2359 | 8.2636 / 3.5203 / 11.7481 / 6.4241 | 2.05–3.85 / 2.32–2.87 / 2.05–2.20 |
+| Sign-in | 6.2074 / 2.7456 / 8.9819 / 16.0087 | 5.9395 / 2.6058 / 8.6635 / 15.9483 | 1.53–3.85 / 2.14–2.87 / 2.05–2.20 |
+| Accounts | 7.0059 / 3.0384 / 10.0567 / 5.5975 | 6.6856 / 3.0066 / 9.6776 / 5.5215 | 1.53–2.72 / 2.13–2.67 / 2.05–2.17 |
+
+| Story | Paired CPU savings (before minus after, in run order) |
+| --- | --- |
+| Chat reading | +0.8320, −1.2381, +0.6337, −0.5776, −4.2511 |
+| History | +4.3382, −0.2416, +0.4223, −0.7483, −0.8205 |
+| Sign-in | +0.3523, −0.0577, +0.4721, +0.7927, +0.2400 |
+| Accounts | +0.2219, +0.6496, +0.3828, +0.5048, +0.2800 |
+
+Accounts improved in every pair, but the before and after ranges overlap
+(9.606–10.327 vs. 9.223–9.777 CPU s). The other stories also overlap,
+and reading and history have single attempts more than 4 CPU s away from
+their otherwise tight ranges, without comparable wall drops. Those
+attempts were retained; their cause was not established. The four median
+CPU changes do not establish a suite-wide gain or a mean below 118 CPU s
+on the tier machine.
+
+The debug wait-boundary check still costs 0.167 / 0.115 / 0.040 / 0.038
+sampled CPU s in reading / history / sign-in / accounts, overlapping the
+readiness and deadline samples. A cheaper order of evidence there was
+considered but not benchmarked: the remaining opportunity is small
+against the whole-story spread. The one-byte SSE intake and per-process
+relocations remain. No timers, wait bounds, story steps, settings, or
+versions changed.
