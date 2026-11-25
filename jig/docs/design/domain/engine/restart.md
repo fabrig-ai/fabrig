@@ -359,7 +359,8 @@ runs through the restart wait rather than its grace
 - **Then said.** Once that decision is durable, the core asks its root
   to tell the workers, `Held::Restarting { wait }`, `wait` the
   configured restart wait, a `Duration`. The root has its workers'
-  component send it on each channel whose version has it, and closes
+  component send it on each channel whose worker's layout has it
+  (`../../protocol/channel/layouts.md`, 4.1), and closes
   the workers' part only at `Held::Drained`, which the journal releases
   after it (temper's `domain/root-restart.md`, 1.2).
 - **Kept as** the deployment's numbers record's `restart_wait_ms`, the

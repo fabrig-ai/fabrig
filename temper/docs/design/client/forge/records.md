@@ -311,8 +311,8 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
     watcher's own brief;
   - `unpaid`, bool, appended after `branch`: whether the watcher's last
     status run found nothing to pay for it (`../../domain/forge/attention.md`,
-    3, *When nothing pays*). Its field moves the client wire's version,
-    unbridged (`../../draft/archive/redeploys.md`);
+    3, *When nothing pays*). Its field changes the client wire's
+    layout, its version frozen (`../../protocol/wires.md`, 9);
   - `previous`, option, the party's last look of the sitting before; and
     `seen`, u64, the `landed` count then;
   - `queued`, u32, what the subject `changes` counts; `red`, whether the

@@ -67,7 +67,7 @@
   dependencies, a role's holdings, a pattern's segments) takes at most
   32 items, so 32 is the most the client's `rows` may be, and with it
   the rows of its pages and windows. More changes the wire's schema,
-  and so moves its version (`versions.md`, section 1). A client whose rows pass it is unusable: the link
+  and so its layout (`versions.md`, section 1). A client whose rows pass it is unusable: the link
   refuses its limits at construction, and nothing is cut to fit.
 - **A document's nested collections cross as pieces.** The client bounds
   a document by its bytes in all, not each list by its count times its
@@ -159,9 +159,9 @@ place.
 `TaskWaitSource { state }` names a source's state. An account wait's
 why appends `untooled`, `TaskWaitUntooled { worker: u32 }`, the worker
 setting's number whose login of that source started its program
-without its tools (`../../domain/engine/fleet.md`); the client wire
-moves its version for it, unbridged (temper's `draft/archive/redeploys.md`,
-section 8). `TaskRunWaitRefused { value }` wraps the enum payload
+without its tools (`../../domain/engine/fleet.md`); the client wire's
+layout changes for it, its version frozen (`versions.md`, section 1).
+`TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header
 bytes. Shared admission types precede their task-wait consumers in the
 schema, as the generator requires. Status and person-facing words are

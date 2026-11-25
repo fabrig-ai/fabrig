@@ -449,8 +449,8 @@ of the forge's family (`../client/ctl/tools-reads.md`, 1):
 - **On the wire:** a forge read of the client's family, as
   `RevisionSetting` is (`../client/forge/served.md`), its query the
   project, the change or the landing, the range and the cursor, its
-  answer the page or the refusal; the client's wire moves its version
-  (`../protocol/wires.md`, 8). The root hands the read to the forge,
+  answer the page or the refusal; the client's wire changes its layout
+  (`../protocol/wires.md`, 9). The root hands the read to the forge,
   which loads (4.3) and answers it.
 
 ### 5.2 A change whose row went
@@ -501,8 +501,8 @@ of the forge's family (`../client/ctl/tools-reads.md`, 1):
   demand-loaded families without changing a stored row.
 - **No history before it:** a change live at the upgrade has a partial
   history, from its first step after; nothing is rebuilt or backdated.
-- **ctl's wire** moves its version for the new read
-  (`../protocol/wires.md`, 8); the client's wire carries no bridge.
+- **ctl's wire** changes its layout for the new read, its version
+  frozen (`../protocol/wires.md`, 9); nothing converts for a client.
 
 ## 8. Testing
 

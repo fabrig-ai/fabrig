@@ -389,8 +389,9 @@ written as JSON by the worker's start:
   kind 21, and takes the live ones it holds. So an engine and its
   workers redeploy in either order, and no store or setting changes
   form.
-- **`temper-client-wire` moves its version** for the Limits page's
-  word for a live limit (`limit-settings.md`, 7; `../wires.md`, 9).
+- **`temper-client-wire` changes its layout** for the Limits page's
+  word for a live limit, its version frozen (`limit-settings.md`, 7;
+  `../wires.md`, 9).
 - **The agents' environment moves no version.** `application.environment`
   is a member the document gains, absent by default, and the pinned
   configuration keeps smith's form. A deployment whose agents need no

@@ -228,17 +228,18 @@ as every change's does (`settings.md`, 2).
   version (`AGENTS.md`, section 2); the families that name a setting
   (a refusal's facts, a proposal's heads) gain the identity each by its
   own rule.
-- **The client wire** moves its version, unbridged (temper's
-  `draft/archive/redeploys.md`, 3.1 and section 4), once, for all of this
+- **The client wire** changes its layout, its version frozen
+  (`../../protocol/client/versions.md`, 1), for all of this
   document's: `Setting::Worker`, `SettingValue::Worker`,
   `SettingFault::Linked` and `Deployment.worker_settings`.
-- **The worker channel's wire** keeps its version: its credential and
+- **The worker channel's wire** keeps its layout: its credential and
   its reasons are as they were, and only the reason a refused name is
   given changes (4).
-- **The pause** (5) moves the client wire again, unbridged, for
+- **The pause** (5) changes the client wire's layout again, for
   `Ask::PauseWorker`, its refusals and `WorkerState.pause`; and the
-  worker channel's wire to 19, bridged (`../../protocol/channel/pause.md`,
-  2).
+  worker channel's, whose pause the engine sends only where a worker's
+  layout has its kind (`../../protocol/channel/pause.md`, 2;
+  `../../protocol/channel/layouts.md`, 4.1).
 - **The engine's document:** `engine.hosts.workers` is refused by name,
   "workers are settings in the store", as `engine.charters` is
   (`../../protocol/configuration-engine.md`, section 1), and no digest file is

@@ -248,11 +248,11 @@ A change with parameter 19 has no producing task. Its own branch is
   `taking` while it takes, and its source, the branch, the `at` named
   and the kept head, while it takes and after; none for a change with
   no source.
-- **The client's wire** moves its version for the new request and the
-  panel's source and step, with no bridge
-  (`../../../draft/archive/redeploys.md`, section 8): a client of the new
-  version meeting an engine of the previous one is refused, `version not
-  served`, before any task is made. Engine and workers: nothing moves,
+- **The client's wire** changes its layout for the new request and the
+  panel's source and step, its version frozen
+  (`../../../protocol/wires.md`, section 9): a client of the new
+  layout meeting an engine of the previous one is refused by name at
+  the hello, before any task is made. Engine and workers: nothing moves,
   no job runs and no worker is asked.
 
 ## 7. Testing

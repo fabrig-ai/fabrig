@@ -96,7 +96,8 @@ this document says how settings lie over it.
   document's `limits.overrides` had, and its problems name the setting
   (section 3).
 - **On jig's client wire** a `SettingValue` of its own, so the wire
-  moves its version (jig's `protocol/client/README.md`).
+  changes its layout, its version frozen (jig's
+  `protocol/client/versions.md`, 1).
 
 ### 2.3 temper's kind, 22, `temper-limits`
 
@@ -466,7 +467,7 @@ this document says how settings lie over it.
   row's `applies`, section 5.3), and "at the next start" when the
   setting differs from the figure in force. A row's `applies` reaches
   the page as the client wire's `LimitApplies`, which gains `live`, so
-  `temper-client-wire` moves its version (`../wires.md`, 9). `transcript_memory`'s row shows the bytes
+  `temper-client-wire` changes its layout (`../wires.md`, 9). `transcript_memory`'s row shows the bytes
   the root holds against it. The settings page links to it. Its rows come
   from one read, `limits`, which the service answers from its names
   tables, the stock it resolved and the settings in force, a page of rows

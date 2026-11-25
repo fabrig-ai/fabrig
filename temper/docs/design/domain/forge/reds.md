@@ -434,7 +434,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   hold past the bound.
 - **The ask:** the engine's answer to a producer's ask, to one of an
   attempt that isn't live (refused), and to bytes that don't decode;
-  both wires' patches and bridges, by their crates' tests.
+  both wires' conversion between layouts, by their crates' tests and
+  jig's (`../../protocol/wires.md`, 11).
 - **The worker:** the file written fresh at each check's start, a check
   run again included, and removed at its end and at prepare; reds whose
   head the base doesn't contain left out; a slow or failed ask writing
@@ -460,8 +461,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   refusing a filing without refusing the report.
 - **The report's way:** the engine answering `kept` and deciding on a
   report, a report of an attempt not live refused, bytes that don't
-  decode refused; `temper-worker-wire`'s patch and bridge by its crate's
-  tests.
+  decode refused; `temper-worker-wire`'s conversion between layouts by
+  its crate's tests (`../../protocol/wires.md`, 11).
 - **The worker's report:** `temper/rerun` written at prepare;
   `temper/check-results` removed at prepare and at each check's start,
   read at each check's end, a refused check's included, and sent with
