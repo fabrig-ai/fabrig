@@ -79,6 +79,14 @@ struct Options {
     active: Option<NodeId>,
 }
 
+// Insert companions before looking them up. Registration gets only the new parts,
+// not their parent or any of their existing siblings.
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(super) fn mount_parts<T>(parts: &[T], mut mount: impl FnMut(&T), register: impl FnMut(&T)) {
+    parts.iter().for_each(&mut mount);
+    parts.iter().for_each(register);
+}
+
 /// The semantic nodes and their document model, sharing the view's limits.
 pub struct Page<'a> {
     look: Look<'a>,
@@ -88,6 +96,7 @@ pub struct Page<'a> {
     nodes: BTreeMap<NodeId, Held>,
     roots: Vec<NodeId>,
     links: Vec<NodeId>,
+    href_revision: Option<u64>,
     focused: Option<NodeId>,
     pub(crate) scene: Option<Scene>,
     limits: Limits,
@@ -110,6 +119,7 @@ impl<'a> Page<'a> {
             nodes: BTreeMap::new(),
             roots: Vec::new(),
             links: Vec::new(),
+            href_revision: None,
             focused: None,
             scene: None,
             limits: *limits,
@@ -133,11 +143,12 @@ impl<'a> Page<'a> {
         reason = "patch ordering keeps log state changes before the final measurements (ui/web/patches.md, 1)"
     )]
     pub fn apply(&mut self, patches: &[Patch], ops: &mut Vec<Op>) {
-        if !patches.is_empty() {
-            for (node, held) in &self.nodes {
-                if held.made.attribute.role == Role::Log && !held.follow_log {
-                    ops.push(Op::HoldView { node: *node });
-                }
+        if patches.is_empty() {
+            return;
+        }
+        for (node, held) in &self.nodes {
+            if held.made.attribute.role == Role::Log && !held.follow_log {
+                ops.push(Op::HoldView { node: *node });
             }
         }
         let mut focus = None;
@@ -239,6 +250,7 @@ impl<'a> Page<'a> {
         self.sync_options(ops);
         self.collection_sizes(ops);
         self.links.clear();
+        self.href_revision = None;
         let mut order = Vec::new();
         for root in &self.roots {
             self.preorder(*root, &mut order);
@@ -254,9 +266,7 @@ impl<'a> Page<'a> {
             ops.push(Op::Focus { node });
             ops.push(Op::Reveal { node });
         }
-        if !patches.is_empty() {
-            self.finish_logs(ops);
-        }
+        self.finish_logs(ops);
     }
 
     fn finish_logs(&self, ops: &mut Vec<Op>) {
@@ -312,12 +322,37 @@ impl<'a> Page<'a> {
         &self.links
     }
 
-    pub fn set_href(&mut self, node: NodeId, path: &[u8], ops: &mut Vec<Op>) {
-        if self.held(node).href.as_deref() == Some(path) {
+    /// Resolve internal links after patches or a change to the owner's bindings.
+    /// The owner changes `revision` whenever a link's path could have changed,
+    /// even if its view produced no patches.
+    pub fn resolve_links(
+        &mut self,
+        revision: u64,
+        mut href: impl FnMut(NodeId) -> Option<Box<[u8]>>,
+        ops: &mut Vec<Op>,
+    ) {
+        if self.href_revision == Some(revision) {
             return;
         }
-        self.nodes.get_mut(&node).expect("held node").href = Some(path.into());
-        self.remap(node);
+        for at in 0..self.links.len() {
+            let node = self.links[at];
+            if let Some(path) = href(node) {
+                self.set_href(node, &path, ops);
+            }
+        }
+        self.href_revision = Some(revision);
+    }
+
+    pub fn set_href(&mut self, node: NodeId, path: &[u8], ops: &mut Vec<Op>) {
+        let held = self.nodes.get_mut(&node).expect("held node");
+        if held.href.as_deref() == Some(path) {
+            return;
+        }
+        held.href = Some(path.into());
+        if held.made.attribute.linked && held.made.attribute.external.is_none() {
+            // An address update changes only the href, not derived list or option attributes.
+            semantic_mut(&mut held.element).set("href", &String::from_utf8_lossy(path));
+        }
         ops.push(Op::Href { node, path: path.into() });
     }
 

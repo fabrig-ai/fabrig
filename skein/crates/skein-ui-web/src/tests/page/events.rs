@@ -1521,6 +1521,15 @@ fn field_options(b: &mut Builder, disabled: &[NodeId], selected: Option<NodeId>)
     end(b);
 }
 
+#[test]
+fn an_empty_patch_batch_does_not_sync_held_options() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| field_options(b, &[], None)), &mut Vec::new());
+    let mut ops = Vec::new();
+    page.apply(&[], &mut ops);
+    assert_eq!(ops, [] as [Op; 0]);
+}
+
 #[derive(Clone, Copy, Debug)]
 enum OptionsStep {
     Key(&'static [u8]),

@@ -67,6 +67,34 @@ fn an_insert_builds_the_golden_page() {
     assert_eq!(page.html(), include_str!("golden/insert.html").trim_end());
 }
 
+fn sibling_inserts(builder: &mut Builder, added: bool) {
+    main(builder);
+    button(builder, b"Go");
+    if added {
+        field(builder, b"First", 0);
+        field(builder, b"Second", 0);
+    }
+    end(builder);
+}
+
+#[test]
+fn sibling_insertions_register_only_their_new_parts_once() {
+    // After the page, main and button, the diff allocates IDs in preorder.
+    const FIRST_FIELD: NodeId = NodeId(4);
+    const SECOND_FIELD: NodeId = NodeId(5);
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| sibling_inserts(b, false)), &mut Vec::new());
+    let mut ops = Vec::new();
+    page.apply(&fixtures::patches(&mut view, 1, |b| sibling_inserts(b, true)), &mut ops);
+    let mut registered = Vec::new();
+    for op in &ops {
+        if let Op::Insert { node, parent: MAIN, .. } = op {
+            crate::page::mount_parts(std::slice::from_ref(node), |_| {}, |node| registered.push(*node));
+        }
+    }
+    assert_eq!(registered, [SECOND_FIELD, FIRST_FIELD]); // inserts run from the last sibling back
+}
+
 #[test]
 fn a_markdown_table_builds_the_golden_page() {
     const READER_LEVELS: u32 = 5; // ui/markdown.md: table, row, cell, link, text.
@@ -496,8 +524,7 @@ fn links_are_reported_in_preorder() {
     assert_eq!(page.links(), &[FIRST_LINK, SECOND_LINK]);
 }
 
-#[test]
-fn a_links_href_only_changes_when_the_owners_path_changes() {
+fn linked_page() -> Page<'static> {
     let (mut page, mut view) = (page(), View::new(&LIMITS));
     page.apply(
         &fixtures::patches(&mut view, 0, |b| {
@@ -509,6 +536,12 @@ fn a_links_href_only_changes_when_the_owners_path_changes() {
         }),
         &mut Vec::new(),
     );
+    page
+}
+
+#[test]
+fn a_links_href_only_changes_when_the_owners_path_changes() {
+    let mut page = linked_page();
     let mut ops = Vec::new();
     page.set_href(FIRST_LINK, b"/notes/1", &mut ops);
     assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/1".as_slice().into() }]);
@@ -519,6 +552,41 @@ fn a_links_href_only_changes_when_the_owners_path_changes() {
     page.set_href(FIRST_LINK, b"/notes/2", &mut ops);
     assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/2".as_slice().into() }]);
     assert!(page.html().contains("href=\"/notes/2\""));
+}
+
+// The first two view builds, with no semantic patches from the second.
+const FIRST_LINK_REVISION: u64 = 0;
+const SECOND_LINK_REVISION: u64 = 1;
+fn drawn_links() -> Page<'static> {
+    let mut page = linked_page();
+    page.resolve_links(FIRST_LINK_REVISION, |_| Some(b"/notes/1".as_slice().into()), &mut Vec::new());
+    page
+}
+
+#[test]
+fn an_unchanged_draw_does_not_visit_held_links() {
+    let mut page = drawn_links();
+    let mut ops = Vec::new();
+    let mut visited = Vec::new();
+    page.apply(&[], &mut ops);
+    page.resolve_links(
+        FIRST_LINK_REVISION,
+        |node| {
+            visited.push(node);
+            None
+        },
+        &mut ops,
+    );
+    assert_eq!(visited, [] as [NodeId; 0]);
+}
+
+#[test]
+fn a_new_link_revision_resolves_paths_without_patches() {
+    let mut page = drawn_links();
+    let mut ops = Vec::new();
+    page.apply(&[], &mut ops);
+    page.resolve_links(SECOND_LINK_REVISION, |_| Some(b"/notes/2".as_slice().into()), &mut ops);
+    assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/2".as_slice().into() }]);
 }
 
 mod events;

@@ -319,14 +319,12 @@ impl Mounted {
         let elements = root.query_selector_all("[data-node]").expect("node selector");
         for index in 0..elements.length() {
             let element: Element = elements.item(index).expect("selected element").unchecked_into();
-            let node = NodeId(
-                element
-                    .get_attribute("data-node")
-                    .expect("selected node attribute")
-                    .parse()
-                    .expect("node id is decimal"),
-            );
-            self.register(node, &element);
+            self.register_semantic(&element);
+        }
+    }
+    fn register_semantic(&self, element: &Element) {
+        if let Some(id) = element.get_attribute("data-node") {
+            self.register(NodeId(id.parse().expect("node id is decimal")), element);
         }
     }
     fn register(&self, node: NodeId, element: &Element) {
@@ -741,20 +739,28 @@ impl Mounted {
             .map(|node| self.group(node).roots[0].clone())
             .filter(|anchor| anchor.parent_node().is_some_and(|owner| owner.is_same_node(Some(&parent))))
             .or_else(|| if shown_folded { None } else { trailing_own(&parent) });
-        for root in self.make(model, false) {
-            let description =
-                root.dyn_ref::<Element>().is_some_and(|root| root.id().starts_with("skein-ui-description-"));
-            if parent.tag_name() == "SELECT" && description {
-                parent
-                    .parent_node()
-                    .expect("select has a parent")
-                    .insert_before(&root, parent.next_sibling().as_ref())
-                    .expect("option description follows select");
-            } else {
-                parent.insert_before(&root, anchor.as_ref()).expect("insert anchor belongs to parent");
-            }
-        }
-        self.scan(&parent);
+        super::mount_parts(
+            &self.make(model, false),
+            |root| {
+                let description =
+                    root.dyn_ref::<Element>().is_some_and(|root| root.id().starts_with("skein-ui-description-"));
+                if description && parent.tag_name() == "SELECT" {
+                    parent
+                        .parent_node()
+                        .expect("select has a parent")
+                        .insert_before(root, parent.next_sibling().as_ref())
+                        .expect("option description follows select");
+                } else {
+                    parent.insert_before(root, anchor.as_ref()).expect("insert anchor belongs to parent");
+                }
+            },
+            |root| {
+                if let Some(element) = root.dyn_ref::<Element>() {
+                    self.register_semantic(element);
+                    self.scan(element);
+                }
+            },
+        );
     }
     fn destination(&self, node: NodeId, shown_folded: bool) -> Element {
         let element = self.group(node).element;

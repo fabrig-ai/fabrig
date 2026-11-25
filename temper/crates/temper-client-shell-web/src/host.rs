@@ -248,10 +248,8 @@ impl Host {
     }
     pub fn draw(&mut self, page: &mut Page<'_>, ops: &mut Vec<skein_ui_web::page::Op>) {
         page.apply(&self.patches(), ops);
-        for node in page.links().to_vec() {
-            if let Some(path) = self.href(node) {
-                page.set_href(node, &path, ops);
-            }
+        if let Some(revision) = self.view.revision() {
+            page.resolve_links(revision, |node| self.href(node), ops);
         }
     }
     #[must_use]
