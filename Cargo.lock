@@ -3011,6 +3011,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "ruzstd"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7c1c839d570d835527c9a5e4db7cb2198683a988cb9d7293fc8674e6bd58fc8"
+
+[[package]]
 name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5674,7 +5680,6 @@ dependencies = [
 name = "temper-box"
 version = "0.0.0"
 dependencies = [
- "flate2",
  "jig-channel-kit",
  "jig-client",
  "jig-client-kit",
@@ -5745,6 +5750,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-fake",
  "temper-fetch",
+ "temper-fetch-shell",
  "temper-fixtures",
  "temper-forge-setup",
  "temper-forge-setup-shell",
@@ -7623,7 +7629,7 @@ dependencies = [
 name = "temper-fetch-shell"
 version = "0.0.0"
 dependencies = [
- "flate2",
+ "ruzstd",
  "skein-fake-machine",
  "skein-http",
  "skein-io",
