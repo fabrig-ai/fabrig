@@ -16,6 +16,7 @@ mod goals;
 mod hold;
 mod post;
 mod red;
+mod unconfigured;
 
 const TIER: &[u8] = b"browser";
 const TIER_TASK: u64 = 61;
@@ -40,23 +41,26 @@ fn restoring_following(follows: Follows) -> Domain {
 }
 fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    configure_tiers(&mut d, Box::new([browser_tier(follows)]));
+    d
+}
+fn browser_tier(follows: Follows) -> Tier {
+    Tier {
+        name: TIER.into(),
+        workflow: b"tier.yml".as_slice().into(),
+        ignored: Box::new([b"docs".as_slice().into()]),
+        artifact: b"report".as_slice().into(),
+        format: p::Format::Lines,
+        follows,
+        span: None,
+        description: Box::default(),
+    }
+}
+fn configure_tiers(d: &mut Domain, tiers: Box<[Tier]>) {
     assert!(d.project_landing(
         5,
         temper_engine_domain_forge_change::Way::Queue,
-        Box::new([RepositoryGates {
-            repository: REPO,
-            gates: Box::new([]),
-            tiers: Box::new([Tier {
-                name: TIER.into(),
-                workflow: b"tier.yml".as_slice().into(),
-                ignored: Box::new([b"docs".as_slice().into()]),
-                artifact: b"report".as_slice().into(),
-                format: p::Format::Lines,
-                follows,
-                span: None,
-                description: Box::default(),
-            }])
-        }]),
+        Box::new([RepositoryGates { repository: REPO, gates: Box::new([]), tiers }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             wait: temper_engine_domain_forge_change::Wait::Cleared,
@@ -64,7 +68,6 @@ fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
             bound: Duration::from_secs(7200)
         }
     ));
-    d
 }
 /// Complete the restart's branch reads before exercising the restored tier's policy.
 fn fresh_reads(d: &mut Domain, tip: api::Commit) {
