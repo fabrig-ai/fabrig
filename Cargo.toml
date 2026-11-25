@@ -404,6 +404,7 @@ members = [
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
+    "temper/crates/temper-engine-domain-see",
     "temper/crates/temper-engine-domain-store",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-room",
@@ -821,6 +822,7 @@ temper-engine-domain-forge-change = { path = "temper/crates/temper-engine-domain
 temper-engine-domain-forge-closer = { path = "temper/crates/temper-engine-domain-forge-closer" }
 temper-engine-domain-forge-landing = { path = "temper/crates/temper-engine-domain-forge-landing" }
 temper-engine-domain-forge-tiers = { path = "temper/crates/temper-engine-domain-forge-tiers" }
+temper-engine-domain-see = { path = "temper/crates/temper-engine-domain-see" }
 temper-engine-domain-ways = { path = "temper/crates/temper-engine-domain-ways" }
 temper-engine-domain-forge-issues = { path = "temper/crates/temper-engine-domain-forge-issues" }
 temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge" }

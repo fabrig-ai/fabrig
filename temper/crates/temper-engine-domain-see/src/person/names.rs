@@ -1,11 +1,11 @@
 //! Display identities accompanying a person's answer (domain/agent/ask-temper.md, 1).
-use super::{Answer, Domain, Gathered, Part, SeeNames, documents};
-use crate::{RepositoryIdentity, SeeName};
+use super::{Answer, Gathered, Part, documents};
+use crate::{SeeName, SeeNames};
 use alloc::boxed::Box;
 use jig_domain_core::settings::Setting;
 use skein_lib::List;
 
-pub(super) fn make(domain: &Domain, project: u32, gathered: &Gathered) -> SeeNames {
+pub(super) fn make(core: &jig_domain_core::Core, project: u32, gathered: &Gathered) -> SeeNames {
     let project_name = match &gathered.first {
         Some(Part::Jig(Answer::Document(document))) => match document.as_ref() {
             documents::Document::Project(project) => Some(project.name.bytes.clone()),
@@ -47,30 +47,30 @@ pub(super) fn make(domain: &Domain, project: u32, gathered: &Gathered) -> SeeNam
             number: u64::from(project),
             name: match project_name {
                 Some(name) => name,
-                None => project_name_from_record(domain, project),
+                None => project_name_from_record(core, project),
             },
         },
-        people: people(domain, project),
-        charters: charters(domain),
+        people: people(core, project),
+        charters: charters(core),
     }
 }
 
-fn project_name_from_record(domain: &Domain, project: u32) -> Box<[u8]> {
-    match domain.core.project_name(project) {
+fn project_name_from_record(core: &jig_domain_core::Core, project: u32) -> Box<[u8]> {
+    match core.project_name(project) {
         Some(name) => name.as_bytes().into(),
         None => Box::new([]),
     }
 }
 
-fn people(domain: &Domain, project: u32) -> Box<[SeeName]> {
-    let Some(members) = domain.core.people.project_members(project) else { return Box::new([]) };
+fn people(core: &jig_domain_core::Core, project: u32) -> Box<[SeeName]> {
+    let Some(members) = core.people.project_members(project) else { return Box::new([]) };
     let mut people = List::with_capacity(u32::try_from(members.len()).expect("bounded project members"));
     for member in members {
-        match domain.core.people.kind(member.person) {
+        match core.people.kind(member.person) {
             Some(jig_domain_people::Kind::Person) => {}
             Some(jig_domain_people::Kind::Service) | None => continue,
         }
-        let Some(identity) = domain.core.people.identity(member.person) else { continue };
+        let Some(identity) = core.people.identity(member.person) else { continue };
         people
             .push(SeeName {
                 number: member.person,
@@ -81,8 +81,8 @@ fn people(domain: &Domain, project: u32) -> Box<[SeeName]> {
     people.into_boxed()
 }
 
-fn charters(domain: &Domain) -> Box<[SeeName]> {
-    let inventory = documents::settings_inventory(&domain.core);
+fn charters(core: &jig_domain_core::Core) -> Box<[SeeName]> {
+    let inventory = documents::settings_inventory(core);
     let mut charters = List::with_capacity(inventory.settings.len());
     for line in &inventory.settings {
         match line.setting {
@@ -105,20 +105,4 @@ fn charters(domain: &Domain) -> Box<[SeeName]> {
         }
     }
     charters.into_boxed()
-}
-
-pub(crate) fn repositories(domain: &Domain, project: u32) -> Box<[RepositoryIdentity]> {
-    let repositories = domain.forge.readable_repositories(project);
-    let mut identities = List::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
-    for repository in &repositories {
-        identities
-            .push(RepositoryIdentity {
-                host: repository.host.clone(),
-                owner: repository.owner.clone(),
-                name: repository.name.clone(),
-                landing: repository.landing.clone(),
-            })
-            .expect("one identity per readable repository");
-    }
-    identities.into_boxed()
 }

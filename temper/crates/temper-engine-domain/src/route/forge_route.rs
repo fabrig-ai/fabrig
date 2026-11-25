@@ -6,7 +6,7 @@ use super::{
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,
     emit, escalation, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
-use crate::commit_text;
+use crate::{PersonForge, commit_text};
 use forge::change_words::{
     CONTEXT_OPENING, change_context, delegate_amendment_words, delegate_words, landing_words, news_words,
     parameter_word_room, producer_amendment_words, production_words, repair_flake, repair_no_test,
@@ -172,7 +172,7 @@ pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, perso
 }
 
 /// A person's account on each forge of the project's repositories (domain/agent/agents.md, 1).
-pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[super::PersonForge]> {
+pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[PersonForge]> {
     let repositories = domain.forge.readable_repositories(project);
     let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
     let mut seen = skein_lib::Set::with_capacity(capacity);
@@ -188,7 +188,7 @@ pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[
             None => false,
         };
         forges
-            .push(super::PersonForge { host: repository.host.clone(), user, writer })
+            .push(PersonForge { host: repository.host.clone(), user, writer })
             .expect("at most one forge per repository");
     }
     forges.into_boxed()

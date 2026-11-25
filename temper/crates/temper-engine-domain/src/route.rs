@@ -14,9 +14,7 @@ mod making;
 mod opened;
 pub(crate) mod playground;
 pub(crate) mod standing;
-pub use host_route::{
-    AskHow, ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
-};
+pub use host_route::{AskHow, HostDelivery, HostRequest};
 mod decided;
 pub(crate) mod document;
 mod finding_tool;
@@ -36,14 +34,10 @@ pub(crate) mod public;
 mod red_tool;
 pub(crate) mod remember;
 pub(crate) mod see;
-pub(crate) mod ways;
-pub use see::{
-    SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal, SeeRead, SeeRepository, SeeSettings,
-    SeeWords,
-};
 pub(crate) mod settings_parts;
 mod tools;
 pub(crate) mod trials;
+pub(crate) mod ways;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
 use crate::boundary::{
