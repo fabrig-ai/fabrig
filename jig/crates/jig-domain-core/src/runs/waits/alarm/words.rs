@@ -160,7 +160,7 @@ fn run(wait: TaskRunWait, out: &mut Words) {
             out.put(b" cannot take these run bounds");
         }
         TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind, why, figures }) => {
-            job(worker, kind, why, figures, out)
+            job(worker, kind, why, figures, out);
         }
         TaskRunWait::Refused(TaskWaitRefused::Hello { kind, at, .. }) => {
             out.put(host(kind));
