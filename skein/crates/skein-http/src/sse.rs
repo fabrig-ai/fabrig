@@ -176,6 +176,8 @@ pub struct Reader {
     state: State,
     lines: Lines,
     intake: Intake,
+    #[cfg(test)]
+    pub(crate) appends: u32,
     piece: Box<[u8]>,
     at: u32,
     body_wait: bool,
@@ -208,6 +210,8 @@ impl Reader {
             state: State::Idle(Below::Open),
             lines: Lines::new(limits),
             intake: Intake::with_capacity(limits.chunk),
+            #[cfg(test)]
+            appends: 0,
             piece: bytes::copy_of(b""),
             at: 0,
             body_wait: false,
@@ -440,50 +444,135 @@ fn meet(reader: &mut Reader, above: &mut Queue<Event>) -> bool {
     }
 }
 
+fn append_data(intake: &mut Intake, data: &[u8], #[cfg(test)] appends: &mut u32) {
+    intake.append(data).expect("a full intake meets every admitted read");
+    #[cfg(test)]
+    {
+        *appends = appends.checked_add(1).expect("the test counts its appends");
+    }
+}
+
+/// Only take bytes the outstanding demand could still need. In particular,
+/// a scan might finish inside the value, before a later byte fails a limit.
+fn wanted_data(read: Read, intake: &Intake, data: &[u8]) -> usize {
+    let max = match read {
+        Read::Nothing => return data.len(),
+        Read::Arrived { .. } => return 1,
+        Read::Fill(max) | Read::Line { max } | Read::Scan { max, .. } => max,
+    };
+    let wanted = usize_of(max.checked_sub(intake.len()).expect("an unmet demand")).min(data.len());
+    match read {
+        Read::Scan { until, .. } => {
+            // The first bytes could finish a delimiter that began in the intake.
+            if intake.ends_partway(until) {
+                return 1;
+            }
+            let needle = until.as_bytes();
+            match bytes::find(data.get(..wanted).expect("the demand fits the run"), needle) {
+                Some(at) => at.checked_add(needle.len()).expect("the delimiter fits the run"),
+                None => wanted,
+            }
+        }
+        Read::Nothing | Read::Arrived { .. } | Read::Fill(_) | Read::Line { .. } => wanted,
+    }
+}
+
+/// Move a run of data value from the held line piece. Leave the terminating
+/// byte, skipped space, or first byte past a limit to the byte parser.
+fn pump_run(reader: &mut Reader, limits: &Limits, read: Read, content_end: usize, first: u8) -> bool {
+    let start = usize_of(reader.at);
+    let available = content_end.saturating_sub(start);
+    if available < 2 {
+        return false;
+    }
+    let room = usize_of(reader.lines.data_room(limits, first)).min(available);
+    if room < 2 {
+        return false;
+    }
+    let end = start.checked_add(room).expect("inside the line content");
+    let data = reader.piece.get(start..end).expect("inside the line content");
+    let count = wanted_data(read, &reader.intake, data);
+    if count < 2 {
+        return false;
+    }
+    let count_bytes = u32::try_from(count).expect("within the chunk limit");
+    reader.lines.advance_data(count_bytes);
+    reader.at = reader.at.checked_add(count_bytes).expect("inside the line piece");
+    if read != Read::Nothing {
+        append_data(
+            &mut reader.intake,
+            data.get(..count).expect("the wanted prefix"),
+            #[cfg(test)]
+            &mut reader.appends,
+        );
+    }
+    true
+}
+
 fn pump(reader: &mut Reader, env: &Env<Limits>, above: &mut Queue<Event>) {
     if meet(reader, above) {
         return;
     }
-    let remaining = u32::try_from(reader.piece.len())
-        .expect("a delivery fits chunk")
-        .checked_sub(reader.at)
-        .expect("inside the line piece");
+    let batch = match reader.state {
+        State::Reading(Read::Arrived { .. } | Read::Fill(1) | Read::Line { max: 1 } | Read::Scan { max: 1, .. })
+        | State::Finding => None,
+        State::Reading(read) => Some(read),
+        State::Discarding => Some(Read::Nothing),
+        State::Idle(_) | State::Open | State::Over | State::Closed => unreachable!("an active pump"),
+    };
+    let length = reader.piece.len();
+    let content_end = match reader.piece.last() {
+        Some(b'\r' | b'\n') => length.checked_sub(1).expect("a line ending is held"),
+        Some(_) | None => length,
+    };
+    let remaining = length.checked_sub(usize_of(reader.at)).expect("inside the line piece");
     for _ in 0..remaining {
+        if usize_of(reader.at) == length {
+            break;
+        }
         let byte = *reader.piece.get(usize_of(reader.at)).expect("inside the line piece");
-        reader.at = reader.at.checked_add(1).expect("bounded by the delivery");
-        let action = reader.lines.byte(&env.limits, byte);
-        match action {
-            Step::More => {}
-            Step::Opened => {
-                reader.state = State::Open;
-                above.push(Event::Opened);
-                finish_piece(reader);
-                return;
-            }
-            Step::Data(byte) => match reader.state {
-                State::Reading(_) => reader.intake.append(&[byte]).expect("a full intake meets every admitted read"),
-                State::Discarding => {}
-                State::Idle(_) | State::Finding | State::Open | State::Over | State::Closed => {
-                    unreachable!("an open event's data")
+        let moved = match batch {
+            Some(read) => pump_run(reader, &env.limits, read, content_end, byte),
+            None => false,
+        };
+        if !moved {
+            reader.at = reader.at.checked_add(1).expect("bounded by the delivery");
+            let action = reader.lines.byte(&env.limits, byte);
+            match action {
+                Step::More => {}
+                Step::Opened => {
+                    reader.state = State::Open;
+                    above.push(Event::Opened);
+                    break;
                 }
-            },
-            Step::Dispatched(dispatch) => {
-                assert!(usize_of(reader.at) == reader.piece.len(), "a blank line ends the delivery");
-                reader.intake.clear();
-                reader.state = State::Idle(Below::Open);
-                above.push(Event::Data(Up::End));
-                above.push(Event::Dispatched(dispatch));
-                finish_piece(reader);
-                return;
-            }
-            Step::Fail(error) => {
-                outcome(reader, Below::Failed(error), above);
-                return;
+                Step::Data(byte) => match reader.state {
+                    State::Reading(_) => append_data(
+                        &mut reader.intake,
+                        &[byte],
+                        #[cfg(test)]
+                        &mut reader.appends,
+                    ),
+                    State::Discarding => {}
+                    State::Idle(_) | State::Finding | State::Open | State::Over | State::Closed => {
+                        unreachable!("an open event's data")
+                    }
+                },
+                Step::Dispatched(dispatch) => {
+                    assert!(usize_of(reader.at) == length, "a blank line ends the delivery");
+                    reader.intake.clear();
+                    reader.state = State::Idle(Below::Open);
+                    above.push(Event::Data(Up::End));
+                    above.push(Event::Dispatched(dispatch));
+                    break;
+                }
+                Step::Fail(error) => {
+                    outcome(reader, Below::Failed(error), above);
+                    return;
+                }
             }
         }
         if meet(reader, above) {
-            finish_piece(reader);
-            return;
+            break;
         }
     }
     finish_piece(reader);
