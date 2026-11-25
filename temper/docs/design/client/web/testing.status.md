@@ -1,6 +1,8 @@
 # testing: status
 
-2026-11-23. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-24. Where the tree's code lags or departs from [testing.md](testing.md).
+
+- **Not yet:** 6: story 15's rename follows story 5's panic in the composer story's tab, where the failure page stays [in flight: change 17067].
 
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5, the model picker and 15),

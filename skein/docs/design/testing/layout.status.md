@@ -1,6 +1,8 @@
 # layout: status
 
-2026-11-23. Where the tree's code lags or departs from [layout.md](layout.md).
+2026-11-24. Where the tree's code lags or departs from [layout.md](layout.md).
+
+- **Not yet:** 1: `temper-box-kit`, `jig-test-kit` and `smith-end-to-end-kit` take their binaries from `paths::binary`, not `built` [in flight: change 17066].
 
 
 - **Departs:** 1: step tests belong in `src/tests.rs` and `src/tests/`, but
