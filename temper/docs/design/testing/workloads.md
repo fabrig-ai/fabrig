@@ -177,7 +177,6 @@ otherwise, the scenarios, works and conditions unchanged:
 | Was | Is |
 |---|---|
 | `bounds` / `forge write entries full` | `temper_faults::bounds::FORGE_WRITE_ENTRIES` |
-| `parties` / `a change waits on another goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` |
 | `restarts` / `the engine restarted cold` | `temper_faults::restarts::ENGINE_CRASH`: the same fault, F8's kind |
 | `forge` / `a starved gate` | `temper_blame::STARVED`: the same fault, the CI family's kind |
 | `state` / `a path deleted on the base` | `stale` / `a path deleted on the base`, a constant of `open` |
@@ -767,10 +766,8 @@ each world (`restarts.md`, 9). This goal adds:
   milestone starts a goal only once the goal it depends on has ended, so
   the `after` its first change names on the earlier goal's change never
   waits (3.1), and a draw that started the later goal while the earlier
-  lives would change what a milestone is. The kind stays in
-  `temper_faults::parks`, named by `open`'s P113 exclusion, whose ignored
-  scenario `a_change_waits_on_another_goal` makes the wait by hand; the
-  family's other kinds fall in the worker's sweep and jig's.
+  lives would change what a milestone is. The family's other kinds fall
+  in the worker's sweep and jig's.
 - **A sweep's checks** are its world's as they stand, with `Ends` over
   every goal where the world runs goals, and its acts' expectations.
 

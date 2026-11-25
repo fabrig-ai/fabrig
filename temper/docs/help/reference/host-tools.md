@@ -97,7 +97,7 @@ Offered where the run's charter names the delegate family and its authority hold
 - `landing`: text. goal/name; omit: held goal/base.
 - `branch`: text. mine: goal into base; omit: a new. the `branch` form, under Shared forms.
 - `merge`: text. Catch-up: 40/64 hex commit.
-- `after`: array. Live delegate IDs/earlier names.
+- `after`: array. Task IDs/earlier names.
 - `producer`: integer >=1. Producer charter; omit: forge default.
 - `llm`: object. producer/review:{main:{model,effort},sub_agents:[{model,effort}]}.
 - `changes`: array. Batch: put all options inside each item.
@@ -107,7 +107,7 @@ Offered where the run's charter names the delegate family and its authority hold
   - `landing`: text. goal/name; omit: held goal/base.
   - `branch`: text. mine: goal into base; omit: a new. the `branch` form, under Shared forms.
   - `merge`: text. Catch-up: 40/64 hex commit.
-  - `after`: array. Live delegate IDs/earlier names.
+  - `after`: array. Task IDs/earlier names.
   - `producer`: integer >=1. Producer charter; omit: forge default.
   - `llm`: object. producer/review:{main:{model,effort},sub_agents:[{model,effort}]}.
   - `repairs`: text. Red landing's 40/64 hex merge commit.

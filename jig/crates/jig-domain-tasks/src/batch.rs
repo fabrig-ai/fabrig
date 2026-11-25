@@ -447,7 +447,7 @@ fn check_members(
                 known = row.project == new.project;
             }
             if !known {
-                return Err(problem(number, Refusal::Dependencies));
+                return Err(Problem::naming(number, Refusal::Dependencies, &[*dependency]));
             }
         }
     }

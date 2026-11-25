@@ -568,10 +568,7 @@ fn a_new_batch_refuses_failed_or_cancelled_places_and_absent_places_atomically()
             &[2],
         );
         assert_eq!(world.records, before);
-        assert_eq!(
-            world.make(PERSON_PARTY, vec![task(3, &[2])]),
-            Reply::Refused(tasks::Problem::new(Some(3), Refusal::Dependencies))
-        );
+        refused(world.make(PERSON_PARTY, vec![task(3, &[2])]), 3, Refusal::Dependencies, &[2]);
         assert_eq!(world.records, before);
     }
 }

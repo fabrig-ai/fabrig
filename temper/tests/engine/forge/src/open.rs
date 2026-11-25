@@ -66,14 +66,6 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             &["a landing's gate red"],
         ))?;
     }
-    if configured.contains(&temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL) {
-        sweep.exclude(Exclusion::new(
-            "a_change_waits_on_another_goal",
-            "bounded waits",
-            temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL,
-            &["its requester parked"],
-        ))?;
-    }
     if configured.contains(&temper_faults::restarts::ENGINE_CRASH) {
         sweep.exclude(Exclusion::new(
             "a_stored_charter_is_checked_at_start",

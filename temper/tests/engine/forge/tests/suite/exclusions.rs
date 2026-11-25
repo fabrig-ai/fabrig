@@ -49,13 +49,6 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a landing's gate red",
     ),
     (
-        temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL,
-        "runs that park, resume and move/a change waits on another goal",
-        "a_change_waits_on_another_goal",
-        "bounded waits",
-        "its requester parked",
-    ),
-    (
         temper_faults::people::CANCELS_A_GOAL,
         "people and parties/cancelling a goal",
         "a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled",
