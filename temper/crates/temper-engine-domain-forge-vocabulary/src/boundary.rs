@@ -3318,8 +3318,8 @@ pub enum Request {
     /// Cleanup failed and the closing task needs a person's decision.
     ReleaseFailed {
         task: u64,
-        account: Option<EffectAccount>,
-        reason: Option<Box<[u8]>>,
+        entry: Option<u64>,
+        words: Box<[u8]>,
     },
     /// A connector-described projection candidate, awaiting core admission.
     ProjectionEffect {

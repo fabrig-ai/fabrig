@@ -5,6 +5,12 @@ use skein_world::faults::{Injection, Kind, Struck};
 use temper_engine_domain_forge_landing::{Hold, Phase};
 use temper_faults::forge::BUSY;
 
+#[derive(PartialEq, Eq)]
+enum Restored {
+    ClosePermission(u64),
+    Reopened(u64),
+}
+
 #[derive(Default)]
 pub(super) struct Faults {
     calls: Option<(Time, forge::Config)>,
@@ -15,7 +21,7 @@ pub(super) struct Faults {
     refused: Option<(u64, Time)>,
     closed: Option<(u64, Time, Injection)>,
     close_span: Option<Duration>,
-    restored: Vec<u64>,
+    restored: Vec<Restored>,
     released: u32,
     others: Vec<(u64, Kind, bool)>,
     excluded_merge: Option<(Kind, &'static str)>,
@@ -96,8 +102,9 @@ impl World {
         self.sweep_faults.excluded_merge = Some((exclusion.fault, exclusion.scenario));
     }
 
-    /// Script a person's retry after a busy read or restored record fault.
-    /// Other holds remain findings of the workload.
+    /// Script a person's retry after a busy read, a member's pull reopens,
+    /// or permission to close the round's pull is restored. Only matching
+    /// scripted faults merit a retry; other holds remain findings of the workload.
     pub fn release_restored_fault(&mut self, task: u64) -> bool {
         // Each landing step must encounter a fresh busy read fault to merit a retry.
         let busy_read_fell = std::mem::take(&mut self.sweep_faults.busy_read_fell);
@@ -105,9 +112,24 @@ impl World {
         if busy_read_fell && row.room.is_none() && matches!(row.landing.phase, Phase::Held { why: Hold::Read, .. }) {
             return true;
         }
-        let Phase::Held { why: Hold::Record { member }, .. } = row.landing.phase else { return false };
-        let pull = row.landing.members[usize::from(member)].pull;
-        let Some(index) = self.sweep_faults.restored.iter().position(|number| *number == pull) else { return false };
+        let fault =
+            match row.landing.phase {
+                Phase::Held { why: Hold::Record { member }, .. } => {
+                    Restored::Reopened(row.landing.members[usize::from(member)].pull)
+                }
+                Phase::Held { why: Hold::Cleanup, .. }
+                    if row.landing.round.cleanup.as_deref().is_some_and(|account| {
+                        account.starts_with(b"close item: forge protection refused the write;")
+                    }) =>
+                {
+                    let Some(pull) = row.landing.round.pull else { return false };
+                    Restored::ClosePermission(pull)
+                }
+                _ => return false,
+            };
+        let Some(index) = self.sweep_faults.restored.iter().position(|restored| *restored == fault) else {
+            return false;
+        };
         self.sweep_faults.restored.remove(index);
         self.sweep_faults.released += 1;
         true
@@ -200,7 +222,7 @@ impl World {
         {
             forge::refuse_close(&mut self.forge, b"org/repo", number, false);
             self.sweep_faults.refused = None;
-            self.sweep_faults.restored.push(number);
+            self.sweep_faults.restored.push(Restored::ClosePermission(number));
         }
         if let Some((number, until, entry)) = self.sweep_faults.closed
             && self.env.now >= until
@@ -210,7 +232,7 @@ impl World {
             assert_eq!(self.external_now(raw::Op::Write(raw::Write::Reopen { number }), 2), raw::Answer::Done);
             self.forge_out = pending;
             self.stop(entry);
-            self.sweep_faults.restored.push(number);
+            self.sweep_faults.restored.push(Restored::Reopened(number));
         }
     }
 

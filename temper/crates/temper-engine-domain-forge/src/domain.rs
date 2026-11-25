@@ -44,6 +44,7 @@ mod rebase;
 #[path = "reds.rs"]
 pub(crate) mod reds;
 pub(crate) mod release;
+mod release_failure;
 mod release_reads;
 pub(crate) mod repository_reads;
 mod restart_wait;
@@ -2888,15 +2889,20 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     continue;
                 }
                 let looked = outcome != skein_forge_client::Outcome::Queued && d.entry_looks.remove(&entry);
-                // The landing settles every merge outcome by readback (domain/landing-turn.md, 1).
-                // Its terminal entry is retired before the route sees this output.
+                // The landing owns merge readback and round cleanup; neither creates a root effect hold.
                 let mut landing_merge = false;
+                let mut landing_cleanup = false;
                 if let Some(row) = d.landing.rows.get(&task) {
                     for item in &row.entries {
-                        landing_merge |= item.entry == entry && item.operation == crate::Operation::Merge;
+                        if item.entry == entry {
+                            landing_merge = item.operation == crate::Operation::Merge;
+                            landing_cleanup =
+                                item.operation == crate::Operation::Close || item.operation == crate::Operation::Delete;
+                        }
                     }
                 }
-                if !landing_merge && outage::outcome(d, env, entry, outcome, out) {
+                let landing_settles = landing_merge || landing_cleanup;
+                if !landing_settles && outage::outcome(d, env, entry, outcome, out) {
                     if looked {
                         wake_once(out, task);
                     }
@@ -2913,6 +2919,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         None => None,
                     }
                 };
+                let (account, cleanup_account) = if landing_cleanup { (None, account) } else { (account, None) };
                 let mut projection = false;
                 for (_, row) in &d.issues {
                     projection |= row.pending == Some(entry);
@@ -2922,10 +2929,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 settled_facts(d, env, entry, task, outcome, out);
                 crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
-                crate::landing::outcome(d, env, entry, outcome, out);
+                crate::landing::outcome(d, env, entry, outcome, cleanup_account, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
-                    skein_forge_client::Outcome::Held if !landing_merge => {
+                    skein_forge_client::Outcome::Held if !landing_settles => {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
@@ -3670,7 +3677,7 @@ fn answered(
             let taken = branch_written(d, name, None);
             child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
         }
-        lost_release(d, Some(env), name, task, out);
+        lost_release(d, env, name, task, out);
     }
 }
 
@@ -3988,7 +3995,7 @@ fn lost_read(
     }
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
-    lost_release(d, Some(env), &pending.name, pending.task, out);
+    lost_release(d, env, &pending.name, pending.task, out);
 }
 
 /// A later attempt keeps its slot while the lost read's branch or successful
@@ -4056,32 +4063,34 @@ fn failed_lost_read(
 }
 
 fn lost_failed(d: &mut Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
-    lost_release(d, None, name, task, out);
+    let words = release_failure::reread(d, name, task, attempt, reason);
+    release_reads::failed(d, task, words.clone(), out);
+    if let Some(hold) = d.holds.get(name)
+        && hold.task != task
+    {
+        release_reads::failed(d, hold.task, words, out);
+    }
     emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason: Box::from(reason) });
 }
 
 /// Both the holder and its delegate stay live until the writer's fresh read ends.
-fn lost_release(d: &mut Domain, env: Option<&Env<Limits>>, name: &Name, writer: u64, out: &mut Queue<Request>) {
-    continue_writer_release(d, writer, repository_reads::repository(name), env, out);
+fn lost_release(d: &mut Domain, env: &Env<Limits>, name: &Name, writer: u64, out: &mut Queue<Request>) {
+    continue_writer_release(d, env, writer, repository_reads::repository(name), out);
     if let Some(hold) = d.holds.get(name)
         && hold.task != writer
     {
-        continue_writer_release(d, hold.task, repository_reads::repository(name), env, out);
+        continue_writer_release(d, env, hold.task, repository_reads::repository(name), out);
     }
 }
 
 /// A writer's own release waits too, even when its branch belongs to its parent.
 fn continue_writer_release(
     d: &mut Domain,
+    env: &Env<Limits>,
     task: u64,
     repository: skein_forge::api::Repository,
-    env: Option<&Env<Limits>>,
     out: &mut Queue<Request>,
 ) {
-    let Some(env) = env else {
-        release_reads::failed(d, task, None, out);
-        return;
-    };
     release_reads::advanced(d, task, env.wall);
     if !repository_fresh(d, repository) || !repository_reads::release_fresh(d, task) {
         if d.releases.contains_key(&task) {
@@ -8138,31 +8147,33 @@ fn settle_effects(
     ending: ReleaseEnding,
     out: &mut Queue<Request>,
 ) {
-    crate::closer::ended(d, task);
-    crate::landing::closing(d, env, task, ending, out);
-    crate::tiers::closing(d, env, task, ending, out);
     let close_pull = closing_pull(d, task, ending);
-    if let Some(row) = d.releases.get_mut(&task) {
+    let settled = if let Some(row) = d.releases.get_mut(&task) {
         let changed = row.ending != ending;
         if !retarget_release(row, root, ending, close_pull) {
-            emit(out, Request::ReleaseFailed { task, account: None, reason: None });
+            release_failure::report(out, task, None, release_failure::conflict(row, root, ending));
             return;
         }
         if changed {
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
         }
-        if row.effects_settled {
-            emit(out, Request::EffectsSettled { task });
-            return;
-        }
+        row.effects_settled
     } else {
         if d.releases.len() == env.limits.tasks {
-            emit(out, Request::ReleaseFailed { task, account: None, reason: None });
+            release_failure::full(task, env.limits.tasks, out);
             return;
         }
         let row = release_row(task, root, ending, close_pull, false, false);
         d.releases.insert(task, row.clone()).expect("release capacity checked");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
+        false
+    };
+    crate::closer::ended(d, task);
+    crate::landing::closing(d, env, task, ending, out);
+    crate::tiers::closing(d, env, task, ending, out);
+    if settled {
+        emit(out, Request::EffectsSettled { task });
+        return;
     }
     crate::room::release_started(d, task, env.wall);
     if ending == ReleaseEnding::Cancelled || (ending == ReleaseEnding::Done && d.landing.rows.contains_key(&task)) {
@@ -8188,7 +8199,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
                 d.repository(row.entry.repository),
                 skein_forge_client::Outcome::Withdrawn,
             );
-            crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, out);
+            crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
             d.entries.remove(&number);
             emit(out, Request::Erase { key: Key::Entry(number) });
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
@@ -8241,42 +8252,32 @@ fn release(
         },
         ReleaseEnding::Cancelled | ReleaseEnding::Failed => reason,
     };
-    if let Some(reason) = &reason
-        && reason.len() > skein_lib::usize_of(env.limits.client.op_bytes)
-    {
-        emit(out, Request::ReleaseFailed { task, account: None, reason: None });
+    let close_pull = closing_pull(d, task, ending);
+    let mut row = match d.releases.get(&task) {
+        Some(row) => row.clone(),
+        None => {
+            if d.releases.len() == env.limits.tasks {
+                release_failure::full(task, env.limits.tasks, out);
+                return;
+            }
+            release_row(task, root, ending, close_pull, true, false)
+        }
+    };
+    if !retarget_release(&mut row, root, ending, close_pull) {
+        release_failure::report(out, task, None, release_failure::conflict(&row, root, ending));
         return;
     }
-    let close_pull = closing_pull(d, task, ending);
-    let advanced = match d.releases.get(&task) {
-        Some(row) => !row.releasing || row.failed || row.ending != ending,
-        None => true,
-    };
-    if let Some(row) = d.releases.get_mut(&task) {
-        if !retarget_release(row, root, ending, close_pull) {
-            emit(out, Request::ReleaseFailed { task, account: None, reason: None });
+    let advanced = !row.releasing || row.failed;
+    if !row.releasing {
+        row.comment = None;
+        if !keep_release_comment(d, env, &mut row, reason, out) {
             return;
         }
-        if row.failed {
-            row.failed = false;
-        }
-        if !row.releasing && row.close_pull.is_some() {
-            row.comment = reason;
-        }
-        row.releasing = true;
-        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
-    } else {
-        if d.releases.len() == env.limits.tasks {
-            emit(out, Request::ReleaseFailed { task, account: None, reason: None });
-            return;
-        }
-        let mut row = release_row(task, root, ending, close_pull, true, true);
-        if row.close_pull.is_some() {
-            row.comment = reason;
-        }
-        d.releases.insert(task, row.clone()).expect("release capacity checked");
-        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
     }
+    row.releasing = true;
+    row.failed = false;
+    d.releases.insert(task, row.clone()).expect("release capacity checked");
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
     crate::room::release_started(d, task, env.wall);
     if advanced {
         release_reads::advanced(d, task, env.wall);
@@ -8303,11 +8304,15 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
     }
 }
 
-pub(super) fn room_release_failed(d: &mut Domain, task: u64, account: crate::EffectAccount, out: &mut Queue<Request>) {
-    let row = d.releases.get_mut(&task).expect("release waiting for room");
-    row.failed = true;
-    leave_room_release(d, task, out);
-    emit(out, Request::ReleaseFailed { task, account: Some(account), reason: None });
+pub(super) fn room_release_failed(d: &mut Domain, task: u64, words: Box<[u8]>, out: &mut Queue<Request>) {
+    let mut row = d.releases.get(&task).expect("release waiting for room").clone();
+    refuse_release_write(d, &mut row, words, out);
+}
+
+fn refuse_release_write(d: &mut Domain, row: &mut ReleaseRow, words: Box<[u8]>, out: &mut Queue<Request>) {
+    crate::room::leave(d, crate::room::Waiter::Release(row.task));
+    row.room = None;
+    release_failure::held(d, row, words, out);
 }
 
 fn leave_room_release(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
@@ -8377,6 +8382,10 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
             release_reads::rereading(d, env, task);
             return;
         }
+        // A reread refused synchronously may have held this release.
+        if d.releases.get(&task).expect("active release").failed {
+            return;
+        }
         if !settle_held(d, env, task, out) {
             return;
         }
@@ -8415,8 +8424,9 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
                 release_reads::waiting(d, env, task, release_reads::Read::Making(name));
                 return;
             }
-            if writer.is_some() {
-                emit(out, Request::ReleaseFailed { task, account: None, reason: None });
+            if let Some(writer) = writer {
+                let words = release_failure::writing(d, &name, writer);
+                release_failure::held(d, &mut row, words, out);
                 return;
             }
             if goal_branch::is_goal(d, &name) {
@@ -8515,7 +8525,12 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
 fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: u64, out: &mut Queue<Request>) -> bool {
     let Some(number) = row.close_pull else { return true };
     let Some(change) = d.changes.get(&row.task) else {
-        emit(out, Request::ReleaseFailed { task: row.task, account: None, reason: None });
+        let why = skein_lib::bytes::concat(&[
+            b"no change record for pull request #",
+            skein_lib::Decimal::of(number).as_bytes(),
+        ]);
+        let words = release_failure::task_words(row.task, &why);
+        release_failure::held(d, row, words, out);
         return false;
     };
     let repository = change.repository;
@@ -8530,7 +8545,7 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
         true
     } else {
-        let write = release_pull_write(row, &d.namespace, number, &env.limits);
+        let write = release_pull_write(row, &d.namespace, number);
         enqueue_release(d, env, row, entry, repository, write, None, out);
         false
     }
@@ -8659,14 +8674,45 @@ fn ended_change_state(
     }
 }
 
-fn release_pull_write(row: &ReleaseRow, namespace: &[u8], number: u64, limits: &Limits) -> skein_forge::api::Write {
+fn release_comment_key(task: u64, namespace: &[u8]) -> Box<[u8]> {
+    crate::purpose::EffectPurpose::Release { task, resource: Box::from(b"reason".as_slice()) }
+        .key(namespace, u32::MAX)
+        .expect("a bounded release identity and a valid namespace")
+}
+
+fn keep_release_comment(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut ReleaseRow,
+    reason: Option<Box<[u8]>>,
+    out: &mut Queue<Request>,
+) -> bool {
+    let Some(body) = reason else { return true };
+    let Some(number) = row.close_pull else { return true };
+    // Do not keep an oversized comment in the release record. Comments that
+    // fit here still have to fit as a keyed write when the pull is found.
+    if body.len() <= skein_lib::usize_of(env.limits.client.op_bytes) {
+        row.comment = Some(body);
+        return true;
+    }
+    let Some(change) = d.changes.get(&row.task) else { return true };
+    let repository = change.repository;
+    if d.forge_ended(repository.forge)
+        || (repository_fresh(d, repository) && pull_seen_closed(d, repository, number, &env.limits))
+    {
+        return true;
+    }
+    let write = skein_forge::api::Write::Post { number, key: release_comment_key(row.task, &d.namespace), body };
+    let why = release_failure::op_bound(env.limits.client.op_bytes, skein_forge::measure::write(&write));
+    let words = release_failure::not_sent(d, repository, &write, &why);
+    refuse_release_write(d, row, words, out);
+    false
+}
+
+fn release_pull_write(row: &ReleaseRow, namespace: &[u8], number: u64) -> skein_forge::api::Write {
     match &row.comment {
         Some(body) => {
-            let key =
-                crate::purpose::EffectPurpose::Release { task: row.task, resource: Box::from(b"reason".as_slice()) }
-                    .key(namespace, limits.client.op_bytes)
-                    .expect("release key fits the checked operation bound");
-            skein_forge::api::Write::Post { number, key, body: body.clone() }
+            skein_forge::api::Write::Post { number, key: release_comment_key(row.task, namespace), body: body.clone() }
         }
         None => skein_forge::api::Write::Close { number },
     }
@@ -8683,11 +8729,6 @@ fn enqueue_release(
     resource: Option<Name>,
     out: &mut Queue<Request>,
 ) {
-    if d.entries.contains_key(&number) {
-        leave_room_release(d, row.task, out);
-        emit(out, Request::ReleaseFailed { task: row.task, account: None, reason: None });
-        return;
-    }
     let entry = skein_forge_client::Entry {
         number,
         task: row.task,
@@ -8698,13 +8739,9 @@ fn enqueue_release(
         failures: 0,
         queued: false,
     };
-    let permitted = match d.repositories.get(&repository) {
-        Some(repository) => repository.role != Role::Context && effect_permitted(repository.kinds, &entry.effect.write),
-        None => false,
-    };
-    if !permitted || !skein_forge_client::valid_entry(&entry, &env.limits.client) {
-        leave_room_release(d, row.task, out);
-        emit(out, Request::ReleaseFailed { task: row.task, account: None, reason: None });
+    if let Some(why) = release_write_refusal(d, &env.limits, &entry) {
+        let words = release_failure::not_sent(d, repository, &entry.effect.write, &why);
+        refuse_release_write(d, row, words, out);
         return;
     }
     let waiter = crate::room::Waiter::Release(row.task);
@@ -8723,6 +8760,50 @@ fn enqueue_release(
     d.releases.insert(row.task, row.clone()).expect("replaces release");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
     keep_entry(d, entry, Some(number), out);
+}
+
+fn release_write_refusal(d: &Domain, limits: &Limits, entry: &skein_forge_client::Entry) -> Option<Box<[u8]>> {
+    use skein_forge::api::Write;
+    use skein_lib::{Decimal, bytes};
+    if d.entries.contains_key(&entry.number) {
+        return Some(bytes::concat(&[b"outbox entry ", Decimal::of(entry.number).as_bytes(), b" is already kept"]));
+    }
+    let Some(repository) = d.repositories.get(&entry.repository) else {
+        return Some(Box::from(b"the repository is not adopted".as_slice()));
+    };
+    if repository.role == Role::Context {
+        return Some(Box::from(b"the repository is context".as_slice()));
+    }
+    let write = &entry.effect.write;
+    if !effect_permitted(repository.kinds, write) {
+        let kind: &[u8] = match write {
+            Write::Post { .. } => b"comment",
+            Write::Close { .. } => b"close",
+            Write::DeleteBranch { .. } => b"branch",
+            Write::CreateIssue { .. }
+            | Write::OpenPull { .. }
+            | Write::Review { .. }
+            | Write::Edit { .. }
+            | Write::SetReviewers { .. }
+            | Write::Reopen { .. }
+            | Write::Merge { .. }
+            | Write::Update { .. }
+            | Write::Status { .. }
+            | Write::Dispatch { .. }
+            | Write::Rerun { .. }
+            | Write::CreateBranch { .. } => {
+                unreachable!("release writes only comments, closes and branch deletions")
+            }
+        };
+        return Some(bytes::concat(&[b"its adoption does not take kind ", kind]));
+    }
+    if !skein_forge_client::valid_entry(entry, &limits.client) {
+        return Some(release_failure::op_bound(
+            limits.client.op_bytes,
+            skein_forge_client::measure::effect(&entry.effect),
+        ));
+    }
+    None
 }
 
 fn release_outcome(
@@ -8808,7 +8889,11 @@ fn finish_release_outcome(
                     row.close_pull = None;
                 } else {
                     row.failed = true;
-                    emit(out, Request::ReleaseFailed { task, account, reason: None });
+                    let words = match account {
+                        Some(account) => account.words,
+                        None => release_outcome_words(d, &row, resource.as_ref(), outcome),
+                    };
+                    release_failure::report(out, task, Some(entry), words);
                 }
             }
             skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {
@@ -8819,6 +8904,31 @@ fn finish_release_outcome(
     release_reads::advanced(d, task, env.wall);
     d.releases.insert(task, row.clone()).expect("replaces release");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
+}
+
+fn release_outcome_words(
+    d: &Domain,
+    row: &ReleaseRow,
+    resource: Option<&Name>,
+    outcome: skein_forge_client::Outcome,
+) -> Box<[u8]> {
+    let why = crate::effect_words::outcome_words(outcome).expect("a terminal cleanup failure has answer words");
+    if let Some(name) = resource {
+        return release_failure::branch(d, b"delete branch", name, &why);
+    }
+    if let Some(number) = row.close_pull {
+        if let Some(change) = d.changes.get(&row.task) {
+            return crate::effect_words::write_account(
+                &skein_forge::api::Write::Close { number },
+                change.repository,
+                d.repository(change.repository),
+                &why,
+            );
+        }
+        let why = skein_lib::bytes::concat(&[b"close item #", skein_lib::Decimal::of(number).as_bytes(), b": ", &why]);
+        return release_failure::task_words(row.task, &why);
+    }
+    release_failure::task_words(row.task, &why)
 }
 
 #[expect(

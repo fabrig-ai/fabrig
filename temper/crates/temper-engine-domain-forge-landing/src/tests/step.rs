@@ -1292,6 +1292,45 @@ fn opening_and_cleanup_wait_on_the_first_outstanding_effect() {
 }
 
 #[test]
+fn a_failed_cleanup_fact_holds_the_landing() {
+    const CASES: &[(Status, Status)] = &[(Status::Failed, Status::Unknown), (Status::Passed, Status::Failed)];
+    let (mut landing, mut facts) = stacked(1);
+    landing.round.ending = Some(crate::RoundEnd::Stale);
+    for &(closed, deleted) in CASES {
+        facts.closed = closed;
+        facts.members[0].deleted = deleted;
+        let stopped = decide(&landing, &facts);
+        assert_eq!(stopped.decision, Decision::Hold(Hold::Cleanup));
+        assert_eq!(stopped.landing.phase, Phase::Held { was: Box::new(Phase::Proving), why: Hold::Cleanup });
+    }
+}
+
+#[test]
+fn a_cleanup_release_reaches_the_next_rounds_prepare() {
+    let (mut landing, mut facts) = stacked(1);
+    landing.round.ending = Some(crate::RoundEnd::Stale);
+    landing.round.cleanup = Some(b"delete branch refused".as_slice().into());
+    landing.phase = Phase::Held { was: Box::new(Phase::Proving), why: Hold::Cleanup };
+    facts.released = true;
+    let resumed = decide(&landing, &facts);
+    assert_eq!(resumed.decision, Decision::None);
+    assert_eq!(resumed.landing.phase, Phase::Preparing);
+    assert_eq!(resumed.landing.round.cleanup, None);
+    facts.released = false;
+    facts.closed = Status::Passed;
+    facts.members[0].deleted = Status::Passed;
+    let cleaned = decide(&resumed.landing, &facts);
+    assert_eq!(cleaned.decision, Decision::Stale);
+    facts.preparation = crate::Preparation::Absent;
+    facts.members[0].candidate = None;
+    facts.opened = None;
+    facts.opening = Status::Unknown;
+    let prepared = decide(&cleaned.landing, &facts);
+    assert_eq!(prepared.decision, Decision::Prepare { member: 0, head: head(0), main: MAIN });
+    assert_eq!(prepared.landing.preparation, 2, "the round after the one that held");
+}
+
+#[test]
 fn a_squashed_member_waits_on_its_record() {
     let (mut landing, mut f) = stacked(2);
     landing.phase = Phase::Turn { at: at(10) };

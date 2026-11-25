@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xc2, 0xcf, 0x2e, 0x8a, 0xac, 0x4d, 0x6d, 0x82, 0x38, 0x61, 0x67, 0xd9, 0x6c, 0x5e, 0xaf, 0x25, 0x30, 0x7b, 0xc1,
-    0xc3, 0xa8, 0xb4, 0x30, 0xc5, 0x3f, 0x79, 0x51, 0x35, 0x82, 0x4a, 0xf7, 0x7f,
+    0x33, 0x7b, 0x24, 0x68, 0x22, 0xbd, 0xef, 0xea, 0x7f, 0xa1, 0xfd, 0xea, 0x5a, 0x33, 0xe5, 0x4a, 0xaf, 0xd4, 0xf5,
+    0x39, 0x27, 0x0c, 0x26, 0x18, 0x2a, 0x23, 0xe7, 0x27, 0x61, 0x0b, 0x15, 0x1d,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -173,6 +173,7 @@ pub struct Limits {
     pub landing_by_test_gates: u32,
     pub landing_by_test_probed: u32,
     pub landing_searched_changes: u32,
+    pub landing_round_cleanup_some: u32,
     pub landing_round_branch: u32,
     pub landing_round_failure: u32,
     pub landing_last_prepare_suffix: u32,
@@ -546,6 +547,7 @@ pub const CEILINGS: Limits = Limits {
     landing_by_test_gates: 64,
     landing_by_test_probed: 4_096,
     landing_searched_changes: 64,
+    landing_round_cleanup_some: 512,
     landing_round_branch: 4_096,
     landing_round_failure: 8_192,
     landing_last_prepare_suffix: 64,
@@ -919,6 +921,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_by_test_gates",
     "landing_by_test_probed",
     "landing_searched_changes",
+    "landing_round_cleanup_some",
     "landing_round_branch",
     "landing_round_failure",
     "landing_last_prepare_suffix",
@@ -1296,6 +1299,7 @@ impl Limits {
             self.landing_by_test_gates,
             self.landing_by_test_probed,
             self.landing_searched_changes,
+            self.landing_round_cleanup_some,
             self.landing_round_branch,
             self.landing_round_failure,
             self.landing_last_prepare_suffix,
@@ -1674,6 +1678,7 @@ impl Limits {
             landing_by_test_gates: self.landing_by_test_gates.min(most),
             landing_by_test_probed: self.landing_by_test_probed.min(most),
             landing_searched_changes: self.landing_searched_changes.min(most),
+            landing_round_cleanup_some: self.landing_round_cleanup_some.min(most),
             landing_round_branch: self.landing_round_branch.min(most),
             landing_round_failure: self.landing_round_failure.min(most),
             landing_last_prepare_suffix: self.landing_last_prepare_suffix.min(most),
@@ -2049,6 +2054,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_BY_TEST_GATES,
     paths::LANDING_BY_TEST_PROBED,
     paths::LANDING_SEARCHED_CHANGES,
+    paths::LANDING_ROUND_CLEANUP,
     paths::LANDING_ROUND_BRANCH,
     paths::LANDING_ROUND_FAILURE,
     paths::LANDING_LAST_PREPARE_SUFFIX,
@@ -3202,6 +3208,7 @@ pub mod paths {
     pub const LANDING_SEARCHED_GREEN: Path = Path::new("LandingSearched.green");
     pub const LANDING_SEARCHED_CHANGES: Path = Path::new("LandingSearched.changes");
     pub const LANDING_SEARCHED_TAIL: Path = Path::new("LandingSearched (tail)");
+    pub const LANDING_ROUND_CLEANUP: Path = Path::new("LandingRound.cleanup");
     pub const LANDING_ROUND_MERGES: Path = Path::new("LandingRound.merges");
     pub const LANDING_ROUND_BRANCH: Path = Path::new("LandingRound.branch");
     pub const LANDING_ROUND_PULL: Path = Path::new("LandingRound.pull");
@@ -20913,6 +20920,7 @@ pub enum LandingOwnHold {
     Turn,
     Read,
     Claimed(LandingClaimed),
+    Cleanup,
 }
 
 // Record: LandingOwnHold.
@@ -20924,7 +20932,8 @@ impl LandingOwnHold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("LandingClaimed"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -20960,6 +20969,7 @@ impl Record for LandingOwnHold {
             Self::Turn => field::put(out, &[3], paths::LANDING_OWN_HOLD_TAG),
             Self::Read => field::put(out, &[4], paths::LANDING_OWN_HOLD_TAG),
             Self::Claimed(value) => { field::put(out, &[5], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
+            Self::Cleanup => field::put(out, &[6], paths::LANDING_OWN_HOLD_TAG),
         }
     }
 
@@ -20972,7 +20982,8 @@ impl Record for LandingOwnHold {
             3 => Ok(Self::Turn),
             4 => Ok(Self::Read),
             5 => Ok(Self::Claimed(LandingClaimed::read(limits, reader)?)),
-            6..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            6 => Ok(Self::Cleanup),
+            7..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -21538,6 +21549,7 @@ impl Record for LandingSearched {
 // Type: LandingRound.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingRound {
+    pub cleanup: Option<Box<[u8]>>,
     pub merges: u32,
     pub branch: Box<[u8]>,
     pub pull: Option<u64>,
@@ -21555,29 +21567,31 @@ pub struct LandingRound {
 // Record: LandingRound.
 impl LandingRound {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_round_cleanup_some) },
+        skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_round_branch) },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 4 },
-        skein_codec::bounds::Node::Named("LandingCombine"),
+        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Named("LandingCombine"),
+        skein_codec::bounds::Node::Option { item: 8 },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("LandingRoundEnd"),
-        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Option { item: 12 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_round_failure) },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(2),
-        skein_codec::bounds::Node::Option { item: 14 },
-        skein_codec::bounds::Node::Named("LandingSearch"),
         skein_codec::bounds::Node::Option { item: 16 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 8, 9, 11, 12, 13, 15, 17] },
+        skein_codec::bounds::Node::Named("LandingSearch"),
+        skein_codec::bounds::Node::Option { item: 18 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3, 5, 7, 9, 10, 11, 13, 14, 15, 17, 19] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 78;
+    pub const ENCODED_AT_ZERO: u64 = 83;
 }
 
 impl Record for LandingRound {
@@ -21602,6 +21616,7 @@ impl Record for LandingRound {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Bytes { limit: limits.landing_round_cleanup_some.min(CEILINGS.landing_round_cleanup_some) } }, &self.cleanup, limits, out, paths::LANDING_ROUND_CLEANUP)?;
         field::write(field::U32, &self.merges, limits, out, paths::LANDING_ROUND_MERGES)?;
         field::write(field::Bytes { limit: limits.landing_round_branch.min(CEILINGS.landing_round_branch) }, &self.branch, limits, out, paths::LANDING_ROUND_BRANCH)?;
         field::write(field::Optional { item: field::U64 }, &self.pull, limits, out, paths::LANDING_ROUND_PULL)?;
@@ -21619,6 +21634,7 @@ impl Record for LandingRound {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
+            cleanup: field::read(field::Optional { item: field::Bytes { limit: limits.landing_round_cleanup_some.min(CEILINGS.landing_round_cleanup_some) } }, limits, reader, paths::LANDING_ROUND_CLEANUP)?,
             merges: field::read(field::U32, limits, reader, paths::LANDING_ROUND_MERGES)?,
             branch: field::read(field::Bytes { limit: limits.landing_round_branch.min(CEILINGS.landing_round_branch) }, limits, reader, paths::LANDING_ROUND_BRANCH)?,
             pull: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_ROUND_PULL)?,
@@ -21749,7 +21765,7 @@ impl LandingState {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 288;
+    pub const ENCODED_AT_ZERO: u64 = 293;
 }
 
 impl Record for LandingState {
@@ -23056,7 +23072,7 @@ impl LandingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 400;
+    pub const ENCODED_AT_ZERO: u64 = 405;
 }
 
 impl Record for LandingRow {
@@ -41745,6 +41761,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_by_test_gates,
     CEILINGS.landing_by_test_probed,
     CEILINGS.landing_searched_changes,
+    CEILINGS.landing_round_cleanup_some,
     CEILINGS.landing_round_branch,
     CEILINGS.landing_round_failure,
     CEILINGS.landing_last_prepare_suffix,

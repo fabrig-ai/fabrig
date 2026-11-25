@@ -3,7 +3,6 @@
 use skein_world::faults::Kind;
 use skein_world::sweep::{Exclusion, Sweep};
 
-pub const A_WRITE_REFUSED: Kind = Kind { family: "forge", name: "a write refused" };
 pub const A_REPAIR_ENDS_WITH_NO_CHANGE: Kind = Kind { family: "runs", name: "a repair ends with no change" };
 pub const A_PATH_DELETED_ON_THE_BASE: Kind = Kind { family: "stale", name: "a path deleted on the base" };
 pub const A_REPAIR_FINDS_ITS_TESTS_PASSING: Kind = Kind { family: "runs", name: "a repair finds its tests passing" };
@@ -16,14 +15,6 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             "failure worlds: repaired as a red",
             temper_faults::bounds::BRANCH_HOLDS,
             &["the holds and pending prepares, including the new change or train, exceed capacity"],
-        ))?;
-    }
-    if configured.contains(&A_WRITE_REFUSED) {
-        sweep.exclude(Exclusion::new(
-            "a_refused_release_is_accounted",
-            "landing train",
-            A_WRITE_REFUSED,
-            &["a task's release under way"],
         ))?;
     }
     if configured.contains(&A_REPAIR_ENDS_WITH_NO_CHANGE) {

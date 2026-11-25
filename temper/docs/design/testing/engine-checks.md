@@ -469,7 +469,6 @@ wants of that symptom.
 
 | Problem | Scenario | Package | Fixed by |
 |---|---|---|---|
-| P88 | `a_refused_release_is_accounted` | `temper-engine-forge-world` | landing train |
 | P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | holds already: active |
 | P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds |
 | P37 | `a_starved_gate_is_the_runners` | `temper-engine-forge-world` | a change's reds |
@@ -520,9 +519,12 @@ wants of that symptom.
 - **A scenario its work has fixed** runs the same way, active with no
   exclusion, in the file its row named: P63's residual,
   `a_stored_charter_is_checked_at_start`, by the bounded waits' start
-  check (`../domain/agent/room.md`, 4.1), whose words it pins; and P124's
+  check (`../domain/agent/room.md`, 4.1), whose words it pins; P124's
   bound, `a_change_waiting_for_room_has_a_bound`, by a room wait's bound
-  (`../domain/forge/waits.md`, 7).
+  (`../domain/forge/waits.md`, 7); and P88's,
+  `a_refused_release_is_accounted` in `temper-engine-forge-world`, by a
+  round cleanup's hold (`../domain/landing-prepare.md`, 1.1), whose
+  account it pins: the deletion, the branch and the forge's refusal.
 
 ### 5.2 Their exclusions
 
@@ -546,7 +548,6 @@ own change.
 | Scenario | Fault | When |
 |---|---|---|
 | `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
-| `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
 | `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
 | `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
