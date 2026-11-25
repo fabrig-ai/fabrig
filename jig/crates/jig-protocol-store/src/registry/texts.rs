@@ -8,6 +8,8 @@ use skein_codec::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Type, Type
 use skein_lib::{List, Map};
 
 pub(super) fn digest(bytes: &[u8]) -> Digest {
+    #[cfg(test)]
+    super::counting::hashed();
     let mut hash = skein_lib::sha256::Sha256::new();
     hash.update(bytes);
     hash.finish()
@@ -172,11 +174,16 @@ pub(super) fn keep(layouts: &mut Layouts, bytes: &[u8], current: bool) -> Option
     let digest = digest(bytes);
     if let Some(held) = layouts.texts.get_mut(&digest) {
         held.current |= current;
+        // The digest just computed proves the stored bytes only if they match.
+        held.verified = held.verified || held.bytes.as_ref() == bytes;
     } else {
         let schema = Cached::read(layouts.prepared_schemas, layouts.admitted_schemas.as_mut(), bytes, digest)?;
         layouts
             .texts
-            .insert(digest, Text { bytes: Box::from(bytes), schema: Some(schema), stored: false, current })
+            .insert(
+                digest,
+                Text { bytes: Box::from(bytes), schema: Some(schema), verified: true, stored: false, current },
+            )
             .expect("uncapped texts");
     }
     Some(digest)
@@ -185,8 +192,11 @@ pub(super) fn keep(layouts: &mut Layouts, bytes: &[u8], current: bool) -> Option
 pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
     let text = layouts.texts.get_mut(&digest)?;
     if text.schema.is_none() {
-        if self::digest(&text.bytes) != digest {
-            return None;
+        if !text.verified {
+            if self::digest(&text.bytes) != digest {
+                return None;
+            }
+            text.verified = true;
         }
         text.schema =
             Some(Cached::read(layouts.prepared_schemas, layouts.admitted_schemas.as_mut(), &text.bytes, digest)?);
