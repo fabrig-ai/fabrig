@@ -1,9 +1,9 @@
 //! Requester questions and park faults (`jig/docs/design/domain/testing-workloads.md`, 3 and 4).
 use super::{
-    Bound, Driver, Kind, Struck, Sweep, Token, Workload, World, answer, core, ended, open, requests, root, row, tasks,
+    Bound, Driver, Kind, Struck, Sweep, Token, Workload, World, answer, core, ended, requests, root, row, stuck, tasks,
 };
 use crate::parks as faults;
-use skein_lib::ReplyTo;
+use skein_lib::{ReplyTo, Rng};
 use skein_world::streams::{Stream, Streams};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,7 +19,7 @@ enum Stage {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Park {
-    target: usize,
+    pub(super) target: usize,
     kind: Kind,
     after: u64,
     answer_after: u64,
@@ -30,10 +30,21 @@ pub(super) struct Park {
     reply: Option<core::CallKey>,
 }
 
-pub(super) fn draw(workload: &Workload, streams: Streams, configured: &[Kind]) -> Vec<Park> {
+pub(super) fn draw(
+    workload: &Workload,
+    streams: Streams,
+    configured: &[Kind],
+    limits: &tasks::Limits,
+) -> (Vec<Park>, Option<stuck::Draw>) {
     let mut rng = streams.rng(Stream::Faults, "parks");
+    let parks = answer_parks(workload, &mut rng, configured);
+    let stuck = stuck::draw(workload, &mut rng, configured, limits, &parks);
+    (parks, stuck)
+}
+
+fn answer_parks(workload: &Workload, rng: &mut Rng, configured: &[Kind]) -> Vec<Park> {
     let mut parks = Vec::new();
-    if !configured.contains(&open::PARKS_WITH_A_QUESTION_OPEN) {
+    if !configured.contains(&faults::PARKS_WITH_A_QUESTION_OPEN) {
         return parks;
     }
     for (target, task) in workload.tasks.iter().enumerate() {
@@ -81,7 +92,7 @@ pub(super) fn draw(workload: &Workload, streams: Streams, configured: &[Kind]) -
 }
 
 impl Driver {
-    fn record_park(&mut self, world: &mut World, target: usize, kind: Kind) -> Result<(), String> {
+    pub(super) fn record_park(&mut self, world: &mut World, target: usize, kind: Kind) -> Result<(), String> {
         let now = world.clocks().0;
         let ledger = world.fault_ledger.as_mut().expect("workload ledger");
         let entry = ledger.inject(
@@ -106,17 +117,21 @@ impl Driver {
         kind: tasks::MessageKind,
         words: &[u8],
     ) -> core::CallKey {
+        self.park_action(world, source, core::NamedAction::Message { target, kind, words: words.into() })
+    }
+
+    pub(super) fn park_action(&mut self, world: &mut World, source: u64, action: core::NamedAction) -> core::CallKey {
         self.completion += 1;
         let key = core::CallKey {
             task: source,
-            attempt: row(world, source).expect("message's sender").attempt,
+            attempt: row(world, source).expect("action's sender").attempt,
             completion: self.completion,
             position: 0,
         };
         world.enqueue(root::Event::Core(core::Event::NamedAction {
             to: ReplyTo::new(Token::new(20_000 + u64::from(self.completion))),
             key,
-            action: core::NamedAction::Message { target, kind, words: words.into() },
+            action,
         }));
         key
     }
@@ -170,9 +185,7 @@ impl Driver {
                 continue;
             }
             let last = self.progress[park.target].last;
-            if world.iterations().saturating_sub(last.1) >= bound.iterations
-                || world.clocks().0.as_nanos().saturating_sub(last.0.as_nanos()) >= bound.time.as_nanos()
-            {
+            if bound.spent((world.clocks().0, world.iterations()), last) {
                 return Err(self.park_finding(park, &format!("park past its bound in {:?}", park.stage)));
             }
             settled = false;
@@ -200,11 +213,11 @@ impl Driver {
             .iter()
             .any(|s| matches!(s.kind, tasks::SubscriptionKind::Task { target, .. } if target == number));
         let holding = if watching { vec!["its requester watches it"] } else { Vec::new() };
-        if let Some(exclusion) = sweep.leaves_out(open::PARKS_WITH_A_QUESTION_OPEN, &holding) {
+        if let Some(exclusion) = sweep.leaves_out(faults::PARKS_WITH_A_QUESTION_OPEN, &holding) {
             let now = world.clocks().0;
             world.fault_ledger.as_mut().expect("workload ledger").leave_out(
                 exclusion.scenario,
-                open::PARKS_WITH_A_QUESTION_OPEN,
+                faults::PARKS_WITH_A_QUESTION_OPEN,
                 now,
             );
             self.parks[index].stage = Stage::Omitted;
@@ -237,7 +250,7 @@ impl Driver {
                     if current.phase != tasks::Phase::Active(tasks::Active::Idle) || current.questions.is_empty() {
                         return Err(self.park_finding(&park, "park did not retain its open question"));
                     }
-                    self.record_park(world, park.target, open::PARKS_WITH_A_QUESTION_OPEN)?;
+                    self.record_park(world, park.target, faults::PARKS_WITH_A_QUESTION_OPEN)?;
                     self.parks[index].stage = Stage::Parked;
                     self.parks[index].seen = Some(world.iterations());
                 }
@@ -418,20 +431,56 @@ impl Driver {
     }
 }
 
-fn running(row: &tasks::TaskRecord) -> bool {
+pub(super) fn running(row: &tasks::TaskRecord) -> bool {
     matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { .. }))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Workload, draw, faults, open};
+    use super::{Workload, answer_parks, draw, faults, stuck};
     use crate::workload::Party;
     use skein_world::streams::{Stream, Streams};
 
     #[test]
+    fn stuck_draws_respect_the_planning_profile() {
+        let configured = [
+            faults::PARKS_WITH_A_QUESTION_OPEN,
+            faults::ANSWERED_WHILE_PARKED,
+            faults::ANSWERED_AFTER_ITS_END,
+            faults::ANSWERED_TO_ITS_SUCCESSOR,
+            faults::COORDINATOR_ENDS_WHILE_A_CHILD_WAITS,
+            faults::STUCK_IN_A_CIRCLE,
+            faults::PARKS_ON_NOTHING,
+            faults::WATCHES_A_TASK_THAT_CAN_ANSWER,
+        ];
+        let (_, limits) = crate::faults::plan_fixture(0);
+        let mut circle_sizes = std::collections::BTreeSet::new();
+        let mut control = false;
+        let mut nothing = false;
+        for seed in 0..128 {
+            let streams = Streams::new(seed);
+            let workload = Workload::draw(streams);
+            let (parks, shape) = draw(&workload, streams, &configured, &limits.core.tasks);
+            let Some(shape) = shape else { continue };
+            let _ = streams.rng(Stream::Parties, "owner").next_u64();
+            assert_eq!(Some(&shape), draw(&workload, streams, &configured, &limits.core.tasks).1.as_ref());
+            assert!(parks.iter().all(|park| shape.expect(park.target).is_none()), "seed {seed}");
+            match shape {
+                stuck::Draw::Circle(members) => {
+                    circle_sizes.insert(members.len());
+                }
+                stuck::Draw::Nothing(_) => nothing = true,
+                stuck::Draw::Watch { .. } => control = true,
+            }
+        }
+        assert_eq!(circle_sizes.into_iter().collect::<Vec<_>>(), [1, 2]);
+        assert!(control && nothing);
+    }
+
+    #[test]
     fn park_draws_use_only_the_faults_parks_stream() {
         let configured = [
-            open::PARKS_WITH_A_QUESTION_OPEN,
+            faults::PARKS_WITH_A_QUESTION_OPEN,
             faults::ANSWERED_WHILE_PARKED,
             faults::ANSWERED_AFTER_ITS_END,
             faults::ANSWERED_TO_ITS_SUCCESSOR,
@@ -439,7 +488,7 @@ mod tests {
         ];
         let streams = Streams::new(49);
         let workload = Workload::draw(streams);
-        let expected = draw(&workload, streams, &configured);
+        let expected = answer_parks(&workload, &mut streams.rng(Stream::Faults, "parks"), &configured);
         let first = &expected[0];
         assert_eq!(workload.tasks[first.target].name, "t0.0");
         assert_eq!(first.kind, faults::COORDINATOR_ENDS_WHILE_A_CHILD_WAITS);
@@ -447,7 +496,7 @@ mod tests {
         assert_eq!(expected.len(), 2, "independent targets in different goals");
         let _ = streams.rng(Stream::Parties, "owner").next_u64();
         let _ = workload.acts(streams, Party::Member, &[crate::people::HOLDS_A_TASK]);
-        assert_eq!(expected, draw(&workload, streams, &configured));
+        assert_eq!(expected, answer_parks(&workload, &mut streams.rng(Stream::Faults, "parks"), &configured));
         assert_eq!(workload, Workload::draw(streams));
         assert!(expected.iter().all(|park| workload.tasks[park.target].asks_requester));
     }

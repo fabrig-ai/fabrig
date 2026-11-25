@@ -26,6 +26,7 @@ impl Peer {
                     initial_url: Box::from(b"about:blank".as_slice()),
                     requests: false,
                     frame: Some(Box::from(b"main".as_slice())),
+                    document: crate::browser::document::Root::Empty,
                     navigating: false,
                     opening: false,
                     load: None,

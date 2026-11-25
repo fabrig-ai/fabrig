@@ -59,6 +59,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             fit::task(limits, &task)?;
             fit::settings(domain, &task)?;
             domain.timer_subscriptions = fit::timers(domain, &task)?;
+            let executor = task.executor;
             let observed_hold = match task.phase {
                 Phase::Held { why, .. } => Some(why),
                 Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => None,
@@ -71,12 +72,15 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             }
             crate::settings::hold(domain, &task);
             let mut restored = Task::new(*task);
-            restored.published = Some(Box::new(restored.record.clone()));
             restored.observed_phase = Some(restored.record.phase.clone());
             restored.observed_hold = observed_hold;
             let id = domain.tasks.insert(restored).expect("restored task admitted");
             let indexed = domain.names.insert(number, id);
             assert!(indexed == Ok(None), "restored name admitted");
+            crate::stuck::index_executor(domain, number, executor);
+            crate::questions::index(domain, number);
+            let task = task_mut(domain, number).expect("indexed restored task");
+            task.published = Some(Box::new(task.record.clone()));
             crate::waits::refresh(domain, number);
             crate::escalation::restore_holder(domain, number);
         }

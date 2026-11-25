@@ -1,6 +1,6 @@
 # Kept builds
 
-Provisional, 2026-11-12, revised 2026-11-20, from
+Provisional, 2026-11-12, revised 2026-11-25, from
 `../../draft/archive/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
 `../../draft/archive/landed-qa.execution.md`. The builds
 a pass judges: made by the deployment at landed tips, published to
@@ -19,11 +19,12 @@ deleted once no pass can need them.
   are moved into the builds directory under the commit, a manifest names
   the commit and each file's checksum (section 4), and the ledger
   records the build.
-- **Held by a pass** while it runs or waits on it, and installed at its
-  place from the manifest (`places.md`, 3).
+- **Held by a pass** while it runs on it, and installed at its place
+  from the manifest (`places.md`, 3); a pass that waits on its findings'
+  goal holds none.
 - **Deleted by the loop** (section 5), by the ledger's rule alone: at
   once when triage finds nothing to check, once a newer triaged build
-  is kept, and once the pass holding it ends or resumes on another.
+  is kept, and once the pass holding it ends or starts waiting.
 
 ## 2. The deployment's build
 
@@ -147,10 +148,13 @@ again. A cross-device install checks its copies against the manifest
   `BUILDS/COMMIT` is removed, then the build recorded `deleted` with the
   time.
 - **A pass's hold** keeps a build: from the pass's start or resume on it
-  until the pass ends or resumes on another (`ledger.md`, 4.8, 4.12 and
-  4.13). Released, it falls under the rule as any build does, so a pass's
-  end or resume deletes it at the next tick unless queued cases still
-  need it.
+  until its session ends, the pass ending or starting to wait
+  (`ledger.md`, 4.8, 4.12 and 4.13). A waiting pass never runs on that
+  build again: it resumes on a build holding its goal's landing, or on
+  the newest reached one where its goal ended without landing, waiting
+  while there is none. Released, a build falls under the rule as any
+  build does, so a pass's end or wait deletes it at the next tick unless
+  queued cases still need it.
 - **A directory already gone** counts as removed. One that will not go
   stays `kept` and is tried again at the next tick; failing for an hour,
   it is a line (`README.md`, 4).

@@ -124,7 +124,7 @@ fn requests(host: &mut Host, branch: &str) -> Result<Vec<(String, String)>, Stop
     Ok(requests)
 }
 
-fn valid_name(name: &str) -> bool {
+pub(crate) fn valid_name(name: &str) -> bool {
     let word_byte = |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
     let mut bytes = name.bytes();
     bytes.next().is_some_and(word_byte) && bytes.all(|byte| word_byte(byte) || byte == b'-')

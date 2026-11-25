@@ -227,7 +227,7 @@ fn finding_repair_posting_survives_restart_without_repeating_comments() {
     assert!(matches!(choice(&tier_step(&mut cold, COMMENT + 3, false)), Some(TierDecision::Done { .. })));
 }
 
-fn ready(logged: bool) -> Domain {
+pub(super) fn ready(logged: bool) -> Domain {
     let mut d = dispatched();
     let tier = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
     tier.record.run.as_mut().unwrap().landings = Box::new([

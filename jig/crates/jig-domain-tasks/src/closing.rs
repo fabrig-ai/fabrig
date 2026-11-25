@@ -350,6 +350,8 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     ended.questions = Box::new([]);
     ended.notice_credits = Box::new([]);
     ended.unrecorded = Box::new([]);
+    crate::questions::unindex(domain, number);
+    crate::stuck::ended(domain, number);
     let id = domain.names.remove(&number).expect("ending name exists");
     crate::escalation::forget_holder(domain, env, &ended);
     crate::holds::release(domain, number);

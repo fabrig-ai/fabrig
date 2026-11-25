@@ -247,7 +247,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
         let failed = result == Err(Error::Refused);
         let answered = fixtures::answer(&mut d, call, result);
         if failed {
-            assert!(answered.contains(&Request::ReleaseFailed { task: WRITER, account: None }));
+            assert!(answered.contains(&Request::ReleaseFailed { task: WRITER, account: None, reason: None }));
             assert!(!answered.contains(&Request::Released { task: WRITER }));
             assert!(d.releases.contains_key(&WRITER));
             continue;
@@ -268,4 +268,46 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
             );
         }
     }
+}
+
+#[test]
+fn a_release_waiting_for_its_writer_reread_fails_at_its_step_figure() {
+    use skein_forge::api::Error;
+    const BRANCH: &[u8] = b"temper/1/c3";
+    const ATTEMPT: u64 = 1;
+    const ENTRY: u64 = 20;
+    let mut d = fixtures::connected_domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    let name = goal_branch::name(BRANCH);
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name: name.clone(),
+                task: HOLDER,
+                writer: Some(Writer::Run { task: DELEGATE, attempt: ATTEMPT }),
+                drift: None,
+                beside: None,
+                design_writers: Box::new([]),
+            }),
+        },
+    );
+    outputs(&mut d, Event::Lost { task: DELEGATE, attempt: ATTEMPT });
+    let (call, _) = fixtures::next_call(&mut d);
+    outputs(
+        &mut d,
+        Event::Release { task: DELEGATE, root: HOLDER, ending: ReleaseEnding::Done, reason: None, entry: ENTRY },
+    );
+    let mut clock = env();
+    clock.limits.client.read_attempts = 1;
+    fixtures::answer_at(&mut d, &clock, call, Err(Error::Unavailable));
+    let failed = fire_at(&mut d, &clock, advanced_wall(clock.wall, clock.limits.waits.step));
+    let expected = Request::ReleaseFailed { task: DELEGATE, account: None, reason: Some(b"no progress at release for 30 minutes: waiting for a writer's reread of branch temper/1/c3; the last answer: forge unavailable".as_slice().into()) };
+    assert!(failed.contains(&expected), "{failed:?}");
+    assert_eq!(
+        d.hold(&name).expect("lost writer hold retained").writer,
+        Some(Writer::Lost { task: DELEGATE, attempt: ATTEMPT })
+    );
 }

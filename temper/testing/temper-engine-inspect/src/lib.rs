@@ -49,14 +49,14 @@ pub const KINDS: &[&str] = &[
 
 /// The root's forge waits and tables, using its task arena for ownership and prepare jobs.
 pub fn inspect(root: &Domain, into: &mut Inspection) {
-    let view = View { forge: root.forge(), root: Some(root) };
+    let view = View::new(root.forge(), Some(root));
     waits::inspect(&view, into);
     tables::inspect(&view, into);
 }
 
 /// The forge component alone, as driven by the forge world.
 pub fn forge(forge: &forge::Domain, into: &mut Inspection) {
-    let view = View { forge, root: None };
+    let view = View::new(forge, None);
     waits::inspect(&view, into);
     tables::inspect(&view, into);
 }
@@ -64,9 +64,37 @@ pub fn forge(forge: &forge::Domain, into: &mut Inspection) {
 struct View<'a> {
     forge: &'a forge::Domain,
     root: Option<&'a Domain>,
+    calls: Vec<Call>,
 }
 
-impl View<'_> {
+struct Call {
+    number: u64,
+    task: Option<u64>,
+    read: bool,
+    answered: bool,
+}
+
+impl<'a> View<'a> {
+    fn new(forge: &'a forge::Domain, root: Option<&'a Domain>) -> Self {
+        use skein_forge_client::CallOwner;
+        let mut facts = forge.inspection_client().inspection_call_facts();
+        facts.sort_unstable_by_key(|(number, _, _)| *number);
+        let calls = facts
+            .iter()
+            .map(|&(number, owner, answered)| {
+                let task = match owner {
+                    CallOwner::Read(owner) => {
+                        forge.inspection_read_task(*owner).or_else(|| forge.inspection_brief_task(*owner))
+                    }
+                    CallOwner::Entry(entry) => forge.inspection_entry(*entry).map(|entry| entry.task),
+                    CallOwner::Resource(_) | CallOwner::Repository(_) => None,
+                };
+                Call { number, task, read: matches!(owner, CallOwner::Read(_)), answered }
+            })
+            .collect();
+        Self { forge, root, calls }
+    }
+
     fn ended(&self, task: u64) -> bool {
         if let Some(root) = self.root {
             return root.tasks().task(task).is_none_or(|row| matches!(row.phase, tasks::Phase::Ended(_)));
@@ -113,24 +141,11 @@ impl View<'_> {
         vec![Wake::Ended("prepare job".into())]
     }
 
-    fn read_task(&self, call: u64) -> Option<u64> {
-        let client = self.forge.inspection_client();
-        match client.inspection_call_owner(call) {
-            Some(skein_forge_client::CallOwner::Read(owner)) => {
-                self.forge.inspection_read_task(*owner).or_else(|| self.forge.inspection_brief_task(*owner))
-            }
-            _ => None,
-        }
-    }
-
     fn read_wakes(&self, task: u64) -> Vec<Wake> {
-        let client = self.forge.inspection_client();
-        let mut calls = client.inspection_calls();
-        calls.sort_unstable();
         let mut wakes = Vec::new();
-        for call in calls {
-            if !client.inspection_answered_call(call) && self.read_task(call) == Some(task) {
-                wakes.push(Wake::Party(format!("forge: call {call}")));
+        for call in &self.calls {
+            if call.read && !call.answered && call.task == Some(task) {
+                wakes.push(Wake::Party(format!("forge: call {}", call.number)));
             }
         }
         // A gather refused client admission retains its read-line timer even

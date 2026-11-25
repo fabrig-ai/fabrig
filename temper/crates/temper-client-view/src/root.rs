@@ -85,6 +85,23 @@ impl View {
     pub const fn next_change(&self) -> Option<Wall> {
         self.next_change
     }
+    /// Whether a new view or new time words are due (temper/docs/design/client/view.md, 6).
+    #[must_use]
+    pub fn needs_build(&self, root: &Domain, wall: Wall) -> bool {
+        self.pending(root, wall).is_some()
+    }
+    fn pending(&self, root: &Domain, wall: Wall) -> Option<(u64, bool)> {
+        let shown = temper_client_domain::shown(root)
+            .checked_add(self.accounts.revision())
+            .expect("view revisions fit")
+            .checked_add(self.clock_revision)
+            .expect("view clock revisions fit");
+        let due = match self.next_change {
+            Some(next) => wall >= next,
+            None => false,
+        };
+        (self.render.stale(shown) || due).then_some((shown, due))
+    }
     #[must_use]
     pub fn tree(&self) -> &Tree {
         self.render.tree()
@@ -96,15 +113,7 @@ impl View {
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch draws each address's page")]
 pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
-    let shown = temper_client_domain::shown(root).checked_add(view.accounts.revision()).expect("view revisions fit");
-    let shown = shown.checked_add(view.clock_revision).expect("view clock revisions fit");
-    let due = match view.next_change {
-        Some(next) => wall >= next,
-        None => false,
-    };
-    if !view.render.stale(shown) && !due {
-        return;
-    }
+    let Some((shown, due)) = view.pending(root, wall) else { return };
     // skein-ui also gates finish by its revision: a clock wake advances it.
     let shown = if due {
         view.clock_revision = view.clock_revision.checked_add(1).expect("view clock revisions fit");

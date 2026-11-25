@@ -18,12 +18,14 @@ fn key_live_arguments_select_only_the_key() {
 
 #[test]
 fn the_claude_live_story_reads_its_agent_trace() {
+    let scratch = skein_scratch::Scratch::new("smith-program");
+    let program = stand_in_program(&scratch);
     let directory = std::path::Path::new("/unused/smith-live-story");
     let trace = directory.join("trace-1.jsonl");
     let mut arguments = live::arguments("claude", directory, true, false);
     live::with_trace(&mut arguments, &trace);
     let at = arguments.len().checked_sub(1).expect("prompt argument");
-    arguments.splice(at..at, ["-c".into(), "programs.claude_code='/bin/true'".into()]);
+    arguments.splice(at..at, ["-c".into(), format!("programs.claude_code='{}'", program.display()).into()]);
     let settings = live_settings(arguments, directory);
     let (resolved, _document) =
         smith_local_shell::settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
@@ -32,6 +34,15 @@ fn the_claude_live_story_reads_its_agent_trace() {
         let observing = trace_observer(account, &trace);
         assert_eq!(observing.prepared.program_source(), program, "{account}'s record source");
     }
+}
+
+fn stand_in_program(scratch: &skein_scratch::Scratch) -> std::path::PathBuf {
+    use std::{fs, os::unix::fs::PermissionsExt};
+
+    let path = scratch.path().join("claude");
+    fs::write(&path, b"#!/bin/sh\nexit 0\n").expect("write the scratch program");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).expect("make the scratch program executable");
+    path
 }
 
 fn trace_observer(account: &str, trace: &std::path::Path) -> smith_bench::agent::smith::Observing {
@@ -147,6 +158,8 @@ fn the_live_arguments_carry_private_program_homes() {
 mod fake_lookup;
 mod live_tests;
 mod program_contract;
+mod refusal_echo;
+mod stories_path;
 
 pub use smith_end_to_end_kit as support;
 

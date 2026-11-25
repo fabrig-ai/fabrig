@@ -5000,6 +5000,18 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "accounts-usage-model-week",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "Fable" },
+            Part::Text { text: "64% used" },
+            Part::Text { text: "full in 22 h 30 min" },
+            Part::Absent { role: Role::Meter, name: "Sonnet" },
+            Part::Absent { role: Role::Meter, name: "seven_day_fable" },
+            Part::Absent { role: Role::Meter, name: "seven_day_sonnet" },
+        ],
+    },
+    Holds {
         name: "accounts-usage-calm",
         heading: "What agents run on.",
         parts: &[

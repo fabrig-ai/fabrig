@@ -1,5 +1,5 @@
 //! Verdict projections and their ordered writes (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 9, and temper/docs/design/domain/after-landing-storage.md, 1).
-use super::{Box, Commit, Domain, Env, Limits, List, Request, TierRow, Write, api, joined, p};
+use super::{Box, Commit, Domain, EffectPurpose, Env, Limits, List, Request, TierRow, Write, api, joined, p};
 use skein_lib::Queue;
 
 use crate::{
@@ -326,7 +326,7 @@ pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -
         op_bytes: d.landing.limits.client.op_bytes,
     }
 }
-fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
+fn write(d: &Domain, row: &TierRow, posting: &Posting, purpose: EffectPurpose) -> Write {
     if posting.next == 0 {
         return Write::Status {
             commit: posting.tip,
@@ -342,9 +342,7 @@ fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
         CommentKind::Verdict { at } => &posting.landings.get(usize::from(at)).expect("comment landing").blame,
         CommentKind::Repaired { .. } => &p::Blame::Cleared,
     };
-    let key = super::purpose(d, row, 7, u16::try_from(part).expect("bounded comments"))
-        .key(&d.namespace, posting.op_bytes)
-        .expect("tier key fits operation");
+    let key = purpose.key(&d.namespace, posting.op_bytes).expect("tier key fits operation");
     let room = skein_lib::usize_of(posting.op_bytes).saturating_sub(key.len());
     Write::Post {
         number: comment_row.pull,
@@ -395,7 +393,8 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
         super::wait(row.task.expect("posting task"), out);
         return;
     }
-    let write = write(d, row, &posting);
+    let (operation, part) = identity(&posting);
+    let write = write(d, row, &posting, super::purpose(d, row, operation, part));
     posting.entry = Some(entry);
     row.posting = Some(posting);
     super::effect(d, row, entry, write, false, out);
@@ -422,8 +421,7 @@ pub(super) fn settled(d: &mut Domain, entry: u64, out: &mut Queue<Request>) -> b
     true
 }
 
-pub(super) fn identity(row: &TierRow) -> (u8, u16) {
-    let posting = row.posting.as_ref().expect("posting effect");
+pub(super) fn identity(posting: &Posting) -> (u8, u16) {
     if posting.next == 0 {
         (6, posting.part)
     } else {
@@ -432,11 +430,12 @@ pub(super) fn identity(row: &TierRow) -> (u8, u16) {
 }
 pub(super) fn describe(d: &Domain, row: &TierRow, entry: u64) -> Option<(u16, crate::What, Commit)> {
     let posting = row.posting.as_ref()?;
-    if posting.entry != Some(entry) || d.entries.get(&entry)?.entry.effect.write != write(d, row, posting) {
+    if posting.entry != Some(entry) {
         return None;
     }
-    let (operation, part) = identity(row);
-    if row.purpose != Some(super::purpose(d, row, operation, part)) {
+    let (operation, part) = identity(posting);
+    let purpose = super::described_purpose(d, row, operation, part)?;
+    if d.entries.get(&entry)?.entry.effect.write != write(d, row, posting, purpose) {
         return None;
     }
     let (kind, what) = if posting.next == 0 {

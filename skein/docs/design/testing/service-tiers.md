@@ -46,6 +46,29 @@ and `real::Outcome::peaks()` report each process's peak alone, and
 `Killed::peak()` reports the ended process's peak. An unchecked run
 reports no measurement, never a ceiling or a sentinel.
 
+**What the runtime keeps is made before a base.** A process's own heap
+is exact: what its calls grew by, freed in full by its drop. Storage
+the runtime makes at a first use and keeps for the process's life or
+its thread's is no process's, so a world makes it before its first
+base, never inside a process's call. Some of it is counted on macOS
+alone: there std's `Mutex` is a pthread one, which boxes its
+`pthread_mutex_t`, 64 bytes, on the global allocator at its first lock
+and keeps it while the mutex lives, where Linux's futex allocates
+nothing (`skein/testing/skein-heap/src/lib.rs`, "The runtime's own",
+has std's other such records). So a process-wide lock, a `static` one
+or a standard stream's, first taken inside a process's construction or
+call is charged to that process and never freed by its drop: macOS
+alone shows it, as a leak of exactly those 64 bytes, and Linux cannot.
+Spans and meters take the standard error's lock and std's other
+records before they read their base; the real loop makes Darwin's
+backend tables before its first admission (../runtime/readiness.md,
+5); and a fixture that a process's construction or calls reach takes a
+process-wide lock only where it holds something behind it, so a world
+where it holds nothing takes none. The check excludes nothing the
+runtime makes, by kind or by byte count: each is a first use that a
+world makes before its base, and one made inside a call is the world's
+bug.
+
 **Reuse is counted, never read from an address.** A span also counts
 the allocations its thread made since its start, a reallocation as one
 (`Span::made`). A step test that shows a table kept rather than grown
@@ -254,9 +277,23 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   Figures}` carry the wait and its scheduler accounting.
   `Deadline::arm(what, patience)` starts the calling thread's account;
   `watch(&Binary)` and `watch_process(pid)` add owned process trees,
-  preserving earlier watches. Descendants count; a thread first seen
-  after arming counts from zero only when its process provably began
-  after arming. Unreadable or vanished threads contribute nothing.
+  preserving earlier watches. A repeated `watch_process` of the same PID
+  and start time keeps the first sample. `DeadlineOrigin::capture` lets
+  waits beginning together share a clock and thread origin, and
+  `watch_snapshot(&ProcessWatch)` shares the sample of their owned roots
+  without reading procfs again. A stable arming scan reads the caller's
+  owner once, each process's owner once and identity before and after its
+  records, and each thread's scheduler and children records. On Linux,
+  a run may use `ProcessSampler` to avoid reopening those two thread
+  records on later armings. It keeps a bounded set of descriptors for
+  tasks seen in the last scan. Reuse requires the same process identity
+  and an inode match from the fresh task listing; a record descriptor
+  pins its task directory. Every scan reads the records from offset
+  zero, and opens them by path when it has no matching readable
+  descriptor. Ownership, process identity checks and expiry scans are
+  unchanged. Descendants count; a thread counts from zero only when
+  its own or its process's birth proves it began after arming.
+  Unreadable or vanished accounting contributes nothing.
   `passed`, `remaining` and `until` let the loop wait; `expired` classifies
   an unanswered wait once it passes. `expired_for(what, bound)` classifies
   one of the waits an account armed for several covers, as a browser

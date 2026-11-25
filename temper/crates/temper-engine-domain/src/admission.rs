@@ -165,6 +165,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
             | forge::Event::CloserRelayed { .. }
+            | forge::Event::ParkCloser { .. }
             | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
             | forge::Event::ChangeEnding { .. }

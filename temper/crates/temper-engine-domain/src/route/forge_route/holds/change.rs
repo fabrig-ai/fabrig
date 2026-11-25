@@ -14,6 +14,12 @@ pub(in super::super) fn account(
         return row.producer_failure.clone();
     }
     let change::State::Held { was, .. } = &row.change.state else { return None };
+    if why == change::Hold::Stalled
+        && row.room.is_some()
+        && let Some(account) = &row.effect_account
+    {
+        return Some(account.words.clone());
+    }
     if let change::State::Taking { .. } = was.as_ref()
         && (why == change::Hold::Stalled || why == change::Hold::Failed)
     {
@@ -54,7 +60,7 @@ pub(in super::super) fn account(
         append(&mut words, skein_lib::Decimal::of(row.pull?).as_bytes());
     } else if why == change::Hold::Stalled {
         append(&mut words, b"no progress at ");
-        append(&mut words, step_name(was));
+        append(&mut words, was.step_name());
         append(&mut words, b" for ");
         let runner = if let change::State::Checking { .. } = was.as_ref() {
             match row.change.clock {
@@ -116,7 +122,7 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
     if let Some(row) = domain.forge.change(task) {
         if let change::State::Held { was, .. } = &row.change.state {
             append(&mut words, b"; change was ");
-            append(&mut words, step_name(was));
+            append(&mut words, was.step_name());
         }
         if why == change::Hold::Resolutions || why == change::Hold::Updates {
             let (taken, bound) = if why == change::Hold::Resolutions {
@@ -174,36 +180,6 @@ fn head(words: &mut List<u8>, commit: Option<&[u8; 32]>) {
         append(words, text.get(..12).expect("commit text has at least twelve digits"));
     } else {
         append(words, b"unknown");
-    }
-}
-
-fn step_name(state: &change::State) -> &'static [u8] {
-    match state {
-        change::State::Taking { .. } => b"taking",
-        change::State::Producing { .. } => b"producing",
-        change::State::Opening { .. } => b"opening",
-        change::State::Recreating { .. } => b"recreating",
-        change::State::Reopening { .. } => b"reopening",
-        change::State::Checking { .. } => b"checking",
-        change::State::Gating { .. } => b"gating",
-        change::State::Judging { .. } => b"judging",
-        change::State::CancellingGates { .. } => b"cancelling gates",
-        change::State::Ready { .. } => b"ready",
-        change::State::Queued { .. } => b"queued",
-        change::State::First { .. } => b"first",
-        change::State::Updating { .. } => b"updating",
-        change::State::Preparing { .. } => b"preparing",
-        change::State::WaitingProducer { .. } => b"waiting producer",
-        change::State::Resolving { .. } => b"resolving",
-        change::State::Repairing { .. } => b"repairing",
-        change::State::Landing { .. } => b"landing",
-        change::State::Landed { .. } => b"landed",
-        change::State::Red { .. } => b"red",
-        change::State::Cleared { .. } => b"cleared",
-        change::State::Uncleared { .. } => b"uncleared",
-        change::State::NoChange { .. } => b"no change",
-        change::State::Ended => b"ended",
-        change::State::Held { was, .. } => step_name(was),
     }
 }
 

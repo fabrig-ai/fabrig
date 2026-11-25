@@ -4,6 +4,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Told};
 use skein_lib::{Env, List, Queue, Time};
 use temper_client_domain_forge::owner::Owner;
+use temper_client_protocol_wire::waits;
 pub(crate) const DIAGNOSTIC_PREFIX: &[u8] = b"temper ctl";
 pub const RUNNER: Owner = Owner::Runner;
 #[derive(Debug)]
@@ -667,6 +668,13 @@ impl jig::render::Parts for Parts {
         } else {
             None
         }
+    }
+    fn wait_step(&self, code: u32) -> Option<&'static [u8]> {
+        waits::step_name(code)
+    }
+    fn wait_thing(&self, code: u32) -> Option<(&'static [u8], &'static [u8])> {
+        let name = waits::thing_name(code)?;
+        Some((name, if code == waits::THING_PULL { b" #" } else { b" " }))
     }
     fn task_next(&self, task: &jig_client::contract::Task, out: &mut jig::render::Text) {
         if let jig_client::contract::TaskContractDocument::Change { connector, kind: 1, .. } = task.result_contract

@@ -303,6 +303,7 @@ pub const FORGE_LIMITS: forge::Limits = forge::Limits {
         comment_bytes: 256,
         interval: Duration::from_secs(5),
     },
+    waits: forge::STANDALONE_WAIT_FIGURES,
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
         repairs: 3,

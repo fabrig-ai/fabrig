@@ -375,8 +375,9 @@ application as its first user.
   (`providers.md`) and a program's login in a lent terminal
   (`terminal-login.md`), and testing. Its `README.md` gives the reading order
   and the names, and the decisions it took on what this document left
-  open. The tasks' documents include failures and holds (`tasks/lifecycle-holds.md`)
-  and dependencies and endings (`tasks/lifecycle-endings.md`). The core's
+  open. The tasks' documents include failures and holds (`tasks/lifecycle-holds.md`),
+  dependencies and endings (`tasks/lifecycle-endings.md`), and a parked
+  task found stuck (`tasks/stuck.md`). The core's
   include its vocabulary (`engine/vocabulary.md`), decisions and the store
   (`engine/decisions.md`), and its world (`engine/world.md`); transcripts
   (`engine/executors-transcripts.md`) and tools (`engine/executors-tools.md`);

@@ -3,6 +3,18 @@ use skein_lib::{Duration, Time};
 use temper_engine_domain as root;
 
 #[test]
+fn queued_root_input_needs_no_deadline_scan_for_readiness() {
+    const FIRST_PERIOD: u64 = 1;
+    const NO_DEADLINE_READS: u32 = 0; // The queued input alone keeps the engine ready.
+    let mut engine = fixtures::ready().engine.expect("running engine");
+    engine.events.push(fixtures::period(FIRST_PERIOD));
+    engine.deadline_reads.set(0);
+
+    assert!(engine.work_pending(engine.env.now));
+    assert_eq!(engine.deadline_reads.get(), NO_DEADLINE_READS);
+}
+
+#[test]
 fn the_root_reports_the_earliest_credentials_expiry() {
     let engine = fixtures::ready().engine.expect("running engine");
     let mut domain = engine.domain;

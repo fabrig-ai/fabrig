@@ -98,6 +98,10 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   - quiet and offline: no first run, no default-browser check, no
     background networking, sync, extensions, component updates or
     default apps;
+  - `--js-flags=--liftoff-only`: V8 compiles WebAssembly with its baseline
+    compiler and does not recompile hot functions in its optimizing tier.
+    On the playground walk, the optimizing tier costs more than it saves.
+    The Wasm and the stories' checks are unchanged;
   - `about:blank` as the first page.
 
   The environment is minimal, and it is the child's whole environment
@@ -123,10 +127,12 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
 ## 4. The wire
 
 - **Framing.** Each message is one JSON document ending in a NUL byte,
-  both ways. The kit reads replies with a scan to the NUL under
-  `Limits::message` (../runtime/lib-streams.md, 1), and writes each command whole, sized,
-  within the room granted. A message past the limit fails the browser:
-  the limit is the test's to raise.
+  both ways. The kit reads one reply or event with a scan to the NUL
+  (`../runtime/lib-streams.md`, 1), allowing one delimiter byte beyond
+  `Limits::message`. It takes that delivery as the decoder's buffer,
+  not as input to a second framer. A missing delimiter or a message
+  past the limit fails the browser. It writes each command whole, sized,
+  within the room granted.
 - **Commands, replies and events.** A command carries an id, a method,
   its parameters and, for a page, its session. Its reply carries the id,
   with a result or an error. An event carries a method and its
@@ -144,9 +150,8 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   is decoded into its PNG's bytes.
 - **A message is indexed once.** Validating it indexes the span of every
   value and of every object member's key, in document order, each value
-  knowing where its subtree ends: a first walk validates and counts the
-  entries, so that the index is allocated at its size (section 8), and a
-  second fills them. A field, an array's element or a value's bytes are
+  knowing where its subtree ends. One walk validates and builds the
+  index (section 8). A field, an array's element or a value's bytes are
   looked up in that index, so no lookup walks a subtree again, and a key
   without escapes is compared as its bytes.
 - **The domains used:** `Browser` and `Target` (contexts, pages,
@@ -168,8 +173,8 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     change what it names: a window's `document` can be neither redefined
     nor shadowed.
   - Its result is a handle, as a node id is: an object of the execution
-    context that holds the page's current document. The kit releases it
-    (`Runtime.releaseObject`) after its find's query.
+    context that holds the page's current document. The kit can reuse
+    this document handle; it never keeps a scope's handle (section 6).
 
 ## 5. The vocabulary
 
@@ -399,10 +404,13 @@ to the next command, never a closure waiting on a reply:
     listing tabs and reading attributes do not bring it to the front.
 
 - **A find by words reads each name whole,** as the reply carries it,
-  before a kept name is cut to `Limits::text`. Its reply holds every node
-  of the role under its scope, and a reply past `Limits::message` fails
-  the browser (section 4): a test scopes a find by words `within` a node,
-  or raises the limit.
+  before a kept name is cut to `Limits::text`. A plain name is compared
+  in the wire buffer; an escaped name is decoded once. Once `Limits::matches`
+  is reached, the kit still tests membership and counts matching nodes with
+  a backend id, but does not build their properties or measure their boxes.
+  A words reply holds every node of the role under its scope. A reply past
+  `Limits::message` fails the browser (section 4): a test scopes a find by
+  words `within` a node, or raises the limit.
 - **A find asks only under the current document.** Its root is never a
   node id, whose document the query does not check, but an object that
   Chromium checks against the document that holds it:
@@ -412,10 +420,16 @@ to the next command, never a closure waiting on a reply:
     (`DOM.resolveNode`). Chromium refuses a node of an earlier document,
     and the find is refused `Gone` (section 5).
 
-  The kit releases the object after the query. Chromium refuses an
-  object once its execution context is gone, as when the page navigates
-  by itself between the object's command and the query: the find then
-  looks again at its next poll, and an `Await` keeps its deadline.
+  The kit releases a scope's object after the query. It can keep one
+  document object per page, for unscoped finds and polls after the page
+  has been brought to the front. Navigation or a session's execution
+  context being cleared or destroyed retires that object; it is no longer
+  used and the kit queues its release when a command slot is free. Closing
+  the page drops the handle and ends its context. An object arriving for
+  a read superseded by navigation or context loss is not cached and is
+  released. Chromium refuses an object once its execution context is
+  gone; a find encountering that refusal looks again at its next poll,
+  and an `Await` keeps its deadline.
 - **A find waits out a navigation.** While a navigation of the page is
   in flight, the kit's go or the page's own, the kit holds its DOM and
   accessibility commands to the page, and the evaluation of `document`,
@@ -529,9 +543,9 @@ value, a snapshot, a screenshot, a `Trouble`'s text and
 stderr's tail.
 They also set the poll interval and the answer deadline. Commands are
 sized before they are written, and replies are kept only as their
-decoders' fields. A message's index (section 4) is counted while it is
-validated and allocated once, at its size, and lives only while its
-message is handled. `valid` checks usable command and message sizes,
+decoders' fields. A message's index (section 4) grows as validation
+finds entries and lives only while its message is handled. There is at
+most one entry per message byte, even counting object keys. `valid` checks usable command and message sizes,
 representable framed read and output room, and positive poll and answer
 deadlines. The memory test drives the kit to its limits against the
 fake browser and checks the counting allocator's high water under a

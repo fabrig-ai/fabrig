@@ -2716,6 +2716,11 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
     ];
     for (was, why, words) in [
         (
+            change::State::Opening { requested: true },
+            change::Hold::Stalled,
+            b"no progress at opening for 30 minutes: waiting for its pull request to open".as_slice(),
+        ),
+        (
             change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
             change::Hold::BranchMoved,
             b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),

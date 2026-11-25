@@ -81,21 +81,15 @@ fn reads(view: &View<'_>) -> Table {
         entries: Vec::new(),
         refused: Vec::new(),
     };
-    let mut calls = client.inspection_calls();
-    calls.sort_unstable();
-    for number in calls {
-        let task = match client.inspection_call_owner(number) {
-            Some(skein_forge_client::CallOwner::Read(_)) => view.read_task(number),
-            Some(skein_forge_client::CallOwner::Entry(entry)) => forge.inspection_entry(*entry).map(|entry| entry.task),
-            _ => None,
-        };
+    for call in &view.calls {
+        let number = call.number;
         reads.entries.push(Entry {
-            key: match task {
+            key: match call.task {
                 Some(task) => format!("call {number} (task {task})"),
                 None => format!("call {number}"),
             },
             rule: "the read's answer",
-            release: if client.inspection_answered_call(number) { Release::Due } else { Release::Pending },
+            release: if call.answered { Release::Due } else { Release::Pending },
         });
     }
     for task in forge

@@ -132,8 +132,9 @@ impl Fold {
     fn take<P: Host, M: Machine, H: Meter>(&mut self, world: &mut World<P, M, H>, reach: Reach<P>) {
         (reach.take)(world.process(reach.at), &mut self.reports);
         for report in self.reports.drain(..) {
-            self.saying.report(&report);
-            keep_line(&mut self.last, log::report_line(&report).trim_end_matches('\n').into());
+            let mut line = self.saying.report_with_line(&report);
+            line.pop(); // The canonical line ends with a newline; the diagnostic does not.
+            keep_line(&mut self.last, line);
         }
         for line in world.printed() {
             let stream = match line.stream {
@@ -141,8 +142,9 @@ impl Fold {
                 skein_sim_world::Stream::Error => bridge::Stream::Error,
             };
             let printed = bridge::Printed { process: line.process, stream, line: line.line };
-            self.saying.printed(&printed);
-            keep_line(&mut self.last, log::printed_line(&printed).trim_end_matches('\n').into());
+            let mut line = self.saying.printed_with_line(&printed);
+            line.pop();
+            keep_line(&mut self.last, line);
         }
         if world.settled() && !self.stopped {
             self.saying.stopped();

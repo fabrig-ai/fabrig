@@ -7,6 +7,7 @@ use core::hash::{Hash, Hasher};
 
 use alloc::collections::VecDeque;
 use alloc::collections::vec_deque;
+use alloc::{boxed::Box, vec::Vec};
 use core::mem::size_of;
 
 use crate::growth::grown;
@@ -23,6 +24,10 @@ impl<T> Queue<T> {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Queue<T> {
         Queue { items: VecDeque::new(), capacity }
+    }
+
+    pub(crate) fn from_items(items: Vec<T>, capacity: u32) -> Queue<T> {
+        Queue { items: VecDeque::from(items), capacity }
     }
 
     /// For hops between a service's own components, never for what a peer
@@ -76,6 +81,13 @@ impl<T> Queue<T> {
         self.items.push_back(item);
     }
 
+    /// Puts an item at the front of a queue with room reserved for it.
+    pub(crate) fn push_front(&mut self, item: T) {
+        assert!(self.room() > 0, "room reserved for the first item");
+        self.grow();
+        self.items.push_front(item);
+    }
+
     /// Appends an item, or hands it back when the queue is full.
     pub fn try_push(&mut self, item: T) -> Result<(), T> {
         if self.room() == 0 {
@@ -100,6 +112,12 @@ impl<T> Queue<T> {
     /// Takes the oldest item.
     pub fn pop(&mut self) -> Option<T> {
         self.items.pop_front()
+    }
+
+    /// The items, in queue order, moved into a box of exactly their number.
+    #[must_use]
+    pub fn into_boxed(self) -> Box<[T]> {
+        Vec::from(self.items).into_boxed_slice()
     }
 
     /// Drops every item, keeping the capacity and the grown buffer: a queue

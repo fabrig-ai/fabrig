@@ -1,7 +1,15 @@
 //! The accounts child owns sign-in progress and the bounded newest history of its ends.
 use jig_accounts_world::{ALICE_PARTY, LIMITS, OWNER, PROVIDER, World, provider, providers};
-use jig_domain_accounts::{End, Ended, Event, Failure, Holder, Pending, Refusal, Request, Signing};
-use skein_lib::Token;
+use jig_domain_accounts::{
+    Change, End, Ended, Event, Failure, FromComponent, Holder, Pending, Refusal, Request, Signing,
+};
+use jig_domain_link::{Form, Scheme};
+use skein_lib::{Duration, Token};
+
+// A fresh world's new source takes the first number, its account the next.
+const MADE_SOURCE: u32 = 0;
+const MADE_ACCOUNT: u32 = 1;
+const CHANGE_REQUEST: Token = Token::new(20);
 
 fn started() -> World {
     started_with_plan(false)
@@ -32,6 +40,20 @@ fn finish(world: &mut World, source: u32) {
         said: jig_domain_accounts::Said::default(),
     });
 }
+fn grant(source: u32) -> Event {
+    Event::Component(FromComponent::Granted {
+        account: source,
+        generation: 1,
+        valid: Duration::from_secs(60),
+        form: Form::Credential(Scheme::Bearer),
+    })
+}
+fn made() -> (World, u32) {
+    let mut world = started();
+    let source = ask(&mut world, OWNER, Holder::Party(OWNER));
+    finish(&mut world, source);
+    (world, source)
+}
 fn end(by: u64, source: u32, end: End) -> Ended {
     Ended { request: Token::new(by), source, by, end }
 }
@@ -61,19 +83,85 @@ fn a_deployment_sign_in_is_asked_by_a_person_and_held_by_the_deployment() {
     let End::Made { account, .. } = ended.end else { panic!("made: {ended:?}") };
     assert_eq!(ended.by, ALICE_PARTY);
     assert_eq!(world.domain.account(account).expect("made").holder(), Holder::Deployment);
+    assert!(world.domain.awaiting_sign_in(ALICE_PARTY));
+    assert!(!world.domain.awaiting_sign_in(OWNER));
+}
+
+#[test]
+fn a_made_sign_in_awaits_its_first_grant() {
+    let (mut world, source) = made();
+    assert_eq!(
+        world.domain.last_end(OWNER),
+        Some(end(OWNER, source, End::Made { account: MADE_ACCOUNT, declined: false }))
+    );
+    assert!(world.domain.pending().is_empty());
+    assert!(world.domain.awaiting_sign_in(OWNER));
+    world.step(grant(source));
+    assert!(!world.domain.awaiting_sign_in(OWNER));
+    assert_eq!(world.domain.source(source).expect("made source").state, jig_domain_accounts::State::Granted);
+}
+
+#[test]
+fn a_first_component_failure_ends_the_wait() {
+    for failure in [Failure::Later { after: None }, Failure::SignInAgain] {
+        let (mut world, source) = made();
+        world.step(Event::Component(FromComponent::Failed { account: source, failure }));
+        assert!(!world.domain.awaiting_sign_in(OWNER), "{failure:?}");
+    }
+}
+
+#[test]
+fn an_expiring_notice_is_not_a_first_answer() {
+    let (mut world, source) = made();
+    world.step(Event::Component(FromComponent::Expiring { account: source, generation: 1 }));
+    assert!(world.domain.awaiting_sign_in(OWNER));
+}
+
+#[test]
+fn a_renewal_replaces_the_wait_with_the_new_askers() {
+    let mut world = started();
+    let old = ask(&mut world, OWNER, Holder::Deployment);
+    finish(&mut world, old);
+    let renewed = ask(&mut world, ALICE_PARTY, Holder::Deployment);
+    finish(&mut world, renewed);
+    assert_eq!(
+        world.domain.last_end(ALICE_PARTY),
+        Some(end(ALICE_PARTY, renewed, End::Renewed { account: MADE_ACCOUNT, declined: false }))
+    );
+    assert!(!world.domain.awaiting_sign_in(OWNER));
+    assert!(world.domain.awaiting_sign_in(ALICE_PARTY));
+    world.step(grant(old));
+    assert!(world.domain.awaiting_sign_in(ALICE_PARTY), "the replaced source's late answer is not the renewal's");
+    world.step(grant(renewed));
+    assert!(!world.domain.awaiting_sign_in(ALICE_PARTY));
+}
+
+#[test]
+fn a_source_going_ends_its_wait_without_an_answer() {
+    let holder = Holder::Party(OWNER);
+    for going in [
+        Event::SignOut { request: CHANGE_REQUEST, holder, source: MADE_SOURCE },
+        Event::Change { request: CHANGE_REQUEST, holder, change: Change::MoveOut { account: MADE_ACCOUNT } },
+        Event::Change { request: CHANGE_REQUEST, holder, change: Change::Remove { account: MADE_ACCOUNT } },
+        Event::Close,
+    ] {
+        let (mut world, _) = made();
+        let label = format!("{going:?}");
+        world.step(going);
+        assert!(!world.domain.awaiting_sign_in(OWNER), "{label}");
+    }
 }
 
 #[test]
 fn an_end_names_who_asked_it() {
-    // The new source is numbered first; its account takes the following number.
-    const ACCOUNT: u32 = 1;
-    let mut world = started();
-    let made = ask(&mut world, OWNER, Holder::Party(OWNER));
-    finish(&mut world, made);
-    assert_eq!(world.domain.last_end(OWNER), Some(end(OWNER, made, End::Made { account: ACCOUNT, declined: false })));
+    let (mut world, made) = made();
+    assert_eq!(
+        world.domain.last_end(OWNER),
+        Some(end(OWNER, made, End::Made { account: MADE_ACCOUNT, declined: false }))
+    );
     let renewed = ask(&mut world, OWNER, Holder::Party(OWNER));
     finish(&mut world, renewed);
-    let renewal = end(OWNER, renewed, End::Renewed { account: ACCOUNT, declined: false });
+    let renewal = end(OWNER, renewed, End::Renewed { account: MADE_ACCOUNT, declined: false });
     assert_eq!(world.domain.last_end(OWNER), Some(renewal));
     let refused = ask(&mut world, ALICE_PARTY, Holder::Party(ALICE_PARTY));
     finish(&mut world, refused);
@@ -82,6 +170,7 @@ fn an_end_names_who_asked_it() {
         Some(end(ALICE_PARTY, refused, End::Refused { refusal: Refusal::Held { provider: PROVIDER } }))
     );
     assert_eq!(world.domain.last_end(OWNER), Some(renewal));
+    assert!(!world.domain.awaiting_sign_in(ALICE_PARTY), "the refused sign-in brought no source");
 }
 
 #[test]
@@ -93,6 +182,7 @@ fn a_full_history_of_ends_drops_its_oldest_and_loses_no_fact() {
         let source = ask(&mut world, by, Holder::Deployment);
         world.step(Event::SignInFailed { source, failure: Failure::Cancelled });
     }
+    assert!(!world.domain.awaiting_sign_in(u64::from(LIMITS.facts)), "a failed sign-in brought no source");
     assert_eq!(world.domain.last_end(0), None);
     assert!(world.domain.last_end(u64::from(LIMITS.facts)).is_some());
     assert_eq!(world.ended().len(), skein_lib::length::usize_of(LIMITS.facts));

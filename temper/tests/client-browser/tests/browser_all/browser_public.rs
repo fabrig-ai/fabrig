@@ -108,6 +108,11 @@ impl Play for Readable<'_> {
         Next::Wait { until: None }
     }
 
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        // The address reply wakes us; the next viewport must wait for it.
+        if self.address_pending { None } else { self.script.next_wake(face, now, runnable) }
+    }
+
     fn at(&self) -> u32 {
         self.script.at()
     }

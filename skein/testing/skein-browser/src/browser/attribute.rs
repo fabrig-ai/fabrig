@@ -54,6 +54,7 @@ impl Browser {
             | Step::FrontFind
             | Step::FrontSnapshot
             | Step::FrontScreenshot
+            | Step::FindRoot
             | Step::Query
             | Step::Box
             | Step::Scroll

@@ -337,7 +337,6 @@ pub fn live_task(number: u64) -> core::Record {
         reasons: jig_domain_tasks::Reasons::FIRST,
         started_from: Box::new([]),
         asked_requester: false,
-        question_woken: 0,
         words_woken: 0,
         unrecorded: Box::new([]),
         open_attempt: None,

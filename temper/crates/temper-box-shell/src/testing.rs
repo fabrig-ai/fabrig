@@ -9,7 +9,6 @@ pub fn path(bytes: &[u8]) -> &std::path::Path {
     crate::path(bytes)
 }
 
-#[cfg(target_os = "linux")]
 pub fn login(user: u32) -> Result<Box<[u8]>, String> {
     crate::login(user)
 }
@@ -46,12 +45,10 @@ pub mod program_login {
     pub use crate::program_login::line;
 }
 
-#[cfg(target_os = "linux")]
 pub mod scripted {
     pub use crate::scripted::{ADDRESS, choose};
 }
 
-#[cfg(target_os = "linux")]
 pub mod serve {
     pub use crate::serve::{
         agents_setting_over, configured_agent, local_setting_over, operations_with_copies, prepare_with_limits,

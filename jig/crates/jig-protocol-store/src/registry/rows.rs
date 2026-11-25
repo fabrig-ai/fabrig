@@ -64,10 +64,7 @@ fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
                         .ok()
                         .ok_or(OpenRefusal::Failed)?;
                     let bytes = value.text;
-                    layouts
-                        .texts
-                        .insert(digest, Text { bytes, schema: None, stored: true, current: false })
-                        .expect("uncapped texts");
+                    layouts.texts.insert(digest, Text::stored(bytes)).expect("uncapped texts");
                 }
                 Some(
                     keys::Own::History { .. }

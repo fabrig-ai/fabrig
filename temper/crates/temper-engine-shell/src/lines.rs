@@ -112,8 +112,8 @@ pub fn ending_with_binary(
                 String::from_utf8_lossy(kind.name())
             ),
             Stop::CodecRestore { bound, kind, row } => codec_restore(binary, bound, *kind, row.as_ref()),
-            Stop::Room(short) => {
-                format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
+            Stop::Room(refusal) => {
+                format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&refusal.words()))
             }
             Stop::RestorePage { range, failure } => {
                 format!("{binary} serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))
@@ -507,10 +507,10 @@ fn landing_read_line(binary: &str, note: temper_engine_domain_forge::LandingRead
             "{binary} serve: landing {task} round {round} has its fresh read after {}: {reading}\n",
             landing_read_age(elapsed),
         ),
-        LandingReadNoteKind::Held { elapsed, why } => format!(
-            "{binary} serve: warning: landing {task} round {round} held after {} waiting for a fresh read: {reading}: {}\n",
+        LandingReadNoteKind::Held { elapsed, words } => format!(
+            "{binary} serve: warning: landing {task} round {round} held after {}: {}\n",
             landing_read_age(elapsed),
-            String::from_utf8_lossy(&why),
+            String::from_utf8_lossy(&words),
         ),
     }
 }
