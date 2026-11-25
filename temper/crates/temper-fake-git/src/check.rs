@@ -1,5 +1,5 @@
 //! Admission of only protocol/git.md's builder vectors and whole environments.
-use crate::answer::path;
+use crate::answer::explicit_path;
 use skein_io::kernel::Spawn;
 use skein_lib::{Secret, base64};
 use std::collections::BTreeMap;
@@ -159,10 +159,10 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         .env
         .iter()
         .find_map(|e| e.strip_prefix(b"GIT_CONFIG_VALUE_0=Authorization: ").map(|value| Secret::new(value.into())));
-    // Git's explicit paths are relative to its working directory, not the file root.
-    let git_dir = git_dir.map(|directory| path(&spawn.dir, &directory).into_boxed_slice());
+    // Git's relative options start at its working directory, not the file root.
+    let git_dir = git_dir.map(|directory| explicit_path(&spawn.dir, &directory).into_boxed_slice());
     let at = work_tree
-        .map(|directory| path(&spawn.dir, &directory).into_boxed_slice())
+        .map(|directory| explicit_path(&spawn.dir, &directory).into_boxed_slice())
         .or_else(|| git_dir.clone())
         .unwrap_or_else(|| spawn.dir.clone());
     Ok(Checked {

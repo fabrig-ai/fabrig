@@ -817,7 +817,10 @@ impl skein_world::Referee<support::cluster::Root> for ClusterJudge {
 }
 #[cfg(target_os = "linux")]
 fn cluster_story(scratch: &std::path::Path, workers: bool) {
-    let cluster = support::cluster::Cluster::read(scratch);
+    let mut cluster = support::cluster::Cluster::read(scratch);
+    if !workers {
+        cluster.stage_providers_only();
+    }
     let (mut members, hosts) = cluster.members();
     members.up(if workers { &["w1", "w2"] } else { &["engine"] });
     let clock = skein_shell::Clock::new();
@@ -1326,6 +1329,8 @@ enum ClusterChatStage {
     Killed,
     HealSilence,
     HealRelink,
+    HealMessage,
+    HealReplied,
     Closed,
     Verifying,
     Stopping,
@@ -1479,7 +1484,7 @@ impl ClusterChatJudge {
             ])]
         } else if matches!(self.stage, ClusterChatStage::Killed | ClusterChatStage::HealSilence) {
             vec![Call::new(&["account", "list", "--json"])]
-        } else if matches!(self.stage, ClusterChatStage::Replied) {
+        } else if matches!(self.stage, ClusterChatStage::Replied | ClusterChatStage::HealReplied) {
             // The live reply watch returns a task; read.waiting() still checks its exact work and placement.
             vec![
                 Call::new(&["task", "show", task, "--until", "replied", "--json"]),
@@ -1514,7 +1519,11 @@ impl ClusterChatJudge {
         let (mut read, page) = match ends {
             [task, accounts] => {
                 let task = cluster_call_json(task)?;
-                let task = if matches!(self.stage, ClusterChatStage::Replied) { task["task"].clone() } else { task };
+                let task = if matches!(self.stage, ClusterChatStage::Replied | ClusterChatStage::HealReplied) {
+                    task["task"].clone()
+                } else {
+                    task
+                };
                 return Ok(Some(ClusterRead::new(task, cluster_call_json(accounts)?)));
             }
             [accounts] if matches!(self.stage, ClusterChatStage::Killed | ClusterChatStage::HealSilence) => {
@@ -1585,9 +1594,30 @@ impl ClusterChatJudge {
                     if Some(read.attempt()?) != self.healed_attempt {
                         return Err(format!("the same attempt must heal on w1: {}", read.task));
                     }
-                    if read.worker()? == Some("w1") && read.waiting() {
-                        return self.close(client);
-                    }
+                    // Hello restores the claim, not its lost progress observation.
+                    // Ask the same attempt to answer on the rejoined link.
+                    self.queue(
+                        client,
+                        vec![support::ctl::Call::new(&[
+                            "task",
+                            "message",
+                            self.current()?,
+                            "Are you still there?",
+                            "--key",
+                            "healed-chat",
+                        ])],
+                    )?;
+                    self.stage = ClusterChatStage::HealMessage;
+                } else {
+                    self.poll(client)?;
+                }
+            }
+            ClusterChatStage::HealReplied => {
+                if Some(read.attempt()?) != self.healed_attempt {
+                    return Err(format!("the same attempt must answer on w1: {}", read.task));
+                }
+                if read.worker()? == Some("w1") && read.waiting() {
+                    return self.close(client);
                 }
                 self.poll(client)?;
             }
@@ -1595,6 +1625,7 @@ impl ClusterChatJudge {
             ClusterChatStage::Start
             | ClusterChatStage::Created
             | ClusterChatStage::Crashed
+            | ClusterChatStage::HealMessage
             | ClusterChatStage::Closed
             | ClusterChatStage::Stopping => return Err("read stage".into()),
         }
@@ -1628,6 +1659,9 @@ impl ClusterChatJudge {
             ));
         }
         if let Some(attempt) = self.healed_attempt {
+            if read.replies("Same worker replied after relink.")? != REPLY_ONCE {
+                return Err("one committed reply from the healed attempt".into());
+            }
             let begins: Vec<_> =
                 read.rows.iter().filter_map(|row| row.pointer("/event/owner/source/line/run_began")).collect();
             if read.attempt()? != attempt || !matches!(begins.as_slice(), [begin] if begin["attempt"] == attempt) {
@@ -1821,10 +1855,15 @@ fn complete_cluster_json(value: &serde_json::Value) -> Result<(), String> {
     {
         return Err(format!("complete turn text\n  left: {:?}\n right: {:?}", left, 0));
     }
-    for item in
-        value.as_object().into_iter().flat_map(serde_json::Map::values).chain(value.as_array().into_iter().flatten())
-    {
-        complete_cluster_json(item)?;
+    if let Some(object) = value.as_object() {
+        for (key, item) in object {
+            complete_cluster_json(item).map_err(|why| format!("{key}: {why}"))?;
+        }
+    }
+    if let Some(array) = value.as_array() {
+        for (index, item) in array.iter().enumerate() {
+            complete_cluster_json(item).map_err(|why| format!("[{index}]: {why}"))?;
+        }
     }
     Ok(())
 }
@@ -1877,10 +1916,15 @@ impl ClusterChatJudge {
                     | ClusterChatStage::Armed
                     | ClusterChatStage::Killed
                     | ClusterChatStage::HealSilence
-                    | ClusterChatStage::HealRelink => {
+                    | ClusterChatStage::HealRelink
+                    | ClusterChatStage::HealReplied => {
                         if let Some(read) = self.read(client, calls.ends())? {
                             self.advance_read(client, &read)?;
                         }
+                    }
+                    ClusterChatStage::HealMessage => {
+                        self.stage = ClusterChatStage::HealReplied;
+                        self.poll(client)?;
                     }
                     ClusterChatStage::Closed => {
                         self.stage = ClusterChatStage::Verifying;
@@ -2004,6 +2048,8 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
                     ClusterChatStage::Killed => "w1 tree settled and its host connected:false",
                     ClusterChatStage::HealSilence => "heal: w1 program host connected:false after silence",
                     ClusterChatStage::HealRelink => "heal: another w1 linked line and connected host",
+                    ClusterChatStage::HealMessage => "heal: message to the same attempt",
+                    ClusterChatStage::HealReplied => "heal: same attempt waiting on the rejoined link",
                     ClusterChatStage::Closed => "closed chats ended",
                     ClusterChatStage::Verifying => "ended done and complete committed turns",
                     ClusterChatStage::Stopping => "every process tree settled",

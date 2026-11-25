@@ -146,6 +146,11 @@ fn cluster_stages_fixture_providers_after_the_engine_bootstrap() {
 }
 
 #[test]
+fn cluster_keeps_committed_providers_after_the_engine_bootstrap() {
+    support::cluster::bootstrap_tests::the_engine_keeps_committed_providers_after_bootstrap();
+}
+
+#[test]
 fn cluster_passed_accepts_only_a_successful_settled_verdict() {
     support::cluster::verdict_tests::passed_accepts_only_a_successful_settled_verdict();
 }

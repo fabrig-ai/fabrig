@@ -1,5 +1,5 @@
 //! A git process reads and changes the fake machine through kernel operations.
-use crate::answer::path;
+use crate::answer::{explicit_path, path};
 use crate::{Answer, Checked, Refusal, Transport, answer, check};
 use skein_fake_checkout::{Checkout, Kind};
 use skein_io::kernel::{self as k, Complete, Done, Exit, Fd, Op, OpenHow, Submit};
@@ -106,7 +106,8 @@ impl<T: Transport> Git<T> {
                 | Command::CountObjects { .. }
                 | Command::Repack { .. }
                 | Command::MergeHistory { .. } => {}
-                Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
+                Command::Origin { directory } => jobs.push_back(Job::Scan(explicit_path(&checked.root, directory))),
+                Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.root, directory)));
                 }
                 Command::Reds(_)

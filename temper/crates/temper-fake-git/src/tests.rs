@@ -181,12 +181,14 @@ fn an_explicit_store_format_is_read_relative_to_the_working_directory() {
         (b"repo/stores/9/HEAD".to_vec(), b"ref: refs/heads/main\n".to_vec()),
         (b"repo/stores/9/object-format".to_vec(), b"sha256\n".to_vec()),
     ];
-    let mut disk = Disk::new(&files);
-    let mut net = Net::new(vec![]);
-    let mut request = spawn(&Command::Format);
-    request.args = invocation::arguments_at(&Command::Format, Some(b"stores/9"), None);
-    let answer = disk.run(request, &mut net, b"");
-    assert_eq!(answer, crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
+    for directory in [b"stores/9".as_slice(), b"/repo/stores/9"] {
+        let mut disk = Disk::new(&files);
+        let mut net = Net::new(vec![]);
+        let mut request = spawn(&Command::Format);
+        request.args = invocation::arguments_at(&Command::Format, Some(directory), None);
+        let answer = disk.run(request, &mut net, b"");
+        assert_eq!(answer, crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
+    }
 }
 
 fn worker_files() -> Vec<(Vec<u8>, Vec<u8>)> {
