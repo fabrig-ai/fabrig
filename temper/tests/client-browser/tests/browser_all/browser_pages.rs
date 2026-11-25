@@ -238,8 +238,10 @@ fn filter_steps() -> [Step; 11] {
 
 fn call_line_steps() -> Vec<Step> {
     let row = |topic: &[u8]| Find::named(Role::Paragraph, &[b"read_docs ".as_slice(), topic].concat());
-    let line = || Find::exactly_named(Role::Disclosure, b"Read 2 docs");
-    let kept = || keep_node("details.temper-work-run[open]", "call-line");
+    // Chromium includes the run's elapsed time in the disclosure's accessible name.
+    let line = || Find::named(Role::Disclosure, b"Read 2 docs");
+    let kept =
+        || keep_node("details.temper-work-run[open]:not(.temper-work-running):not(.temper-work-failed)", "call-line");
     vec![
         see(Find::text(b"I read the hold and chat pages.")),
         see(line()),
