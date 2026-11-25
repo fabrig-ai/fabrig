@@ -8,6 +8,7 @@ mod landing_end;
 mod limit_holds;
 mod reds;
 mod refused;
+mod release;
 mod room;
 mod round_ends;
 mod settling;

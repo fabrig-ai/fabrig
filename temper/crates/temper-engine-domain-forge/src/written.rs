@@ -108,7 +108,7 @@ pub(super) fn answered(
     save_hold(out, hold.clone());
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
-    lost_release(d, Some(env), &pending.name, pending.task, out);
+    lost_release(d, env, &pending.name, pending.task, out);
 }
 
 pub(super) fn cleanup(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
