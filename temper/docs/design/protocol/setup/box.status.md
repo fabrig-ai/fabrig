@@ -1,16 +1,20 @@
 # box: status
 
-2026-11-21. Where the tree's code lags or departs from [box.md](box.md).
+2026-11-25. Where the tree's code lags or departs from [box.md](box.md).
 
-- **Not yet:** 1: the `ui-repo-link-2` request's combined
-  1440-pixel walk with the default runner, a restart, a moved temper port
-  and a pseudo-terminal hangup is not established by the named proof
-  (`../../../development/ui-repo-link-review.md`): that proof disables the
-  runner and covers neither the port move nor the hangup. The supplied
-  inventory has no result for this combined walk, so its outcome is
-  unknown. The separate source-update and lifetime tests do not establish
-  the complete sequence. The real-box sign-in story's runtime check is
-  still pending as `../openid-provider.status.md`, 9 records.
+- **Not yet:**
+  - 1: the `ui-repo-link-2` request's combined
+    1440-pixel walk with the default runner, a restart, a moved temper port
+    and a pseudo-terminal hangup is not established by the named proof
+    (`../../../development/ui-repo-link-review.md`): that proof disables the
+    runner and covers neither the port move nor the hangup. The supplied
+    inventory has no result for this combined walk, so its outcome is
+    unknown. The separate source-update and lifetime tests do not establish
+    the complete sequence. The real-box sign-in story's runtime check is
+    still pending as `../openid-provider.status.md`, 9 records.
+  - 1: serve's `--box` pipe check is still Linux's alone: on macOS serve
+    takes the pipes as given and reads its standard input and its
+    configuration first [in flight: change 18207].
 
 `owned.md`, sections 2 and 3 have no known implementation gap in the hour-long
 owned session or the later preparation's best-effort source update.
