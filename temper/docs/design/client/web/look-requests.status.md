@@ -12,6 +12,3 @@
     pages as the writer printed them. The after-landing owner carries
     out the comparison. There is no render-check command; section 8
     defers one.
-  - 1, 3, 5, 7: `scripts/look-compare.sh` is not there yet, so a
-    landing compares by reading and writes its account's rows by hand.
-    [in flight: change 17729]
