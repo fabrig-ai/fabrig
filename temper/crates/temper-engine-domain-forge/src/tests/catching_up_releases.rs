@@ -189,7 +189,7 @@ fn release_waits_for_a_lost_writers_restart_read() {
     let done = finish_reads(&mut d, Some(fixtures::HEAD));
     assert!(done.contains(&Request::ContinueRelease { task: fixtures::CHANGE }));
     let released = outputs(&mut d, Event::ContinueRelease { task: fixtures::CHANGE, entry: ENTRY });
-    assert!(!released.contains(&Request::ReleaseFailed { task: fixtures::CHANGE, account: None }));
+    assert!(!released.contains(&Request::ReleaseFailed { task: fixtures::CHANGE, account: None, reason: None }));
     assert_eq!(d.entries.get(&ENTRY).unwrap().entry.effect.write, Write::DeleteBranch { branch: C.into() });
 }
 
@@ -701,5 +701,47 @@ fn projection_and_its_due_wait_for_fresh_reads() {
             effect |= matches!(request, Request::ProjectionEffect { .. });
         }
         assert!(effect, "{after:?}");
+    }
+}
+
+#[test]
+fn a_release_waiting_for_fresh_observations_fails_at_its_step_figure() {
+    let mut d = restored(G, Box::new([Stored::Hold(hold(G, GOAL)), Stored::Release(release_row(GOAL))]));
+    begin(&mut d);
+    outputs(&mut d, Event::ContinueRelease { task: GOAL, entry: ENTRY });
+    let clock = env();
+    let bound = advanced_wall(Wall::EPOCH, clock.limits.waits.step);
+    let before = fire_at(&mut d, &clock, Wall::from_nanos(bound.as_nanos().saturating_sub(1)));
+    no_release_decision(&before);
+    let failed = fire_at(&mut d, &clock, bound);
+    let expected = Request::ReleaseFailed { task: GOAL, account: None, reason: Some(b"no progress at release for 30 minutes: waiting for fresh observations from the forge; the last answer: no answer".as_slice().into()) };
+    assert!(failed.contains(&expected), "{failed:?}");
+    assert!(d.releases.get(&GOAL).expect("held release").failed);
+}
+
+#[test]
+fn fresh_reads_do_not_fail_a_release_with_a_cleanup_write_in_flight() {
+    const PULL: u64 = 1;
+    const KEY: &[u8] = b"cleanup-key";
+    const REASON: &[u8] = b"cancel reason";
+    for (write, resource, pull, comment) in [
+        (Write::Post { number: PULL, key: KEY.into(), body: REASON.into() }, None, Some(PULL), Some(Box::from(REASON))),
+        (Write::Close { number: PULL }, None, Some(PULL), None),
+        (Write::DeleteBranch { branch: G.into() }, Some(name(G)), None, None),
+    ] {
+        let pending = Some((ENTRY, resource));
+        let row = ReleaseRow { close_pull: pull, pending: pending.clone(), comment, ..release_row(GOAL) };
+        let mut entry = status(ENTRY, GOAL);
+        entry.effect.write = write;
+        let mut d = restored(
+            G,
+            Box::new([Stored::Hold(hold(G, GOAL)), Stored::Release(row), Stored::Entry { entry, held: false }]),
+        );
+        begin(&mut d);
+        outputs(&mut d, Event::ContinueRelease { task: GOAL, entry: ENTRY });
+        let clock = env();
+        let out = fire_at(&mut d, &clock, advanced_wall(Wall::EPOCH, clock.limits.waits.step));
+        no_release_decision(&out);
+        assert_eq!(d.releases.get(&GOAL).expect("pending release").pending, pending);
     }
 }

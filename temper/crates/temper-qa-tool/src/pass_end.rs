@@ -78,12 +78,10 @@ impl Ledger {
                     ended: None,
                 });
             }
-            if !waiting {
-                for build in &mut self.builds {
-                    if build.held == Some(pass_number) {
-                        build.held = None;
-                    }
-                }
+        }
+        for build in &mut self.builds {
+            if build.held == Some(pass_number) {
+                build.held = None;
             }
         }
         let session = self.sessions.iter_mut().find(|session| session.number == number).expect("checked session");
@@ -110,14 +108,6 @@ impl Ledger {
         } else {
             pass.state = PassState::Ended;
             pass.ended = Some(now);
-        }
-        for build in &mut self.builds {
-            if build.held == Some(pass_number) {
-                build.held = None;
-            }
-            if before.state.is_some() && build.commit == pass.build {
-                build.held = Some(pass_number);
-            }
         }
     }
 

@@ -5876,7 +5876,6 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-store",
  "serde_json",
- "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-machine",
@@ -6959,11 +6958,13 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "skein-forge",
+ "skein-json",
  "skein-lib",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
+ "temper-protocol-worker-wire",
 ]
 
 [[package]]

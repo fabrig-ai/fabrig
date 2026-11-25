@@ -53,9 +53,8 @@ fn made(world: &World) -> u64 {
 
 /// P43: a watched child awaiting this coordinator's answer cannot wake it by
 /// finishing. Each unanswered park must spend a run try and eventually hold
-/// with the question's words; today the live task watch leaves it idle.
+/// with the question's words.
 #[test]
-#[ignore = "P43, open: bounded waits (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_coordinator_watching_its_asker_is_woken() {
     let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(SEED);
     configuration.core.defaults.charters[0].policy.resume = false;

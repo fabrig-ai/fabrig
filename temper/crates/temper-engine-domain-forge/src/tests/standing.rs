@@ -1119,3 +1119,45 @@ fn approval_waits_keep_only_the_size_read_at_the_reviewed_head() {
         assert_eq!(d.approval_waits(env().wall, &LIMITS)[0].size, None);
     }
 }
+
+#[test]
+fn a_sign_off_reports_readiness_and_stays_out_of_queue() {
+    use jig_domain_core_vocabulary::waits::{AtBound, ReportedBound, WaitKind};
+    use temper_client_protocol_wire::waits as code;
+    const RULE: u32 = 1;
+    const ROLES: [u32; 4] = [1, 2, 3, 4]; // One more than the three roles in the object (forge/waits.md, 4).
+    const READY: Wall = Wall::from_nanos(95_000_000_000);
+    let (mut d, _) = fixture();
+    let mut required = rule();
+    required.approvals = ROLES.map(|role| RuleApproval { role, people: 1, freshness: JudgeFreshness::Exact }).into();
+    keep(&mut d, 0, RULE, required);
+    let row = d.changes.get_mut(&CHANGE).expect("change");
+    row.pull = Some(1);
+    row.change.state = change::State::First { head: HEAD, ready_since: READY };
+    row.change.ready_since = Some(READY);
+    row.change.owns_turn = true;
+    fixtures::connect(&mut d);
+    d.keep_review_facts(env().wall, CHANGE, facts_at(HEAD, true, Box::new([])));
+    let review = outputs(&mut d, Event::ReviewsChanged { task: CHANGE });
+    let mut clock = env();
+    let overdue = fixtures::advance(&mut d, &mut clock, LIMITS.waits.sign_off.saturating_add(Duration::from_secs(1)));
+    let mut expected = step_wait(
+        code::CHANGE_QUEUED,
+        READY,
+        ReportedBound::Figure(AtBound::Overdue),
+        &[
+            wait_thing(code::THING_RULE, u64::from(RULE)),
+            wait_thing(code::THING_ROLE, u64::from(ROLES[0])),
+            wait_thing(code::THING_ROLE, u64::from(ROLES[1])),
+            wait_thing(code::THING_ROLE, u64::from(ROLES[2])),
+        ],
+    );
+    expected.kind = WaitKind::SignOff;
+    assert_eq!(wait_report(&review, CHANGE), Some([expected].as_slice()));
+    for request in &overdue {
+        assert!(!matches!(request, Request::ChangeDecision { decision: change::Decision::Hold(_), .. }));
+    }
+    let row = d.change(CHANGE).expect("waiting change");
+    assert_eq!(row.change.state, change::State::Queued { head: HEAD, ready_since: READY });
+    assert!(domain::queue_ready(&d, row, &LIMITS).0.is_empty());
+}

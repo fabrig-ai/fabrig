@@ -1,6 +1,6 @@
 # Passes
 
-Provisional, 2026-11-12, revised 2026-11-18, from
+Provisional, 2026-11-12, revised 2026-11-25, from
 `../../draft/archive/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
 Q6 of `../../draft/archive/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
@@ -22,7 +22,7 @@ goal and resumes on a build holding that goal's landing.
   ended early loses nothing recorded. A finding never stops it.
 - **Its end** (section 6) is its process's: each case's state decided,
   the report written, and, with an open finding, a request made and the
-  pass waiting, holding its build and no place.
+  pass waiting, holding no build and no place.
 - **Its resume** (section 7) on a build holding its goal's landing:
   open findings checked first, then its failed cases, then the cases
   that build holds; two goals at most per finding.
@@ -210,7 +210,9 @@ whose bound has passed:
 
 - **When:** the ledger's rule (`ledger.md`, 4.13), for a free place:
   its goal landed and held by a reached kept build, or ended without
-  landing.
+  landing with a reached kept build to take. Having released its own
+  build when it began to wait (`ledger.md`, 4.12), it waits while there
+  is none.
 - **Prepared** as a start is (section 3): the new build installed at
   the place and `passes/P/setups/` written again from its commit, which
   holds the recipes the pass's request put on main where its goal
@@ -277,9 +279,13 @@ Focused and fuzzy, over the loop's fake world (`README.md`, 6):
   uncounted; a case blocked twice out of the queue with its line; a
   session that recorded nothing blocking its cases; with no failed case,
   the pass ended and its build released and deleted at the next tick;
-  with one, a request made and the pass waiting with its build held.
+  with one, a request made and the pass waiting with its build
+  released, deleted at the next tick with no queued case holding it and
+  kept with one.
 - **A resume:** on a build holding the goal's landing at a later commit
-  than the landing's; the old build released; failed cases, joined
+  than the landing's, newer than the pass's own; after its goal ended
+  without landing, none while no reached kept build is kept, then the
+  newest once one is; failed cases, joined
   cases and the cases that build holds assigned, and none queued later;
   a finding gone closed with the commit; a finding open after two goals
   handed on, with its line.

@@ -1180,13 +1180,18 @@ fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_br
     delivered_review_repair(false, true);
 }
 
-fn waiting_review_repair() -> (World, engine::Assignment, u64, Box<[u8]>, engine::Assignment) {
-    let (mut world, requester) = super::questions::plan_world_with_gate(
+fn waiting_review_repair(other_change: Option<u64>) -> (World, engine::Assignment, u64, Box<[u8]>, engine::Assignment) {
+    let mut world = super::questions::plan_world_fixture(
         None,
         Gate { agent: true, ..Gate::default() },
         &StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
         false,
+        None,
     );
+    if let Some(task) = other_change {
+        super::super::panel_before_change::seed_change_procedure(&mut world.store, task, 0, None, None);
+    }
+    let (mut world, requester) = super::questions::start_plan_world(world, true);
     let change = super::questions::make_change(&mut world, &requester, 93, engine::ChangeQuestions::Up);
     let producer = super::questions::next_producer(&mut world, change);
     let branch = change_row(&world, change).branch;
@@ -1218,8 +1223,8 @@ fn waiting_review_repair() -> (World, engine::Assignment, u64, Box<[u8]>, engine
     (world, requester, change, branch, repair)
 }
 
-pub(crate) fn preparing_review_repair() -> (World, u64) {
-    let (mut world, _, change, branch, _) = waiting_review_repair();
+pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64) {
+    let (mut world, _, change, branch, _) = waiting_review_repair(other_change);
     world.advance_ticks(MAX_TICKS);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
         .expect("another writer advances the idle repair's branch");
@@ -1239,7 +1244,7 @@ pub(crate) fn preparing_review_repair() -> (World, u64) {
 }
 
 fn delivered_review_repair(moved: bool, idle: bool) {
-    let (mut world, requester, change, branch, repair) = waiting_review_repair();
+    let (mut world, requester, change, branch, repair) = waiting_review_repair(None);
     if idle {
         world.advance_ticks(MAX_TICKS);
         let head = fake::advance(

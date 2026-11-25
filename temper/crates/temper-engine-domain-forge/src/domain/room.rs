@@ -101,6 +101,7 @@ pub(super) fn drop_erased(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
 /// Repository release drops live and ended changes alike (domain/forge/adoption-connection.md, 1).
 pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Queue<Request>) {
     let Some(row) = d.changes.remove(&task) else { return };
+    crate::waits::changed(d, task);
     super::reds::erase_passes(d, task, out);
     d.change_cold.remove(&task);
     d.change_hot.remove(&task);

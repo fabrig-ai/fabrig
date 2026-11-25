@@ -14,3 +14,11 @@ pub struct CloserRow {
     pub done: bool,
     pub relay: temper_engine_domain_forge_closer::relay::Relay,
 }
+
+/// What a closer is waiting on without an outstanding containment or report read.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum CloserPark {
+    DelegateOrHeld,
+    Making(crate::Name),
+    OperatorHold,
+}

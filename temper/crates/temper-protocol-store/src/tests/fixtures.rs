@@ -98,6 +98,7 @@ pub const LIMITS: top::Limits = top::Limits {
         comment_bytes: 256,
         interval: Duration::from_secs(5),
     },
+    waits: temper_engine_domain_forge_vocabulary::limits::STANDALONE_WAIT_FIGURES,
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
         repairs: 3,

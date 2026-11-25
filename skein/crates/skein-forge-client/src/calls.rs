@@ -91,6 +91,16 @@ impl Domain {
         keys.into_boxed()
     }
 
+    /// Each call's admission number, owner and whether it has answered, in slab order.
+    #[must_use]
+    pub fn inspection_call_facts(&self) -> Box<[(u64, &Owner, bool)]> {
+        let mut facts = List::with_capacity(self.calls.slab.len());
+        for (_, call) in &self.calls.slab {
+            facts.push((call.admitted, &call.owner, call.state == State::Closed)).expect("counted calls");
+        }
+        facts.into_boxed()
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_call_owner(&self, number: u64) -> Option<&Owner> {

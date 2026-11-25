@@ -195,6 +195,27 @@ branch text matches (2026-11-04).
   (above), and the restart saves it so. A record never needs its run's
   task to restore, whatever left it naming one: a crash, or an older
   build that never heard the close.
+- **A run whose tier is no longer configured,** its tier removed from
+  its repository's settings or renamed while the run lives (a rename
+  is a removal and a new tier: the new name starts its baseline,
+  section 1), ends as its tier being gone. The first step of its task
+  that finds no tier of that name in the settings, at a restart or
+  after a settings revision, ends the task done, its words `Tier NAME
+  run N: ended, its tier is no longer configured`, and leaves the
+  tier's record as a dropped run's (above): no run and no task, its
+  landings back at the front of the range, its number spent. It ends
+  so in any part: dispatched, polled, held on its faults or its wait
+  for a runner, probing, or posting a verdict, which is then never
+  posted. It gives no verdict, no news and no status, and issues no
+  effect; an effect it issued before is settled, its receipt or refusal
+  read as any, before the task ends. Its branch and a probe's stay on the
+  forge, as a dropped run's do (section 5). Until it ends, nothing of
+  the run reads its tier's settings: a restart builds it no follower
+  and walks no tree for it, and a read's or an effect's answer for it
+  is taken without them. Its record stays and restores as any
+  (`after-landing.md`, section 11), readable with its hold and
+  sequence; the tier configured again under that name numbers its next
+  run after it.
 
 A failed receipt at the tip is treated as a failed-test rerun that failed
 again. Its failures go directly to inheritance and blame, with no further
@@ -255,6 +276,11 @@ branches never run, are ordered by goal number, lowest first (2026-11-04).
   release after a runner wait leaves the forge's waiting run queued,
   no write cancelling one, its result never read. Default: so (the
   request of 2026-11-21).
+
+- **Records of removed tiers** stay (`after-landing.md`, section 11),
+  so each tier removed or renamed keeps a record within the forge's
+  repositories times `tiers`. When one may leave, its sequence and hold
+  kept otherwise, is open. Default: it stays (2026-11-25).
 
 ## 5. Later
 

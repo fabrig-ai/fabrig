@@ -30,7 +30,9 @@ Settings and accounts' look is split from [the browser's look](look.md).
   under Settings' rows, the rules they replace removed:
   - *Usage:* the head's `temper-usage` group, 10 px under the line, its
     windows 4 px apart; each `temper-usage-window` a grid of its name
-    (`temper-usage-name`), 40 px, its bar, 120 px, its share
+    (`temper-usage-name`), 48 px at every width, so that a model's name
+    fits ("Sonnet", the widest today, 41 px; the look request
+    `usage-model-week`), its bar, 120 px, its share
     (`temper-usage-used`), 36 px, right-aligned in ink, and its pace
     (`temper-usage-pace`), faint, 12 px apart, in 13 px on 1.6, muted, with
     tabular figures. The bar, `temper-usage-bar`, is skein's meter with its

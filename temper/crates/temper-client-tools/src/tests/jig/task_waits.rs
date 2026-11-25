@@ -3,6 +3,7 @@ use jig_client::contract::{
     self as c, AtBound, EscalationHolder as Holder, Unbounded, WaitKind as Kind, WaitObject as Object, waits::Bound,
 };
 use skein_lib::{List, Wall};
+use temper_client_protocol_wire::waits::{CHANGE_CHECKING, LANDING_ANCESTRY, THING_ENTRY, THING_TASK};
 
 pub(super) const DESCENDANT_JSON: &[u8] = br#""wait":{"task":44,"kind":"party","object":{"entry":{"kind":"question","number":3,"at":{"person":73}}},"since":1792854120000000000,"bound":{"at":1792882920000000000,"then":"pass_up"},"hears":{"person":73}}"#;
 const SOONER: Wall = Wall::from_nanos(1_792_868_520_000_000_000);
@@ -33,7 +34,7 @@ fn task_summary_uses_the_supplied_nearest_even_if_its_wait_is_not_listed() {
 }
 
 #[test]
-fn a_task_waits_block_prints_the_two_waits_in_document_order() {
+fn a_task_waits_block_prints_waits_in_document_order() {
     let mut task = f::goal(f::TASK, c::WaitsOn::Question { number: OWN_QUESTION });
     let at = Wall::from_nanos(1_795_507_620_000_000_000);
     let mut question = wait(
@@ -52,11 +53,29 @@ fn a_task_waits_block_prints_the_two_waits_in_document_order() {
     dependency.since = Wall::from_nanos(1_795_499_400_000_000_000);
     task.wait = Some(question.clone());
     task.nearest = Some(c::Nearest { at, then: AtBound::PassUp, kind: Kind::Question });
-    task.waits = list([question, dependency]);
+    let room = wait(
+        Kind::Room,
+        Object::Procedure {
+            step: CHANGE_CHECKING,
+            things: list([c::Thing { what: THING_ENTRY, number: 7, owner: Some(51) }]),
+        },
+        Bound::None(Unbounded::Behind(51)),
+        None,
+    );
+    let step = wait(
+        Kind::Step,
+        Object::Procedure {
+            step: LANDING_ANCESTRY,
+            things: list([c::Thing { what: THING_TASK, number: 15090, owner: None }]),
+        },
+        Bound::At { at, then: AtBound::Hold },
+        None,
+    );
+    task.waits = list([question, dependency, room, step]);
     task.wait_count = task.waits.len();
     f::check_golden("task_own_waits", &read(task.clone(), false).stdout);
     let json = read(task, true);
-    let expected = br#""waits":[{"task":41,"kind":"question","object":{"question":{"number":228316,"answerer":34}},"since":1795500420000000000,"bound":{"at":1795507620000000000,"then":"pass_up"},"hears":{"task":34}},{"task":41,"kind":"dependency","object":{"task":17},"since":1795499400000000000,"bound":{"none":"no_deadline"},"hears":{"task":34}}],"wait_count":2"#;
+    let expected = br#""waits":[{"task":41,"kind":"question","object":{"question":{"number":228316,"answerer":34}},"since":1795500420000000000,"bound":{"at":1795507620000000000,"then":"pass_up"},"hears":{"task":34}},{"task":41,"kind":"dependency","object":{"task":17},"since":1795499400000000000,"bound":{"none":"no_deadline"},"hears":{"task":34}},{"task":41,"kind":"room","object":{"procedure":{"step":106,"things":[{"what":1,"number":7,"owner":51}]}},"since":1792854120000000000,"bound":{"none":{"behind":51}},"hears":null},{"task":41,"kind":"step","object":{"procedure":{"step":210,"things":[{"what":2,"number":15090,"owner":null}]}},"since":1792854120000000000,"bound":{"at":1795507620000000000,"then":"hold"},"hears":null}],"wait_count":4"#;
     assert!(f::has(&json, expected), "{json:?}");
 }
 
@@ -162,18 +181,18 @@ fn object_cases() -> [ObjectCase; KINDS] {
             Object::Procedure {
                 step: 5,
                 things: list([
-                    c::Thing { what: 7, number: 51, owner: None },
+                    c::Thing { what: 77, number: 51, owner: None },
                     c::Thing { what: 8, number: 52, owner: Some(ANSWERER) },
                 ]),
             },
-            "step 5 thing 7 51, thing 8 52 of task 34",
-            r#""procedure":{"step":5,"things":[{"what":7,"number":51,"owner":null},{"what":8,"number":52,"owner":34}]}"#,
+            "step 5: thing 77 51, forge 52 of task 34",
+            r#""procedure":{"step":5,"things":[{"what":77,"number":51,"owner":null},{"what":8,"number":52,"owner":34}]}"#,
             UNHEARD,
         ),
         (
             Kind::Room,
             thing(Some(ANSWERER)),
-            "room thing 7 51 of task 34",
+            "room 5: rule 51 of task 34",
             r#""procedure":{"step":5,"things":[{"what":7,"number":51,"owner":34}]}"#,
             UNHEARD,
         ),
@@ -181,7 +200,7 @@ fn object_cases() -> [ObjectCase; KINDS] {
         (
             Kind::SignOff,
             thing(None),
-            "sign-off thing 7 51",
+            "sign-off 5: rule 51",
             r#""procedure":{"step":5,"things":[{"what":7,"number":51,"owner":null}]}"#,
             PROJECT_ROLE,
         ),

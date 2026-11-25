@@ -202,13 +202,16 @@ impl HostPart {
     /// The rendered cost retains its separate all-parts admission rules.
     #[must_use]
     pub fn on_wake(&self, charter: &Charter, wake: Reasons) -> Cost {
+        let mut cost = self.common_fixed(charter).plus(part_cost(charter, wake));
+        cost.rendered = self.non_brief(charter);
+        cost
+    }
+
+    // Only the selected parts differ between wake reasons. Keep rendered
+    // pricing separate: it charges every part, regardless of the wake.
+    fn common_fixed(&self, charter: &Charter) -> Cost {
         let policy = &charter.policy;
         let mut bytes = skein_lib::len_u64(policy.instructions.len());
-        for part in &charter.parts {
-            if part.on.meets(wake) {
-                bytes = bytes.saturating_add(2).saturating_add(skein_lib::len_u64(part.instructions.len()));
-            }
-        }
         let mut cost = self.fixed.plus(self.declarations(charter));
         for model in core::iter::once(&policy.model).chain(policy.alternatives.iter()) {
             bytes = bytes.saturating_add(skein_lib::len_u64(model.name.len()));
@@ -219,23 +222,24 @@ impl HostPart {
         for _ in &policy.alternatives {
             cost = cost.plus(self.model);
         }
-        cost = cost.plus(Cost { rendered: 0, owned: bytes, encoded: bytes });
-        cost.rendered = self.non_brief(charter);
-        cost
+        cost.plus(Cost { rendered: 0, owned: bytes, encoded: bytes })
     }
 
     /// Refuse the largest wake in the first failing measure, with ties in Reasons' order.
     pub fn check_fixed(&self, charter: &Charter) -> Result<(), Unfit> {
-        let mut owned = (Reasons::FIRST, 0);
-        let mut encoded = (Reasons::FIRST, 0);
-        for name in REASON_NAMES {
-            let wake = Reasons::named(name).expect("known reason name");
-            let cost = self.on_wake(charter, wake);
-            if cost.owned > owned.1 {
-                owned = (wake, cost.owned);
-            }
-            if cost.encoded > encoded.1 {
-                encoded = (wake, cost.encoded);
+        let common = self.common_fixed(charter);
+        let mut owned = (Reasons::FIRST, common.owned);
+        let mut encoded = (Reasons::FIRST, common.encoded);
+        if !charter.parts.is_empty() {
+            for bit in 0..Reasons::ALL.0.count_ones() {
+                let wake = Reasons(1_u32.checked_shl(bit).expect("known reason bits fit"));
+                let cost = common.plus(part_cost(charter, wake));
+                if cost.owned > owned.1 {
+                    owned = (wake, cost.owned);
+                }
+                if cost.encoded > encoded.1 {
+                    encoded = (wake, cost.encoded);
+                }
             }
         }
         for (measure, (wake, bytes)) in [(Measure::Owned, owned), (Measure::Encoded, encoded)] {
@@ -260,14 +264,14 @@ impl HostPart {
         Ok(())
     }
 
-    /// Restore checks rendered room alone; no local agent skips it.
+    /// Without a local agent there is no rendered bound to check.
     pub fn check_rendered(&self, charter: &Charter) -> Result<(), Short> {
         let Some(bound) = self.bound else { return Ok(()) };
         let room = self.room(charter);
         if room < BRIEF_ROOM { Err(Short { charter: charter.number, room, bound }) } else { Ok(()) }
     }
 
-    /// Both checks at settings entrances and over startup defaults.
+    /// Both checks at settings entrances and over configured and restored charters at startup.
     pub fn check(&self, charter: &Charter) -> Result<(), Refusal> {
         if let Err(unfit) = self.check_fixed(charter) {
             return Err(Refusal::Fixed(unfit));
@@ -277,6 +281,16 @@ impl HostPart {
             Err(short) => Err(Refusal::Rendered(short)),
         }
     }
+}
+
+fn part_cost(charter: &Charter, wake: Reasons) -> Cost {
+    let mut bytes = 0_u64;
+    for part in &charter.parts {
+        if part.on.meets(wake) {
+            bytes = bytes.saturating_add(2).saturating_add(skein_lib::len_u64(part.instructions.len()));
+        }
+    }
+    Cost { rendered: 0, owned: bytes, encoded: bytes }
 }
 
 impl Short {

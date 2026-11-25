@@ -3817,7 +3817,8 @@ pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
     account.display = self::doc("");
     account.manage_usage = Some(Box::from(b"https://claude.ai/settings/usage".as_slice()));
     account.sources.truncate(1);
-    account.facts = List::with_capacity(3);
+    let model_week = name == "accounts-usage-model-week";
+    account.facts = List::with_capacity(if model_week { 5 } else { 3 });
     account
         .facts
         .push(c::AccountFact {
@@ -3829,21 +3830,30 @@ pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
             origin: 5,
         })
         .expect("sample email");
-    let windows: &[(&[u8], u64, u64, u16, u16, u32)] = match name {
-        "accounts-usage-filling" => &[(b"seven_day", 168, 48 * 60, 8300, 1, 70), (b"five_hour", 5, 120, 7500, 1, 2500)],
-        "accounts-usage-calm" => &[(b"seven_day", 168, 48 * 60, 4200, 1, 35), (b"five_hour", 5, 60, 1000, 1, 250)],
-        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED, 0)],
-        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1, 50)],
+    let windows: &[(&[u8], u64, u64, u16, u16, Option<u32>)] = match name {
+        "accounts-usage-filling" | "accounts-usage-model-week" => {
+            &[(b"seven_day", 168, 48 * 60, 8300, 1, Some(70)), (b"five_hour", 5, 120, 7500, 1, Some(2500))]
+        }
+        "accounts-usage-calm" => {
+            &[(b"seven_day", 168, 48 * 60, 4200, 1, Some(35)), (b"five_hour", 5, 60, 1000, 1, Some(250))]
+        }
+        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED, Some(0))],
+        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1, Some(50))],
         other => panic!("not a usage sample: {other}"),
     };
-    for &(label, hours, remaining, used, state, rate) in windows {
+    let models = [
+        (b"seven_day_fable".as_slice(), 168, 48 * 60, 6400, 1, Some(160)),
+        (b"seven_day_sonnet".as_slice(), 168, 48 * 60, 0, 1, None),
+    ];
+    let models = if model_week { models.as_slice() } else { &[] };
+    for &(label, hours, remaining, used, state, rate) in windows.iter().chain(models) {
         account
             .facts
             .push(c::AccountFact {
                 kind: c::FACT_USAGE,
                 label: Box::from(label),
                 value: c::AccountFactValue::Window(c::AccountWindow {
-                    rate: Some(rate),
+                    rate,
                     length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).expect("sample hours"))),
                     used: Some(used),
                     resets: Some(Wall::from_nanos(
