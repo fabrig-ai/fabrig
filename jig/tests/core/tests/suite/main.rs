@@ -66,6 +66,7 @@ mod projects;
 mod provider_accounts_open;
 mod provider_funding_open;
 mod read_filters;
+mod readable_waits;
 mod reads;
 mod record_words;
 mod refusals;
@@ -99,6 +100,7 @@ mod switch_step;
 mod task_queries;
 mod templates;
 mod topics;
+mod wait_bounds;
 
 mod fuzzy {
     mod amendment_funding;

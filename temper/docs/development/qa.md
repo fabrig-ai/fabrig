@@ -296,4 +296,4 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   drives the pages and the TUI on the fakes' rung through the drive
   session (`../design/client/drive.md`; `../design/testing/qa/places.md`,
   5). Default: a real rung's pass takes the same session once a case
-  needs a real backend (`../design/draft/landed-qa.md`, 12).
+  needs a real backend (`../design/draft/archive/landed-qa.md`, 12).

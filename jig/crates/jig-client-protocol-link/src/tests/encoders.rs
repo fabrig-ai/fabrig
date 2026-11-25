@@ -275,7 +275,10 @@ pub fn wire_settings_document(value: &c::SettingsDocument) -> w::SettingsDocumen
     w::SettingsDocument { newest: value.newest, settings, held, pending }
 }
 pub fn wire_settings_proposal(value: &c::SettingsProposal) -> w::SettingsProposal {
-    w::SettingsProposal { proposer: crate::translate::asks::wire_proposer(&value.proposer), number: value.number }
+    w::SettingsProposal {
+        proposer: crate::generated::client::proposer_to_record(&value.proposer),
+        number: value.number,
+    }
 }
 #[must_use]
 pub fn wire_revision_item_head(value: &c::RevisionItemHead) -> w::RevisionItemHead {

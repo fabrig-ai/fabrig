@@ -8,6 +8,10 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 6;
+pub const LAYOUT: [u8; 32] = [
+    0xa1, 0xe3, 0x44, 0x01, 0xdf, 0xd9, 0xa0, 0xd7, 0x1f, 0x4a, 0xcd, 0x10, 0x83, 0x25, 0x7d, 0xc0, 0x88, 0x18, 0x1d,
+    0x39, 0x35, 0xc6, 0xbe, 0x1f, 0x91, 0x18, 0xd0, 0x44, 0x72, 0x08, 0xa7, 0x29,
+];
 
 // Limits: the owner's values, checked once against ceilings.
 #[repr(C)]
@@ -5270,6 +5274,7 @@ pub enum HoldReason {
     Procedure,
     Circle,
     Exceeded(Exceeded),
+    Waited,
 }
 
 // Record: HoldReason.
@@ -5293,7 +5298,8 @@ impl HoldReason {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("Exceeded"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -5341,6 +5347,7 @@ impl Record for HoldReason {
             Self::Procedure => field::put(out, &[15], paths::HOLD_REASON_TAG),
             Self::Circle => field::put(out, &[16], paths::HOLD_REASON_TAG),
             Self::Exceeded(value) => { field::put(out, &[17], paths::HOLD_REASON_TAG)?; value.write(limits, out) },
+            Self::Waited => field::put(out, &[18], paths::HOLD_REASON_TAG),
         }
     }
 
@@ -5365,7 +5372,8 @@ impl Record for HoldReason {
             15 => Ok(Self::Procedure),
             16 => Ok(Self::Circle),
             17 => Ok(Self::Exceeded(Exceeded::read(limits, reader)?)),
-            18..=u8::MAX => Err(Problem { path: paths::HOLD_REASON_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Waited),
+            19..=u8::MAX => Err(Problem { path: paths::HOLD_REASON_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

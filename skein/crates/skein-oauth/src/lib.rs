@@ -16,8 +16,6 @@ mod json;
 mod jwt;
 mod keys;
 mod machine;
-#[path = "../patches/mod.rs"]
-pub mod patches;
 mod pkce;
 mod record;
 mod redirect;
@@ -43,9 +41,9 @@ mod machine_tests;
 #[cfg(test)]
 mod tests;
 
-/// The owner of skein's patches, as their headers spell it.
+/// The owner of the OAuth records.
 pub const OWNER: &str = "skein";
-/// The record's family, as its kept texts spell it.
+/// The record's family, as its schema spells it.
 pub const FAMILY: &str = "skein-oauth";
 /// The declaration a kept record is.
 pub const ROOT: &str = "SavedToken";

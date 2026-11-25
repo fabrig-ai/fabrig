@@ -448,6 +448,7 @@ impl Continuation {
                     if self.phase == 0 {
                         let (task, attempt) = parent(world);
                         world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+                            reads_project: false,
                             reply_to: ReplyTo::new(Token::new(u64::MAX)),
                             task,
                             subscription: tasks::Subscription {

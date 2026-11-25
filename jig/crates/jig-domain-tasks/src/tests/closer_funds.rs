@@ -71,6 +71,7 @@ pub(super) fn start(h: &mut Harness, number: u64, budget: u64) {
 pub(super) fn answer(h: &mut Harness, number: u64, spent: u64, end: End) {
     let attempt = h.domain.task(number).expect("running task").attempt;
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: number,
         attempt,
@@ -84,6 +85,7 @@ fn wait(h: &mut Harness) {
     let step = h.domain.task(CLOSER).expect("live closer").attempt.checked_add(1).expect("fixture step");
     let read = h.domain.procedure_offered(CLOSER);
     h.send(Event::Procedure {
+        reads_project: false,
         reply_to: to(),
         task: CLOSER,
         step,
@@ -117,6 +119,7 @@ fn child(h: &mut Harness, parent: u64, number: u64, budget: u64) {
     new.numbers.budget = budget;
     new.funder = Funder::Task(parent);
     h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

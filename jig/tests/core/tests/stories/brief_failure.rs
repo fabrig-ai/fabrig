@@ -68,7 +68,11 @@ fn a_brief_that_cannot_be_read_counts_to_a_hold_naming_it() {
     let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
     let hold = document.hold.as_ref().expect("failure hold on document");
     assert_eq!(hold.reason, tasks::Hold::Failures(tasks::Class::Permanent));
-    assert_eq!(hold.words.as_ref().expect("preparation words").bytes.as_ref(), permanent().reason().as_ref());
+    assert_eq!(
+        hold.words.as_ref().expect("preparation words").bytes.as_ref(),
+        b"It ran out of tries for permanent failures: task: could not be read within its bounds. \
+          Held since 1970-01-01T00:00Z. Release it to try again; amend it first if its instructions failed it."
+    );
     world.close();
 }
 

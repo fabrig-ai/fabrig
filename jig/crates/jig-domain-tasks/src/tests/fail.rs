@@ -34,6 +34,7 @@ fn child(h: &mut Harness, parent: u64, number: u64, budget: u64) {
     member.numbers.budget = budget;
     member.authority.budget.spend = budget;
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -232,6 +233,7 @@ fn make_checks_a_goals_closer_kind_before_any_writes() {
     goal.flags.ended_by = crate::EndedBy::Closer(crate::Closer { connector: 1, code: 6 });
     let stored = h.stored.clone();
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

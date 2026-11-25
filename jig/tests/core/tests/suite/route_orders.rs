@@ -111,6 +111,7 @@ fn a_task_route_finishes_its_generated_requests_within_its_decision() {
     let task = driver.assignment().task;
     let at = Wall::from_nanos(driver.env().wall.as_nanos() + TIMER_DELAY.as_nanos());
     driver.offer(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+        reads_project: false,
         reply_to: ReplyTo::new(SUBSCRIBE),
         task,
         subscription: tasks::Subscription {

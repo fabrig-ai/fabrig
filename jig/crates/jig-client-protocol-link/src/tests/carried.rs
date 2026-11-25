@@ -26,7 +26,7 @@ fn posted(h: &Harness) -> Option<w::Keyed> {
 #[test]
 fn a_carried_request_leaves_while_the_table_waits_on_a_write() {
     let mut h = Harness::new(&limits());
-    h.save(fixtures::saved_table(fixtures::message()));
+    h.save(fixtures::table_record(fixtures::message()));
     h.send_kept(Token::new(5));
     carry(&mut h, ATTEMPT);
     assert_eq!(h.exchanges(), 1, "the carried request alone leaves");
@@ -78,7 +78,7 @@ fn move_out(h: &mut Harness, attempt: Token) {
 #[test]
 fn a_move_out_leaves_while_the_table_waits_on_a_write() {
     let mut h = Harness::new(&limits());
-    h.save(fixtures::saved_table(fixtures::message()));
+    h.save(fixtures::table_record(fixtures::message()));
     h.send_kept(Token::new(5));
     move_out(&mut h, ATTEMPT);
     assert_eq!(h.exchanges(), 1);

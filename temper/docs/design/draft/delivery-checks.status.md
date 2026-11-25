@@ -19,7 +19,7 @@
   tested at the base. A lint or test failure is inherited only when the
   goal's reds name it: temper's records of the failures the goal's branch
   carries, which its coordinator records and its worker writes for each
-  check (`../domain/forge/reds.md`, 3 and 5; `branch-reds.md`, 8), the
+  check (`../domain/forge/reds.md`, 3 and 5; `archive/branch-reds.md`, 8), the
   tree keeping no list of its own; a build failure is always the
   delivery's; exceeded counts, citations and design sizes are still
   compared with the base (`tools/pre-pr/design.md`, 5). Base runs were

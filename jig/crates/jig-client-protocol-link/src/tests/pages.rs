@@ -586,7 +586,7 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
 fn task_queries_carry_parts_and_pages_return_opaque_values_and_the_ended_mark() {
     let limits = fixtures::limits();
     let query = fixtures::part_query();
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     let exchange = h.read(Readable::Jig(c::Read::Tasks { query: query.clone(), live: None, ended: None }));
     let Request::Exchange { message: Message::Read(bytes), .. } = h.out.iter().next().unwrap() else { panic!("read") };
     let owned = w::Owned::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
@@ -620,7 +620,7 @@ fn mismatched_row_part_counts_and_value_envelopes_make_reads_malformed() {
     for (parts, asks) in fixtures::malformed_row_parts() {
         let mut query = fixtures::part_query();
         query.parts.truncate(asks);
-        let mut h = fixtures::Harness::new(&fixtures::limits());
+        let mut h = fixtures::Harness::with_hello(&fixtures::limits());
         let exchange = h.read(Readable::Jig(c::Read::Tasks { query, live: None, ended: None }));
         h.answer(exchange, &fixtures::jig_read_value_answer(&w::ReadValue::Tasks(fixtures::part_page(parts))));
         let Some(Readout::Jig(c::ReadResult::None(why))) = h.read_answered() else {

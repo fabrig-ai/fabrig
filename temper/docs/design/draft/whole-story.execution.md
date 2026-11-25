@@ -67,12 +67,12 @@ or the nearest thing, and says so in that draft's status.
 | M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | must | done |
 | P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | landed; its render check and walk follow (section 5) |
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | must | landed; its render check and walk follow (section 5) |
-| P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | landed; its render check and walk follow (`../client/README.md`, 5) |
+| P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `archive/stock-ways.md`, 4 | M0 | temper/ui | must | landed; its render check and walk follow (`../client/README.md`, 5) |
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | landed; its render check and walk follow (`../client/README.md`, 5) |
 | P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | landed; its render check and walk follow (`../client/README.md`, 5) |
 | P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | landed; its render check and walk follow (`../client/pages/settings.md`, 3) |
 | P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | landed; its render check follows (`../client/README.md`, 5) |
-| P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | done |
+| P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `archive/stock-ways.md`, 4; its entry below | P3a | temper/ui | should | done |
 | P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed and repaired; its render check and walk follow (`../client/README.md`, 5) |
 | P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | must | landed; its render check and walk follow (`../client/README.md`, 5) |
 | P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | landed; its render check and walk follow (`../client/README.md`, 5) |
@@ -124,7 +124,7 @@ or the nearest thing, and says so in that draft's status.
   engine's reads, with what a read lacks named in the page's lag; Home
   and Needs you reading every project the person is in; Work's one list;
   Team from a project's people, then its roles and areas; How work runs
-  drawing the path from the settings (`stock-ways.md`, section 4).
+  drawing the path from the settings (`archive/stock-ways.md`, section 4).
 - **Tests:** the gallery's states for each page at a laptop's and a
   phone's width, light and dark; the client's joint world for a page
   across two projects; a fuzz test of each page's parts against

@@ -365,6 +365,7 @@ pub fn live_task(number: u64) -> core::Record {
         created_at: Wall::EPOCH,
         changed: Wall::EPOCH,
         phase_since: Wall::EPOCH,
+        held_since: None,
         run_since: Some(Wall::EPOCH),
         retry_notice: None,
         ended_at: None,

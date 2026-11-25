@@ -64,3 +64,22 @@ fn worker_pause_contract_crosses_the_wire_both_ways() {
         assert_eq!(document.worker_settings.get(0).unwrap().pause, expected);
     }
 }
+
+#[test]
+fn a_late_question_refusal_keeps_the_answerer_on_the_wire() {
+    const QUESTION: u64 = 41;
+    const HOLDER: u64 = 25;
+    for (by, expected) in [
+        (p::QuestionAnswerer::Task(HOLDER), c::QuestionAnswerer::Task(HOLDER)),
+        (p::QuestionAnswerer::Person(HOLDER), c::QuestionAnswerer::Person(HOLDER)),
+    ] {
+        let reply = p::Reply::Refused(p::Refusal::QuestionAnswered { question: QUESTION, by });
+        let wire = translate::answers::answer(&reply, &[], &w::CEILINGS).expect("refusal translated");
+        let bytes = wire.encode(&w::CEILINGS).expect("client refusal encoded");
+        let wire = w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("client refusal read");
+        assert_eq!(
+            client::answers::answer(wire, &f::client_limits()).expect("refusal decoded"),
+            c::Answer::Refused { refusal: c::Refusal::QuestionAnswered { question: QUESTION, by: expected }, at: None }
+        );
+    }
+}

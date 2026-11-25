@@ -14,11 +14,12 @@ ZERO = "0 Not yet (0 in flight), 0 Departs, 0 Design lags, 0 Design departs, 0 O
 
 
 def expected(tree="temper", counts=ZERO, opened="- none", over="- none",
-             done="- none", unread="- none"):
+             openings="- none", done="- none", unread="- none"):
     """The complete output shape; rows supply literal expected entries."""
     return (f"# {tree}\n\nOpen entries: {counts}.\n\n"
             f"Status files with an open entry:\n{opened}\n\n"
             f"Over the mark, 49,152 bytes, largest first:\n{over}\n\n"
+            f"Openings over 8,192 bytes, largest first:\n{openings}\n\n"
             f"Drafts done, outside draft/archive/:\n{done}\n\n"
             f"Unread status files:\n{unread}\n")
 
@@ -52,6 +53,13 @@ class Status(unittest.TestCase):
         return subprocess.run((sys.executable, "-I", "-B", str(SCRIPT), *args),
                               cwd=self.root, capture_output=True, text=True)
 
+    def check_roll_up(self, files, output):
+        self.repository(files)
+        result = self.run_status("temper")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(result.stdout, output)
+
     def test_committed_trees(self):
         rows = [
             ("sections", {f"{DESIGN}/a.status.md": OPENING
@@ -70,6 +78,11 @@ class Status(unittest.TestCase):
                       opened=f"- {DESIGN}/a.status.md, 2026-11-20: 1 Not yet")),
             ("in flight", {f"{DESIGN}/a.status.md": OPENING
                            + "- **Not yet:** 4: x [in flight: change 12].\n"},
+             expected(counts="1 Not yet (1 in flight), 0 Departs, 0 Design lags, 0 Design departs, 0 Open",
+                      opened=f"- {DESIGN}/a.status.md, 2026-11-20: 1 Not yet (1 in flight)")),
+            ("wrapped in flight", {f"{DESIGN}/a.status.md": OPENING
+                            + "- **Not yet:** 4: x\r\n  [in\r\n"
+                            + "  flight: \t\r\n  change\r\n  12].\r\n"},
              expected(counts="1 Not yet (1 in flight), 0 Departs, 0 Design lags, 0 Design departs, 0 Open",
                       opened=f"- {DESIGN}/a.status.md, 2026-11-20: 1 Not yet (1 in flight)")),
             ("tag must end entry", {f"{DESIGN}/a.status.md": OPENING
@@ -122,16 +135,18 @@ class Status(unittest.TestCase):
                 f"{DESIGN}/draft/b.status.md": "# b: status\n\n- **Not yet:** 1: x\n",
                 f"{DESIGN}/draft/c.status.md": "2026-11-20. No heading.\n\nNo gap.\n",
                 f"{DESIGN}/draft/d.status.md": "",
-                f"{DESIGN}/draft/e.status.md": "# e: status\n\nUndated.\n\n- **Open:** x\n"},
-             expected(unread="\n".join(f"- {DESIGN}/draft/{name}.status.md" for name in "abcde"))),
+                f"{DESIGN}/draft/e.status.md": "# e: status\n\nUndated.\n\n- **Open:** x\n",
+                f"{DESIGN}/draft/archive/f.status.md": OPENING + "No known gaps.\n"},
+             expected(unread="\n".join(f"- {DESIGN}/draft/{name}.status.md"
+                                       for name in ("a", "archive/f", "b", "c", "d", "e")))),
             ("kinds and sorted files", {
                 f"{DESIGN}/z.status.md": OPENING + "- **Design departs:** 2: x\n",
-                f"{DESIGN}/draft/archive/b.status.md": OPENING + "- **Open:** x\n",
+                f"{DESIGN}/draft/archive/b.status.md": OPENING
+                + "- **Open:** x\n- **Not yet:** y [in flight: change 12].\n",
                 f"{DESIGN}/draft/a.status.md": OPENING
                 + "- **Design lags:** 3: x\n- **Design departs:** 4: x\n- **Open:** decision\n"},
-             expected(counts="0 Not yet (0 in flight), 0 Departs, 1 Design lags, 2 Design departs, 2 Open",
+             expected(counts="0 Not yet (0 in flight), 0 Departs, 1 Design lags, 2 Design departs, 1 Open",
                       opened=f"- {DESIGN}/draft/a.status.md, 2026-11-20: 1 Design lags, 1 Design departs, 1 Open\n"
-                      + f"- {DESIGN}/draft/archive/b.status.md, 2026-11-20: 1 Open\n"
                       + f"- {DESIGN}/z.status.md, 2026-11-20: 1 Design departs")),
             ("indented labels", {f"{DESIGN}/a.status.md": "\n" + OPENING
                         + "before\n  - **Not yet:** 1: x\n  - **Departs:** prose\n"},
@@ -148,6 +163,9 @@ class Status(unittest.TestCase):
              expected(over=f"- {DESIGN}/draft/archive/b.md: 50,000 bytes\n"
                       + f"- {DESIGN}/big.status.md: 49,154 bytes\n"
                       + f"- {DESIGN}/a.md: 49,153 bytes\n- {DESIGN}/z.md: 49,153 bytes",
+                      openings=f"- {DESIGN}/draft/archive/b.md: 50,000 bytes\n"
+                      + f"- {DESIGN}/a.md: 49,153 bytes\n- {DESIGN}/z.md: 49,153 bytes\n"
+                      + f"- {DESIGN}/at.md: 49,152 bytes",
                       unread=f"- {DESIGN}/big.status.md")),
             ("done paths sort by document", {
                 f"{DESIGN}/draft/a.n.status.md": OPENING,
@@ -161,11 +179,51 @@ class Status(unittest.TestCase):
         ]
         for name, files, output in rows:
             with self.subTest(name=name):
-                self.repository(files)
-                result = self.run_status("temper")
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stderr, "")
-                self.assertEqual(result.stdout, output)
+                self.check_roll_up(files, output)
+
+    def test_draft_done_with_departures(self):
+        departure = "- **Design departs:** 2: x\n"
+        self.check_roll_up({
+            f"{DESIGN}/draft/a.status.md": OPENING + "- **Design lags:** none.\n"
+            + departure + "- **Open:** none.\n",
+            f"{DESIGN}/b.status.md": OPENING + departure,
+            f"{DESIGN}/draft/c.status.md": OPENING + departure + "- **Design lags:** 3: x\n",
+            f"{DESIGN}/draft/d.status.md": OPENING + departure + "- **Open:** decision\n",
+            f"{DESIGN}/draft/e.status.md": OPENING + departure + "- **Departs:** 4: x\n",
+        }, expected(counts="0 Not yet (0 in flight), 1 Departs, 1 Design lags, 5 Design departs, 1 Open",
+                    opened=f"- {DESIGN}/b.status.md, 2026-11-20: 1 Design departs\n"
+                    + f"- {DESIGN}/draft/a.status.md, 2026-11-20: 1 Design departs\n"
+                    + f"- {DESIGN}/draft/c.status.md, 2026-11-20: 1 Design lags, 1 Design departs\n"
+                    + f"- {DESIGN}/draft/d.status.md, 2026-11-20: 1 Design departs, 1 Open\n"
+                    + f"- {DESIGN}/draft/e.status.md, 2026-11-20: 1 Departs, 1 Design departs",
+                    done=f"- {DESIGN}/draft/a.md"))
+
+    def test_opening_bound(self):
+        opening = "# a\n\n" + "é" * 4_093 + "\n"
+        for extra, listing in [("", "- none"), ("\n", f"- {DESIGN}/a.md: 8,193 bytes")]:
+            with self.subTest(extra=extra):
+                self.check_roll_up({f"{DESIGN}/a.md": opening + extra + "## 1. One\n\nBody.\n"},
+                                   expected(openings=listing))
+
+    def test_opening_without_numbered_section(self):
+        start = "# a\n\n## Scope\n\n### 1. Subheading\n\n ## 1. Indented\n\n"
+        self.check_roll_up({f"{DESIGN}/a.md": start + "x" * (8_193 - len(start))},
+                           expected(openings=f"- {DESIGN}/a.md: 8,193 bytes"))
+
+    def test_opening_excludes_companions(self):
+        self.check_roll_up({
+            f"{DESIGN}/draft/x.status.md": OPENING + "x" * 8_193,
+            f"{DESIGN}/draft/x.notes.md": "x" * 8_193,
+            f"{DESIGN}/draft/x.execution.md": "x" * 8_193,
+        }, expected(unread=f"- {DESIGN}/draft/x.status.md"))
+
+    def test_opening_order(self):
+        self.check_roll_up({
+            f"{DESIGN}/z.md": "x" * 8_193,
+            f"{DESIGN}/a.md": "x" * 8_188 + "\n```\n## 1. Fenced\n```\n" + "x" * 100,
+            f"{DESIGN}/draft/archive/b.md": "x" * 8_194,
+        }, expected(openings=f"- {DESIGN}/draft/archive/b.md: 8,194 bytes\n"
+                    + f"- {DESIGN}/a.md: 8,193 bytes\n- {DESIGN}/z.md: 8,193 bytes"))
 
     def test_tree_order(self):
         self.repository({})

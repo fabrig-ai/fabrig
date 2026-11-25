@@ -109,7 +109,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
   the time of day as the terminal's lines do, and no link:
   `First run: wrote the configuration, <path>` when `temper-box init` ran
   (`box.md`, 1), and `First run: no sign-in through temper: <why>` when it made no
-  provider's key (`init.md`, 2); `Logs: <data>/box/logs/`; `Ctrl-C stops temper.`; `Starting
+  provider's key (`init.md`, 5); `Logs: <data>/box/logs/`; `Ctrl-C stops temper.`; `Starting
   <step>` as each step of `always` starts; for an asked group, named by its
   label (`box.md`, 3), `<label>: starting` at its `start`, then `<label>: started`
   and `<label>: stopped` as the pipe says them, and `<label>: no sign-in

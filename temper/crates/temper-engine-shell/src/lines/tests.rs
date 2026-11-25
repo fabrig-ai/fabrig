@@ -82,8 +82,7 @@ fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
 }
 
 #[test]
-fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
-    use jig_protocol_worker_wire::Agreed;
+fn accepted_worker_lines_name_the_layouts_or_the_converted_wires() {
     assert_eq!(
         note_line(
             "custom",
@@ -111,17 +110,21 @@ fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
         "custom serve: worker worker-a took its figures\n"
     );
 
-    let wires = skein_lib::List::from_boxed(Box::new([
-        Agreed { name: "jig-worker-wire", version: 10 },
-        Agreed { name: "smith-pieces", version: 1 },
-        Agreed { name: "smith-charter", version: 4 },
-        Agreed { name: "smith-transcript", version: 7 },
-        Agreed { name: "temper-worker-wire", version: 2 },
-    ]));
-    assert_eq!(
-        note_line("custom", temper_engine_service::Note::WorkerOpened { worker: b"worker-a".as_slice().into(), wires }),
-        "custom serve: worker worker-a opened: jig-worker-wire 10, smith-pieces 1, smith-charter 4, smith-transcript 7, temper-worker-wire 2\n"
-    );
+    for (converted, expected) in [
+        (skein_lib::List::with_capacity(0), "at the engine's layouts"),
+        (
+            skein_lib::List::from_boxed(Box::new([Box::from("smith-charter"), Box::from("temper-worker-wire")])),
+            "converting smith-charter, temper-worker-wire",
+        ),
+    ] {
+        assert_eq!(
+            note_line(
+                "custom",
+                temper_engine_service::Note::WorkerOpened { worker: b"worker-a".as_slice().into(), converted }
+            ),
+            format!("custom serve: worker worker-a opened: {expected}\n"),
+        );
+    }
 }
 
 #[test]
@@ -1423,7 +1426,7 @@ fn failed_prepare_stderr_preserves_fields_and_escapes_every_byte() {
 
 #[test]
 fn failed_run_stderr_keeps_a_bounded_head() {
-    // temper/docs/design/domain/worker/checkouts.md, 1.4: the bound counts input bytes.
+    // temper/docs/design/domain/worker/checkouts-prepare.md, 12.4: the bound counts input bytes.
     const DETAIL_BYTES: usize = 4096;
     const OVERSIZED_BYTES: usize = 5000;
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
@@ -1646,21 +1649,21 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
 }
 
 #[test]
-fn unsent_pause_lines_name_the_mode_worker_and_wire_version() {
+fn unsent_pause_lines_name_the_mode_worker_and_missing_kind() {
     use jig_domain_link::PauseMode;
     use temper_engine_service::Note;
     for (mode, text) in [(PauseMode::Resume, "resume"), (PauseMode::Pause, "pause"), (PauseMode::Drain, "drain")] {
         assert_eq!(
             note_line("temper", Note::WorkerUnpaused { worker: b"w2".as_slice().into(), version: 18, mode }),
             format!(
-                "temper serve: worker w2 not told to {text}: jig-worker-wire 18; the engine's placement follows the ask\n"
+                "temper serve: worker w2 not told to {text}: its layout lacks the kind; the engine's placement follows the ask\n"
             )
         );
     }
 }
 
 #[test]
-fn restart_lines_name_the_wait_or_the_workers_older_wire() {
+fn restart_lines_name_the_wait_or_the_workers_missing_kind() {
     use temper_engine_service::Note;
     for (wait, version, expected) in [
         (
@@ -1671,7 +1674,7 @@ fn restart_lines_name_the_wait_or_the_workers_older_wire() {
         (
             None,
             14,
-            "custom serve: worker worker-a not told the engine restarts: jig-worker-wire 14; it keeps its grace\n",
+            "custom serve: worker worker-a not told the engine restarts: its layout lacks the word; it keeps its grace\n",
         ),
     ] {
         assert_eq!(
@@ -1719,4 +1722,49 @@ fn full_table_notes_are_single_bounded_serve_lines() {
     );
     assert!(line.len() <= 1024);
     assert_eq!(line.lines().count(), 1);
+}
+
+#[test]
+fn layout_refusal_lines_name_the_kind_worker_and_plan_problem() {
+    use jig_protocol_engine_workers::{Bound, Unsent};
+    use jig_protocol_worker_wire::{
+        Kind,
+        layouts::{Cause, Unconverted},
+    };
+    use temper_engine_service::Note;
+
+    let worker: Box<[u8]> = b"worker-a".as_slice().into();
+    let grant = Unconverted {
+        wire: "temper-worker-wire".into(),
+        declaration: "Identity".into(),
+        part: "email".into(),
+        cause: Cause::Field,
+    };
+    let run = jig_domain_host::Refusal::Untranslated(grant.kept());
+    assert_eq!(
+        note_line("temper", refused_run_note(run)),
+        "temper serve: task 3 run 7 attempt 2 refused: the worker's layout cannot keep temper-worker-wire Identity.email: field\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerUnsent {
+                worker: worker.clone(),
+                channel: skein_lib::Token::new(1),
+                unsent: Unsent { kind: Kind::Grant, bytes: 69, bound: Bound::Translation(grant) },
+            }
+        ),
+        "temper serve: cannot send grant to worker worker-a: the worker's layout cannot keep temper-worker-wire Identity.email: field\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerUnread {
+                worker,
+                kind: Kind::Turn,
+                text: b"smith-transcript TurnKind.worker_only: variant".as_slice().into(),
+            }
+        ),
+        "temper serve: cannot read turn from worker worker-a: smith-transcript TurnKind.worker_only: variant\n"
+    );
 }

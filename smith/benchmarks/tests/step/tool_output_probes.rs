@@ -1,4 +1,4 @@
-//! Replaying controls (smith/docs/design/testing.md, 2).
+//! Replaying controls (smith/docs/design/testing-tiers.md).
 
 use crate::common;
 use smith_bench::agent::smith::events::Observer;

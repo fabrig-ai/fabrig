@@ -402,7 +402,7 @@ table's words, its rule the table's:
 
 | Table | Capacity | Entries and their rule | Release | Refused newcomers |
 |---|---|---|---|---|
-| `subscriptions`, one for each subscriber | the allowance admission refuses past: `tasks.subscriptions` with its reserved one (`subscriptions::kept_capacity`), which the tasks `Domain` keeps from its limits as a count no store or wire carries | each subscription: `the subscriber's end, or unsubscribing` | pending; a one-shot timer with no timer armed, due | none: refused `Busy` |
+| `subscriptions`, one for each subscriber | the allowance admission refuses past: `tasks.subscriptions` and one more, every kind alike (`subscriptions::kept_capacity`; `tasks/messages.md`, 4), which the tasks `Domain` keeps from its limits as a count no store or wire carries | each subscription: `the subscriber's end, or unsubscribing` | pending; a one-shot timer with no timer armed, due | none: refused `Busy` |
 | `creation reports` | `tasks.resource_reports` | each report: `the batch's answer; pinned while a batch that hasn't answered needs it; evictable otherwise` | pending while a live task's holdings name it or a batch pins it, kept otherwise; pinned by a batch the core no longer holds, due (`core` alone) | none: refused `Busy` |
 | `pools`, one for each pool | its slots, as last reported | each holder: `the holder's end` | pending; a holder that has ended, due | each task in its queue waiting on that pool alone, its bound its hold deadline |
 | `write holds`, one for each held resource | 1 | its holder, as a pool's | as a pool's | as a pool's |
@@ -515,7 +515,6 @@ a sweep configuring each fault accepts each.
 | Problem | Scenario | World | Fixed by | Fault left out, and while |
 |---|---|---|---|---|
 | P43 | `a_coordinator_watching_its_asker_is_woken` | core | bounded waits | runs that park, resume and move: `a run parks with a question to its requester open`, while `its requester watches it` |
-| P117 | `a_parked_act_holds_no_exchange` | engine-clients | bounded waits | people and parties: `a sign-in sends a request again while the first is pending`, while `the first is parked` |
 | S15 | `a_party_extends_its_goals_deadline` | core | provider failures | people and parties: `amending a deadline after it has passed`, while `the amending party started the goal` |
 | P77 | `an_owners_widening_is_never_proposed_to_itself` | core; its reading and decision, client-protocol | provider failures | people and parties: `a party widens a goal's authority`, while `the widening party is the project's owner` |
 | P76 | `a_new_party_gets_account_uses` | core | provider failures | people and parties: `a new service party runs on an account`, while `the account's uses were set before the service was made` |

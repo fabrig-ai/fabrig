@@ -150,7 +150,7 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
 - **`Cue::Declared { path }`** judges a head by what its own tree
   declares at `path`, as a repository's workflow file says what its
   checks do, so that whoever commits decides a head's verdict by what it
-  holds (temper's `draft/landed-qa.md`, 6): with no file at `path`, the
+  holds (temper's `draft/archive/landed-qa.md`, 6): with no file at `path`, the
   context passes; else the file's first line, its trailing newline
   aside, is the rule: `pass` passes; `fail` fails; `pull-file TEMPLATE`
   judges as `Cue::PullFile { path: TEMPLATE, no_pull: Skipped, step:
@@ -205,7 +205,7 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   runner serves waits, with no steps, its status pending; one whose
   needs have not ended is blocked; one running is at a step, so a
   `JobState` read names each.
-- **A declared wait for a runner** (temper's `draft/ci-runner-wait.md`,
+- **A declared wait for a runner** (temper's `draft/archive/ci-runner-wait.md`,
   1 and 2): a declaration's first line (`Cue::Declared`, above) may
   open with phases before its rule, one space apart: `wait SPAN`, then
   `run SPAN`, each optional, in that order, as in `wait 40m run 5m
@@ -461,7 +461,7 @@ of its repositories into another, and reaches no network.
 
 An owner that runs the fake as a product across restarts keeps the
 forge's state in a file of its own (temper's box, whose copies hold it:
-temper's `draft/landed-qa.md`, 6, and `temper/docs/design/protocol/setup/box-backends.md`, 1). The
+temper's `draft/archive/landed-qa.md`, 6, and `temper/docs/design/protocol/setup/box-backends.md`, 1). The
 domain gives an image of its state and is built again from one.
 
 - **`Domain::image(&self) -> Result<Box<[u8]>, image::Refusal>`,**

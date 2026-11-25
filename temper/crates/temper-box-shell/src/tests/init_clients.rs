@@ -1,4 +1,4 @@
-//! Init's document text fits its clients (temper/docs/design/protocol/setup/init.md, 1, and temper/docs/design/protocol/setup/README.md, 9).
+//! Init's document text fits its clients (temper/docs/design/protocol/setup/init.md, 4, and temper/docs/design/protocol/setup/README.md, 9).
 
 #[test]
 fn every_client_receives_the_text_inits_documents_allow() {

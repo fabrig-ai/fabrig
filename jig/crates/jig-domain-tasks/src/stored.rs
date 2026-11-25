@@ -1,7 +1,7 @@
 //! Load bounded live rows, refuse missing links, then rebuild derived state
 //! (jig/docs/design/domain/engine/restart.md; jig/docs/design/domain/tasks/README.md, 7).
 //! Retained rows stay in root storage. A fit refusal remains sticky.
-use crate::domain::{Domain, Startup, Task, activate, publish, record, snapshot, task_mut};
+use crate::domain::{Domain, Startup, Task, activate, publish, record, schedule_alarm, snapshot, task_mut};
 use crate::{
     Active, Closing, Executor, Limits, Party, Phase, Problem, Refusal, Request, Stage, Stored, TaskRecord, Was,
 };
@@ -58,6 +58,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             fit::room(crate::RestoreBound::Tasks, domain.tasks.len(), domain.tasks.capacity())?;
             fit::task(limits, &task)?;
             fit::settings(domain, &task)?;
+            domain.timer_subscriptions = fit::timers(domain, &task)?;
             let observed_hold = match task.phase {
                 Phase::Held { why, .. } => Some(why),
                 Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => None,
@@ -329,7 +330,11 @@ pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
     let numbers = snapshot(domain, env.limits.tasks);
     for number in numbers.into_boxed() {
         crate::grace::schedule(domain, env, number);
-        let phase = record(domain, number).expect("restored name exists").phase.clone();
+        let row = record(domain, number).expect("restored name exists");
+        if crate::person::restore_clock(row) {
+            out.push(Request::PersonStallRestored { task: number });
+        }
+        let phase = row.phase.clone();
         match phase {
             Phase::Active(Active::Due | Active::Preparing) => {
                 let row = &mut task_mut(domain, number).expect("restored name exists").record;
@@ -337,8 +342,14 @@ pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                 let changed = row.phase != next;
                 row.phase = next;
                 let due = row.phase == Phase::Active(Active::Due);
-                if changed || row.suspension.is_some() {
+                let person = match row.executor {
+                    Executor::Person(_) => true,
+                    Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => false,
+                };
+                if changed || row.suspension.is_some() || (person && row.person_wait.is_none()) {
                     publish(domain, env, number, out);
+                } else if person {
+                    schedule_alarm(domain, env, number);
                 }
                 if due {
                     activate(domain, number, out);

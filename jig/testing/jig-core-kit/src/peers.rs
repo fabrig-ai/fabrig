@@ -137,7 +137,9 @@ impl Peers {
                         reason: b"cancelled".as_slice().into(),
                         grace,
                     },
-                    parties::Ask::Stop { task } => people::Ask::Stop { project, task: task_number(task) },
+                    parties::Ask::Stop { task, reason } => {
+                        people::Ask::Stop { project, task: task_number(task), reason }
+                    }
                     parties::Ask::Release { task, revision, again } => {
                         people::Ask::Release { project, task: task_number(task), revision, again }
                     }
@@ -596,7 +598,7 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
         people::Refusal::NotWellFormed {
             why: people::Malformed::Conversation | people::Malformed::EndedBy, ..
         } => parties::Refusal::Limit { which: parties::LimitKind::Spec },
-        people::Refusal::NotWaiting => parties::Refusal::NotWaiting,
+        people::Refusal::NotWaiting | people::Refusal::QuestionAnswered { .. } => parties::Refusal::NotWaiting,
         people::Refusal::NoFurther => parties::Refusal::NoFurther,
         people::Refusal::LiveTasks { .. }
         | people::Refusal::NoTerminal
@@ -759,6 +761,7 @@ fn party_hold(value: people::HoldReason) -> parties::HoldReason {
         people::HoldReason::PoolLost { pool } => parties::HoldReason::PoolLost { pool },
         people::HoldReason::Procedure => parties::HoldReason::Procedure,
         people::HoldReason::Circle => parties::HoldReason::Circle,
+        people::HoldReason::Waited => parties::HoldReason::Waited,
     }
 }
 

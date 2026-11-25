@@ -393,10 +393,10 @@ fn tier_lines() -> List<Box<[u8]>> {
 
 pub fn questions() -> v1::Questions {
     let mut open = List::with_capacity(5);
-    for (index, stands) in [
-        v1::Stands::Taken,
-        v1::Stands::Asked,
-        v1::Stands::Held(v1::HeldQuestion { blocked: Some(v1::QuestionBlocker { dependency: Some(112), since: 89 }) }),
+    for (index, (stands, blocked)) in [
+        (v1::Stands::Taken, None),
+        (v1::Stands::Asked, None),
+        (v1::Stands::Held, Some(v1::QuestionBlocker { dependency: Some(112), since: 89 })),
     ]
     .into_iter()
     .enumerate()
@@ -406,6 +406,7 @@ pub fn questions() -> v1::Questions {
             number: u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number"),
             line: Box::from(b"Which branch?".as_slice()),
             stands,
+            blocked,
         })
         .expect("five stands fit");
     }
@@ -415,7 +416,8 @@ pub fn questions() -> v1::Questions {
 #[test]
 fn question_bounds_accept_at_and_refuse_one_past() {
     let limits = limits();
-    let base = v1::Question { asker: 7, number: 1, line: Box::new([b'q'; 256]), stands: v1::Stands::Taken };
+    let base =
+        v1::Question { asker: 7, number: 1, line: Box::new([b'q'; 256]), stands: v1::Stands::Taken, blocked: None };
     let at = base.clone();
     let past = {
         let value = v1::Question { line: Box::new([b'q'; 257]), ..base };

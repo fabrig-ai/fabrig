@@ -495,6 +495,7 @@ record ClosingQuestion = o::relay::Question
 enum ClosingForm = o::relay::Form { answer { number = question } }
 record ClosingMessage = o::relay::Message
 record ClosingRelay = o::relay::Relay { replies slice, waiting slice }
+enum ClosingReportCheck = o::ReportCheck
 record Closer by hand
 record LandedDraft by hand
 record FollowCommit = d::FollowCommit
@@ -568,6 +569,7 @@ enum Topic = d::Topic
 record ChangeSource = d::ChangeSource
 record ChangeCold = d::ChangeCold
 record Regate = d::Regate
+record CloseAt = c::CloseAt
 record ChangeHot = d::ChangeHot { signed slice, repair_tasks slice, resolution_tasks slice, priority via own::signed, verdicts slice, gate_remarks slice }
 record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
 record FindingCount stands for number

@@ -1,0 +1,395 @@
+# The engine's end of the frozen client wire (skein/docs/design/data/codec/maps.md, 9).
+records temper_client_protocol_wire::v1
+use f = temper_engine_domain_forge
+use c = temper_engine_domain_forge_change
+use d = temper_engine_domain
+use h = crate::family
+use history = temper_engine_domain_forge::history
+use ways = temper_engine_domain::ways
+use reach = temper_protocol_reaches
+use api = skein_forge::api
+use trial = temper_engine_domain_trials
+use tiers = temper_engine_domain_forge_tiers
+use s = skein_codec::convert
+by hand h
+context h::Context<'_>
+refuses h::forge_ask_to_domain
+with context h::forge_ask_to_domain
+refuses h::finding_blame_to_record
+with context h::finding_blame_to_record
+refuses h::roles_view_to_record
+with context h::roles_view_to_record
+refuses h::history_cursor_to_domain
+refuses h::rule_to_record
+with context h::rule_to_record
+direction to record
+
+enum Role = f::Role both ways
+record Adopt by hand
+record Kept stands for forge
+record ManagedForge by hand
+enum ForgeAsk by hand
+record NewForge stands for forge
+enum Making = f::Making to domain { kept tuple, new tuple }
+record CopyAddresses { addresses slice }
+enum SetUpFirst by hand
+record SetUp by hand
+record GitHubApp by hand
+record GitHubManifest by hand
+record FirstAsk = f::FirstAsk to domain
+enum How by hand
+record Install by hand
+record Accept by hand
+
+enum TrialStep = trial::Step
+enum TrialClass = trial::Class
+record TrialEnded
+enum TrialWhy = trial::Why
+record TrialAnswered
+record TrialFailed
+enum TrialState = trial::State
+record TrialRow by hand
+enum Kind = f::Kind { github = GitHub }
+enum ApprovalYours = d::YourReview
+record ApprovalSet = d::ApprovalSet
+record ApprovalPerson = d::ApprovalPerson
+record ApprovalSize = d::ApprovalSize
+record ApprovalRow by hand
+record Approvals by hand
+enum ReachKind = reach::Kind both ways
+enum ReachClass = reach::Class
+record ReachSet stands for number
+record ReachKindOf stands for kind
+enum ClassSubject = reach::Subject both ways { kind tuple, set tuple }
+record ToBegin
+record GoalFrom
+record KeepAsking
+enum PersonFact = f::PersonFact both ways
+
+enum ReachReason = reach::Reason { set tuple }
+record Reach = reach::Reach
+record AwayRow by hand
+record Aways = f::AwaysView { rows slice }
+record Decision = f::DecisionView { at via s::wall }
+record Asked = f::AskedView { at via s::wall }
+record Decisions = f::DecisionsView { rows slice, asked slice }
+enum OverturnRefusal by hand
+record MakeCopy
+enum MakeFrom = f::MakeFrom
+record MakeInto by hand
+record MakeRepository by hand
+record DraftRepository = f::DraftRepository both ways
+record ReadyDraft
+record StartedDraft
+record LandedDraft by hand
+record FollowAt
+record FollowReasonAct
+record FollowMergeAct { afters slice }
+
+record HolderTask stands for number
+record HolderParty stands for number
+record HolderRole stands for number
+record HandFinding = f::HandFinding to domain
+record FindingRoute stands for task
+record FindingDrop stands for reason
+record FindingAreas stands for areas slice
+record FindingsFull stands for count
+record FindingWords stands for field
+
+enum DraftChange = f::DraftChange to domain
+record SetDraft = f::SetDraft to domain
+enum DraftRefusal = f::DraftRefusal
+enum FollowAct = f::follows::FollowAct to domain
+record AddDevice = f::AddDevice to domain
+
+enum DeviceRefusal = f::DeviceRefusal
+record DeviceRow = f::DeviceView { at via s::wall }
+record Devices = f::DevicesView { rows slice }
+enum FindingKind = f::FindingKind both ways
+enum Severity = f::Severity both ways
+record FileFinding = f::FileFinding to domain
+enum FindingState = f::FindingState both ways
+record FindingsTriage
+record FindingsGoal stands for goal
+record FindingsMilestone stands for milestone
+enum FindingsFilter = f::FindingsFilter to domain { goal tuple, milestone tuple }
+enum Holder = f::Holder { task tuple, party tuple, role tuple }
+record FindingNotYours stands for holder
+enum Filer = f::Filer { task tuple, party tuple }
+record FindingClearing = f::FindingClearing { at via s::wall }
+record FindingRow = f::FindingRow { at via s::wall }
+enum BlameStrength = f::BlameStrength
+record BlamedGoal = f::BlamedGoal
+record BlamedLanding = f::BlamedLanding { goals slice }
+record FindingBlame by hand
+record FindingDetail = f::FindingAnswer
+record FindingRepair = f::RepairAct to domain { more slice }
+record FindingBlameAct by hand
+record Triaged by hand
+enum Triage = f::Triage to domain { route tuple, drop tuple, repair tuple, blame tuple }
+record TriageFinding = f::TriageFinding to domain
+enum FindingRefusal = f::FindingRefusal { no_area tuple, full tuple, not_yours tuple, words tuple }
+
+record TierHoldAct
+enum TierAct = f::TierAct to domain
+record TierActRequest = f::TierActRequest to domain
+record TierHeldBy
+enum TierRefusal = f::TierRefusal
+record OpenAmount stands for amount
+enum OpenBudget = f::OpenBudget to domain { amount tuple }
+record OpenChange = f::OpenChange to domain
+record SeveralRepositories stands for repositories slice
+record UnderPrefix
+record NamePast
+enum OpenRefusal = f::OpenRefusal { several tuple }
+enum Request by hand
+record Requesting by hand
+
+enum SetUpRefusal = f::SetUpRefusal
+record GroupFailed
+enum StartFailure = f::StartFailure
+enum Mode = f::Mode
+enum SetUpStep = f::SetUpStep
+enum SetUpBinary = f::SetUpBinary
+record SetUpFetched = f::SetUpFetched
+enum FailedStep = f::FailedStep
+enum Connection by hand
+enum Offer = f::Offer
+enum CreateStep = f::CreateStep
+record Made
+record CreateFailed
+enum FirstState = f::FirstState
+record FirstRepository = f::First
+record Account by hand
+record Installation by hand
+enum SetupStage = f::SetupStage
+record AdminRefused
+enum AdminStop = f::AdminStop
+enum AppWay = f::AppWay
+record Adoption = f::AdoptedRow
+record OwnedForge = f::Owned
+record MakingMade
+enum MakeStep = f::MakeStep
+record Refused
+enum MakeFailure = f::MakeFailure
+record MakingFailed = f::MakingFailed
+enum MakingState = f::MakingState { failed tuple }
+record RepositoryMaking by hand
+enum StartsWith = f::StartsWith
+record CatchingUp = f::CatchingUp
+record ForgeRow by hand
+enum FullKind = f::FullKind
+record FullTable = f::FullTable
+record Forges by hand
+record SettingAnswer by hand
+enum SettingEdit by hand
+record ProposalItem by hand
+enum Actor = ways::Actor
+enum PathStep = ways::Step
+record OpensCharter stands for charter
+record OpensRule
+record OpensGate
+record OpensTier stands for name
+enum Opens = ways::Opens { charter tuple, tier tuple }
+record Fact = ways::Fact
+record Card = ways::Card { facts slice }
+record Stop = ways::Stop
+record BranchPath = ways::Path { stops slice }
+record ProjectWords = f::settings::ProjectWords
+record WayRole by hand
+record StockWay = ways::WayEntry { items slice, roles slice }
+record PathRule = ways::PathRule
+record PathRules = ways::PathRules { rows slice }
+record WaysPanel = ways::WaysDocument { ways slice }
+record WayView
+record ProposalView
+record CharterView
+record RuleView
+record RolesView by hand
+record NotDrawn stands for words
+enum View = ways::View { path tuple, roles tuple, not_drawn tuple }
+
+record HistoryRepository = api::Repository
+record HistoryNumber stands for number
+record HistoryCommit
+enum HistoryUpdateStyle = api::UpdateStyle
+record HistoryGateRefused
+record HistoryGateFailed
+record HistoryLeftChange
+record HistoryBlamed
+enum HistoryLeave = f::LandingLeave { head_moved { commit = head } }
+record HistoryTask stands for task
+enum HistoryOf = history::Of to domain { change tuple, landing tuple }
+record HistoryRead = history::Query to domain { since via s::wall, until via s::wall, after via h::history_cursor }
+record HistoryInLanding = history::InLanding
+enum HistoryUnready = history::Unready
+enum HistoryLine = history::Line
+record HistoryJoined { priority via h::priority }
+record HistoryLandingDeparture stands for cause
+enum HistoryDeparture = history::Departure { landing tuple }
+record HistoryDeparted
+record HistoryUpdate
+enum HistoryUpdateOutcome = history::UpdateOutcome
+record HistoryUpdated
+enum HistoryJob = history::Job
+record HistoryJobStarted
+enum HistoryJobFailure = history::JobFailure
+record HistoryJobFailed
+enum HistoryJobOutcome = history::JobOutcome
+record HistoryJobEnded
+enum HistoryWith = history::With
+record HistoryConflict
+enum HistoryAsk = history::Ask
+record HistoryAsked
+enum HistoryDelegateOutcome = history::Answer
+record HistoryAnswered
+record HistoryDelivered
+enum HistoryPause = history::Pause
+record HistoryPaused
+record HistoryMember = history::Member
+record HistoryFormed
+enum HistoryRoundCause = history::RoundCause
+record HistoryRoundEnded
+record HistoryGate
+enum HistoryGateVerdict = history::GateVerdict
+record HistoryGateEnded
+record HistoryProof = history::Proof
+record HistoryProved
+record HistorySearched
+record HistoryProbeEnded
+record HistoryTurn
+enum HistoryRecordedState = history::RecordedState
+record HistoryRecorded
+enum HistoryEnding = history::Ending
+record HistoryEnded
+enum HistoryLandingOutcome = history::LandingOutcome
+record HistoryLandingEnded
+enum HistoryOn = history::On
+enum HistoryBy = history::By { party tuple, task tuple }
+record HistoryHold
+enum HistoryAfterVerdict = history::AfterVerdict
+record HistoryAfter
+record HistoryUnreadyStep
+enum HistoryWhat = history::What { formed { members slice }, proved { proofs slice } }
+record HistoryEvent = history::Event { at via s::wall, source_at via s::wall }
+record HistoryPage { events slice, after via h::history_cursor, whole_since via s::wall }
+record HistoryGone
+enum HistoryReply = history::Reply
+
+record MilestoneAnswer by hand
+record LimitHold by hand
+enum Read by hand
+enum PlaygroundState by hand
+record PlaygroundAnswer by hand
+record DeploymentAnswer = h::Deployment
+record Pull by hand
+enum Watch by hand
+
+enum LandingPhase by hand
+record Receipted = f::ReceiptRun { run = id, address = url }
+record Dispatched
+enum Proof = f::GateProof { passed tuple, failed tuple }
+record GateProof = f::LandingGate
+enum Ci = c::Status
+enum Way = c::Way
+enum LandingHold by hand
+enum Combined = f::LandingCombine
+record Train by hand
+enum LandingStep = f::LandingStep
+record SearchBound by hand
+record SearchSelection = f::SearchSelection { ids slice }
+record SearchPass = f::SearchPass
+record SearchByTest { gates slice, passes slice }
+enum SearchTests = f::LandingSearchTests
+record LandingSearch by hand
+record LandingRound by hand
+enum LandingLeave by hand
+record PrefixGate by hand
+record PrefixJudgement = f::PrefixJudgement { gates slice }
+record ChangeFrom = f::ChangeFrom
+record TrainLanding = f::TrainLanding { ready_since via s::wall }
+record Member by hand
+enum LandingWaitFor = f::LandingWaitFor
+record LandingWait = f::LandingWait
+
+record LandingPanel by hand
+record LandingLine = f::LandingLine { last_event via s::wall, changes slice, repositories slice, landed slice }
+record LandingsPanel = f::LandingsView { now via s::wall, turn_since via s::wall, landings slice }
+record ChangesQueued = f::ChangesQueued { ready_since via s::wall, checks_since via s::wall }
+record ChangesQueue = f::ChangesQueue { changes slice }
+record ChangesSigned = f::ChangesSigned { party = person, at via s::wall }
+record ChangesLanded = f::ChangesLanded { signed slice, at via s::wall }
+record ChangesPanel = f::ChangesView { queues slice, landed slice, landed_default slice }
+record StatusBrief by hand
+record ProjectStatus = f::StatusView { last_landed via s::wall, previous via s::wall }
+record Queued { ahead slice }
+enum Reason by hand
+record Repairing stands for reason
+record Landed
+record InLanding
+record Verifying { tiers slice }
+record Red { tiers slice }
+record Cleared { tiers slice }
+enum Step = f::PanelStep { repairing tuple }
+enum ChangeWait = f::PanelWait
+enum Hold by hand
+enum GateKind by hand
+enum Verdict = c::Status { none = Unknown, approved = Passed, changes = Failed }
+record Gate = f::PanelGate { blocks = blocking }
+record Used = f::PanelUsed
+enum Route = c::Route
+record QuestionBlocker = c::Blocked { since via s::wall }
+record Question by hand
+record Questions = f::PanelQuestions { open slice }
+enum RuleFreshness = f::JudgeFreshness
+enum ReviewRead = f::ReviewRead
+record CountedReview by hand
+record UnmappedReview by hand
+record Approval = f::PanelApproval { number = rule, counted slice }
+record PanelSource = f::PanelSource
+record ChangePanel by hand
+record Kinds = f::Kinds
+record Rule by hand
+enum Protection = f::Protection { rule tuple }
+record Adopted by hand
+record CoreRefused by hand
+enum ForgeReason by hand
+enum ForgeRefusal = f::ForgeRefusal
+record Reached by hand
+record Page = f::Page { rows slice }
+enum MakeRefusal = f::MakeRefusal
+record Checkpointed = d::Checkpointed
+record CheckpointPath { path via s::text }
+record CheckpointFailed { path via s::text, error via s::text }
+enum CheckpointWhy = d::CheckpointWhy
+
+enum Outcome by hand
+record DraftsPanel = f::DraftsView { drafts = rows slice }
+record DependencyView = f::DependencyView
+record FollowRepository = api::Repository
+record FollowSource = f::settings::FollowSource { paths slice }
+record FollowTarget = f::settings::FollowTarget
+record FollowPerson stands for person
+record FollowWords stands for words
+record FollowWait stands for change
+record FollowSkip = f::FollowSkip
+record FollowFailing stands for count
+record AreaTask stands for number
+record AreaParty stands for number
+record AreaRole stands for number
+record AreaCharter stands for number
+record FollowOwnerTask stands for task
+enum FollowOwner = f::settings::FollowOwner { person tuple, task tuple }
+enum FollowStart = f::settings::FollowStart
+enum FollowFormat = tiers::Format
+record FollowCheck = f::settings::FollowCheck
+record Follow = f::settings::Follow { verification = check }
+enum FollowState = f::FollowState { held_by_owner tuple, waits_for tuple, held tuple, ended tuple }
+record FollowEntry = f::FollowLagEntry
+enum FollowVerdict = f::FollowVerdict { failing tuple }
+record FollowParity = f::FollowParity
+record FollowView = f::FollowView { entries slice, skips slice }
+record FollowsPanel = f::FollowsView { follows slice, dependencies slice }
+enum AreaOwner = f::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple }
+record AreaRow = f::AreaRow
+record Findings = f::Findings { rows slice, areas slice }

@@ -1,8 +1,8 @@
 # Passes
 
 Provisional, 2026-11-12, revised 2026-11-18, from
-`../../draft/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
-Q6 of `../../draft/landed-qa.execution.md`. A pass
+`../../draft/archive/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
+Q6 of `../../draft/archive/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
 runs one agent session over them all at a place, records each outcome
 and finding as it goes, and, with failed cases, waits on its findings'
@@ -86,7 +86,7 @@ The loop's third step (`README.md`, 4), for each free place
   `bounds.pass`, then SIGTERM to its group and SIGKILL ten seconds
   later, its exit `bound`; its tokens as triage reads them.
 - **Its brief,** written by code, in this order:
-  - **What a pass is,** from `../../draft/landed-qa.md`, 7: each case
+  - **What a pass is,** from `../../draft/archive/landed-qa.md`, 7: each case
     from its setup's restored copy, restored between cases, cases on one
     setup sharing a restore where none changes what the next sees, the
     outcome's notes saying which. QA judges the happy path alone:
@@ -107,7 +107,7 @@ The loop's third step (`README.md`, 4), for each free place
     line's last shown line, `N requests in W waves`, which must equal it;
     one that differs is a finding, its seen the line's whole answer."
     Ctl cases first
-    (`../../draft/landed-qa.md`, 4 and 7): every `ctl` case before any
+    (`../../draft/archive/landed-qa.md`, 4 and 7): every `ctl` case before any
     `web` or `tui` one, each in a ctl session, `temper-qa pass open
     --ctl`, which starts no browser and no terminal
     (`../../client/drive.md`, 2.6), its steps `ctl` and `forge` lines, or
@@ -129,9 +129,9 @@ The loop's third step (`README.md`, 4), for each free place
     finding never stops the pass; blocked, for the pass's own reasons,
     is not failed, for temper's; what is off the path a note; a fault
     beside a case on the landing's surface a finding
-    (`../../draft/landed-qa.md`, 13); the fakes alone: the person's forge is the box's fake Forgejo, and a
+    (`../../draft/archive/landed-qa.md`, 13); the fakes alone: the person's forge is the box's fake Forgejo, and a
     case no line or setup can bring to its state is a gap, not blocked:
-    `temper-qa pass gap CASE KIND WHY` (`../../draft/landed-qa.md`, 6 and
+    `temper-qa pass gap CASE KIND WHY` (`../../draft/archive/landed-qa.md`, 6 and
     12).
   - **The pass:** its number; its place and the place's kind; its
     build's commit; for a resume, the goal it waited on and whether it
@@ -290,10 +290,10 @@ Focused and fuzzy, over the loop's fake world (`README.md`, 6):
 ## 10. Open questions
 
 - **A pass's bound:** 7200 seconds by default. Default: so, until the
-  ledger's session times say otherwise (`../../draft/landed-qa.execution.md`,
+  ledger's session times say otherwise (`../../draft/archive/landed-qa.execution.md`,
   Q4's tuning).
 - **Cases left by an ended pass's bound:** they return to the queue
   uncounted and may be taken at once on the same build
-  (`../../draft/landed-qa.md`, 9), so a pass that always runs out of
+  (`../../draft/archive/landed-qa.md`, 9), so a pass that always runs out of
   time is taken again. Default: so; the session's time in the ledger
   shows it, and Q4 tunes the bound.

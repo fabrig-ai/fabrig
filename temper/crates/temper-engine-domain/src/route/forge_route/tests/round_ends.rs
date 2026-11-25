@@ -463,6 +463,7 @@ impl Round {
             &mut self.domain.core.tasks,
             &self.env.with(self.env.limits.tasks),
             tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: ReplyTo::new(Token::new(999)),
                 task: self.task,
                 step,

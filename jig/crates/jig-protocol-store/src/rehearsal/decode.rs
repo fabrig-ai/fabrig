@@ -109,6 +109,10 @@ fn family_records(
                 return Err(Failure::Open(OpenRefusal::Failed));
             }
             for item in page.rows {
+                // Version 1 has already been reported by name from the key; never decode its body.
+                if family.name == "jig-store-openings" && crate::rows::openings::before_layouts(&item.row.value) {
+                    continue;
+                }
                 let decoded = match root {
                     Root::Layout(number) => layouts.decode(family.name, number, &mut value, item.row.value),
                     Root::Kept(root) => {

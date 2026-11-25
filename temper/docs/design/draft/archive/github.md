@@ -97,10 +97,10 @@ is open `github.md`, section 19.
 - **How,** per forge and mode:
   - GitHub: "Connect GitHub", the manifest flow (`../github-app.md`, section 2), or an App
     the person made, its id and key pasted (`../github-app.md`, 2.5);
-  - Forgejo connected: the bot's two tokens pasted (`../github-forgejo.md`, section 1.1);
+  - Forgejo connected: the bot's two tokens pasted (`github-forgejo.md`, section 1.1);
   - Forgejo managed: a site admin's token pasted, temper making its bot
-    (`../github-forgejo.md`, section 1.2);
-  - Forgejo owned: connected by its preparation, at start (`../github-forgejo.md`, section 2).
+    (`github-forgejo.md`, section 1.2);
+  - Forgejo owned: connected by its preparation, at start (`github-forgejo.md`, section 2).
 - **What connecting ends with** is skein's access (skein's
   `forge/setup/README.md`, section 2), kept in the store: who temper is there,
   its credentials, and the webhook secret. The component then opens the
@@ -123,7 +123,7 @@ is open `github.md`, section 19.
   - GitHub: the repositories of the App's installations;
   - Forgejo connected: those the bot can write;
   - Forgejo managed: every repository of the forge, since temper grants
-    itself access at adoption (`../github-forgejo.md`, section 1.2);
+    itself access at adoption (`github-forgejo.md`, section 1.2);
   - any forge: any repository the credential can read, as context.
 - **A repository temper cannot reach** is shown with what would make it
   reachable, in words: on GitHub, granting it to temper's App on
@@ -136,7 +136,7 @@ is open `github.md`, section 19.
   confirms (`../../client/forge/repositories.md`, 1), with GitHub's rules in words
   (`../github-app.md`, section 6.3).
 - **Forgejo too.** setup's configured `orgs` go: access is per
-  repository, at adoption (`../github-forgejo.md`, section 1.2).
+  repository, at adoption (`github-forgejo.md`, section 1.2).
 
 ### 2.3 Landing on its own
 
@@ -170,7 +170,7 @@ is open `github.md`, section 19.
   connect: pasted in the client, made by the engine's own exchange or
   reconcile, or, on an owned Forgejo alone, handed over once by its
   preparation, which runs before the engine and cannot write the store
-  (`../github-forgejo.md`, section 2).
+  (`github-forgejo.md`, section 2).
 - **Where:** jig's secrets' store, a private skein-kv store of the
   engine's (jig's `protocol/store/secrets.md`), which keeps "an
   application's own records, under its tag: its connectors'
@@ -178,13 +178,13 @@ is open `github.md`, section 19.
   - GitHub: the App's id, slug and private key, and its webhook secret;
     the installation tokens are never kept, but minted (`../github-app.md`, section 4);
   - Forgejo: the bot's API token, its git token, its id and the webhook
-    secret; managed and owned, a site admin's token too (`../github-forgejo.md`, 1.2, `../github-forgejo.md`, section 2
+    secret; managed and owned, a site admin's token too (`github-forgejo.md`, 1.2, `github-forgejo.md`, section 2
     );
   - each with the forge user's id it stands for, checked at each start.
 - **Not there, being no credential of the engine's:** what other
   programs read from files, an owned Forgejo's own secrets (`app.ini`,
   `state`) and its runner's, and the person's first password on it
-  (`../github-forgejo.md`, section 2); a worker's secret and its digest, jig's files, which
+  (`github-forgejo.md`, section 2); a worker's secret and its digest, jig's files, which
   open the link before any store is reached; LLM accounts, already in
   the store as jig's.
 - **jig's rules hold** (jig's `protocol/store/secrets.md`): written
@@ -202,7 +202,7 @@ is open `github.md`, section 19.
 - **../../protocol/credentials.md changes:** its table's rows for git identities, the
   forges' API tokens and webhook secrets name the store; its rule "no
   temper secret in jig's secrets' store" goes; "least power" is
-  restated for the admin's token (`../github-forgejo.md`, section 1.2).
+  restated for the admin's token (`github-forgejo.md`, section 1.2).
 - **A person's backups** of the store's directories now hold the forges'
   credentials, as they already hold LLM accounts'.
 
@@ -283,18 +283,18 @@ Moved to [`../github-app.md`](../github-app.md), section 7.
 
 ## 12. Connected and managed, from the client
 
-Moved to [`../github-forgejo.md`](../github-forgejo.md), section 1.
+Moved to [`github-forgejo.md`](github-forgejo.md), section 1.
 
 ## 13. Owned
 
-Moved to [`../github-forgejo.md`](../github-forgejo.md), section 2.
+Moved to [`github-forgejo.md`](github-forgejo.md), section 2.
 
 ## 14. What changes in temper's documents
 
 - **`../../protocol/credentials.md`:** the table's rows for git identities,
   API tokens and webhooks' secrets name the store and the client;
   "no temper secret in jig's secrets' store" goes; least power restated
-  (`../github-forgejo.md`, 1.2); its open question on short-lived git credentials answered
+  (`github-forgejo.md`, 1.2); its open question on short-lived git credentials answered
   (`../github-app.md`, section 4); a GitHub App's key, and its installations' tokens, as
   rows.
 - **`../../protocol/configuration/README.md`:** `forges[]` loses `api_token`,
@@ -306,7 +306,7 @@ Moved to [`../github-forgejo.md`](../github-forgejo.md), section 2.
   (section 4); limits for the puller, the installations, the store's
   records and the manifest's routes.
 - **`../../protocol/setup/README.md`:** the modes' table (who is given what, now
-  from the client); the layers' files (`../github-forgejo.md`, section 2), `admin_token` a
+  from the client); the layers' files (`github-forgejo.md`, section 2), `admin_token` a
   handover the engine takes and removes, the only file `temper serve`
   reads of a setup; reconcile's host in the engine; `setup.orgs` gone,
   `person.orgs` for owned; the box's steps; `../../protocol/setup/README.md`, section 5's table, every
@@ -316,7 +316,7 @@ Moved to [`../github-forgejo.md`](../github-forgejo.md), section 2.
   delivery log as a hint feed, credentials at runtime.
 - **`../../domain/forge/README.md`:** a forge connected or not (`../../domain/forge/adoption.md`); the
   writer at runtime; adoption's org paragraph replaced by access at
-  adoption on managed and owned forges (`../github-forgejo.md`, 1.2); GitHub's rules and its
+  adoption on managed and owned forges (`github-forgejo.md`, 1.2); GitHub's rules and its
   merge queue as a landing queue (`../github-app.md`, section 6).
 - **`../client/`:** the deployment's page (`../../client/forge/deployment.md`)
   with each forge's connection and its Connect, Replace, "Install on
@@ -342,7 +342,7 @@ Moved to [`../github-forgejo.md`](../github-forgejo.md), section 2.
 - **skein, `skein-forge-setup`:** GitHub's plan (the manifest, the
   conversion, accepting or uninstalling an installation, the hook's
   address, the App's checks), and Forgejo's access per repository; its
-  reconcile without orgs' teams and hooks (`../github-forgejo.md`, 1.2); its host, as an
+  reconcile without orgs' teams and hooks (`github-forgejo.md`, 1.2); its host, as an
   in-process one too.
 - **skein, the fakes:** a GitHub protocol layer over the fake forge's
   domain (skein's `testing/fakes/forgejo.md`, section 1): the REST and GraphQL

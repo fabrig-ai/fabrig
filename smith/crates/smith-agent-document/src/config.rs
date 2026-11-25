@@ -22,10 +22,9 @@ mod document;
 mod endpoints;
 use endpoints::{PreparedEndpoints, build_endpoints, build_limits};
 mod native;
-pub use document::TrustDocument;
 #[cfg(test)]
 use document::Variable;
-use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument};
+use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument, TrustDocument};
 pub use native::TRUST_BYTES;
 
 #[cfg(all(test, unix))]
@@ -228,6 +227,12 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
     let domain_programs = programs::domain(&program_endpoints, &mut limits.domain)?;
     let environment = machine::Environment::encode(&environment, &limits.machine).map_err(environment_refusal)?;
     let endpoints = build_endpoints(document.endpoints, &declarations, &limits, &profile)?;
+    if let Some(trace) = &trace {
+        // Choose the write deadline before deriving the link. The inventory
+        // sizes the sink later, once the configured endpoints are resolved.
+        limits.events = Some(event_limits(&limits, trace.capture, &[], profile.policy.write_deadline)?);
+    }
+    limits.resolve_link(&profile, &endpoints.limits).map_err(ConfigurationRefusal::Profile)?;
     Ok(Decoded {
         program,
         program_endpoints,
@@ -295,7 +300,7 @@ impl Decoded {
         lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
         #[cfg(unix)] mut roots: native::RootReader<'_>,
     ) -> Result<Configuration, ConfigurationRefusal> {
-        self.resolve_with(
+        self.resolve_with_trust(
             native::resolve,
             |der, trust| {
                 native::endpoint_trust(
@@ -310,8 +315,22 @@ impl Decoded {
         )
     }
 
-    /// Resolve using supplied addresses, endpoint trust and command lookup, without native lookups.
+    /// Resolve without native lookups, using the supplied TLS configuration for every TLS endpoint.
+    /// Without a TLS configuration, only plaintext endpoints can resolve.
     pub fn resolve_with(
+        self,
+        address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
+        tls: Option<&skein_tls::Config>,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_with_trust(
+            address,
+            |_, _| tls.cloned().ok_or_else(|| "TLS endpoint requires supplied trust".into()),
+            lookup,
+        )
+    }
+
+    fn resolve_with_trust(
         self,
         address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
         trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,
@@ -339,12 +358,9 @@ impl Decoded {
         )
         .map_err(|error| format!("LLM endpoints: {error:?}"))?;
         if let Some(trace) = &trace {
-            // First admit the sink, then include its own limits in the receiving header.
-            for _ in 0..2 {
-                let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
-                limits.events =
-                    Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
-            }
+            let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
+            limits.events =
+                Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
         }
         let config = service::Config {
             program: programs::backend(program.as_ref(), &program_endpoints),

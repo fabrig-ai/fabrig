@@ -122,7 +122,7 @@ default; the document is `temper.json` in the configuration directory
     RECORD links missing LINKED`.
 - **`temper-box init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
-  configuration directory holds a document (setup/init.md, 2).
+  configuration directory holds a document (setup/init.md, 5).
 - **`temper-box internal agent AGENT.json`:** smith's agent shell,
   `smith_agent_shell::run_decoded`, on smith's agent configuration as
   temper reads it, a `"fetched"` program naming its launcher
@@ -238,7 +238,7 @@ default; the document is `temper.json` in the configuration directory
   and whether the workers may: yes when every worker the configuration
   names may, no naming each that may not and why, unknown when
   the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
-  section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
+  section 3.1; `../draft/archive/redeploys.md`, 5.1). Exit 0 when the
   start opens, 1 when a start would be refused before it.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
   the workers alone, over the checkpoint taken at the engine's settled

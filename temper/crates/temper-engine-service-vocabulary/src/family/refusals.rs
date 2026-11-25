@@ -24,7 +24,8 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         // Only an owner's RemoveProject emits LiveTasks; forge requests never carry that ask.
         | p::Refusal::LiveTasks { .. }
         // Only finishing an account sign-in emits SignInRedirect.
-        | p::Refusal::SignInRedirect { .. } => {
+        | p::Refusal::SignInRedirect { .. }
+        | p::Refusal::QuestionAnswered { .. } => {
             return Err(w::Problem { path: w::paths::REFUSAL_TAG, reason: skein_codec::Reason::Bound });
         }
         p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount {
@@ -267,6 +268,7 @@ fn hold(value: p::HoldReason) -> w::HoldCategory {
         p::HoldReason::ResourceUnavailable => w::HoldCategory::ResourceUnavailable,
         p::HoldReason::ResourceAccess => w::HoldCategory::ResourceAccess,
         p::HoldReason::Circle => w::HoldCategory::Circle,
+        p::HoldReason::Waited => w::HoldCategory::Waited,
         p::HoldReason::Procedure => w::HoldCategory::Procedure,
         p::HoldReason::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
         p::HoldReason::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold }),

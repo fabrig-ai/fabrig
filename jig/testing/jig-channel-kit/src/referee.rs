@@ -104,7 +104,7 @@ impl skein_world::Referee<Proc> for Referee {
             .find_map(|proc| if let Proc::Engine(host) = proc { Some(host) } else { None })
             .ok_or("engine")?;
         self.observe_engine(now, engine)?;
-        if matches!(self.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+        if matches!(self.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
             crate::restarts::observe(now, procs, &self.store.borrow(), &mut self.views.borrow_mut().restart)?;
         }
         let store = self.store.borrow();
@@ -161,7 +161,7 @@ impl skein_world::Referee<Proc> for Referee {
                     crate::stories::Story::InvalidCharter
                         | crate::stories::Story::Shutdown
                         | crate::stories::Story::Resume(_)
-                        | crate::stories::Story::Crash(_)
+                        | crate::stories::Story::Crash(..)
                         | crate::stories::Story::Drain
                         | crate::stories::Story::BeyondGrace
                 ) || smith_agent_process_world::fake::replied(peer)
@@ -228,6 +228,9 @@ impl skein_world::Referee<Proc> for Referee {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
+        if let Some(at) = self.views.borrow().restart.orphan_deadline() {
+            return Some(at);
+        }
         if self.passed {
             return (!self.stopped).then_some(Time::ZERO);
         }
@@ -243,6 +246,11 @@ impl skein_world::Referee<Proc> for Referee {
         }
     }
     fn overdue(&self, now: Time) -> Option<String> {
+        if let Some(at) = self.views.borrow().restart.orphan_deadline()
+            && now >= at
+        {
+            return Some(format!("the orphan did not exit by {at:?} (worker kill + orphan_exit)"));
+        }
         (!self.passed && now >= self.horizon().ok()?).then(|| {
             format!(
                 "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}; restart {:?}",
@@ -256,7 +264,11 @@ impl skein_world::Referee<Proc> for Referee {
         })
     }
     fn passed(&self) -> bool {
-        self.finding.is_none() && self.rules.failed.is_none() && self.passed && self.stopped
+        self.finding.is_none()
+            && self.rules.failed.is_none()
+            && self.passed
+            && self.stopped
+            && self.views.borrow().restart.orphan_deadline().is_none()
     }
 }
 
@@ -716,9 +728,10 @@ impl Referee {
             crate::restarts::act(point, now, procs, &mut self.views.borrow_mut());
             self.injected = self.views.borrow().restart.drain.is_some();
         }
-        if let crate::stories::Story::Crash(point) = self.story {
+        if let crate::stories::Story::Crash(point, scope) = self.story {
             crate::restarts::crash(
                 point,
+                scope,
                 now,
                 procs,
                 &mut self.views.borrow_mut().restart,
@@ -727,7 +740,7 @@ impl Referee {
             self.injected = self.views.borrow().restart.killed_at.is_some();
         }
         self.shutdown_worker(procs)?;
-        if matches!(self.story, crate::stories::Story::Crash(_)) {
+        if matches!(self.story, crate::stories::Story::Crash(..)) {
             self.observe_resumed_tries(procs)?;
         }
         let (engine, worker) = match self.story {
@@ -746,7 +759,7 @@ impl Referee {
             | crate::stories::Story::Reconnect
             | crate::stories::Story::Shutdown
             | crate::stories::Story::Resume(_)
-            | crate::stories::Story::Crash(_)
+            | crate::stories::Story::Crash(..)
             | crate::stories::Story::Drain
             | crate::stories::Story::Refusals(_)
             | crate::stories::Story::Opening(_)
@@ -1035,7 +1048,7 @@ impl Referee {
                 && let Some(root) = host.restart_root.take()
             {
                 let replacement =
-                    if matches!(self.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+                    if matches!(self.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
                         crate::restarts::worker(root)
                     } else {
                         crate::processes::worker(root)
@@ -1344,7 +1357,8 @@ impl Referee {
         if self.views.borrow().query_submissions.is_none() && procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).next().is_some())) {
             self.views.borrow_mut().query_submissions = procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.submitted) } else { None });
         }
-        for proc in procs {
+        let mut refuse_open = false;
+        for proc in &mut *procs {
             match proc {
                 Proc::Engine(host) => {
                     let mut store = self.store.borrow_mut();
@@ -1359,6 +1373,7 @@ impl Referee {
                             && host.failed_starts.ended == 0
                         {
                             host.failed_starts.arm();
+                            refuse_open = true;
                         }
                         store.crash();
                         self.period = false;
@@ -1421,6 +1436,13 @@ impl Referee {
                 | Proc::Agent { .. }
                 | Proc::Probe(_) => {}
             }
+        }
+        if refuse_open {
+            let worker = procs
+                .iter_mut()
+                .find_map(|proc| if let Proc::Worker(host) = proc { Some(host) } else { None })
+                .ok_or("worker for refused opening")?;
+            worker.failed_starts.arm();
         }
         self.stopped = self.passed;
 

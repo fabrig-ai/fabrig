@@ -4,6 +4,7 @@
 
 use super::{CallKey, Component, Received, State};
 use crate::Error;
+use crate::generated::channel as mapped;
 use alloc::boxed::Box;
 use skein_lib::{Reader, Token};
 use smith_channel::Record;
@@ -161,10 +162,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let signal = match record.signal {
-            smith_channel::Signal::Interrupt => smith_host_domain::parent::Signal::Interrupt,
-            smith_channel::Signal::Terminate => smith_host_domain::parent::Signal::Terminate,
-        };
+        let signal = mapped::signal_to_domain(record.signal);
         Ok(Received::Message { message: channel::Up::Signalled { signal, from: record.from } })
     }
 
@@ -228,11 +226,7 @@ impl Component {
         let value = smith_protocol_translate::decode_part(&part.body, &self.transcript, &self.endpoints)
             .or(Err(Error::Value))?;
         let body = smith_host_domain::TurnValue::new(value, u64::MAX).ok_or(Error::Value)?;
-        let kind = match part.kind {
-            smith_channel::PartKind::Answer => smith_domain::session::record::PartKind::Answer,
-            smith_channel::PartKind::Result => smith_domain::session::record::PartKind::Result,
-            smith_channel::PartKind::Window => smith_domain::session::record::PartKind::Window,
-        };
+        let kind = mapped::part_kind_to_domain(part.kind.clone());
         self.part_number = part.number;
         if part.thread == 0 && part.kind == smith_channel::PartKind::Answer {
             self.answered_turn = true;
@@ -256,12 +250,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let operation = match &record.operation {
-            smith_channel::Operation::Check => smith_domain::Operation::Checks,
-            smith_channel::Operation::Completion => smith_domain::Operation::Completion,
-            smith_channel::Operation::Command => smith_domain::Operation::Command,
-            smith_channel::Operation::Grant => smith_domain::Operation::Grant,
-        };
+        let operation = mapped::operation_to_domain(record.operation);
         self.long_open = self.long_open.checked_add(1).ok_or(Error::Order)?;
         Ok(Received::Message { message: smith_host_domain::Up::Long { operation, span: record.span } })
     }
@@ -280,12 +269,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let reason = match &record.reason {
-            smith_channel::MessageRefusal::TooLarge => smith_host_domain::MessageRefusal::TooLarge,
-            smith_channel::MessageRefusal::Full => smith_host_domain::MessageRefusal::Full,
-            smith_channel::MessageRefusal::NameInUse => smith_host_domain::MessageRefusal::NameInUse,
-            smith_channel::MessageRefusal::Ending => smith_host_domain::MessageRefusal::Ending,
-        };
+        let reason = mapped::message_refusal_to_domain(record.reason);
         Ok(Received::Message {
             message: smith_host_domain::Up::MessageRefused { name: Token::new(record.name), reason },
         })

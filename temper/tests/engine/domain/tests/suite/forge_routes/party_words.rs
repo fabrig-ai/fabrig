@@ -70,7 +70,11 @@ fn party_words_reach_the_active_producer_as_person_words() {
 #[test]
 fn party_words_reach_a_producer_held_while_active() {
     let (mut world, _, change, producer) = questions::up_world(None);
-    let _stopped = party(&mut world, STOP_KEY, people::Ask::Stop { project: PROJECT, task: producer.task });
+    let _stopped = party(
+        &mut world,
+        STOP_KEY,
+        people::Ask::Stop { project: PROJECT, task: producer.task, reason: b"Parking the task".as_slice().into() },
+    );
     let tasks::Phase::Held { was: tasks::Was::Active(_), .. } = live_task(&world, producer.task).phase else {
         panic!("producer held while active: {:?}", live_task(&world, producer.task).phase)
     };

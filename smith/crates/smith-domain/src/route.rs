@@ -854,6 +854,22 @@ fn delegated(
     }
 }
 
+// A disconnect cuts the session before a provider terminal can start a tool
+// batch. The normal hand-off waits a pass so an in-order completion can settle.
+fn close_session(domain: &mut Domain, session: Token) -> Option<session::Event> {
+    let id = *domain.sessions.get(&session)?;
+    let conversation = domain.peers.get(id).expect("session retains peer").conversation;
+    if let Some(run) = run::owner(&domain.run, conversation) {
+        for (_, context) in &domain.starts {
+            if context.run == Some(run) && context.flow.disconnected() {
+                return Some(session::Event::Cut { session });
+            }
+        }
+    }
+    domain.ready.defer(Handoff::Close { peer: id });
+    None
+}
+
 /// One of the run's requests: out to the protocol layer, or to the sessions.
 #[expect(clippy::too_many_lines, reason = "one exhaustive run-to-root vocabulary translation")]
 fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: &mut Queue<Request>) {
@@ -930,11 +946,8 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Yield { peer } => session::Event::Yield { session: peer },
         run::Request::CancelJobs { peer } => session::Event::CancelJobs { session: peer },
         run::Request::Close { peer } => {
-            // A close of a session that has ended is stale.
-            if let Some(id) = domain.sessions.get(&peer) {
-                domain.ready.defer(Handoff::Close { peer: *id });
-            }
-            return;
+            let Some(event) = close_session(domain, peer) else { return };
+            event
         }
         run::Request::Return { call, result, spent } => {
             let flight = domain.flights.get_mut(&call).expect("the run returns a call in flight");

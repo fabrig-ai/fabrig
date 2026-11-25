@@ -58,7 +58,7 @@ file `../release.md`'s. Nothing here is adopted.
 - **Built now, published at launch.** The copy and the look are taste:
   drafted by Claude, chosen by the user through option pages.
 - **It hosts** the download page (section 9), the documentation's public
-  side (whether it renders `docs/help/` is `agent-docs.md`'s open
+  side (whether it renders `docs/help/` is `archive/agent-docs.md`'s open
   question), and links to the forge, dev.fabrig.ai and the playground.
 
 ## 4. git.fabrig.ai, the forge

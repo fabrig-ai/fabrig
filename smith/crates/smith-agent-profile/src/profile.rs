@@ -29,7 +29,7 @@ const FRAME_HEADER_BYTES: u32 = 8;
 mod bounds;
 mod quantities;
 
-pub use bounds::{silence_bound, teardown_bound};
+pub use bounds::{orphan_exit, silence_bound, teardown_bound};
 
 mod path;
 
@@ -151,6 +151,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         routes,
         memory,
         events: None,
+        link: crate::Link::Policy { cancel_grace: policy.cancel_grace },
     };
     validate::machine(&limits.machine, &limits.domain)?;
     validate::resume_holds_window(u64::from(domain.session.history_messages), u64::from(limits.channel.resume_turns))?;

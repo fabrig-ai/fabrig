@@ -1,5 +1,5 @@
 //! Expectations over client replies and durable task creations, never state.
-use jig_domain_people::{Ending, HoldReason, Lack, Moved, Party, Refusal, RequestKey, Role};
+use jig_domain_people::{Ending, HoldReason, Lack, Moved, Party, QuestionAnswerer, Refusal, RequestKey, Role};
 use skein_lib::Duration;
 use skein_world::domain::{Expectations, Judge};
 use std::collections::BTreeSet;
@@ -170,7 +170,8 @@ fn filled(why: Refusal) -> bool {
                 | HoldReason::ResourceUnavailable
                 | HoldReason::ResourceAccess
                 | HoldReason::Procedure
-                | HoldReason::Circle => true,
+                | HoldReason::Circle
+                | HoldReason::Waited => true,
             },
             Moved::Spec { .. } | Moved::Person { .. } => true,
             Moved::PlacedHold { revision } => revision != 0,
@@ -190,6 +191,12 @@ fn filled(why: Refusal) -> bool {
             !pending.is_empty() && pending.len() <= 64 && pending.iter().all(|task| *task != 0)
         }
         Refusal::Taken { by } => by != 0,
+        Refusal::QuestionAnswered { question, by } => {
+            question != 0
+                && match by {
+                    QuestionAnswerer::Task(number) | QuestionAnswerer::Person(number) => number != 0,
+                }
+        }
         Refusal::Ended { how } => match how {
             Ending::Cancelled { by, .. } => match by {
                 Party::Person(number) | Party::Task(number) => number != 0,

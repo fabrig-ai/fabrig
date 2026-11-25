@@ -193,6 +193,37 @@ pub(super) fn route_submission(service: &mut Stages, submit: kernel::Submit) {
     service.submissions.push(submit);
 }
 
+// The transfer queue may still hold channel work not yet admitted by IO.
+// Keep every other owner's request in order, then abort the pipe entities.
+pub(super) fn abort_channel(service: &mut Stages) {
+    for _ in 0..service.io_requests.len() {
+        let request = service.io_requests.pop().expect("counted request");
+        let for_channel = match &request {
+            io::Request::Stream { stream, .. } | io::Request::Output { stream, .. } => {
+                Some(*stream) == service.input || Some(*stream) == service.output
+            }
+            io::Request::Close { entity } | io::Request::Abort { entity } => {
+                Some(*entity) == service.input || Some(*entity) == service.output
+            }
+            io::Request::Listen { .. }
+            | io::Request::Bind { .. }
+            | io::Request::Reject { .. }
+            | io::Request::Connect { .. }
+            | io::Request::Spawn { .. }
+            | io::Request::SpawnAlone { .. }
+            | io::Request::Signal { .. }
+            | io::Request::Window { .. }
+            | io::Request::Usage { .. } => false,
+        };
+        if !for_channel {
+            service.io_requests.push(request);
+        }
+    }
+    for entity in [service.input, service.output].into_iter().flatten() {
+        service.io_requests.push(io::Request::Abort { entity });
+    }
+}
+
 fn framed_event(service: &mut Stages, frame: &mut Frame, event: io::Event) -> Option<io::Event> {
     match event {
         io::Event::Stream { owner, up } if Some(owner) == service.input => {

@@ -1,8 +1,8 @@
 # Landed QA
 
 Provisional, 2026-11-12, revised 2026-11-16, from
-`../../draft/landed-qa.md`, milestones Q1, Q3, Q4, Q6, Q7 and Q8 of
-`../../draft/landed-qa.execution.md`. QA after landing, beside
+`../../draft/archive/landed-qa.md`, milestones Q1, Q3, Q4, Q6, Q7 and Q8 of
+`../../draft/archive/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
 builds, restores setups, files findings and starts agents; agents triage
 each landing and run each pass. This document is the tool, its home, its
@@ -23,7 +23,7 @@ Q7's; the two kinds of place as one framework (`kinds.md`) are Q8's.
 - **One tool,** `temper-qa` (section 2), configured by the deployment in
   a home directory of its own (section 3). It builds nothing, takes none
   of the deployment's worker slots and runs on the machine that holds the
-  places (`../../draft/landed-qa.md`, 2).
+  places (`../../draft/archive/landed-qa.md`, 2).
 - **No coordinator** (section 4): one loop, `temper-qa run`, moves
   landings, cases, passes and builds through their states on what it
   sees: main moving, a build kept, an agent's session ending, a goal's
@@ -174,7 +174,7 @@ taken from the home.
   an argument list, in which every `{effort}` is replaced by the
   session's effort; `triage`, required, triage's effort, and `pass`,
   required, a pass's, each as the command takes it
-  (`../../draft/landed-qa.md`, 2).
+  (`../../draft/archive/landed-qa.md`, 2).
 - **`bounds`,** each in seconds: `poll`, the fetch interval when
   `git.fetch` is set, 60 when absent; without a remote it sets no
   periodic wake; `triage`, a triage session's time, 900 when absent;
@@ -298,7 +298,7 @@ older home are removed and their worktree registrations pruned.
 
 - **A line** is one sentence about the pass's own state, for the area
   `owner` names, never a finding against temper
-  (`../../draft/landed-qa.md`, 2): a landing whose triage recorded
+  (`../../draft/archive/landed-qa.md`, 2): a landing whose triage recorded
   nothing twice (`triage.md`, 6), a case waiting past its bound for a
   build (`ledger.md`, 4.7), a step failing for an hour (section 4), a
   pass session that recorded nothing and a case blocked twice
@@ -415,7 +415,7 @@ suites; only the production faces' own checks need the real loop
 
 None starts a browser, a box, a real agent or the network; none runs
 `git` but the loop's real face, which the walk after landing exercises
-(`../../draft/landed-qa.execution.md`, 1).
+(`../../draft/archive/landed-qa.execution.md`, 1).
 
 ## 7. Setting it up
 
@@ -437,7 +437,7 @@ The deployment's, on the machine that holds the places:
 ## 8. Later
 
 - **Edge cases, the help as a surface, and real backends**
-  (`../../draft/landed-qa.md`, 12).
+  (`../../draft/archive/landed-qa.md`, 12).
 
 ## 9. Open questions
 

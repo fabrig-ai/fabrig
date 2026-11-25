@@ -3,10 +3,7 @@
 //! executor identity, live topology, result contract and the step's offered inbox fence. It never
 //! knows connector facts or effects. A due step may make one whole batch,
 //! finish after its delegates, hold, or wait for changed facts.
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")
-)]
+#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
 use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{
     Active, Closing, Executor, Limits, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Request, Stage,
@@ -14,6 +11,10 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo};
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "step admission carries the procedure fence and the core's current reading judgment"
+)]
 pub(crate) fn stepped(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -21,13 +22,14 @@ pub(crate) fn stepped(
     number: u64,
     (step, read): (u64, Option<u64>),
     decision: ProcedureDecision,
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
     if let Err(problem) = fence(domain, number, step, read) {
         return out.push(Request::ProcedureRefused { task: number, step, problem });
     }
     task_mut(domain, number).expect("fenced procedure").record.room_wait = None;
-    let (staged, released) = match check(domain, env, number, step, read, &decision) {
+    let (staged, released) = match check(domain, env, number, step, read, &decision, reads_project) {
         Ok(staged) => staged,
         Err(problem) => {
             if let Some(room) = problem.freeing_count() {
@@ -107,6 +109,7 @@ fn check(
     step: u64,
     read: Option<u64>,
     decision: &ProcedureDecision,
+    reads_project: bool,
 ) -> Result<(crate::compound::Staged, Box<[crate::notice_room::Release]>), crate::Problem> {
     let task = record(domain, number).expect("step task checked");
     check_words(task, &env.limits, decision.words.as_deref())?;
@@ -128,7 +131,7 @@ fn check(
         }
     }
     if !decision.batch.is_empty() {
-        crate::batch::check(domain, &env.limits, Party::Task(number), &decision.batch)?;
+        crate::batch::check(domain, &env.limits, Party::Task(number), &decision.batch, reads_project)?;
     }
     let parts = env.limits.batch.saturating_mul(3).saturating_add(1).saturating_add(env.limits.inbox_messages);
     let bound = env.limits.tasks.max(parts);
@@ -170,7 +173,7 @@ fn check(
     for release in &released {
         staged.release_notice(domain, &env.limits, release);
     }
-    check_parts(domain, &mut staged, env, number, decision)?;
+    check_parts(domain, &mut staged, env, number, decision, reads_project)?;
     Ok((staged, released))
 }
 
@@ -180,10 +183,19 @@ fn check_parts(
     env: &Env<Limits>,
     number: u64,
     decision: &ProcedureDecision,
+    reads_project: bool,
 ) -> Result<(), crate::Problem> {
     let project = record(domain, number).expect("step task checked").project;
     for part in &decision.amendments {
-        let plan = match crate::control::check_amend(domain, staged, env, Party::Task(number), part.clone(), &[]) {
+        let plan = match crate::control::check_amend(
+            domain,
+            staged,
+            env,
+            Party::Task(number),
+            part.clone(),
+            &[],
+            reads_project,
+        ) {
             Ok(plan) => crate::compound::Plan::Amend(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };

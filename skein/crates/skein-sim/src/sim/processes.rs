@@ -60,12 +60,19 @@ pub(super) struct BoundEnd {
     pub index: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Reader {
+    Pending,
+    Ended,
+    Abandoned,
+}
+
 #[derive(Debug)]
 pub(super) struct ChildPipe {
     pub spec: Pipe,
     pub open: bool,
     pub ended: bool,
-    pub read_to_end: bool,
+    pub reader: Reader,
     pub bytes: VecDeque<u8>,
     pub waiting: Option<Token>,
 }
@@ -309,6 +316,36 @@ impl Sim {
         }
     }
 
+    /// The reader of a named hosted-child output is gone. Close its end and
+    /// exempt only this pipe from the EOF obligation at settlement
+    /// (skein/docs/design/testing/simulator.md, section 5).
+    /// The world must first settle any read already in flight.
+    pub fn abandon_hosted_output(&mut self, parent: Pid, pidfd: Fd, output: u32) {
+        let process = self.process(parent);
+        let child_id = *process.pidfds.get(&pidfd).expect("the world names a child pidfd");
+        let child = process.children.get(&child_id).expect("pidfd names a child");
+        assert!(child.service.is_some(), "the world names a hosted child");
+        let (fd, index) = process
+            .pipe_fds
+            .iter()
+            .find_map(|(fd, end)| {
+                if end.child == child_id {
+                    let pipe = &child.pipes[end.index];
+                    if pipe.spec.child == output && pipe.spec.way == Way::Out {
+                        return Some((*fd, end.index));
+                    }
+                }
+                None
+            })
+            .expect("the world names one open output pipe");
+        if let Err(why) = self.check_process(parent, Summary::Close { fd }) {
+            self.bug(&why);
+        }
+        self.process_mut(parent).children.get_mut(&child_id).expect("hosted child").pipes[index].reader =
+            Reader::Abandoned;
+        self.close_process_fd(parent, fd);
+    }
+
     /// Returns the finding for hosted children and their output once settled.
     pub fn check_hosted_settled(&self, pid: Pid) -> Result<(), String> {
         for child in self.process(pid).children.values() {
@@ -319,7 +356,7 @@ impl Sim {
                 match child.exit {
                     Some(Exit::Code(_)) => {
                         for pipe in &child.pipes {
-                            if pipe.spec.way == Way::Out && !pipe.read_to_end {
+                            if pipe.spec.way == Way::Out && pipe.reader == Reader::Pending {
                                 return Err(
                                     self.report("every hosted child's output pipe was read to its end once settled")
                                 );
@@ -906,7 +943,7 @@ impl Sim {
                         spec,
                         open: true,
                         ended: false,
-                        read_to_end: false,
+                        reader: Reader::Pending,
                         bytes: report
                             .as_ref()
                             .filter(|(output, _)| *output == spec.child)
@@ -1008,7 +1045,7 @@ impl Sim {
         }
         let n = buf.len().min(pipe.bytes.len());
         if n == 0 {
-            pipe.read_to_end = true;
+            pipe.reader = Reader::Ended;
         }
         for slot in buf.iter_mut().take(n) {
             *slot = pipe.bytes.pop_front().expect("within buffered bytes");

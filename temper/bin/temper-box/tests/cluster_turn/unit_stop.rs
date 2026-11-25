@@ -1,4 +1,4 @@
-//! A unit's mixed stop, sharing the cluster-turn setup (worker-restarts.md, 2 and 9).
+//! A unit's mixed stop, sharing the cluster-turn setup (draft/archive/worker-restarts.md, 2 and 9).
 use super::{
     Call, Cluster, Exit, Host, Judge, Path, Root, Time, Value, check_calls, committed_reply, fs, json, one, setup,
     support,
@@ -37,6 +37,7 @@ pub(super) fn prepare(cluster: &mut Cluster) {
 enum Phase {
     Gate,
     Parent,
+    Procedure,
     Before,
     Agent,
     Signalled,
@@ -122,7 +123,10 @@ impl Judge {
             Phase::Signalled => {
                 let worker = self.members.binary("w1", roots).ok_or("worker observer")?;
                 if worker.exit_status().is_some() {
-                    return Err("worker exited with its answer still held".into());
+                    return Err(format!(
+                        "worker exited with its answer still held: {}",
+                        support::without_secrets(worker.stderr()),
+                    ));
                 }
                 let stderr = String::from_utf8_lossy(worker.stderr());
                 let prefix = format!("run {} attempt {}: its agent heard SIGTERM ", self.unit.task, self.unit.attempt);
@@ -150,7 +154,13 @@ impl Judge {
                 self.unit_read(client)?;
                 self.unit.phase = Phase::Read;
             }
-            Phase::Parent | Phase::Before | Phase::StillLive | Phase::Released | Phase::Read | Phase::Turn
+            Phase::Parent
+            | Phase::Procedure
+            | Phase::Before
+            | Phase::StillLive
+            | Phase::Released
+            | Phase::Read
+            | Phase::Turn
                 if client.is_empty() =>
             {
                 let calls = check_calls(client)?;
@@ -158,6 +168,7 @@ impl Judge {
             }
             Phase::Gate
             | Phase::Parent
+            | Phase::Procedure
             | Phase::Before
             | Phase::StillLive
             | Phase::Released
@@ -226,12 +237,23 @@ impl Judge {
             Phase::Parent => {
                 let parent = json(call)?;
                 crate::complete_cluster_json(&parent)?;
-                if !owner(&parent)["details"]["attempt"].is_null() {
+                // A parked chat is idle, but its last attempt number remains in the task.
+                if owner(&parent)["phase"]["active"] != "idle" {
                     self.calls(host, vec![Call::new(&["task", "show", &self.chat, "--json"])])?;
                     return Ok(());
                 }
+                assert!(owner(&parent)["details"]["attempt"].is_u64(), "the parent parked after running");
+                let procedure = one(&parent, "delegates")?["chip"]["task"].as_u64().ok_or("landing procedure")?;
+                // The chat delegates the procedure; it delegates the producer whose
+                // agent heard the signal. Read the producer's own attempt and turns.
+                self.calls(host, vec![Call::new(&["task", "show", &procedure.to_string(), "--json"])])?;
+                self.unit.phase = Phase::Procedure;
+            }
+            Phase::Procedure => {
+                let procedure = json(call)?;
+                crate::complete_cluster_json(&procedure)?;
                 self.unit.task =
-                    one(&parent, "delegates")?["chip"]["task"].as_u64().ok_or("producer task")?.to_string();
+                    one(&procedure, "delegates")?["chip"]["task"].as_u64().ok_or("producer task")?.to_string();
                 self.unit_read(host)?;
                 self.unit.phase = Phase::Before;
             }

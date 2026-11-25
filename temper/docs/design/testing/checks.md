@@ -102,7 +102,7 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
     and their binary's process at most 20 CPU s. A test builds the
     services it checks and no other: no fixture builds a whole service
     only to take its store or to throw it away. A service builds each of
-    its fixed tables (a wire's schemas, bounds, fingerprints and bridges)
+    its fixed tables (a wire's schemas, bounds, fingerprints and plans)
     once, however many of its parts read it;
   - a focused protocol-world test at most 1 s, and a one-process or
     real-loop story at most 2 s;

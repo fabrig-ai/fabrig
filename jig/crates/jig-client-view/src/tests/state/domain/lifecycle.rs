@@ -18,7 +18,16 @@ use jig_client::contract::*;
 use skein_lib::{Id, List, Queue, Time};
 
 fn ask(asked: u64) -> crate::tests::fixtures::SendIntent {
-    crate::tests::fixtures::intent(7, asked, Ask::Stop { project: 1, task: 8 })
+    crate::tests::fixtures::intent(
+        7,
+        asked,
+        Ask::Stop {
+            project: 1,
+            task: 8,
+            reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        },
+    )
 }
 fn send(domain: &mut Fixture, asked: u64) -> jig_client::Key {
     let out = drive(domain, Time::ZERO, ask(asked));
@@ -40,7 +49,12 @@ fn intents_join_progress_and_one_terminal_and_refuse_past_the_limit() {
         &mut domain.ui,
         key,
         ActKind::Stop,
-        Box::new(Ask::Stop { project: 1, task: 8 }),
+        Box::new(Ask::Stop {
+            project: 1,
+            task: 8,
+            reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        }),
         &mut out,
         &domain.client,
     )
@@ -50,7 +64,12 @@ fn intents_join_progress_and_one_terminal_and_refuse_past_the_limit() {
             &mut domain.ui,
             key,
             ActKind::Stop,
-            Box::new(Ask::Stop { project: 1, task: 8 }),
+            Box::new(Ask::Stop {
+                project: 1,
+                task: 8,
+                reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                    .expect("fixture reason fits")
+            }),
             &mut out,
             &domain.client
         ),

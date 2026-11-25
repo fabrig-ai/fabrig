@@ -18,6 +18,7 @@ pub struct CompoundTask<'a> {
     pub tracked: Option<u32>,
     pub executor: Executor,
     pub taken_by: Option<u64>,
+    pub person_offered: bool,
     pub requester: Party,
     pub funder: Funder,
     pub numbers: Numbers,
@@ -211,7 +212,7 @@ impl Staged {
             crate::notice_room::update(row, limits, change);
         }
         crate::positions::message(row, &plan.prepared.word, limits.inbox_messages);
-        if let Some(question) = plan.answer {
+        if let Some(crate::inbox::Answering { question, .. }) = plan.answer {
             let mut credits = skein_lib::List::with_capacity(limits.inbox_messages);
             for credit in &row.questions {
                 if credit.number != question {
@@ -548,6 +549,7 @@ fn project_amend<'a>(row: &mut CompoundTask<'a>, plan: &'a crate::control::Amend
     if let Some(address) = amendment.addressed {
         row.executor = Executor::Person(address.address);
         row.taken_by = None;
+        row.person_offered = false;
     }
     if amendment.instructions.is_some() {
         row.instructions = &amendment.instructions;
@@ -611,6 +613,7 @@ fn returned_circle(number: u64, phase: Phase) -> Option<(u64, crate::Circle)> {
         Phase::Held { why: crate::Hold::Circle, source: Some(source), .. } => match *source {
             crate::HoldSource::Circle(circle) => Some((number, circle)),
             crate::HoldSource::Preparation { .. }
+            | crate::HoldSource::Wait { .. }
             | crate::HoldSource::Resource(_)
             | crate::HoldSource::Effect { .. }
             | crate::HoldSource::Account { .. } => {
@@ -631,6 +634,10 @@ fn borrowed(base: &TaskRecord) -> CompoundTask<'_> {
         tracked: base.tracked,
         executor: base.executor,
         taken_by: base.taken_by,
+        person_offered: match base.person_wait {
+            Some(wait) => wait.offer.is_some(),
+            None => false,
+        },
         requester: base.requester,
         funder: base.funder,
         numbers: base.numbers,

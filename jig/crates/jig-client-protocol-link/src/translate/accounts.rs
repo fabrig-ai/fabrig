@@ -1,103 +1,14 @@
 //! Accounts watch decoding and shared deployment source facts (client/domain/contract/documents.md, 1).
 use super::{Limits, List, Reader, Wall, c, chip_piece, piece_problem, too_large, w};
+use crate::generated::client;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::length::len_u64;
-pub(crate) fn account_use(value: &w::AccountUse) -> c::AccountUse {
-    match value {
-        w::AccountUse::Party(row) => c::AccountUse::Party(row.party),
-        w::AccountUse::Project(row) => c::AccountUse::Project(row.project),
-    }
-}
-pub(crate) fn account_holder(value: &w::AccountHolder) -> c::AccountHolder {
-    match value {
-        w::AccountHolder::Deployment => c::AccountHolder::Deployment,
-        w::AccountHolder::Party(row) => c::AccountHolder::Party(row.party),
-    }
-}
-pub(crate) fn account_kind(value: &w::AccountKind) -> c::AccountKind {
-    match value {
-        w::AccountKind::SignIn => c::AccountKind::SignIn,
-        w::AccountKind::Key => c::AccountKind::Key,
-        w::AccountKind::Program => c::AccountKind::Program,
-        w::AccountKind::None => c::AccountKind::None,
-    }
-}
-pub(crate) fn account_bound(value: &w::AccountBound) -> c::AccountBound {
-    match value {
-        w::AccountBound::Accounts => c::AccountBound::Accounts,
-        w::AccountBound::HolderAccounts => c::AccountBound::HolderAccounts,
-        w::AccountBound::Sources => c::AccountBound::Sources,
-        w::AccountBound::SignIns => c::AccountBound::SignIns,
-    }
-}
-pub(crate) fn account_key_failure(value: &w::AccountKeyFailure) -> c::AccountKeyFailure {
-    match value {
-        w::AccountKeyFailure::TooLong => c::AccountKeyFailure::TooLong,
-        w::AccountKeyFailure::NotStored => c::AccountKeyFailure::NotStored,
-    }
-}
-pub(crate) fn account_refusal(value: &w::AccountRefusal) -> c::AccountRefusal {
-    match value {
-        w::AccountRefusal::NotLimited => c::AccountRefusal::NotLimited,
-        w::AccountRefusal::Uses => c::AccountRefusal::Uses,
-        w::AccountRefusal::ProgramNameReserved => c::AccountRefusal::ProgramNameReserved,
-        w::AccountRefusal::NotKept(row) => c::AccountRefusal::NotKept { why: account_key_failure(&row.why) },
-        w::AccountRefusal::Limit(row) => c::AccountRefusal::Limit { bound: account_bound(&row.bound) },
-        w::AccountRefusal::Held(row) => c::AccountRefusal::Held { provider: row.provider },
-        w::AccountRefusal::Provider(row) => c::AccountRefusal::Provider { provider: row.provider },
-        w::AccountRefusal::Subject => c::AccountRefusal::Subject,
-        w::AccountRefusal::Unknown => c::AccountRefusal::Unknown,
-        w::AccountRefusal::Numbers => c::AccountRefusal::Numbers,
-        w::AccountRefusal::Kind(row) => c::AccountRefusal::Kind { kind: account_kind(&row.kind) },
-        w::AccountRefusal::Closing => c::AccountRefusal::Closing,
-        w::AccountRefusal::NotSignedIn => c::AccountRefusal::NotSignedIn,
-        w::AccountRefusal::NotOurs => c::AccountRefusal::NotOurs,
-        w::AccountRefusal::Cancelled => c::AccountRefusal::Cancelled,
-        w::AccountRefusal::Moving => c::AccountRefusal::Moving,
-        w::AccountRefusal::NotStarted => c::AccountRefusal::NotStarted,
-    }
-}
-pub(crate) fn account_failure(value: &w::AccountFailure) -> c::AccountFailure {
-    match value {
-        w::AccountFailure::Later(row) => c::AccountFailure::Later { after: row.after },
-        w::AccountFailure::SignInAgain => c::AccountFailure::SignInAgain,
-        w::AccountFailure::MissingScope(row) => c::AccountFailure::MissingScope { scope: row.scope },
-        w::AccountFailure::Misconfigured => c::AccountFailure::Misconfigured,
-        w::AccountFailure::Unloaded(row) => {
-            c::AccountFailure::Unloaded { at: account_place(&row.at), why: account_unread(&row.why) }
-        }
-        w::AccountFailure::Cancelled => c::AccountFailure::Cancelled,
-    }
-}
-pub(crate) fn account_end(value: &w::AccountEnd) -> c::AccountEnd {
-    match value {
-        w::AccountEnd::Made(row) => c::AccountEnd::Made { account: row.account, declined: row.declined },
-        w::AccountEnd::Renewed(row) => c::AccountEnd::Renewed { account: row.account, declined: row.declined },
-        w::AccountEnd::Refused(row) => c::AccountEnd::Refused { refusal: account_refusal(&row.refusal) },
-        w::AccountEnd::Failed(row) => c::AccountEnd::Failed { failure: account_failure(&row.failure) },
-    }
-}
-fn account_place(value: &w::AccountPlace) -> c::AccountPlace {
-    match value {
-        w::AccountPlace::Directory => c::AccountPlace::Directory,
-        w::AccountPlace::File => c::AccountPlace::File,
-    }
-}
-fn account_unread(value: &w::AccountUnread) -> c::AccountUnread {
-    match value {
-        w::AccountUnread::Unreadable => c::AccountUnread::Unreadable,
-        w::AccountUnread::Refused => c::AccountUnread::Refused,
-        w::AccountUnread::Failed => c::AccountUnread::Failed,
-        w::AccountUnread::Stalled => c::AccountUnread::Stalled,
-        w::AccountUnread::TooLarge => c::AccountUnread::TooLarge,
-    }
-}
 pub(crate) fn account_uses(value: Option<&List<w::AccountUse>>) -> Option<List<c::AccountUse>> {
     let value = value?;
     let mut uses = List::with_capacity(value.len());
     for item in value {
-        uses.push(account_use(item)).expect("supplied uses fit");
+        uses.push(client::account_use_to_domain(item.clone())).expect("supplied uses fit");
     }
     Some(uses)
 }
@@ -116,8 +27,8 @@ pub(crate) fn account_source(value: &w::AccountSource, room: &mut u64) -> Result
         name,
         place: value.place,
         number: value.number,
-        kind: account_kind(&value.kind),
-        state: account_state_fields(&value.state),
+        kind: client::account_kind_to_domain(value.kind.clone()),
+        state: client::account_state_to_domain(value.state.clone()),
         usable: value.usable,
         expiring: value.expiring,
         attention: value.attention,
@@ -174,13 +85,10 @@ pub(crate) fn account_line(
         },
         manage_usage: checked_manage_usage(value.manage_usage.as_deref(), w::paths::ACCOUNT_LINE_MANAGE_USAGE)?,
         display: crate::translate::facts::document_text(&value.display, limits)?,
-        holder: account_holder(&value.holder),
+        holder: client::account_holder_to_domain(value.holder.clone()),
         sources: account_source_piece(&value.sources, limits, room)?,
         cut: value.cut,
     })
-}
-pub(crate) fn account_sign_in(value: &w::AccountSignIn) -> c::AccountSignIn {
-    c::AccountSignIn { source: value.source, provider: value.provider, holder: account_holder(&value.holder) }
 }
 pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Accounts, w::Problem> {
     let mut room = document_room(limits);
@@ -193,12 +101,12 @@ pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Account
         signing: account_sign_in_piece(&value.signing, limits, &mut room)?,
         lendable: value.lendable,
         lending: terminal_login(value.lending.as_ref(), &mut room)?,
-        lent_end: match &value.lent_end {
-            Some(row) => Some(c::AccountLentEnd { number: row.number, end: login_end(&row.end) }),
+        lent_end: match value.lent_end {
+            Some(row) => Some(client::account_lent_end_to_domain(row)),
             None => None,
         },
-        last_end: match &value.last_end {
-            Some(row) => Some(c::AccountLastEnd { source: row.source, end: account_end(&row.end) }),
+        last_end: match value.last_end {
+            Some(row) => Some(client::account_last_end_to_domain(row)),
             None => None,
         },
         usable: value.usable,
@@ -227,26 +135,6 @@ pub(crate) fn terminal_login(
         name: skein_lib::bytes::copy_of(&value.name),
         cancelled: value.cancelled,
     }))
-}
-pub(crate) fn login_exit(value: &w::LoginExit) -> c::LoginExit {
-    match value {
-        w::LoginExit::Exited(row) => c::LoginExit::Exited { code: row.code },
-        w::LoginExit::Killed(row) => c::LoginExit::Killed { signal: row.signal },
-        w::LoginExit::NotStarted => c::LoginExit::NotStarted,
-    }
-}
-pub(crate) fn login_end(value: &w::LoginEnd) -> c::LoginEnd {
-    match value {
-        w::LoginEnd::SignedIn(row) => c::LoginEnd::SignedIn { source: row.source },
-        w::LoginEnd::NotFinished(row) => c::LoginEnd::NotFinished {
-            exit: match &row.exit {
-                Some(exit) => Some(login_exit(exit)),
-                None => None,
-            },
-        },
-        w::LoginEnd::Cancelled => c::LoginEnd::Cancelled,
-        w::LoginEnd::Refused(row) => c::LoginEnd::Refused { refusal: account_refusal(&row.refusal) },
-    }
 }
 /// The bytes a decoded account list may hold, with the record that holds it. The client bounds a
 /// document by its bytes and account counts (client/domain/client/README.md, 11), and its domain prices
@@ -328,7 +216,7 @@ pub(crate) fn account_sign_in_piece(
     for _ in 0..count {
         let item = skein_codec::piece::counted(&mut reader);
         let row = w::AccountSignIn::decode(limits.receiving(), &mut Reader::new(&item))?;
-        rows.push(account_sign_in(&row)).expect("counted pieces fit");
+        rows.push(client::account_sign_in_to_domain(row)).expect("counted pieces fit");
     }
     Ok(rows)
 }
@@ -343,45 +231,6 @@ pub(crate) fn checked_manage_usage(value: Option<&[u8]>, path: w::Path) -> Resul
             Ok(Some(skein_lib::bytes::copy_of(address)))
         }
         None => Ok(None),
-    }
-}
-
-pub(crate) fn account_place_fields(value: &w::AccountPlace) -> c::AccountPlace {
-    match value {
-        w::AccountPlace::Directory => c::AccountPlace::Directory,
-        w::AccountPlace::File => c::AccountPlace::File,
-    }
-}
-
-pub(crate) fn account_unread_fields(value: &w::AccountUnread) -> c::AccountUnread {
-    match value {
-        w::AccountUnread::Unreadable => c::AccountUnread::Unreadable,
-        w::AccountUnread::Refused => c::AccountUnread::Refused,
-        w::AccountUnread::Failed => c::AccountUnread::Failed,
-        w::AccountUnread::Stalled => c::AccountUnread::Stalled,
-        w::AccountUnread::TooLarge => c::AccountUnread::TooLarge,
-    }
-}
-
-pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
-    match value {
-        w::AccountState::Asking => c::AccountState::Asking,
-        w::AccountState::Granted => c::AccountState::Granted,
-        w::AccountState::Later(row) => {
-            let opt0 = match &row.until {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            c::AccountState::Later { until: opt0 }
-        }
-        w::AccountState::SignInAgain => c::AccountState::SignInAgain,
-        w::AccountState::Misconfigured => c::AccountState::Misconfigured,
-        w::AccountState::Unloaded(row) => {
-            c::AccountState::Unloaded { at: account_place_fields(&row.at), why: account_unread_fields(&row.why) }
-        }
-        w::AccountState::Cancelled => c::AccountState::Cancelled,
-        w::AccountState::Closing => c::AccountState::Closing,
-        w::AccountState::Moving => c::AccountState::Moving,
     }
 }
 
@@ -413,10 +262,10 @@ pub(crate) fn account_fields(value: &w::Account, limits: &Limits, room: &mut u64
         },
         manage_usage: checked_manage_usage(value.manage_usage.as_deref(), w::paths::ACCOUNT_MANAGE_USAGE)?,
         display: crate::translate::facts::document_text(&value.display, limits)?,
-        holder: account_holder(&value.holder),
+        holder: client::account_holder_to_domain(value.holder.clone()),
         sources: account_source_piece(&value.sources, limits, room)?,
         generation: opt0,
-        state: account_state_fields(&value.state),
+        state: client::account_state_to_domain(value.state.clone()),
         usable: value.usable,
         expiring: value.expiring,
         attention: value.attention,
@@ -444,73 +293,18 @@ pub(crate) fn account_piece(bytes: &[u8], limits: &Limits, room: &mut u64) -> Re
 }
 
 pub(crate) fn account_list(value: Option<&w::AccountList>) -> Option<c::AccountList> {
-    let value = value?;
-    Some(c::AccountList {
-        read: match &value.read {
-            Some(at) => Some(Wall::from_nanos(*at)),
-            None => None,
-        },
-        tried: match &value.tried {
-            Some(at) => Some(Wall::from_nanos(*at)),
-            None => None,
-        },
-        failure: match &value.failure {
-            Some(w::AccountListFailure::Refused(row)) => Some(c::AccountListFailure::Refused { status: row.status }),
-            Some(w::AccountListFailure::Unreachable) => Some(c::AccountListFailure::Unreachable),
-            Some(w::AccountListFailure::Unreadable) => Some(c::AccountListFailure::Unreadable),
-            Some(w::AccountListFailure::Deadline) => Some(c::AccountListFailure::Deadline),
-            Some(w::AccountListFailure::Agent) => Some(c::AccountListFailure::Agent),
-            Some(w::AccountListFailure::Room) => Some(c::AccountListFailure::Room),
-            None => None,
-        },
-        left_out: value.left_out,
-    })
+    Some(client::account_list_to_domain(value?.clone()))
 }
 
 fn account_facts(facts: &List<w::AccountFact>) -> Result<List<c::AccountFact>, w::Problem> {
     let mut rows = List::with_capacity(facts.len());
     for fact in facts {
-        let value = match &fact.value {
-            w::AccountFactValue::Text(text) => c::AccountFactValue::Text(skein_lib::bytes::copy_of(&text.text)),
-            w::AccountFactValue::Count(count) => c::AccountFactValue::Count(count.count),
-            w::AccountFactValue::Instant(at) => c::AccountFactValue::Instant(Wall::from_nanos(at.at)),
-            w::AccountFactValue::Span(span) => c::AccountFactValue::Span(span.nanos),
-            w::AccountFactValue::Share(share) => {
-                if share.basis > 10_000 {
-                    return Err(w::Problem {
-                        path: w::paths::ACCOUNT_FACT_SHARE_BASIS,
-                        reason: skein_codec::Reason::Bound,
-                    });
-                }
-                c::AccountFactValue::Share(share.basis)
-            }
-            w::AccountFactValue::Window(window) => {
-                if let Some(used) = (&window.used)
-                    && *used > 10_000
-                {
-                    return Err(w::Problem { path: w::paths::ACCOUNT_WINDOW_USED, reason: skein_codec::Reason::Bound });
-                }
-                c::AccountFactValue::Window(c::AccountWindow {
-                    rate: window.rate,
-                    length: window.length,
-                    used: window.used,
-                    resets: match &window.resets {
-                        Some(at) => Some(Wall::from_nanos(*at)),
-                        None => None,
-                    },
-                    state: window.state,
-                })
-            }
-        };
-        rows.push(c::AccountFact {
-            kind: fact.kind,
-            label: skein_lib::bytes::copy_of(&fact.label),
-            value,
-            seen: Wall::from_nanos(fact.seen),
-            source: fact.source,
-            origin: fact.origin,
-        })
-        .expect("supplied facts fit");
+        rows.push(client::account_fact_to_domain(fact.clone())?).expect("supplied facts fit");
     }
     Ok(rows)
+}
+
+#[cfg(test)]
+pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
+    client::account_state_to_domain(value.clone())
 }

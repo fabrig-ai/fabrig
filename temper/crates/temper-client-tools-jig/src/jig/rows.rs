@@ -504,10 +504,13 @@ pub const STOP: Tool = Tool {
     line: b"Hold a task and every task below it, stopping their runs",
     prints: b"`done: task N, stop`",
     result: b"stop",
-    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The task's number")]],
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
+    ]],
     keyed: Keyed::Optional,
     area: 1,
-    notes: b"The stop is a placed hold of yours over the task's subtree. The\ntasks stay held until task release of the stopped task lifts it,\nhold lift lifts it, or task cancel ends them.\n",
+    notes: b"Separate reason words are joined with spaces. Without a reason,\nusage exits 2 before sending anything.\nThe stop is a placed hold of yours over the task's subtree. The\ntasks stay held until task release of the stopped task lifts it,\nhold lift lifts it, or task cancel ends them.\n",
 };
 pub const CANCEL: Tool = Tool {
     name: b"task cancel",

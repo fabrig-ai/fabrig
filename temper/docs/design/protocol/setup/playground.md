@@ -16,8 +16,10 @@ edits a file; the worker commits and pushes the branch with `temper-box
 fake git`, on the fake forge's git route; the change opens its pull
 request, passes the fake's CI and lands into `main`; and the chat says
 so. The other suggestions answer in text. The engine hears the fake by
-its deliveries to the box's webhooks' listener (`init.md`, 3), and polls beside
+its deliveries to the box's webhooks' listener (`init.md`, 6), and polls beside
 them as it does any Forgejo.
+
+## 1. Records and availability
 
 - **Its records:** a `Playground` row of temper's store (../store.md,
   section 2), none when there is no playground, naming what its start
@@ -43,6 +45,9 @@ them as it does any Forgejo.
   once its reset is done, while no real forge is kept: it has no ended
   state and no end but its reset, and no other forge's connect changes
   it.
+
+## 2. Starting the playground
+
 - **Its start,** `StartPlayground` ("Try the playground",
   `../../client/pages/README.md` and `../../client/forge/family.md`, 7), of the deployment's scope,
   admitted as `SetUp` is. With no row, in one decision, the forge
@@ -90,6 +95,9 @@ them as it does any Forgejo.
   The scripted provider is the box's constant, its endpoint the fake
   LLM's port, chosen at the box's start, and its key made at the
   playground's start (`../configuration/providers.md`, 4).
+
+## 3. Resetting and recovering the playground
+
 - **Its reset,** `EndPlayground`, the banner's "set up temper"
   (`../../client/forge/family.md`, 7), of the deployment's scope: in one
   decision the row reads *resetting*, a start under way is answered *not
@@ -98,7 +106,7 @@ them as it does any Forgejo.
   each sent under a key derived from the fake forge's number and the
   step; the project's and the account's are acts in the deployment's
   name, the forge connector's own (jig's `domain/people/acts.md`, 3),
-  granted by the document's `acts` (`init.md`, 3), and the forge's is the
+  granted by the document's `acts` (`init.md`, 6), and the forge's is the
   connector's own removal, which needs no grant:
   1. `project`: the playground's project deleted, by `RemoveProject`
      (jig's `domain/people/acts.md`, 2), with the grace of temper's chat
@@ -131,7 +139,7 @@ them as it does any Forgejo.
 - **Kept until whole:** a step's act answered with a saved answer, made
   or refused, moves the row to its next step. One answered with none
   keeps the row at its step: *not offered*, the act not granted, named
-  in serve's log with the grant to add to `engine.acts` (`init.md`, 3); lacking
+  in serve's log with the grant to add to `engine.acts` (`init.md`, 6); lacking
   the role, no first owner configured, named too; or busy. At each start
   of the engine, once the core is ready (jig's restart's `Open`), a row
   reading resetting sends its step's act again, with its key: an act
@@ -146,6 +154,9 @@ them as it does any Forgejo.
   no state across its starts (below), so the engine's records of the
   branches it lost would outlive it. The start resets the playground,
   as the banner does, and the person meets the welcome.
+
+## 4. Scripts and scripted turns
+
 - **The scripts,** the box's constant, `temper-fake`'s
   `demo/scripts.json` (`../configuration/providers.md`, 4), in the form
   `application.demo` had, which a document no longer holds
@@ -189,7 +200,10 @@ them as it does any Forgejo.
 
   Each is checked as skein checks a script's turns (its section 2.3).
   No turn holds a hold, a failing line or opaque bytes.
-- **Its words,** as `temper-box init` writes them (`init.md`, 2), the playground's,
+
+## 5. The playground charter
+
+- **Its words,** as `temper-box init` writes them (`init.md`, 5), the playground's,
   as the person meets it (`../../draft/archive/first-run.md`, 2.3; the
   client's phrasebook, `../../client/pages/welcome.md`, 2): one `asked` script
   for each request the client suggests in the playground's project
@@ -216,7 +230,7 @@ them as it does any Forgejo.
        change on connector 1, kind 1, in at most 128 words; its
        authority the one the real loop's landing story gives its change
        (`tests/real-loop`'s `landing.rs`), its grants on the project's
-       pattern (`init.md`, 3) and its delegation to the coding charter's agents,
+       pattern (`init.md`, 6) and its delegation to the coding charter's agents,
        `{"kind": "agent", "number": 2}`;
     2. `{"call": "wait", "arguments": {}}`;
     3. once the change's result wakes the chat, the text "CSV export is
@@ -269,6 +283,9 @@ them as it does any Forgejo.
   play them (`testing.md`, 4). The real loop's landing story already plays a cued
   chat's `delegate` to its landing on skein's peers, so the playground
   adds no story there.
+
+## 6. Running the fake peers
+
 - **`temper-box fake llm DIRS`,** a long step: skein's fake LLM peer, run
   `without_records` as a peer serving a person is (skein's
   `testing/fakes/llm.md`), its domain `Domain::played` with `asked` as its asked
@@ -331,6 +348,9 @@ them as it does any Forgejo.
   engine's setup host grants it, by `Adopt` (below). It serves its
   git route among its routes (skein's `testing/fakes/forgejo.md`, section 1), and
   no git smart HTTP; it keeps no state across its starts.
+
+## 7. Fake forge adoption and deliveries
+
 - **The fake's start-time adoption,** in `temper-box serve`'s setup host:
   after the records' load, the root's restore, the handover and
   reconcile (`owned.md`, 5), the playground's forge's at its group's `started` (`box.md`, 1),
@@ -354,12 +374,15 @@ them as it does any Forgejo.
   (`webhooks.md`, section 1), at `http://<listener>/hooks/<number>`, so the fake
   reaches serve's listener as a Forgejo does: a push, a pull request's
   change, CI's end and the merge each send one. The box's listener is
-  on loopback (`init.md`, 3), and its fake draws no loss and no latency; it
+  on loopback (`init.md`, 6), and its fake draws no loss and no latency; it
   records no delivery, being `without_records`. A runner's serve
   has one too, on loopback.
+
+## 8. Fake git and command options
+
 - **`temper-box fake git`,** no step: the playground's forge's git, which the
   worker spawns for the fake's repositories by the program their
-  records name, the machine's `fake.git`, the playground's link (`init.md`, 2; ../channel.md,
+  records name, the machine's `fake.git`, the playground's link (`init.md`, 5; ../channel.md,
   section 4), in place of `workers[].git`, as it spawns real git
   (../git.md, section 5), and which it checks at its first use as it checks
   real git, by `git version` (../git.md, section 3). A real forge's
@@ -406,6 +429,9 @@ them as it does any Forgejo.
 
   Both peers run `without_records`, with the flags or without them,
   but the fake LLM given `--observations`, which records its queries.
+
+## 9. Standalone fake configuration
+
 - **From a document of its own,** `temper-box fake llm --document FILE` and
   `temper-box fake forge --document FILE`, the document form, which reads
   no deployment: FILE is a fake's configuration, a JSON object, as
@@ -498,6 +524,9 @@ them as it does any Forgejo.
   it. With `--strict`, the domain's `Config.strict` is on (skein's
   `testing/fakes/llm.md`, 2.5). The box's fake backends give both
   (`box-backends.md`, 1).
+
+## 10. Outputs and the runner
+
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper-box init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before
@@ -532,6 +561,9 @@ them as it does any Forgejo.
   records (`owned.md`, 5), runs its start-time adoption from those records, then
   connects (above): under the box, the playground's forge once its
   group has started (`box.md`, 1).
+
+## 11. Checking the playground
+
 - **`temper-box fake forge check DIRS N OBSERVATIONS STORE`,** no step: the
   check of the fake forge's promises. It is
   skein's judge (skein's `testing/fakes/forge.md`, 2.5) over forge N's
@@ -629,6 +661,9 @@ them as it does any Forgejo.
     or check, or a forge N that is no fake forge is the check's error,
     not the run's: status 1, its refusal on stderr and no line, which
     a caller reads as the check's error, never a pass. The check creates no directory.
+
+## 12. Code and dependencies
+
 - **Its code:** the playground's row, its start's and its reset's
   decisions, the forge connector's, in `temper-engine-domain-forge`, the
   acts they make routed by `temper-engine-domain`, and the row kept by

@@ -61,6 +61,7 @@ fn a_person_report_outside_its_bounds_refuses_the_whole_batch() {
                 batch.push(new);
                 let reply_to = world.to();
                 world.stage(Event::Make {
+                    reads_project: false,
                     reply_to,
                     maker: None,
                     places: Box::new([]),
@@ -244,7 +245,7 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
     assert_eq!(wait.deadline, skein_lib::Wall::from_nanos(15_000_000_000));
     assert_eq!(wait.stall, limits.person_stall);
     assert_eq!(wait.notice, None);
-    world.send(Event::PersonStallNotice { task: 2, message: 100 });
+    world.send(Event::PersonStallNotice { task: 2, message: Some(100), offer: None });
     assert_eq!(world.record(2).person_wait, Some(wait), "a premature root notice cannot shorten the wait");
     world.elapse(skein_lib::Duration::from_secs(9));
     world.restart();
@@ -259,7 +260,7 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
             owner: tasks::Owner::Party { person: PERSON },
             mode: tasks::Mode::Stop,
             scope: tasks::Scope::Subtree { task: 2 },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),
@@ -303,6 +304,113 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
     world.restart();
     world.elapse(skein_lib::Duration::from_secs(1));
     assert_eq!(world.record(2).person_wait, Some(noticed));
+    assert_eq!(
+        world.record(1).inbox.iter().filter(|word| word.kind == tasks::MessageKind::PersonStalled { task: 2 }).count(),
+        1
+    );
+}
+
+const HOUR: skein_lib::Duration = skein_lib::Duration::from_secs(3600);
+const HALF_HOUR: skein_lib::Duration = skein_lib::Duration::from_secs(1800);
+const ADDRESSEE: PersonAddress = PersonAddress::Person(6);
+const REQUESTER: PersonAddress = PersonAddress::Person(PERSON);
+const POLICY_ROLE: PersonAddress = PersonAddress::Role(7);
+
+fn a_person_delegate(seed: u64, last: Option<PersonAddress>) -> World {
+    let mut world = World::new(seed, tasks::Limits { person_stall: HOUR, ..LIMITS });
+    world.person_stall_route = [Some(REQUESTER), last];
+    assert_eq!(world.make(PERSON_PARTY, vec![task(1, &[])]), Reply::Made(vec![1]));
+    let mut child = task(2, &[]);
+    child.executor = Executor::Person(ADDRESSEE);
+    assert_eq!(world.make(Party::Task(1), vec![child]), Reply::Made(vec![2]));
+    world
+}
+
+#[test]
+fn person_stalls_pass_from_the_offer_time_and_stop_at_the_last_holder() {
+    for last in [Some(POLICY_ROLE), None] {
+        let mut world = a_person_delegate(235, last);
+        assert_eq!(world.record(2).person_wait.unwrap().offer, None);
+        world.elapse(HOUR);
+        let offered = world.record(2).person_wait.unwrap();
+        assert_eq!(offered.offer, Some(tasks::PersonOffer { holder: REQUESTER, since: world.env.wall }));
+        assert_eq!(offered.notice.unwrap().at, world.env.wall);
+        assert_eq!(world.record(2).executor, Executor::Person(ADDRESSEE));
+        let onward = world.env.now.saturating_add(HOUR);
+        world.elapse(HALF_HOUR);
+        world.restart();
+        assert_eq!(world.record(2).person_wait, Some(offered));
+        assert_eq!(world.next_deadline(), Some(onward), "restore projects the offer's own clock");
+        world.elapse(HALF_HOUR);
+        let final_wait = world.record(2).person_wait.unwrap();
+        let last_offer =
+            last.map_or(offered.offer, |holder| Some(tasks::PersonOffer { holder, since: world.env.wall }));
+        assert_eq!(final_wait.offer, last_offer);
+        assert_eq!(final_wait.notice, offered.notice);
+        assert_eq!(world.next_deadline(), None, "a final holder arms no further stall alarm");
+        world.elapse(HOUR);
+        world.restart();
+        assert_eq!(world.record(2).person_wait, Some(final_wait));
+        assert_eq!(world.next_deadline(), None);
+        assert_eq!(
+            world
+                .record(1)
+                .inbox
+                .iter()
+                .filter(|word| word.kind == tasks::MessageKind::PersonStalled { task: 2 })
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn readdressing_an_offered_task_restarts_its_clock_but_not_its_notice() {
+    let mut world = a_person_delegate(236, Some(POLICY_ROLE));
+    world.elapse(HOUR);
+    let old = world.record(2).person_wait.unwrap();
+    assert!(old.offer.is_some());
+    world.elapse(HALF_HOUR);
+    let new_address = PersonAddress::Person(7);
+    assert_eq!(
+        response(&mut world, |reply_to| Event::Amend {
+            reads_project: false,
+            reply_to,
+            by: PERSON_PARTY,
+            places: Box::new([]),
+            operation: tasks::Amend {
+                task: 2,
+                funder: None,
+                message: old.notice.unwrap().message + 1,
+                stop_run: false,
+                amendment: Box::new(tasks::Amendment {
+                    tracked: None,
+                    addressed: Some(tasks::AddressChange { revision: 0, address: new_address }),
+                    instructions: None,
+                    release: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: None,
+                    authority: None,
+                    llm: None,
+                    reason: b"ask someone else".as_slice().into(),
+                }),
+            },
+        }),
+        Reply::Done
+    );
+    let renewed = world.record(2).person_wait.unwrap();
+    assert_eq!(world.record(2).executor, Executor::Person(new_address));
+    assert_eq!(renewed.since, world.env.wall);
+    assert_eq!(renewed.offer, None);
+    assert_eq!(renewed.notice, old.notice);
+    world.restart();
+    world.elapse(HALF_HOUR);
+    assert_eq!(world.record(2).person_wait, Some(renewed), "the previous offer no longer arms a clock");
+    world.elapse(HALF_HOUR);
+    let offered_again = world.record(2).person_wait.unwrap();
+    assert_eq!(offered_again.offer, Some(tasks::PersonOffer { holder: REQUESTER, since: world.env.wall }));
+    assert_eq!(offered_again.notice, old.notice);
     assert_eq!(
         world.record(1).inbox.iter().filter(|word| word.kind == tasks::MessageKind::PersonStalled { task: 2 }).count(),
         1

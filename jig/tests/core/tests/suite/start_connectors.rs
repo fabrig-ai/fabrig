@@ -565,6 +565,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
             &mut h.core.tasks,
             &env,
             tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(Token::new(4)),

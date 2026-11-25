@@ -20,9 +20,34 @@ pub fn words(word: &tasks::Word) -> Box<[u8]> {
         tasks::MessageKind::Escalation { task, revision } => {
             return held(b"Escalation: task ", task, revision, &word.words);
         }
-        tasks::MessageKind::Notice { target, state: tasks::NoticeState::Held { revision }, .. } => {
-            return held(b"Task ", target, revision, &word.words);
+        tasks::MessageKind::Notice { target, state, .. } => match state {
+            tasks::NoticeState::Held { revision } => return held(b"Task ", target, revision, &word.words),
+            tasks::NoticeState::Unreadable => {
+                return joined(&[
+                    b"The watch on task ",
+                    Decimal::of(target).as_bytes(),
+                    b" ended because your tree's requester no longer reads it.",
+                ]);
+            }
+            tasks::NoticeState::Done | tasks::NoticeState::Failed | tasks::NoticeState::Cancelled => {
+                return word.words.clone();
+            }
+        },
+        tasks::MessageKind::PassedQuestion { question } => {
+            let from = Decimal::of(source_number(word.from));
+            let question = Decimal::of(question);
+            return skein_lib::bytes::concat(&[
+                b"Passed-up question ",
+                question.as_bytes(),
+                b"; answer with message target=",
+                from.as_bytes(),
+                b", form=answer, question=",
+                question.as_bytes(),
+                b":\n",
+                &word.words,
+            ]);
         }
+        tasks::MessageKind::PassedAnswer { question } => (b"Answer to question ".as_slice(), question),
         tasks::MessageKind::QuestionAnswered { question } => {
             (b"Your person answered question in their inbox ".as_slice(), question)
         }
@@ -32,7 +57,6 @@ pub fn words(word: &tasks::Word) -> Box<[u8]> {
         | tasks::MessageKind::Words
         | tasks::MessageKind::Question
         | tasks::MessageKind::Answer { .. }
-        | tasks::MessageKind::Notice { .. }
         | tasks::MessageKind::News { .. }
         | tasks::MessageKind::Timer { .. }
         | tasks::MessageKind::Met { .. }

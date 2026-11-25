@@ -1320,12 +1320,18 @@ fn close_reason(shape: Shape) -> c::Text {
     c::Text::new(Box::from(words), u32::MAX).expect("page cancellation reason fits")
 }
 
+pub(super) fn pause(project: u32, task: u64) -> c::Ask {
+    c::Ask::Stop {
+        project,
+        task,
+        reason: c::Text::new(Box::from(b"Paused from the web".as_slice()), u32::MAX).expect("page pause reason fits"),
+    }
+}
+
 /// Pause and Resume use the same offered acts and hold revision on task pages and Team.
 pub(super) fn control(task: &c::Task, kind: Sending, paused: bool) -> Option<c::Ask> {
     match kind {
-        Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
-            Some(c::Ask::Stop { project: task.project, task: task.chip.task })
-        }
+        Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => Some(pause(task.project, task.chip.task)),
         Sending::Resume if paused && super::chat::allowed(task, c::ActKind::Release) => Some(c::Ask::Release {
             project: task.project,
             task: task.chip.task,

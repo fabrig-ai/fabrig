@@ -18,7 +18,13 @@ fn request() -> Request {
             words: c::Text::new(b"continue".as_slice().into(), 64).expect("bounded wire fixture"),
         })
         .expect("bounded wire fixture");
-    operations.push(c::Operation::Stop { project: PROJECT, task: WIRE_TASK }).expect("bounded wire fixture");
+    operations
+        .push(c::Operation::Stop {
+            project: PROJECT,
+            task: WIRE_TASK,
+            reason: c::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX).expect("fixture reason fits"),
+        })
+        .expect("bounded wire fixture");
     let ask = translate::asks::ask(&c::Ask::Compound { project: PROJECT, operations }, &w::CEILINGS)
         .expect("bounded wire fixture");
     let keyed = w::Keyed {

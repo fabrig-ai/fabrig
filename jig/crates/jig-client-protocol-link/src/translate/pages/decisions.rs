@@ -1,7 +1,7 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{
-    Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, specification_fields,
-    task_contract_document_fields, text, too_large, w,
+    Limits, List, Reader, Wall, authority_fields, c, opaque, specification_fields, task_contract_document_fields, text,
+    too_large, w,
 };
 use jig_client_protocol_wire::Record as _;
 
@@ -98,36 +98,6 @@ pub(crate) fn person_proposal_state_fields(
     })
 }
 
-pub(crate) fn person_proposal_fields(
-    value: &w::PersonProposal,
-    limits: &Limits,
-) -> Result<c::PersonProposal, w::Problem> {
-    Ok(c::PersonProposal {
-        number: value.number,
-        proposer: value.proposer,
-        project: value.project,
-        goal: person_proposal_goal_fields(&value.goal, limits)?,
-        state: person_proposal_state_fields(&value.state, limits)?,
-    })
-}
-
-pub(crate) fn proposal_decision_fields(value: &w::ProposalDecision) -> c::ProposalDecision {
-    let opt0 = match &value.created {
-        Some(item) => Some((item.first, item.last)),
-        None => None,
-    };
-    c::ProposalDecision {
-        project: value.project,
-        proposer: crate::translate::answers::proposer(&value.proposer),
-        proposal: value.proposal,
-        kind: message_proposal_kind_fields(&value.kind),
-        by: value.by,
-        at: Wall::from_nanos(value.at),
-        choice: crate::translate::answers::proposal_choice(&value.choice),
-        created: opt0,
-    }
-}
-
 pub(crate) fn escalation_decision_fields(
     value: &w::EscalationDecision,
     limits: &Limits,
@@ -136,20 +106,5 @@ pub(crate) fn escalation_decision_fields(
         w::EscalationDecision::Release => c::EscalationDecision::Release,
         w::EscalationDecision::Reject(row) => c::EscalationDecision::Reject { reason: text(&row.reason, limits)? },
         w::EscalationDecision::Pass => c::EscalationDecision::Pass,
-    })
-}
-
-pub(crate) fn escalation_decision_record_fields(
-    value: &w::EscalationDecisionRecord,
-    limits: &Limits,
-) -> Result<c::EscalationDecisionRecord, w::Problem> {
-    Ok(c::EscalationDecisionRecord {
-        project: value.project,
-        requester: value.requester,
-        task: value.task,
-        revision: value.revision,
-        by: value.by,
-        at: Wall::from_nanos(value.at),
-        decision: escalation_decision_fields(&value.decision, limits)?,
     })
 }

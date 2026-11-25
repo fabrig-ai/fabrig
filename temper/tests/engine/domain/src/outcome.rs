@@ -217,6 +217,7 @@ fn hold(why: tasks::Hold) -> &'static str {
         tasks::Hold::PoolLost { .. } => "pool lost",
         tasks::Hold::Procedure => "procedure",
         tasks::Hold::Circle => "circle",
+        tasks::Hold::Waited => "wait past its bound",
     }
 }
 

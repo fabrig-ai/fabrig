@@ -643,7 +643,11 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool, stopped: bool) {
     }
     let mut gate = world.assigned.get(2).expect("agent gate assigned").clone();
     if stopped {
-        review_person(&mut world, 180, people::Ask::Stop { project: 1, task: change });
+        review_person(
+            &mut world,
+            180,
+            people::Ask::Stop { project: 1, task: change, reason: Box::from(b"Parking the task".as_slice()) },
+        );
         world.advance_ticks(100);
         let event =
             world.protocol.answer(Token::new(7), gate.task, gate.attempt, 0, tasks::End::Parked, engine::Parts::none());
@@ -2856,9 +2860,9 @@ fn forge_subscription_rooms_name_their_limits() {
     for (bound, tool, expected) in [
         ("forge", b"subscribe_forge".as_slice(), "subscriptions (limit 1)"),
         ("resources", b"subscribe_forge", "resources_per_task (limit 1)"),
-        ("task", b"subscribe_forge", "tasks.subscriptions (limit 1)"),
-        ("timer", b"subscribe", "it holds its most subscriptions (at most 1"),
-        ("delegate", b"subscribe", "it holds its most subscriptions (at most 1"),
+        ("task", b"subscribe_forge", "tasks.subscriptions (limit 2)"),
+        ("timer", b"subscribe", "it holds its most subscriptions (at most 2"),
+        ("delegate", b"subscribe", "it holds its most subscriptions (at most 2"),
         ("paths", b"subscribe_forge", "paths_per_subscription (limit 0)"),
         ("path_bytes", b"subscribe_forge", "path exceeds name_bytes"),
         ("branch_bytes", b"subscribe_forge", "branch exceeds name_bytes"),
@@ -2888,6 +2892,16 @@ fn forge_subscription_rooms_name_their_limits() {
             );
             assert!(matches!(first, engine::CallAnswer::Subscribed { .. }), "room at the bound: {first:?}");
         }
+        if bound == "task" || task_room {
+            let second = subscription_json(
+                &mut world,
+                &goal,
+                b"subscribe_forge",
+                94,
+                br#"{"topic":{"kind":"landings","branch":"other"}}"#,
+            );
+            assert!(matches!(second, engine::CallAnswer::Subscribed { .. }), "shared extra room: {second:?}");
+        }
         let long = "x".repeat(usize::try_from(world.env.limits.forge.name_bytes).expect("name bound") + 1);
         let branch = match bound {
             "branch_bytes" => long.as_str(),
@@ -2907,7 +2921,7 @@ fn forge_subscription_rooms_name_their_limits() {
         } else {
             format!(r#"{{"topic":{{"kind":"landings","branch":"{branch}"}},"paths":{paths}}}"#)
         };
-        let answer = subscription_json(&mut world, &goal, tool, 94, input.as_bytes());
+        let answer = subscription_json(&mut world, &goal, tool, 95, input.as_bytes());
         subscription_feedback(&answer, expected);
         world.close();
     }
@@ -3736,7 +3750,7 @@ fn a_zero_wait_or_in_process_workers_says_no_restart() {
 }
 
 // A settled stop keeps its restart word; a committed forge effect stays
-// with the connector (jig's `domain/engine/restart.md`, 1).
+// with the connector (jig's `domain/engine/restart.md`, 5).
 #[test]
 fn a_stop_with_a_committed_forge_effect_only_commits_the_restart_word_and_makes_no_write() {
     let (mut world, assignment) = pending_issue_effect();
@@ -4114,7 +4128,7 @@ fn an_overlapping_landing_waits_in_a_held_goals_inbox_until_release() {
         reply_to: ReplyTo::new(Token::new(801)),
         sign_in: world.signed_in.expect("person"),
         key: [81; 16],
-        ask: people::Ask::Stop { project: 1, task: goal.task },
+        ask: people::Ask::Stop { project: 1, task: goal.task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     world.advance_ticks(30);
     let terminal = world.protocol.answer(

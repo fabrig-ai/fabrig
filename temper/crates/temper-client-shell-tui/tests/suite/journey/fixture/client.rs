@@ -24,15 +24,18 @@ pub(crate) fn hello_bytes() -> Box<[u8]> {
             last: jig_client_protocol_wire::VERSION,
         })
         .expect("one owner");
+    let mut layouts = Vec::new();
     for owner in owners {
+        layouts.push(jig_client_test_records::family_layout(owner.family, owner.layout));
         let family = w::Family { number: owner.family };
         served
             .push(w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version })
             .expect("family owner");
     }
-    let hello = jig_client_test_records::opened(
+    let hello = jig_client_test_records::opened_with_layouts(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
+        &layouts,
     );
     stream_bytes(&hello)
 }

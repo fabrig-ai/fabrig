@@ -22,8 +22,9 @@ fn normalized(path: &Path) -> PathBuf {
 }
 
 // A schema may be exposed by its codec when tests cannot link its owner.
+// Translation rows for the same schema add to its allowed files.
 fn owners(list: &str) -> BTreeMap<PathBuf, Vec<PathBuf>> {
-    let mut owners = BTreeMap::new();
+    let mut owners = BTreeMap::<_, Vec<PathBuf>>::new();
     for line in list.lines() {
         let mut paths = line.split('#').next().expect("before comment").split_whitespace();
         let Some(module) = paths.next() else { continue };
@@ -34,14 +35,16 @@ fn owners(list: &str) -> BTreeMap<PathBuf, Vec<PathBuf>> {
                 continue;
             }
             let owner = schema.split("/schema/").next().expect("schema owner");
-            owners.insert(
-                PathBuf::from(schema),
-                vec![
-                    Path::new(owner).join("src/lib.rs"),
-                    Path::new(codec).join("src/lib.rs"),
-                    Path::new(owner).join("src/patch_set.rs"),
-                ],
-            );
+            let allowed = owners.entry(PathBuf::from(schema)).or_default();
+            for file in [
+                Path::new(owner).join("src/lib.rs"),
+                Path::new(codec).join("src/lib.rs"),
+                Path::new(owner).join("src/patch_set.rs"),
+            ] {
+                if !allowed.contains(&file) {
+                    allowed.push(file);
+                }
+            }
         }
     }
     owners
@@ -186,6 +189,22 @@ fn fixture() { family!(
     }
     let (_, failures) = inspect(Path::new("other/src/lib.rs"), good, &owners);
     assert!(failures.is_empty(), "unlisted texts are outside this check");
+
+    let shared_owners = self::owners(
+        "a-codec/src/generated/x.rs owner/schema/x-v1.schema\n\
+         owner/src/generated/x.rs owner/schema/x-v1.schema owner/schema/x.maps",
+    );
+    let source = r#"pub const SCHEMA: &str = include_str!("../../owner/schema/x-v1.schema");"#;
+    let (seen, failures) = inspect(Path::new("a-codec/src/lib.rs"), source, &shared_owners);
+    assert!(failures.is_empty(), "{failures:?}");
+    assert_eq!(seen, [PathBuf::from("owner/schema/x-v1.schema")]);
+
+    let (seen, failures) = inspect(Path::new("b-codec/src/lib.rs"), source, &shared_owners);
+    assert!(seen.is_empty(), "{seen:?}");
+    assert_eq!(
+        failures,
+        ["b-codec/src/lib.rs:1: owner/schema/x-v1.schema must be embedded only in its owner's public schema constant"]
+    );
 }
 
 #[test]

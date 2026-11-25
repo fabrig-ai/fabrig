@@ -24,6 +24,9 @@ fn an_act_without_key_draws_one() {
     let call = root.submit(fixtures::STOP_CALL);
     root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Stop])));
     assert_eq!(root.sent_name(call), Some(*root.saved.get(&call).expect("drawn key saved")));
+    let jig_client::Ask::Jig(ask) = &root.sends[&call].2 else { panic!("sent a jig stop") };
+    let c::Ask::Stop { task: 41, reason, .. } = ask.as_ref() else { panic!("stops task 41") };
+    assert_eq!(reason.bytes(), b"Parking the task");
 }
 #[test]
 fn a_message_not_offered_reaches_the_engine_and_suggests_amending() {

@@ -22,6 +22,7 @@ fn version_constants_match_their_schemas() {
 fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
     let widest = TableEntry::encoded_bound(&CEILINGS).expect("representable table entry");
     assert!(u64::from(CEILINGS.kept_record) >= widest, "Kept must hold TableEntry's widest encoding");
+    assert_eq!(widest, u64::from(CEILINGS.table_entry_request) + 88);
     let table = TableEntry {
         asker: u32::MAX,
         number: u64::MAX,
@@ -30,11 +31,12 @@ fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
         first_sent: Some(u64::MAX),
         owner: Owner::Family(Family { number: u16::MAX }),
         version: u32::MAX,
+        layout: [255; 32],
         request: fixtures::bytes(CEILINGS.table_entry_request),
     };
     assert_eq!(u64::from(table.measure(&CEILINGS).expect("bounded fixture")), widest);
     let record = fixtures::encoded(&table);
-    let kept = Kept { store_version: 1, record };
+    let kept = Kept { layout: LAYOUT, record };
     let bytes = fixtures::encoded(&kept);
     let decoded = Kept::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("kept round trip");
     assert_eq!(decoded, kept);
@@ -330,7 +332,7 @@ fn small_store_family() -> Family {
 #[test]
 fn a_kept_record_of_another_family_version_is_refused() {
     let limits = fixtures::limits();
-    let kept = Kept { store_version: u16::MAX, record: Box::from([255, 0]) };
+    let kept = Kept { layout: LAYOUT, record: Box::from([255, 0]) };
     let mut bytes = fixtures::encoded(&kept);
     bytes[0] = 2;
     bytes[1] = 0;
@@ -351,6 +353,7 @@ fn a_table_entry_never_sent_round_trips_with_no_wall() {
         first_sent: None,
         owner: Owner::Family(family),
         version: u32::MAX,
+        layout: [255; 32],
         request: Box::from([255, 0]),
     };
     let bytes = fixtures::encoded(&entry);
@@ -592,4 +595,21 @@ fn lent_login_names_are_bounded_at_32_bytes() {
         assert_eq!(terminal.is_ok(), length == 32);
         assert_eq!(change.is_ok(), length == 32);
     }
+}
+
+#[test]
+fn a_stop_reason_is_bounded_and_utf8() {
+    let stop = Stop { project: 3, task: 8, reason: Box::from(b"hold".as_slice()) };
+    let bytes = stop.encode(&CEILINGS).expect("valid reason");
+    let limits = Limits { stop_reason: 3, ..CEILINGS };
+    let bound = Err(paths::STOP_REASON.problem(skein_codec::Reason::Bound));
+    assert_eq!(Stop::decode(&limits, &mut Reader::new(&bytes)), bound);
+    assert_eq!(stop.encode(&limits).err(), bound.err());
+
+    let mut invalid = bytes;
+    *invalid.last_mut().expect("reason's last byte") = 0xff;
+    assert_eq!(
+        Stop::decode(&CEILINGS, &mut Reader::new(&invalid)),
+        Err(paths::STOP_REASON.problem(skein_codec::Reason::Utf8)),
+    );
 }

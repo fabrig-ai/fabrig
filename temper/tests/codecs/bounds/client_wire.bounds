@@ -40,7 +40,7 @@ BranchPath: ceilings encoded=32557 decoded=37248; at_most(3) encoded=289 decoded
 Card: ceilings encoded=1100 decoded=1184; at_most(3) encoded=60 decoded=120
 CatchingUp: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
 ChangeFrom: ceilings encoded=268 decoded=256; at_most(3) encoded=15 decoded=3
-ChangePanel: ceilings encoded=84399229 decoded=84696512; at_most(3) encoded=1029 decoded=999
+ChangePanel: ceilings encoded=84399229 decoded=84696576; at_most(3) encoded=1029 decoded=1023
 ChangeSubject: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ChangeWait: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ChangesLanded: ceilings encoded=3592 decoded=3584; at_most(3) encoded=276 decoded=213
@@ -180,7 +180,6 @@ GoalReport: ceilings encoded=524 decoded=512; at_most(3) encoded=15 decoded=3
 GroupFailed: ceilings encoded=260 decoded=256; at_most(3) encoded=7 decoded=3
 HandFinding: ceilings encoded=248 decoded=232; at_most(3) encoded=22 decoded=6
 HeldFaults: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
-HeldQuestion: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
 HeldRead: ceilings encoded=260 decoded=256; at_most(3) encoded=7 decoded=3
 HeldRecord: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 HeldTimeout: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
@@ -376,7 +375,7 @@ Protection: ceilings encoded=66830 decoded=67584; at_most(3) encoded=38 decoded=
 Pull: ceilings encoded=2060 decoded=2048; at_most(3) encoded=15 decoded=3
 Question: ceilings encoded=295 decoded=256; at_most(3) encoded=42 decoded=3
 QuestionBlocker: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
-Questions: ceilings encoded=2373 decoded=2496; at_most(3) encoded=139 decoded=177
+Questions: ceilings encoded=2373 decoded=2560; at_most(3) encoded=139 decoded=201
 QuestionsRoute: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Queued: ceilings encoded=520 decoded=512; at_most(3) encoded=32 decoded=24
 Reach: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
@@ -448,7 +447,7 @@ SettingsTier: ceilings encoded=1146487769 decoded=1159858615; at_most(3) encoded
 SetupStage: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 SeveralRepositories: ceilings encoded=131588 decoded=133120; at_most(3) encoded=46 decoded=114
 Severity: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Stands: ceilings encoded=19 decoded=0; at_most(3) encoded=19 decoded=0
+Stands: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 StartFailed: ceilings encoded=261 decoded=256; at_most(3) encoded=8 decoded=3
 StartFailure: ceilings encoded=261 decoded=256; at_most(3) encoded=8 decoded=3
 StartRefusal: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

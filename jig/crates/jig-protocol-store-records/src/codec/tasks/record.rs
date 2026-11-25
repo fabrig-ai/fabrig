@@ -301,6 +301,7 @@ fn before_talk(
         asked_requester: source.asked_requester,
         question_woken: source.question_woken,
         words_woken: source.words_woken,
+        held_since: value::wall(source.held_since),
         history: task_history(source, limits)?,
         run: task_run(source, limits, moved)?,
         definition: task_definition(source, limits, moved)?,
@@ -469,6 +470,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         asked_requester,
         question_woken,
         words_woken,
+        held_since,
     } = source;
 
     let reasons = match super::reasons_to_domain(run.reasons) {
@@ -513,6 +515,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         created_at: Wall::from_nanos(history.created_at),
         changed: Wall::from_nanos(history.changed),
         phase_since: Wall::from_nanos(history.phase_since),
+        held_since: value::read_wall(held_since),
         run_since: value::read_wall(history.run_since),
         retry_notice: read_optional_retry_notice(history.retry_notice),
         ended_at: value::read_wall(history.ended_at),
@@ -716,6 +719,7 @@ pub fn live_hot(
         created_at,
         changed,
         phase_since,
+        held_since,
         run_since,
         retry_notice,
         ended_at,
@@ -899,6 +903,7 @@ pub fn live_hot(
         asked_requester: *asked_requester,
         question_woken: *question_woken,
         words_woken: *words_woken,
+        held_since: value::wall(*held_since),
         history,
         run,
         definition,
@@ -967,6 +972,7 @@ pub fn join(hot: wire::LiveHot, cold: wire::LiveCold) -> wire::TaskRecord {
         asked_requester,
         question_woken,
         words_woken,
+        held_since,
         talk,
     } = hot;
     let wire::LiveCold { spec, contract, authority, instructions } = cold;
@@ -1065,6 +1071,7 @@ pub fn join(hot: wire::LiveHot, cold: wire::LiveCold) -> wire::TaskRecord {
         asked_requester,
         question_woken,
         words_woken,
+        held_since,
     };
     wire::TaskRecord { record, talk, concluded }
 }

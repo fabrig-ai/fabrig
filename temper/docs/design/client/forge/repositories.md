@@ -113,7 +113,7 @@ landing, the form names the one setting on the forge that would let it
 land, for the person to choose; until it is changed, its ready changes
 wait for someone else's merge (`README.md`, section 3). temper never changes a
 repository's rules. On GitHub temper writes no commit status
-(`../../domain/forge/adoption.md`, 4), so every GitHub adoption says "Commit
+(`../../domain/forge/adoption.md`, 8), so every GitHub adoption says "Commit
 statuses stay temper's own: GitHub's rules cannot require them."
 Forgejo's reads answer none of the merge queue,
 signed commits, linear history and code owners, and no bypass, so on

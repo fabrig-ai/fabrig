@@ -777,6 +777,7 @@ pub fn hold_reason_to_record(value: &jig_domain_people::HoldReason) -> crate::co
         jig_domain_people::HoldReason::Procedure => crate::core_v6::HoldReason::Procedure,
         jig_domain_people::HoldReason::Circle => crate::core_v6::HoldReason::Circle,
         jig_domain_people::HoldReason::Exceeded(held) => crate::core_v6::HoldReason::Exceeded(exceeded_to_record(held)),
+        jig_domain_people::HoldReason::Waited => crate::core_v6::HoldReason::Waited,
     }
 }
 
@@ -826,6 +827,7 @@ pub fn hold_reason_to_domain(record: crate::core_v6::HoldReason) -> jig_domain_p
         crate::core_v6::HoldReason::Procedure => jig_domain_people::HoldReason::Procedure,
         crate::core_v6::HoldReason::Circle => jig_domain_people::HoldReason::Circle,
         crate::core_v6::HoldReason::Exceeded(held) => jig_domain_people::HoldReason::Exceeded(exceeded_to_domain(held)),
+        crate::core_v6::HoldReason::Waited => jig_domain_people::HoldReason::Waited,
     }
 }
 

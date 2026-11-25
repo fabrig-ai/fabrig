@@ -536,6 +536,56 @@ fn opening_stream_me() -> (fixtures::Exchange, Token, Token) {
     (world, owner, watcher)
 }
 #[test]
+fn opened_names_jig_then_the_application_layouts_in_settings_order() {
+    const FIRST: u16 = 9;
+    const SECOND: u16 = 2;
+    const FIRST_LAYOUT: [u8; 32] = [1; 32];
+    const SECOND_LAYOUT: [u8; 32] = [2; 32];
+    let mut settings = fixtures::settings();
+    settings.served = skein_lib::List::from_boxed(Box::new([
+        crate::Served { family: Some(FIRST), first: 2, last: 2, layout: FIRST_LAYOUT },
+        crate::Served { family: None, first: w::VERSION, last: w::VERSION, layout: w::LAYOUT },
+        crate::Served { family: Some(SECOND), first: 1, last: 1, layout: SECOND_LAYOUT },
+    ]));
+    let mut env = fixtures::env();
+    env.limits.families = settings.served.len();
+    let mut world = fixtures::Exchange::configured(env, settings);
+    let stream = world.stream_open_version(Some(w::VERSION));
+    world.authenticate();
+    let watcher = world.take_watch();
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    world.component.down(
+        &world.env,
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        &mut world.out,
+    );
+    while world.component.up(&world.env, &mut world.out) {}
+    let Some(Request::Transport(crate::ToTransport::Streamed {
+        stream: owner,
+        message: crate::Streamed::Record(record),
+    })) = world.out.pop()
+    else {
+        panic!("Opened on the stream")
+    };
+    assert_eq!(owner, stream);
+    let w::StreamEvent::Opened(opened) = w::StreamEvent::decode(&fixtures::wire(), &mut Reader::new(&record)).unwrap()
+    else {
+        panic!("Opened on the stream")
+    };
+    assert_eq!(
+        opened.layouts.as_slice(),
+        &[
+            w::Layout { owner: w::Owner::Jig, layout: w::LAYOUT },
+            w::Layout { owner: w::Owner::Family(w::Family { number: FIRST }), layout: FIRST_LAYOUT },
+            w::Layout { owner: w::Owner::Family(w::Family { number: SECOND }), layout: SECOND_LAYOUT },
+        ]
+    );
+}
+
+#[test]
 fn two_streams_for_one_party_deliver_their_own_sign_ins_saved_expiries() {
     use skein_lib::Wall;
     let mut world = fixtures::Exchange::new();

@@ -74,6 +74,7 @@ fn an_ended_changes_branch_move_reads_no_comparison_or_file() {
             released: false,
             cancelled: true,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

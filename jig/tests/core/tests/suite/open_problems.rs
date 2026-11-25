@@ -82,6 +82,7 @@ fn a_coordinator_watching_its_asker_is_woken() {
         kind: tasks::SubscriptionKind::Task { target: child, held: false, result: true },
     };
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(980)),
         task: coordinator,
         subscription,

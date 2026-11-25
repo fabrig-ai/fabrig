@@ -1,6 +1,9 @@
 use super::{Play, Script, Step};
-use crate::BrowserFace;
+use crate::harness::{
+    Harness, Names, Outcome, Output, Printed, Runtime, Scripted, Sent, ServerState, Setup, Shown, page, person, run,
+};
 use crate::tests::{face, found, seen};
+use crate::{BrowserFace, NestedHas};
 use skein_browser::boundary::{Event, Key, Request};
 use skein_fake_person::{Find, Next, Step as PersonStep};
 use skein_lib::{Duration, Time, Token};
@@ -115,6 +118,123 @@ fn unanswered_steps_expire_even_while_the_face_is_pending() {
         assert_eq!(face.expired(), None);
     }
 }
+const SEE_TEXT: &[u8] = b"Ready";
+const SEE_WITHIN: Duration = Duration::from_secs(10);
+
+struct SeeStory {
+    setup: Harness,
+    runtime: Runtime,
+    script: Script,
+    faces: [BrowserFace<'static>; 1],
+    done: [bool; 1],
+}
+
+impl SeeStory {
+    fn new(visible: Option<Time>) -> Self {
+        let setup = Harness::new(Setup {
+            server: "/test-server".into(),
+            args: vec![],
+            printed: Printed { sent: Sent::Page, prefix: b"listening ", on: Output::Stdout, names: Names::Address },
+            restart: vec![],
+            chromium: "/test-browser".into(),
+            downloads: None,
+            expected: vec![],
+            origins: vec![],
+        });
+        let mut browser = Scripted::new();
+        if let Some(visible) = visible {
+            browser = browser
+                .page(b"/", Shown { nodes: vec![(b"StaticText".as_slice().into(), SEE_TEXT.into())], elements: vec![] })
+                .find_after(SEE_TEXT, visible);
+        }
+        let mut script =
+            Script::new(Box::new([Step::Person(PersonStep::See { find: Find::text(SEE_TEXT), within: SEE_WITHIN })]));
+        let (mut runtime, _) = Runtime::new(&setup, &[&mut script], run::BrowserStart::Scripted(browser));
+        runtime.ask(Request::Page {
+            person: person(0),
+            page: page(0),
+            url: b"http://example.test/".as_slice().into(),
+            requests: false,
+        });
+        let mut story =
+            Self { setup, runtime, script, faces: [BrowserFace::new(page(0), "example.test")], done: [false] };
+        story.turn(Time::ZERO);
+        story.turn(Time::ZERO);
+        assert!(story.faces[0].pending(), "the first find is in flight");
+        story
+    }
+
+    fn turn(&mut self, now: Time) {
+        self.runtime.benv.now = now;
+        self.runtime.tick(&self.setup, &mut self.faces, &[&mut self.script], now);
+        self.runtime.judge_steps(&self.setup, &mut [&mut self.script], &mut self.faces, &self.done, now);
+        if self.runtime.outcome.is_none() {
+            self.runtime.play(&mut [&mut self.script], &mut self.faces, &mut self.done, now, &self.setup);
+        }
+    }
+
+    fn wake(&mut self, now: Time) -> Option<Time> {
+        assert!(self.runtime.events.is_empty(), "nothing else will wake the script");
+        self.runtime.play_wake(&[&mut self.script], &self.faces, &self.done, now)
+    }
+}
+
+#[test]
+fn a_see_polls_again_after_a_slow_negative_reply() {
+    let poll = skein_browser::Limits::default().poll;
+    let arrives = Time::ZERO.saturating_add(poll.saturating_mul(2));
+    let retry = arrives.saturating_add(poll);
+    let mut story = SeeStory::new(Some(retry));
+
+    // The scripted kit's reply was queued at the request; deliver it on a later turn.
+    story.turn(arrives);
+    assert_eq!(story.script.at(), 0);
+    assert_eq!(story.wake(arrives), Some(retry), "a slow reply must not defer the retry to the step's deadline");
+
+    story.turn(retry);
+    assert!(story.faces[0].pending(), "the second find is in flight");
+    story.turn(retry);
+    assert_eq!(story.script.at(), 1, "the next find sees the target");
+    story.turn(retry);
+    assert_eq!(story.runtime.outcome, Some(Outcome::Done));
+}
+
+#[test]
+fn a_see_polls_when_a_reply_is_consumed_after_the_next_poll_is_due() {
+    let poll = skein_browser::Limits::default().poll;
+    let arrives = Time::ZERO.saturating_add(poll.saturating_mul(2));
+    let resume = arrives.saturating_add(poll.saturating_mul(2));
+    let mut story = SeeStory::new(Some(resume));
+
+    story.runtime.server_state = ServerState::Stopping;
+    story.turn(arrives);
+    assert!(!story.faces[0].pending(), "the reply arrived while the script could not play");
+    story.runtime.server_state = ServerState::Running;
+    story.turn(resume);
+    assert!(story.wake(resume).is_some_and(|at| at <= resume), "the overdue poll is runnable work");
+
+    story.turn(resume);
+    story.turn(resume);
+    assert_eq!(story.script.at(), 1);
+}
+
+#[test]
+fn a_see_still_expires_at_its_own_deadline_after_a_slow_reply() {
+    let until = Time::ZERO.saturating_add(SEE_WITHIN);
+    let before = Time::from_nanos(until.as_nanos() - 1);
+    let mut story = SeeStory::new(None);
+    story.turn(before);
+    assert_eq!(story.runtime.outcome, None, "the negative reply is not an early failure");
+    assert_eq!(story.wake(before), Some(until), "the step's bound comes before the next poll");
+    story.turn(until);
+    let Some(Outcome::Failed { person: 0, step: 0, report }) = story.runtime.outcome else {
+        panic!("the missing target must expire exactly at the step's deadline");
+    };
+    assert!(report.starts_with("Missing {"), "{report}");
+    let bound = SEE_WITHIN.as_nanos();
+    assert!(report.contains(&format!("bound {bound} ns, waited {bound} ns")), "{report}");
+}
+
 #[test]
 fn a_key_step_sends_the_kits_key() {
     let mut script = Script::new(Box::new([Step::Key(Key::Escape)]));
@@ -219,12 +339,12 @@ fn the_focus_step_checks_the_found_nodes_focus() {
     }
 }
 
-fn keeping() -> (Script, BrowserFace<'static>) {
-    let mut script = Script::new(Box::new([Step::Keep {
-        selector: b"#hidden".as_slice().into(),
-        attribute: None,
-        name: b"read".as_slice().into(),
-    }]));
+fn keep(selector: &[u8]) -> Step {
+    Step::Keep { selector: selector.into(), attribute: None, name: b"read".as_slice().into() }
+}
+
+fn keeping(selector: &[u8]) -> (Script, BrowserFace<'static>) {
+    let mut script = Script::new(Box::new([keep(selector)]));
     let mut face = face();
     script.next(&mut face, Time::ZERO);
     assert_eq!(
@@ -232,15 +352,53 @@ fn keeping() -> (Script, BrowserFace<'static>) {
         vec![Request::Attribute {
             page: Token::new(7),
             op: ADDRESS_OP,
-            selector: b"#hidden".as_slice().into(),
+            selector: selector.into(),
             name: b"value".as_slice().into()
         }]
     );
     (script, face)
 }
 #[test]
+fn a_keep_cannot_nest_has_through_not() {
+    let selector = b"details:has(> summary:not(:has(> [role=group] + span)))".as_slice();
+    assert_eq!(Script::try_new(Box::new([keep(selector)])).err(), Some(NestedHas { selector: selector.into() }));
+}
+
+#[test]
+fn a_keep_cannot_nest_has_through_is() {
+    let selector = b"a:has(b:is(c:has(d)))".as_slice();
+    assert_eq!(Script::try_new(Box::new([keep(selector)])).err(), Some(NestedHas { selector: selector.into() }));
+}
+
+#[test]
+fn a_keep_cannot_nest_has_in_mixed_case() {
+    let selector = b"a:HaS(b:where(c:HAS(d)))".as_slice();
+    assert_eq!(Script::try_new(Box::new([keep(selector)])).err(), Some(NestedHas { selector: selector.into() }));
+}
+
+#[test]
+fn a_nested_has_refusal_displays_the_selector() {
+    let refusal = NestedHas { selector: b"a:HaS(b:where(c:HAS(d)))".as_slice().into() };
+    assert_eq!(refusal.to_string(), "keep selector a:HaS(b:where(c:HAS(d))) nests :has()");
+}
+
+#[test]
+fn a_keep_requests_unnested_selectors_unchanged() {
+    for selector in [
+        b"[role=tree]:has(> x):not(:has(y))".as_slice(),
+        b"main:not(:has(input, label, form))",
+        b"x:has([title=':has(y)'])",
+        br#"x:has([title="\":has(y)"])"#,
+        b"x:has(/* :has(y) */ z)",
+    ] {
+        assert!(Script::try_new(Box::new([keep(selector)])).is_ok());
+        let _ = keeping(selector);
+    }
+}
+
+#[test]
 fn a_keep_waits_for_its_terminal_before_advancing() {
-    let (mut script, mut face) = keeping();
+    let (mut script, mut face) = keeping(b"#hidden");
     script.next(&mut face, Time::ZERO);
     assert_eq!(script.at(), 0);
     assert!(face.pending());
@@ -254,7 +412,7 @@ fn a_keep_waits_for_its_terminal_before_advancing() {
 }
 #[test]
 fn a_refused_keep_names_the_selector_and_attribute() {
-    let (mut script, mut face) = keeping();
+    let (mut script, mut face) = keeping(b"#hidden");
     face.event(&Event::Refused {
         op: ADDRESS_OP,
         why: skein_browser::boundary::Refusal::Protocol,
@@ -270,7 +428,7 @@ fn a_refused_keep_names_the_selector_and_attribute() {
 }
 #[test]
 fn another_operations_attribute_does_not_complete_a_keep() {
-    let (script, mut face) = keeping();
+    let (script, mut face) = keeping(b"#hidden");
     face.event(&Event::Attribute { op: Token::new(8), read: skein_browser::boundary::Read::NoElement });
     assert!(face.pending());
     assert_eq!(script.at(), 0);

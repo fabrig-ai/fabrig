@@ -55,7 +55,14 @@ impl Driver {
                     if ended(&self.world, target) || acts::landing(&self.world.store, target).is_none() {
                         continue;
                     }
-                    let result = self.request(action.party, people::Ask::Stop { project: 1, task: target });
+                    let result = self.request(
+                        action.party,
+                        people::Ask::Stop {
+                            project: 1,
+                            task: target,
+                            reason: Box::from(b"Parking the task".as_slice()),
+                        },
+                    );
                     check_request(&result, "hold member")?;
                 }
                 Act::ReleaseMember => {

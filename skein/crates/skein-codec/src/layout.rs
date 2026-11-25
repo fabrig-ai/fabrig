@@ -5,6 +5,7 @@ use crate::schema::{Root, Schema, Span};
 use alloc::boxed::Box;
 use skein_lib::{Buffer, List};
 
+pub(crate) mod compare;
 mod derive;
 mod run;
 #[cfg(test)]

@@ -10,7 +10,9 @@ impl World {
             f.actions.retain(|pending| pending != &action);
             let target = self.workload_names().task(&action.target).expect("drawn member");
             let ask = match action.act {
-                Act::HoldMember => people::Ask::Stop { project: 1, task: target },
+                Act::HoldMember => {
+                    people::Ask::Stop { project: 1, task: target, reason: Box::from(b"Parking the task".as_slice()) }
+                }
                 Act::ReleaseMember => {
                     let row = self.root.tasks().task(target).expect("held member");
                     assert!(matches!(row.phase, tasks::Phase::Held { .. }), "release follows hold");

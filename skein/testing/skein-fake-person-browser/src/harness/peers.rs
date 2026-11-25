@@ -150,6 +150,9 @@ impl<'a, 'b> Peers<'a, 'b> {
     pub fn empty(&self) -> bool {
         self.states.iter().all(|state| state.empty)
     }
+    pub(super) fn needs_stop(&self) -> bool {
+        self.states.iter().any(|state| !state.stopped)
+    }
     pub(super) fn pending(&self) -> bool {
         self.states.iter().any(|state| state.pending)
     }

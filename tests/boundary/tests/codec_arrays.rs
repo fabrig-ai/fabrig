@@ -1,4 +1,4 @@
-//! Generated codecs name widths, not schema counts (temper's draft/codec-shape.md, 6.1).
+//! Generated codecs name widths, not schema counts (temper's draft/archive/codec-shape.md, 6.1).
 
 use std::{fs, path::Path, process::Command};
 

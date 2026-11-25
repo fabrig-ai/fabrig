@@ -99,6 +99,7 @@ fn waiting_step(world: &mut Protocol, entry: u64) {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

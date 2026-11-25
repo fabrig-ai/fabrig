@@ -30,6 +30,7 @@ fn batch(h: &mut Harness, parent: u64, number: u64) -> Vec<Request> {
     let step = row.attempt.checked_add(1).expect("test step fits");
     let read = h.domain.procedure_offered(parent);
     h.send(Event::Procedure {
+        reads_project: false,
         reply_to: to(),
         task: parent,
         step,
@@ -184,6 +185,7 @@ fn an_agents_delegation_refused_for_room_does_not_wait() {
     h.make(vec![task(1, &[])]);
     h.env.limits.tasks = 1;
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

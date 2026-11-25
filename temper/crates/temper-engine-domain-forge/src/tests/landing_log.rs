@@ -119,6 +119,7 @@ fn a_pull_seen_merged_is_logged() {
         branch_fresh: false,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
+        close_landing: None,
         pull: Some(pull),
         ci: change::Status::Passed,
         base_ci: change::Status::Passed,

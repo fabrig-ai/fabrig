@@ -99,7 +99,12 @@ const STOP: Key = Key { asker: Asker(1), number: 1 };
 const SECOND_STOP: Key = Key { asker: Asker(1), number: 2 };
 const WIRE_KEY: [u8; 16] = [19; 16];
 fn stop(task: u64) -> Ask {
-    Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT_NUMBER, task }))
+    Ask::Jig(Box::new(contract::Ask::Stop {
+        project: PROJECT_NUMBER,
+        task,
+        reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+            .expect("fixture reason fits"),
+    }))
 }
 fn assert_one_refusal(story: &Story) {
     let answers = story.answered(STOP);
@@ -224,7 +229,15 @@ fn a_keyed_exchange_before_its_store_is_caught() {
 fn a_client_signed_out_with_a_stop_parked_sends_it_once_signed_in_again() {
     let mut story = Story::live(fixtures::SEED);
     story.event(jig_client::Event::SignOut);
-    story.send(STOP, Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 })));
+    story.send(
+        STOP,
+        Ask::Jig(Box::new(contract::Ask::Stop {
+            project: 1,
+            task: 9,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(story.run_until(|s| s.client.link().state == Link::SignedOut, Duration::from_secs(1)));
     assert_eq!(story.client.pending(STOP).expect("kept stop").progress, jig_client::Progress::Parked);
     assert_eq!(story.made(fixtures::FIRST_OWNER), 0);
@@ -318,8 +331,9 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         },
-        jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
+        jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3, layout: [3; 32] },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));
     assert_eq!(story.client.pending(FAMILY_REQUEST).expect("kept request").progress, jig_client::Progress::NotServed);
@@ -406,7 +420,15 @@ const COMPOUND: Key = Key { asker: Asker::JIG, number: 84 };
 fn a_compound_answer_names_the_durable_words_before_its_release() {
     let mut story = Story::live(fixtures::SEED);
     let task = story.running_task();
-    story.send(COMPOUND_STOP, Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT_NUMBER, task })));
+    story.send(
+        COMPOUND_STOP,
+        Ask::Jig(Box::new(contract::Ask::Stop {
+            project: PROJECT_NUMBER,
+            task,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(story.run_until(|s| s.phase(task) == Some(contract::Phase::Held), PROOF_WAIT));
     let mut operations = skein_lib::List::with_capacity(2);
     operations
@@ -942,7 +964,15 @@ fn conclude_crosses_the_wire_and_the_task_document_keeps_its_word() {
         panic!("task document")
     };
     assert_eq!(before.concluded, None);
-    story.send(SECOND_STOP, Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: gathering })));
+    story.send(
+        SECOND_STOP,
+        Ask::Jig(Box::new(contract::Ask::Stop {
+            project: 1,
+            task: gathering,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(story.run_until(|s| !s.answered(SECOND_STOP).is_empty(), PROOF_WAIT));
     story.send(STOP, Ask::Jig(Box::new(contract::Ask::Conclude { project: 1, task: gathering })));
     assert!(story.run_until(|s| !s.answered(STOP).is_empty(), PROOF_WAIT));

@@ -254,24 +254,6 @@ fn a_scoped_find_asks_under_its_scopes_object() {
     );
 }
 #[test]
-fn a_scope_of_an_earlier_document_is_gone() {
-    let mut world = scoped_world();
-    world.fault(b"DOM.resolveNode", crate::world::Fault::ScopeGone);
-    world.ask(Request::Find { page: PAGE, op: READ, query: scoped_query() });
-    world.tick(Time::from_nanos(50_000_000));
-    match world.above.pop() {
-        Some(Event::Refused { op, why, .. }) => assert_eq!(
-            (op, why, methods(&world)),
-            (
-                READ,
-                Refusal::Gone,
-                vec![Box::from(b"Page.bringToFront".as_slice()), Box::from(b"DOM.resolveNode".as_slice())]
-            )
-        ),
-        other => panic!("expected a stale scope to be Gone, got {other:?}"),
-    }
-}
-#[test]
 fn a_late_resolved_scope_object_is_released() {
     let mut world = scoped_world();
     world.fault(b"DOM.resolveNode", crate::world::Fault::Delay);

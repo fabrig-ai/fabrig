@@ -210,6 +210,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         created_at: Wall::EPOCH,
         changed: Wall::EPOCH,
         phase_since: Wall::EPOCH,
+        held_since: None,
         run_since: None,
         retry_notice: None,
         ended_at: None,
@@ -386,7 +387,6 @@ pub fn encoding(settings: &settings::Engine) -> crate::assignment::Encoding {
 #[must_use]
 pub fn worker_runtime() -> crate::WorkerRuntime {
     crate::WorkerRuntime {
-        wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
         agent: super::pinned_agent(super::worker_settings().jig.agent.as_ref().expect("checked worker agent")),

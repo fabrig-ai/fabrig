@@ -1,5 +1,6 @@
 //! A person's facts (temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
@@ -16,6 +17,15 @@ pub enum PersonFact {
     GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
     /// The person kept asking for this reach's subject.
     KeepAsking { project: u32, subject: Subject, at: Wall },
+}
+
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps by-hand pairs borrow the domain value")]
+pub(crate) fn class_subject_to_record(subject: &Subject) -> w::ClassSubject {
+    subject_record(*subject)
+}
+
+pub(crate) fn class_subject_to_domain(record: w::ClassSubject) -> Subject {
+    subject_from(&record)
 }
 
 /// An ended watch stays ended until the next sign-in.
@@ -41,17 +51,12 @@ pub fn watch(limits: &Limits) -> Option<Watchable> {
 #[must_use]
 pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
-    let (project, what) = match what {
-        PersonFact::ToBegin { project } => (project, w::PersonFact::ToBegin(w::ToBegin { project })),
-        PersonFact::GoalFrom { project, chat, goal, at } => {
-            (project, w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at }))
-        }
-        PersonFact::KeepAsking { project, subject, at } => (
-            project,
-            w::PersonFact::KeepAsking(w::KeepAsking { project, subject: subject_record(subject), at: at.as_nanos() }),
-        ),
+    let project = match what {
+        PersonFact::ToBegin { project }
+        | PersonFact::GoalFrom { project, .. }
+        | PersonFact::KeepAsking { project, .. } => project,
     };
-    let dismiss = w::Dismiss { what };
+    let dismiss = w::Dismiss { what: maps::person_fact_to_record(&what) };
     let record = w::Requesting { request: w::Request::Dismiss(dismiss) };
     Some(Ask::Family {
         scope: c::Scope::Project(project),
@@ -210,18 +215,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
     let document = wire::decode_dismissals(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(wire::DISMISSED);
     for what in document.dismissed.into_boxed() {
-        let what = match what {
-            w::PersonFact::KeepAsking(value) => PersonFact::KeepAsking {
-                project: value.project,
-                subject: subject_from(&value.subject),
-                at: Wall::from_nanos(value.at),
-            },
-            w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project },
-            w::PersonFact::GoalFrom(value) => {
-                PersonFact::GoalFrom { project: value.project, chat: value.chat, goal: value.goal, at: value.at }
-            }
-        };
-        rows.push(what).expect("wire bounds dismissal rows");
+        rows.push(maps::person_fact_to_domain(what)).expect("wire bounds dismissal rows");
     }
     Some(rows.into_boxed())
 }

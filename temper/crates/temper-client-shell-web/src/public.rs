@@ -120,7 +120,7 @@ impl PublicHost {
                 id: self.next,
                 call: http::public(
                     &self.mapping,
-                    &http::PublicPath { owner: read.owner, version: read.version, kind: read.kind, ids },
+                    &http::PublicPath { owner: read.owner, layout: read.layout, kind: read.kind, ids },
                 ),
                 bound: limits::BODY_BYTES,
                 pieces: None,

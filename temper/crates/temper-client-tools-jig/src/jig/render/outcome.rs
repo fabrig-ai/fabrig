@@ -1271,7 +1271,8 @@ fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -
             out.put(worker);
             out.put(b" is not linked");
         }
-        c::Refusal::Concluded { .. }
+        c::Refusal::QuestionAnswered { .. }
+        | c::Refusal::Concluded { .. }
         | c::Refusal::Judged { .. }
         | c::Refusal::SignInRedirect { .. }
         | c::Refusal::Forgotten { .. }
@@ -1597,6 +1598,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::Unlinked { .. }
+        | c::Refusal::QuestionAnswered { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Llm { .. } => false,
     }

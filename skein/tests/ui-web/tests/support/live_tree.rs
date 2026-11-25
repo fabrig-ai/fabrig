@@ -241,7 +241,7 @@ fn the_live_tree_applies_each_patch_in_place() {
             story.dom("details:has(> summary > [role=group] + span:last-child)".into(), "data-node", "6");
             story.steps(vec![harness::Step::Person(Step::See { find: Find::text(b"Extra"), within: SECOND })]);
         } else {
-            story.dom("details:has(> summary:not(:has(> [role=group] + span)))".into(), "data-node", "6");
+            story.dom("details:has(> summary):not(:has(> summary > [role=group] + span))".into(), "data-node", "6");
         }
         story.dom("details:has(> summary:first-child ~ p:last-child)".into(), "data-node", "6");
     }

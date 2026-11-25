@@ -373,6 +373,7 @@ fn forget_party(core: &mut Core, env: &Env<Limits>, record: &tasks::TaskSummary,
             people::Request::Act { .. }
             | people::Request::Acted { .. }
             | people::Request::ServiceMade { .. }
+            | people::Request::ReadingLost { .. }
             | people::Request::RolesApplied { .. }
             | people::Request::Route { .. }
             | people::Request::Reply { .. }

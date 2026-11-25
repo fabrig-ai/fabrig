@@ -52,14 +52,16 @@ fn a_job_is_encoded_with_its_workspace_and_grants() {
     let (connection, channel) = world.reporting(fixtures::WORKER_A, fixtures::SECRET_A);
     world.down(assignment(channel));
     world.run();
-    let records = world.observed(connection);
+    let records = world.observed_with_accept(connection);
     assert_eq!(records.len(), 2);
+    assert_eq!(records[0].kind, 2); // Accept
     assert_eq!(records[1].kind, wire::Kind::Job.number());
     let job = wire::Job::decode(&codec(), &mut Reader::new(&records[1].body)).expect("job");
     assert_eq!((job.task, job.attempt, job.kind, job.deadline), (8, 3, 42, Duration::from_secs(4)));
     assert_eq!(job.spec.as_ref(), [0, 255, 127]);
     let workspace = job.workspace.as_ref().expect("workspace");
     assert_eq!((workspace.workstream, workspace.items.as_ref()), (9, &b"items"[..]));
+    assert_eq!(job.grants.len(), 1);
     let grant = job.grants.get(0).expect("grant");
     assert_eq!((grant.number, grant.generation, grant.valid), (1, 4, Duration::from_secs(30)));
     let wire::GrantValue::Application(value) = &grant.value else { panic!("application") };
@@ -159,7 +161,7 @@ fn a_job_past_its_bounds_or_missing_its_parts_is_dropped() {
         world.run();
     }
     assert_eq!(world.dropped_down(), 2);
-    assert_eq!((world.observed(connection)).len(), 1);
+    assert_eq!(world.observed_with_accept(connection).iter().map(|r| r.kind).collect::<Vec<_>>(), [2]);
 }
 
 /// An oversized answer never reaches the fleet (jig/docs/design/protocol/channel/records.md, 4).

@@ -1,5 +1,5 @@
 //! Standing follow decisions (temper/docs/design/domain/forge/follows.md, 4–5).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use forge::follows::{FollowQuestion, FollowRefusal};
 use jig_domain_core::{Dependency, StepCancel, StepMessage};

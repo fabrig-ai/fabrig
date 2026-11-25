@@ -226,6 +226,7 @@ impl Clients {
                 family: Some(temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge)),
                 first: temper_client_protocol_wire::CLIENT_VERSION,
                 last: temper_client_protocol_wire::CLIENT_VERSION,
+                layout: temper_client_protocol_wire::CLIENT_LAYOUT,
             }),
         );
         // The provider owns its signer; construct the initial settings twice without cloning it.
@@ -769,7 +770,14 @@ impl Clients {
         self.pending = server_pending || admitted || self.server_queued || !self.server_out.is_empty();
         let mount_pending = self.mount.up(&self.mount_env, &mut self.mount_out);
         self.pending |= mount_pending;
-        if self.component_closed && !mount_pending && self.mount_out.is_empty() && self.out.is_empty() {
+        // Finishing can make a held call closable on the next pass. A close
+        // already sent waits for its IO terminal, not another finish.
+        if self.component_closed
+            && !self.server.finished()
+            && !mount_pending
+            && self.mount_out.is_empty()
+            && self.out.is_empty()
+        {
             self.server.finish();
             self.pending = true;
         }
@@ -995,24 +1003,24 @@ fn forge_public_kinds() -> [kit::public::PublicKind; 3] {
         kit::public::PublicKind {
             owner,
             kind: wire::PUBLIC_CHANGE,
-            first: wire::PUBLIC_VERSION,
-            last: wire::PUBLIC_VERSION,
+            version: wire::PUBLIC_VERSION,
+            layout: wire::PUBLIC_LAYOUT,
             task: true,
             bound: change,
         },
         kit::public::PublicKind {
             owner,
             kind: wire::PUBLIC_LANDINGS,
-            first: wire::PUBLIC_VERSION,
-            last: wire::PUBLIC_VERSION,
+            version: wire::PUBLIC_VERSION,
+            layout: wire::PUBLIC_LAYOUT,
             task: false,
             bound: landings,
         },
         kit::public::PublicKind {
             owner,
             kind: wire::PUBLIC_LANDING,
-            first: wire::PUBLIC_VERSION,
-            last: wire::PUBLIC_VERSION,
+            version: wire::PUBLIC_VERSION,
+            layout: wire::PUBLIC_LAYOUT,
             task: true,
             bound: landing,
         },

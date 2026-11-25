@@ -3,7 +3,7 @@ use super::fixtures as f;
 use crate::{Address, Event, Request, WorkFilter};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
-use skein_lib::{Duration, List, Queue, Reader, Writer};
+use skein_lib::{Duration, List, Queue, Reader};
 
 fn project_reads(out: &mut Queue<Request>) -> u32 {
     let mut count = 0_u32;
@@ -66,6 +66,15 @@ fn the_rails_project_is_read_once_in_the_hellos_batch() {
         panic!("stream alone")
     };
     assert!(out.is_empty(), "nothing of the frame or page before the hello");
+    crate::step(&mut root, &env, opened(), &mut out);
+    crate::settle(&mut root, &env, &mut out);
+    assert_eq!(project_reads(&mut out), 1, "the hello carries the rail's only project read");
+    crate::step(&mut root, &env, Event::Went { place: crate::Place::Address(address) }, &mut out);
+    crate::settle(&mut root, &env, &mut out);
+    assert_eq!(project_reads(&mut out), 0, "opening again does not repeat it");
+}
+
+fn opened() -> Event {
     let mut served = List::with_capacity(2);
     for (owner, version) in [
         (w::Owner::Jig, w::VERSION),
@@ -76,22 +85,50 @@ fn the_rails_project_is_read_once_in_the_hellos_batch() {
     ] {
         served.push(w::Served { owner, first: version, last: version }).unwrap();
     }
-    let hello = jig_client_test_records::opened(
+    let hello = jig_client_test_records::opened_with_layouts(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
+        &[jig_client_test_records::family_layout(
+            temper_client_protocol_wire::FORGE,
+            temper_client_protocol_wire::CLIENT_LAYOUT,
+        )],
     );
-    let mut writer =
-        Writer::new(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().unwrap());
-    hello.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
+    Event::Client {
+        event: jig_client::Event::Streamed {
+            message: jig_client::Streamed::Record(hello.encode(&w::CEILINGS).expect("fixture hello")),
+        },
+    }
+}
+
+#[test]
+fn the_hello_marks_a_different_forge_layout_not_served() {
+    use temper_client_protocol_wire::{CLIENT_LAYOUT, CLIENT_VERSION, FORGE};
+    const OTHER_LAYOUT: [u8; 32] = {
+        let mut layout = CLIENT_LAYOUT;
+        layout[0] ^= 1;
+        layout
+    };
+    const OWNERS: &[jig_client::Spoken] =
+        &[jig_client::Spoken { family: FORGE, version: CLIENT_VERSION, layout: OTHER_LAYOUT }];
+    let mut limits = f::limits();
+    limits.client.domain.owners = OWNERS;
+    let env = f::env(&limits);
+    let mut root = crate::new(&limits, f::SEED);
+    let mut out = Queue::uncapped();
     crate::step(
         &mut root,
         &env,
-        Event::Client { event: jig_client::Event::Streamed { message: jig_client::Streamed::Record(writer.finish()) } },
+        Event::Start {
+            address: Address::Work { project: f::PROJECT, filter: WorkFilter::All },
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
         &mut out,
     );
     crate::settle(&mut root, &env, &mut out);
-    assert_eq!(project_reads(&mut out), 1, "the hello carries the rail's only project read");
-    crate::step(&mut root, &env, Event::Went { place: crate::Place::Address(address) }, &mut out);
-    crate::settle(&mut root, &env, &mut out);
-    assert_eq!(project_reads(&mut out), 0, "opening again does not repeat it");
+    crate::step(&mut root, &env, opened(), &mut out);
+    let link = root.client().link();
+    assert_eq!(link.state, jig_client::Link::Live);
+    assert_eq!(link.not_served, &[FORGE]);
+    assert_eq!(root.forge().served(), crate::forge::Served::OutOfDate);
 }

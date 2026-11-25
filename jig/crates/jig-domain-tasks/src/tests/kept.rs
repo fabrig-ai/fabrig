@@ -91,6 +91,7 @@ fn an_agent_finish_waits_for_live_delegates_unless_it_cancels_them() {
         let mut h = Harness::new();
         h.make([task(1, &[])].into());
         let made = h.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -127,6 +128,7 @@ fn an_agent_finish_waits_for_live_delegates_unless_it_cancels_them() {
         assert!(turn.iter().any(|request| if let Request::TurnAcknowledged { .. } = request { true } else { false }));
         let saved = Box::new([SavedResource { connector: 1, path: Box::new([b"work".as_slice().into()]) }]);
         let out = h.send(Event::Activation {
+            reads_project: false,
             reply_to: to(),
             task: 1,
             attempt: 1,

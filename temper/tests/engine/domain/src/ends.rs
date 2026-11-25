@@ -257,9 +257,11 @@ fn outcome(store: &Store, task: u64, expect: Expect) -> Result<bool, String> {
     match (&row.phase, expect) {
         (tasks::Phase::Held { why, source, .. }, Expect::Held(words)) => {
             let held_words = match source.as_deref() {
-                Some(tasks::HoldSource::Preparation { words } | tasks::HoldSource::Account { words, .. }) => {
-                    Some(words.as_ref())
-                }
+                Some(
+                    tasks::HoldSource::Preparation { words }
+                    | tasks::HoldSource::Account { words, .. }
+                    | tasks::HoldSource::Wait { words },
+                ) => Some(words.as_ref()),
                 _ => None,
             }
             .or_else(|| {

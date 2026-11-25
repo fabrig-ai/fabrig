@@ -9,6 +9,8 @@ after landing, in the real pairs (`tools/tiers/layers.md`, 9.2). Every
 behaviour, path and corner case a lower world can show is that world's,
 never here (`../draft/slow-tests-down.md`, 4).
 
+## 1. The assembled service and agent processes
+
 - **What runs:** `temper-service`'s system module, with the engine,
   store and one worker as standalone runs them; smith's agent hosts;
   the tools' root over jig's native client transport; and skein's fake
@@ -51,6 +53,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   the shell starts to require then reddens the gate, not the real
   pairs after landing. The shell's refusals of a start are smith's to
   test (smith's `protocol/agent.md`, 8).
+
+## 2. Shared stories and lower-world coverage
+
 - **Reuse across worlds.** The host composition, fake state machines,
   scenario scripts and outside referee observations are shared with
   the one-process world wherever they apply. Backend setup supplies
@@ -90,64 +95,18 @@ never here (`../draft/slow-tests-down.md`, 4).
   together, forming one landing by `turn` at a `batch` of two and
   landing on one green gate, are the engine's domain world's
   (`../domain/landing.md`, 16).
-- **Moved below** (`../draft/slow-tests-down.md`, 5.4), each former
-  story's checks held by the lower tests named, none of them by
-  failure-worlds' workloads (`../draft/failure-worlds.md`, 5), which
-  may vary them once they land, since each is a pinned path whose
-  oracle a random workload would not keep:
-  - the shipped agent fitting Standard's page with its derived
-    carriers: a step test of this world's library;
-  - a second world in the same process numbering its tasks from one:
-    the engine's domain world, two stores each numbering their first
-    two tasks from one;
-  - a run's live text and a chat's committed reply, read on the line
-    terminal's pages: the client world (`tiers.md`, 1.1), beside the
-    view's step tests and the system world's live text; the terminal
-    signed in by the fresh link printed for a spent one, its DIRECTORY
-    private to its user: the one-process world (`tiers.md`, 1.5);
-  - `chat show` printing a reply only once its turn commits:
-    `temper-client-shell-cli`'s step tests, beside the client world's
-    activity cursor; a signed-in DIRECTORY private to its user, and two
-    end waits open while `me` answers: the one-process world;
-  - a chat's document rewritten whole after its person's follow-up: the
-    system world, its turns and activity as `ctl` prints them
-    `temper-client-tools`' step tests;
-  - a repository adopted through `ctl`, and a hooked repository's
-    webhook answered `204` by the engine's listener: the one-process
-    world;
-  - GitHub's stories: the one-process world's (`tiers.md`, 1.5), with
-    a landing's halves in the forge's protocol world (one pull opened
-    and merged by the App's bot at the checked head), the engine's
-    domain world (two party reads of a landed change's one result), the
-    system world (a chat's reply after hearing the landing), and
-    `temper-client-tools`' and the TUI's tests (an ended change as JSON,
-    the committed reply in its chat);
-  - a model's request hung by its provider after a shell call: the
-    one-process world; the worker's endpoint bounds beside its stock
-    retries, a step test of `temper-worker-shell`;
-  - the judge's forced overdue, and a busy world failing through it:
-    this world's library's step tests, over its checker with scripted
-    records and time;
-  - the ladder's twins, B0's green light and B1's repair: the system
-    world (`tiers.md`, 1.1);
-  - a chat on a program's source landing its change and resuming its
-    session: the one-process world;
-  - a private file's key reaching a chat's model; a call whose answer
-    was lost, asked again under its name from another DIRECTORY; a
-    welcome's model check on a program's source; a service started
-    again on its directory, keeping its chat's reply and its settings:
-    the one-process world;
-  - two one-slot workers each running a chat to its end: the system
-    world; two workers alone taking their figures, linking once and
-    draining: the one-process world; the figures line, a step test of
-    `temper-worker-shell`;
-  - a person's latch answered once, releasing the batch waiting on it:
-    the system world; the turn-landing setup's red top: the forge
-    connector's world (`tests/engine/forge`), its two reviewed changes
-    behind one live latch the engine's domain world's;
-  - a chat made after its home's adoption, delivering to its own run
-    branch: the system world, ignored until a chat's `deliver` before
-    its end is built (`../domain/agent/tools.md`).
+- **Moved below** (`../draft/slow-tests-down.md`, 5.4): each former
+  story, beside the lower tests holding its assertions, is in
+  `../../development/slow-tests-moves-2026-11-24-temper-real-loop.md`.
+  None is held by failure-worlds' workloads
+  (`../draft/failure-worlds.md`, 5), which may vary them once they
+  land, since each is a pinned path whose oracle a random workload
+  would not keep. A drained service leaving nothing for the next one
+  in its process is the one-process world's (`tiers.md`, 1.5): the real
+  loop keeps the native drain and lock alone.
+
+## 3. Accounts and sign-in
+
 - **An account first,** with area 5's tools (../client/ctl/areas.md):
   a story whose agents run adds a key the fake LLM peer accepts, from
   the client, before its first task, and waits for its account to be
@@ -198,6 +157,9 @@ never here (`../draft/slow-tests-down.md`, 4).
     as unauthorized in jig's channel world (jig's `protocol/channel/testing.md`,
     section 1); `account verify` answered as each host reports:
     `tests/client` (../client/ctl/testing.md, 2).
+
+## 4. Iteration checks and shutdown
+
 - **Checks between iterations** are the strategy's for the real loop
   (skein/docs/foundation/testing-strategy.md, 2.8 and section 6), with the lower worlds'
   outside expectations; real deadlines bound waits, and the fake peers
@@ -236,6 +198,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   a `Kill` step, and by a cancel the kill follows (the next item): every
   kill is a `Signal(9)`, and those no cancel accounts for number exactly
   the story's `Kill` steps.
+
+## 5. Cancellation and kill causes
+
 - **A cancel's kill is asked for.** git kills its child when a cancel
   wins the race with the child's end (`../protocol/git.md`, 7), and
   whether the child still runs then is timing; so a kill a story's
@@ -285,6 +250,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   holds it: smith's supervision kills the agent, and the finding names
   the agent's program, the service root as its killer and `forced after
   its grace`.
+
+## 6. Forge, git and CI
+
 - **The forge and git:** skein's forge peer (skein's `testing/fakes/forge.md`,
   section 5), which the one-process world hosts too, serves the fake forge on a
   loopback listener, its git route among its routes, which the fake
@@ -299,6 +267,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   listener (../protocol/forge/README.md, section 4), and polling stays the
   backstop, at paces the stories' configuration sets short (`poll`,
   `poll_max`, `slow` and `hinted`, the read a delivery re-arms).
+
+## 7. Terminal stories
+
 - **The person's terminal client.** The real loop also hosts temper's
   terminal client, in the loop as the service is: temper's client root
   and view under skein's text shell, over jig's native transport to the
@@ -350,6 +321,9 @@ never here (`../draft/slow-tests-down.md`, 4).
     tests stay smokes (`process-tier.md`), outside the gate. A chat
     read on its pages, from a reply's first held piece to its committed
     turn, is the client world's (above).
+
+## 8. Cluster and reference case stories
+
 - **The cluster's services** (../protocol/cluster.md, 6): an engine
   alone and workers alone, `temper-service` services in the one loop,
   each on three scratch directories of its own (../protocol/cluster.md,
@@ -378,6 +352,8 @@ never here (`../draft/slow-tests-down.md`, 4).
   the cluster story's link deadlines and grace, so no worker is lost in
   a story: a run under a worker that ends fails into a retry, and a lost
   worker and its grace stay the engine's domain world's.
+
+## 9. What belongs in this tier
 
 What only the real kernel shows is this tier's: a real child's `PATH`,
 a service drained by its termination, `temper ctl`'s lock between two

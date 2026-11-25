@@ -381,14 +381,11 @@ fn owner_activity_nested_message_proposal_notice_news_and_decision_values_remain
             build_word(&fixture(MessageKind::Proposal { proposer: u64::MAX, proposal: 7, kind }), normal_words());
         goldens.check(&tree);
     }
-    let states: Box<[NoticeState]> =
-        Box::new([NoticeState::Held, NoticeState::Done, NoticeState::Failed, NoticeState::Cancelled]);
-    for state in states {
-        let tree = build_word(
-            &fixture(MessageKind::Notice { subscription: u64::MAX, target: u64::MAX, state }),
-            normal_words(),
-        );
-        goldens.check(&tree);
+    let notice = |state| {
+        build_word(&fixture(MessageKind::Notice { subscription: u64::MAX, target: u64::MAX, state }), normal_words())
+    };
+    for state in [NoticeState::Held, NoticeState::Done, NoticeState::Failed, NoticeState::Cancelled] {
+        goldens.check(&notice(state));
     }
     let classes: Box<[NewsClass]> = Box::new([NewsClass::Wakes, NewsClass::Kept, NewsClass::Dropped]);
     for class in classes {
@@ -399,6 +396,7 @@ fn owner_activity_nested_message_proposal_notice_news_and_decision_values_remain
         let tree = build_word(&fixture(MessageKind::ProposalDecision { proposal: u64::MAX, accepted }), normal_words());
         goldens.check(&tree);
     }
+    goldens.check(&notice(NoticeState::Unreadable));
 }
 #[test]
 fn owner_activity_selected_normal_language_and_full_opaque_tree_envelope_refuse_whole_excess() {

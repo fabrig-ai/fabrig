@@ -27,6 +27,7 @@ fn turn(world: &mut World, task: u64, attempt: u64, turn: u32, read: Option<u64>
 
 fn end(world: &mut World, task: u64, attempt: u64, end: End, cumulative: u64) -> Reply {
     send(world, |reply_to| Event::Activation {
+        reads_project: false,
         reply_to,
         task,
         attempt,
@@ -397,6 +398,7 @@ fn accepted_amendment(world: &mut World, funder: Funder, budget: u64) -> Reply {
     authority.budget.spend = budget;
     let message = world.record(1).last_message + 1;
     send(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: Some(funder),
             task: 1,

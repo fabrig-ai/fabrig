@@ -74,7 +74,7 @@ the overlap is unknown. A comparison names at most `forge.client.rows`
 paths and counts the rest (`changed`): one that leaves a path out, an
 unusable answer or an uncertain completeness makes the overlap unknown
 and wakes every affected subscriber, and its paths are a landing's files
-for workflow discovery too (`adoption.md`, 7). A pull
+for workflow discovery too (`adoption.md`, 11). A pull
 request's pages count only while fresh reads before and after them name
 the same head; a head that moved voids the listing.
 

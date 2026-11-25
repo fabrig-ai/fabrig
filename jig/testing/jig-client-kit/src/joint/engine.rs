@@ -455,7 +455,13 @@ mod tests {
             1,
             Box::new([
                 Act::SignIn { provider: 0, subject },
-                Act::Request { key: [91; 16], ask: parties::Ask::Stop { task: parties::Task::Number(u64::MAX) } },
+                Act::Request {
+                    key: [91; 16],
+                    ask: parties::Ask::Stop {
+                        task: parties::Task::Number(u64::MAX),
+                        reason: Box::from(b"Parking the task".as_slice()),
+                    },
+                },
             ]),
         ));
         assert!(driver.poll(now, wall).is_empty(), "both foreign replies resume the scripted ledger");

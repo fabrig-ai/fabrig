@@ -3,9 +3,9 @@
 Provisional, 2026-11-16. How an engine that stops tells each worker that
 it restarts, and how a worker that heard it keeps its runs through the
 wait it was told rather than through its grace alone. It carries
-temper's `draft/redeploys.md`, 5.2 and 5.3, for the channel. The
+temper's `draft/archive/redeploys.md`, 5.2 and 5.3, for the channel. The
 engine's side of the stop, keeping the word and then saying it, is
-`../../domain/engine/restart.md`, 1, *Saying it restarts*; the hold over
+`../../domain/engine/restart.md`, 5, *Saying it restarts*; the hold over
 the runs the next start restores is `../../domain/engine/fleet.md`, *A
 restart said holds its runs*.
 
@@ -48,7 +48,7 @@ record Restarting { wait_ms: u64 }
   `Event::Restarting { wait }`, `wait` a `Duration`, through
   `host::Workers::restarting(wait)`. The owner asks once per stop, after
   the word is durable and before it closes the workers' part
-  (`../../domain/engine/restart.md`, 1, *Saying it restarts*), so the
+  (`../../domain/engine/restart.md`, 5, *Saying it restarts*), so the
   record is queued before the close's finish and drains with the rest
   (`worker-link.md`, 1.2).
 - **Each channel open with its hello heard,** and not closing: where its
@@ -121,8 +121,9 @@ Focused, in the worlds that own each side, with their simulated clocks:
   up once per record.
 - **The engine's component:** a worker whose layout has the kind told,
   its frame sent and `Told` with the wait; one at a layout without it
-  sent nothing, `Told` with none; a connection whose hello is not heard
-  told nothing; a second ask sent again.
+  sent nothing, `Told` with none; a connection whose hello is not heard,
+  or one that was open and is closing, sent and told nothing; a second
+  ask sent again.
 - **The wire:** generated records' drift, as skein's
   `data/codec/golden.md`, section 1 has it; the kind refused per value
   to a layout without it (`layouts.md`, 8), and `KINDS` against the
@@ -136,4 +137,4 @@ Focused, in the worlds that own each side, with their simulated clocks:
 
 - **A worker back as a new process** proving the runs it no longer
   lists are gone, so the engine need not hold them (temper's
-  `draft/redeploys.md`, section 12). Later.
+  `draft/archive/redeploys.md`, section 12). Later.

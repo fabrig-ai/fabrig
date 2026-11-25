@@ -1,5 +1,5 @@
 //! Real file-adapter proof of fresh-journal recovery and marker inode preservation.
-//! smith/docs/design/testing.md, 2.5.
+//! smith/docs/design/testing-tiers.md, 5.
 
 #[cfg(test)]
 mod tests {

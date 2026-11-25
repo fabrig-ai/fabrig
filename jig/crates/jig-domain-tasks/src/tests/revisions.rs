@@ -162,6 +162,7 @@ impl Harness {
 
     pub(super) fn make(&mut self, batch: Vec<New>) {
         let out = self.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -184,6 +185,7 @@ impl Harness {
     pub(super) fn amend(&mut self, number: u64, amendment: Amendment) {
         let message = self.domain.task(number).unwrap().last_message.checked_add(1).expect("test message room");
         let out = self.send(Event::Amend {
+            reads_project: false,
             operation: crate::Amend {
                 funder: None,
                 task: number,
@@ -707,6 +709,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     });
     assert!(test.domain.task(1).unwrap().narrowing, "retain the cancelled attempt until its terminal");
     let out = test.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,
@@ -741,6 +744,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     authority.budget.spend = 90;
     change.authority = Some(authority);
     test.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend { funder: None, task: 1, message: 2, stop_run: true, amendment: Box::new(change) },
         places: Box::new([]),
         reply_to: to(),
@@ -749,6 +753,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     assert!(test.domain.task(1).unwrap().narrowing);
     assert_eq!(test.domain.task(1).unwrap().due_reason, crate::Why::Narrowed);
     test.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 2,
@@ -787,6 +792,7 @@ fn an_amendment_releases_only_the_named_hold_and_preflights_both_changes() {
     bad.dependencies = Some(Box::new([99]));
     let before = h.domain.task(1).unwrap().clone();
     h.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: 1,
@@ -804,6 +810,7 @@ fn an_amendment_releases_only_the_named_hold_and_preflights_both_changes() {
     let mut change = amendment();
     change.release = Some(held);
     h.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: 1,
@@ -826,6 +833,7 @@ fn capacity_history_distinguishes_project_shape_from_room_and_survives_diagnosti
     let mut wrong = task(2, &[]);
     wrong.project = 2;
     let denied = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -840,6 +848,7 @@ fn capacity_history_distinguishes_project_shape_from_room_and_survives_diagnosti
     for number in 2..=4 {
         h.env.wall = Wall::from_nanos(number);
         let denied = h.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -1030,6 +1039,7 @@ fn retry_observations_distinguish_attempt_failures_from_preparation_refusals_and
     });
     h.env.wall = Wall::from_nanos(20);
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,
@@ -1135,6 +1145,7 @@ fn a_task_records_the_newest_revision_whatever_its_parents() {
     let mut delegate = task(3, &[]);
     delegate.funder = Funder::Task(1);
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -1154,7 +1165,7 @@ fn a_task_records_the_newest_revision_whatever_its_parents() {
         batch: Box::new([step_task]),
         ..crate::ProcedureDecision::new(crate::ProcedureEnd::Wait)
     };
-    let out = h.send(Event::Procedure { reply_to: to(), task: 2, step: 1, read: None, decision });
+    let out = h.send(Event::Procedure { reads_project: false, reply_to: to(), task: 2, step: 1, read: None, decision });
     assert!(
         out.iter().any(|r| match r {
             Request::Made { .. } => true,
@@ -1193,6 +1204,7 @@ fn a_run_records_its_tasks_revision_until_its_attempt_ends() {
         "{out:?}"
     );
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,
@@ -1228,6 +1240,7 @@ fn settings_amend(test: &mut Harness, number: u64, model: u8) -> Vec<Request> {
     let mut change = amendment();
     change.llm = Some(settings_choice(model));
     test.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: number,
@@ -1265,6 +1278,7 @@ fn an_amended_llm_choice_is_checked_against_its_own_charter_version() {
     change.llm = Some(settings_choice(0));
     h.amend(1, change);
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -1306,6 +1320,7 @@ fn a_removed_charters_older_version_still_serves_the_task_that_reads_it() {
     change.llm = Some(settings_choice(0));
     h.amend(1, change);
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -1341,6 +1356,7 @@ fn live_holders_count_each_revision_once_and_reach_zero_as_the_last_ends() {
     settings_end(&mut h, 2);
     assert_eq!(h.domain.holders(1), 0);
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 3,
         attempt: 1,
@@ -1396,6 +1412,7 @@ fn abandoned_preparations_clear_the_run_revision_but_held_attempts_keep_it() {
     h.restart();
     assert_eq!(h.domain.task(3).unwrap().settings.run, Some(1));
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 3,
         attempt: 1,
@@ -1419,6 +1436,7 @@ fn restored_holders_count_a_distinct_run_revision_until_its_terminal() {
     assert_eq!(h.domain.holders(1), 1);
     assert_eq!(h.domain.holders(2), 1);
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,
@@ -1443,6 +1461,7 @@ fn released_names_only_revisions_with_no_holders_after_the_whole_step() {
     }));
     settings_claim(&mut h, 1);
     let terminal = h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,
@@ -1583,6 +1602,7 @@ fn a_recurring_tasks_period_batch_and_an_accepted_proposals_tasks_are_made_on_th
         overlap: crate::RecurringOverlap::Skip,
     }));
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -1636,8 +1656,14 @@ fn a_recurring_tasks_period_batch_and_an_accepted_proposals_tasks_are_made_on_th
     assert!(!h.stored.contains_key(&Key::Live(201)));
     settings_charters(&mut h, 3, &[(1, 1, Some(&[0]))]);
     // As at the parent boundary, acceptance applies its action before deciding the proposal.
-    let made =
-        h.send(Event::Make { maker: None, places: Box::new([]), reply_to: to(), creator: Party::Task(200), batch });
+    let made = h.send(Event::Make {
+        reads_project: false,
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(200),
+        batch,
+    });
     assert!(
         made.iter().any(|request| match request {
             Request::Made { .. } => true,
@@ -1676,7 +1702,7 @@ fn place(task: u64, person: u64, number: u64) -> Event {
             owner: crate::Owner::Party { person },
             mode: crate::Mode::Stop,
             scope: crate::Scope::Subtree { task },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),
@@ -1774,6 +1800,7 @@ fn served_chat_comes_from_the_task_tree_and_requires_a_person_conversation() {
     let mut delegate = task(2, &[]);
     delegate.funder = Funder::Task(1);
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

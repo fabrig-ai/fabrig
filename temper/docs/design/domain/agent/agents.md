@@ -96,7 +96,7 @@ otherwise teach.
   the proposals of settings waiting. The authorized inventory also names the caller project's
   readable adopted repositories, each with the canonical host, owner and name
   from its retained repository record, and the landing branch that record
-  keeps (`../forge/adoption.md`, 8). Other projects and ended forges are
+  keeps (`../forge/adoption.md`, 12). Other projects and ended forges are
   excluded. These identities are read context, not settings or credentials;
   setting, revision and history reads carry no repository context. A charter
   document holds that host unchanged, including its port, and OWNER/NAME,
@@ -510,7 +510,8 @@ and not its name.
 
 A goal tells its person where it stands in a **note**, one per goal, which
 needs no record, read or wire field of its own. The client reads and draws it
-(`../../client/pages/README.md`, *A goal's report*); a person reads it first.
+(`../../client/pages/README.md`, *A goal's report*); a person reads it first,
+and the goal's closer reads its `Left:` line.
 
 - **Its shape:** scope goal (the tool's scope `goal`, the client's
   `NoteScope::Task`). Its description is `report: ` then the headline, one line. Its body
@@ -529,7 +530,10 @@ needs no record, read or wire field of its own. The client reads and draws it
   reads first, naming no task, change or pull request by number, as `5 of its
   7 changes landed; the other 2 are building.` (`charter.md`, 4, *Words a
   person reads first*); the numbers are the body's. The paragraphs say what happened and why, in the first person.
-  `Left:` what remains; `Risk:` what could go wrong; `Decided:` what it decided
+  `Left:` what remains: each part it planned and has not cut into changes,
+  and what it leaves undone, with why, the line left out where nothing
+  remains, since a goal's closer holds on it before it ends the goal
+  (`../forge/branches.md`, 2); `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.
 - **Who is told:** the goal's part of charter 1's instructions and the

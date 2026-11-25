@@ -63,6 +63,7 @@ fn tracking_past_goals_per_project_is_refused_and_changes_nothing() {
     let mut change = amendment();
     change.tracked = Some(Tracking::Tracked { priority: 3 });
     let out = test.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: THIRD,
@@ -87,6 +88,7 @@ fn a_batch_past_goals_per_project_is_refused_naming_the_limit() {
         row.tracked = Some(1);
     }
     let out = test.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

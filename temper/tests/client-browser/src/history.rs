@@ -57,25 +57,10 @@ impl Tier {
 
     /// Use the printed link in ctl only, without opening it in the browser.
     pub(crate) fn ctl_only(&self, calls: Vec<Step>) -> Script {
-        crate::configuration::install(self.scratch.path(), &temper());
-        let mut steps = vec![
-            Step::Run(Command {
-                program: temper(),
-                args: vec![
-                    "ctl".into(),
-                    self.scratch.path().join("client").into_os_string(),
-                    "sign-in".into(),
-                    "-".into(),
-                ],
-                env: vec![],
-                stdin: Stdin::Printed,
-                opens: None,
-                within: WITHIN,
-            }),
-            exited(),
-        ];
-        steps.extend(calls);
-        Script::new(steps.into_boxed_slice())
+        let program = temper();
+        let directory = self.scratch.path();
+        crate::configuration::install(directory, &program);
+        Script::new(seed_calls(&program, directory, calls).into_boxed_slice())
     }
 
     /// Hold the printed link for ctl instead of opening it in the first page.
@@ -108,6 +93,42 @@ pub fn reader_opens(address: &[u8]) -> Vec<Step> {
         Step::Person(PersonStep::See { find: crate::live(), within: WITHIN }),
         Step::Person(PersonStep::Go { address: crate::page_address(address) }),
     ]);
+    steps
+}
+
+fn seed_calls(program: &Path, directory: &Path, calls: Vec<Step>) -> Vec<Step> {
+    use crate::scripted;
+    let client = directory.join("client");
+    let mut steps = vec![
+        Step::Run(Command {
+            program: program.into(),
+            args: vec!["ctl".into(), client.as_os_str().into(), "sign-in".into(), "-".into()],
+            env: vec![],
+            stdin: Stdin::Printed,
+            opens: None,
+            within: WITHIN,
+        }),
+        exited(),
+    ];
+    if directory.join(scripted::SCRIPTS).is_file() {
+        // The provider takes effect at this start. Use the owner's seed session,
+        // so the key is usable before seeding any history or opening a page.
+        let key = directory.join(scripted::KEY);
+        steps.extend(ctl_call(
+            program,
+            &client,
+            &[
+                "account",
+                "add-key",
+                &scripted::PROVIDER.to_string(),
+                key.to_str().expect("model key path"),
+                "--key",
+                "browser-model-key",
+            ],
+        ));
+        steps.extend(ctl_call(program, &client, &["account", "list", "--until", "usable"]));
+    }
+    steps.extend(calls);
     steps
 }
 
@@ -188,6 +209,39 @@ mod tests {
             "Repeated words",
             &["Repeated words", "Repeated words"],
         )
+    }
+
+    #[test]
+    fn the_scripted_account_is_usable_before_playground_setup() {
+        let scratch = skein_scratch::Scratch::new("browser-account-seed");
+        let directory = scratch.path();
+        crate::scripted::write(directory, &serde_json::json!({}));
+        let program = Path::new("/test/temper");
+        let client = directory.join("client");
+        let start = ctl_call(program, &client, &["playground", "start"]);
+        let steps = seed_calls(program, directory, start.into());
+        let key = directory.join(crate::scripted::KEY);
+        let provider = crate::scripted::PROVIDER.to_string();
+        let expected: &[&[&OsStr]] = &[
+            &[OsStr::new("sign-in"), OsStr::new("-")],
+            &[
+                OsStr::new("account"),
+                OsStr::new("add-key"),
+                OsStr::new(&provider),
+                key.as_os_str(),
+                OsStr::new("--key"),
+                OsStr::new("browser-model-key"),
+            ],
+            &[OsStr::new("account"), OsStr::new("list"), OsStr::new("--until"), OsStr::new("usable")],
+            &[OsStr::new("playground"), OsStr::new("start")],
+        ];
+        assert_eq!(steps.len(), 2 * expected.len(), "one exit check per call");
+        for (pair, words) in steps.as_chunks::<2>().0.iter().zip(expected) {
+            let [Step::Run(command), Step::Exited { code: 0, .. }] = pair else {
+                panic!("ctl call followed by its successful exit");
+            };
+            assert_eq!(&command.args[2..], *words, "the owner waits for usability before seeding the story");
+        }
     }
 
     #[test]

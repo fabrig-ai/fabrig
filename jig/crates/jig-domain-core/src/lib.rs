@@ -151,6 +151,7 @@ pub struct Core {
     wait_limits: Limits,
     /// One memory-only wait report per live procedure task.
     reported_waits: Map<u64, Box<[Reported]>>,
+    pub(crate) wait_alarms: runs::waits::alarm::Alarms,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
     /// Last reported store map bytes (protocol/store/growth.md, 1.2).
@@ -411,6 +412,7 @@ impl Core {
             proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
             wait_limits: *limits,
             reported_waits: Map::with_capacity(limits.tasks.tasks),
+            wait_alarms: runs::waits::alarm::Alarms::new(limits.tasks.tasks),
             fill: 0,
             census: None,
             person_answers: false,

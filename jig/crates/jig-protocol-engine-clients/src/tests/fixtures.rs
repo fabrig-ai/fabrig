@@ -37,9 +37,10 @@ pub fn settings() -> Settings {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one jig range");
-    served.push(crate::Served { family: Some(9), first: 2, last: 2 }).expect("one family range");
+    served.push(crate::Served { family: Some(9), first: 2, last: 2, layout: [1; 32] }).expect("one family range");
     Settings {
         private: crate::Private::none(),
         provider: None,
@@ -326,7 +327,10 @@ fn release_case() -> (w::Ask, people::Ask) {
 }
 fn stop_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
-    (w::Ask::Stop(w::Stop { project: 3, task: 8 }), p::Ask::Stop { project: 3, task: 8 })
+    (
+        w::Ask::Stop(w::Stop { project: 3, task: 8, reason: Box::from(b"Parking the task".as_slice()) }),
+        p::Ask::Stop { project: 3, task: 8, reason: Box::from(b"Parking the task".as_slice()) },
+    )
 }
 fn cancel_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;

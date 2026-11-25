@@ -585,6 +585,22 @@ fn origin_directories_refuse_a_public_or_linked_parent() {
 }
 
 #[test]
+fn a_handed_origin_refuses_a_public_or_linked_directory() {
+    for destination in
+        [Item::directory(b"tui/at/127.0.0.1/8367").mode(0o710), Item::link(b"tui/at/127.0.0.1/8367", b"9000")]
+    {
+        let mut disk = Disk::new(&[
+            Item::directory(b"tui/at").mode(0o700),
+            Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+            Item::directory(b"tui/at/127.0.0.1/9000").mode(0o700),
+            destination,
+        ]);
+        let result = super::deployment::open_with(Path::new("tui"), &origin(), USER, &mut disk);
+        assert!(matches!(result, Err(Refused::Directory(_))));
+    }
+}
+
+#[test]
 fn flat_files_move_only_with_both_matching_witnesses() {
     let mut disk = flat(Some(SAVED), true);
     let (destination, made) = disk.prepare(&origin());
@@ -663,7 +679,10 @@ fn a_new_origin_takes_only_the_last_origins_theme() {
     disk.write(Path::new("tui/address"), SAVED);
     let other = Origin::Http("[::1]:9000".parse().expect("other"));
     let (_, made) = disk.prepare(&other);
-    let theme = |disk: &mut Disk, made| super::deployment::theme_with(Path::new("tui"), &other, USER, made, disk);
+    let saved = tui::kept(&disk.read(Path::new("tui/address")));
+    let theme = |disk: &mut Disk, made| {
+        super::deployment::theme_with(Path::new("tui"), &other, saved.as_ref(), USER, made, disk)
+    };
     let record = theme(&mut disk, made).expect("theme carried");
     assert_eq!(record.key.as_ref(), temper_client_tui::theme::THEME_KEY);
     assert_eq!(record.bytes.as_ref(), b"dark");

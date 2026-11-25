@@ -4,7 +4,7 @@
 //! but skein-lib, skein-codec and the allowances below. Glue alone is free.
 //! Allowances and exceptions only shrink: unmatched entries fail the check too.
 //! Metadata, generated or schema directories the check cannot read always fail it.
-//! Current schema names must identify their family and version; kept texts are not read.
+//! Schema files directly under `schema/` must name their family and version.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -62,16 +62,10 @@ struct VersionAllowance {
     reason: &'static str,
 }
 
-const VERSION_ALLOWED: &[VersionAllowance] = &[
-    VersionAllowance {
-        package: "skein-codec-tests",
-        reason: "skein's codec fixtures: its every texts compare the old and new generated decoders",
-    },
-    VersionAllowance {
-        package: "skein-codec-patches",
-        reason: "skein's patch fixtures: its label and shelf families move as their stories need",
-    },
-];
+const VERSION_ALLOWED: &[VersionAllowance] = &[VersionAllowance {
+    package: "skein-codec-tests",
+    reason: "skein's codec fixtures: its every texts compare the old and new generated decoders",
+}];
 
 #[derive(Debug)]
 struct Package {
@@ -479,7 +473,7 @@ fn generated_families_hold_one_version_not_glue() {
 }
 
 #[test]
-fn current_texts_group_versions_not_parts_or_kept_texts() {
+fn current_texts_group_versions_not_parts() {
     for (files, expected) in [
         (
             vec!["a/schema/store-v17.schema", "a/schema/store-v18.schema"],
@@ -487,8 +481,6 @@ fn current_texts_group_versions_not_parts_or_kept_texts() {
         ),
         (vec!["a/schema/client-v21.schema", "a/schema/client-v21-part1.schema"], vec![]),
         (vec!["a/schema/client-wire-v1.schema", "a/schema/public-v1.schema"], vec![]),
-        (vec!["a/schema/kept/x-v1.schema", "a/schema/x-v2.schema"], vec![]),
-        (vec!["a/schema/wires"], vec![]),
         (
             vec!["a/schema/client-v21-part1.schema", "a/schema/client-v22-part2.schema"],
             vec!["a: schema text family client has versions {21, 22}"],

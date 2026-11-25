@@ -149,7 +149,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      amendment replaces the main choice whole; its effort is
      the caller's, never inherited from the task's old main.
    - **A start's flags win over its template** for every run of the task
-     (`../../draft/goal-start-flags.md`, 2). Given `--model`, a start's
+     (`../../draft/archive/goal-start-flags.md`, 2). Given `--model`, a start's
      choice is the flags' main, the `--sub-agent` flags' sub-agents or,
      without them, the template's first choice's sub-agents, and no
      later choice: a template's `later` (`tools-acts.md`, 1) goes with the
@@ -224,7 +224,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      `temper`, temper's root's constant, the same in every deployment
      and never configured, so a file moves between any two temper
      deployments whose LLM provider has the same registration (issuer
-     and client id, as ChatGPT's is: `../../protocol/setup/init.md`, 1), and
+     and client id, as ChatGPT's is: `../../protocol/setup/init.md`, 4), and
      is refused "not ours" by another application built on jig.
    - **The file's versions** (`../../draft/upgrades.md`, 4.2 to 4.4): it
      carries two families, each with its version, a version naming one

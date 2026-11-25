@@ -40,7 +40,7 @@ any `delegate` (jig's authority, named and decided once):
   the repository's resource and its landing branch: the one the call
   names (below), or with none the applicable held goal branch, otherwise
   the repository's landing branch, the one its adoption names
-  (`../forge/adoption.md`, 8), which is its default branch only where
+  (`../forge/adoption.md`, 12), which is its default branch only where
   the adoption named that; a
   change's contract, its words bounded by the deployment's
   `tasks.result_bytes`;

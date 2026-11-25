@@ -1,6 +1,6 @@
 # people: status
 
-2026-11-21. Where jig's code lags or departs from [README.md](README.md).
+2026-11-24. Where jig's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 5, *Bounded*: needs are read from the child's cached prefix of `people.inbox_entries`, and past it a page goes to the store, which holds none, so the later pages of a party's needs are empty [in flight: change 7577].
 - **Not yet:** 10: the world's story of an owner's deletion refused while a task is live [in flight: change 628].

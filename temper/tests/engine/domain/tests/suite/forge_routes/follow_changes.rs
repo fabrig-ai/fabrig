@@ -818,7 +818,7 @@ fn restart_keeps_the_made_change_and_makes_an_unmade_entry_once() {
         reply_to: ReplyTo::new(Token::new(126)),
         sign_in: world.signed_in.expect("owner signed in"),
         key: [126; 16],
-        ask: people::Ask::Stop { project: 2, task: follow_task },
+        ask: people::Ask::Stop { project: 2, task: follow_task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     settle(&mut world);
     let raw::Answer::Commit(parent) =

@@ -2,8 +2,8 @@
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::Duration;
-/// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
-pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
+/// Hold explanations have their own bound (domain/tasks/lifecycle-holds.md, 3).
+pub(crate) const HOLD_WORDS: u32 = 1_024;
 /// The most bytes of a gathered batch's record (protocol/client/wire.md, 2.3).
 pub const BATCH_BYTES: u32 = 131_072;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -130,8 +130,8 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     let document_bytes = u32::try_from(client.document_bytes).ok()?;
     let ask_bytes = u32::try_from(client.ask_bytes).ok()?;
     wire.owned_record = document_bytes;
-    // Retained connector accounts fit beside text previews (client/domain/contract/documents.md, 3).
-    wire.document_text_bytes = client.long_text.clamp(HOLD_ACCOUNT_BYTES, w::CEILINGS.document_text_bytes);
+    // Hold explanations fit beside text previews (domain/tasks/lifecycle-holds.md, 3).
+    wire.document_text_bytes = client.long_text.clamp(HOLD_WORDS, w::CEILINGS.document_text_bytes);
     #[rustfmt::skip]
     narrow(client.text, &mut [
         &mut wire.task_text_words, &mut wire.placed_line_reason, &mut wire.model_set_names_names_item,
@@ -164,6 +164,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
             &mut wire.word_words,
             &mut wire.activity_words_words,
             &mut wire.message_words,
+            &mut wire.stop_reason,
             &mut wire.answer_question_words,
         ],
     );

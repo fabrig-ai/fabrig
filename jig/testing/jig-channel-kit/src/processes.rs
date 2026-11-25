@@ -15,7 +15,7 @@ pub(crate) enum Proc {
     Client(Box<jig_client_protocol_kit::native::NativeClient>),
     Engine(Box<ServiceHost>),
     Worker(Box<ServiceHost>),
-    Agent { host: Box<PipeHost<smith_agent_shell::Agent>>, errors: agent_fixture::AgentErrors },
+    Agent { host: Box<PipeHost<smith_agent_shell::Agent>>, errors: agent_fixture::AgentErrors, output: kernel::Fd },
     Peer(Box<skein_fake_peers::llm::Peer>),
     Probe(Box<crate::relay::Peer>),
 }
@@ -76,7 +76,6 @@ impl Host for ServiceHost {
         if let Some(probe) = &mut self.order_probe {
             probe.receive(now, self.service.completions(), &self.wire);
         }
-        self.failed_starts.receive(self.service.completions());
         for complete in self.service.completions().iter() {
             self.wire.complete(complete, self.worker, now);
             self.files.complete(complete);
@@ -101,7 +100,9 @@ impl Host for ServiceHost {
                     }
                 }
             }
-            if self.failed_starts.cut_record(&submit) {
+            if self.worker {
+                self.failed_starts.corrupt_open(&mut submit);
+            } else if self.failed_starts.cut_record(&submit) {
                 self.service.completions().push(kernel::Complete {
                     op: submit.op,
                     kind: submit.kind,
@@ -376,7 +377,11 @@ fn agent_configured(inherited: &Inherited, mut configuration: smith_agent_servic
     }
 
     let agent = agent_fixture::configured(configuration, fixtures::SEED, inherited, errors.clone());
-    Proc::Agent { host: Box::new(capture.host(agent)), errors }
+    Proc::Agent {
+        host: Box::new(capture.host(agent)),
+        errors,
+        output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
+    }
 }
 
 /// Decode exactly the bytes the kernel accepted or received, once per completed operation.

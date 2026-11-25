@@ -260,6 +260,7 @@ fn ready(
         refuse(store, owner, OpenRefusal::Set { owner: why }, above);
         return;
     }
+    store.directory.admitted_schemas = None;
     if store.directory.patch.is_none() {
         // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
         if let Err(failure) = crate::catalogue::catalogue(store) {
@@ -275,7 +276,7 @@ fn ready(
 
 pub(crate) fn refuse(store: &mut Store, owner: Token, why: OpenRefusal, above: &mut Queue<Event>) {
     crate::rehearsal::announce(store, above);
-    store.directory.checked = None;
+    store.directory.reset_admission();
     store.open_failed(restore::OpenFailure::Refused(why.clone()));
     store.phase = Phase::Stopped;
     above.push(Event::OpenRefused { owner, why });

@@ -2,7 +2,7 @@
 
 - **Kind:** complexity
 - **Where:** `temper-engine-domain-forge/src/domain.rs` (`Domain`, `Domain::new`), `temper-engine-domain-forge`
-- **Seen:** 2026-11-13 at `4d06c93e26`, designing milestone G5 of `temper/docs/design/draft/crate-graph.execution.md` (new here)
+- **Seen:** 2026-11-13 at `4d06c93e26`, designing milestone G5 of `temper/docs/design/draft/archive/crate-graph.execution.md` (new here)
 - **Checked:** 2026-11-13 at `4d06c93e26`
 - **Value:** medium (a reader can find a concept's state in one place; the top can then split along its parts, under the size bound)
 - **Size:** L
@@ -25,7 +25,7 @@
 
 Every concept reads and writes the same fields, so a change to one
 concept's state can reach code in any of 35 files. And `Domain` can't be
-cut as it stands (`temper/docs/design/draft/crate-graph.md`, 5.2): G5
+cut as it stands (`temper/docs/design/draft/archive/crate-graph.md`, 5.2): G5
 moves only the top's vocabulary out (`temper/docs/design/domain/forge/README.md`,
 section 3), so the top stays over the size bound and every landing that
 touches it recompiles all of it.
@@ -35,6 +35,6 @@ touches it recompiles all of it.
 Owned parts (adoption and resources, changes and their landing, tiers,
 follows, findings and views) with their methods, then a split of the top
 along them, each part a crate where it saves the landings that don't
-touch it a recompile of several seconds (`crate-graph.md`, 5.2). D012's
+touch it a recompile of several seconds (`../../design/draft/archive/crate-graph.md`, 5.2). D012's
 split of `domain.rs` and `landing.rs` along the design's parts is the
 same work at the file level.

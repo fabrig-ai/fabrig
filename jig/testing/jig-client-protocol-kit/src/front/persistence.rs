@@ -10,11 +10,9 @@ pub(crate) fn encode_one(record: client::store::Record) -> link::Record {
     match record {
         client::store::Record::Jig(record) => {
             let record = match record {
-                jig_client_view::store::Record::Place { version, party, address } => {
-                    ui::Record::Place { version, party, address }
-                }
-                jig_client_view::store::Record::Draft { version, party, task, words, touched } => {
-                    ui::Record::Draft { version, party, task, words, touched }
+                jig_client_view::store::Record::Place { party, address, .. } => ui::Record::Place { party, address },
+                jig_client_view::store::Record::Draft { party, task, words, touched, .. } => {
+                    ui::Record::Draft { party, task, words, touched }
                 }
             };
             let (key, bytes) = ui::encode(&record);
@@ -28,23 +26,21 @@ pub(crate) fn encode_one(record: client::store::Record) -> link::Record {
     }
 }
 pub(crate) fn child_record(record: &link::Record) -> Option<client::store::Record> {
-    use jig_client_view::records as ui;
+    use jig_client_view::{records as ui, store};
     if record.key.as_ref() == b"first.place" {
         return family::restored(&record.bytes).map(client::store::Record::First);
     }
     match ui::decode(&record.key, &record.bytes)? {
-        ui::Record::Place { version, party, address } => {
-            Some(client::store::Record::Jig(jig_client_view::store::Record::Place { version, party, address }))
+        ui::Record::Place { party, address } => {
+            Some(client::store::Record::Jig(store::Record::Place { version: store::STORE_VERSION, party, address }))
         }
-        ui::Record::Draft { version, party, task, words, touched } => {
-            Some(client::store::Record::Jig(jig_client_view::store::Record::Draft {
-                version,
-                party,
-                task,
-                words,
-                touched,
-            }))
-        }
+        ui::Record::Draft { party, task, words, touched } => Some(client::store::Record::Jig(store::Record::Draft {
+            version: store::STORE_VERSION,
+            party,
+            task,
+            words,
+            touched,
+        })),
     }
 }
 pub(crate) fn erased(key: client::store::Key) -> Box<[u8]> {

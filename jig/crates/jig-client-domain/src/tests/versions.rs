@@ -18,7 +18,11 @@ fn record() -> Family {
     Family { family: 19, version: 1, bytes: Box::new([255, 0, 1]) }
 }
 fn served(client: &mut Client, versions: Option<contract::VersionRange>) {
-    client.step(Event::Up { up: Up::FamilyServed { family: 19, versions } });
+    let served = match versions {
+        Some(range) => range.contains(SERVED.first),
+        None => false,
+    };
+    client.step(Event::Up { up: Up::FamilyServed { family: 19, versions, served } });
 }
 
 #[test]
@@ -133,6 +137,20 @@ fn a_read_of_an_owner_not_served_is_answered_at_once_naming_its_range() {
             "{range:?}"
         );
     }
+}
+
+#[test]
+fn a_refused_layout_ends_a_current_read_despite_a_matching_version() {
+    let mut client = live();
+    let read = client
+        .read(TASK, Readable::Family { scope: Scope::Own, window: Window { rows: 1, after: None }, record: record() });
+    client.step(Event::Up { up: Up::FamilyServed { family: 19, versions: Some(SERVED), served: false } });
+    assert_eq!(
+        client.told().as_ref(),
+        &[Told::Page { handle: TASK, page: Readout::NotServed { family: Some(19), served: Some(SERVED) } },]
+    );
+    client.step(Event::Up { up: Up::ReadDone { read, result: Readout::Family { family: 19, record: None } } });
+    assert!(client.told().is_empty(), "the read already ended at the judgement");
 }
 
 #[test]

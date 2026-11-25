@@ -65,12 +65,10 @@ fn old_sets() -> OwnerSets {
     }
 }
 fn store(disk: &Disk, sets: OwnerSets) -> Store {
-    let mut limits = fixtures::store_limits();
+    let mut limits = fixtures::registered_store_limits();
     limits.core.tasks.message_bytes = PAGE;
     limits.store.page.bytes = PAGE;
     limits.store.record = PAGE;
-    limits.store.ops = 128;
-    limits.store.budget = 2_097_152;
     let mut store = disk.store_with_limits(&limits);
     store.owner_sets(sets);
     store
@@ -470,4 +468,114 @@ fn dev_frame_heads_seed_at_core_six_and_smith_seven_and_eight() {
     assert_eq!(turns.len(), 2);
     assert!(turns.iter().all(|turn| turn.transcript == written[1]));
     assert_eq!(disk.bytes(&path).as_ref(), bytes);
+}
+
+#[test]
+fn a_registered_person_wait_opens_with_its_offer_or_the_older_default() {
+    use skein_lib::{Duration, Wall};
+    const WAITING: u64 = 7;
+    const ADDRESS: u64 = 6;
+    const HOLDER: u64 = 5;
+    let offer = tasks::PersonOffer { holder: tasks::PersonAddress::Person(HOLDER), since: Wall::from_nanos(20) };
+    for (sets, expected, older) in [(old_sets(), None, true), (CURRENT, Some(offer), false)] {
+        let mut disk = Disk::new(&[]);
+        let mut writer = store(&disk, sets);
+        opened(&disk.open(&mut writer), false);
+        let commit = disk.request(&mut writer, fixtures::commit(1, Box::new([fixtures::header(1)])));
+        let [Event::Committed { number: 1, .. }] = commit.as_ref() else { panic!("registry commit: {commit:?}") };
+        let Record::Tasks(tasks::Stored::Live(mut row)) = fixtures::live_task(WAITING) else { panic!("live row") };
+        row.executor = tasks::Executor::Person(tasks::PersonAddress::Person(ADDRESS));
+        row.phase = tasks::Phase::Active(tasks::Active::Due);
+        row.taken_by = None;
+        row.person_answer = None;
+        let wait = tasks::PersonWait {
+            since: Wall::from_nanos(10),
+            stall: Duration::from_nanos(10),
+            deadline: Wall::from_nanos(20),
+            notice: Some(tasks::PersonStallNotice { message: 4, at: Wall::from_nanos(20), activity: 4 }),
+            offer: expected,
+        };
+        row.person_wait = Some(wait);
+        let cold = fixtures::cold_task(&row);
+        let hot = Record::Tasks(tasks::Stored::Live(row));
+        if older {
+            let ops = [hot, cold]
+                .iter()
+                .map(|row| {
+                    let (key, value) = encoded(&writer, row);
+                    skein_kv::Op::Put { key, value: value.unwrap() }
+                })
+                .collect();
+            raw(&mut disk, &mut writer, ops);
+        } else {
+            let commit = disk.request(
+                &mut writer,
+                fixtures::commit(2, Box::new([fixtures::header(2), fixtures::save(hot), fixtures::save(cold)])),
+            );
+            let [Event::Committed { number: 2, .. }] = commit.as_ref() else {
+                panic!("offered wait commit: {commit:?}")
+            };
+        }
+        let mut disk = Disk::new(&disk.items());
+        let mut reader = store(&disk, CURRENT);
+        let events = disk.open(&mut reader);
+        assert!(events.len() == 2, "registered person wait from older={older}: {events:?}");
+        opened(&events, older);
+        let live = restore(&mut disk, &mut reader, Restore::Jig(Box::new(RestoreRange::LIVE)));
+        let row = live
+            .iter()
+            .find_map(|row| {
+                if let Record::Tasks(tasks::Stored::Live(row)) = row
+                    && row.number == WAITING
+                {
+                    Some(row)
+                } else {
+                    None
+                }
+            })
+            .expect("restored person task");
+        assert_eq!(row.person_wait, Some(wait));
+    }
+}
+
+#[test]
+fn old_stop_compound_and_leave_answers_open_with_the_default_reason() {
+    use jig_domain_people as people;
+    let mut disk = Disk::new(&[]);
+    let mut old = store(&disk, old_sets());
+    opened(&disk.open(&mut old), false);
+    let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
+    let [Event::Committed { number: 1, .. }] = events.as_ref() else { panic!("first commit: {events:?}") };
+    let mut operations = skein_lib::List::with_capacity(1);
+    operations.push(people::Operation::Stop { task: 8, reason: Box::new([]) }).unwrap();
+    let old_asks = [
+        people::Ask::Stop { project: 3, task: 8, reason: Box::new([]) },
+        people::Ask::Compound { project: 3, operations },
+        people::Ask::Leave { project: 3, task: 8 },
+    ];
+    let rows = old_asks
+        .into_iter()
+        .enumerate()
+        .map(|(index, ask)| {
+            Record::People(people::Stored::Answer {
+                key: people::RequestKey { person: ALICE, key: [u8::try_from(index).unwrap(); 16] },
+                ask: Box::new(ask),
+                models: Box::new([]),
+                outcome: people::Outcome::Stopped { task: 8 },
+                at: skein_lib::Wall::EPOCH,
+            })
+        })
+        .collect::<Vec<_>>();
+    let ops = rows
+        .iter()
+        .map(|row| {
+            let (key, value) = encoded(&old, row);
+            skein_kv::Op::Put { key, value: value.unwrap() }
+        })
+        .collect();
+    raw(&mut disk, &mut old, ops);
+    let mut disk = Disk::new(&disk.items());
+    let mut current = store(&disk, CURRENT);
+    opened(&disk.open(&mut current), true);
+    assert_eq!(restore(&mut disk, &mut current, Restore::Jig(Box::new([RestoreRange::People]))), rows);
 }

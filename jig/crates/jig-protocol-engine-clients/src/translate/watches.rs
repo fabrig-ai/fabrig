@@ -1,5 +1,6 @@
 //! Watches retain their whole subject and stream record (protocol/client/README.md, 5).
 use super::{chips, cursor, deployment, inbox, live, objects, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{self as core, documents as d};
@@ -9,7 +10,7 @@ use skein_lib::{List, Reader, Token, Writer};
 pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) -> Option<core::Event> {
     if let w::Subject::Run(value) = value {
         let turn = match value.turn {
-            Some(value) => Some(views::TurnName { attempt: value.attempt, turn: value.number, retry: value.retry }),
+            Some(value) => Some(mapped::provisional_turn_name_to_domain(value)),
             None => None,
         };
         return Some(core::Event::WatchRun { watcher, sign_in, task: value.task, turn, offset: value.offset });
@@ -47,12 +48,7 @@ pub(crate) fn ended(why: views::End) -> w::WatchEnd {
     }
 }
 pub(crate) fn refused(why: core::WatchRefusal) -> w::WatchRefusal {
-    match why {
-        core::WatchRefusal::Unknown => w::WatchRefusal::Unknown,
-        core::WatchRefusal::NotAllowed => w::WatchRefusal::NotAllowed,
-        core::WatchRefusal::Busy => w::WatchRefusal::Busy,
-        core::WatchRefusal::SignedOut => w::WatchRefusal::SignedOut,
-    }
+    mapped::watch_refusal_to_record(&why)
 }
 pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings) -> w::Hello {
     let mut served = List::with_capacity(settings.served.len());
@@ -64,6 +60,22 @@ pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings) -> w::Hello {
         served.push(w::Served { owner, first: range.first, last: range.last }).expect("served ranges fit");
     }
     w::Hello { stream: name, served, heartbeat: settings.heartbeat }
+}
+pub(crate) fn layouts(settings: &crate::Settings) -> List<w::Layout> {
+    let mut layouts = List::with_capacity(settings.served.len());
+    for served in &settings.served {
+        if served.family.is_none() {
+            layouts.push(w::Layout { owner: w::Owner::Jig, layout: served.layout }).expect("served layouts fit");
+        }
+    }
+    for served in &settings.served {
+        if let Some(number) = served.family {
+            layouts
+                .push(w::Layout { owner: w::Owner::Family(w::Family { number }), layout: served.layout })
+                .expect("served layouts fit");
+        }
+    }
+    layouts
 }
 pub(crate) fn delivery(
     value: &d::Document,

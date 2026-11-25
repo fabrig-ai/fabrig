@@ -5,21 +5,20 @@ use jig_protocol_worker_wire::Record;
 use skein_lib::List;
 
 fn fresh_statement(version: u32) -> List<wire::Wire> {
-    let mut wires = List::with_capacity(16);
-    for spoken in &wire::spoken() {
-        wires
-            .push(wire::Wire {
-                name: spoken.name.as_bytes().into(),
-                lowest: spoken.lowest,
-                layouts: spoken.layouts.clone(),
+    List::from_boxed(
+        wire::spoken()
+            .iter()
+            .chain(&fixtures::application())
+            .map(|spoken| {
+                let (layout, text) = if spoken.name == "test-worker-wire" && version == fixtures::OTHER_VERSION {
+                    ([0; 32], b"not a schema".as_slice())
+                } else {
+                    (spoken.layout, spoken.text.as_bytes())
+                };
+                wire::Wire { name: spoken.name.as_bytes().into(), layout, text: text.into() }
             })
-            .expect("wire slot");
-    }
-    let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
-    wires
-        .push(wire::Wire { name: current.name.as_bytes().into(), lowest: current.lowest, layouts: current.layouts })
-        .expect("wire slot");
-    wires
+            .collect(),
+    )
 }
 
 fn fresh_channel_limits() -> skein_channel::Limits {

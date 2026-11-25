@@ -350,7 +350,8 @@ fn a_closer_waits_for_its_goals_branch_making() {
     let context = domain.core.tasks.run_context(GOAL_DELEGATE).expect("due closer");
     domain.work.clear();
 
-    super::closer_route::start_closer_step(&mut domain, &env, &context);
+    let mut decision = crate::restart::load_decision(&mut domain, &env.limits);
+    super::closer_route::start_closer_step(&mut domain, &env, &mut decision, &context);
     let mut step = None;
     while let Some(work) = domain.work.pop() {
         if let Work::Core(jig_domain_core::Event::ProcedureStep { task: GOAL_DELEGATE, decision, .. }) = work {
@@ -443,6 +444,7 @@ fn make_goal_task(
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(number)),
@@ -2020,7 +2022,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 },
                 &mut out,
             );
-            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Failed, None);
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Failed, None, None);
             let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
                 panic!("cancelled {name} needs a procedure hold with its account")
             };
@@ -2759,7 +2761,7 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
             }),
         ]);
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
-        let decision = super::hold_change_decision(&domain, &env, 7, why, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, why, None, None);
         let category = if why == change::Hold::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
         assert_eq!(
             decision.end,
@@ -2819,7 +2821,7 @@ fn checking_holds_name_the_bound_the_execution_clock_reached() {
         env.wall = Wall::from_nanos(1_000_000_000);
         env.limits.forge.change_policy.stall = Duration::from_secs(1800);
         env.limits.forge.change_policy.runner_wait = Duration::from_secs(14_400);
-        let decision = super::hold_change_decision(&domain, &env, 7, change::Hold::Stalled, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, change::Hold::Stalled, None, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2851,7 +2853,7 @@ fn a_hold_past_questions_names_its_bound() {
         row.questions.taken = 4;
         row.questions.open = open.into();
         let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
-        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions, None, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -4084,7 +4086,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             .insert(
                 (task, step),
                 super::ChangeStep {
-                    delegate: Some(kind),
+                    delegate: Some((kind, None)),
                     relayed: None,
                     refusal: None,
                     released: false,
@@ -4500,7 +4502,7 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
         .insert(
             (task, step),
             super::ChangeStep {
-                delegate: Some(forge_change::Delegate::Produce),
+                delegate: Some((forge_change::Delegate::Produce, None)),
                 relayed: None,
                 refusal: None,
                 released: false,
@@ -4623,6 +4625,7 @@ fn idle_change_procedure() -> (super::Domain, skein_lib::Env<super::Limits>, u64
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Procedure {
+            reads_project: false,
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(9)),
             read: None,
             task,
@@ -5136,6 +5139,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::internal(u64::MAX),
@@ -5165,6 +5169,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
             &mut domain.core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: super::super::internal(u64::MAX),
                 task,
                 step,
@@ -5483,7 +5488,7 @@ fn every_change_hold_has_words_even_without_an_account() {
             forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
             &mut Queue::uncapped(),
         );
-        let step = super::hold_change_decision(&domain, &env, 7, why, None);
+        let step = super::hold_change_decision(&domain, &env, 7, why, None, None);
         let StepEnd::HoldFrom { source, .. } = step.end else { panic!("wordless hold: {why:?}") };
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account: {why:?}") };
         assert!(!words.is_empty(), "empty hold: {why:?}");
@@ -5872,6 +5877,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Amend {
+            reads_project: false,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
             by: requester,
@@ -5916,7 +5922,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         step,
         connector,
         code,
-        change::Delegate::Repair(change::Repair::Ci),
+        (change::Delegate::Repair(change::Repair::Ci), None),
     );
     let Some(super::Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. })) = domain.work.pop() else {
         panic!("delegate step")

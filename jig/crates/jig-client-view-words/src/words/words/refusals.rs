@@ -9,6 +9,11 @@ impl Words {
     /// Say the supplied refusal, never deriving permission or numerical limits.
     pub fn refusal(&self, b: &mut Builder, refusal: &Refusal, text_limit: u32) {
         match refusal {
+            Refusal::QuestionAnswered { question, by } => self.text(
+                b,
+                JigPhrase::Word(Word::refusal(refusal)),
+                &[Hole::Number(*question), Hole::Number(by.number())],
+            ),
             Refusal::Judged { why, .. } => self.text(
                 b,
                 JigPhrase::Word(Word::Refusal(RefusalWord::Judged)),

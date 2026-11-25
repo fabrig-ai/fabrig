@@ -462,6 +462,7 @@ fn a_delegate_made_while_the_closer_lives_waits_the_closer() {
     child.funder = tasks::Funder::Task(TASK);
     let reply_to = world.to();
     world.stage(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to,
@@ -532,6 +533,7 @@ fn resize(world: &mut World, task: u64, spend: u64, message: u64) {
     authority.budget.spend = spend;
     assert_eq!(
         jig_tasks_world::response(world, |reply_to| tasks::Event::Amend {
+            reads_project: false,
             reply_to,
             by: jig_tasks_world::PERSON_PARTY,
             places: Box::new([]),
@@ -592,6 +594,7 @@ fn an_idle_tasks_last_watch_ending_makes_its_closer() {
     );
     assert_eq!(
         jig_tasks_world::response(&mut world, |reply_to| tasks::Event::Subscribe {
+            reads_project: false,
             reply_to,
             task: TASK,
             subscription: tasks::Subscription {

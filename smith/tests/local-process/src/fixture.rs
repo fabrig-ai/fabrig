@@ -1,4 +1,4 @@
-//! Shared story frames for the local process worlds (testing.md, section 2.1).
+//! Shared story frames for the local process worlds (testing-tiers.md, section 1).
 
 use crate::Placement;
 

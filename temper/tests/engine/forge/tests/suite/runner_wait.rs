@@ -52,6 +52,7 @@ fn poll_checking_for(world: &mut World, seconds: u64) {
                     no_test: false,
                     delegate_live: false,
                     review_request: None,
+                    closer_waiting: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,

@@ -288,6 +288,7 @@ fn an_open_raw_finish_while_narrowing_goes_due() {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
     w.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: CHAT,
@@ -477,6 +478,7 @@ fn a_finish_grace_cancels_an_idle_open_task_at_once() {
     commit_turn(&mut finite, 1, None);
     let reply_to = finite.to();
     finite.send(Event::Subscribe {
+        reads_project: false,
         reply_to,
         task: CHAT,
         subscription: jig_domain_tasks::Subscription {

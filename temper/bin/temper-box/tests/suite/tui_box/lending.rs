@@ -279,7 +279,8 @@ fn hello() -> Vec<u8> {
         })
         .expect("one version");
     let hello = w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
-    sse(&w::StreamEvent::Opened(w::Opened { hello, me: me() }))
+    let layouts = skein_lib::List::from_boxed(Box::new([w::Layout { owner: w::Owner::Jig, layout: w::LAYOUT }]));
+    sse(&w::StreamEvent::Opened(w::Opened { hello, layouts, me: me() }))
 }
 fn me() -> w::Owned {
     let text = || w::DocumentText { bytes: Box::new([]), cut: false };

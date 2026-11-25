@@ -17,10 +17,10 @@ bytes or `absent before` and `absent after`, for its checkout, the files
 after it carried as they fit (`temper-engine-domain-forge/src/brief.rs`,
 `name_conflict_if_past_room`; `src/tests/brief.rs`,
 `a_resolutions_files_are_carried_whole_or_named`). The charter's fit
-that can still cut the section's end is `../agent/README.status.md`'s `adoption.md`, 3; no
+that can still cut the section's end is `../agent/README.status.md`'s `adoption.md`, 7; no
 story takes a named file through its charter's start.
 
-`adoption.md`, section 5's `DismissMaking` is present: an owner can erase a failed row
+`adoption.md`, section 9's `DismissMaking` is present: an owner can erase a failed row
 and free its place, absence is kept, and running rows or another scope
 are refused. The request carries `into`, so its keyed scope survives the
 row's erasure. The connector's making tables cover these decisions.
@@ -106,3 +106,4 @@ a change's merge job from the engine through its worker to the fake forge
   its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
   again. The design has its runs push Markdown straight to g as its design
   writers, recorded as g's own, and drops the `"run"` change.
+

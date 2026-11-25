@@ -1,4 +1,4 @@
-//! A `FileIo` child for a world's socket owner (runtime/io/files.md, sections 2 and 3).
+//! A `FileIo` child for a world's socket owner (runtime/io/files.md, sections 10 and 11).
 //! Queued requests keep their deadlines; descriptor cleanup remains admitted
 //! until it can close the descriptor. Cancellation is routed even while a
 //! different request runs. `FileIo`'s operation lane distinguishes its completions

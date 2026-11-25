@@ -19,6 +19,8 @@ use skein_lib::Reader;
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 #[cfg(test)]
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    question_relay_words: 0,
+    question_answer_notice_words: 0,
     task_summary_title: 0,
     task_summary_reason: 0,
     summary_result_words: 0,
@@ -65,6 +67,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     cancelled_reason: 0,
     circle_tasks: 0,
     hold_account_words: 0,
+    hold_wait_words: 0,
     rejected_proposal_reason: 0,
     amendment_instructions_some: 0,
     amendment_dependencies_some: 0,
@@ -151,6 +154,8 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        question_relay_words: domain.message_bytes,
+        question_answer_notice_words: wire::CEILINGS.question_answer_notice_words,
         task_summary_title: domain::SUMMARY_TEXT,
         task_summary_reason: domain::SUMMARY_TEXT,
         summary_result_words: domain::SUMMARY_TEXT,
@@ -160,6 +165,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         refused_retry_reason_some: domain::REASON_BYTES,
         hold_preparation_words: domain::REASON_BYTES,
         hold_account_words: domain::HOLD_ACCOUNT_BYTES,
+        hold_wait_words: domain::WAIT_WORDS,
         placed_hold_reason: domain.message_bytes,
         placed_hold_exempt: domain.exemptions,
         proposed_settings_items: domain::SETTINGS_ITEMS,
@@ -282,7 +288,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         task_interests_delegates: domain.delegates,
         task_interests_result_followups: domain.batch,
         task_interests_references: domain.references,
-        task_interests_subscriptions: domain.subscriptions.checked_add(1)?,
+        task_interests_subscriptions: wire::CEILINGS.task_interests_subscriptions,
         task_interests_inbox: domain.inbox_messages.checked_add(2)?,
         task_interests_notice_credits: domain.inbox_messages,
         task_interests_saved: domain.saved_resources,

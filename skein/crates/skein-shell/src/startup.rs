@@ -28,7 +28,7 @@ use skein_lib::base64::{self, Alphabet};
 
 pub use crate::system::{effective_user, open_append, open_root, prepare_output, process_id, resolve_system_links};
 
-/// How startup adopts a standard output descriptor (runtime/io/files.md, section 1).
+/// How startup adopts a standard output descriptor (runtime/io/files.md, section 9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OutputKind {
     /// A pipe or terminal, sent through the inherited write-pipe face.

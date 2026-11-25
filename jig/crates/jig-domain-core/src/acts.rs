@@ -14,7 +14,7 @@ mod standing;
 
 use crate::{Core, Limits, documents};
 use jig_domain_people as people;
-pub(crate) use objects::{escalation, mutable_phase, person, proposal, question, write, write_in};
+pub(crate) use objects::{at_question_offer, escalation, mutable_phase, person, proposal, question, write, write_in};
 pub(crate) use requests::request;
 use skein_lib::Wall;
 pub(crate) use standing::role;

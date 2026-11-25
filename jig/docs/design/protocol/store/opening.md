@@ -246,7 +246,7 @@ among them; `Floor` a missing floor row or one below `FLOOR`, before a plan or
 rehearsal decoding; `Behind` a level behind the binary's; `Unregistered`
 a store holding values and no registry (`layouts.md`, 5.1). These three
 name `FLOOR_BRIDGE`, the build that brings such a store to this one
-(temper's `draft/store-floor.md`, section 3); `Check` names what
+(temper's `draft/archive/store-floor.md`, section 3); `Check` names what
 failed: a row that does not load, by its key; a secrets' file
 that is not private, by its name. A job's write too large for a commit
 alone is the job's refusal (`jobs.md`, 3). There is no eager map patch
@@ -260,7 +260,7 @@ registered, or a job is pending (`jobs.md`, 2). The store is at the
 binary's levels, or 1 has refused it (`records.md`, 3). No record is
 rewritten but by a job or the seal: the copy is
 upgraded by the registry's commit and the jobs alone (temper's
-`draft/store-floor.md`, 4.2). From the active generation `A` to
+`draft/archive/store-floor.md`, 4.2). From the active generation `A` to
 `A + 1`:
 
 1. **Plan,** over `A` as 1 opened it: the layouts planned, each held
@@ -398,7 +398,7 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   switch's rename, `A` stays active and unchanged,
   and the next start removes `A + 1` and begins again from a fresh
   copy. A switch answered `Failed` with its rename made (`committed`:
-  skein's `runtime/io/files.md`, 2) may leave `A + 1` active, whole and checked,
+  skein's `runtime/io/files.md`, 10) may leave `A + 1` active, whole and checked,
   which the next start opens.
 - **Room.** On disk, what the two generations do not share, never the
   transcripts (temper's `draft/store-shape.md`, section 5): at the

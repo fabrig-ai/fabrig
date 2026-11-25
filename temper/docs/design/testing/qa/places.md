@@ -1,8 +1,8 @@
 # Places and copies
 
 Provisional, 2026-11-12, revised 2026-11-20, from
-`../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4,
-Q6 and Q7 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
+`../../draft/archive/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4,
+Q6 and Q7 of `../../draft/archive/landed-qa.execution.md`. Where a pass's boxes and
 deployments run, and what each case starts from: a place, a fixed
 directory with its own `bin/`, of one kind; a setup's copy restored
 there, or made again from its recipe; and the drive session, held open
@@ -57,7 +57,7 @@ drive session are Q2's (`../../client/recipe.md`,
   ```
 
 - **Its kind,** `qa.json`'s `kind` for it (`README.md`, 3.2), a box's
-  when absent (`../../draft/landed-qa.md`, 2): a box's place runs
+  when absent (`../../draft/archive/landed-qa.md`, 2): a box's place runs
   `temper-box` on its fake backends, as Q3 to Q5 have it; a
   deployment's runs the deployment's processes (`deployment.md`), needs
   its `ports`, and holds `deployment/` where a box's holds `box/`. Its
@@ -67,7 +67,7 @@ drive session are Q2's (`../../client/recipe.md`,
   between the kinds, here and in the drive session, is `kinds.md`, 3's
   table, each value read from the kind (`kinds.md`, 6).
 - **Private, whatever the umask** the tool runs under
-  (`../../draft/landed-qa.md`, 5): every directory the tool makes at a
+  (`../../draft/archive/landed-qa.md`, 5): every directory the tool makes at a
   place, `PLACE/` itself, its scratch directory, `copies/` and each
   `copies/NAME/`, and `bin/` and `bundle/` with what they hold, is
   0o700, and every file it writes there, `manifest`, `setup`, `walk.log`,
@@ -107,7 +107,7 @@ drive session are Q2's (`../../client/recipe.md`,
   Forgejo (`setups.md`, 2), so no box at a place sets up its own
   Forgejo, and the place's cache holds none of its binaries; a case
   that would set one up is blocked, naming it (`passes.md`, 4;
-  `../../draft/landed-qa.md`, 6 and 12).
+  `../../draft/archive/landed-qa.md`, 6 and 12).
 
 ## 3. Installing a build
 
@@ -149,7 +149,7 @@ place is free and before any box starts there:
 
 So every program a box at the place runs is the pass's build's, from
 the place's `bin/`, never a kept build's directory
-(`../../draft/landed-qa.md`, 5). Its files stay private under the place's
+(`../../draft/archive/landed-qa.md`, 5). Its files stay private under the place's
 0o700 directories. Removing a released kept build (`builds.md`, 5)
 unlinks its directory's files; installed links remain until the place
 installs another build.
@@ -239,14 +239,14 @@ installs another build.
        file in `copies/Ri/`, renamed to `HASH-COMMIT.tar`, and every
        other file in `copies/Ri/` removed. A copy whose check walks is
        kept as it is: one copy per recipe, the newest that restored
-       (`../../draft/landed-qa.md`, 5).
+       (`../../draft/archive/landed-qa.md`, 5).
      - **3, a store refused by name** (`../../client/drive.md`, 2.5):
        that copy is removed, and step 1 goes on from the next ancestor
        up; on a box with no copy, 3 is as 4.
      - **4, the box failed:** it stops, printing `setup NAME: the box
        failed walking R` and the walk's last 40 lines, exit 4. A box
        that will not start or panics is a finding
-       (`../../draft/landed-qa.md`, 7).
+       (`../../draft/archive/landed-qa.md`, 7).
      - **5, stopped at a line:** it stops, printing `setup NAME: stopped
        at R:N: WHY`, the walk's last 40 lines and section 7's facts,
        exit 5.
@@ -282,7 +282,7 @@ holder keeps the session between them.
   for its life, or exits 1; starts `bin/temper-client-journeys drive
   --bin bin --bundle bundle --scratch box`, with `--scripts F` for each
   `scripts.json` of the setup's chain, root first, from the pass's
-  setups, none for `fresh`, `--strict` (`../../draft/landed-qa.md`,
+  setups, none for `fresh`, `--strict` (`../../draft/archive/landed-qa.md`,
   6), `--files` the pass's `files/` (`passes.md`, 2), which its `forge
   commit` lines read (`../../client/drive.md`, 3.5), `--ports P`
   where the place has ports, as a walk is given
@@ -331,7 +331,7 @@ holder keeps the session between them.
 ## 6. A new recipe
 
 `temper-qa pass recipe NAME FILE`, once a case whose state no setup
-reached has run (`../../draft/landed-qa.md`, 5):
+reached has run (`../../draft/archive/landed-qa.md`, 5):
 
 - **FILE,** a path or `-`, one JSON object: `after`, the setup the case
   started from, `fresh` or a recipe of the pass's setups, of the place's
@@ -376,7 +376,7 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
   copy of that recipe, no build is named and every landing the pass's
   build holds is listed.
 - **The agent judges** them against those landings' drafts
-  (`../../draft/landed-qa.md`, 5):
+  (`../../draft/archive/landed-qa.md`, 5):
   - **a flow a landing changed on purpose:** the recipe's to follow; the
     agent edits `passes/P/setups/R/recipe`, as a journey's walk follows
     the controls a landing changes (`../../client/journey-walks.md`, 2.2),
@@ -386,7 +386,7 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
   - **a flow no landing meant to change:** a finding against temper
     (`findings.md`, 2), naming the step, what it showed and the last
     build the recipe walked on; the cases on that setup are failed with
-    it, and the others go on (`../../draft/landed-qa.md`, 7).
+    it, and the others go on (`../../draft/archive/landed-qa.md`, 7).
 
 ## 8. Its code and tests
 

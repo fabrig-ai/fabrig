@@ -8,12 +8,14 @@ use skein_lib::{List, Time, Token};
 
 fn fresh_peer_bounds(sizes: &wire::sizes::Sizes) -> (skein_channel::Schema, skein_channel::Limits) {
     let codec = wire::sizes::limits(sizes).expect("fixture codec");
+    let credential = u32::try_from(wire::Credential::encoded_bound(&codec).expect("credential bound"))
+        .expect("credential bound fits");
     let cap = wire::sizes::worker_cap(sizes).expect("fixture cap").cap;
     (
         wire::schema(&codec).expect("fixture schema"),
         skein_channel::Limits {
             chunk: 16_384,
-            credential: 4096,
+            credential,
             skip: 16_384,
             output_bytes: cap.bytes,
             output_frames: cap.frames,

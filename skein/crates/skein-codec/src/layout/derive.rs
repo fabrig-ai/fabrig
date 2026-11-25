@@ -1,9 +1,12 @@
 //! Reach worklists and retained level conversions (data/codec/layouts.md, 2).
+use super::compare::{
+    Comparison, compare as compare_types, held as compare_held, leaf as compare_leaf, payload as payload_matches,
+    width as integer_width,
+};
 use super::{
     Absent, DropField, Field, Inner, Kind, Mode, Narrowed, Node, Plan, Read, ReadKind, Refusal, Refused, Source,
     Underived, Variant, Why, add,
 };
-use crate::patch::{Comparison, compare_held, compare_leaf, compare_types, integer_width, payload_matches};
 use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };
@@ -183,6 +186,16 @@ impl<'a> Names<'a> {
         }
         Some(found)
     }
+
+    fn variant_for(self, old: Self, source: VariantIx, policy: Policy) -> Option<VariantIx> {
+        for index in self.range() {
+            let dest = VariantIx::new(index);
+            if old.matched(self, Named::Variant(dest), policy) == Some(Named::Variant(source)) {
+                return Some(dest);
+            }
+        }
+        None
+    }
 }
 
 fn tombstone_named(schema: &Schema, first: FieldIx, count: u32, name: &[u8]) -> Option<FieldIx> {
@@ -221,12 +234,74 @@ fn matched_tombstone(schema: &Schema, decl: DeclIx, live: &Schema, field: FieldI
     None
 }
 
-fn restored_default(live: &Schema, field: FieldIx, other: &Schema, tombstone: Option<FieldIx>) -> Option<Box<[u8]>> {
-    let bytes = match live.default(field) {
-        Some(bytes) => bytes,
-        None => other.default(tombstone?)?,
+fn default_tag(old: &Schema, a: DeclIx, new: &Schema, b: DeclIx, tag: u8, policy: Policy) -> Option<u8> {
+    let old_shape = old.declaration(a).shape;
+    let new_shape = new.declaration(b).shape;
+    let (Shape::Enum { first: af, .. }, Shape::Enum { first: bf, .. }) = (old_shape, new_shape) else {
+        return None;
     };
-    Some(Box::from(bytes))
+    let old_names = Names { schema: old, shape: Some(old_shape) };
+    let new_names = Names { schema: new, shape: Some(new_shape) };
+    let source = VariantIx::new(add(af.index(), u32::from(tag)));
+    let dest = new_names.variant_for(old_names, source, policy)?;
+    if new.variant(dest).record.is_some() {
+        return None;
+    }
+    let offset = dest.index().checked_sub(bf.index()).expect("variant of new enum");
+    Some(u8::try_from(offset).expect("schema tag fits"))
+}
+
+fn restored_default(
+    live: &Schema,
+    field: FieldIx,
+    other: &Schema,
+    tombstone: Option<FieldIx>,
+    policy: Policy,
+    place: Place,
+) -> Result<Option<Box<[u8]>>, Underived> {
+    // A written default wins; implicit none is the fallback without a tombstone.
+    let at = match tombstone {
+        Some(at) if live.default_span(field).is_none() => at,
+        Some(_) | None => {
+            return match live.default(field) {
+                Some(bytes) => Ok(Some(Box::from(bytes))),
+                None => Ok(None),
+            };
+        }
+    };
+    let mut bytes: Box<[u8]> = Box::from(other.default(at).expect("tombstones have defaults"));
+    let mut a = other.field(at).ty;
+    let mut b = live.field(field).ty;
+    // The types compare equal. Defaults can reach an enum through present
+    // options, but lists and pieces are empty and no default holds a record.
+    for byte in &mut *bytes {
+        match other.ty(a) {
+            Type::Option(inner) => {
+                if *byte == 0 {
+                    break;
+                }
+                a = inner;
+                b = option(live.ty(b)).expect("equal option types");
+            }
+            Type::Named(decl) => {
+                let target = declaration(live.ty(b)).expect("equal named types");
+                *byte = default_tag(other, decl, live, target, *byte, policy).ok_or(place.error(Why::Retyped))?;
+                break;
+            }
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Text(_)
+            | Type::Secret { .. }
+            | Type::Bytes { .. }
+            | Type::List { .. } => break,
+        }
+    }
+    Ok(Some(bytes))
 }
 
 impl Builder {
@@ -387,17 +462,18 @@ impl Builder {
             }
             let field = FieldIx::new(add(first, offset));
             let live = old.field(field);
+            let part = Place { part: Some(live.name), old: true, ..Place::new(record.name) };
             let tombstone = matched_tombstone(new, b, old, field);
             let matching = &self.pairs.get(pair).expect("text pair").matching;
             if let Some(at) = tombstone
                 && compare_types(matching, old, new, live.ty, new.field(at).ty) != Comparison::Equal
             {
-                return Err(Underived { why: Why::Retyped, decl: record.name, part: Some(live.name), old: true });
+                return Err(part.error(Why::Retyped));
             }
             if !keep || old.droppable(field) {
                 continue;
             }
-            let default = restored_default(old, field, new, tombstone);
+            let default = restored_default(old, field, new, tombstone, Policy::Between(Mode::Read), part)?;
             if let Some(bytes) = &default
                 && bytes.is_empty()
                 && empty(old, At::Type(live.ty))
@@ -489,7 +565,8 @@ impl Builder {
                         {
                             return Err(part.error(Why::Retyped));
                         }
-                        let bytes = restored_default(new, field, old, tombstone).ok_or(part.error(Why::NoDefault))?;
+                        let bytes = restored_default(new, field, old, tombstone, self.policy, part)?
+                            .ok_or(part.error(Why::NoDefault))?;
                         Field { source: Source::Default(bytes), node: None }
                     };
                     fields.push(field).expect("one source per new field");
@@ -513,17 +590,7 @@ impl Builder {
                         variants.push(None).expect("one slot per old tag");
                         continue;
                     }
-                    let mut found = None;
-                    for index in new_names.range() {
-                        let dest = VariantIx::new(index);
-                        if old_names.matched(new_names, Named::Variant(dest), self.policy)
-                            == Some(Named::Variant(source))
-                        {
-                            found = Some(dest);
-                            break;
-                        }
-                    }
-                    let Some(dest) = found else {
+                    let Some(dest) = new_names.variant_for(old_names, source, self.policy) else {
                         let part = old.variant(source).name;
                         if let Policy::Strict = self.policy {
                             return Err(Underived {

@@ -1,6 +1,6 @@
 # Claude Code's sign-in through the terminal: the browser
 
-Hand-made pages for `../../../draft/claude-sign-in.md`, section 2, and
+Hand-made pages for `../../../draft/archive/claude-sign-in.md`, section 2, and
 `index.html`, both sides in order with the terminal's frames in
 `../../tui/claude-sign-in/`.
 

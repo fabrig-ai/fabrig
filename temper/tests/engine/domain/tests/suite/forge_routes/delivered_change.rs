@@ -198,7 +198,11 @@ fn release_with_result_in_record(placed: bool) {
     projection.title = Box::new([]);
     projection.report = Box::new([]);
     if placed {
-        party(&mut world, 170, people::Ask::Stop { project: 1, task });
+        party(
+            &mut world,
+            170,
+            people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) },
+        );
     } else {
         let bound = world.env.limits.forge.change_policy.stall;
         jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
@@ -228,6 +232,7 @@ fn release_with_result_in_record(placed: bool) {
         queue_repair_active: false,
         heard: temper_engine_domain_forge_change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

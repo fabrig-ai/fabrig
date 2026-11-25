@@ -155,7 +155,7 @@ mod tests {
             .expect("decode the worker's agent document")
             .resolve_with(
                 |address| address.parse().map_err(|why| format!("fixture endpoint {address}: {why}").into()),
-                |_, _| panic!("the fixture uses plaintext"),
+                None,
                 |_| None,
             )
             .expect("resolve the worker's agent document");

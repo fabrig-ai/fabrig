@@ -191,7 +191,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   `goal`, `reason` and `cleared`, `FindingAnswer`'s `blame` and
   `MilestoneTotals`' `reds` come together in the client's next layout,
   which moves `CLIENT_VERSION` by one, with no bridge
-  (`../../draft/redeploys.md`, section 8).
+  (`../../draft/archive/redeploys.md`, section 8).
 ## 8. Dismissed facts
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract/watches.md`, 1.5), with no fields, its
@@ -225,7 +225,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   - `project`;
   - `landing`, the branch to name while nothing is queued: the newest
     landing's, else the landing branch of the project's home repository
-    (`../../domain/forge/adoption.md`, 8), else of its first, else empty;
+    (`../../domain/forge/adoption.md`, 12), else of its first, else empty;
   - `queues`, at most 32, by repository then branch, one per landing branch
     with ready changes, a change owning its queue, or red (`README.md`, section 3), each a
     `ChangesQueue`: `repository`, `owner/name`; `branch`; `red`; and
@@ -237,7 +237,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
     across the queues, which fill in order; the changes queued are the
     rows listed and `more`;
   - `catching_up`, none, or while the forge of the project's home
-    repository (`../../domain/forge/adoption.md`, 8), else of its first,
+    repository (`../../domain/forge/adoption.md`, 12), else of its first,
     catches up after a restart, its `CatchingUp`, as `ForgeRow`'s;
   - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
     across the project's repositories, a row for each change of each
@@ -245,7 +245,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
     log's (`../../domain/after-landing-storage.md`, section 1); `commit`, the
     landing's, 32 bytes; `default_branch`, whether the branch the
     landing moved is its repository's landing branch, the main one
-    (`../../domain/forge/adoption.md`, 8), whatever the forge's default
+    (`../../domain/forge/adoption.md`, 12), whatever the forge's default
     branch; and `signed`, at
     most 8, the landing log's sign-offs of the change, in its order, each
     a `ChangesSigned`: `party`; `head`, the commit their review named, 32
@@ -314,8 +314,8 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
     watcher's own brief;
   - `unpaid`, bool, appended after `branch`: whether the watcher's last
     status run found nothing to pay for it (`../../domain/forge/attention.md`,
-    3, *When nothing pays*). Its field moves the client wire's version,
-    unbridged (`../../draft/redeploys.md`);
+    3, *When nothing pays*). Its field changes the client wire's
+    layout, its version frozen (`../../protocol/wires.md`, 9);
   - `previous`, option, the party's last look of the sitting before; and
     `seen`, u64, the `landed` count then;
   - `queued`, u32, what the subject `changes` counts; `red`, whether the

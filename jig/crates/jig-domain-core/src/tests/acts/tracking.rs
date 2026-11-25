@@ -15,6 +15,7 @@ fn track(core: &mut Core, limits: &Limits) {
         core,
         limits,
         tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: PRIORITY_TASK,

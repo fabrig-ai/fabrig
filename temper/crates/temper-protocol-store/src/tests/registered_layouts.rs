@@ -67,6 +67,52 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
+fn an_earlier_closer_defaults_to_an_unread_report() {
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_closer::{Closer, ReportCheck, relay::Relay};
+    use temper_engine_domain_forge_vocabulary::{CloserRow, Stored};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before =
+        family.current.replace("report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none ", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"closer")).unwrap();
+    let new_root = new.root(b"Row", Some(b"closer")).unwrap();
+    let mut row = CloserRow {
+        task: 8,
+        goal: 7,
+        closer: Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        superseded: Box::new([]),
+        landing_changes: Box::new([]),
+        relay: Relay::new(),
+        done: false,
+    };
+    let expected = Stored::Closer(row.clone());
+    assert_eq!(row.closer.report_check, ReportCheck::Unread);
+    assert_eq!(row.closer.goal_left, None);
+    row.closer.report_check = ReportCheck::Held;
+    row.closer.goal_left = Some(b"an earlier layout cannot retain this".as_slice().into());
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&Stored::Closer(row)), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("closer additions default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let limits = &super::fixtures::LIMITS;
+    let bounds = crate::bounds(limits, limits.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(expected));
+}
+
+#[test]
 fn a_landing_layout_without_wait_defaults_it_to_cleared() {
     landing_layout_defaults(" wait: SettingsLandingWait = cleared");
 }
@@ -156,6 +202,31 @@ fn the_current_layout_has_no_whole_change_value_type() {
     let current = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     assert!(current.root(b"Row", Some(b"change")).is_none());
     assert!(!family.types.iter().any(|ty| ty.number == 12));
+}
+
+#[test]
+fn a_change_layout_without_measured_tips_defaults_to_none() {
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = super::dev_layouts::DEV;
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"ChangeHot", None).unwrap(),
+        &[],
+        &new,
+        new.root(b"ChangeHot", None).unwrap(),
+        &[],
+    )
+    .expect("measured tips have a default in the registered layout");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    let earlier = fixed_value(before, "record_change_hot_smallest.bin");
+    plan.convert(&earlier, &mut out, &mut work).unwrap();
+    let row =
+        crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
+    assert!(row.close_at.is_none());
 }
 
 #[test]
