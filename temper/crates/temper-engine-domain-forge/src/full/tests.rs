@@ -205,7 +205,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
                         last_prepare: None,
                         branch: b"main".as_slice().into(),
                     },
-                    asks: Box::new([]),
+                    previous_asks: Box::new([]),
                     entries: Box::new([]),
                 },
             )

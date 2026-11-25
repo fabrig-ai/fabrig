@@ -106,7 +106,7 @@ fn hold_and_release(d: &mut Domain, key: &ReceiptKey) {
     // Form the released ready member into the fixture's new landing.
     let mut row = d.landing.rows.remove(&61).unwrap();
     row.entries = Box::new([]);
-    row.asks = Box::new([None]);
+
     row.landing.phase = landing::Phase::Proving;
     row.landing.last_left = None;
     row.landing.round = landing::Round::new(b"temper/1/l61".as_slice().into());

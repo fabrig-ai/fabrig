@@ -428,6 +428,10 @@ impl World {
     pub fn change(&self, task: u64) -> &top::ChangeRow {
         self.top.change(task).expect("fixture change")
     }
+    #[must_use]
+    pub fn landing_of(&self, change: u64) -> Option<u64> {
+        self.top.landing_of(change)
+    }
     /// The whole document requested by the root for this watch subject.
     #[must_use]
     pub fn document(&self, project: u32, subject: u64) -> Option<top::Document> {
@@ -1803,6 +1807,30 @@ impl World {
         let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
         temper_engine_inspect::forge(&self.top, &mut inspection);
         inspection
+    }
+
+    /// At a quiet point, compare the live index with the rows, not with stored links.
+    pub fn check_landing_members(&self) {
+        use temper_engine_domain_forge_landing::Phase;
+        let landings = self.top.inspection_landings();
+        for (change, row) in self.top.inspection_changes() {
+            let oldest = landings.iter().find_map(|(task, row)| {
+                (!matches!(row.landing.phase, Phase::Landed | Phase::Cancelled)
+                    && row.landing.members.iter().any(|member| member.change == *change && member.left.is_none()))
+                .then_some(*task)
+            });
+            assert_eq!(self.top.landing_of(*change), oldest, "change {change}");
+            for (position, ask) in row.asks.iter().enumerate() {
+                assert!(
+                    row.asks[..position].iter().all(|prior| {
+                        prior.landing != ask.landing
+                            || std::mem::discriminant(&prior.ask) != std::mem::discriminant(&ask.ask)
+                    }),
+                    "duplicate ask kind from landing {} on change {change}",
+                    ask.landing
+                );
+            }
+        }
     }
 
     /// Return the run's first finding, or check its current frozen state.

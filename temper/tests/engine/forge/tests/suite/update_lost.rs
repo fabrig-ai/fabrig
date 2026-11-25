@@ -418,7 +418,7 @@ fn single_prepare_world(conflict: bool) -> World {
     assert_eq!(landings::step_landing_raw(&mut world, LANDING, 100), landing::Decision::None);
     let decision = landings::step_landing_raw(&mut world, LANDING, 101);
     assert_eq!(decision, landing::Decision::None);
-    assert!(matches!(world.landing(LANDING).asks[0], Some(change::Ask::Prepare { .. })));
+    assert!(world.change(CHANGE).asks.iter().any(|handed| matches!(handed.ask, change::Ask::Prepare { .. })));
     world
 }
 

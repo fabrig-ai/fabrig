@@ -305,7 +305,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
-                asks: Box::new([None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             },
         },

@@ -3,7 +3,6 @@ use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_codec::Record;
 use skein_lib::{List, Reader, Wall, Writer};
-use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as d;
 use temper_engine_domain_forge_vocabulary as top;
 
@@ -147,12 +146,6 @@ fn decode_member(member: w::LandingMember) -> d::Member {
             None => None,
         },
     }
-}
-pub(super) fn encode_ask(ask: change::Ask) -> w::LandingAsk {
-    crate::generated::store::landing_ask_to_record(&ask)
-}
-pub(super) fn decode_ask(ask: w::LandingAsk) -> change::Ask {
-    crate::generated::store::landing_ask_to_domain(ask)
 }
 fn encode_round(round: &d::Round) -> w::LandingRound {
     crate::generated::store::landing_round_to_record(round)

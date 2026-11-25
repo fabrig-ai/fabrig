@@ -90,7 +90,7 @@ fn a_step_reading_its_branch_missing_holds_as_deleted_not_moved() {
 #[test]
 fn a_stale_prepare_request_is_not_a_branch_move() {
     let c = change(State::Ready { head: HEAD, ready_since: at(0) });
-    let f = Facts { ask: Some(crate::Ask::Prepare { head: NEW, main: BASE }), ..facts() };
+    let f = Facts { ask: Some(handed(crate::Ask::Prepare { head: NEW, main: BASE })), ..facts() };
     let next = decide(&c, &f, &heard());
     assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
     assert_eq!(next.change, c);

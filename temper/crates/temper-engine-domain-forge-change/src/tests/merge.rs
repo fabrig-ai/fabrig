@@ -298,9 +298,9 @@ fn a_contained_head_from_its_turn_has_landed() {
                 assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f }, &h));
             }
             c.way = crate::Way::Turn;
-            c.landing = Some(9);
+            let mut f = Facts { landing: Some(9), ..f };
             assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f.clone() }, &h));
-            c.landing = None;
+            f.landing = None;
             assert_eq!(decide(&c, &f, &h).change.state, next.change.state);
             let merged = decide(&c, &Facts { pull: Pull::Merged { commit: NEW }, ..f }, &h);
             assert_eq!(merged.change.state, State::Landed { merge: NEW, since: at(1) });

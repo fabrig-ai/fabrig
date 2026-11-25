@@ -239,12 +239,14 @@ fn change_row() -> ChangeRow {
         body: Box::new([]),
         priority: 1,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
-            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
+
             task: CHANGE,
             state: change::State::Opening { requested: true },
             gates: Box::new([]),
@@ -460,7 +462,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
-                asks: Box::new([None, None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             },
         )
@@ -913,7 +915,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         last_prepare: None,
                         branch: Box::from(b"main".as_slice()),
                     },
-                    asks: Box::new([const { None }; 8]),
+                    previous_asks: Box::new([]),
                     entries: Box::new([]),
                 },
             )

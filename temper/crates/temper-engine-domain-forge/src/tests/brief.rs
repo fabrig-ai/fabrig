@@ -1333,7 +1333,7 @@ fn kept_landing_failure(d: &mut Domain) {
                 landed: None,
             }]),
         },
-        asks: Box::new([None]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     };
     outputs(d, Event::Restore { record: Stored::Landing(row) });

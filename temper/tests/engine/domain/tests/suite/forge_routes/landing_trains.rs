@@ -173,7 +173,7 @@ pub(crate) fn dependency_across_trains() -> (World, u64, u64, u64) {
     }
     assert_eq!(landing_rows(&world).len(), 2);
     assert_eq!(live_task(&world, dependent).waiting_on.as_ref(), [upstream]);
-    assert_eq!(goal_landing::row(&world, dependent).change.landing, None);
+    assert_eq!(world.root.forge().landing_of(dependent), None);
     (world, upstream, dependent, other)
 }
 
@@ -196,7 +196,7 @@ fn drill_14_a_dependency_across_goal_and_main_trains_survives_restart() {
     for _ in 0..PAIR_TICKS {
         world.tick();
         saw_upstream |= goal_landing::ended(&world, upstream).is_some();
-        if goal_landing::row(&world, dependent).change.landing.is_some() {
+        if world.root.forge().landing_of(dependent).is_some() {
             assert!(saw_upstream, "dependent only forms after upstream ends");
         }
         for change in [upstream, dependent, other] {

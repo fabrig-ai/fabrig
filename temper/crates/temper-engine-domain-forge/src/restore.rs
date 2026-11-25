@@ -125,7 +125,6 @@ impl Domain {
             return Err(*failure);
         }
         self.join_changes();
-        crate::landing::drop_stale_links(self);
         let result = derived(self, limits);
         if let Err(failure) = result {
             self.restore_fit = Some(Box::new(failure));
@@ -254,7 +253,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             if let Some(job) = &row.job {
                 field(K::Landing, RestoreSet::LandingMembers, count(job.members.len()), u64::from(l.landing_members))?;
             }
-            field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
+            field(K::Landing, RestoreSet::LandingAsks, count(row.previous_asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
             field(
                 K::Landing,

@@ -161,7 +161,7 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
                 landed: None,
             }]),
         },
-        asks: Box::new([None]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     }
 }
@@ -914,7 +914,7 @@ fn turn_changes_are_grouped_by_train_with_the_landing_before_its_waiters() {
         row.change.ready_since = Some(env().wall);
         row.base = base.into();
         row.title = TITLE.into();
-        row.change.landing = if task == fixtures::CHANGE { Some(61) } else { None };
+
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     }
     let mut landing =
@@ -957,7 +957,7 @@ fn searching_landings_show_the_probe_in_the_landing_and_train() {
     change.change.way = change::Way::Turn;
     change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     change.change.ready_since = Some(env().wall);
-    change.change.landing = Some(61);
+
     assert_eq!(view(&d, 61).step, LandingStep::Proving, "candidate not red yet");
     d.landing.rows.get_mut(&61).unwrap().landing.round.search =
         Some(policy::Search { tests: policy::SearchTests::Whole, green: 0, red: 2 });
@@ -1015,7 +1015,7 @@ fn searches_by_test_show_bounded_selections_passes_and_the_train_probe() {
     change.change.way = change::Way::Turn;
     change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     change.change.ready_since = Some(env().wall);
-    change.change.landing = Some(61);
+
     let got = view(&d, 61);
     let LandingSearchTests::ByTest { gates, passes } = got.round.search.unwrap().tests else { panic!("by test") };
     assert_eq!(gates.len(), 2);

@@ -1,0 +1,236 @@
+//! The live membership index and the change's ask queue (temper/docs/design/domain/landing-members.md, 2.1 and 3).
+use super::{State, matches_terminal};
+use crate::{ChangeRow, Domain, LandingRow, RecordKind, Request, RestoreFit, RestoreSet};
+use skein_lib::{List, Queue};
+use temper_engine_domain_forge_change as change;
+
+const ASKS: u32 = 16;
+
+impl Domain {
+    /// The oldest live landing whose row holds this change as a member that has not left.
+    #[must_use]
+    pub fn landing_of(&self, change: u64) -> Option<u64> {
+        self.landing.memberships.get(&change).copied()
+    }
+}
+
+pub(super) fn holds(row: &LandingRow, change: u64) -> bool {
+    if matches_terminal(&row.landing.phase) {
+        return false;
+    }
+    for member in &row.landing.members {
+        if member.change == change && member.left.is_none() {
+            return true;
+        }
+    }
+    false
+}
+
+fn still_holds(row: Option<&LandingRow>, change: u64) -> bool {
+    if let Some(row) = row { holds(row, change) } else { false }
+}
+
+pub(super) fn same_members(prior: &LandingRow, row: &LandingRow) -> bool {
+    let ended = matches_terminal(&row.landing.phase);
+    if matches_terminal(&prior.landing.phase) != ended {
+        return false;
+    }
+    if ended {
+        return true;
+    }
+    if prior.landing.members.len() != row.landing.members.len() {
+        return false;
+    }
+    for (before, after) in prior.landing.members.iter().zip(&row.landing.members) {
+        if before.change != after.change || before.left.is_none() != after.left.is_none() {
+            return false;
+        }
+    }
+    true
+}
+
+impl State {
+    /// Replace a row and its projection together, including when rows are read at start.
+    pub(crate) fn remember(&mut self, row: LandingRow) -> Result<Option<LandingRow>, RestoreFit> {
+        let task = row.landing.task;
+        let prior = self.rows.insert(task, row).expect("landing row was admitted");
+        if let Some(old) = &prior {
+            if same_members(old, self.rows.get(&task).expect("inserted landing")) {
+                return Ok(prior);
+            }
+            self.departed(old);
+        }
+        let row = self.rows.get(&task).expect("inserted landing");
+        if !matches_terminal(&row.landing.phase) {
+            for member in &row.landing.members {
+                let change = member.change;
+                if member.left.is_none() && self.memberships.get(&change).copied().unwrap_or(u64::MAX) >= task {
+                    self.memberships.insert(change, task).or(Err(RestoreFit {
+                        family: Some(RecordKind::Landing),
+                        set: RestoreSet::LandingMemberships,
+                        held: u64::from(self.memberships.len()),
+                        additional: 1,
+                        limit: u64::from(self.memberships.capacity()),
+                    }))?;
+                }
+            }
+        }
+        Ok(prior)
+    }
+
+    pub(crate) fn erase(&mut self, task: u64) -> Option<LandingRow> {
+        let row = self.rows.remove(&task)?;
+        self.departed(&row);
+        Some(row)
+    }
+
+    fn departed(&mut self, prior: &LandingRow) {
+        let task = prior.landing.task;
+        let row = self.rows.get(&task);
+        for member in &prior.landing.members {
+            let change = member.change;
+            if self.memberships.get(&change) != Some(&task) || still_holds(row, change) {
+                continue;
+            }
+            // A conflicting restored claim may outlive its older owner.
+            let mut oldest = None;
+            for (other, saved) in &self.rows {
+                if holds(saved, change) {
+                    oldest = Some(*other);
+                    break;
+                }
+            }
+            if let Some(other) = oldest {
+                self.memberships.insert(change, other).expect("replaces the older claim");
+            } else {
+                self.memberships.remove(&change);
+            }
+        }
+    }
+}
+
+pub(crate) fn head(row: &ChangeRow) -> Option<&change::Handed> {
+    for handed in &row.asks {
+        if let change::Ask::Landed { .. } = handed.ask {
+            return Some(handed);
+        }
+    }
+    row.asks.first()
+}
+
+pub(super) fn queued(row: &ChangeRow, landing: u64) -> bool {
+    for handed in &row.asks {
+        if handed.landing == landing {
+            return true;
+        }
+    }
+    false
+}
+
+pub(super) fn asked(row: &ChangeRow, landing: &LandingRow) -> bool {
+    if queued(row, landing.landing.task) {
+        return true;
+    }
+    match &row.change.state {
+        change::State::Preparing { .. } => true,
+        change::State::Judging { target, .. } => {
+            target.landing == landing.landing.task && target.round == landing.landing.preparation
+        }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Ready { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Held { .. }
+        | change::State::Landed { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    Prepare,
+    Repair,
+    Landed,
+    Resolve,
+    Judge,
+}
+
+fn kind(ask: &change::Ask) -> Kind {
+    match ask {
+        change::Ask::Prepare { .. } => Kind::Prepare,
+        change::Ask::Repair { .. } => Kind::Repair,
+        change::Ask::Landed { .. } => Kind::Landed,
+        change::Ask::Resolve { .. } => Kind::Resolve,
+        change::Ask::Judge(_) => Kind::Judge,
+    }
+}
+
+pub(crate) fn hand(d: &mut Domain, row: &LandingRow, member: u16, ask: change::Ask, out: &mut Queue<Request>) {
+    let task = row.landing.members.get(usize::from(member)).expect("member").change;
+    let Some(change) = d.changes.get_mut(&task) else { return };
+    let landing = row.landing.task;
+    let round = row.landing.preparation;
+    let mut asks = List::with_capacity(ASKS);
+    for old in &change.asks {
+        if old.landing != landing || kind(&old.ask) != kind(&ask) {
+            asks.push(old.clone()).expect("bounded asks");
+        }
+    }
+    let number = change.handed.checked_add(1).expect("change ask numbers fit");
+    asks.push(change::Handed { number, landing, round, ask }).expect("one ask of each kind per landing");
+    change.handed = number;
+    change.asks = asks.into_boxed();
+    let saved = change.clone();
+    crate::domain::save_change(d, out, saved);
+    out.push(Request::WakeProcedure { task });
+}
+
+/// Remove exactly the number returned by the policy, not the current head.
+pub(crate) fn take(row: &mut ChangeRow, took: change::Took) {
+    let number = match took {
+        change::Took::Taken(number) | change::Took::Dropped(number) => number,
+    };
+    let mut asks = List::with_capacity(ASKS);
+    for ask in &row.asks {
+        if ask.number != number {
+            asks.push(ask.clone()).expect("bounded asks");
+        }
+    }
+    row.asks = asks.into_boxed();
+}
+
+pub(crate) fn end(d: &mut Domain, row: &LandingRow, out: &mut Queue<Request>) {
+    for member in &row.landing.members {
+        let Some(change) = d.changes.get_mut(&member.change) else { continue };
+        let mut asks = List::with_capacity(ASKS);
+        for ask in &change.asks {
+            if ask.landing == row.landing.task
+                && let change::Ask::Prepare { .. } | change::Ask::Judge(_) = ask.ask
+            {
+                continue;
+            }
+            asks.push(ask.clone()).expect("bounded asks");
+        }
+        if asks.as_slice() != change.asks.as_ref() {
+            change.asks = asks.into_boxed();
+            let saved = change.clone();
+            crate::domain::save_change(d, out, saved);
+        }
+    }
+}

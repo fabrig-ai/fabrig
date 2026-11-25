@@ -1,11 +1,10 @@
 //! A turn change judges heads and carries out its landing's requests (domain/landing.md, 3).
 use super::*;
-use crate::{Ask, Way};
+use crate::{Ask, Took, Way};
 
 fn turn(state: State) -> Change {
     let mut c = change(state);
     c.way = Way::Turn;
-    c.landing = Some(8);
     c
 }
 fn ready() -> Change {
@@ -17,8 +16,8 @@ fn gate(number: u64, freshness: Freshness) -> Gate {
     Gate { number, kind: GateKind::Agent, blocking: true, freshness, eager: false }
 }
 fn prepare_facts() -> Facts {
-    let mut f = facts();
-    f.ask = Some(Ask::Prepare { head: HEAD, main: BASE });
+    let mut f = Facts { landing: Some(8), ..facts() };
+    f.ask = Some(handed(Ask::Prepare { head: HEAD, main: BASE }));
     f
 }
 
@@ -74,10 +73,10 @@ fn a_prepare_ask_makes_a_rebase_update() {
     assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
     assert_eq!(next.change.state, State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
     assert_eq!(next.change.updates, 1);
-    assert_eq!(
-        decide(&next.change, &prepare_facts(), &Heard { effect: EffectResult::Pending, ..heard() }).decision,
-        Decision::Wait { until: Some(at(31)) }
-    );
+    assert_eq!(next.took, Some(Took::Taken(17)));
+    let pending = decide(&next.change, &prepare_facts(), &Heard { effect: EffectResult::Pending, ..heard() });
+    assert_eq!(pending.decision, Decision::Wait { until: Some(at(31)) });
+    assert_eq!(pending.took, None);
 }
 
 #[test]
@@ -87,7 +86,7 @@ fn a_prepare_ask_requires_its_head_and_the_writer_slot() {
     let blocked = step(&ready(), &f, &heard(), at(60), &LIMITS);
     assert_eq!(blocked.decision, Decision::Hold(Hold::Stalled));
     f.writer_taken = false;
-    f.ask = Some(Ask::Prepare { head: NEW, main: BASE });
+    f.ask = Some(handed(Ask::Prepare { head: NEW, main: BASE }));
     assert_eq!(decide(&ready(), &f, &heard()).decision, Decision::Wait { until: Some(at(30)) });
 }
 
@@ -140,33 +139,41 @@ fn a_conflicting_rebase_resolves_and_asks_every_gate_again() {
 
 #[test]
 fn a_ready_change_lands_only_when_told_its_prefix() {
-    let mut f = facts();
+    let mut f = Facts { landing: Some(8), ..facts() };
     f.pull = Pull::Merged { commit: NEW };
     assert_eq!(decide(&ready(), &f, &heard()).change.state, ready().state);
-    f.ask = Some(Ask::Landed { prefix: NEW });
-    let next = decide(&ready(), &f, &heard());
-    assert_eq!(next.change.state, State::Landed { merge: NEW, since: at(1) });
-    assert_eq!(next.decision, Decision::Finish { merge: NEW });
+    f.ask = Some(handed(Ask::Landed { prefix: NEW }));
+    let mut held = ready();
+    held.state = State::Held { was: Box::new(held.state), why: Hold::Stalled };
+    for c in [ready(), held] {
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.change.state, State::Landed { merge: NEW, since: at(1) });
+        assert_eq!(next.decision, Decision::Finish { merge: NEW });
+        assert_eq!(next.took, Some(Took::Taken(17)));
+    }
 }
 
 #[test]
 fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
     let mut f = facts();
     f.contains_base = Status::Failed;
-    f.ask = Some(Ask::Repair { gate: 3, candidate: NEW, below: None });
+    f.ask = Some(handed(Ask::Repair { gate: 3, candidate: NEW, below: None }));
     let repairing = decide(&ready(), &f, &heard());
     assert_eq!(
         repairing.decision,
         Decision::Delegate(Delegate::Repair(Repair::LandingAt { gate: 3, candidate: NEW, below: None }))
     );
     assert_eq!(repairing.change.repairs, 1);
+    assert_eq!(repairing.took, Some(Took::Taken(17)));
     assert_eq!(
         repairing.change.state,
         State::Repairing { requested: true, why: Repair::LandingAt { gate: 3, candidate: NEW, below: None } }
     );
     let mut exhausted = ready();
     exhausted.repairs = LIMITS.repairs;
-    assert_eq!(decide(&exhausted, &f, &heard()).decision, Decision::Hold(Hold::Repairs));
+    let held = decide(&exhausted, &f, &heard());
+    assert_eq!(held.decision, Decision::Hold(Hold::Repairs));
+    assert_eq!(held.took, None);
     let mut h = heard();
     h.delegate = Status::Passed;
     f.branch = Some(NEW);
@@ -179,6 +186,33 @@ fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
 }
 
 #[test]
+fn numbered_judgement_and_resolution_are_taken_only_when_started() {
+    let target = crate::Judgement {
+        landing: 8,
+        round: 1,
+        pull: 3,
+        branch: b"prefix".as_slice().into(),
+        base: b"main".as_slice().into(),
+        prefix: NEW,
+    };
+    let mut f = Facts { ask: Some(handed(Ask::Judge(target.clone()))), landing: Some(8), ..facts() };
+    let live = Heard { delegate_live: true, ..heard() };
+    assert_eq!(decide(&ready(), &f, &live).took, None);
+    let judged = decide(&ready(), &f, &heard());
+    assert_eq!(judged.took, Some(Took::Taken(17)));
+    assert_eq!(judged.change.state, State::Judging { head: HEAD, ready_since: at(0), target, asked: Box::new([]) });
+    assert_eq!(decide(&judged.change, &f, &heard()).took, None);
+
+    f.ask = Some(crate::Handed { number: 18, ..handed(Ask::Resolve { base: BASE }) });
+    for c in [ready(), judged.change] {
+        assert_eq!(decide(&c, &f, &live).took, None);
+        let resolved = decide(&c, &f, &heard());
+        assert_eq!(resolved.took, Some(Took::Taken(18)));
+        assert_eq!(resolved.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+    }
+}
+
+#[test]
 fn ready_and_judging_changes_keep_the_blamed_repair_context() {
     use crate::{Below, Judgement, Landed};
     let below = Some(Below {
@@ -188,7 +222,7 @@ fn ready_and_judging_changes_keep_the_blamed_repair_context() {
         changes: [Some(Landed { change: 2341, pull: 7 }), None, None, None],
     });
     let why = Repair::LandingAt { gate: 3, candidate: NEW, below };
-    let f = Facts { ask: Some(Ask::Repair { gate: 3, candidate: NEW, below }), ..facts() };
+    let f = Facts { ask: Some(handed(Ask::Repair { gate: 3, candidate: NEW, below })), ..facts() };
     let mut judging = ready();
     judging.state = State::Judging {
         head: HEAD,
@@ -241,7 +275,7 @@ fn a_clean_gate_counts_at_a_clean_prepares_candidate_and_an_exact_one_is_asked_a
 fn a_queue_change_ignores_an_ask() {
     for ask in [Ask::Prepare { head: HEAD, main: BASE }, Ask::Repair { gate: 3, candidate: NEW, below: None }] {
         let mut f = facts();
-        f.ask = Some(ask.clone());
+        f.ask = Some(handed(ask.clone()));
         for c in [
             change(State::Opening { requested: true }),
             change(State::Gating { head: HEAD, asked: Box::new([]) }),
@@ -251,7 +285,7 @@ fn a_queue_change_ignores_an_ask() {
             let with_ask = decide(&c, &f, &heard());
             f.ask = None;
             assert_eq!(with_ask, decide(&c, &f, &heard()));
-            f.ask = Some(ask.clone());
+            f.ask = Some(handed(ask.clone()));
         }
     }
 }

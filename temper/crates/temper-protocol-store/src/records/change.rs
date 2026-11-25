@@ -1,4 +1,5 @@
 use super::{FITS, w};
+use crate::generated::store as map;
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 use temper_engine_domain_forge_change as d;
@@ -315,7 +316,7 @@ pub(super) fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock>
     Some(crate::generated::store::execution_clock_to_domain(clock))
 }
 
-pub(super) fn encode_change(value: &d::Change) -> w::Change {
+fn encode_change(value: &d::Change, previous: Option<&top::PreviousLink>) -> w::Change {
     let d::Change {
         early,
         task,
@@ -337,10 +338,18 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         released,
         released_resolution,
         way,
-        landing,
-        landing_ask,
         ended_held,
     } = value;
+    let (landing, landing_ask) = match previous {
+        Some(previous) => (
+            previous.landing,
+            match &previous.ask {
+                Some(ask) => Some(map::landing_ask_to_record(ask)),
+                None => None,
+            },
+        ),
+        None => (None, None),
+    };
     w::Change {
         early: encode_early(early),
         task: *task,
@@ -371,14 +380,12 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             None => None,
         },
         way: crate::generated::store::way_to_record(way),
-        landing: *landing,
-        landing_ask: match landing_ask {
-            Some(ask) => Some(super::landing::encode_ask(ask.as_ref().clone())),
-            None => None,
-        },
+        landing,
+        landing_ask,
     }
 }
-pub(super) fn decode_change(value: w::Change) -> d::Change {
+
+fn decode_change(value: w::Change) -> (d::Change, Option<top::PreviousLink>) {
     let w::Change {
         early,
         task,
@@ -404,7 +411,16 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         landing_ask,
     } = value;
     let (state, ended_held) = decode_change_state(state);
-    d::Change {
+    let previous = if landing.is_none() && landing_ask.is_none() {
+        None
+    } else {
+        let ask = match landing_ask {
+            Some(ask) => Some(map::landing_ask_to_domain(ask)),
+            None => None,
+        };
+        Some(top::PreviousLink { landing, ask })
+    };
+    let change = d::Change {
         early: decode_early(early),
         task,
         state,
@@ -435,12 +451,8 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
             None => None,
         },
         way: crate::generated::store::way_to_domain(way),
-        landing,
-        landing_ask: match landing_ask {
-            Some(ask) => Some(Box::new(super::landing::decode_ask(ask))),
-            None => None,
-        },
-    }
+    };
+    (change, previous)
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
     crate::generated::store::change_cold_to_record(value).expect(FITS)
@@ -448,11 +460,200 @@ pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
 pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
     crate::generated::store::change_cold_to_domain(value)
 }
+// The wire nests the compatibility fields inside Change; the domain
+// keeps them beside its policy state (temper/docs/design/domain/landing-members.md, 5).
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
-    crate::generated::store::change_hot_to_record(value).expect(FITS)
+    let mut signed = List::with_capacity(u32::try_from(value.signed.len()).expect(FITS));
+    for sign in &value.signed {
+        signed.push(map::sign_off_to_record(sign)).expect(FITS);
+    }
+    let mut verdicts = List::with_capacity(u32::try_from(value.verdicts.len()).expect(FITS));
+    for report in &value.verdicts {
+        verdicts.push(map::gate_report_to_record(report)).expect(FITS);
+    }
+    let mut gate_remarks = List::with_capacity(u32::try_from(value.gate_remarks.len()).expect(FITS));
+    for remark in &value.gate_remarks {
+        gate_remarks.push(map::gate_remark_to_record(remark)).expect(FITS);
+    }
+    let mut asks = List::with_capacity(u32::try_from(value.asks.len()).expect(FITS));
+    for ask in &value.asks {
+        asks.push(map::landing_handed_to_record(ask)).expect(FITS);
+    }
+    w::ChangeHot {
+        close_at: match value.close_at.as_ref() {
+            Some(value) => Some(map::close_at_to_record(value)),
+            None => None,
+        },
+        room: value.room,
+        delegate_head: value.delegate_head,
+        delegate_flake: value.delegate_flake,
+        delegate_no_test: value.delegate_no_test,
+        regate: match value.regate.as_ref() {
+            Some(value) => Some(map::regate_to_record(value)),
+            None => None,
+        },
+        kept: value.kept,
+        task_release: match value.task_release.as_ref() {
+            Some(value) => Some(map::task_release_to_record(value)),
+            None => None,
+        },
+        job: match value.job.as_ref() {
+            Some(value) => Some(super::by_hand::history_job_record_to_record(value)),
+            None => None,
+        },
+        signed,
+        ending: match value.ending.as_ref() {
+            Some(value) => Some(map::change_ending_to_record(value)),
+            None => None,
+        },
+        repair_tasks: numbers(&value.repair_tasks),
+        resolution_tasks: numbers(&value.resolution_tasks),
+        result: map::change_result_to_record(&value.result),
+        task: value.task,
+        priority: crate::converters::signed_to_record(&value.priority),
+        change: encode_change(&value.change, value.previous.as_ref()),
+        ci: match value.ci.as_ref() {
+            Some(value) => Some(map::change_ci_to_record(value)),
+            None => None,
+        },
+        pull: value.pull,
+        pending: value.pending,
+        effect: map::effect_result_to_record(&value.effect),
+        delegate: match value.delegate.as_ref() {
+            Some(value) => Some(delegate_ref_to_record(value)),
+            None => None,
+        },
+        delegate_status: map::change_status_to_record(&value.delegate_status),
+        spec_revision: value.spec_revision,
+        gate_revision: value.gate_revision,
+        verdicts,
+        gate_remarks,
+        drift: match value.drift.as_ref() {
+            Some(value) => Some(map::change_hold_to_record(value)),
+            None => None,
+        },
+        queue_repair: value.queue_repair,
+        queue_repairs: value.queue_repairs,
+        effect_account: match value.effect_account.as_ref() {
+            Some(value) => Some(map::effect_account_to_record(value)),
+            None => None,
+        },
+        producer_failure: value.producer_failure.clone(),
+        questions: map::questions_to_record(&value.questions).expect(FITS),
+        follow_check: match &value.follow_check {
+            Some(value) => Some(map::follow_check_progress_to_record(value).expect(FITS)),
+            None => None,
+        },
+        merge_result: value.merge_result.clone(),
+        history: match value.history.as_ref() {
+            Some(value) => Some(map::change_history_to_record(value)),
+            None => None,
+        },
+        asks,
+        handed: value.handed,
+    }
 }
+
+fn numbers(values: &[u64]) -> List<u64> {
+    let mut numbers = List::with_capacity(u32::try_from(values.len()).expect(FITS));
+    for number in values {
+        numbers.push(*number).expect(FITS);
+    }
+    numbers
+}
+
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
-    crate::generated::store::change_hot_to_domain(value).or(Err(super::Undecodable::Malformed))
+    let (change, previous) = decode_change(value.change);
+    let mut signed = List::with_capacity(value.signed.len());
+    for sign in value.signed.into_boxed() {
+        signed.push(map::sign_off_to_domain(sign)).expect(FITS);
+    }
+    let mut verdicts = List::with_capacity(value.verdicts.len());
+    for report in value.verdicts.into_boxed() {
+        verdicts.push(map::gate_report_to_domain(report)).expect(FITS);
+    }
+    let mut gate_remarks = List::with_capacity(value.gate_remarks.len());
+    for remark in value.gate_remarks.into_boxed() {
+        gate_remarks.push(map::gate_remark_to_domain(remark)).expect(FITS);
+    }
+    let mut asks = List::with_capacity(value.asks.len());
+    for ask in value.asks.into_boxed() {
+        asks.push(map::landing_handed_to_domain(ask)).expect(FITS);
+    }
+    Ok(top::ChangeHot {
+        close_at: match value.close_at {
+            Some(value) => Some(map::close_at_to_domain(value)),
+            None => None,
+        },
+        room: value.room,
+        delegate_head: value.delegate_head,
+        delegate_flake: value.delegate_flake,
+        delegate_no_test: value.delegate_no_test,
+        regate: match value.regate {
+            Some(value) => Some(map::regate_to_domain(value)),
+            None => None,
+        },
+        kept: value.kept,
+        task_release: match value.task_release {
+            Some(value) => Some(map::task_release_to_domain(value)),
+            None => None,
+        },
+        job: match value.job {
+            Some(value) => Some(super::by_hand::history_job_record_to_domain(value)),
+            None => None,
+        },
+        signed: signed.into_boxed(),
+        ending: match value.ending {
+            Some(value) => Some(map::change_ending_to_domain(value)),
+            None => None,
+        },
+        repair_tasks: value.repair_tasks.into_boxed(),
+        resolution_tasks: value.resolution_tasks.into_boxed(),
+        result: map::change_result_to_domain(value.result),
+        task: value.task,
+        priority: crate::converters::signed_to_domain(value.priority),
+        change,
+        ci: match value.ci {
+            Some(value) => Some(map::change_ci_to_domain(value)),
+            None => None,
+        },
+        pull: value.pull,
+        pending: value.pending,
+        effect: map::effect_result_to_domain(value.effect),
+        delegate: match value.delegate {
+            Some(value) => Some(delegate_ref_to_domain(value)),
+            None => None,
+        },
+        delegate_status: map::change_status_to_domain(value.delegate_status),
+        spec_revision: value.spec_revision,
+        gate_revision: value.gate_revision,
+        verdicts: verdicts.into_boxed(),
+        gate_remarks: gate_remarks.into_boxed(),
+        drift: match value.drift {
+            Some(value) => Some(map::change_hold_to_domain(value)),
+            None => None,
+        },
+        queue_repair: value.queue_repair,
+        queue_repairs: value.queue_repairs,
+        effect_account: match value.effect_account {
+            Some(value) => Some(map::effect_account_to_domain(value)),
+            None => None,
+        },
+        producer_failure: value.producer_failure,
+        questions: map::questions_to_domain(value.questions).or(Err(super::Undecodable::Malformed))?,
+        follow_check: match value.follow_check {
+            Some(value) => Some(map::follow_check_progress_to_domain(value)),
+            None => None,
+        },
+        merge_result: value.merge_result,
+        history: match value.history {
+            Some(value) => Some(map::change_history_to_domain(value)),
+            None => None,
+        },
+        asks: asks.into_boxed(),
+        handed: value.handed,
+        previous,
+    })
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
@@ -574,16 +775,6 @@ pub fn landing_below_to_record(value: &d::Below) -> w::LandingBelow {
 #[must_use]
 pub fn landing_below_to_domain(value: w::LandingBelow) -> d::Below {
     decode_below(Some(value)).expect("present below")
-}
-
-#[must_use]
-pub fn change_to_record(value: &d::Change) -> w::Change {
-    encode_change(value)
-}
-
-#[must_use]
-pub fn change_to_domain(value: w::Change) -> d::Change {
-    decode_change(value)
 }
 
 #[must_use]

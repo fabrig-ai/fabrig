@@ -82,7 +82,7 @@ fn a_design_delivery_racing_a_turns_merge_ends_the_round_and_frees_the_goal_trai
             landing(&world, task).landing.round.ending,
             old.state,
             old.merged,
-            goal_landing::row(&world, second).change.landing,
+            world.root.forge().landing_of(second),
             String::from_utf8_lossy(words)
         );
     }
@@ -180,7 +180,7 @@ fn an_exhausted_turn_holds_only_its_goal_train_with_its_fresh_reads_then_release
             .collect::<Vec<_>>()
     );
     assert!(matches!(landing(&world, task).landing.phase, Phase::Held { why: Hold::Turn, .. }));
-    assert_eq!(goal_landing::row(&world, waiting).change.landing, None, "the held train alone cannot form");
+    assert_eq!(world.root.forge().landing_of(waiting), None, "the held train alone cannot form");
     assert!(
         landing_rows(&world)
             .iter()
