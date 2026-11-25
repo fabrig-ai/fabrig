@@ -160,9 +160,39 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   shape is refused as `ended_by` is (`README.md`, section 4). Its making is refused,
   beyond authority, where the task's own delegation does not name the
   procedure (../authority.md, section 3), as a delegate's would be.
-- **A result-ended task besides:** a run that finishes with a result
-  ends it, as for a task its result ends. The closer only takes the
-  place of 2's `NothingAwaited` notice.
+- **A finish parks it.** Its run is offered `finish`, as a run of a
+  task its result ends is (`../hosts/charters.md`, 4), and a run that
+  answers finished, done or failed, with follow-ups or none, is judged
+  as any finish: the fences of saved work, of charge and of messages
+  first, then its result against the task's contract
+  (`lifecycle.md`, 7), a result the contract refuses failing the
+  attempt as ever. A result the contract takes is committed as parked,
+  as a park by `wait` is: its turns first, then its saved state, no try
+  spent but where the task owes its requester a question (1); its
+  follow-ups and its ask to cancel its delegates discarded, so that its
+  delegates are still awaited; and its result kept, its parked result
+  (below), in place of any kept before. The rule of 2 then finds what
+  it finds after any park: nothing left to await makes its closer, at
+  once or when the last awaited thing ends (below), and a closer
+  already live goes on. A narrowing run's finish is not taken, as ever,
+  and a failure that is not a finish keeps its retry policy. So no run
+  ends the task past its closer: the closer's success, its failures
+  past the task's run tries, a run's own failures past its tries, or a
+  cancel do.
+- **Its parked result is its closer's to report.** The task's record
+  keeps it, `TaskRecord.parked_result: Option<TaskResult>`, none until
+  a run's finish is parked, while the task lives and through restart
+  (`../../protocol/store/records.md`, 1); jig reads no word of it. The
+  closer's procedure reads it from its task's record when it reports,
+  so that what the run said reaches the closer's result, and so its
+  requester (temper's `domain/forge/branches.md`, 2, *The report*).
+- **Why a finish parks, not a run offered none.** A run offered no
+  `finish` would need a mode of smith's beside `Finite` and `Open`, a
+  change to the worker's wire bridged both ways, and would lose what
+  the run would have said, where a model's slip calls `finish` all the
+  same. A finish parked is the rule 2 already holds for a task no
+  result ends, judged first and its result kept, so the closer starts
+  as it does after a `wait` and reports what the run wrote.
 - **Made where the notice would be.** When the nothing-left-to-await
   rule (2) finds the task due again, and no closer of it is live, the
   tasks child asks the core to make its closer instead: one procedure
@@ -217,7 +247,6 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   procedure reads its dependencies, and decides what its own steps need
   again. A batch that would make a circle of waits through the closer is
   refused as any is.
-- **Closed with the task:** a task that closes otherwise (a run's
-  finish, a cancel, its requester's) closes its closer as any delegate
-  (1). Restart takes the closer as any task, and the task's record its
+- **Closed with the task:** a task that closes otherwise (a cancel, a
+  failure past its tries) closes its closer as any delegate (1). Restart takes the closer as any task, and the task's record its
   number.
