@@ -46,6 +46,7 @@ Under `web/journeys/` and `tui/journeys/`:
 |---|---|
 | a journey's pages: `NN.html`, and the TUI's `NN.txt`, NN two digits or more | a journey's `walk`, `README.md` and, where it has one, `scripts.json` |
 | beside the browser's journeys, `skein-ui.css` and `journey.js`; beside the TUI's, `theme.css` and `tui-journey.js` | each root's `overlay.css`, empty on main; the `README.md` beside each root |
+| beside each root's journeys, `looks.html`, the render check's verdicts (section 6) | |
 | a leftover `recording`, removed once its journey prints | |
 
 - **A source changes with what a person does:** a change that renames a
