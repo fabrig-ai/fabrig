@@ -1194,3 +1194,13 @@ fn a_public_landing_keeps_squash_and_prefix_evidence_without_forge_names() {
     }
     assert!(skein_lib::bytes::find(&m.record, RUN).is_none());
 }
+
+#[test]
+fn a_public_cleanup_hold_has_no_hold_kind() {
+    let mut d = setup();
+    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
+    row.phase = policy::Phase::Held { was: Box::new(row.phase.clone()), why: policy::Hold::Cleanup };
+    let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
+    let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
+    assert_eq!((got.phase, got.hold), (w::PublicLandingPhase::Held, None));
+}

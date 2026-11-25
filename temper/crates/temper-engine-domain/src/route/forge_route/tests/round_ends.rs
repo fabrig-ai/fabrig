@@ -12,6 +12,7 @@ const HEAD: api::Commit = [3; 32];
 const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
 const TEST: &[u8] = b"test bin broken";
+const STALE_PULL: u64 = 99;
 
 fn has_ready(out: &Queue<forge::Request>) -> bool {
     for r in out {
@@ -61,6 +62,7 @@ struct Round {
     prefixes: [Option<api::Commit>; 4],
     pull: Option<api::Pull>,
     main: api::Commit,
+    refuse_deletion: bool,
 }
 impl Round {
     // The snapshots are at the search boundary, with the prepare's conflicts and
@@ -74,7 +76,8 @@ impl Round {
         limits.authority.segments = 8;
         let (domain, env, mut row) = reserved_turn_landing_with_limits(&limits);
         let task = row.landing.task;
-        let mut r = Self { domain, env, task, entry: 100, prefixes: [None; 4], pull: None, main: BASE };
+        let mut r =
+            Self { domain, env, task, entry: 100, prefixes: [None; 4], pull: None, main: BASE, refuse_deletion: false };
         while r.domain.work.pop().is_some() {}
         r.domain.forge.restore_begin(r.env.wall);
         let template = row.landing.members[0].clone();
@@ -135,7 +138,7 @@ impl Round {
         row.asks = asks.into_boxed();
         row.landing.preparation = number;
         row.landing.phase = policy::Phase::Proving;
-        row.landing.round.pull = Some(99);
+        row.landing.round.pull = Some(STALE_PULL);
         row.landing.round.ending = Some(policy::RoundEnd::Cut);
         row.landing.round.changed = Some(if three {
             2
@@ -244,6 +247,7 @@ impl Round {
             entry: 100,
             prefixes: [Some(GREEN), None, None, None],
             pull: None,
+            refuse_deletion: false,
             main: [19; 32],
         };
         while r.domain.work.pop().is_some() {}
@@ -396,6 +400,16 @@ impl Round {
                 more: false,
             }),
             Read::Items { .. } => Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: self.env.now }),
+            Read::Permission { user } => Ok(Answer::Permission(api::UserPermission {
+                user,
+                login: b"bot".as_slice().into(),
+                permission: api::Permission::Write,
+            })),
+            Read::Settings => Ok(Answer::Settings(
+                self.domain.forge.repository(api::Repository { forge: 1, repository: 1 }).unwrap().settings.clone(),
+            )),
+            Read::Protection { .. } => Ok(Answer::Protection(None)),
+            Read::File { .. } => Err(Error::Missing),
             other => panic!("unexpected round read {other:?}"),
         }
     }
@@ -416,7 +430,7 @@ impl Round {
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: Some(preparation),
-                released: false,
+                released: self.domain.core.tasks.task(self.task).unwrap().due_reason == tasks::Why::Released,
                 cancelled: false,
                 kept: Box::new([]),
             },
@@ -608,6 +622,10 @@ impl Round {
             let (call, op) = call.expect("round effect");
             let result = match op {
                 Op::Read(read) => self.answer(read),
+                Op::Write(Write::DeleteBranch { .. }) if self.refuse_deletion => {
+                    self.refused_deletion(call);
+                    return;
+                }
                 Op::Write(write) => {
                     assert!(!written);
                     written = true;
@@ -663,6 +681,29 @@ impl Round {
         }
         panic!("round effect settles");
     }
+    fn refused_deletion(&mut self, call: Token) {
+        let mut out = self.send(forge::Event::Client(skein_forge_client::Event::Answered {
+            call,
+            free: 0,
+            rate: None,
+            cost: 1,
+            result: Err(Error::Forbidden),
+        }));
+        let mut outcome = Queue::uncapped();
+        while let Some(request) = out.pop() {
+            if let forge::Request::Outcome { .. } = request {
+                outcome.push(request);
+            }
+        }
+        assert_eq!(outcome.len(), 1, "the refused deletion answers its outbox entry");
+        self.route(outcome);
+        let Some(Work::Core(jig_domain_core::Event::EffectConnector(_))) = self.domain.work.pop() else {
+            panic!("the root settles the connector's outbox entry without a hold")
+        };
+        assert!(self.domain.work.is_empty(), "the outbox answer did not ask for a second hold");
+        self.domain.forge.reclaim();
+    }
+
     fn finish_cut(&mut self, kept: usize) {
         use policy::Decision as D;
         let member = u16::try_from(kept.checked_sub(1).unwrap()).unwrap();
@@ -873,4 +914,38 @@ fn an_ended_prepare_with_no_kept_answer_is_asked_again_once_then_held() {
     }
     assert_eq!(prepares.as_slice(), [prepare, prepare, D::Hold(policy::Hold::Prepare)]);
     assert!(waited, "the replacement waits a poll");
+}
+
+#[test]
+fn a_refused_deletion_holds_once_and_one_release_retries_it() {
+    use policy::Decision as D;
+    let mut r = Round::stale();
+    let Ok(Answer::Pull(mut pull)) = r.answer(Read::Pull { number: STALE_PULL, ci: false }) else {
+        panic!("round pull")
+    };
+    pull.state = api::State::Closed;
+    r.pull = Some(pull);
+    r.forward(D::None);
+    r.refuse_deletion = true;
+    r.forward(D::Delete { member: 0 });
+    r.forward(D::Hold(policy::Hold::Cleanup));
+    let task = r.domain.core.tasks.task(r.task).unwrap();
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &task.phase else {
+        panic!("the round's procedure holds the task: {:?}", task.phase);
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("cleanup hold account") };
+    assert!(words.starts_with(b"cleanup: delete branch"));
+    drop(jig_domain_core::step(
+        &mut r.domain.core,
+        &crate::limits::environment_core(&r.env),
+        jig_domain_core::Event::Tasks(tasks::Event::Release {
+            reply_to: ReplyTo::new(Token::new(998)),
+            by: tasks::Party::Person(1),
+            operation: tasks::Release { task: r.task, again: None, message: None },
+        }),
+    ));
+    r.refuse_deletion = false;
+    r.forward(D::None);
+    r.forward(D::Delete { member: 0 });
+    r.forward(D::Stale);
 }

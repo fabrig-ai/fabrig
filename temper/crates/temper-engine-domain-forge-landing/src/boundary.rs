@@ -86,6 +86,7 @@ pub enum Hold {
     Record { member: u16 },
     Timeout { member: u16, gate: u16, run: u64 },
     Turn,
+    Cleanup,
 }
 
 /// One gate's proof at a member's candidate (domain/landing-proof.md, 2).
@@ -210,6 +211,8 @@ pub struct Round {
     pub judging: bool,
     pub ending: Option<RoundEnd>,
     pub failure: Box<[u8]>,
+    /// A cleanup refusal, kept before the outbox entry is retired.
+    pub cleanup: Option<Box<[u8]>>,
     /// Merge effects asked in this round, bounded by the client's write attempts.
     pub merges: u32,
     /// First branch to delete when the round ends unlanded.
@@ -259,6 +262,7 @@ impl Round {
             judging: false,
             ending: None,
             failure: Box::new([]),
+            cleanup: None,
             merges: 0,
             changed: None,
             search: None,

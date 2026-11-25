@@ -2891,15 +2891,20 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     continue;
                 }
                 let looked = outcome != skein_forge_client::Outcome::Queued && d.entry_looks.remove(&entry);
-                // The landing settles every merge outcome by readback (domain/landing-turn.md, 1).
-                // Its terminal entry is retired before the route sees this output.
+                // The landing owns merge readback and round cleanup; neither creates a root effect hold.
                 let mut landing_merge = false;
+                let mut landing_cleanup = false;
                 if let Some(row) = d.landing.rows.get(&task) {
                     for item in &row.entries {
-                        landing_merge |= item.entry == entry && item.operation == crate::Operation::Merge;
+                        if item.entry == entry {
+                            landing_merge = item.operation == crate::Operation::Merge;
+                            landing_cleanup =
+                                item.operation == crate::Operation::Close || item.operation == crate::Operation::Delete;
+                        }
                     }
                 }
-                if !landing_merge && outage::outcome(d, env, entry, outcome, out) {
+                let landing_settles = landing_merge || landing_cleanup;
+                if !landing_settles && outage::outcome(d, env, entry, outcome, out) {
                     if looked {
                         wake_once(out, task);
                     }
@@ -2916,6 +2921,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         None => None,
                     }
                 };
+                let (account, cleanup_account) = if landing_cleanup { (None, account) } else { (account, None) };
                 let mut projection = false;
                 for (_, row) in &d.issues {
                     projection |= row.pending == Some(entry);
@@ -2925,10 +2931,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 settled_facts(d, env, entry, task, outcome, out);
                 crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
-                crate::landing::outcome(d, env, entry, outcome, out);
+                crate::landing::outcome(d, env, entry, outcome, cleanup_account, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
-                    skein_forge_client::Outcome::Held if !landing_merge => {
+                    skein_forge_client::Outcome::Held if !landing_settles => {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
@@ -8168,7 +8174,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
                 d.repository(row.entry.repository),
                 skein_forge_client::Outcome::Withdrawn,
             );
-            crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, out);
+            crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
             d.entries.remove(&number);
             emit(out, Request::Erase { key: Key::Entry(number) });
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);

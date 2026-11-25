@@ -24,7 +24,7 @@ pub use boundary::{
     Probed, Project, Proof, Repository, Round, RoundEnd, RoundPull, Search, SearchTests, Searched, Status, Stepped,
     TestId, WORKFLOW_BYTES,
 };
-pub use domain::{held, join, leave, probe, step};
+pub use domain::{cleanup_hold, held, join, leave, probe, step};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};
 pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};
 

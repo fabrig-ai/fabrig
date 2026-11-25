@@ -5,7 +5,6 @@ use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::landings::{self, CHANGE, LANDING};
 
 #[test]
-#[ignore = "landing train: P88, a refused deletion repeats silently"]
 fn a_refused_release_is_accounted() {
     let mut world = landings::turn_world();
     world.produce(b"temper/51");

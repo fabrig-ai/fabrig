@@ -13,13 +13,6 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "the holds and pending prepares, including the new change or train, exceed capacity",
     ),
     (
-        A_WRITE_REFUSED,
-        "forge/a write refused",
-        "a_refused_release_is_accounted",
-        "landing train",
-        "a task's release under way",
-    ),
-    (
         A_REPAIR_ENDS_WITH_NO_CHANGE,
         "runs/a repair ends with no change",
         "a_no_change_landing_repair_regates_once",
@@ -122,12 +115,12 @@ fn a_crash_with_an_unfit_stored_charter_is_not_excluded() {
 #[test]
 fn engine_exclusions_return_the_first_refusal_without_adding_later_rows() {
     let mut sweep = Sweep::new("missing configured fault");
-    sweep.configure(A_WRITE_REFUSED);
-    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::BRANCH_HOLDS, A_WRITE_REFUSED])
+    sweep.configure(A_REPAIR_ENDS_WITH_NO_CHANGE);
+    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::BRANCH_HOLDS, A_REPAIR_ENDS_WITH_NO_CHANGE])
         .expect_err("the first fault is absent from the sweep");
     assert_eq!(
         refusal,
         "sweep missing configured fault: exclusion \"a_prepare_is_admitted_when_branch_holds_are_released\": fault is not configured"
     );
-    assert!(sweep.leaves_out(A_WRITE_REFUSED, &["a task's release under way"]).is_none());
+    assert!(sweep.leaves_out(A_REPAIR_ENDS_WITH_NO_CHANGE, &["a landing's gate red"]).is_none());
 }

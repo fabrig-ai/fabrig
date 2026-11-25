@@ -1789,15 +1789,27 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
 }
 
 #[test]
-fn a_landing_read_hold_keeps_its_exact_reason() {
+fn landing_own_holds_keep_their_exact_reasons() {
     use temper_engine_domain_forge_landing as l;
+    type HoldCase = (l::Hold, Option<&'static [u8]>, Option<&'static [u8]>);
+    const CASES: &[HoldCase] = &[
+        (l::Hold::Read, Some(b"read: branch main: no answer"), None),
+        (l::Hold::Cleanup, None, Some(b"close item: forge refused permission; resource org/repo #9")),
+    ];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let mut row = landing_with_clock(None);
-    let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
-    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why: l::Hold::Read };
-    landing.read_hold = Some(b"read: branch main: no answer".as_slice().into());
-    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-    assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    for &(why, read, cleanup) in CASES {
+        let mut row = landing_with_clock(None);
+        let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
+        landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why };
+        if let Some(read) = read {
+            landing.read_hold = Some(Box::from(read));
+        }
+        if let Some(cleanup) = cleanup {
+            landing.landing.round.cleanup = Some(Box::from(cleanup));
+        }
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
 }
 
 #[test]
@@ -1874,8 +1886,19 @@ fn a_landing_written_before_read_holds_reads_as_before() {
     let family = crate::OWNER_SET.families.first().unwrap();
     let before = family
         .current
+        .replace("cleanup: option bytes 512 = none ", "")
         .replace(" read_hold: option bytes 256 = none", "")
-        .replace(", timeout: LandingTimeout, turn, read }", ", timeout: LandingTimeout, turn }");
+        .replace("turn, read, cleanup }", "turn }");
+    assert_landing_through_layout(family.current, &before, true);
+}
+
+#[test]
+fn a_landing_written_before_cleanup_holds_reads_as_before() {
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before = family
+        .current
+        .replace("cleanup: option bytes 512 = none ", "")
+        .replace("turn, read, cleanup }", "turn, read }");
     assert_landing_through_layout(family.current, &before, true);
 }
 

@@ -2005,14 +2005,29 @@ fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
 }
 
 #[test]
-fn a_landing_view_carries_the_read_hold_reason() {
-    let mut view = landing_view();
-    view.phase = forge::LandingPhase::Held { was: Box::new(view.phase), why: forge::LandingHold::Read };
-    let reason: Box<[u8]> = b"read: branch main: no answer".as_slice().into();
-    view.read_hold = Some(reason.clone());
-    let bytes = family::document(forge::Document::Landing(view), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
-    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!((got.phase, got.hold), (w::LandingPhase::Held, Some(w::LandingHold::Read(w::HeldRead { reason }))));
+fn read_and_cleanup_carry_their_reason_as_read_holds() {
+    // HeldRead.reason is bounded in the client schema.
+    const BOUND: usize = 256;
+    const PAST: usize = BOUND + 1;
+    const READ: &[u8] = b"read: branch main: no answer";
+    const CLEANUP: &[u8] = b"cleanup: close item: forge refused permission; resource org/repo #9";
+    const CASES: &[(forge::LandingHold, &[u8], &[u8])] = &[
+        (forge::LandingHold::Read, READ, READ),
+        (forge::LandingHold::Cleanup, CLEANUP, CLEANUP),
+        (forge::LandingHold::Cleanup, &[b'x'; PAST], &[b'x'; BOUND]),
+    ];
+    for &(why, words, expected) in CASES {
+        let mut view = landing_view();
+        view.phase = forge::LandingPhase::Held { was: Box::new(view.phase), why };
+        view.read_hold = Some(Box::from(words));
+        let bytes =
+            family::document(forge::Document::Landing(view), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+        let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(
+            (got.phase, got.hold),
+            (w::LandingPhase::Held, Some(w::LandingHold::Read(w::HeldRead { reason: Box::from(expected) }))),
+        );
+    }
 }
 
 #[test]

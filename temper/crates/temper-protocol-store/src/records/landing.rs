@@ -37,7 +37,13 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
         }
         d::Phase::Held {
             was,
-            why: d::Hold::Prepare | d::Hold::Read | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn,
+            why:
+                d::Hold::Cleanup
+                | d::Hold::Prepare
+                | d::Hold::Read
+                | d::Hold::Record { .. }
+                | d::Hold::Timeout { .. }
+                | d::Hold::Turn,
         } => (encode_place(was), None),
         d::Phase::Waiting
         | d::Phase::Preparing
@@ -439,6 +445,7 @@ pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
         branch: landing.branch.clone(),
         round: if landing.round.branch.is_empty() { None } else { Some(encode_round(&landing.round)) },
         own_hold: match landing.phase {
+            d::Phase::Held { why: d::Hold::Cleanup, .. } => Some(w::LandingOwnHold::Cleanup),
             d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
             d::Phase::Held { why: d::Hold::Read, .. } => Some(w::LandingOwnHold::Read),
             d::Phase::Held { why: d::Hold::Record { member }, .. } => {
@@ -488,6 +495,9 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
         task,
         project,
         phase: match own_hold {
+            Some(w::LandingOwnHold::Cleanup) => {
+                d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Cleanup }
+            }
             Some(w::LandingOwnHold::Read) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Read },
             Some(w::LandingOwnHold::Turn) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn },
             Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {

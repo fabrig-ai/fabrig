@@ -314,9 +314,9 @@ LandingRepair: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 LandingRepairAsk: ceilings encoded=137 decoded=64; at_most(3) encoded=121 decoded=48
 LandingRepairAt: ceilings encoded=137 decoded=64; at_most(3) encoded=121 decoded=48
 LandingResolve: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
-LandingRound: ceilings encoded=67436942 decoded=68237312; at_most(3) encoded=201 decoded=321
+LandingRound: ceilings encoded=67437459 decoded=68237824; at_most(3) encoded=209 decoded=324
 LandingRoundEnd: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-LandingRow: ceilings encoded=157934800 decoded=169375232; at_most(3) encoded=3217 decoded=3672
+LandingRow: ceilings encoded=157935317 decoded=169375744; at_most(3) encoded=3225 decoded=3675
 LandingRule: ceilings encoded=70622 decoded=70918; at_most(3) encoded=78 decoded=69
 LandingRun: ceilings encoded=99 decoded=0; at_most(3) encoded=99 decoded=0
 LandingSearch: ceilings encoded=67424589 decoded=68225024; at_most(3) encoded=130 decoded=315
@@ -324,7 +324,7 @@ LandingSearchTests: ceilings encoded=67424585 decoded=68225024; at_most(3) encod
 LandingSearched: ceilings encoded=581 decoded=512; at_most(3) encoded=93 decoded=24
 LandingSelectedGate: ceilings encoded=1052677 decoded=1064960; at_most(3) encoded=26 decoded=57
 LandingSelection: ceilings encoded=1052676 decoded=1064960; at_most(3) encoded=25 decoded=57
-LandingState: ceilings encoded=67884000 decoded=68704384; at_most(3) encoded=1569 decoded=1695
+LandingState: ceilings encoded=67884517 decoded=68704896; at_most(3) encoded=1577 decoded=1698
 LandingTimeout: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 LandingWaitGate: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 LandingWaitMember: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
