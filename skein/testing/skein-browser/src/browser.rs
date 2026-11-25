@@ -24,6 +24,8 @@ use crate::wire::frame::Framer;
 /// CDP's modifier bit for Shift.
 const SHIFT: u64 = 8;
 
+const BLOCKED_LEAVE_PROMPT: &[u8] = b"Blocked attempt to show a 'beforeunload' confirmation panel";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
     Starting,
@@ -1624,46 +1626,30 @@ impl Browser {
         }
     }
 
-    fn dialog(&mut self, env: &Env<Limits>, page: Token, params: Value<'_>) {
-        let kind = field_text(params, b"type").unwrap_or_default();
-        let mut go = None;
-        if kind.as_ref() == b"beforeunload" {
-            for operation in self.ops.iter_mut().flatten() {
-                if operation.page != page {
-                    continue;
+    /// Takes the warning for the page's go, even if it was already reported.
+    fn warn_go(&mut self, page: Token) -> bool {
+        for operation in self.ops.iter_mut().flatten() {
+            if operation.page == page
+                && let OpKind::Go(_) = operation.kind
+            {
+                if !operation.warned {
+                    operation.warned = true;
+                    self.events.push_back(Event::Warned { op: operation.token });
                 }
-                match operation.kind {
-                    OpKind::Go(_) => {
-                        go = Some(operation.token);
-                        if !operation.warned {
-                            operation.warned = true;
-                            self.events.push_back(Event::Warned { op: operation.token });
-                        }
-                        break;
-                    }
-                    OpKind::Find { .. }
-                    | OpKind::Press { .. }
-                    | OpKind::Type { .. }
-                    | OpKind::Key { .. }
-                    | OpKind::Attribute { .. }
-                    | OpKind::Tabs
-                    | OpKind::Viewport
-                    | OpKind::Address
-                    | OpKind::Snapshot
-                    | OpKind::Screenshot => {}
-                }
+                return true;
             }
         }
-        if !self.queue_page(
-            env,
-            page,
-            b"Page.handleJavaScriptDialog",
-            &Params::Dialog { accept: go.is_some() },
-            PendingKind::Dialog,
-        ) {
+        false
+    }
+
+    fn dialog(&mut self, env: &Env<Limits>, page: Token, params: Value<'_>) {
+        let kind = field_text(params, b"type").unwrap_or_default();
+        let accept = kind.as_ref() == b"beforeunload" && self.warn_go(page);
+        if !self.queue_page(env, page, b"Page.handleJavaScriptDialog", &Params::Dialog { accept }, PendingKind::Dialog)
+        {
             self.close_page_local(page);
         }
-        if go.is_none() {
+        if !accept {
             let message = field_text(params, b"message").unwrap_or_default();
             let limit = usize::try_from(env.limits.text).expect("text limit fits usize");
             let length = kind.len().saturating_add(2).saturating_add(message.len()).min(limit);
@@ -1773,6 +1759,12 @@ impl Browser {
                     let entry = params.get(b"entry");
                     if opt_text(opt_field(entry, b"level")).as_deref() == Some(b"error") {
                         let text = opt_text(opt_field(entry, b"text")).unwrap_or_default();
+                        if text.starts_with(BLOCKED_LEAVE_PROMPT)
+                            && opt_text(opt_field(entry, b"source")).as_deref() == Some(b"intervention")
+                            && self.warn_go(page)
+                        {
+                            return;
+                        }
                         let url = opt_text(opt_field(entry, b"url")).unwrap_or_default();
                         self.trouble(page, Trouble::Log, text, url, env.limits.text);
                     }
