@@ -285,7 +285,8 @@ fn releasing_a_restored_close_change_cancels_its_held_job() {
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     assert!(!crate::route::forge_route::delegate_record::start(&mut domain, &env, &mut decision, &context));
     let row = domain.forge.change(change_task).unwrap();
-    assert_eq!(row.change.released, Some(change::Hold::Failed));
+    assert_eq!(row.change.released, None);
+    assert_eq!(row.change.state, change::State::Producing { requested: false });
     assert_eq!(row.delegate, None);
     assert_eq!(row.delegate_status, change::Status::Failed);
     assert_eq!(row.producer_failure.as_deref(), Some(FAILURE));
