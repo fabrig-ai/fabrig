@@ -56,30 +56,39 @@ fn goal_world_on_landing(
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // One repair reaches the held landing without a long repair tree.
     limits.forge.change_policy.repairs = 1;
-    let mut world = World::configured_stock_limits(&defaults, &model, &limits)
-        .with_close_job(Some(b".temper/close"), true)
-        .with_goal_closer()
-        .with_landing_attempts(attempts)
-        .with_landing_deployment(Box::new([engine::LandingRule {
-            sets: Box::new([]),
-            connector: 1,
-            kind: 4,
-            enforce: true,
-            pattern: authority::Pattern {
-                segments: Box::new([
-                    b"forge".as_slice().into(),
-                    b"forge.example".as_slice().into(),
-                    b"org".as_slice().into(),
-                    b"repo".as_slice().into(),
-                    b"branch".as_slice().into(),
-                ]),
-                last: authority::Last::Exact(landing.into()),
-            },
-            ci: true,
-            up_to_date: false,
-            gates: Box::new([]),
-            approvals: Box::new([]),
-        }]));
+    let landing_deployment = Box::new([engine::LandingRule {
+        sets: Box::new([]),
+        connector: 1,
+        kind: 4,
+        enforce: true,
+        pattern: authority::Pattern {
+            segments: Box::new([
+                b"forge".as_slice().into(),
+                b"forge.example".as_slice().into(),
+                b"org".as_slice().into(),
+                b"repo".as_slice().into(),
+                b"branch".as_slice().into(),
+            ]),
+            last: authority::Last::Exact(landing.into()),
+        },
+        ci: true,
+        up_to_date: false,
+        gates: Box::new([]),
+        approvals: Box::new([]),
+    }]);
+    // Bootstrap the store and root once with the complete closer fixture.
+    let mut world = World::configured_stock_limits_with(
+        &defaults,
+        &model,
+        &limits,
+        StoryLimits {
+            close_job: Some((Some(b".temper/close".as_slice().into()), true)),
+            goal_closer: true,
+            landing_attempts: Some(attempts),
+            landing_deployment: Some(landing_deployment),
+            ..StoryLimits::default()
+        },
+    );
     world.adopt_landing(landing);
     if landing != b"main" {
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, b"Prepare landing", b"landing", 1)
