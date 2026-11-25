@@ -296,6 +296,26 @@ mod settings_tests {
     }
 
     #[test]
+    fn the_shared_subscription_room_fits_the_store_ceiling() {
+        let stored_ceiling = jig_protocol_store::tasks_v13::CEILINGS.task_interests_subscriptions;
+        let refusal = [crate::Problem {
+            path: Path::root().member(b"limits").member(b"tasks.subscriptions"),
+            what: crate::What::Bound,
+        }];
+        // The shared room is the setting plus one. Give the client room for the first refused count.
+        for (subscriptions, expected) in
+            [(stored_ceiling - 1, [].as_slice()), (stored_ceiling, refusal.as_slice()), (u32::MAX, refusal.as_slice())]
+        {
+            let mut limits = crate::stock();
+            limits.clients.wire.subscriptions_entries = stored_ceiling + 1;
+            limits.core.tasks.subscriptions = subscriptions;
+            let mut problems = Problems::empty();
+            check_settings(&limits, &mut problems);
+            assert_eq!(problems.problems.as_slice(), expected, "tasks.subscriptions = {subscriptions}");
+        }
+    }
+
+    #[test]
     fn pending_settings_fit_the_wire_inventory() {
         let maximum = crate::stock().clients.wire.settings_document_pending;
         ceiling(b"core.settings.proposals", maximum);

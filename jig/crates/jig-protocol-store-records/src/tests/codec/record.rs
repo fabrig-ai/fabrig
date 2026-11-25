@@ -437,19 +437,32 @@ fn a_task_record_inbox_decoded_above_its_count_is_refused() {
 }
 #[test]
 fn record_count_limits_past_the_schema_ceilings_are_refused() {
-    for field in 0_u8..6 {
+    for field in 0_u8..5 {
         let mut limits = fixtures::TASKS_LIMITS;
         match field {
             0 => limits.inbox_messages = u32::MAX,
             1 => limits.delegates = u32::MAX,
             2 => limits.references = u32::MAX,
-            3 => limits.subscriptions = u32::MAX,
-            4 => limits.saved_resources = u32::MAX,
+            3 => limits.saved_resources = u32::MAX,
             _ => limits.authority_segments = u32::MAX,
         }
         assert_eq!(tasks::limits(&limits), None);
     }
 }
+
+#[test]
+fn the_configured_subscription_bound_leaves_the_stored_ceiling() {
+    for subscriptions in [0, u32::MAX] {
+        let limits = domain::Limits { subscriptions, ..fixtures::TASKS_LIMITS };
+        let stored = tasks::limits(&limits).expect("stored limits independent of subscription admission");
+        assert_eq!(
+            stored.task_interests_subscriptions,
+            wire::CEILINGS.task_interests_subscriptions,
+            "tasks.subscriptions = {subscriptions}"
+        );
+    }
+}
+
 fn a_result_word_uses_the_larger_shared_word_bound() {
     let mut record = fixtures::task_record();
     let mut word = fixtures::task_word(5);
