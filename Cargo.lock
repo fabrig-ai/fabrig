@@ -5744,6 +5744,7 @@ dependencies = [
  "temper-service",
  "temper-service-core",
  "temper-service-shell",
+ "temper-settings-form",
  "temper-shell",
  "temper-test-env",
  "temper-version",

@@ -135,8 +135,13 @@ fn private_directory(path: &Path) {
 /// Worker settings from a description, applied by its owner after sign-in.
 #[must_use]
 pub fn worker_settings(file: &Path) -> Vec<Value> {
-    let document: Value =
-        serde_json::from_slice(&fs::read(file).expect("description settings")).expect("settings JSON");
+    worker_settings_from(&fs::read(file).expect("description settings"))
+}
+
+/// Worker settings from the description's rendered settings file, before laying it.
+#[must_use]
+pub fn worker_settings_from(bytes: &[u8]) -> Vec<Value> {
+    let document: Value = serde_json::from_slice(bytes).expect("settings JSON");
     document["items"]
         .as_array()
         .expect("settings items")
@@ -365,6 +370,14 @@ impl Cluster {
     fn replace_artifact(&mut self, name: &str, value: &str) {
         self.bindings.insert(format!("artifact.{name}"), value.into());
     }
+    /// The worker subprocesses the description renders.
+    pub fn worker_names(&self) -> impl Iterator<Item = &str> {
+        self.specs
+            .iter()
+            .filter(|spec| list(&spec["argv"]).first().and_then(Value::as_str) == Some("{artifact.temper-worker}"))
+            .map(|spec| string(&spec["name"]))
+    }
+
     /// The study's settings FILE; the native client applies it after owner sign-in.
     #[must_use]
     pub fn settings_file(&self) -> PathBuf {
