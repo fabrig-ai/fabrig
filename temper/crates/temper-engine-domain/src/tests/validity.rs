@@ -116,3 +116,18 @@ fn root_validity_accepts_dynamic_internal_counts() {
         assert!(crate::valid(&limits), "{name}");
     }
 }
+
+#[test]
+fn forge_and_core_take_the_same_root_wait_figures() {
+    use skein_lib::{Duration, Env, Time, Wall};
+
+    let mut limits = super::resume_fixture::limits();
+    limits.waits.step = Duration::from_secs(23);
+    limits.waits.room = Duration::from_secs(47);
+    limits.waits.sign_off = Duration::from_secs(61);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let core = crate::core_limits(&limits);
+    let forge = crate::translate::environment_forge(&env);
+    assert_eq!(core.waits, limits.waits);
+    assert_eq!(forge.limits.waits, limits.waits);
+}

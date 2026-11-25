@@ -4,17 +4,31 @@ use skein_ui_web::bridge::{Printed, Stream};
 #[test]
 fn the_figures_name_their_units_and_keep_fractional_parts() {
     for (now, expected) in [(0, "World time 00:00:00.000"), (3_723_456_789_000, "World time 01:02:03.456")] {
-        assert_eq!(time_words(Time::from_nanos(now)), expected);
+        assert_eq!(time_words(elapsed_millis(Time::from_nanos(now))), expected);
     }
     for (bytes, expected) in [(0, "Memory high water 0.0 MiB"), (13_107_200, "Memory high water 12.5 MiB")] {
-        assert_eq!(memory_words(bytes), expected);
+        assert_eq!(memory_words(memory_tenths(bytes)), expected);
     }
     for (nanos, expected) in [(0, "Longest slice 0.000 ms"), (2_345_678, "Longest slice 2.345 ms")] {
-        assert_eq!(slice_words(Duration::from_nanos(nanos)), expected);
+        assert_eq!(slice_words(slice_micros(Duration::from_nanos(nanos))), expected);
     }
-    assert!(memory_words(u64::MAX).ends_with(" MiB"));
-    assert!(slice_words(Duration::from_nanos(u64::MAX)).ends_with(" ms"));
-    assert!(time_words(Time::from_nanos(u64::MAX)).starts_with("World time "));
+    assert!(memory_words(memory_tenths(u64::MAX)).ends_with(" MiB"));
+    assert!(slice_words(slice_micros(Duration::from_nanos(u64::MAX))).ends_with(" ms"));
+    assert!(time_words(elapsed_millis(Time::from_nanos(u64::MAX))).starts_with("World time "));
+}
+
+#[test]
+fn unchanged_figure_text_and_attributes_need_no_writes() {
+    const TENFOLD: Speed = Speed(10_000);
+    // Start at whole displayed units so one additional nanosecond or byte cannot change them.
+    const NOW: u64 = 2_000_000;
+    const SLICE: u64 = 2_000;
+    let reading = |extra| Some((Time::from_nanos(NOW + extra), MIB + extra, Duration::from_nanos(SLICE + extra)));
+    let mut figures = Figures::new();
+    figures.update(reading(0), TENFOLD, false);
+    for extra in [0, 1] {
+        assert_eq!(figures.update(reading(extra), TENFOLD, false), FigureWrites::default());
+    }
 }
 
 #[test]

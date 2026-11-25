@@ -73,10 +73,15 @@ type OrderKey = (Box<str>, u16);
 struct Text {
     bytes: Box<[u8]>,
     schema: Option<texts::Cached>,
+    verified: bool,
     stored: bool,
     current: bool,
 }
 impl Text {
+    fn stored(bytes: Box<[u8]>) -> Self {
+        Self { bytes, schema: None, verified: false, stored: true, current: false }
+    }
+
     fn schema(&self) -> Option<&Schema> {
         match self.schema.as_ref()? {
             texts::Cached::Parsed(schema) => Some(schema),

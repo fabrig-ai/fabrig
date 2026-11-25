@@ -248,10 +248,8 @@ impl Host {
     }
     pub fn draw(&mut self, page: &mut Page<'_>, ops: &mut Vec<skein_ui_web::page::Op>) {
         page.apply(&self.patches(), ops);
-        for node in page.links().to_vec() {
-            if let Some(path) = self.href(node) {
-                page.set_href(node, &path, ops);
-            }
+        if let Some(revision) = self.view.revision() {
+            page.resolve_links(revision, |node| self.href(node), ops);
         }
     }
     #[must_use]
@@ -450,6 +448,10 @@ impl Host {
             jig_client::Request::CloseStream => asked.push(Asked::CloseStream),
             _ => {}
         }
+    }
+    #[must_use]
+    pub fn needs_draw(&self) -> bool {
+        self.view.needs_build(&self.root, self.env.wall)
     }
     pub fn build(&mut self) {
         view::build(&mut self.view, &self.root, self.env.wall, &mut self.patches);

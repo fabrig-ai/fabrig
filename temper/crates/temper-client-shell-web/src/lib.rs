@@ -338,6 +338,22 @@ impl<P: ShellPlatform> Shell<P> {
         let shown = self.carry(inbox, duties, read_on, read_exchange);
         navigates.then_some(shown)
     }
+    /// The worker page draws only when this view or its time words need a build.
+    pub fn needs_draw(&self) -> bool {
+        self.host.needs_draw()
+    }
+    /// Keep the non-drawing duties of a turn that carried reports for an unchanged view.
+    pub fn finish_unchanged(&mut self, new_page: bool, now: skein_lib::Time) {
+        if !reload::page(&self.host) {
+            // A navigation can fold disclosures even when it needs no patches.
+            self.dom.apply(&[]);
+            self.finish(&[], new_page, now);
+        }
+    }
+    /// Keep the deadline on frame-only turns, which carry no shell reports.
+    pub fn retime(&mut self, now: skein_lib::Time) {
+        self.platform.timer(&mut self.timer, self.host.deadline(), now);
+    }
     pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
         if reload::page(&self.host) {
             return;

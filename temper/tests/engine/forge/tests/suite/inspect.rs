@@ -4,7 +4,7 @@ use skein_world::inspect::{Moment, Wake, check_tables, check_waits};
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
-use temper_engine_forge_world::{REPO, World, changes, landings};
+use temper_engine_forge_world::{LIMITS, REPO, World, changes, landings};
 
 const OWNER: u64 = landings::LANDING;
 const WAITER: u64 = 70;
@@ -121,11 +121,22 @@ fn ended_outbox_owners_are_found_by_each_check() {
     let inspection = world.inspection();
     let tables = check_tables(&[&inspection], moment(&world)).expect_err("ended owners release their entries");
     assert!(tables.contains("forge write entries entry 1 (task 61)"), "{tables}");
-    let waits = check_waits(&[&inspection], moment(&world)).expect_err("only ended owners can free this room");
-    assert!(waits.contains("task 70") && waits.contains("change: room"), "{waits}");
+    let waiter = inspection.waits().iter().find(|wait| wait.waiter == "task 70").expect("room waiter");
+    let due = world.now().saturating_add(LIMITS.waits.room);
+    assert_eq!(waiter.bound, Some(due));
     for number in [1, 2] {
-        assert!(waits.contains(&format!("ended entry {number} of task {OWNER}")), "{waits}");
+        assert!(waiter.wakes.contains(&Wake::Ended(format!("entry {number} of task {OWNER}"))));
     }
+    assert!(waiter.wakes.contains(&Wake::Timer(due)));
+    assert_eq!(check_waits(&[&inspection], moment(&world)), Ok(()));
+    // Advance the referee, not the connector, to pin what it finds if the
+    // waiter is still unheld after the timer should have held it.
+    let late = Moment { at: due.saturating_add(skein_lib::Duration::from_secs(1)), ..moment(&world) };
+    let waits = check_waits(&[&inspection], late).expect_err("unheld past its room bound");
+    assert!(
+        waits.contains(&format!("engine task {WAITER}: waits on change: room past bound {} ns", due.as_nanos())),
+        "{waits}"
+    );
     assert!(world.check().is_err());
 }
 

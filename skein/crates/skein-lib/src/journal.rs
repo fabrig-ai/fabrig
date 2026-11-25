@@ -23,7 +23,7 @@
 
 use core::hash::{Hash, Hasher};
 
-use crate::Queue;
+use crate::{List, Queue};
 
 /// The journal's limit on outputs released by one call (runtime/lib.md, section 11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +70,15 @@ impl<W, O> Decision<W, O> {
     /// Adds a write.
     pub fn push_write(&mut self, write: W) {
         self.writes.push(write);
+    }
+
+    /// Sets a complete write batch with a leading write in its reserved slot.
+    /// Moves the list's buffer into the journal without first sizing it down.
+    pub fn write_batch(&mut self, first: W, writes: List<W>) {
+        assert!(self.writes.is_empty(), "sets the whole write batch");
+        let mut writes = writes.into_queue();
+        writes.push_front(first);
+        self.writes = writes;
     }
 
     /// Holds an output until its commit is durable.

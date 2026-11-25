@@ -11,6 +11,7 @@ publish.workspace = true
 temper-engine-domain-store.workspace = true
 skein-lib.workspace = true
 skein-forge.workspace = true
+skein-json.workspace = true
 jig-domain-core.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
@@ -20,5 +21,6 @@ jig-domain-authority.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-room.workspace = true
+temper-protocol-worker-wire.workspace = true
 [lints]
 workspace = true

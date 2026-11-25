@@ -3,8 +3,8 @@
 use alloc::boxed::Box;
 use skein_lib::Map;
 
-use crate::boundary::{Match, Point, Query, Rect};
-use crate::wire::decode::{Array, Value};
+use crate::boundary::{Point, Rect};
+use crate::wire::decode::{Array, Text, Value};
 
 /// The query's bytes occur unbroken, with case kept.
 pub(crate) fn words(name: &[u8], query: &[u8]) -> bool {
@@ -19,18 +19,9 @@ pub(crate) fn words(name: &[u8], query: &[u8]) -> bool {
     false
 }
 
-pub(crate) fn accepts(node: Value<'_>, query: &Query, paragraphs: Option<&Paragraphs<'_>>) -> bool {
-    match query.matching {
-        Match::Exact => true,
-        Match::Words => {
-            let name = full_name(node);
-            words(name.as_deref().unwrap_or_default(), &query.name)
-        }
-        Match::ParagraphText => match paragraphs {
-            Some(paragraphs) => paragraphs.matches(node, &query.name),
-            None => false,
-        },
-    }
+pub(crate) fn matching_name<'a>(node: Value<'a>, query: &[u8]) -> Option<Text<'a>> {
+    let name = full_name(node).unwrap_or(Text::Plain(b""));
+    words(name.bytes(), query).then_some(name)
 }
 
 /// Index the scoped AX tree once. Paragraphs have no accessible name; the
@@ -50,7 +41,7 @@ impl<'a> Paragraphs<'a> {
     }
 
     #[expect(clippy::disallowed_types, reason = "bounded stack of borrowed AX child iterators")]
-    fn matches(&self, node: Value<'_>, mut text: &[u8]) -> bool {
+    pub(crate) fn matches(&self, node: Value<'_>, mut text: &[u8]) -> bool {
         use alloc::vec::Vec;
         if role(node).as_deref() != Some(b"paragraph") || ignored(node) {
             return false;
@@ -75,7 +66,7 @@ impl<'a> Paragraphs<'a> {
                 Some(b"StaticText") => {
                     if !ignored(child) {
                         let Some(words) = full_name(child) else { return false };
-                        let Some(rest) = text.strip_prefix(words.as_ref()) else { return false };
+                        let Some(rest) = text.strip_prefix(words.bytes()) else { return false };
                         text = rest;
                     }
                 }
@@ -110,8 +101,8 @@ fn ignored(node: Value<'_>) -> bool {
     }
 }
 
-fn full_name(node: Value<'_>) -> Option<Box<[u8]>> {
-    node.get(b"name")?.get(b"value")?.text()
+fn full_name(node: Value<'_>) -> Option<Text<'_>> {
+    node.get(b"name")?.get(b"value")?.decoded_text()
 }
 
 /// The box's right and bottom edges are outside it.

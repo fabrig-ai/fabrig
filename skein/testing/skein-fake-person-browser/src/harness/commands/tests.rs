@@ -25,15 +25,7 @@ fn child(opens: bool) -> Process {
     };
     let mut child = process(
         command,
-        Context {
-            held: None,
-            root: Fd::new(-1),
-            address: "127.0.0.1:9",
-            peers: &[],
-            write_cap: 4096,
-            server_pid: None,
-            browser_pid: None,
-        },
+        Context { held: None, root: Fd::new(-1), address: "127.0.0.1:9", peers: &[], write_cap: 4096 },
     );
     child.requests.clear();
     child.event(io::Event::Spawned {
@@ -176,8 +168,6 @@ fn command_substitution_preserves_unix_bytes_and_leaves_program_and_keys_literal
             address: "127.0.0.1:8",
             peers: &[(b"neighbor".as_slice().into(), "127.0.0.1:9".into())],
             write_cap: 4096,
-            server_pid: None,
-            browser_pid: None,
         },
     );
     let io::Request::Spawn { spawn, .. } = child.requests.pop_front().unwrap() else { panic!("spawn command") };
@@ -221,15 +211,7 @@ fn printed_stdin_sends_each_granted_chunk_then_finishes() {
     };
     let mut child = process(
         command,
-        Context {
-            held: Some(b"link\n"),
-            root: Fd::new(-1),
-            address: "127.0.0.1:9",
-            peers: &[],
-            write_cap: 3,
-            server_pid: None,
-            browser_pid: None,
-        },
+        Context { held: Some(b"link\n"), root: Fd::new(-1), address: "127.0.0.1:9", peers: &[], write_cap: 3 },
     );
     child.requests.clear();
     child.event(io::Event::Spawned {

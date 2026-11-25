@@ -104,6 +104,13 @@ pub enum Error { LineTooLong, EventTooLong, FieldTooLong, Stream(Fault) }
   `u64`. A line that begins with a colon is a comment; one whose name is
   no field's is ignored; a name with no colon is the field with an empty
   value; one space after the colon is dropped.
+- **Contiguous data values move in runs.** The reader appends a slice of
+  the current line piece, capped by what the data demand still needs and
+  by the remaining line and event allowances. A scan stops at its first
+  delimiter, including one that starts in the intake; an `Arrived` demand
+  still takes the first byte as soon as it is available. A line ending, a
+  joining LF, and the first byte beyond an allowance go through the byte
+  parser, which still decides which limit failed if both are exceeded.
 - **Dispatch at each blank line:** the last event ID is set from its
   buffer; with no data line, nothing is dispatched; otherwise the data
   stream ends, and the dispatch goes up with its type (`message` when

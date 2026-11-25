@@ -148,6 +148,12 @@ pub(super) fn recommitted(d: &Domain, entry: u64) -> bool {
         None => false,
     }
 }
+pub(crate) fn forget_read(d: &mut Domain, owner: Token) {
+    if let Some(active) = &mut d.outage {
+        active.reads.remove(&owner);
+    }
+}
+
 pub(super) fn forget_entry(d: &mut Domain, entry: u64) {
     if let Some(state) = &mut d.outage {
         state.forget_entry(entry);
@@ -175,6 +181,7 @@ fn riding(d: &Domain, owner: Token) -> bool {
         || d.pending_ci.contains_key(&owner)
         || d.landing.pending.contains_key(&owner)
         || d.tier_ops.reads.contains_key(&owner)
+        || d.closing.selection_reads.contains_key(&owner)
         || d.rebase_fresh.contains_key(&owner)
 }
 /// Remember the exact fresh read, not a reconstruction from facts that may move.
@@ -286,7 +293,9 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
         || (*result == Err(Error::NotConnected) && d.rebase_fresh.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
         if let Some(pending) = d.steps.get(&owner) {
-            super::read_session::pause(d, pending.task);
+            let task = pending.task;
+            super::read_session::pause(d, task);
+            crate::waits::changed(d, task);
         }
         reading.outage |= outage;
         reading.wait.again(env, outage);
@@ -296,7 +305,9 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
     if reading.outage
         && let Some(pending) = d.steps.get(&owner)
     {
-        super::read_session::ended(d, env, pending.task, env.wall);
+        let task = pending.task;
+        super::read_session::ended(d, env, task, env.wall);
+        crate::waits::changed(d, task);
     }
     if reading.outage
         && let Some(pending) = d.steps.get(&owner)

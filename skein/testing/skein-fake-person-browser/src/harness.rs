@@ -9,11 +9,11 @@ use skein_io::{
     kernel::{self, Complete, Op, Pipe, Spawn, Submit, Way},
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall, stream};
+use skein_world::deadline::ProcessSampler;
 use skein_world::{Expired, Starved};
 use std::fmt::Write as _;
 use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
 
-const POLL: Duration = Duration::from_millis(10);
 const DEFAULT_HORIZON: Duration = Duration::from_secs(40);
 const CLOSE_WINDOW: Duration = Duration::from_secs(4);
 const CAPTURE_WINDOW: Duration = Duration::from_secs(5);
@@ -100,10 +100,10 @@ pub struct Asked {
 }
 pub trait Play {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>>;
-    /// Next clock wake for this player. Browser and io events also wake the run.
+    /// The next due turn or deadline; the default waits for browser and io events.
     /// `runnable` says whether the harness can call `next`; `check_deadline` can still run.
-    fn next_wake(&self, _face: &BrowserFace<'_>, now: Time, _runnable: bool) -> Option<Time> {
-        Some(now.saturating_add(POLL))
+    fn next_wake(&self, _face: &BrowserFace<'_>, _now: Time, _runnable: bool) -> Option<Time> {
+        None
     }
     fn expected(&self) -> Vec<Box<[u8]>> {
         Vec::new()
@@ -123,7 +123,7 @@ pub trait Play {
     }
 }
 mod account;
-use account::{Account, Expiry};
+use account::{Account, Arming, Expiry};
 mod commands;
 mod run;
 mod scripted;
@@ -243,6 +243,7 @@ pub(crate) mod capacity;
 pub(crate) mod closing;
 mod lines;
 mod peers;
+mod preview;
 pub(crate) use lines::{opening, restart, server_pipes, substitute};
 pub use lines::{page_with_query, printed, with_query};
 pub(crate) use peers::fixture as peer_fixture;
@@ -305,6 +306,7 @@ struct Runtime {
     close_window: Option<CloseWindow>,
     deadline: Option<Account>,
     step_accounts: Vec<Option<StepAccount>>,
+    process_sampler: ProcessSampler,
     step_wakes: Vec<Option<Time>>,
     starved: Option<Starved>,
     spawned_pids: VecDeque<Option<u32>>,
@@ -428,6 +430,7 @@ impl Runtime {
             deadline: None,
             step_wakes: vec![None; people.len()],
             step_accounts: (0..people.len()).map(|_| None).collect(),
+            process_sampler: ProcessSampler::default(),
             starved: None,
             spawned_pids: VecDeque::new(),
             server_pid: None,
@@ -442,7 +445,7 @@ impl Runtime {
         matches!(self.browser, BrowserEnd::Chromium(_))
     }
     fn ask(&mut self, request: Request) {
-        self.asked = format!("{request:?}").chars().take(200).collect();
+        preview::record(&mut self.asked, &request);
         match &mut self.browser {
             BrowserEnd::Chromium(browser) => {
                 browser::down(browser, &self.benv, request, &mut self.events, &mut self.down);
@@ -552,12 +555,13 @@ impl Runtime {
                 self.browser_pid = pid;
             }
             if let Some(pid) = pid {
-                self.deadline.as_mut().expect("run deadline armed").watch_process(pid);
+                let watch = skein_world::ProcessWatch::capture(&[pid]);
+                self.deadline.as_mut().expect("run deadline armed").watch_snapshot(&watch);
                 for account in self.step_accounts.iter_mut().flatten() {
-                    account.deadline.watch_process(pid);
+                    account.deadline.watch_snapshot(&watch);
                 }
                 for command in self.commands.iter_mut().flatten() {
-                    command.watch_process(pid);
+                    command.watch_snapshot(&watch);
                 }
             }
         } else if let Some(index) =
@@ -566,9 +570,10 @@ impl Runtime {
             let command = self.commands[index].as_mut().expect("matching command");
             command.pid = pid;
             if let Some(pid) = pid {
-                command.watch_process(pid);
+                let watch = skein_world::ProcessWatch::capture(&[pid]);
+                command.watch_snapshot(&watch);
                 if let Some(account) = &mut self.step_accounts[index] {
-                    account.deadline.watch_process(pid);
+                    account.deadline.watch_snapshot(&watch);
                 }
             }
         }
@@ -901,6 +906,7 @@ impl Runtime {
         if matches!(self.server_state, ServerState::Stopping | ServerState::Starting) {
             return;
         }
+        let mut arming = Arming::new(self.native(), now, self.server_pid, self.browser_pid);
         for (index, (play, face)) in people.iter_mut().zip(faces).enumerate() {
             if !self.opened[index] || done[index] {
                 continue;
@@ -917,14 +923,7 @@ impl Runtime {
             let step = play.at();
             let command =
                 self.commands[index].as_ref().filter(|command| !command.settled).and_then(|command| command.pid);
-            let native = self.native();
-            StepAccount::begin(
-                &mut self.step_accounts[index],
-                step,
-                [self.server_pid, self.browser_pid, command],
-                now,
-                native,
-            );
+            StepAccount::begin(&mut self.step_accounts[index], step, command, &mut arming, &mut self.process_sampler);
             face.clear_look_wake();
             let next = play.next(face, now);
             if play.at() != step {
@@ -963,7 +962,7 @@ impl Runtime {
                 }
             }
             if let Some(action) = face.command_action() {
-                self.command_action(index, action, face, step);
+                self.command_action(index, action, face, step, &mut arming);
             }
             if let Some(asked) = play.request() {
                 self.exchanges.push(request::Exchange::new(

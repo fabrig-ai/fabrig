@@ -10,6 +10,9 @@ const CSV_CHAT: &str = "Add CSV export to widget";
 const CSV_TITLE: &str = "Export widget's table as CSV";
 const BOARD_TITLE: &str =
     "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
+// The empty task window's {"rows":[],"more":false}, SHA-256's first 8 bytes
+// (temper/docs/design/client/ctl/tools-waiting.md, 1).
+const NO_LIVE_DELEGATES: &str = "832c124041f0d04e";
 
 impl Tier {
     /// The CSV demo's live public goal with a long title for responsive layout.
@@ -33,35 +36,23 @@ impl Tier {
     #[must_use]
     pub fn ctl_public_board(&self, answer: &Path) -> Script {
         let mut steps = self.ctl_chat(CSV_CHAT, &[]);
-        // T1 has delegated procedure T2. Watch its producer T3 until it parks.
-        // Until T2 creates T3 the watch answers `unknown`; only that refusal retries.
-        steps.extend(through_shell(
-            self.ctl(&["task", "show", "3", "--until", "phase:idle"]),
-            concat!(
-                "while :; do ",
-                "result=$(\"$@\" 2>&1) && exit 0; code=$?; ",
-                "if [ \"$code\" != 2 ] || [ \"$result\" != unknown ]; then ",
-                "printf '%s\\n' \"$result\" >&2; exit \"$code\"; fi; ",
-                "sleep 0.05; done"
-            ),
-            None,
-        ));
+        // T1 has delegated procedure T2. Its only live delegate is producer T3.
+        // Watch for its creation before asking the task watch to wait for idle.
+        steps.extend(self.ctl(&["task", "list", "--project", "1", "--parent", "2", "--since", NO_LIVE_DELEGATES]));
+        steps.extend(self.ctl(&["task", "show", "3", "--until", "phase:idle"]));
         // The browser harness does not expose command stdout to Play.
         steps.extend(through_shell(
             self.ctl(&["project", "amend", "Demo", "--visibility", "public", "--key", "public-board"]),
             "umask 077; answer=$1; shift; exec \"$@\" > \"$answer\"",
-            Some(answer),
+            answer,
         ));
         self.ctl_only(steps)
     }
 }
 
-fn through_shell(mut steps: [Step; 2], script: &str, answer: Option<&Path>) -> [Step; 2] {
+fn through_shell(mut steps: [Step; 2], script: &str, answer: &Path) -> [Step; 2] {
     let Step::Run(command) = &mut steps[0] else { unreachable!("ctl starts with a command") };
-    let mut args: Vec<OsString> = vec!["-c".into(), script.into(), "seed-public-board".into()];
-    if let Some(answer) = answer {
-        args.push(answer.into());
-    }
+    let mut args: Vec<OsString> = vec!["-c".into(), script.into(), "seed-public-board".into(), answer.into()];
     args.push(command.program.as_os_str().into());
     args.append(&mut command.args);
     command.args = args;

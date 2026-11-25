@@ -191,6 +191,11 @@ The browser's addresses and navigation are split from [the browser overview](REA
   main until the heading comes, unless the focus has moved or a focus
   request came meanwhile.
 
+- **Internal links** resolve through the completed view's bindings. The
+  signed-in shell supplies the view's revision to the page part: no patches
+  and the same revision leave its links alone. A new revision can change
+  their paths even when their visible nodes did not change.
+
 ## 2. Open questions
 
 - **The terminal approval page after landing** (`addresses.md`, 1, and `sign-in.md`, 1 and `look.md` and `gallery.md`, 2):

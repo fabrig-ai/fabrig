@@ -67,6 +67,34 @@ fn an_insert_builds_the_golden_page() {
     assert_eq!(page.html(), include_str!("golden/insert.html").trim_end());
 }
 
+fn sibling_inserts(builder: &mut Builder, added: bool) {
+    main(builder);
+    button(builder, b"Go");
+    if added {
+        field(builder, b"First", 0);
+        field(builder, b"Second", 0);
+    }
+    end(builder);
+}
+
+#[test]
+fn sibling_insertions_register_only_their_new_parts_once() {
+    // After the page, main and button, the diff allocates IDs in preorder.
+    const FIRST_FIELD: NodeId = NodeId(4);
+    const SECOND_FIELD: NodeId = NodeId(5);
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| sibling_inserts(b, false)), &mut Vec::new());
+    let mut ops = Vec::new();
+    page.apply(&fixtures::patches(&mut view, 1, |b| sibling_inserts(b, true)), &mut ops);
+    let mut registered = Vec::new();
+    for op in &ops {
+        if let Op::Insert { node, parent: MAIN, .. } = op {
+            crate::page::mount_parts(std::slice::from_ref(node), |_| {}, |node| registered.push(*node));
+        }
+    }
+    assert_eq!(registered, [SECOND_FIELD, FIRST_FIELD]); // inserts run from the last sibling back
+}
+
 #[test]
 fn a_markdown_table_builds_the_golden_page() {
     const READER_LEVELS: u32 = 5; // ui/markdown.md: table, row, cell, link, text.
@@ -257,6 +285,21 @@ fn an_attribute_patch_keeps_a_tag_it_can_update() {
         })
         .collect();
     assert_eq!(kinds, ["attributes"]);
+}
+
+fn button_page(builder: &mut Builder, words: &[u8]) {
+    main(builder);
+    button(builder, words);
+    end(builder);
+}
+
+#[test]
+fn a_plain_page_never_walks_nodes_for_options() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| button_page(b, b"Old")), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| button_page(b, b"New")), &mut Vec::new());
+    // Neither mount nor the nonempty update needs an options scan.
+    assert_eq!(page.option_visits(), 0);
 }
 
 #[test]
@@ -497,7 +540,14 @@ fn links_are_reported_in_preorder() {
 }
 
 #[test]
-fn a_links_href_only_changes_when_the_owners_path_changes() {
+fn a_text_patch_does_not_walk_the_link_order() {
+    let mut page = linked_page();
+    let before = page.link_order_visits();
+    page.apply(&[Patch::Text { node: MAIN, text: Box::new([]) }], &mut Vec::new());
+    assert_eq!((page.link_order_visits() - before, page.links()), (0, [FIRST_LINK].as_slice()));
+}
+
+fn linked_page() -> Page<'static> {
     let (mut page, mut view) = (page(), View::new(&LIMITS));
     page.apply(
         &fixtures::patches(&mut view, 0, |b| {
@@ -509,6 +559,12 @@ fn a_links_href_only_changes_when_the_owners_path_changes() {
         }),
         &mut Vec::new(),
     );
+    page
+}
+
+#[test]
+fn a_links_href_only_changes_when_the_owners_path_changes() {
+    let mut page = linked_page();
     let mut ops = Vec::new();
     page.set_href(FIRST_LINK, b"/notes/1", &mut ops);
     assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/1".as_slice().into() }]);
@@ -519,6 +575,41 @@ fn a_links_href_only_changes_when_the_owners_path_changes() {
     page.set_href(FIRST_LINK, b"/notes/2", &mut ops);
     assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/2".as_slice().into() }]);
     assert!(page.html().contains("href=\"/notes/2\""));
+}
+
+// The first two view builds, with no semantic patches from the second.
+const FIRST_LINK_REVISION: u64 = 0;
+const SECOND_LINK_REVISION: u64 = 1;
+fn drawn_links() -> Page<'static> {
+    let mut page = linked_page();
+    page.resolve_links(FIRST_LINK_REVISION, |_| Some(b"/notes/1".as_slice().into()), &mut Vec::new());
+    page
+}
+
+#[test]
+fn an_unchanged_draw_does_not_visit_held_links() {
+    let mut page = drawn_links();
+    let mut ops = Vec::new();
+    let mut visited = Vec::new();
+    page.apply(&[], &mut ops);
+    page.resolve_links(
+        FIRST_LINK_REVISION,
+        |node| {
+            visited.push(node);
+            None
+        },
+        &mut ops,
+    );
+    assert_eq!(visited, [] as [NodeId; 0]);
+}
+
+#[test]
+fn a_new_link_revision_resolves_paths_without_patches() {
+    let mut page = drawn_links();
+    let mut ops = Vec::new();
+    page.apply(&[], &mut ops);
+    page.resolve_links(SECOND_LINK_REVISION, |_| Some(b"/notes/2".as_slice().into()), &mut ops);
+    assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/2".as_slice().into() }]);
 }
 
 mod events;
@@ -640,7 +731,7 @@ fn a_changed_count_sets_each_items_setsize_again() {
     let sizes: Vec<_> = ops
         .iter()
         .filter_map(|op| match op {
-            Op::Attributes { node, element } => element.attribute("aria-setsize").map(|size| (*node, size)),
+            Op::Attributes { node, element, .. } => element.attribute("aria-setsize").map(|size| (*node, size)),
             Op::Insert { .. }
             | Op::Remove { .. }
             | Op::Move { .. }
@@ -878,7 +969,7 @@ fn a_field_name_patch_adds_changes_and_removes_its_visible_label() {
         assert!(!html.contains("aria-label"));
         assert_eq!(html.matches("<label ").count(), usize::from(name.is_some()));
         if revision > 0 {
-            assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(3), element } if crate::dom::print(element).contains("<label ") == name.is_some())));
+            assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(3), element, .. } if crate::dom::print(element).contains("<label ") == name.is_some())));
         }
         if revision == 2 {
             assert!(html.contains("<label for=\"skein-ui-label-3\">Changed &amp; &lt;name&gt;</label><input"));
@@ -953,7 +1044,7 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
         page.apply(&fixtures::patches(&mut view, revision, |b| completed_item(b, completed)), &mut ops);
         assert_eq!(ops.len(), 1);
         match &ops[0] {
-            Op::Attributes { node, element } => {
+            Op::Attributes { node, element, .. } => {
                 assert_eq!(*node, ITEM);
                 assert_eq!(crate::dom::print(element), expected_own);
             }
@@ -1028,7 +1119,7 @@ fn setting_then_clearing_a_placeholder_or_hint_updates_its_attributes() {
         );
         assert_eq!(ops.len(), 1);
         match &ops[0] {
-            Op::Attributes { node, element } => {
+            Op::Attributes { node, element, .. } => {
                 assert_eq!(*node, FIELD);
                 assert_eq!(crate::dom::print(element), expected);
             }
@@ -1087,7 +1178,7 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
         assert_eq!(page.html(), expected);
         assert_eq!(ops.len(), 1);
         match &ops[0] {
-            Op::Attributes { node, element } => {
+            Op::Attributes { node, element, .. } => {
                 assert_eq!(*node, NodeId(3));
                 assert_eq!(crate::dom::print(element), expected_summary);
             }

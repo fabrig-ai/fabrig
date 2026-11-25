@@ -356,9 +356,13 @@ struct Face {
 
 impl Face {
     fn new() -> Face {
+        Face::with_limits(LIMITS)
+    }
+
+    fn with_limits(limits: Limits) -> Face {
         Face {
-            reader: crate::sse::Reader::new(&LIMITS),
-            env: super::env(LIMITS),
+            reader: crate::sse::Reader::new(&limits),
+            env: super::env(limits),
             above: skein_lib::Queue::uncapped(),
             below: skein_lib::Queue::uncapped(),
         }
@@ -431,6 +435,28 @@ fn native_read(bytes: &[u8], read: Read) -> (Vec<u8>, Vec<crate::sse::Event>) {
         }
     }
     panic!("bounded steps per byte");
+}
+
+#[test]
+fn a_data_line_run_reaches_the_intake_in_one_append() {
+    const DATA_LEN: usize = 128;
+    const LINE_SPACE: u32 = 7; // `data: ` and LF
+    const ONE_RUN: u32 = 1;
+    let count = u32::try_from(DATA_LEN).unwrap();
+    let chunk = count.checked_add(LINE_SPACE).unwrap();
+    let limits = Limits { line: chunk, event: chunk, chunk, ..LIMITS };
+    let data = [b'x'; DATA_LEN];
+    for prefix in [b"data:".as_slice(), b"data: "] {
+        let mut piece = Vec::from(prefix);
+        piece.extend_from_slice(&data);
+        piece.push(b'\n');
+        let mut face = Face::with_limits(limits);
+        drop(face.down(Request::Next));
+        drop(face.up(Up::Bytes(piece.into_boxed_slice())));
+        let (events, _) = face.down(face_request(Read::Fill(count)));
+        assert_eq!(events, [crate::sse::Event::Data(Up::Bytes(boxed(&data)))]);
+        assert_eq!(face.reader.appends, ONE_RUN, "append count for {prefix:?}");
+    }
 }
 
 #[test]
