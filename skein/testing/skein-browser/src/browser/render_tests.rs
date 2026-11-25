@@ -1,7 +1,7 @@
 //! Synthetic DOM and CSS replies for the rendering reads (skein/docs/design/testing/browser.md, 9).
 use super::super::cdp_tests::{PAGE, Peer, ROOT};
 use crate::Limits;
-use crate::boundary::{Event, Node, Property, Rect, Refusal, Request};
+use crate::boundary::{Event, Node, Property, Rect, Refusal, Request, Trouble};
 use skein_lib::{List, Token};
 
 const READ: Token = Token::new(4);
@@ -130,6 +130,80 @@ fn a_long_computed_value_is_cut_to_text_limit() {
     peer.reply(b"CSS.enable", b"{}", "result", "{}");
     let style = reply_style(&mut peer, READ);
     assert_style(&style, &[(b"color", b"rgb(1,"), (b"cursor", b"wait")]);
+}
+
+const INSPECTOR_REFUSAL: &str = "Unsafe attempt to load URL file:///d/a.html from frame with URL file:///d/a.html. 'file:' URLs are treated as unique security origins.";
+
+fn start_css_enable(peer: &mut Peer) -> u64 {
+    start_style(peer, READ);
+    peer.command(b"CSS.enable", b"{}")
+}
+
+#[expect(clippy::disallowed_macros, reason = "the synthetic log combines source and text fixtures")]
+fn log_error(peer: &mut Peer, source: &str, text: &str) {
+    peer.notify(
+        format!(
+            r#"{{"method":"Log.entryAdded","sessionId":"session","params":{{"entry":{{"source":"{source}","level":"error","text":"{text}\n"}}}}}}"#
+        )
+        .as_bytes(),
+    );
+}
+
+fn expect_log_trouble(peer: &mut Peer, source: &str, expected: &str) {
+    log_error(peer, source, expected);
+    let Some(Event::Trouble { page: PAGE, trouble: Trouble::Log, text, .. }) = peer.browser.events.pop_front() else {
+        panic!("expected log trouble for {source}: {expected}");
+    };
+    assert_eq!(text.strip_suffix(b"\n"), Some(expected.as_bytes()));
+    assert!(peer.browser.events.is_empty());
+}
+
+#[test]
+fn inspector_refusal_is_quiet_while_css_enable_waits() {
+    const TEXT_LIMIT: u32 = 6; // Fits the style's names but not even the log's prefix.
+    const OTHER_ORIGIN_REFUSAL: &str = "Unsafe attempt to load URL https://example.test/a from frame with URL https://example.test/a. Domains, protocols and ports must match.";
+    for text in [INSPECTOR_REFUSAL, OTHER_ORIGIN_REFUSAL] {
+        let mut peer = Peer::opened(Limits { text: TEXT_LIMIT, ..Limits::default() });
+        let enable = start_css_enable(&mut peer);
+        log_error(&mut peer, "security", text);
+        assert!(peer.browser.events.is_empty(), "the inspector's own refusal is not a page event");
+        peer.answer(enable, "result", "{}");
+        let _style = reply_style(&mut peer, READ);
+        assert!(peer.browser.events.is_empty());
+    }
+}
+
+#[test]
+fn inspector_refusal_before_enabling_css_is_log_trouble() {
+    expect_log_trouble(&mut Peer::opened(Limits::default()), "security", INSPECTOR_REFUSAL);
+}
+
+#[test]
+fn inspector_refusal_after_enabling_css_is_log_trouble() {
+    let mut peer = Peer::opened(Limits::default());
+    let enable = start_css_enable(&mut peer);
+    peer.answer(enable, "result", "{}");
+    let _style = reply_style(&mut peer, READ);
+    expect_log_trouble(&mut peer, "security", INSPECTOR_REFUSAL);
+}
+
+#[test]
+fn inspector_refusal_after_css_enable_fails_is_log_trouble() {
+    let mut peer = Peer::opened(Limits::default());
+    let enable = start_css_enable(&mut peer);
+    peer.answer(enable, "error", r#"{"code":-32000,"message":"CSS enable failed"}"#);
+    peer.browser.events.clear();
+    expect_log_trouble(&mut peer, "security", INSPECTOR_REFUSAL);
+}
+
+#[test]
+fn other_log_errors_during_css_enable_are_still_trouble() {
+    const TWO_URLS: &str = "Unsafe attempt to load URL file:///d/b.html from frame with URL file:///d/a.html. 'file:' URLs are treated as unique security origins.";
+    for (source, text) in [("security", TWO_URLS), ("network", INSPECTOR_REFUSAL)] {
+        let mut peer = Peer::opened(Limits::default());
+        let _enable = start_css_enable(&mut peer);
+        expect_log_trouble(&mut peer, source, text);
+    }
 }
 
 fn read_rect(field: &str, json: &str) -> Event {
