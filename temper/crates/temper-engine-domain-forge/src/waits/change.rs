@@ -61,12 +61,12 @@ fn waited(d: &Domain, env: &Env<Limits>, row: &ChangeRow) -> Option<Reported> {
     if delegate_live(row, observed) || d.change_access_lost(row) {
         return None;
     }
-    if let Some(wait) = room::waited(d, env, row.task, phase) {
-        return Some(wait);
-    }
-    // Release cleanup keeps its room report, but its own work is not a change step.
+    // Release cleanup keeps its bound in the top; it is not a change wait.
     if row.ending.is_some() || d.releases.contains_key(&row.task) {
         return None;
+    }
+    if let Some(wait) = room::waited(d, env, row.task, phase) {
+        return Some(wait);
     }
     if let State::Landed { since, .. } = row.change.state {
         return verification_wait(d, row, phase, since);

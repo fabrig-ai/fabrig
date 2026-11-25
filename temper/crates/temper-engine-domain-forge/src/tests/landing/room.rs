@@ -1,7 +1,7 @@
 //! Landing writes join the shared line without keeping their decision (forge/room.md, 3–4).
 use super::*;
 use crate::room;
-use jig_domain_core_vocabulary::waits::{Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
+use jig_domain_core_vocabulary::waits::{AtBound, Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
 use skein_lib::List;
 use temper_client_protocol_wire::waits::{CHANGE_OPENING, LANDING_ROOM, THING_ENTRY};
@@ -250,21 +250,16 @@ fn free_one(d: &mut Domain) -> Box<[Request]> {
     outputs(d, Event::Withdraw { entry: 1 })
 }
 
-fn assert_room_report(out: &[Request], task: u64, step: u32, since: Wall, oldest: u64) {
-    let [record] = wait_report(out, task).expect("room report") else { panic!("one room wait") };
-    let owner = refusals::entry(oldest).task;
+fn assert_room_report(out: &[Request], task: u64, step: u32, since: Wall, bound: ReportedBound) {
+    let [record] = wait_report(out, task).expect("room report") else { panic!("one room wait: {out:?}") };
+    let owner = refusals::entry(1).task;
     let mut entries = List::with_capacity(4);
-    for number in oldest..oldest.checked_add(4).unwrap() {
+    for number in 1..=4 {
         entries.push(Thing { what: THING_ENTRY, number, owner: Some(owner) }).unwrap();
     }
     assert_eq!(
         record,
-        &Reported {
-            kind: WaitKind::Room,
-            object: WaitObject::Procedure { step, things: entries },
-            since,
-            bound: ReportedBound::None(Unbounded::Behind(owner)),
-        }
+        &Reported { kind: WaitKind::Room, object: WaitObject::Procedure { step, things: entries }, since, bound }
     );
 }
 
@@ -281,7 +276,8 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
         let mut prior = d.landing(TASK).unwrap().clone();
         let waiting = drive(&mut d, TASK, 91);
         assert_wait(&waiting, on);
-        assert_room_report(&waiting, TASK, LANDING_ROOM, env().wall, 1);
+        let behind = ReportedBound::None(Unbounded::Behind(refusals::entry(1).task));
+        assert_room_report(&waiting, TASK, LANDING_ROOM, env().wall, behind);
         prior.room = Some(1);
         prior.waiting = Some(on);
         assert_eq!(d.landing(TASK), Some(&prior), "{kind}: only its place and wait are saved");
@@ -291,12 +287,12 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
         assert!(!d.landing.due.contains_key(&TASK), "no room poll");
         let freed = free_one(&mut d);
         assert_eq!(asks(&freed).as_ref(), &[TASK]);
-        assert_room_report(&freed, TASK, LANDING_ROOM, env().wall, 2);
+        assert_eq!(wait_report(&freed, TASK), Some([].as_slice()), "{kind}: the ask clears its room wait");
         assert!(d.room_asked(TASK));
         assert_eq!(room::reserved(&d), 1);
         let out = drive(&mut d, TASK, FRESH);
         assert_eq!(entries(&out).as_ref(), &[FRESH], "{kind}: kept exactly once");
-        assert_eq!(wait_report(&out, TASK), Some([].as_slice()));
+        assert_eq!(wait_report(&out, TASK), None, "{kind}: keeping the entry does not clear room twice");
         let write = &d.entries.get(&FRESH).unwrap().entry.effect.write;
         assert!(
             match kind {
@@ -338,7 +334,6 @@ fn open_change(d: &mut Domain, entry: u64) -> Box<[Request]> {
 }
 
 fn pending_write(step: u32, things: &[WaitThing]) -> Reported {
-    use jig_domain_core_vocabulary::waits::AtBound;
     let e = env();
     let at = Wall::from_nanos(e.wall.as_nanos().saturating_add(e.limits.change_policy.stall.as_nanos()));
     step_wait(step, e.wall, ReportedBound::At { at, then: AtBound::Hold }, things)
@@ -349,7 +344,8 @@ fn a_change_waiting_first_takes_room_before_a_landing() {
     let mut d = full("open");
     change_waiter(&mut d, None);
     let joined = open_change(&mut d, 90);
-    assert_room_report(&joined, OTHER, CHANGE_OPENING, env().wall, 1);
+    let behind = ReportedBound::None(Unbounded::Behind(refusals::entry(1).task));
+    assert_room_report(&joined, OTHER, CHANGE_OPENING, env().wall, behind);
     assert_eq!(d.change(OTHER).unwrap().room, Some(1));
     let checked_again = open_change(&mut d, 93);
     assert_eq!(wait_report(&checked_again, OTHER), None, "an unchanged step is silent");
@@ -399,8 +395,11 @@ fn landing_room_places_restart_in_order_without_a_saved_decision() {
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let reports = outputs(&mut d, Event::CatchUp);
-    assert_room_report(&reports, TASK, LANDING_ROOM, started, 1);
-    assert_room_report(&reports, OTHER, CHANGE_OPENING, started, 1);
+    // No live task was restored for the entries' writer. Its end and both joins count from start.
+    let at = advanced_wall(started, env().limits.waits.room);
+    let bound = ReportedBound::At { at, then: AtBound::Hold };
+    assert_room_report(&reports, TASK, LANDING_ROOM, started, bound);
+    assert_room_report(&reports, OTHER, CHANGE_OPENING, started, bound);
     assert_eq!(
         wait_report(&reports, fixtures::CHANGE),
         Some(
@@ -822,13 +821,12 @@ fn ending_a_landing_withdraws_its_unsent_write() {
 
 #[test]
 fn a_room_wait_holds_the_landing_at_the_ended_writers_bound() {
-    use jig_domain_core_vocabulary::waits::AtBound;
     use outbox_room::later;
     let mut d = full("open");
     let joined = env();
     let waiting = drive(&mut d, TASK, 91);
-    assert_room_report(&waiting, TASK, LANDING_ROOM, joined.wall, 1);
     let writer = refusals::entry(1).task;
+    assert_room_report(&waiting, TASK, LANDING_ROOM, joined.wall, ReportedBound::None(Unbounded::Behind(writer)));
     let ended = later(&joined, Duration::from_secs(1));
     let mut out = Queue::uncapped();
     step(&mut d, &ended, Event::ChangeEnding { task: writer, ending: Ending::Cancelled }, &mut out);

@@ -1,8 +1,6 @@
 //! Cleanup shares the outbox line, without keeping an uncommitted number (forge/room.md, 3–4).
 use super::*;
-use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded, WaitKind, WaitObject};
 use skein_forge::api::{Answer, Write};
-use temper_client_protocol_wire::waits::{CHANGE_CHECKING, THING_ENTRY};
 use temper_engine_domain_forge_change as change;
 
 const TASK: u64 = fixtures::CHANGE;
@@ -122,23 +120,39 @@ fn a_room_bound_fails_release_without_a_cleanup_write() {
 }
 
 #[test]
+fn a_waiting_release_keeps_its_room_bound_without_reporting_it() {
+    let mut d = outbox_room::full();
+    pull(&mut d);
+    let settling = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
+    assert!(settling.contains(&Request::EffectsSettled { task: TASK }));
+    assert_eq!(wait_report(&settling, TASK), Some([].as_slice()), "settling clears the change's wait");
+    let waiting = cancel(&mut d, None, DISCARDED);
+    waited(&d, &waiting, 1);
+    assert_eq!(wait_report(&waiting, TASK), None, "a release behind a live writer does not report");
+    assert_eq!(d.inspection_room_wait(TASK), None, "a live writer gives the release no timed bound");
+
+    let writer = refusals::entry(1).task;
+    let ended = outbox_room::later(&env(), Duration::from_secs(5));
+    let mut out = Queue::uncapped();
+    step(&mut d, &ended, Event::ChangeEnding { task: writer, ending: Ending::Cancelled }, &mut out);
+    assert_eq!(wait_report(&collected(out), TASK), None, "the ended writer's deadline stays internal");
+    let due = advanced_wall(ended.wall, ended.limits.waits.room);
+    assert_eq!(d.inspection_room_wait(TASK), Some((due, true)));
+}
+
+#[test]
 fn a_release_comment_waits_then_keeps_one_fresh_entry_before_its_close() {
     let mut d = outbox_room::full();
     pull(&mut d);
     let waiting = cancel(&mut d, Some(b"cancelled"), DISCARDED);
     waited(&d, &waiting, 1);
-    let [wait] = wait_report(&waiting, TASK).expect("a change's release reports") else { panic!("one room wait") };
-    assert_eq!(wait.kind, WaitKind::Room);
-    assert_eq!(wait.since, env().wall);
-    assert_eq!(wait.bound, ReportedBound::None(Unbounded::Behind(refusals::entry(1).task)));
-    let WaitObject::Procedure { step, things } = &wait.object else { panic!("procedure wait") };
-    assert_eq!(*step, CHANGE_CHECKING);
-    assert_eq!(things.len(), 4);
-    assert_eq!(things.as_slice()[0].what, THING_ENTRY);
-    assert_eq!(asks(&freed(&mut d, 1)).as_ref(), &[TASK]);
+    assert_eq!(wait_report(&waiting, TASK), Some([].as_slice()), "closing clears the change's wait");
+    let asked = freed(&mut d, 1);
+    assert_eq!(asks(&asked).as_ref(), &[TASK]);
+    assert_eq!(wait_report(&asked, TASK), None, "the release ask does not report a wait");
     assert_eq!(room::reserved(&d), 1);
     let kept = outputs(&mut d, Event::ContinueRelease { task: TASK, entry: FRESH });
-    assert_eq!(wait_report(&kept, TASK), Some([].as_slice()));
+    assert_eq!(wait_report(&kept, TASK), None, "keeping the cleanup write is silent");
     let saved = entries(&kept);
     assert_eq!(saved.len(), 1);
     let entry = saved.first().unwrap();

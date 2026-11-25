@@ -134,6 +134,7 @@ fn room_wait(d: &Domain, env: &Env<Limits>, task: u64) -> jig_domain_core_vocabu
 #[test]
 fn room_reports_follow_live_holders_then_the_latest_end_or_join() {
     use jig_domain_core_vocabulary::waits::{AtBound, ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits::CHANGE_OPENING;
     const OLD: u64 = 71;
     const LIVE: u64 = 72;
     for reservation in [false, true] {
@@ -181,7 +182,10 @@ fn room_reports_follow_live_holders_then_the_latest_end_or_join() {
         let mut settled = Queue::uncapped();
         step(&mut d, &joined, Event::Withdraw { entry: 1 }, &mut settled);
         let settled = collected(settled);
-        assert_eq!(wait_report(&settled, FIRST), Some([].as_slice()), "first is asked");
+        assert_eq!(asks(&settled).as_ref(), &[FIRST]);
+        let bound =
+            ReportedBound::At { at: advanced_wall(start.wall, start.limits.change_policy.stall), then: AtBound::Hold };
+        assert_eq!(wait_report(&settled, FIRST), Some([step_wait(CHANGE_OPENING, start.wall, bound, &[])].as_slice()));
         assert_eq!(wait_report(&settled, SECOND), Some([room_wait(&d, &joined, SECOND)].as_slice()));
         assert_eq!(room_wait(&d, &joined, SECOND).bound, ReportedBound::None(Unbounded::Behind(FIRST)));
     }

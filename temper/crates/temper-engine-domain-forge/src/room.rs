@@ -261,6 +261,7 @@ pub(crate) fn release_started(d: &mut Domain, task: u64, now: Wall) {
     if !d.room.closing.contains_key(&task) {
         d.room.closing.insert(task, now).expect("one clock per release row");
         owner_ended(d, task, now);
+        crate::waits::changed(d, task);
     }
 }
 
@@ -328,7 +329,7 @@ pub(crate) fn expired_landing(d: &Domain, env: &Env<Limits>, task: u64) -> Optio
 /// The room record for a procedure with a place in the line (waits.md, 7).
 pub(crate) fn waited(d: &Domain, env: &Env<Limits>, task: u64, step: u32) -> Option<Reported> {
     let mut since = None;
-    for waiter in [Waiter::Release(task), Waiter::Change(task), Waiter::Landing(task)] {
+    for waiter in [Waiter::Change(task), Waiter::Landing(task)] {
         if let Some(joined) = blocked_since(d, &env.limits, waiter) {
             since = Some(joined);
             break;
