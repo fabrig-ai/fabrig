@@ -13,7 +13,11 @@
   - *a move* moves them, and gives back the focus and the selection of a
     field it moved;
   - *a text* replaces a node's runs;
-  - *an attribute* sets or removes what changed: a drawing whose data
+  - *an attribute* sets or removes what changed. For the same element,
+    the page compares its old and new own content; if it did not change,
+    the browser applies attributes without walking or rebuilding that
+    content. This includes a log's busy or away state, without changing
+    how the log is measured or its view restored. A drawing whose data
     changed is drawn again, and a role or a list's order whose element
     differs makes the new element, the children moved into it;
   - *a value* writes a field's value, which comes only from the owner's
@@ -98,7 +102,9 @@
   items `option`s, and its field the text box that controls it,
   `aria-autocomplete="list"`, `aria-controls` naming the list and
   `aria-activedescendant` its active option, `aria-selected` on that
-  option alone. The active option starts at the item the tree marks
+  option alone. The page tracks whether any options menu is mounted,
+  so patches visit no nodes to sync options when there are no menus or
+  previous field associations. The active option starts at the item the tree marks
   selected, or the first enabled one, and stays while that item stays in
   the list across an apply; otherwise it starts again. While the field
   holds the focus and its list an enabled option: ArrowDown and ArrowUp

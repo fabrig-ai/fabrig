@@ -287,6 +287,21 @@ fn an_attribute_patch_keeps_a_tag_it_can_update() {
     assert_eq!(kinds, ["attributes"]);
 }
 
+fn button_page(builder: &mut Builder, words: &[u8]) {
+    main(builder);
+    button(builder, words);
+    end(builder);
+}
+
+#[test]
+fn a_plain_page_never_walks_nodes_for_options() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| button_page(b, b"Old")), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| button_page(b, b"New")), &mut Vec::new());
+    // Neither mount nor the nonempty update needs an options scan.
+    assert_eq!(page.option_visits(), 0);
+}
+
 #[test]
 fn a_changed_tag_replaces_the_element() {
     let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
@@ -708,7 +723,7 @@ fn a_changed_count_sets_each_items_setsize_again() {
     let sizes: Vec<_> = ops
         .iter()
         .filter_map(|op| match op {
-            Op::Attributes { node, element } => element.attribute("aria-setsize").map(|size| (*node, size)),
+            Op::Attributes { node, element, .. } => element.attribute("aria-setsize").map(|size| (*node, size)),
             Op::Insert { .. }
             | Op::Remove { .. }
             | Op::Move { .. }
@@ -946,7 +961,7 @@ fn a_field_name_patch_adds_changes_and_removes_its_visible_label() {
         assert!(!html.contains("aria-label"));
         assert_eq!(html.matches("<label ").count(), usize::from(name.is_some()));
         if revision > 0 {
-            assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(3), element } if crate::dom::print(element).contains("<label ") == name.is_some())));
+            assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(3), element, .. } if crate::dom::print(element).contains("<label ") == name.is_some())));
         }
         if revision == 2 {
             assert!(html.contains("<label for=\"skein-ui-label-3\">Changed &amp; &lt;name&gt;</label><input"));
@@ -1021,7 +1036,7 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
         page.apply(&fixtures::patches(&mut view, revision, |b| completed_item(b, completed)), &mut ops);
         assert_eq!(ops.len(), 1);
         match &ops[0] {
-            Op::Attributes { node, element } => {
+            Op::Attributes { node, element, .. } => {
                 assert_eq!(*node, ITEM);
                 assert_eq!(crate::dom::print(element), expected_own);
             }
@@ -1096,7 +1111,7 @@ fn setting_then_clearing_a_placeholder_or_hint_updates_its_attributes() {
         );
         assert_eq!(ops.len(), 1);
         match &ops[0] {
-            Op::Attributes { node, element } => {
+            Op::Attributes { node, element, .. } => {
                 assert_eq!(*node, FIELD);
                 assert_eq!(crate::dom::print(element), expected);
             }
@@ -1155,7 +1170,7 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
         assert_eq!(page.html(), expected);
         assert_eq!(ops.len(), 1);
         match &ops[0] {
-            Op::Attributes { node, element } => {
+            Op::Attributes { node, element, .. } => {
                 assert_eq!(*node, NodeId(3));
                 assert_eq!(crate::dom::print(element), expected_summary);
             }

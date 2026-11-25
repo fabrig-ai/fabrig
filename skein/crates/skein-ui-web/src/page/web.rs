@@ -457,8 +457,11 @@ impl Mounted {
                 Op::Move { node, parent, before, shown_folded } => {
                     self.move_group(*node, *parent, *before, *shown_folded);
                 }
-                Op::Replace { node, element } => self.refresh(*node, element, true),
-                Op::Attributes { node, element } | Op::Text { node, element } => self.refresh(*node, element, false),
+                Op::Replace { node, element } => self.refresh(*node, element, true, true),
+                Op::Attributes { node, element, own_content_changed } => {
+                    self.refresh(*node, element, false, *own_content_changed);
+                }
+                Op::Text { node, element } => self.refresh(*node, element, false, true),
                 Op::Component { node, component, made } => self.component(*node, *component, made),
                 Op::Value { node, value: bytes } => {
                     if self.components.borrow().contains_key(node) {
@@ -891,7 +894,7 @@ impl Mounted {
             }
         }
     }
-    fn refresh(&self, node: NodeId, model: &Model, replace: bool) {
+    fn refresh(&self, node: NodeId, model: &Model, replace: bool, own_content_changed: bool) {
         let mut group = self.group(node);
         let own = super::semantic(model);
         if own.attribute("data-component").is_none() {
@@ -937,7 +940,10 @@ impl Mounted {
             self.nodes.borrow_mut().insert(node, group.clone());
         } else {
             attributes(&group.element, own, group.element.is_same_node(Some(&self.mount)));
-            if group.element.tag_name() != "TEXTAREA" && own.attribute("data-component").is_none() {
+            if own_content_changed
+                && group.element.tag_name() != "TEXTAREA"
+                && own.attribute("data-component").is_none()
+            {
                 self.content(&group.element, own);
             }
         }

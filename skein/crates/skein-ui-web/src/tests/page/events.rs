@@ -211,6 +211,7 @@ fn a_dialogs_cancel_keeps_it_open() {
         ops,
         vec![Op::Attributes {
             node: EVENT_DIALOG,
+            own_content_changed: false,
             element: crate::dom::Element {
                 tag: "dialog".into(),
                 attributes: vec![("data-node".into(), "9".into())],
@@ -509,16 +510,37 @@ fn near_comes_again_as_the_height_moves_and_not_on_every_scroll() {
     assert_eq!(scroll(&mut page, 200, 1000, 200), None);
 }
 
-fn log_busy(page: &mut Page<'_>, busy: bool) {
+fn log_busy_patch(busy: bool) -> Patch {
     let mut view = View::new(&LIMITS);
     let _patches = fixtures::patches(&mut view, 0, |b| reading(b, true, true, None));
     let mut attribute = skein_ui::Made::of(view.tree().get(2).expect("fixture log")).attribute;
     if busy {
         attribute.states.push(State::Busy).expect("fixture state room");
     }
+    Patch::Attribute { node: LOG, attribute: Box::new(attribute) }
+}
+
+fn log_busy(page: &mut Page<'_>, busy: bool) {
     let mut ops = Vec::new();
-    page.apply(&[Patch::Attribute { node: LOG, attribute: Box::new(attribute) }], &mut ops);
+    page.apply(&[log_busy_patch(busy)], &mut ops);
     assert!(ops.ends_with(&[Op::Measure { node: LOG }]));
+}
+
+#[test]
+fn a_busy_log_patch_does_not_refresh_its_contents() {
+    let mut page = reading_page(true, true);
+    let mut ops = Vec::new();
+    page.apply(&[log_busy_patch(true)], &mut ops);
+    let [
+        Op::HoldView { node: LOG },
+        Op::Attributes { node: LOG, element, own_content_changed: false },
+        Op::PutView { node: LOG },
+        Op::Measure { node: LOG },
+    ] = ops.as_slice()
+    else {
+        panic!("one attribute operation without a content refresh; anchoring and measurement stay: {ops:?}");
+    };
+    assert_eq!(element.attribute("aria-busy"), Some("true"));
 }
 
 #[test]
@@ -907,7 +929,7 @@ fn scroll_log(page: &mut Page<'_>, node: NodeId, top: i32, ops: &mut Vec<Op>) {
 fn log_attribute(ops: &[Op], node: NodeId) -> &crate::dom::Element {
     ops.iter()
         .find_map(|op| match op {
-            Op::Attributes { node: changed, element } if *changed == node => Some(element),
+            Op::Attributes { node: changed, element, .. } if *changed == node => Some(element),
             Op::Insert { .. }
             | Op::Remove { .. }
             | Op::Move { .. }
@@ -1054,6 +1076,7 @@ fn a_dialog_closed_by_the_browser_is_shown_again() {
         ops,
         vec![Op::Attributes {
             node: EVENT_DIALOG,
+            own_content_changed: false,
             element: crate::dom::Element {
                 tag: "dialog".into(),
                 attributes: vec![("data-node".into(), "9".into())],
