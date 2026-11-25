@@ -14,6 +14,8 @@ mod components;
 mod fold;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod measure;
+#[cfg(any(test, target_arch = "wasm32"))]
+mod scroll;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 
@@ -24,7 +26,7 @@ use crate::{
     svg,
 };
 
-/// The platform half replays these operations in order.
+/// The platform replays operations in order, settling log views and measuring after writes.
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[expect(
     clippy::large_enum_variant,
@@ -97,6 +99,8 @@ pub struct Page<'a> {
     roots: Vec<NodeId>,
     links: Vec<NodeId>,
     href_revision: Option<u64>,
+    #[cfg(test)]
+    link_order_visits: usize,
     focused: Option<NodeId>,
     pub(crate) scene: Option<Scene>,
     limits: Limits,
@@ -123,6 +127,8 @@ impl<'a> Page<'a> {
             roots: Vec::new(),
             links: Vec::new(),
             href_revision: None,
+            #[cfg(test)]
+            link_order_visits: 0,
             focused: None,
             scene: None,
             limits: *limits,
@@ -158,10 +164,12 @@ impl<'a> Page<'a> {
             }
         }
         let mut focus = None;
+        let mut reorder_links = false;
         for patch in patches {
             match patch {
                 Patch::Insert { nodes, .. } => {
                     for made in nodes {
+                        reorder_links |= internal_link(&made.attribute);
                         if made.attribute.focus.is_some() {
                             focus = Some(made.id);
                         }
@@ -176,8 +184,9 @@ impl<'a> Page<'a> {
             }
             match patch {
                 Patch::Insert { parent, before, nodes } => self.insert(*parent, *before, nodes, ops),
-                Patch::Remove { node } => self.remove(*node, ops),
+                Patch::Remove { node } => reorder_links |= self.remove(*node, ops),
                 Patch::Move { node, parent, before } => {
+                    reorder_links |= !self.links.is_empty();
                     let old_parent = self.held(*node).parent;
                     self.detach(*node, old_parent);
                     self.attach(*node, *parent, *before);
@@ -198,6 +207,7 @@ impl<'a> Page<'a> {
                 Patch::Attribute { node, attribute } => {
                     let was_shown_folded = self.shown_folded(*node);
                     let held = self.nodes.get_mut(node).expect("held node");
+                    reorder_links |= internal_link(attribute) != internal_link(&held.made.attribute);
                     match (option_menu(&held.made.attribute), option_menu(attribute)) {
                         (false, true) => self.option_menus += 1,
                         (true, false) => self.option_menus -= 1,
@@ -265,17 +275,9 @@ impl<'a> Page<'a> {
         }
         self.sync_options(ops);
         self.collection_sizes(ops);
-        self.links.clear();
         self.href_revision = None;
-        let mut order = Vec::new();
-        for root in &self.roots {
-            self.preorder(*root, &mut order);
-        }
-        for node in order {
-            let a = &self.held(node).made.attribute;
-            if a.linked && a.external.is_none() {
-                self.links.push(node);
-            }
+        if reorder_links {
+            self.reorder_links();
         }
         if let Some(node) = focus.filter(|node| self.nodes.contains_key(node)) {
             self.focused = Some(node);
@@ -336,6 +338,28 @@ impl<'a> Page<'a> {
     #[must_use]
     pub fn links(&self) -> &[NodeId] {
         &self.links
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn link_order_visits(&self) -> usize {
+        self.link_order_visits
+    }
+
+    fn reorder_links(&mut self) {
+        self.links.clear();
+        let mut order = Vec::new();
+        for root in &self.roots {
+            self.preorder(*root, &mut order);
+        }
+        #[cfg(test)]
+        {
+            self.link_order_visits += order.len();
+        }
+        for node in order {
+            if internal_link(&self.held(node).made.attribute) {
+                self.links.push(node);
+            }
+        }
     }
 
     /// Resolve internal links after patches or a change to the owner's bindings.
@@ -489,7 +513,7 @@ impl<'a> Page<'a> {
         }
     }
 
-    fn remove(&mut self, node: NodeId, ops: &mut Vec<Op>) {
+    fn remove(&mut self, node: NodeId, ops: &mut Vec<Op>) -> bool {
         let parent = self.held(node).parent;
         let mut removed = Vec::new();
         self.preorder(node, &mut removed);
@@ -510,8 +534,10 @@ impl<'a> Page<'a> {
         if self.menu.is_some_and(|menu| removed.contains(&menu)) {
             self.menu = None;
         }
+        let mut removed_link = false;
         for node in removed {
             let held = self.nodes.remove(&node).expect("removed subtree was held");
+            removed_link |= internal_link(&held.made.attribute);
             if option_menu(&held.made.attribute) {
                 self.option_menus -= 1;
             }
@@ -530,6 +556,7 @@ impl<'a> Page<'a> {
                 ops.push(Op::Focus { node });
             }
         }
+        removed_link
     }
 
     fn remap(&mut self, node: NodeId) -> Element {
@@ -1383,6 +1410,10 @@ fn scene_point(point: Point, width: Option<u16>, box_width: u16) -> Point {
         u16::try_from(scaled).unwrap_or(u16::MAX)
     };
     Point { x: scale(point.x), y: scale(point.y) }
+}
+
+fn internal_link(attribute: &Attribute) -> bool {
+    attribute.linked && attribute.external.is_none()
 }
 
 fn option_menu(attribute: &Attribute) -> bool {

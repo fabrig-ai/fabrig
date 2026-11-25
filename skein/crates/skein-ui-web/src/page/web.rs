@@ -10,7 +10,7 @@ use web_sys::{
     KeyboardEvent, MouseEvent, Node, ResizeObserver, ResizeObserverEntry, WheelEvent,
 };
 
-use super::{Event, Op, Page, measure::pixels};
+use super::{Event, Op, Page, measure::pixels, scroll};
 use crate::{
     dom::{Child, Element as Model},
     inbox::Inbox,
@@ -440,93 +440,99 @@ impl Mounted {
             }
         }
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one dispatch applies every page operation before tree, dialog and measurement updates"
-    )]
     fn apply(&self, ops: &[Op]) {
         let mut trees = Vec::new();
-        let mut measures = Vec::new();
-        for op in ops {
-            self.affected_trees(op, &mut trees);
-            match op {
-                Op::Insert { node, parent, before, shown_folded, element } => {
-                    self.insert(*node, *parent, *before, *shown_folded, element);
-                }
-                Op::Remove { node } => self.remove(*node),
-                Op::Move { node, parent, before, shown_folded } => {
-                    self.move_group(*node, *parent, *before, *shown_folded);
-                }
-                Op::Replace { node, element } => self.refresh(*node, element, true, true),
-                Op::Attributes { node, element, own_content_changed } => {
-                    self.refresh(*node, element, false, *own_content_changed);
-                }
-                Op::Text { node, element } => self.refresh(*node, element, false, true),
-                Op::Component { node, component, made } => self.component(*node, *component, made),
-                Op::Value { node, value: bytes } => {
-                    if self.components.borrow().contains_key(node) {
-                        continue;
-                    }
-                    let element = self.group(*node).element;
-                    let text = String::from_utf8_lossy(bytes);
-                    if let Some(input) = element.dyn_ref::<HtmlInputElement>() {
-                        input.set_value(&text);
-                    } else if let Some(area) = element.dyn_ref::<HtmlTextAreaElement>() {
-                        area.set_value(&text);
-                    }
-                }
-                Op::Options { field, menu, active } => self.options(*field, *menu, *active),
-                Op::Choice { node, checked } => {
-                    let element = self.group(*node).element;
-                    if let Some(option) = element.dyn_ref::<HtmlOptionElement>() {
-                        option.set_selected(*checked);
-                    } else {
-                        element.unchecked_into::<HtmlInputElement>().set_checked(*checked);
-                    }
-                }
-                Op::Href { node, path } => self
-                    .group(*node)
-                    .element
-                    .set_attribute("href", &String::from_utf8_lossy(path))
-                    .expect("href is an attribute"),
-                Op::Focus { node } => {
-                    let group = self.group(*node);
-                    let element = if group.element.get_attribute("role").as_deref() == Some("menu") {
-                        group.roots[0].clone().unchecked_into::<Element>()
-                    } else if group.element.tag_name() == "DETAILS" {
-                        group
-                            .element
-                            .query_selector(":scope > summary")
-                            .expect("summary selector")
-                            .expect("disclosure has a summary")
-                    } else {
-                        group.element
-                    };
-                    if !element.has_attribute("tabindex")
-                        && !["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT", "SUMMARY"]
-                            .contains(&element.tag_name().as_str())
-                    {
-                        element.set_attribute("tabindex", "-1").expect("focus target accepts tabindex");
-                    }
-                    element.unchecked_into::<HtmlElement>().focus().expect("focus target is mounted");
-                }
-                Op::Reveal { node } => {
-                    let options = web_sys::ScrollIntoViewOptions::new();
-                    options.set_block(web_sys::ScrollLogicalPosition::Nearest);
-                    options.set_inline(web_sys::ScrollLogicalPosition::Nearest);
-                    self.group(*node).element.scroll_into_view_with_scroll_into_view_options(&options);
-                }
-                Op::ScrollEnd { node } => {
-                    self.views.borrow_mut().remove(node);
-                    let element = self.group(*node).element;
-                    element.set_scroll_top(element.scroll_height());
-                }
-                Op::HoldView { node } => self.hold_view(*node),
-                Op::PutView { node } => self.put_view(*node),
-                Op::Measure { node } => measures.push(*node),
-                Op::ScrollScreen { node, down } => self.scroll_screen(*node, *down),
+        scroll::replay(ops, |part| match part {
+            scroll::Turn::Now(op) => {
+                self.affected_trees(op, &mut trees);
+                self.apply_one(op);
             }
+            scroll::Turn::FinishWrites => self.finish_writes(std::mem::take(&mut trees)),
+            scroll::Turn::Follow(node) => {
+                self.views.borrow_mut().remove(&node);
+                scroll::to_end(&self.group(node).element);
+            }
+            scroll::Turn::Restore(node) => self.put_view(node),
+            scroll::Turn::Measure(node) => self.measure(node),
+        });
+    }
+
+    fn apply_one(&self, op: &Op) {
+        match op {
+            Op::Insert { node, parent, before, shown_folded, element } => {
+                self.insert(*node, *parent, *before, *shown_folded, element);
+            }
+            Op::Remove { node } => self.remove(*node),
+            Op::Move { node, parent, before, shown_folded } => {
+                self.move_group(*node, *parent, *before, *shown_folded);
+            }
+            Op::Replace { node, element } => self.refresh(*node, element, true, true),
+            Op::Attributes { node, element, own_content_changed } => {
+                self.refresh(*node, element, false, *own_content_changed);
+            }
+            Op::Text { node, element } => self.refresh(*node, element, false, true),
+            Op::Component { node, component, made } => self.component(*node, *component, made),
+            Op::Value { node, value: bytes } => {
+                if self.components.borrow().contains_key(node) {
+                    return;
+                }
+                let element = self.group(*node).element;
+                let text = String::from_utf8_lossy(bytes);
+                if let Some(input) = element.dyn_ref::<HtmlInputElement>() {
+                    input.set_value(&text);
+                } else if let Some(area) = element.dyn_ref::<HtmlTextAreaElement>() {
+                    area.set_value(&text);
+                }
+            }
+            Op::Options { field, menu, active } => self.options(*field, *menu, *active),
+            Op::Choice { node, checked } => {
+                let element = self.group(*node).element;
+                if let Some(option) = element.dyn_ref::<HtmlOptionElement>() {
+                    option.set_selected(*checked);
+                } else {
+                    element.unchecked_into::<HtmlInputElement>().set_checked(*checked);
+                }
+            }
+            Op::Href { node, path } => self
+                .group(*node)
+                .element
+                .set_attribute("href", &String::from_utf8_lossy(path))
+                .expect("href is an attribute"),
+            Op::Focus { node } => {
+                let group = self.group(*node);
+                let element = if group.element.get_attribute("role").as_deref() == Some("menu") {
+                    group.roots[0].clone().unchecked_into::<Element>()
+                } else if group.element.tag_name() == "DETAILS" {
+                    group
+                        .element
+                        .query_selector(":scope > summary")
+                        .expect("summary selector")
+                        .expect("disclosure has a summary")
+                } else {
+                    group.element
+                };
+                if !element.has_attribute("tabindex")
+                    && !["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT", "SUMMARY"].contains(&element.tag_name().as_str())
+                {
+                    element.set_attribute("tabindex", "-1").expect("focus target accepts tabindex");
+                }
+                element.unchecked_into::<HtmlElement>().focus().expect("focus target is mounted");
+            }
+            Op::Reveal { node } => {
+                let options = web_sys::ScrollIntoViewOptions::new();
+                options.set_block(web_sys::ScrollLogicalPosition::Nearest);
+                options.set_inline(web_sys::ScrollLogicalPosition::Nearest);
+                self.group(*node).element.scroll_into_view_with_scroll_into_view_options(&options);
+            }
+            Op::HoldView { node } => self.hold_view(*node),
+            Op::ScrollEnd { .. } | Op::PutView { .. } | Op::Measure { .. } => {
+                unreachable!("log work follows the writes");
+            }
+            Op::ScrollScreen { node, down } => self.scroll_screen(*node, *down),
         }
+    }
+
+    fn finish_writes(&self, trees: Vec<NodeId>) {
         for node in trees {
             let tree = self.nodes.borrow().get(&node).map(|group| group.element.clone());
             if let Some(tree) = tree
@@ -546,10 +552,6 @@ impl Mounted {
                 dialog.show_modal().expect("mounted dialog can be modal");
             }
         }
-        // Measure after the whole apply, without re-entering a browser event listener.
-        for node in measures {
-            self.measure(node);
-        }
     }
 
     fn measure(&self, node: NodeId) {
@@ -557,15 +559,7 @@ impl Mounted {
             return;
         };
         let mut ops = Vec::new();
-        let act = self.page.borrow_mut().act(
-            Event::Scrolled {
-                node,
-                top: element.scroll_top(),
-                height: element.scroll_height(),
-                viewport: element.client_height(),
-            },
-            &mut ops,
-        );
+        let act = self.page.borrow_mut().act(scroll::measure(&element, node), &mut ops);
         self.apply(&ops);
         if let Some((node, act)) = act {
             (self.report)(node, act);
@@ -1220,12 +1214,7 @@ fn read(event: &web_sys::Event, element: &Element, node: Option<NodeId>, documen
         "cancel" => out.push(Event::Cancel { dialog: node }),
         "close" => out.push(Event::Closed { dialog: node }),
         "focusin" => out.push(Event::Focused { node }),
-        "scroll" => out.push(Event::Scrolled {
-            node,
-            top: element.scroll_top(),
-            height: element.scroll_height(),
-            viewport: element.client_height(),
-        }),
+        "scroll" => out.push(scroll::measure(element, node)),
         _ => {}
     }
     out
@@ -1258,6 +1247,24 @@ fn drawing_event(mouse: &MouseEvent, node: NodeId, document: &Mounted) -> Event 
 
 fn coordinate(value: i32) -> f32 {
     value.to_string().parse().expect("CSS coordinate is a number")
+}
+
+impl scroll::Scroll for Element {
+    fn top(&self) -> i32 {
+        self.scroll_top()
+    }
+
+    fn height(&self) -> i32 {
+        self.scroll_height()
+    }
+
+    fn viewport(&self) -> i32 {
+        self.client_height()
+    }
+
+    fn set_top(&self, top: i32) {
+        self.set_scroll_top(top);
+    }
 }
 
 fn scroll_to(element: &Element, top: f64) {

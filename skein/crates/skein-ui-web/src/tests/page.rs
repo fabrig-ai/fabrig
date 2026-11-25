@@ -539,6 +539,14 @@ fn links_are_reported_in_preorder() {
     assert_eq!(page.links(), &[FIRST_LINK, SECOND_LINK]);
 }
 
+#[test]
+fn a_text_patch_does_not_walk_the_link_order() {
+    let mut page = linked_page();
+    let before = page.link_order_visits();
+    page.apply(&[Patch::Text { node: MAIN, text: Box::new([]) }], &mut Vec::new());
+    assert_eq!((page.link_order_visits() - before, page.links()), (0, [FIRST_LINK].as_slice()));
+}
+
 fn linked_page() -> Page<'static> {
     let (mut page, mut view) = (page(), View::new(&LIMITS));
     page.apply(
