@@ -1,9 +1,9 @@
 //! A task's supplied wait records (client/ctl/results.md, 1 and 2).
 use super::{Cut, Me, Text, acts, clock, llm};
+use crate::jig::render::Parts;
 use jig_client::contract::{self as c, waits::Bound};
 use skein_json::writer::Encoder;
 use skein_lib::Wall;
-use temper_client_protocol_wire::waits as codes;
 
 const fn kind(value: c::WaitKind) -> &'static [u8] {
     match value {
@@ -44,7 +44,7 @@ pub(super) fn summary(wait: Option<&c::Wait>, nearest: Option<c::Nearest>, out: 
     }
 }
 
-pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn crate::jig::render::Parts, out: &mut Text) {
+pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     if task.wait_count == 0 {
         return;
     }
@@ -110,7 +110,7 @@ fn task_text(task: u64, out: &mut Text) {
     out.put(b"task ");
     out.number(task);
 }
-fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn crate::jig::render::Parts, out: &mut Text) {
+fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     if let (c::WaitKind::Account, c::WaitObject::Run(run @ c::TaskRunWait::Account { .. }))
     | (c::WaitKind::Host, c::WaitObject::Run(run @ c::TaskRunWait::Host)) = (wait.kind, &wait.object)
     {
@@ -157,7 +157,7 @@ fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn crate::jig::ren
             llm::run_wait_text(*run, out);
         }
         c::WaitObject::News { subscriptions, timer } => news(subscriptions, *timer, out),
-        c::WaitObject::Procedure { step, things } => procedure(*step, things, out),
+        c::WaitObject::Procedure { step, things } => procedure(*step, things, vocabulary, out),
     }
 }
 fn news(subscriptions: &skein_lib::List<u64>, timer: Option<Wall>, out: &mut Text) {
@@ -177,8 +177,8 @@ fn news(subscriptions: &skein_lib::List<u64>, timer: Option<Wall>, out: &mut Tex
         out.put(b" nothing armed");
     }
 }
-fn procedure(step: u32, things: &skein_lib::List<c::Thing>, out: &mut Text) {
-    if let Some(name) = codes::step_name(step) {
+fn procedure(step: u32, things: &skein_lib::List<c::Thing>, vocabulary: &dyn Parts, out: &mut Text) {
+    if let Some(name) = vocabulary.wait_step(step) {
         out.put(b" at ");
         out.put(name);
     } else {
@@ -188,9 +188,9 @@ fn procedure(step: u32, things: &skein_lib::List<c::Thing>, out: &mut Text) {
     let mut separator = b": ".as_slice();
     for thing in things {
         out.put(separator);
-        if let Some(name) = codes::thing_name(thing.what) {
+        if let Some((name, number_separator)) = vocabulary.wait_thing(thing.what) {
             out.put(name);
-            out.put(if thing.what == codes::THING_PULL { b" #" } else { b" " });
+            out.put(number_separator);
         } else {
             out.put(b"thing ");
             out.number(u64::from(thing.what));
