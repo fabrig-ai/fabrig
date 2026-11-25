@@ -74,7 +74,7 @@ pub(crate) fn width(ty: Type) -> Option<u32> {
 }
 #[expect(
     clippy::too_many_lines,
-    reason = "the leaf comparison exhaustively lists schema type pairs (data/codec/diff.md, 3)"
+    reason = "the leaf comparison exhaustively lists schema type pairs (data/codec/layouts.md, 2)"
 )]
 pub(crate) fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b: Type) -> Comparison {
     let equal = match a {
