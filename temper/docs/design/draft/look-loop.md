@@ -40,14 +40,17 @@ It supersedes the draft of 2026-11-04, whose vision
   starts no browser, so a plan may run it. The landing's last commit
   says the request has landed.
 - **Rendered in Chromium after landing** (section 5): the writer's run,
-  at each new tip of main, renders each newly landed request's pages
+  within ten minutes of a request's landing, renders each newly landed request's pages
   beside the print at three widths. It compares the computed style and
   box of each element the request touched, and writes the verdict into
   a page, `looks.html`, beside the pages it prints.
-- **No one watches it** (section 5): the run starts by itself when main
-  moves. Its change brings the verdict to whoever starts look requests'
+- **No one watches it** (section 5): the run starts by itself, by a
+  timer. Its change brings the verdict to whoever starts look requests'
   goals, who proposes a repair to the person for each difference. The
   person's branch drops a request once its verdict is on main.
+- **Retired when it no longer matters** (5.5): the run lists the
+  journeys requests added whose looks landed as drawn, and the person
+  picks which go, one change each.
 - **The person's look is main's pages** (section 6): plain HTML in the
   repository, with `looks.html` saying whether each request rendered as
   drawn.
@@ -349,6 +352,31 @@ entry for its newest `Look-landed`. A request that landed with no
 `Look-landed`, before this draft, is dropped by `Printed:` as now
 (`../client/journey-writer.md`, 6).
 
+### 5.5 Retiring a journey
+
+Each request drawn on a walk leaves a journey behind (2.1), and the
+writer prints every journey at each run, about a second each. A journey
+whose look no longer matters goes.
+
+- **Candidates,** listed by the run at the foot of `looks.html`: each
+  journey whose directory a request's landing added, whose request's
+  newest entry is identical, and that no walk starts `after`
+  (`../client/journey-walks.md`, 2.3). A journey another starts
+  `after` is never listed, since its going would stop the other.
+- **Who picks:** whoever starts look requests' goals reads the list
+  when the person next says "land them", or when the person asks, and
+  proposes which go, in the request's own terms. The person says which.
+  The list is a mechanism; which look still matters is a judgement.
+- **How it goes:** one change deletes the journey's directory whole:
+  its `walk`, `README.md`, `scripts.json` and pages. The delivery check
+  lets it through as written files (`tools/pre-pr/design.md`, 4, check
+  8), and refuses a `walk` deleted while its pages stay, which no run
+  would remove (`../client/journey-writer.status.md`). The merge job
+  settles a deletion at a written path already
+  (`../client/journey-writer.md`, 5).
+- **Its look stays reachable:** in main's history, and in the request's
+  commit at `docs/look/NAME`. A later request can bring its walk back.
+
 ## 6. What the person sees
 
 - **Main's pages are the landed look:** each journey's pages under the
@@ -389,7 +417,10 @@ Focused and native: no browser, terminal or box starts.
     `Printed:`;
   - a failed check restores the written files, exit 1;
   - main's tip unchanged since a finished run: nothing runs;
-  - a new offer at the same tip gets a new key.
+  - a new offer at the same tip gets a new key;
+  - a journey a request added, its verdict identical and no walk
+    `after` it, is listed as a candidate; one another starts `after`,
+    or whose verdict differs, is not.
 - **The refresh's decisions,** step tests of the `look-refresh`
   command: a request is kept until `looks.html` holds its
   entry, and dropped then. One with no `Look-landed` is dropped by
@@ -405,6 +436,8 @@ Focused and native: no browser, terminal or box starts.
 - **The three gates** take `looks.html` as a written file:
   - the run commits it beside pages;
   - the delivery check refuses it beside a source;
+  - the delivery check lets a journey's directory deleted whole
+    through, and refuses its `walk` deleted with its pages kept;
   - the merge job settles it as any written file.
 - **What it costs other work:** a goal that isn't a look request's
   runs none of this. The delivery check and the merge job match one more
