@@ -7393,6 +7393,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-domain-limits",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-engine-service-startup",
