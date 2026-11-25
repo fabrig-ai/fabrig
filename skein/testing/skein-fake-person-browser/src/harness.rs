@@ -1011,7 +1011,7 @@ impl Runtime {
             for (index, face) in faces.iter_mut().enumerate() {
                 let navigating = face.navigating();
                 if !matches!(&event, Event::Downloaded { person: owner, .. } if *owner != person(index)) {
-                    BrowserFace::event(face, &event);
+                    face.event_at(&event, now);
                 }
                 if navigating
                     && !face.navigating()

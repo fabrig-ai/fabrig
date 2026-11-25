@@ -231,11 +231,10 @@ impl<'a> BrowserFace<'a> {
         }
     }
     fn look_due(&mut self, find: &Find) -> bool {
-        self.look_wake = self
-            .look_again
-            .as_ref()
-            .and_then(|(looked, again)| (looked == find && self.now < *again).then_some(*again));
-        self.look_wake.is_none()
+        // Taking an answer does not start another find. Keep an overdue wake
+        // so the script can take another turn instead of waiting for its bound.
+        self.look_wake = self.look_again.as_ref().and_then(|(looked, again)| (looked == find).then_some(*again));
+        self.look_wake.is_none_or(|again| self.now >= again)
     }
     pub(crate) fn clear_look_wake(&mut self) {
         self.look_wake = None;
@@ -553,6 +552,11 @@ impl<'a> BrowserFace<'a> {
         } else {
             self.absent(search.find);
         }
+    }
+    /// Use the reply's receipt time without firing timers ahead of it.
+    pub(crate) fn event_at(&mut self, event: &Event, now: Time) {
+        self.now = now;
+        self.event(event);
     }
     /// Deliver operation events and downloads routed by the harness to this person.
     pub fn event(&mut self, event: &Event) {

@@ -235,7 +235,7 @@ impl Pump {
             browser::fire(&mut self.browser, &self.benv, time.now, &mut self.events, &mut self.down);
         }
         while let Some(event) = self.events.pop() {
-            face.event(&event);
+            face.event_at(&event, time.now);
             self.browser_event(event);
         }
         // With no page yet, a settled context has no remaining command deadline.
