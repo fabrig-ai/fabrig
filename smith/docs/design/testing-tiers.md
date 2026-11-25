@@ -116,8 +116,10 @@ vocabulary.
   finds rg on the commands' `PATH` (2; `protocol/agent.md`, section 2).
   So a story finds the rg Linux's machines carry in `/usr/bin` and the
   one macOS's workflow installs elsewhere
-  (`temper/docs/design/testing/macos.md`, 6.1), and nothing else of the
-  machine's, its own `claude` among it.
+  (`temper/docs/design/testing/macos.md`, 6.1), and no other directory
+  of the machine's. Where the test process's `PATH` holds no rg, the
+  `PATH` is `/usr/bin` and `/bin` alone, and smith's own refusal names
+  the missing rg.
 - **The fake program** is `smith-fake-claude`'s own binary `fake-claude`
   (`testing.md`, section 4), which the build puts beside `smith` in the target's
   profile directory, where the test finds it; the package takes the
