@@ -237,6 +237,7 @@ fn an_unused_program_account_warns_without_refusing_check() {
 fn check_given_program_answers(
     arguments: &[&str],
     directory: &Path,
+    scratch: &Files,
     extra: &str,
     mut replies: accounts::ProgramAnswers,
     expected_accounts: &[&str],
@@ -248,12 +249,14 @@ fn check_given_program_answers(
     };
     let commands_path = crate::fixture::commands_path();
     let certificate = crate::fixture::trust();
+    let program = crate::fixture::program(scratch);
     let text = format!(
-        "model='anthropic/claude-haiku-5-5'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n\
+        "model='anthropic/claude-haiku-5-5'\ncredentials='{}'\n[programs]\nclaude_code='{}'\n\
          [accounts.work]\nprovider='anthropic'\nsource='program'\n[accounts.anthropic]\nsource='none'\n\
          [endpoints.anthropic]\naccount='work'\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{}']\n\
          [environment]\ninherit=[]\n[environment.set]\nPATH='{commands_path}'\n{extra}",
         directory.display(),
+        program.display(),
         certificate.display(),
     );
     let mut settings = crate::fixture::ready(settings::from_sources(
@@ -278,9 +281,11 @@ fn check_given_program_answers(
 
 #[test]
 fn check_exits_3_for_a_program_account_not_signed_in() {
+    let scratch = Files::new("smith-program");
     let output = check_given_program_answers(
         &["check"],
         Path::new("/credentials"),
+        &scratch,
         "",
         accounts::ProgramAnswers::from([("work".into(), Ok(ProgramCheck::NotSignedIn))]),
         &["work"],
@@ -294,10 +299,12 @@ fn check_exits_3_for_a_program_account_not_signed_in() {
 
 #[test]
 fn check_says_a_program_signed_in_otherwise() {
+    let scratch = Files::new("smith-program");
     let method = ProgramMethod::new(b"api").expect("method");
     let output = check_given_program_answers(
         &["check", "--json", "exec"],
         Path::new("/credentials"),
+        &scratch,
         "",
         accounts::ProgramAnswers::from([("work".into(), Ok(ProgramCheck::SignedInOtherwise(method)))]),
         &["work"],
@@ -310,10 +317,12 @@ fn check_says_a_program_signed_in_otherwise() {
 
 #[test]
 fn a_failed_program_check_is_exit_3() {
+    let scratch = Files::new("smith-program");
     let unreadable = ProgramCheck::Failed(ProgramFailure { reason: FailureReason::Unreadable, detail: Box::new([]) });
     let output = check_given_program_answers(
         &["check", "--json"],
         Path::new("/credentials"),
+        &scratch,
         "",
         accounts::ProgramAnswers::from([("work".into(), Ok(unreadable))]),
         &["work"],
@@ -325,10 +334,12 @@ fn a_failed_program_check_is_exit_3() {
 
 #[test]
 fn check_inspects_an_unused_program_account_without_refusing_startup() {
+    let scratch = Files::new("smith-program");
     let directory = Path::new("/credentials");
     let output = check_given_program_answers(
         &["check", "--json"],
         directory,
+        &scratch,
         SPARE_ACCOUNT,
         accounts::ProgramAnswers::from([
             ("work".into(), Ok(ProgramCheck::Usable { email: None })),
