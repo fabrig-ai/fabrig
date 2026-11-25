@@ -45,7 +45,7 @@ fn page_report(event: Event) -> Result<Report, Event> {
 }
 
 fn session_page(url: Box<[u8]>) -> Request {
-    Request::Page { person: PERSON, page: PAGE, url, requests: true }
+    Request::Page { person: PERSON, page: PAGE, url, requests: true, files: false }
 }
 
 // Each pop reserves the room for putting an ordinary completion back.

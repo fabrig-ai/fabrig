@@ -16,6 +16,8 @@ pub struct Limits {
     pub message: u32,
     pub command: u32,
     pub matches: u32,
+    /// Elements kept per rendering read.
+    pub elements: u32,
     pub text: u32,
     pub snapshot: u32,
     pub screenshot: u32,
@@ -36,6 +38,7 @@ impl Default for Limits {
             message: 4_194_304,
             command: 65_536,
             matches: 128,
+            elements: 4096,
             text: 4096,
             snapshot: 262_144,
             screenshot: 2_097_152,

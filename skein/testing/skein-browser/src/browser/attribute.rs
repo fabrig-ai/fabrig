@@ -76,6 +76,7 @@ impl Browser {
             | Step::Viewport
             | Step::Address
             | Step::Snapshot
+            | Step::Render(_)
             | Step::Screenshot => unreachable!("only attribute steps reach the attribute reader"),
         }
     }
@@ -128,6 +129,7 @@ impl Browser {
                 | OpKind::Viewport
                 | OpKind::Address
                 | OpKind::Snapshot
+                | OpKind::Render { .. }
                 | OpKind::Screenshot => None,
             },
             None => None,
