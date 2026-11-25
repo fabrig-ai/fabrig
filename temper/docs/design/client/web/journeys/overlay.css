@@ -2,3 +2,7 @@
 /* A window's name column fits a model's name, "Sonnet" the widest today. */
 #app > .temper-settings .temper-usage-window { grid-template-columns: 48px 120px 36px minmax(0, 1fr); }
 @media (max-width: 760px) { #app > .temper-settings .temper-usage-window { grid-template-columns: 48px minmax(0, 1fr) 36px; } }
+
+/* welcome-fits */
+/* The flow's column ends 40 px under its last line, as it starts 40 px under the top bar: every step fits a 1366 x 768 screen. */
+@media (min-width: 761px) { #app > .temper-welcome { padding-bottom: 40px; } }
