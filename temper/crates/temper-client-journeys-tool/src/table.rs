@@ -14,8 +14,8 @@ pub(crate) const CHROMIUM: Variable = Variable {
     name: "SKEIN_TEST_CHROMIUM",
     set: Set::Test,
     form: "FILE",
-    line: "The Chromium binary used by the drive session.",
-    absent: "A full drive session is refused before starting children.",
+    line: "The Chromium binary used by drive and look-render.",
+    absent: "A full drive session and the render check cannot start Chromium.",
     notes: "",
     way: Way::Reads,
 };
@@ -338,7 +338,7 @@ pub(crate) const WRITER: Command = Command {
     forms: &[
         "[--project PROJECT (--budget AMOUNT | --as-allowed)] [--branch NAME] [--push REMOTE] [--prepared DIR] [--within DURATION]",
     ],
-    line: "Print journey pages on main's fetched tip and offer the changed files.",
+    line: "Print main's journey pages when due, check landed look requests, and offer the changed files.",
     settings: &[&WRITER_FLAGS],
     switches: &[Switch {
         name: "as-allowed",
@@ -346,7 +346,7 @@ pub(crate) const WRITER: Command = Command {
         line: "Open with the project's allowance instead of an explicit budget.",
         notes: "Requires --project.",
     }],
-    variables: &[&BUNDLE, &PATH],
+    variables: &[&BUNDLE, &PATH, &CHROMIUM],
     notes: "--prepared DIR and --within DURATION have no effect: temper-client-walk pages walks no box",
     ..BASE
 };
@@ -354,7 +354,7 @@ pub(crate) const WRITER: Command = Command {
 pub(crate) const LOOK_REFRESH: Command = Command {
     reach: Reach::Words(&["look-refresh"]),
     line: "Rebase the checked-out look-requests or tui-requests branch on origin/main and push with its saved lease.",
-    notes: "Takes no arguments. Fetches main alone and drops requests covered by main's last valid print. Exit 0: pushed; 1: git failed or a rebase stopped for you to resolve; 2: refused; 3: the remote branch moved beyond the lease.",
+    notes: "Takes no arguments. Fetches main alone and drops a landed request once main holds its verdict. Requests without a Look-landed trailer still follow main's last valid print. Exit 0: pushed; 1: git failed or a rebase stopped for you to resolve; 2: refused; 3: the remote branch moved beyond the lease.",
     ..BASE
 };
 
@@ -374,13 +374,32 @@ pub(crate) const LOOK_COMPARE: Command = Command {
     ..BASE
 };
 
+pub(crate) const LOOK_RENDER: Command = Command {
+    reach: Reach::Words(&["look-render"]),
+    line: "Render a look request beside this checkout's print and report the differences.",
+    variables: &[&CHROMIUM, &PATH],
+    notes: "Uses file pages in scratch copies in the checkout's git directory. No terminal or box. Exit 0: verdict written; 2: refused or unreadable request; 3: render check couldn't finish. See temper/docs/design/client/journey-writer.md, 6.2.",
+    ..LOOK_COMPARE
+};
+
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST, WRITER, LOOK_REFRESH, LOOK_COMPARE],
+    commands: &[
+        PRINT,
+        DRIVE,
+        JOURNEY_WALK,
+        RECIPE_WALK,
+        RECIPE_HASH,
+        RECIPE_LIST,
+        WRITER,
+        LOOK_REFRESH,
+        LOOK_COMPARE,
+        LOOK_RENDER,
+    ],
     settings: &[],
     variables: &[&CHROMIUM, &PATH, &BUNDLE],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

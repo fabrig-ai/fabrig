@@ -37,7 +37,7 @@ pub(crate) fn waiting_on_due_member() -> (World, u64, u64) {
         asked: Box::new([]),
     };
     assert!(
-        forge_top::gates_settled(&row, None, world.env.limits.forge.change_policy.gates),
+        forge_top::gates_settled(world.root.forge(), &row, None, world.env.limits.forge.change_policy.gates),
         "seeded gates: {:?}, {:?}",
         row.change.gates,
         row.verdicts
@@ -121,6 +121,7 @@ fn drill_20_a_due_change_blocks_formation_without_an_account_in_the_train_view()
     );
     assert_eq!(world.held_reads.as_ref().expect("held read").len(), 1);
     assert!(forge_top::gates_settled(
+        world.root.forge(),
         world.root.forge().change(due).expect("gating member"),
         None,
         world.env.limits.forge.change_policy.gates

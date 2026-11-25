@@ -780,11 +780,13 @@ impl Driver {
                     return 0;
                 }
                 let branch = u32::from(!branch_held(forge, &row.branch));
-                let prepared = row.change.landing.and_then(|landing| forge.landing(landing)).is_some_and(|landing| {
-                    landing.landing.members.iter().any(|member| {
-                        member.change == *number && (member.candidate.is_some() || branch_held(forge, &member.branch))
-                    })
-                });
+                let prepared =
+                    forge.landing_of(row.task).and_then(|landing| forge.landing(landing)).is_some_and(|landing| {
+                        landing.landing.members.iter().any(|member| {
+                            member.change == *number
+                                && (member.candidate.is_some() || branch_held(forge, &member.branch))
+                        })
+                    });
                 branch + u32::from(!prepared)
             })
             .sum();
@@ -868,6 +870,7 @@ impl Driver {
     }
 
     fn abandon(&mut self, run: &engine::Assignment) {
+        self.world.scripted_read_inbox(run);
         let event = self.world.protocol.answer(
             CHANNEL,
             run.task,

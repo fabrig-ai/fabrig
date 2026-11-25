@@ -38,6 +38,13 @@ smith's agent processes, and declares in its hello the kinds it runs:
   workspace is (`checkouts.md`): the repository at its main's tip, each
   member's head fetched beside it, each upstream at its candidate, and
   the project's home at the pinned revision, read-only.
+- **Its items go with every offer.** The engine works the items out at
+  the job's claim and keeps them, by task and attempt, until that
+  attempt answers or its assignment is dropped, as jig's link keeps the
+  job itself. A worker that answers busy has the same attempt offered
+  again (jig's `domain/engine/executors.md`, 5), and that offer carries
+  the same items (2026-11-25: one that found none aborted the
+  engine).
 - **A command is a process** of the protocol layer's, its argument list
   the contract's (`../../protocol/tooling.md`), its directory the job's,
   its environment free of credentials and of the worker's own, its

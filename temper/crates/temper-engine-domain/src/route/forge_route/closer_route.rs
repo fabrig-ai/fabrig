@@ -912,8 +912,22 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
         goal_left: closer.closer.goal_left.clone(),
         landing,
         selections: selections.into_boxed(),
+        goal_finish: goal_finish(domain, closer.goal),
     }
 }
+
+fn goal_finish(domain: &Domain, goal: u64) -> Option<c::GoalFinish> {
+    match domain.core.tasks.task(goal)?.parked_result.as_ref()? {
+        tasks::TaskResult::Report { words }
+        | tasks::TaskResult::Verdict { words, .. }
+        | tasks::TaskResult::Change { words, .. }
+        | tasks::TaskResult::NoChange { words }
+        | tasks::TaskResult::Approved { words: Some(words), .. } => Some(c::GoalFinish::Words(words.clone())),
+        tasks::TaskResult::Failure { reason } => Some(c::GoalFinish::Failed(reason.clone())),
+        tasks::TaskResult::Approved { words: None, .. } | tasks::TaskResult::Job { .. } => None,
+    }
+}
+
 fn report_hold_words(closer: &c::Closer) -> Box<[u8]> {
     const PREFIX: &[u8] = b"the goal's report leaves work undone: ";
     let bound = usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("hold words bound");

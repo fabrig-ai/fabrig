@@ -16,6 +16,8 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
                 .expect("programs path prefix")
         )
     );
+    let scratch = skein_scratch::Scratch::new("smith-program");
+    let program = crate::fixture::program(&scratch);
     let trust = crate::fixture::trust();
     let settings = crate::fixture::ready(settings::merge(
         &command::Shared::default(),
@@ -25,8 +27,9 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
             path: "program-chat.toml".into(),
             text: format!(
                 "credentials='{credentials}'\nmodel='anthropic/claude-opus-5-5'\n\
-                 [accounts.anthropic]\nsource='program'\n[endpoints.anthropic]\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{}']\n[programs]\nclaude_code='/bin/true'\n",
-                trust.display()
+                 [accounts.anthropic]\nsource='program'\n[endpoints.anthropic]\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{}']\n[programs]\nclaude_code='{}'\n",
+                trust.display(),
+                program.display()
             ),
         }],
     ));

@@ -722,7 +722,7 @@ def merge_tests(root, env):
 
 
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
-JOURNEY_ASSETS = {'skein-ui.css', 'journey.js', 'theme.css', 'tui-journey.js'}
+JOURNEY_ASSETS = {'skein-ui.css', 'journey.js', 'theme.css', 'tui-journey.js', 'looks.html'}
 
 
 def written_journey_file(path):
@@ -766,10 +766,27 @@ def journey_paths(root, source_env, work, env, tree_id, paths, base_id, head):
 
 
 def journeys(root, paths, base):
-    """Refuse mixed writer/source changes and nonempty overlays (tools/pre-pr/design.md, 4, check 8)."""
+    """Check writer/source mixtures, overlays and retirements (tools/pre-pr/design.md, 4, check 8)."""
+    paths = sorted(paths)
+    retired, walks_deleted = [], []
+    for path in paths:
+        parent, _, name = path.rpartition('/')
+        prefix, _, directory = parent.rpartition('/')
+        if name != 'walk' or not directory or prefix not in JOURNEY_ROOTS:
+            continue
+        journey = root / parent
+        entries = list(journey.iterdir()) if not journey.is_symlink() and journey.is_dir() else []
+        if not entries:
+            retired.append(parent + '/')
+            continue
+        files = {f'{parent}/{entry.name}' for entry in entries if entry.is_symlink() or not entry.is_dir()}
+        if path not in files and any(map(written_journey_file, files)):
+            walks_deleted.append(path if path.isprintable() else ascii(path))
+
+    retired = tuple(retired)
     written, others = [], []
-    for path in sorted(paths):
-        names = written if written_journey_file(path) else others
+    for path in paths:
+        names = written if path.startswith(retired) or written_journey_file(path) else others
         names.append(path if path.isprintable() else ascii(path))
     log = []
     if written and others:
@@ -781,6 +798,8 @@ def journeys(root, paths, base):
         overlay = root / prefix / 'overlay.css'
         if overlay.is_symlink() or (overlay.exists() and overlay.stat().st_size):
             log.append(f'{prefix}/overlay.css must be empty')
+    for walk in walks_deleted:
+        log.append(f"{walk} deleted while its pages stay: delete the journey's directory whole, or keep its walk")
     if not log:
         return []
     log.append("a journey's recording, pages and the files beside them are written on main by "

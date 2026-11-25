@@ -115,13 +115,16 @@ mod tests {
     fn program_children_validate_with_their_hosts_derived_grace() {
         // Grace and complete memory use the same declared TLS bounds with one
         // test root; this story does not need the machine's certificate bundle.
+        let scratch = skein_scratch::Scratch::new("smith-program");
+        let program = crate::fixture::program(&scratch);
         let trust = crate::fixture::trust();
         let source = crate::settings::Source {
             layer: crate::settings::Layer::User,
             path: "program.toml".into(),
             text: format!(
-                "credentials='/credentials'\nmodel='anthropic/claude-opus-5-5'\n[accounts.anthropic]\nsource='program'\n[endpoints.anthropic]\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{}']\n[programs]\nclaude_code='/bin/true'\n",
-                trust.display()
+                "credentials='/credentials'\nmodel='anthropic/claude-opus-5-5'\n[accounts.anthropic]\nsource='program'\n[endpoints.anthropic]\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{}']\n[programs]\nclaude_code='{}'\n",
+                trust.display(),
+                program.display()
             ),
         };
         let settings =

@@ -52,7 +52,7 @@ fn seed() -> forge::LandingRow {
             last_left: Some(0),
             searched: None,
         },
-        asks: Box::new([None]),
+        previous_asks: Box::new([None]),
         entries: Box::new([]),
     }
 }
@@ -128,7 +128,7 @@ fn batch_members_and_leave_causes_round_trip() {
         row.landing.members = members.into_boxed();
         row.landing.round.changed = Some(1);
         row.landing.round.search = Some(landing::Search { tests: landing::SearchTests::Whole, green: 1, red: 2 });
-        row.asks = Box::new([None, None, None]);
+        row.previous_asks = Box::new([None, None, None]);
         let row = forge::Stored::Landing(row);
         let limits = forge::Limits { landing_members: 3, ..fixtures::LIMITS };
         let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
@@ -173,7 +173,7 @@ fn landing_repair_context_round_trips() {
     ] {
         let mut row = seed.clone();
         row.landing.phase = landing::Phase::Preparing;
-        row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
+        row.previous_asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
         let row = forge::Stored::Landing(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
         let row = fixtures::change_hot(fixtures::change_row(State::Repairing {
@@ -245,7 +245,7 @@ fn a_by_test_repair_keeps_its_top_fact() {
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
         let mut row = seed.clone();
         row.landing.phase = landing::Phase::Preparing;
-        row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
+        row.previous_asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
         let row = forge::Stored::Landing(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }

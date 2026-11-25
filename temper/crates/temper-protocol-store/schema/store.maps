@@ -236,6 +236,7 @@ record LandingRepairAsk
 record LandingPrefix
 record LandingResolve
 enum LandingAsk = c::Ask { judge tuple }
+record LandingHanded = c::Handed
 record Change by hand
 record ChangeCi = c::Ci
 record EffectAccount = d::EffectAccount
@@ -318,6 +319,7 @@ enum LandingCombine = l::Combine
 record LandingMember by hand
 enum LandingRoundEnd = l::RoundEnd
 record LandingRecordHold
+record LandingClaimed
 enum LandingOwnHold by hand
 record FailingTest stands for test_id
 record ShownTest stands for test_id
@@ -350,7 +352,7 @@ record LandingWaitGate
 enum LandingAwaited = l::Awaited
 record LandingFollow = d::LandingFollow { start via s::time, since via s::time, wall via s::wall, reruns slice }
 record LandingFollows by hand
-record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks slice, entries slice, flake_reruns slice, follows }
+record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks = previous_asks slice, entries slice, flake_reruns slice, follows }
 record ReceiptRun = d::ReceiptRun
 record FailedTests
 enum Failures by hand
@@ -569,7 +571,7 @@ record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
 record CloseAt = c::CloseAt
-record ChangeHot = d::ChangeHot { signed slice, repair_tasks slice, resolution_tasks slice, priority via own::signed, verdicts slice, gate_remarks slice }
+record ChangeHot by hand
 record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
 record FindingCount stands for number
 enum FindingHolder = d::Holder { task tuple, party tuple, role tuple }

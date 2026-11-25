@@ -2,8 +2,8 @@
 
 Provisional, 2026-11-19. How the decision that forms a landing
 (`landing-turn.md`, section 2) is made whole: its task made first, and the
-landing's row, its members' links and its branches' holds saved only
-once jig holds that task; a make jig refuses forming nothing, its train
+landing's row, which makes it its members' landing, and its branches'
+holds saved only once jig holds that task; a make jig refuses forming nothing, its train
 waiting a queue window, the refusal a warning in the engine's log; and
 a start over a store that already holds a landing whose task was never
 made ending that landing, so its members wait again. Which units form a
@@ -16,7 +16,8 @@ landing task is `landing.md`, 4.2; the restart is `landing.md`, section
 - **The task first** (section 2): the forming decision asks jig to make
   the landing's task before it saves anything of the landing, and jig
   answers the make within that decision.
-- **Saved only once made:** the landing's row, its members' links to it,
+- **Saved only once made:** the landing's row, which makes it its
+  members' landing (`landing-members.md`, 2.1),
   its branches' holds and its members' `joined` news are made in that
   same decision only where jig then holds the task. No stored row and no
   hold names a landing task that was never made.
@@ -45,8 +46,9 @@ does, in this order:
    project's procedure seed, the landing's spec, contract and holdings
    (`landing.md`, 4.2), as before.
 3. **Its admission:** where jig holds a task by the seed's number, the
-   landing's row (`landing.md`, section 12), which links each member's
-   change to it and tells each member's goal it joined (`landing.md`,
+   landing's row (`landing.md`, section 12), which makes it each
+   member's landing by the index in the same decision
+   (`landing-members.md`, 2.1) and tells each member's goal it joined (`landing.md`,
    4.2), then a
    hold of each member's branch by the landing's task. Where jig holds
    none, the refusal (section 3), and none of these.
@@ -155,7 +157,8 @@ the start's link pass refused that store, a hold linking a missing task.
   - **A live landing jig holds no task for,** its phase neither landed
     nor cancelled, its outbox holding no entry, and jig's tasks holding
     no task by its number, is ended: its row erased, as a refused make
-    leaves none (section 3). Each member's change linked to it is left
+    leaves none (section 3), and its members' index entries with it
+    (`landing-members.md`, 3.5). Each member's change in it is left
     as a cancelled landing leaves it (`landing.md`, 4.2): ready, in no
     landing, keeping its place, unless it is recorded landed. Nothing is
     written to the landing history: the landing had no step.

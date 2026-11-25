@@ -377,6 +377,16 @@ fn a_goal_tree_takes_384_tasks() {
     assert_eq!(answer, authority::Answer::Propose);
     assert_eq!(findings.as_ref(), &[authority::Finding::Tasks { source: authority::Source::Task }]);
     assert_eq!(live(&world, goal).made, TREE_TASKS);
-    finish(&mut world, &run);
+    // The lifetime limit leaves no room for a closer. Cancel as the owner
+    // and park the live run to settle the proved tree without reducing its load.
+    let outcome = ask(
+        &mut world,
+        2,
+        people::Ask::Cancel { project: PROJECT, task: goal, reason: b"Story complete".as_slice().into(), grace: None },
+    );
+    assert_eq!(outcome, people::Outcome::Cancelled { task: goal });
+    let event = world.protocol.answer(WORKER, run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    ended(&mut world, goal);
     close(&mut world);
 }

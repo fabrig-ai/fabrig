@@ -64,7 +64,7 @@ fn drill_17_an_outside_push_during_proof_restacks_and_reproves_the_same_member()
     world.push_file(b"main", b"docs/note", b"hand delivered documentation");
     let outside = world.branch(b"main");
     trains.judge(&mut world);
-    assert_eq!(world.change(52).change.landing, None);
+    assert_eq!(world.landing_of(52), None);
     landings::drive_landing(&mut world, landing);
     let row = world.landing(landing);
     let member = &row.landing.members[0];
@@ -75,7 +75,7 @@ fn drill_17_an_outside_push_during_proof_restacks_and_reproves_the_same_member()
     assert_eq!(member.base, Some(translate::commit(outside)));
     assert_eq!(world.change(51).change.ready_since, since);
     assert_eq!(translate::commit(world.branch(b"main")), member.landed.expect("landed candidate"));
-    assert_eq!(world.change(52).change.landing, None);
+    assert_eq!(world.landing_of(52), None);
     let raw::Answer::Commits { commits } =
         world.inspect(&raw::Read::Commits { before: outside, after: world.branch(b"main") })
     else {
@@ -135,7 +135,7 @@ fn until_turn(world: &mut World, tasks: &[u64]) {
 }
 
 fn task(world: &World, change: u64) -> u64 {
-    world.change(change).change.landing.expect("train formed")
+    world.landing_of(change).expect("train formed")
 }
 
 fn search_example(count: u64, breaking: u64, expected_probes: &[u16]) {
@@ -353,8 +353,8 @@ fn drill_13_two_goal_trains_and_main_progress_independently() {
     assert_ne!(first, second);
     assert_ne!(first, main);
     assert_ne!(second, main);
-    assert_eq!(world.change(52).change.landing, None);
-    assert_eq!(world.change(54).change.landing, None);
+    assert_eq!(world.landing_of(52), None);
+    assert_eq!(world.landing_of(54), None);
     for (landing, change) in [(first, 51), (second, 53), (main, 55)] {
         assert_eq!(world.landing(landing).landing.members.iter().map(|m| m.change).collect::<Vec<_>>(), [change]);
     }
@@ -372,7 +372,7 @@ fn drill_13_two_goal_trains_and_main_progress_independently() {
     landings::close_landing(&mut world, second);
     let next_second = task(&world, 54);
     assert_ne!(next_second, second);
-    assert_eq!(world.change(52).change.landing, None);
+    assert_eq!(world.landing_of(52), None);
     // Finish the first goal's live turn before spending time on a successor.
     // Judge again after the second goal's successor lands.
     landings::drive_landing(&mut world, first);

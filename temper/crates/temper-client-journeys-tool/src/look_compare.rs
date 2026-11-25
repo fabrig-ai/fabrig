@@ -16,9 +16,9 @@ use crate::{
     table::BUNDLE,
 };
 
-mod css;
-mod pages;
-mod request;
+pub(crate) mod css;
+pub(crate) mod pages;
+pub(crate) mod request;
 
 pub(crate) fn run(arguments: &[Box<[u8]>], host: &mut Host) -> u8 {
     let request = match request::read(arguments, host) {
@@ -73,27 +73,27 @@ fn compare(request: &request::Request, host: &mut Host) -> Result<Report, String
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum Side {
+pub(crate) enum Side {
     Web,
     Tui,
 }
 
 impl Side {
-    fn root(self) -> &'static str {
+    pub(crate) fn root(self) -> &'static str {
         match self {
             Self::Web => WEB,
             Self::Tui => TUI,
         }
     }
 
-    fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Web => "web",
             Self::Tui => "tui",
         }
     }
 
-    fn numbered_page(self, file: &str) -> bool {
+    pub(crate) fn numbered_page(self, file: &str) -> bool {
         let number =
             file.strip_suffix(".html").or_else(|| if self == Self::Tui { file.strip_suffix(".txt") } else { None });
         number.is_some_and(|number| number.len() >= 2 && number.bytes().all(|byte| byte.is_ascii_digit()))
@@ -101,13 +101,13 @@ impl Side {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct Journey {
-    side: Side,
-    name: String,
+pub(crate) struct Journey {
+    pub(crate) side: Side,
+    pub(crate) name: String,
 }
 
 impl Journey {
-    fn path(&self) -> String {
+    pub(crate) fn path(&self) -> String {
         format!("{}/{}", self.side.root(), self.name)
     }
 
@@ -116,12 +116,12 @@ impl Journey {
     }
 }
 
-enum Change {
+pub(crate) enum Change {
     HandMade,
     Pages(BTreeSet<String>),
 }
 
-fn version_two(bytes: &[u8]) -> bool {
+pub(crate) fn version_two(bytes: &[u8]) -> bool {
     bytes.split(|&byte| byte == b'\n').next() == Some(b"walk 2")
 }
 
@@ -252,7 +252,7 @@ fn code(text: &str) -> String {
     format!("{delimiter}{space}{text}{space}{delimiter}")
 }
 
-fn read(host: &mut Host, path: &Path) -> Result<Option<Box<[u8]>>, String> {
+pub(crate) fn read(host: &mut Host, path: &Path) -> Result<Option<Box<[u8]>>, String> {
     match host.ask(Ask::Read(path.to_owned())) {
         Answer::Bytes(bytes) => Ok(Some(bytes)),
         Answer::Missing => Ok(None),
@@ -260,7 +260,7 @@ fn read(host: &mut Host, path: &Path) -> Result<Option<Box<[u8]>>, String> {
     }
 }
 
-fn done(host: &mut Host, ask: Ask) -> Result<(), String> {
+pub(crate) fn done(host: &mut Host, ask: Ask) -> Result<(), String> {
     match host.ask(ask) {
         Answer::Done => Ok(()),
         answer => Err(effect_error(answer)),
@@ -286,7 +286,7 @@ fn git(host: &mut Host, directory: Option<&Path>, args: &[&str]) -> Result<Ran, 
     child(host, program)
 }
 
-fn git_ok(host: &mut Host, directory: Option<&Path>, args: &[&str]) -> Result<Box<[u8]>, String> {
+pub(crate) fn git_ok(host: &mut Host, directory: Option<&Path>, args: &[&str]) -> Result<Box<[u8]>, String> {
     let result = git(host, directory, args)?;
     if result.code == Some(0) { Ok(result.stdout) } else { Err(git_error(&args.join(" "), &result)) }
 }
@@ -302,15 +302,15 @@ fn git_error(command: &str, ran: &Ran) -> String {
     if stderr.is_empty() { format!("git {command}: {status}") } else { format!("git {command}: {status}: {stderr}") }
 }
 
-fn git_path(host: &mut Host, args: &[&str]) -> Result<PathBuf, String> {
+pub(crate) fn git_path(host: &mut Host, args: &[&str]) -> Result<PathBuf, String> {
     let bytes = git_ok(host, None, args)?;
     let path = PathBuf::from(OsStr::from_bytes(bytes.strip_suffix(b"\n").unwrap_or(&bytes)));
     if path.is_absolute() { Ok(path) } else { Err(format!("git {} did not give an absolute path", args.join(" "))) }
 }
 
-fn text<'a>(bytes: &'a [u8], what: &str) -> Result<&'a str, String> {
+pub(crate) fn text<'a>(bytes: &'a [u8], what: &str) -> Result<&'a str, String> {
     std::str::from_utf8(bytes).map_err(|_| format!("{what} is not UTF-8"))
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -120,8 +120,9 @@ fn ci_repair(world: &mut World, task: u64) -> api::Commit {
     row.delegate = None;
     row.effect = change::EffectResult::None;
     row.ci = None;
-    row.change.landing = None;
-    row.change.landing_ask = None;
+    row.asks = Box::new([]);
+    row.handed = 0;
+    row.previous = None;
     world.event(top::Event::Restore { record: top::Stored::Change(Box::new(row)) });
     world.landing_ci(b"main", true);
     let decision = changes::change_step_task(world, task, 80_001, change::Status::Passed, Box::new([]), false, false);

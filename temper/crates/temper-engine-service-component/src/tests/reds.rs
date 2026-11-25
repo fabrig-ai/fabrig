@@ -108,12 +108,14 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
         body: Box::new([]),
         priority: 0,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
-            landing_ask: None,
             way: change::Way::Queue,
-            landing: None,
+
             task,
             state: change::State::Producing { requested: false },
             gates: Box::new([]),

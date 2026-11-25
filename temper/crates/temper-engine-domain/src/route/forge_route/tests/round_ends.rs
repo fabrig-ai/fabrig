@@ -79,7 +79,6 @@ impl Round {
         r.domain.forge.restore_begin(r.env.wall);
         let template = row.landing.members[0].clone();
         let mut members = List::uncapped();
-        let mut asks = List::uncapped();
         for i in 0_usize..if three { 3 } else { 4 } {
             let mut m = template.clone();
             m.change = 7_u64.checked_add(i.try_into().unwrap()).unwrap();
@@ -129,10 +128,8 @@ impl Round {
                 skein_lib::bytes::concat(&[b"temper/c", skein_lib::Decimal::of(i.try_into().unwrap()).as_bytes()]);
             r.send(forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) });
             members.push(m).unwrap();
-            asks.push(None).unwrap();
         }
         row.landing.members = members.into_boxed();
-        row.asks = asks.into_boxed();
         row.landing.preparation = number;
         row.landing.phase = policy::Phase::Proving;
         row.landing.round.pull = Some(99);

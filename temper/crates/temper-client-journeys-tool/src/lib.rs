@@ -10,6 +10,8 @@ use temper_client_walk_lines::walk::Client;
 mod host;
 mod look_compare;
 mod look_refresh;
+mod look_render;
+mod looks;
 mod output;
 mod run;
 mod table;

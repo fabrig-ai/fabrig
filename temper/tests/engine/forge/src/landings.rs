@@ -106,7 +106,7 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
             last_prepare: None,
             branch: change.base.clone(),
         },
-        asks: Box::new([None]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     }
 }
@@ -188,10 +188,9 @@ pub fn drive_landing(world: &mut World, task: u64) {
             .landing
             .members
             .iter()
-            .enumerate()
-            .filter_map(|(index, m)| {
+            .filter_map(|m| {
                 if m.left.is_some()
-                    && world.landing(task).asks[index].is_none()
+                    && world.change(m.change).asks.is_empty()
                     && matches!(
                         world.change(m.change).change.state,
                         change::State::Repairing { .. }
@@ -340,7 +339,7 @@ impl Trains {
                         members.push(member);
                     }
                 }
-                row.asks = vec![None; members.len()].into_boxed_slice();
+
                 row.landing.members = members.into_boxed_slice();
                 let branches: Vec<_> = row.landing.members.iter().map(|member| member.branch.clone()).collect();
                 world.event(top::Event::Landing { row });

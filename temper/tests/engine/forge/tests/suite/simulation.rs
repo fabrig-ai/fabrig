@@ -1497,6 +1497,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::AskDropped { .. }
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
@@ -1559,6 +1560,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LinkDisagreed { .. }
+                | top::Request::ConversionAskDropped { .. }
                 | top::Request::LandingUnmade { .. }
                 | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }

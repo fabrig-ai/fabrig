@@ -478,16 +478,17 @@ fn tag_tasks(
         tasks::Request::TurnAcknowledged { reply_to, task, attempt, turn, accepted } => {
             terminals::turn_acknowledged(reply_to, task, attempt, turn, accepted, out);
         }
-        tasks::Request::Ended { task, requester, ending } => {
-            lifecycle::ended(core, env, task, requester, ending, pending, out);
+        tasks::Request::Ended { task, requester, ending, wake } => {
+            lifecycle::ended(core, env, task, (requester, wake), ending, pending, out);
         }
         tasks::Request::Refused { reply_to, problem } => refused::refused(core, env, reply_to, problem, pending, out),
         tasks::Request::PersonStallDue { task } => notices::person_stall_due(core, env, task, pending),
         tasks::Request::PersonStallRestored { task } => notices::person_stall_restored(core, env, task, pending),
         tasks::Request::QuestionOwedDue { task } => notices::question_owed_due(core, env, task, pending),
         tasks::Request::NothingAwaitedDue { task } => notices::nothing_awaited_due(core, env, task, pending),
-        tasks::Request::QuestionParked { task, question } => {
-            notices::question_parked(core, env, task, question, pending);
+        tasks::Request::RecheckStuck => super::step::step_tasks(core, env, tasks::Event::RecheckStuck, pending),
+        tasks::Request::QuestionParked { task, question, chain } => {
+            notices::question_parked(core, env, task, question, &chain, pending);
         }
         tasks::Request::CloserDue { task } => lifecycle::closer_due(core, env, task, pending),
         tasks::Request::QuestionEndedDue { task, questions } => {

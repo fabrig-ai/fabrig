@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1162378819 decoded=1162673632; at_most(3) encoded=3106 decoded=2010
+ChangeHot: ceilings encoded=1162511067 decoded=1162806752; at_most(3) encoded=3522 decoded=2538
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
 ChangeSource: ceilings encoded=4133 decoded=4096; at_most(3) encoded=40 decoded=3
@@ -289,6 +289,7 @@ LandingAwaited: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 LandingBelow: ceilings encoded=102 decoded=64; at_most(3) encoded=86 decoded=48
 LandingBlamed: ceilings encoded=74 decoded=0; at_most(3) encoded=74 decoded=0
 LandingByTest: ceilings encoded=67424584 decoded=68225024; at_most(3) encoded=125 decoded=315
+LandingClaimed: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 LandingCombine: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 LandingEntry: ceilings encoded=149 decoded=0; at_most(3) encoded=149 decoded=0
 LandingFallback: ceilings encoded=34 decoded=0; at_most(3) encoded=34 decoded=0
@@ -298,6 +299,7 @@ LandingFollow: ceilings encoded=13900809 decoded=14162997; at_most(3) encoded=40
 LandingFollows: ceilings encoded=2097156 decoded=2097152; at_most(3) encoded=7 decoded=3
 LandingGateFailed: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 LandingGateRefused: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+LandingHanded: ceilings encoded=8265 decoded=8192; at_most(3) encoded=136 decoded=48
 LandingLastPrepare: ceilings encoded=209 decoded=128; at_most(3) encoded=87 decoded=6
 LandingLeave: ceilings encoded=75 decoded=0; at_most(3) encoded=75 decoded=0
 LandingLeftChange: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0

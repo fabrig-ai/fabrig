@@ -486,10 +486,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, designs, holders }));
                 }
                 if workspace.is_some() {
-                    assert!(
-                        domain.job_workspaces.insert(task, prepared.workspace).is_ok(),
-                        "one job assignment per task"
-                    );
+                    let kept = crate::boundary::JobWorkspace { attempt, workspace: prepared.workspace, offered: false };
+                    assert!(domain.job_workspaces.insert(task, kept).is_ok(), "one job assignment per task");
                 }
                 let mut out = Queue::uncapped();
                 jig_domain_hub_link::step(

@@ -651,7 +651,7 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
             last_prepare: None,
             branch: b"main".as_slice().into(),
         },
-        asks: Box::new([None]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     };
     let mut d = restored(C, Box::new([Stored::Change(Box::new(change)), Stored::Landing(row.clone())]));

@@ -94,7 +94,7 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         if let Some(due) = view.forge.inspection_step_retry(task) {
             wakes.push(Wake::Timer(due));
         }
-        if view.root.is_none() && wakes.is_empty() && root_turn(row) {
+        if view.root.is_none() && wakes.is_empty() && root_turn(view, row) {
             wakes.push(Wake::Party("root".into()));
         }
         (kind, wakes, bound(view, row))
@@ -160,7 +160,7 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
     match row.change.state {
         State::Held { .. } => wakes.push(Wake::Party("person".into())),
         State::Ready { .. } | State::Preparing { .. } => {
-            if let Some(task) = row.change.landing {
+            if let Some(task) = view.forge.landing_of(row.task) {
                 wakes.push(view.waiter(task));
             } else if matches!(row.change.state, State::Ready { .. }) {
                 if view.forge.landing_held() {
@@ -186,7 +186,10 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             }
             // A terminal landing may still occupy a table slot while its writes
             // settle. With no live landing wake, read the train's due member.
-            if matches!(row.change.state, State::Ready { .. }) && row.change.landing.is_none() && wakes.is_empty() {
+            if matches!(row.change.state, State::Ready { .. })
+                && view.forge.landing_of(row.task).is_none()
+                && wakes.is_empty()
+            {
                 forming(view, row, &mut wakes);
             }
         }
@@ -220,7 +223,7 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
         }
     }
     if matches!(row.change.state, State::WaitingProducer { .. })
-        || (matches!(row.change.state, State::Ready { .. }) && row.change.landing.is_none())
+        || (matches!(row.change.state, State::Ready { .. }) && view.forge.landing_of(row.task).is_none())
     {
         for child in pushing_children(view, row.task) {
             let wake = view.waiter(child);
@@ -266,7 +269,7 @@ fn forming(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow, wakes: 
         if member.repository != row.repository
             || member.base != row.base
             || member.change.way != temper_engine_domain_forge_change::Way::Turn
-            || member.change.landing.is_some()
+            || view.forge.landing_of(*task).is_some()
             || member.terminal()
             || root.tasks().procedure_due(*task).is_none()
         {
@@ -341,13 +344,13 @@ fn follow_restart(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
 
 // These procedure states keep an act already requested of the parent, not a
 // missing external event. Writes and room deliberately have no such escape.
-fn root_turn(row: &temper_engine_domain_forge::ChangeRow) -> bool {
+fn root_turn(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> bool {
     match &row.change.state {
         State::Producing { requested } | State::Resolving { requested, .. } | State::Repairing { requested, .. } => {
             *requested && row.delegate.is_none()
         }
         State::Gating { asked, .. } | State::Judging { asked, .. } => !asked.is_empty() && row.delegate.is_none(),
-        State::Ready { .. } => row.change.landing.is_none(),
+        State::Ready { .. } => view.forge.landing_of(row.task).is_none(),
         _ => false,
     }
 }

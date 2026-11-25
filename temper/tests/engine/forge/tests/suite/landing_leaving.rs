@@ -425,7 +425,7 @@ fn cancelling_the_landing_returns_its_member_ready_and_frees_the_train() {
     proving(&mut world);
     let ready = world.change(CHANGE).change.ready_since;
     world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Cancelled });
-    assert_eq!(world.change(CHANGE).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE), None);
     assert!(matches!(world.change(CHANGE).change.state, change::State::Ready { .. }));
     assert_eq!(world.change(CHANGE).change.ready_since, ready);
     assert_eq!(world.first_waiting_change(), Some(CHANGE));
@@ -434,5 +434,5 @@ fn cancelling_the_landing_returns_its_member_ready_and_frees_the_train() {
     row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
     row.landing.members[0].branch.clone_from(&row.landing.round.branch);
     world.event(top::Event::Landing { row });
-    assert_eq!(world.change(CHANGE).change.landing, Some(62));
+    assert_eq!(world.landing_of(CHANGE), Some(62));
 }

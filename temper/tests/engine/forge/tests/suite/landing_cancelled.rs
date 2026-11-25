@@ -160,7 +160,7 @@ fn cancelled_landing_frees_its_write_entries() {
     assert!(world.stored().contains_key(&top::Key::Entry(dispatch)), "do not erase a sent write at cancel");
     assert!(!world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
     trains.judge(&mut world);
-    assert_eq!(world.change(CHANGE).change.landing, None, "the unsettled write still holds the row's place");
+    assert_eq!(world.landing_of(CHANGE), None, "the unsettled write still holds the row's place");
     let seen = frees_room_for_waiter(&mut world, dispatch);
     assert!(seen.iter().any(|request| matches!(request, top::Request::ContinueRelease { task: LANDING })));
     world.event(top::Event::ContinueRelease { task: LANDING, entry: 0 });
@@ -168,7 +168,7 @@ fn cancelled_landing_frees_its_write_entries() {
     assert!(world.landing(LANDING).entries.is_empty());
     assert_eq!(world.landing(LANDING).follows(), []);
     trains.judge(&mut world);
-    assert_eq!(world.change(CHANGE).change.landing, Some(LANDING + 1));
+    assert_eq!(world.landing_of(CHANGE), Some(LANDING + 1));
     assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
 }
 
@@ -189,7 +189,7 @@ fn a_landed_landing_frees_its_write_entries() {
     world.produce(b"temper/53");
     landings::ready_change(&mut world, 53, b"temper/53");
     trains.judge(&mut world);
-    assert_eq!(world.change(53).change.landing, Some(LANDING + 1));
+    assert_eq!(world.landing_of(53), Some(LANDING + 1));
     assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
 }
 

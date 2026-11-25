@@ -26,6 +26,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod story_path;
+pub use story_path::{stories_path_from_rg, stories_path_from_test_path};
+
+#[expect(clippy::disallowed_methods, reason = "the test harness reads PATH only to locate rg for its stories")]
+fn stories_path() -> std::ffi::OsString {
+    stories_path_from_test_path(std::env::var_os("PATH").as_deref())
+}
+
 /// The fake program built beside this package's shipped binary.
 #[must_use]
 pub fn fake_claude() -> PathBuf {
@@ -273,7 +281,7 @@ fn start_program(program: &Path, arguments: Vec<std::ffi::OsString>, directory: 
                     ("XDG_CONFIG_HOME".into(), directory.join("config").into()),
                     ("XDG_STATE_HOME".into(), directory.join("state").into()),
                     ("XDG_RUNTIME_DIR".into(), directory.join("runtime").into()),
-                    ("PATH".into(), "/usr/bin:/bin".into()),
+                    ("PATH".into(), stories_path()),
                 ],
             ),
             directory: directory.into(),
@@ -641,6 +649,12 @@ pub fn refusal_code(scratch: &Scratch, arguments: Vec<std::ffi::OsString>, code:
     refusal_program_code(&skein_scratch::paths::built("smith", "smith"), scratch, arguments, code)
 }
 
+/// Decide whether a startup refusal showed nothing, allowing only canonical EOF echo off Linux.
+#[must_use]
+pub fn refusal_shows_nothing(shown: &[u8], linux: bool) -> bool {
+    shown.is_empty() || (!linux && shown == b"^D\x08\x08")
+}
+
 fn refusal_program_code(
     program: &Path,
     scratch: &Scratch,
@@ -671,7 +685,11 @@ fn refusal_program_code(
     let Process::Script(Proc::Terminal(person)) = outcome.procs.get(1).expect("terminal process") else {
         unreachable!("person")
     };
-    assert!(person.shown().is_empty(), "startup refusal opens no channel or chat");
+    let shown = person.shown();
+    assert!(
+        refusal_shows_nothing(shown, cfg!(target_os = "linux")),
+        "startup refusal opens no channel or chat: {shown:?}"
+    );
     assert_no_children();
     binary.stderr().to_vec()
 }
@@ -724,7 +742,7 @@ pub fn smith_with_environment(
         ("XDG_CONFIG_HOME".into(), scratch.path().join("config").into()),
         ("XDG_STATE_HOME".into(), scratch.path().join("state").into()),
         ("XDG_RUNTIME_DIR".into(), scratch.path().join("runtime").into()),
-        ("PATH".into(), "/usr/bin:/bin".into()),
+        ("PATH".into(), stories_path()),
     ];
     let mut environment = fixture_environment(scratch.path(), environment);
     environment.extend(additional);

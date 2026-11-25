@@ -127,7 +127,7 @@ pub(super) fn unmade_landing(changes: &[forge::ChangeRow]) -> Vec<forge::Stored>
             member
         })
         .collect();
-    landing.asks = vec![None; changes.len()].into_boxed_slice();
+
     let mut rows = Vec::new();
     for member in &landing.landing.members {
         rows.push(forge::Stored::Hold(forge::Hold {
@@ -145,9 +145,7 @@ pub(super) fn unmade_landing(changes: &[forge::ChangeRow]) -> Vec<forge::Stored>
     }
     rows.push(forge::Stored::Landing(landing));
     for change in changes {
-        let mut row = change.clone();
-        row.change.landing = Some(UNMADE);
-        rows.push(forge::Stored::Change(Box::new(row)));
+        rows.push(forge::Stored::Change(Box::new(change.clone())));
     }
     rows
 }
@@ -227,7 +225,7 @@ fn assert_unmade_repaired(driver: &mut Driver) {
     for (index, task) in [8975, 9104, 9885].into_iter().enumerate() {
         let row = driver.store.change(task).expect("member retained");
         let ready_since = Wall::from_nanos(u64::try_from(index + 1).expect("time"));
-        assert_eq!(row.change.landing, None);
+        assert_eq!(driver.root.forge().landing_of(row.task), None);
         assert_eq!(row.change.ready_since, Some(ready_since));
         assert_eq!(row.change.state, change::State::Ready { head: [3; 32], ready_since });
         let branch: Box<[u8]> = if index == 0 {
@@ -264,7 +262,7 @@ fn an_empty_unmade_landing_is_erased_without_a_warning() {
         })
         .expect("landing");
     landing.landing.members = Box::new([]);
-    landing.asks = Box::new([]);
+    landing.previous_asks = Box::new([]);
     let mut driver = restart_with(forge::Stored::Landing(landing));
     for _ in 0..STEPS {
         driver.advance(true);
@@ -279,13 +277,20 @@ fn an_empty_unmade_landing_is_erased_without_a_warning() {
 
 #[test]
 fn unmade_members_leave_judging_and_keep_landed_records_and_other_links() {
+    const FIRST_MEMBER: u64 = 8975;
+    const LAST_MEMBER: u64 = 9885;
+    let resolve = change::Ask::Resolve { base: [7; 32] };
+    let converted = change::Handed { number: 1, landing: UNMADE, round: 0, ask: resolve.clone() };
     for already_landed in [false, true] {
         let mut rows = unmade_rows().into_vec();
         for row in &mut rows {
             match row {
-                forge::Stored::Landing(row) => row.landing.members[1].landed = Some([9; 32]),
+                forge::Stored::Landing(row) => {
+                    row.landing.members[1].landed = Some([9; 32]);
+                    row.previous_asks = Box::new([Some(resolve.clone()), None, None]);
+                }
                 forge::Stored::Change(row) => match row.task {
-                    8975 => {
+                    FIRST_MEMBER => {
                         row.change.state = change::State::Judging {
                             head: [3; 32],
                             ready_since: Wall::from_nanos(1),
@@ -303,7 +308,7 @@ fn unmade_members_leave_judging_and_keep_landed_records_and_other_links() {
                     9104 if already_landed => {
                         row.change.state = change::State::Landed { merge: [9; 32], since: Wall::from_nanos(2) }
                     }
-                    9885 => row.change.landing = Some(ABSENT_TASK),
+                    LAST_MEMBER => row.previous = Some(forge::PreviousLink { landing: Some(ABSENT_TASK), ask: None }),
                     _ => {}
                 },
                 _ => {}
@@ -314,17 +319,30 @@ fn unmade_members_leave_judging_and_keep_landed_records_and_other_links() {
             driver.advance(true);
         }
         assert!(driver.root.ready());
-        let first = driver.store.change(8975).expect("judging member");
-        assert_eq!(first.change.landing, None);
-        assert_eq!(first.change.state, change::State::Ready { head: [3; 32], ready_since: Wall::from_nanos(1) });
+        let first = driver.store.change(FIRST_MEMBER).expect("judging member");
+        assert_eq!(driver.root.forge().landing_of(first.task), None);
+        let ready = change::State::Ready { head: [3; 32], ready_since: Wall::from_nanos(1) };
+        assert_eq!(first.change.state, ready);
+        assert_eq!(first.asks.as_ref(), std::slice::from_ref(&converted));
+        let erase = Write::Erase(engine::Key::Forge(forge::Key::Landing(UNMADE)));
+        let commit = driver.transactions.iter().find(|commit| commit.contains(&erase)).expect("unmade Link commit");
+        assert!(commit.iter().any(|write| matches!(write,
+            Write::Save(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::ChangeHot(change)
+                if change.task == FIRST_MEMBER && change.change.state == ready && change.asks.as_ref() == std::slice::from_ref(&converted))
+        )), "the ready change and its converted queue are saved in the Link commit");
         let landed = driver.store.change(9104).expect("recorded landed member");
-        assert_eq!(landed.change.landing, None);
+        assert_eq!(driver.root.forge().landing_of(landed.task), None);
         assert!(matches!(landed.change.state, change::State::Landed { merge, .. } if merge == [9; 32]));
         if already_landed {
             assert_eq!(landed.change.state, change::State::Landed { merge: [9; 32], since: Wall::from_nanos(2) });
         }
-        let other = driver.store.change(9885).expect("member linked elsewhere");
-        assert_eq!(other.change.landing, Some(ABSENT_TASK));
+        assert_eq!(
+            driver.root.pop_fact(),
+            Some(engine::Fact::LinkDisagreed { change: LAST_MEMBER, named: ABSENT_TASK, landing: Some(UNMADE) })
+        );
+        let other = driver.store.change(LAST_MEMBER).expect("member linked elsewhere");
+        assert_eq!(other.previous, None, "Link clears the previous build's stored link");
+        assert_eq!(driver.root.forge().landing_of(other.task), None);
     }
 }
 

@@ -769,6 +769,26 @@ fn a_failing_close_command_wakes_the_goal_once() {
     world.close();
 }
 
+#[test]
+fn a_closer_reports_the_goals_later_finish_after_an_escalation() {
+    let (mut world, goal, branch) = goal_world(4);
+    let _note = write_goal_report(&mut world, &goal, 93, REPORT_WITH_LEFT, None);
+    finish_run(&mut world, &goal, tasks::TaskResult::Report { words: b"First finish.".as_slice().into() });
+    let closer = wait_report_held(&mut world, goal.task);
+    let run = awakened(&mut world, goal.task);
+    release(&mut world, &run, closer, 94);
+    finish_run(&mut world, &run, tasks::TaskResult::Failure { reason: b"Second finish.".as_slice().into() });
+
+    let (same, landing) = finish_closing(&mut world, goal.task, &branch);
+    assert_eq!(same, closer);
+    assert_report(&world, goal.task, closer, landing, &[]);
+    let words = core::str::from_utf8(result_words(&world, goal.task)).expect("goal report UTF-8");
+    assert!(words.ends_with("The goal's finish:\n  failed: Second finish.\n"), "{words}");
+    assert!(!words.contains("First finish."), "{words}");
+    settle(&mut world, goal.task);
+    world.close();
+}
+
 fn goal_with_failed_close() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
     let (mut world, goal, branch) = goal_world(4);
     park_goal(&mut world, &goal);

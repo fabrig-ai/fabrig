@@ -25,6 +25,20 @@ fn current_record() -> domain::TaskRecord {
     record
 }
 
+#[test]
+fn a_live_task_round_trips_its_parked_result() {
+    for parked in [
+        domain::TaskResult::Report { words: b"delivered".as_slice().into() },
+        domain::TaskResult::Failure { reason: b"stuck".as_slice().into() },
+    ] {
+        let mut record = current_record();
+        record.flags.ended_by = domain::EndedBy::Closer(domain::Closer { connector: 1, code: 6 });
+        record.parked_result = Some(parked);
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
+
 fn a_task_records_label_flags_and_last_activity_read_back() {
     for (ended_by, conversation) in [(domain::EndedBy::Result, false), (domain::EndedBy::Requester, true)] {
         let mut record = current_record();
@@ -122,16 +136,6 @@ fn suspended_ends_and_task_gaps_read_back() {
             why,
             window: Duration::from_secs(30),
         }));
-    }
-}
-
-#[test]
-fn a_tasks_question_wake_watermark_reads_back() {
-    for question_woken in [0, 37, u64::MAX] {
-        let mut record = current_record();
-        record.question_woken = question_woken;
-        let row = live_record(record);
-        assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
 

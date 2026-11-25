@@ -2,4 +2,3 @@
 
 2026-11-21. Where temper's code lags or departs from [landing-forming.md](landing-forming.md).
 
-

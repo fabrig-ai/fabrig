@@ -23,7 +23,7 @@ fn gate(members: u16) -> (Domain, ReceiptKey, api::Run) {
         earlier.candidate = Some([6; 32]);
         earlier.gates[0].proof = policy::Proof::Keyed { key: [6; 32] };
         row.landing.members = Box::new([earlier, row.landing.members[0].clone()]);
-        row.asks = Box::new([None, None]);
+
         let mut change = d.changes.get(&fixtures::CHANGE).unwrap().clone();
         change.task = 52;
         change.branch = b"temper/52".as_slice().into();
@@ -119,8 +119,8 @@ fn unblamed(d: &Domain, key: &ReceiptKey) {
     for member in &row.landing.members {
         assert!(member.left.is_none(), "no member leaves or is blamed");
     }
-    for ask in &row.asks {
-        assert!(ask.is_none(), "no repair ask");
+    for member in &row.landing.members {
+        assert!(d.change(member.change).unwrap().asks.is_empty(), "no repair ask");
     }
     assert!(row.flake_reruns.is_empty(), "an absent report cannot start a flake rerun");
     for (_, entry) in &d.entries {
@@ -246,8 +246,8 @@ fn a_selected_probe_without_a_report_retries_without_moving_the_search_or_blamin
     for member in &row.landing.members {
         assert!(member.left.is_none());
     }
-    for ask in &row.asks {
-        assert!(ask.is_none());
+    for member in &row.landing.members {
+        assert!(d.change(member.change).unwrap().asks.is_empty(), "no repair ask");
     }
     assert_eq!(d.receipt(&key).unwrap().run.id, 7, "the top's real red is unchanged");
 }

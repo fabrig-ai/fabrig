@@ -25,6 +25,7 @@ use skein_io::kernel::Exit;
 // Cluster signals and retained process identities need Linux (temper/docs/design/testing/macos.md, 3).
 #[cfg(target_os = "linux")]
 use skein_io::kernel::Signal;
+#[cfg(target_os = "linux")]
 use skein_lib::Duration;
 use support::forge_land::{
     assert_cached_binary_unchanged, assert_forgejo_setup, cache_forgejo_binaries, deployment_flags, forgejo_setup_steps,

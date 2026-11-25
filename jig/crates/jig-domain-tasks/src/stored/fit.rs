@@ -413,6 +413,9 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     if let Some(instructions) = &value.instructions {
         count(RestoreBound::MessageBytes, instructions.len(), limits.message_bytes)?;
     }
+    if let Some(parked) = &value.parked_result {
+        result(parked, limits)?;
+    }
     if let Some(grace) = &value.grace {
         count(RestoreBound::ResultBytes, grace.reason.len(), limits.result_bytes)?;
     }

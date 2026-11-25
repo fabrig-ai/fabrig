@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x18, 0x1c, 0x68, 0x12, 0x1e, 0xcb, 0x95, 0x56, 0x40, 0xfc, 0xcf, 0x9f, 0xf1, 0x81, 0x75, 0x4c, 0xae, 0x3c, 0xfa,
-    0x59, 0xa5, 0xcf, 0xac, 0x79, 0x74, 0xed, 0xe6, 0x1b, 0x25, 0x83, 0xbe, 0x53,
+    0xc2, 0xcf, 0x2e, 0x8a, 0xac, 0x4d, 0x6d, 0x82, 0x38, 0x61, 0x67, 0xd9, 0x6c, 0x5e, 0xaf, 0x25, 0x30, 0x7b, 0xc1,
+    0xc3, 0xa8, 0xb4, 0x30, 0xc5, 0x3f, 0x79, 0x51, 0x35, 0x82, 0x4a, 0xf7, 0x7f,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -338,6 +338,7 @@ pub struct Limits {
     pub change_hot_gate_remarks: u32,
     pub change_hot_producer_failure_some: u32,
     pub change_hot_merge_result_some: u32,
+    pub change_hot_asks: u32,
     pub subscriber_goal_tasks_some: u32,
     pub subscriber_paths: u32,
     pub subscriber_paths_item: u32,
@@ -710,6 +711,7 @@ pub const CEILINGS: Limits = Limits {
     change_hot_gate_remarks: 1_024,
     change_hot_producer_failure_some: 512,
     change_hot_merge_result_some: 512,
+    change_hot_asks: 16,
     subscriber_goal_tasks_some: 65_536,
     subscriber_paths: 1_024,
     subscriber_paths_item: 4_096,
@@ -1082,6 +1084,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_hot_gate_remarks",
     "change_hot_producer_failure_some",
     "change_hot_merge_result_some",
+    "change_hot_asks",
     "subscriber_goal_tasks_some",
     "subscriber_paths",
     "subscriber_paths_item",
@@ -1458,6 +1461,7 @@ impl Limits {
             self.change_hot_gate_remarks,
             self.change_hot_producer_failure_some,
             self.change_hot_merge_result_some,
+            self.change_hot_asks,
             self.subscriber_goal_tasks_some,
             self.subscriber_paths,
             self.subscriber_paths_item,
@@ -1835,6 +1839,7 @@ impl Limits {
             change_hot_gate_remarks: self.change_hot_gate_remarks.min(most),
             change_hot_producer_failure_some: self.change_hot_producer_failure_some.min(most),
             change_hot_merge_result_some: self.change_hot_merge_result_some.min(most),
+            change_hot_asks: self.change_hot_asks.min(most),
             subscriber_goal_tasks_some: self.subscriber_goal_tasks_some.min(most),
             subscriber_paths: self.subscriber_paths.min(most),
             subscriber_paths_item: self.subscriber_paths_item.min(most),
@@ -2209,6 +2214,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_HOT_GATE_REMARKS,
     paths::CHANGE_HOT_PRODUCER_FAILURE,
     paths::CHANGE_HOT_MERGE_RESULT,
+    paths::CHANGE_HOT_ASKS,
     paths::SUBSCRIBER_GOAL_TASKS,
     paths::SUBSCRIBER_PATHS,
     paths::SUBSCRIBER_PATHS,
@@ -2883,6 +2889,11 @@ pub mod paths {
     pub const LANDING_RESOLVE_BASE: Path = Path::new("LandingResolve.base");
     pub const LANDING_RESOLVE_TAIL: Path = Path::new("LandingResolve (tail)");
     pub const LANDING_ASK_TAG: Path = Path::new("LandingAsk (tag)");
+    pub const LANDING_HANDED_NUMBER: Path = Path::new("LandingHanded.number");
+    pub const LANDING_HANDED_LANDING: Path = Path::new("LandingHanded.landing");
+    pub const LANDING_HANDED_ROUND: Path = Path::new("LandingHanded.round");
+    pub const LANDING_HANDED_ASK: Path = Path::new("LandingHanded.ask");
+    pub const LANDING_HANDED_TAIL: Path = Path::new("LandingHanded (tail)");
     pub const CHANGE_EARLY: Path = Path::new("Change.early");
     pub const CHANGE_TASK: Path = Path::new("Change.task");
     pub const CHANGE_STATE: Path = Path::new("Change.state");
@@ -3159,6 +3170,8 @@ pub mod paths {
     pub const LANDING_ROUND_END_TAG: Path = Path::new("LandingRoundEnd (tag)");
     pub const LANDING_RECORD_HOLD_MEMBER: Path = Path::new("LandingRecordHold.member");
     pub const LANDING_RECORD_HOLD_TAIL: Path = Path::new("LandingRecordHold (tail)");
+    pub const LANDING_CLAIMED_CHANGE: Path = Path::new("LandingClaimed.change");
+    pub const LANDING_CLAIMED_TAIL: Path = Path::new("LandingClaimed (tail)");
     pub const LANDING_OWN_HOLD_TAG: Path = Path::new("LandingOwnHold (tag)");
     pub const FAILING_TEST_TEST_ID: Path = Path::new("FailingTest.test_id");
     pub const FAILING_TEST_TAIL: Path = Path::new("FailingTest (tail)");
@@ -4118,6 +4131,8 @@ pub mod paths {
     pub const CHANGE_HOT_FOLLOW_CHECK: Path = Path::new("ChangeHot.follow_check");
     pub const CHANGE_HOT_MERGE_RESULT: Path = Path::new("ChangeHot.merge_result");
     pub const CHANGE_HOT_HISTORY: Path = Path::new("ChangeHot.history");
+    pub const CHANGE_HOT_ASKS: Path = Path::new("ChangeHot.asks");
+    pub const CHANGE_HOT_HANDED: Path = Path::new("ChangeHot.handed");
     pub const CHANGE_HOT_TAIL: Path = Path::new("ChangeHot (tail)");
     pub const SUBSCRIBER_TASK: Path = Path::new("Subscriber.task");
     pub const SUBSCRIBER_NUMBER: Path = Path::new("Subscriber.number");
@@ -15670,6 +15685,68 @@ impl Record for LandingAsk {
     }
 }
 
+// Type: LandingHanded.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingHanded {
+    pub number: u32,
+    pub landing: u64,
+    pub round: u16,
+    pub ask: LandingAsk,
+}
+
+// Record: LandingHanded.
+impl LandingHanded {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Named("LandingAsk"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 88;
+}
+
+impl Record for LandingHanded {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_HANDED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingHanded")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingHanded")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.number, limits, out, paths::LANDING_HANDED_NUMBER)?;
+        field::write(field::U64, &self.landing, limits, out, paths::LANDING_HANDED_LANDING)?;
+        field::write(field::U16, &self.round, limits, out, paths::LANDING_HANDED_ROUND)?;
+        field::write(field::Nested, &self.ask, limits, out, paths::LANDING_HANDED_ASK)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            number: field::read(field::U32, limits, reader, paths::LANDING_HANDED_NUMBER)?,
+            landing: field::read(field::U64, limits, reader, paths::LANDING_HANDED_LANDING)?,
+            round: field::read(field::U16, limits, reader, paths::LANDING_HANDED_ROUND)?,
+            ask: field::read(field::Nested, limits, reader, paths::LANDING_HANDED_ASK)?,
+        })
+    }
+}
+
 // Type: Change.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Change {
@@ -20777,6 +20854,56 @@ impl Record for LandingRecordHold {
     }
 }
 
+// Type: LandingClaimed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingClaimed {
+    pub change: u64,
+}
+
+// Record: LandingClaimed.
+impl LandingClaimed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for LandingClaimed {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_CLAIMED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingClaimed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingClaimed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.change, limits, out, paths::LANDING_CLAIMED_CHANGE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            change: field::read(field::U64, limits, reader, paths::LANDING_CLAIMED_CHANGE)?,
+        })
+    }
+}
+
 // Type: LandingOwnHold.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum LandingOwnHold {
@@ -20785,6 +20912,7 @@ pub enum LandingOwnHold {
     Timeout(LandingTimeout),
     Turn,
     Read,
+    Claimed(LandingClaimed),
 }
 
 // Record: LandingOwnHold.
@@ -20795,7 +20923,8 @@ impl LandingOwnHold {
         skein_codec::bounds::Node::Named("LandingTimeout"),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+        skein_codec::bounds::Node::Named("LandingClaimed"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -20830,6 +20959,7 @@ impl Record for LandingOwnHold {
             Self::Timeout(value) => { field::put(out, &[2], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
             Self::Turn => field::put(out, &[3], paths::LANDING_OWN_HOLD_TAG),
             Self::Read => field::put(out, &[4], paths::LANDING_OWN_HOLD_TAG),
+            Self::Claimed(value) => { field::put(out, &[5], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -20841,7 +20971,8 @@ impl Record for LandingOwnHold {
             2 => Ok(Self::Timeout(LandingTimeout::read(limits, reader)?)),
             3 => Ok(Self::Turn),
             4 => Ok(Self::Read),
-            5..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            5 => Ok(Self::Claimed(LandingClaimed::read(limits, reader)?)),
+            6..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -36464,6 +36595,8 @@ pub struct ChangeHot {
     pub follow_check: Option<FollowCheckProgress>,
     pub merge_result: Option<Box<[u8]>>,
     pub history: Option<ChangeHistory>,
+    pub asks: List<LandingHanded>,
+    pub handed: u32,
 }
 
 // Record: ChangeHot.
@@ -36529,11 +36662,14 @@ impl ChangeHot {
         skein_codec::bounds::Node::Option { item: 56 },
         skein_codec::bounds::Node::Named("ChangeHistory"),
         skein_codec::bounds::Node::Option { item: 58 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 6, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 25, 26, 27, 29, 31, 33, 34, 36, 37, 38, 39, 41, 43, 45, 47, 48, 50, 52, 53, 55, 57, 59] },
+        skein_codec::bounds::Node::Named("LandingHanded"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 60, size: size_of::<LandingHanded>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 6, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 25, 26, 27, 29, 31, 33, 34, 36, 37, 38, 39, 41, 43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 61, 62] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1516;
+    pub const ENCODED_AT_ZERO: u64 = 1524;
 }
 
 impl Record for ChangeHot {
@@ -36594,6 +36730,8 @@ impl Record for ChangeHot {
         field::write(field::Optional { item: field::Nested }, &self.follow_check, limits, out, paths::CHANGE_HOT_FOLLOW_CHECK)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.change_hot_merge_result_some.min(CEILINGS.change_hot_merge_result_some) } }, &self.merge_result, limits, out, paths::CHANGE_HOT_MERGE_RESULT)?;
         field::write(field::Optional { item: field::Nested }, &self.history, limits, out, paths::CHANGE_HOT_HISTORY)?;
+        field::write(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, &self.asks, limits, out, paths::CHANGE_HOT_ASKS)?;
+        field::write(field::U32, &self.handed, limits, out, paths::CHANGE_HOT_HANDED)?;
         Ok(())
     }
 
@@ -36635,6 +36773,8 @@ impl Record for ChangeHot {
             follow_check: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_FOLLOW_CHECK)?,
             merge_result: field::read(field::Optional { item: field::Bytes { limit: limits.change_hot_merge_result_some.min(CEILINGS.change_hot_merge_result_some) } }, limits, reader, paths::CHANGE_HOT_MERGE_RESULT)?,
             history: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_HISTORY)?,
+            asks: field::read(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, limits, reader, paths::CHANGE_HOT_ASKS)?,
+            handed: field::read(field::U32, limits, reader, paths::CHANGE_HOT_HANDED)?,
         })
     }
 }
@@ -40671,7 +40811,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1517;
+    pub const ENCODED_AT_ZERO: u64 = 1525;
 }
 
 impl Record for Value {
@@ -40824,7 +40964,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1519;
+    pub const ENCODED_AT_ZERO: u64 = 1527;
 }
 
 impl Record for Row {
@@ -41155,6 +41295,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LandingBelow", nodes: LandingBelow::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingBlamed", nodes: LandingBlamed::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingByTest", nodes: LandingByTest::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingClaimed", nodes: LandingClaimed::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingCombine", nodes: LandingCombine::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingEntry", nodes: LandingEntry::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingFallback", nodes: LandingFallback::SHAPE },
@@ -41164,6 +41305,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LandingFollows", nodes: LandingFollows::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingGateFailed", nodes: LandingGateFailed::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingGateRefused", nodes: LandingGateRefused::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingHanded", nodes: LandingHanded::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingLastPrepare", nodes: LandingLastPrepare::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingLeave", nodes: LandingLeave::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingLeftChange", nodes: LandingLeftChange::SHAPE },
@@ -41768,6 +41910,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_hot_gate_remarks,
     CEILINGS.change_hot_producer_failure_some,
     CEILINGS.change_hot_merge_result_some,
+    CEILINGS.change_hot_asks,
     CEILINGS.subscriber_goal_tasks_some,
     CEILINGS.subscriber_paths,
     CEILINGS.subscriber_paths_item,

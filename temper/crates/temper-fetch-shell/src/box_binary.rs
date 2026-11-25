@@ -16,6 +16,9 @@ use temper_fetch::{
     box_binary::{self as machine, Build, Candidate, Event, Request, Unpacked},
 };
 
+mod zstd;
+use zstd::{UnpackError, decode_zstd};
+
 /// Inputs already captured and resolved by the client.
 pub struct Find<'a> {
     pub beside: &'a Path,
@@ -153,7 +156,7 @@ fn clean(directory: &Path) -> Result<(), Failed> {
     clean_with(directory, remove)
 }
 fn clean_with(directory: &Path, mut remove: impl FnMut(&Path) -> Result<(), Failed>) -> Result<(), Failed> {
-    for name in ["temper-box.gz.part", "temper-box.part", "temper-box.sha256.part"] {
+    for name in ["temper-box.zst.part", "temper-box.part", "temper-box.sha256.part"] {
         remove(&directory.join(name))?;
     }
     Ok(())
@@ -220,54 +223,29 @@ fn stored_sum(mut bytes: Vec<u8>) -> Option<[u8; 32]> {
 fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
     let input = fs::File::open(archive).map_err(|why| file_error(archive, &why))?;
     let mut output = open(part)?;
-    let unpacked = decode_gzip(io::BufReader::new(input), &mut output, bound).map_err(|why| match why {
+    unpack_with(io::BufReader::new(input), &mut output, bound, |file, mode| {
+        file.set_permissions(fs::Permissions::from_mode(mode))?;
+        file.sync_all()
+    })
+    .map_err(|why| match why {
         UnpackError::Input(why) => file_error(archive, &why),
         UnpackError::Output(why) => file_error(part, &why),
-    })?;
+    })
+}
+
+fn unpack_with<W: Write>(
+    input: impl Read,
+    output: &mut W,
+    bound: u64,
+    seal: impl FnOnce(&W, u32) -> io::Result<()>,
+) -> Result<Unpacked, UnpackError> {
+    let unpacked = decode_zstd(input, output, bound)?;
     if let Unpacked::File { .. } = unpacked {
-        output.set_permissions(fs::Permissions::from_mode(0o755)).map_err(|why| file_error(part, &why))?;
-        output.sync_all().map_err(|why| file_error(part, &why))?;
+        seal(output, 0o755).map_err(UnpackError::Output)?;
     }
     Ok(unpacked)
 }
 
-#[derive(Debug)]
-enum UnpackError {
-    Input(io::Error),
-    Output(io::Error),
-}
-
-fn decode_gzip(input: impl io::BufRead, output: &mut impl Write, bound: u64) -> Result<Unpacked, UnpackError> {
-    let mut decoder = flate2::bufread::GzDecoder::new(input);
-    let mut hash = Sha256::new();
-    let mut total = 0_u64;
-    let mut buffer = [0; 16_384];
-    loop {
-        let Ok(n) = decoder.read(&mut buffer) else { return Ok(Unpacked::Invalid) };
-        if n == 0 {
-            break;
-        }
-        let n64 = u64::try_from(n).expect("chunk fits u64");
-        if n64 > bound.saturating_sub(total) {
-            return Ok(Unpacked::TooLong);
-        }
-        total += n64;
-        output.write_all(&buffer[..n]).map_err(UnpackError::Output)?;
-        hash.update(&buffer[..n]);
-    }
-    // A single member is allowed. Zero padding is allowed; another member is not.
-    let mut rest = decoder.into_inner();
-    loop {
-        let n = rest.read(&mut buffer).map_err(UnpackError::Input)?;
-        if n == 0 {
-            break;
-        }
-        if buffer[..n].iter().any(|b| *b != 0) {
-            return Ok(Unpacked::Invalid);
-        }
-    }
-    Ok(Unpacked::File { digest: hash.finish(), bytes: total })
-}
 fn write_sum(file: &Path, digest: &[u8; 32]) -> Result<(), Failed> {
     let part = suffix(file, ".sha256.part");
     let mut output = open(&part)?;
@@ -284,7 +262,7 @@ fn publish(file: &Path) -> Result<(), Failed> {
     fs::rename(suffix(file, ".part"), file).map_err(|why| file_error(file, &why))?;
     let parent = file.parent().expect("cache file has a parent");
     fs::File::open(parent).and_then(|dir| dir.sync_all()).map_err(|why| file_error(parent, &why))?;
-    remove(&suffix(file, ".gz.part"))
+    remove(&suffix(file, ".zst.part"))
 }
 fn transport(event: temper_fetch::fetch::Event) -> Event {
     match event {
@@ -317,11 +295,11 @@ fn hand(find: &Find<'_>) -> String {
     let platform = platform();
     let url = temper_fetch::fetch::url(
         find.site,
-        format!("/temper/v{major}/{}/{platform}/temper-box", find.commit).as_bytes(),
+        format!("/temper/v{major}/{}/{platform}/temper-box.zst", find.commit).as_bytes(),
     );
     let destination = quote(&find.beside.join("temper-box"));
     format!(
-        "Fetch it by hand: curl -fL {} | gunzip > {destination} && chmod +x {destination}",
+        "Fetch it by hand: curl -fL {} | zstd -dc > {destination} && chmod +x {destination}",
         String::from_utf8_lossy(&url)
     )
 }
