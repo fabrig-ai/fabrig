@@ -50,6 +50,7 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
         selections: encode_selections(&row.closer.selections),
         done: row.done,
         relay: encode_relay(&row.relay),
+        superseded: List::from_boxed(row.superseded.clone()),
     }
 }
 pub(super) fn decode(row: w::Closer) -> CloserRow {
@@ -67,6 +68,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         selections,
         done,
         relay,
+        superseded,
     } = row;
     let closed = match closed {
         Some(tasks) => Some(tasks.tasks.into_boxed()),
@@ -97,6 +99,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         },
         making,
         close_changes: close_changes.into_boxed(),
+        superseded: superseded.into_boxed(),
         landing_changes: landing_changes.into_boxed(),
         relay: decode_relay(relay),
         done,

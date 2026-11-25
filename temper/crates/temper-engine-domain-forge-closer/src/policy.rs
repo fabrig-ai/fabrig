@@ -39,6 +39,7 @@ impl Closer {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Child {
     Pending,
+    Idle { held: bool },
     Done,
     Ended { branch: bool },
 }
@@ -64,6 +65,8 @@ pub enum Decision {
     Check,
     Wait,
     Make(Step),
+    Supersede { change: u64 },
+    Wake { change: u64 },
     Report,
     Hold(Hold),
 }
@@ -103,6 +106,19 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
                 }
                 return Stepped { closer, decision: Decision::Wait };
             }
+            Child::Idle { held } => {
+                let decision = if facts.pending || running.step != Step::Close {
+                    Decision::Wait
+                } else if closer.closed.as_deref() != Some(facts.landed.as_ref()) {
+                    closer.running = None;
+                    Decision::Supersede { change: running.change }
+                } else if held {
+                    Decision::Wait
+                } else {
+                    Decision::Wake { change: running.change }
+                };
+                return Stepped { closer, decision };
+            }
             Child::Ended { branch } => match running.step {
                 Step::Close => {
                     let decision = ended_step(&mut closer, facts, running, branch);
@@ -123,7 +139,7 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         Decision::Make(Step::Close)
     } else if let Some(change) = closer.landing {
         match facts.landing_child {
-            Child::Pending => Decision::Wait,
+            Child::Pending | Child::Idle { .. } => Decision::Wait,
             Child::Ended { branch } => match ended_landing(&mut closer, facts, change, branch) {
                 Some(decision) => decision,
                 None => land(facts),
@@ -166,7 +182,12 @@ fn retry_step(closer: &mut Closer, facts: &Facts, kind: Step) -> Decision {
     };
     match decision {
         Decision::Check => {}
-        Decision::Make(Step::Close | Step::Land) | Decision::Report | Decision::Wait | Decision::Hold(_) => {
+        Decision::Make(Step::Close | Step::Land)
+        | Decision::Supersede { .. }
+        | Decision::Wake { .. }
+        | Decision::Report
+        | Decision::Wait
+        | Decision::Hold(_) => {
             closer.retry = None;
         }
     }
@@ -197,7 +218,11 @@ fn ended_landing(closer: &mut Closer, facts: &Facts, change: u64, branch: bool) 
             closer.landing = None;
             None
         }
-        Decision::Make(Step::Close) | Decision::Wait | Decision::Hold(_) => {
+        Decision::Make(Step::Close)
+        | Decision::Supersede { .. }
+        | Decision::Wake { .. }
+        | Decision::Wait
+        | Decision::Hold(_) => {
             unreachable!("containment reports, lands or asks a fresh read")
         }
     }

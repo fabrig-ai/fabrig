@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1162378719 decoded=1162673632; at_most(3) encoded=3006 decoded=2010
+ChangeHot: ceilings encoded=1162378784 decoded=1162673632; at_most(3) encoded=3071 decoded=2010
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
 ChangeSource: ceilings encoded=4133 decoded=4096; at_most(3) encoded=40 decoded=3
@@ -71,7 +71,8 @@ ClassItem: ceilings encoded=127 decoded=120; at_most(3) encoded=10 decoded=3
 ClassSubject: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 ClientRow: ceilings encoded=10555703 decoded=11014688; at_most(3) encoded=480 decoded=733
 ClientValue: ceilings encoded=10555703 decoded=11014688; at_most(3) encoded=480 decoded=733
-Closer: ceilings encoded=3223881840 decoded=3224010752; at_most(3) encoded=1003 decoded=1209
+CloseAt: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
+Closer: ceilings encoded=3223890036 decoded=3224018944; at_most(3) encoded=1031 decoded=1233
 ClosingAsked: ceilings encoded=1048589 decoded=1048576; at_most(3) encoded=16 decoded=3
 ClosingForm: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 ClosingJobs: ceilings encoded=424 decoded=448; at_most(3) encoded=164 decoded=168
@@ -485,7 +486,7 @@ Review: ceilings encoded=2097228 decoded=2097152; at_most(3) encoded=82 decoded=
 ReviewsAnswer: ceilings encoded=2097158 decoded=2097152; at_most(3) encoded=9 decoded=3
 Role: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Route: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Row: ceilings encoded=3223881843 decoded=3224010752; at_most(3) encoded=3649 decoded=6518
+Row: ceilings encoded=3223890039 decoded=3224018944; at_most(3) encoded=3649 decoded=6518
 RuleApproval: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 RuleGate: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 RulePattern: ceilings encoded=69641 decoded=69632; at_most(3) encoded=15 decoded=6
@@ -563,7 +564,7 @@ UpdateCondition: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
 UpdateStyle: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 UpdateWrite: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Updating: ceilings encoded=72 decoded=0; at_most(3) encoded=72 decoded=0
-Value: ceilings encoded=3223881841 decoded=3224010752; at_most(3) encoded=3647 decoded=6518
+Value: ceilings encoded=3223890037 decoded=3224018944; at_most(3) encoded=3647 decoded=6518
 Verdict: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 VerdictFiling: ceilings encoded=473354 decoded=710608; at_most(3) encoded=436 decoded=624
 Verification: ceilings encoded=34213838 decoded=34608640; at_most(3) encoded=421 decoded=636
@@ -575,4 +576,4 @@ Welcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 What: ceilings encoded=65541 decoded=65536; at_most(3) encoded=9 decoded=3
 Write: ceilings encoded=10492754 decoded=10492981; at_most(3) encoded=74 decoded=120
 Writer: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
-family: ceilings encoded=3223881843 decoded=3224010752; at_most(3) encoded=3649 decoded=6518
+family: ceilings encoded=3223890039 decoded=3224018944; at_most(3) encoded=3649 decoded=6518

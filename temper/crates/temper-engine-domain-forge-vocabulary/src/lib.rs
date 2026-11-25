@@ -870,6 +870,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             };
             let mut total = closed
                 .checked_add(skein_lib::len_u64(row.close_changes.len()))?
+                .checked_add(skein_lib::len_u64(row.superseded.len()))?
                 .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
                 .checked_mul(8)?
                 .checked_add(skein_lib::len_u64(row.closer.selections.len()).checked_mul(

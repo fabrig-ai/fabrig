@@ -190,6 +190,7 @@ fn an_emitted_wait_is_owed_to_the_scripted_root() {
         entry: 100,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

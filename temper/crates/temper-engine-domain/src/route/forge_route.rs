@@ -73,7 +73,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
 pub(crate) mod delegate_record;
-pub(crate) use close::{made as close_made, saved as close_saved};
 mod merge;
 pub(crate) mod prepare;
 
@@ -1991,6 +1990,7 @@ pub(super) fn start_recovered_change(
                 questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
+                close_at: None,
                 report: Box::new([]),
                 repairs,
                 follows,
@@ -2126,6 +2126,20 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     }
 }
 
+fn closer_waiting(domain: &Domain, task: u64) -> bool {
+    let Some(change) = domain.forge.change(task) else { return false };
+    if change.close.is_none() {
+        return false;
+    }
+    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let tasks::Party::Task(closer) = row.requester else { return false };
+    domain.forge.closer(closer).is_some()
+        && match domain.core.tasks.task(closer) {
+            Some(row) => !row.waiting_on.is_empty(),
+            None => false,
+        }
+}
+
 // Both a due procedure and a CI hold read the same coherent snapshot (domain/forge/change/repairs.md).
 fn change_step(
     domain: &Domain,
@@ -2158,6 +2172,7 @@ fn change_step(
             flake: false,
             no_test: false,
             delegate_live: change_delegate_live(domain, task),
+            closer_waiting: closer_waiting(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
             // The forge consumes a person's release before starting asynchronous reads.
@@ -3421,7 +3436,11 @@ fn authority_hold_message(
     Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
 }
 
-fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {
+fn producer_failure_words(
+    domain: &Domain,
+    task: u64,
+    replay: Option<forge_change::CloseAt>,
+) -> Option<(tasks::Hold, Box<[u8]>)> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
     let (category, producing) = match was.as_ref() {
@@ -3450,13 +3469,18 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
         | forge_change::State::Cleared { .. }
         | forge_change::State::Uncleared { .. } => return None,
     };
-    match &row.producer_failure {
-        Some(words) if !words.is_empty() => Some((category, words.clone())),
+    let words = match &row.producer_failure {
+        Some(words) if !words.is_empty() => words,
         Some(_) | None if producing && row.delegate_status == forge_change::Status::Failed => {
-            Some((category, Box::from(b"producer failed for good without an account".as_slice())))
+            b"producer failed for good without an account".as_slice()
         }
-        Some(_) | None => None,
-    }
+        Some(_) | None => return None,
+    };
+    let words = match replay {
+        Some(at) => close::replay_words(at, words),
+        None => Box::from(words),
+    };
+    Some((category, words))
 }
 
 fn hold_change_decision(
@@ -3465,10 +3489,11 @@ fn hold_change_decision(
     task: u64,
     why: forge_change::Hold,
     evidence: Option<&forge::ChangeEvidence>,
+    replay: Option<forge_change::CloseAt>,
 ) -> ProcedureStep {
-    // The hold keeps the delegate's account whole; its inbox notice has its own bound.
+    // The hold keeps the delegate's account; its inbox notice has its own bound.
     if why == forge_change::Hold::Failed
-        && let Some((category, words)) = producer_failure_words(domain, task)
+        && let Some((category, words)) = producer_failure_words(domain, task, replay)
     {
         return holds::decision_as(domain, env, task, category, words);
     }
@@ -3686,6 +3711,13 @@ fn wait_change_decision(
     until: Option<skein_lib::Wall>,
 ) -> ProcedureStep {
     let row = domain.forge.change(task).expect("waiting change");
+    if until.is_none()
+        && row.change.state == (forge_change::State::Producing { requested: false })
+        && closer_waiting(domain, task)
+    {
+        // The closer wakes it when its work ends without landing.
+        return ProcedureStep::new(StepEnd::Wait);
+    }
     if row.change.way == forge_change::Way::Turn
         && let forge_change::State::Ready { .. } = row.change.state
     {
@@ -3782,8 +3814,9 @@ fn delegate_change_step(
     step: u64,
     connector: u16,
     code: u32,
-    kind: forge_change::Delegate,
+    offer: (forge_change::Delegate, Option<forge_change::CloseAt>),
 ) {
+    let (kind, _) = offer;
     if relay::continuing_asker(domain, task, kind) {
         let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
@@ -3813,13 +3846,13 @@ fn delegate_change_step(
         return;
     };
     if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
-        pending.delegate = Some(kind);
+        pending.delegate = Some(offer);
     } else {
         domain
             .forge_delegating
             .insert(
                 (task, step),
-                ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false, passing: None },
+                ChangeStep { delegate: Some(offer), relayed: None, refusal: None, released: false, passing: None },
             )
             .expect("one forge procedure delegate");
     }
@@ -3904,7 +3937,7 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
-    change_decision_from_read(domain, env, task, choice, None);
+    change_decision_from_read(domain, env, task, choice, None, None);
 }
 
 fn change_decision_from_read(
@@ -3913,19 +3946,28 @@ fn change_decision_from_read(
     task: u64,
     mut choice: forge_change::Decision,
     evidence: Option<&forge::ChangeEvidence>,
+    close_at: Option<forge_change::CloseAt>,
 ) {
     if choice == forge_change::Decision::None
         && let Some(why) = change_rehold(domain, task)
     {
         choice = forge_change::Decision::Hold(why);
     }
+    let cancel_close = if choice == forge_change::Decision::Hold(forge_change::Hold::Failed) {
+        close::retire_on_hold(domain, task)
+    } else {
+        None
+    };
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
                 // The row's hold reaches its task even after another step has parked it.
-                let end = hold_change_decision(domain, env, task, why, evidence).end;
+                let end = hold_change_decision(domain, env, task, why, evidence, close_at).end;
                 domain.work.push(Work::Tasks(change_hold_event(task, &end)));
+                if let Some(cancel) = cancel_close {
+                    close::cancel(domain, task, cancel);
+                }
             } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
@@ -3956,7 +3998,7 @@ fn change_decision_from_read(
             };
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::NoChange { words: words.clone() }))
         }
-        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence),
+        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence, close_at),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
@@ -3979,13 +4021,16 @@ fn change_decision_from_read(
         forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            delegate_change_step(domain, env, task, step, connector, code, kind);
+            delegate_change_step(domain, env, task, step, connector, code, (kind, close_at));
             return;
         }
     };
     let hold =
         if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
-    let decision = append_change_replies(domain, env, task, decision);
+    let mut decision = append_change_replies(domain, env, task, decision);
+    if let Some(cancel) = cancel_close {
+        decision.cancels = Box::new([cancel]);
+    }
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
     // The Words copy goes first if admitted. A refused or stale step cannot lose
     // the hold; jig ignores an identical hold already admitted by that step.
@@ -4759,6 +4804,14 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                 }
             }
+            forge::Request::CloseDecision { task, at, replay } => {
+                let choice = if replay {
+                    forge_change::Decision::Hold(forge_change::Hold::Failed)
+                } else {
+                    forge_change::Decision::Delegate(forge_change::Delegate::Close)
+                };
+                change_decision_from_read(domain, env, task, choice, None, Some(at));
+            }
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
                     if let Some(entry) = entry
@@ -4853,7 +4906,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
                 | forge_change::Decision::Hold(_) => {
-                    change_decision_from_read(domain, env, task, choice, evidence.as_ref());
+                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None);
                 }
                 forge_change::Decision::Cancel => cancel_change(domain, task),
                 forge_change::Decision::EndHold => end_change_hold(domain, task),
