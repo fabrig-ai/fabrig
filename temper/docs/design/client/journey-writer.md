@@ -624,7 +624,10 @@ entry is in its root's page: the TUI's for a name starting `tui-`
   L, the `Look-landed` commit it checks, `data-look-tip` TIP, the print
   it rendered against, and `data-look-result`, `look-render`'s result
   (6.2) or `not checked`. Each value is a name or a whole hash, so none
-  needs escaping. Within it, in order:
+  needs escaping. Where `origin` lacks `docs/look/NAME`, C is the null
+  hash, zeroes at TIP's width, and the paragraph says the branch is
+  missing; a branch holding no readable request gives its tip. Within
+  it, in order:
   - an `h2`, NAME;
   - a paragraph naming C, L, TIP and the result;
   - for each page, a link to the print's page by its path from the
