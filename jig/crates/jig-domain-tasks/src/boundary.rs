@@ -1213,6 +1213,8 @@ pub struct TaskRecord {
     pub activation_open: bool,
     /// The live closer's task number (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     pub closer: Option<u64>,
+    /// The live closer-ended task’s most recent judged finish.
+    pub parked_result: Option<TaskResult>,
     /// Why this activation runs (jig/docs/design/domain/tasks/messages.md, 6).
     pub reasons: crate::Reasons,
     /// The kinds the claimed attempt is offered (jig/docs/design/domain/tasks/messages.md, 6).
@@ -2020,6 +2022,7 @@ pub enum Event {
     DelegateResult {
         task: u64,
         word: Word,
+        wake: bool,
     },
     /// Root verified a newly named retained input against its ended store row.
     RememberStub {
@@ -2573,6 +2576,8 @@ pub enum Request {
         requester: Party,
         /** Bounded final result/reason; emitted with ended/funder writes in one root decision. */
         ending: Ending,
+        /** Whether the delegate result can wake the requester as usual. */
+        wake: bool,
     },
     /// Owned persistence output for the parent's current atomic decision.
     Save {

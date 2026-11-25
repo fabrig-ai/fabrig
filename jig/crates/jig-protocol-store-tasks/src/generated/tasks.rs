@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0x0c, 0x7e, 0x53, 0x21, 0xb5, 0x4e, 0x5a, 0x33, 0xca, 0x26, 0xc6, 0x39, 0x57, 0xee, 0x87, 0x35, 0xc7, 0xa1, 0x15,
-    0x3f, 0x3f, 0x98, 0xc6, 0x52, 0xd4, 0x51, 0x5e, 0x62, 0x91, 0x8f, 0x2d, 0x94,
+    0x0e, 0x48, 0xf0, 0x86, 0x73, 0x71, 0xc3, 0xaa, 0xf0, 0x55, 0x4c, 0x67, 0x58, 0x99, 0x1f, 0x4c, 0x4b, 0xfc, 0x58,
+    0x5c, 0x6c, 0xd4, 0xd4, 0xd0, 0xe8, 0x50, 0xc7, 0xf4, 0x86, 0xde, 0x7c, 0xb7,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -1594,6 +1594,7 @@ pub mod paths {
     pub const LIVE_HOT_CONCLUDED: Path = Path::new("LiveHot.concluded");
     pub const LIVE_HOT_WORDS_WOKEN: Path = Path::new("LiveHot.words_woken");
     pub const LIVE_HOT_HELD_SINCE: Path = Path::new("LiveHot.held_since");
+    pub const LIVE_HOT_PARKED_RESULT: Path = Path::new("LiveHot.parked_result");
     pub const LIVE_HOT_TAIL: Path = Path::new("LiveHot (tail)");
     pub const LIVE_COLD_SPEC: Path = Path::new("LiveCold.spec");
     pub const LIVE_COLD_CONTRACT: Path = Path::new("LiveCold.contract");
@@ -18077,6 +18078,7 @@ pub struct LiveHot {
     pub concluded: Option<Concluded>,
     pub words_woken: u64,
     pub held_since: Option<u64>,
+    pub parked_result: Option<TaskResult>,
 }
 
 // Record: LiveHot.
@@ -18103,11 +18105,13 @@ impl LiveHot {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 19 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 18, 20] },
+        skein_codec::bounds::Node::Named("TaskResult"),
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 18, 20, 22] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1279;
+    pub const ENCODED_AT_ZERO: u64 = 1301;
 }
 
 impl Record for LiveHot {
@@ -18147,6 +18151,7 @@ impl Record for LiveHot {
         field::write(field::Optional { item: field::Nested }, &self.concluded, limits, out, paths::LIVE_HOT_CONCLUDED)?;
         field::write(field::U64, &self.words_woken, limits, out, paths::LIVE_HOT_WORDS_WOKEN)?;
         field::write(field::Optional { item: field::U64 }, &self.held_since, limits, out, paths::LIVE_HOT_HELD_SINCE)?;
+        field::write(field::Optional { item: field::Nested }, &self.parked_result, limits, out, paths::LIVE_HOT_PARKED_RESULT)?;
         Ok(())
     }
 
@@ -18167,6 +18172,7 @@ impl Record for LiveHot {
             concluded: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LIVE_HOT_CONCLUDED)?,
             words_woken: field::read(field::U64, limits, reader, paths::LIVE_HOT_WORDS_WOKEN)?,
             held_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LIVE_HOT_HELD_SINCE)?,
+            parked_result: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LIVE_HOT_PARKED_RESULT)?,
         })
     }
 }

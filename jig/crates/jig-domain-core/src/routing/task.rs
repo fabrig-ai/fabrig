@@ -478,8 +478,8 @@ fn tag_tasks(
         tasks::Request::TurnAcknowledged { reply_to, task, attempt, turn, accepted } => {
             terminals::turn_acknowledged(reply_to, task, attempt, turn, accepted, out);
         }
-        tasks::Request::Ended { task, requester, ending } => {
-            lifecycle::ended(core, env, task, requester, ending, pending, out);
+        tasks::Request::Ended { task, requester, ending, wake } => {
+            lifecycle::ended(core, env, task, (requester, wake), ending, pending, out);
         }
         tasks::Request::Refused { reply_to, problem } => refused::refused(core, env, reply_to, problem, pending, out),
         tasks::Request::PersonStallDue { task } => notices::person_stall_due(core, env, task, pending),

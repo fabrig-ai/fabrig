@@ -536,7 +536,7 @@ impl Domain {
         let record = record(self, task)?;
         let made_below = record.made.checked_sub(1)?;
         let tasks_left = record.authority.delegation.tasks.checked_sub(made_below)?;
-        let deciding = !crate::run::ends::pending(&[], record.flags.ended_by).open
+        let deciding = !crate::run::ends::pending(&[], record.flags.ended_by).open()
             && !crate::run::ends::kept(self, task).blocks_claims()
             && match record.phase {
                 Phase::Waiting | Phase::Active(_) => match record.executor {
@@ -840,8 +840,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::AuthorizedMessage { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
-        Event::DelegateResult { task, word } => {
-            crate::inbox::delegate_result(domain, env, task, word, out);
+        Event::DelegateResult { task, word, wake } => {
+            crate::inbox::delegate_result(domain, env, task, word, wake, out);
             crate::recurring::after_delegate(domain, env, task, out);
             crate::gathering::settle(domain, env, task, out);
         }
@@ -1706,6 +1706,7 @@ pub(crate) fn make_admitted(
             talk: None,
             activation_open: false,
             closer: None,
+            parked_result: None,
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,
             asked_requester: false,
