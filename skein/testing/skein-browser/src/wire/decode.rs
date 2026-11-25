@@ -12,6 +12,7 @@ use skein_lib::List;
 /// A malformed or overlong CDP document.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DecodeError {
+    MissingNul,
     TooLong,
     TooDeep,
     Syntax,
@@ -33,7 +34,14 @@ impl Document {
 
     /// Take the pipe's scan delivery without copying it. The index excludes NUL.
     pub(crate) fn from_frame(bytes: Box<[u8]>, limit: u32) -> Result<Document, DecodeError> {
-        let Some(json) = bytes.strip_suffix(b"\0") else { return Err(DecodeError::Syntax) };
+        let Some(json) = bytes.strip_suffix(b"\0") else {
+            // A scan fills up at limit + 1 when the message cannot fit.
+            return Err(if bytes.len() > usize::try_from(limit).expect("message limit fits usize") {
+                DecodeError::TooLong
+            } else {
+                DecodeError::MissingNul
+            });
+        };
         let entries = index(json, limit)?;
         Ok(Document { bytes, entries })
     }

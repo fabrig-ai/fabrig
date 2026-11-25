@@ -183,6 +183,7 @@ pub enum Event {
     Exited { process: Process, code: i32, stdout: Box<[u8]>, stderr: Box<[u8]> },
     Found(Option<NodeId>),
     FaceDone(Result<(), String>),
+    BrowserFailed { why: String, stderr: Box<[u8]> },
     PageTrouble { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
     PageSent { id: Box<[u8]>, load: Box<[u8]>, document: bool, method: Box<[u8]>, url: Box<[u8]> },
     PageAnswered { id: Box<[u8]> },
@@ -254,6 +255,7 @@ pub struct Machine {
     return_address: Option<Box<[u8]>>,
     tui_browse: Option<Box<[u8]>>,
     mark_widths: std::collections::VecDeque<u32>,
+    browser_stderr: Option<Box<[u8]>>,
 }
 impl Machine {
     #[must_use]
@@ -282,6 +284,7 @@ impl Machine {
                 return_address: None,
                 tui_browse: None,
                 mark_widths: std::collections::VecDeque::new(),
+                browser_stderr: None,
             },
             vec![action],
         )
@@ -301,7 +304,12 @@ impl Machine {
         let mut out = vec![];
         if let Some(progress) = self.place.event(
             &event,
-            place::Activity { phase: self.phase, busy: self.current.is_some(), tui_running: self.tui_running },
+            place::Activity {
+                phase: self.phase,
+                busy: self.current.is_some(),
+                tui_running: self.tui_running,
+                browser_lost: self.browser_stderr.is_some(),
+            },
             &self.plan,
             now,
             &mut out,
@@ -337,6 +345,13 @@ impl Machine {
             }
             Event::Found(node) => self.found(node, now, &mut out),
             Event::FaceDone(result) => self.face_done(result, now, &mut out),
+            Event::BrowserFailed { why, stderr } => {
+                if self.phase != Phase::Finished && self.browser_stderr.is_none() {
+                    self.browser_stderr = Some(stderr);
+                    self.place.browser_failed(why);
+                    self.end(now, &mut out);
+                }
+            }
             Event::PageTrouble { trouble, text, url } => self.page_trouble(trouble, &text, &url, now, &mut out),
             Event::PageSent { id, load, document, method, url } => {
                 self.requests.sent(id, &load, document, method, &url, now);
@@ -868,10 +883,15 @@ impl Machine {
             Progress::Finished(exit) => self.finish(exit, out),
         }
     }
-    fn finish(&mut self, exit: Exit, out: &mut Vec<Action>) {
+    fn finish(&mut self, mut exit: Exit, out: &mut Vec<Action>) {
         self.phase = Phase::Finished;
         self.until = None;
         self.poll = None;
+        if exit.status == 4
+            && let Some(stderr) = self.browser_stderr.take()
+        {
+            place::append_tail(&mut exit.shown, stderr.split_inclusive(|byte| *byte == b'\n'));
+        }
         out.push(Action::Finished(exit));
     }
 }
