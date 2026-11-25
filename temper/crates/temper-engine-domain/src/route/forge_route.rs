@@ -1934,12 +1934,14 @@ pub(super) fn start_recovered_change(
                 },
                 priority,
                 ci: None,
+                asks: Box::new([]),
+                handed: 0,
+                previous: None,
                 change: forge_change::Change {
                     ended_held: None,
                     early: forge_change::Early::None,
-                    landing_ask: None,
                     way: forge_change::Way::Queue,
-                    landing: None,
+
                     task,
                     state: if source.is_some() {
                         forge_change::State::Taking { requested: false }
@@ -3701,11 +3703,7 @@ fn change_result_bound(domain: &Domain, task: u64) -> u32 {
 fn ready_change(domain: &mut Domain, _env: &Env<Limits>, task: u64) -> bool {
     let row = domain.forge.change(task).expect("ready change");
     let again = row.change.way == forge_change::Way::Queue;
-    let landing = match domain.forge.change(task) {
-        Some(row) => row.change.landing,
-        None => None,
-    };
-    if let Some(landing) = landing {
+    if let Some(landing) = domain.forge.landing_of(task) {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: landing }));
     }
     again
@@ -4083,6 +4081,12 @@ pub(crate) fn outputs(
                 super::kinds::history_answer(domain, env, decision, read, answer);
             }
             forge::Request::LandingRead(note) => super::diagnostics::emit(domain, crate::Fact::LandingRead(note)),
+            forge::Request::LinkDisagreed { change, named, landing } => {
+                super::diagnostics::emit(domain, crate::Fact::LinkDisagreed { change, named, landing });
+            }
+            forge::Request::ConversionAskDropped { change, landing, kind } => {
+                super::diagnostics::emit(domain, crate::Fact::ConversionAskDropped { change, landing, kind });
+            }
             forge::Request::LandingUnmade { task, repository, branch, changes } => {
                 super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
             }
@@ -4407,6 +4411,7 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::LandingNews { task, member, step } => landing_route::tell(domain, env, task, member, step),
+            forge::Request::AskDropped { change, words } => landing_route::tell_change(domain, env, change, &words),
             forge::Request::FileRedFinding { task, follow, mut finding } => {
                 if let Some(follow) = follow {
                     finding.area = super::findings::follow_area(domain, finding.project, follow);

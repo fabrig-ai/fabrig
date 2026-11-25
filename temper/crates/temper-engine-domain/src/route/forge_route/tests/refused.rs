@@ -39,9 +39,9 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
         .work
         .push(super::super::Work::Forge(forge::Event::Restore { record: forge::Stored::Change(Box::new(other)) }));
     super::judge_trains(&mut domain, &env);
-    let beside = domain.forge.change(8).unwrap().change.landing.expect("the other train forms meanwhile");
+    let beside = domain.forge.landing_of(8).expect("the other train forms meanwhile");
     assert_eq!(domain.forge.landing(beside).unwrap().landing.branch.as_ref(), b"goal");
-    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+    assert_eq!(domain.forge.landing_of(7), None);
     assert_eq!(
         domain.core.counters.deployment.tasks,
         refusal.checked_add(1).expect("one landing beside the refused train")
@@ -49,7 +49,7 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
 
     env.wall = Wall::from_nanos(until.as_nanos().checked_sub(1).expect("one nanosecond before expiry"));
     super::judge_trains(&mut domain, &env);
-    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+    assert_eq!(domain.forge.landing_of(7), None);
     assert_eq!(
         domain.core.counters.deployment.tasks,
         refusal.checked_add(1).expect("one landing beside the refused train"),
@@ -57,7 +57,7 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
     );
     env.wall = until;
     super::judge_trains(&mut domain, &env);
-    let formed = domain.forge.change(7).unwrap().change.landing.expect("first judgement at expiry forms");
+    let formed = domain.forge.landing_of(7).expect("first judgement at expiry forms");
     assert_ne!(formed, beside);
     assert!(domain.core.tasks.task(formed).is_some());
     assert_eq!(landing_route::refusal_deadline(&domain, &env), None);
@@ -82,7 +82,7 @@ fn a_refused_train_logs_only_changed_reasons_until_it_forms() {
     env.limits.tasks.project_tasks = tasks.project_tasks;
     advance_window(&mut env);
     super::judge_trains(&mut domain, &env);
-    let made = domain.forge.change(7).unwrap().change.landing.expect("a successful forming resets the reason");
+    let made = domain.forge.landing_of(7).expect("a successful forming resets the reason");
     assert!(domain.core.tasks.task(made).is_some());
     // End the train without waking its member's procedure: it remains ready for this judgement.
     forge::step(

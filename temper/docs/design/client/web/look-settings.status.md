@@ -4,7 +4,7 @@
 
 - **Not yet:** *An account's row*, *Usage*: the `usage-model-week`
   request's rendered comparison follows landing on main, by the check
-  after landing (`../../draft/look-loop.md`, 5.2), which the
+  after landing (`../../draft/archive/look-loop.md`, 5.2), which the
   `Look-landed: usage-model-week` of the commit carrying its account
   names: its hand-made
   `journeys/usage-model-week/` pages on its own commit, under its

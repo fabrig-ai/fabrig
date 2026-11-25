@@ -298,6 +298,16 @@ pub enum Fact {
         changes: Box<[u64]>,
     },
     LandingRead(temper_engine_domain_forge::LandingReadNote),
+    LinkDisagreed {
+        change: u64,
+        named: u64,
+        landing: Option<u64>,
+    },
+    ConversionAskDropped {
+        change: u64,
+        landing: u64,
+        kind: &'static str,
+    },
     /// Start's Link repairs (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,
@@ -968,6 +978,18 @@ impl WorkspacePreparation {
 pub(crate) struct PreparedWorkspace {
     pub(crate) workspace: forge_route::RunWorkspace,
     pub(crate) claim_names: Box<[forge::Name]>,
+}
+
+/// A claimed job's workspace items, kept for every offer of its attempt: a
+/// worker that answers busy has the same attempt placed again (jig's
+/// `domain/engine/executors.md`, 5). They go when the attempt answers or its
+/// assignment is dropped, as the link's job does.
+#[derive(Hash, Debug)]
+pub(crate) struct JobWorkspace {
+    pub(crate) attempt: u64,
+    pub(crate) workspace: ForgeWorkspace,
+    /// Offered to a worker at least once, so it awaits a worker's answer.
+    pub(crate) offered: bool,
 }
 
 pub(crate) use jig_domain_hub_link::Payload;

@@ -260,7 +260,7 @@ pub(super) fn landing() -> d::Stored {
         follows: None,
         flake_reruns: Box::new([]),
         job: None,
-        asks: Box::new([]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
         landing: l::Landing {
             last_left: None,

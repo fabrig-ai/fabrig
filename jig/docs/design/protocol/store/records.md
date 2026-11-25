@@ -78,8 +78,10 @@ follow from the limits that bound each kind (4).
   families, and a template's in the settings family: `EndedBy`'s
   `closer`, a record of the procedure's connector (`u16`) and code
   (`u32`), beside `result`, `requester` and `standing`; and a live task's closer, its
-  number, in the tasks family (`../../domain/tasks/lifecycle-endings.md`, 3). Each family
-  carries them in its registered layout (`layouts.md`, 1).
+  number, and its parked result, `parked_result: option TaskResult = none` on the live
+  record's changing part (`parts.md`, 2), in the tasks family (`../../domain/tasks/lifecycle-endings.md`, 3). Each family
+  carries them in its registered layout (`layouts.md`, 1), a row stored
+  before reading as none.
 - **Standing task forms** (`../../domain/tasks/standing.md`, section 7) keep
   `TaskRecord.activation_open: bool` and `TaskRecord.session: Option<Session>`, with `Session { first: u64,
   reasons: u32, last: u64 }`: the first attempt, the choosing reason bits

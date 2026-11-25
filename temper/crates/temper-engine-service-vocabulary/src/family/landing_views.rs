@@ -120,6 +120,7 @@ pub(super) fn hold(
                 };
                 w::LandingHold::Read(w::HeldRead { reason })
             }
+            forge::LandingHold::Claimed { .. } => return None,
         })
     }?;
     value.measure(limits).ok()?;

@@ -80,7 +80,7 @@ impl Domain {
                     eligible = false;
                     continue;
                 };
-                eligible &= super::landing::waiting(row) && !kept.contains(member);
+                eligible &= super::landing::waiting(self, row) && !kept.contains(member);
                 refused |= row.repository != repository;
             }
             if eligible {
@@ -139,14 +139,9 @@ impl Domain {
     pub fn landing_step_due(&self, task: u64) -> bool {
         let Some(change) = self.change(task) else { return false };
         if let change::State::Ready { .. } = change.change.state
-            && let Some(task) = change.change.landing
-            && let Some(row) = self.landing(task)
+            && let Some(change::Handed { ask: change::Ask::Landed { .. }, .. }) = crate::landing::members::head(change)
         {
-            for member in &row.landing.members {
-                if member.change == change.task {
-                    return member.landed.is_some();
-                }
-            }
+            return true;
         }
         false
     }
@@ -225,7 +220,7 @@ impl Domain {
             skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
         for change in self.changes_for(repository, limit) {
             if let Some(row) = self.change(change)
-                && row.change.landing.is_none()
+                && self.landing_of(change).is_none()
                 && let change::State::Ready { .. } = row.change.state
                 && row.base == landing.landing.branch
             {

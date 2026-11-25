@@ -535,6 +535,7 @@ fn a_registered_person_wait_opens_with_its_offer_or_the_older_default() {
             })
             .expect("restored person task");
         assert_eq!(row.person_wait, Some(wait));
+        assert_eq!(row.parked_result, None);
     }
 }
 

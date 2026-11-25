@@ -1065,6 +1065,13 @@ pub struct ChangeSource {
     pub at: Option<skein_forge::api::Commit>,
 }
 
+/// A change's previous-build landing link and handed-over ask, kept for conversion.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PreviousLink {
+    pub landing: Option<u64>,
+    pub ask: Option<change::Ask>,
+}
+
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
@@ -1097,6 +1104,9 @@ pub struct ChangeRow {
     pub body: Box<[u8]>,
     pub priority: i32,
     pub change: change::Change,
+    pub asks: Box<[change::Handed]>,
+    pub handed: u32,
+    pub previous: Option<PreviousLink>,
     /// Last exact-head CI observation retained when the change lands or ends (domain/forge/change/panel.md, 1).
     pub ci: Option<change::Ci>,
     pub pull: Option<u64>,
@@ -1201,6 +1211,9 @@ pub struct ChangeHot {
     pub task: u64,
     pub priority: i32,
     pub change: change::Change,
+    pub asks: Box<[change::Handed]>,
+    pub handed: u32,
+    pub previous: Option<PreviousLink>,
     pub ci: Option<change::Ci>,
     pub pull: Option<u64>,
     pub pending: Option<u64>,
@@ -1260,6 +1273,9 @@ impl ChangeRow {
             body,
             priority,
             change,
+            asks,
+            handed,
+            previous,
             ci,
             pull,
             pending,
@@ -1333,6 +1349,9 @@ impl ChangeRow {
                 task,
                 priority,
                 change,
+                asks,
+                handed,
+                previous,
                 ci,
                 pull,
                 pending,
@@ -1401,6 +1420,9 @@ impl ChangeRow {
             task,
             priority,
             change,
+            asks,
+            handed,
+            previous,
             ci,
             pull,
             pending,
@@ -1451,6 +1473,9 @@ impl ChangeRow {
             body,
             priority,
             change,
+            asks,
+            handed,
+            previous,
             ci,
             pull,
             pending,
@@ -1607,7 +1632,7 @@ pub struct LandingRow {
     pub room: Option<u64>,
     pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
-    pub asks: Box<[Option<change::Ask>]>,
+    pub previous_asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
     /// Independent of the outbox; an absent list has no saved follows or marks.
     pub follows: Option<Box<[LandingFollow]>>,
@@ -3039,6 +3064,10 @@ pub enum Request {
         member: u16,
         step: LandingNews,
     },
+    AskDropped {
+        change: u64,
+        words: Box<[u8]>,
+    },
     /// Facts are gathered; the root admits the decision in its due procedure step.
     LandingReady {
         task: u64,
@@ -3365,6 +3394,17 @@ pub enum Request {
         carried: jig_domain_core_vocabulary::Carried,
     },
     LandingRead(LandingReadNote),
+    /// A stored link disagreed with the rows, or an old ask could not fit (domain/landing-members.md, 4.2).
+    LinkDisagreed {
+        change: u64,
+        named: u64,
+        landing: Option<u64>,
+    },
+    ConversionAskDropped {
+        change: u64,
+        landing: u64,
+        kind: &'static str,
+    },
     /// A taskless landing ended in Link (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,

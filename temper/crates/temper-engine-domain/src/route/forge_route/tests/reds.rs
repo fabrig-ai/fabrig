@@ -501,7 +501,9 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
     decide_report(&mut domain, &env, 20, 1, report());
     let mut row = domain.forge.change(20).unwrap().clone();
     row.change.way = change::Way::Turn;
-    row.change.landing = Some(61);
+    row.handed = 1;
+    row.asks =
+        Box::new([change::Handed { number: 1, landing: 61, round: 1, ask: change::Ask::Landed { prefix: [2; 32] } }]);
     row.change.state = change::State::Landing { head: [1; 32] };
     row.change.last_head = Some([1; 32]);
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
@@ -549,7 +551,7 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
                     leave_told: false,
                 }]),
             },
-            asks: Box::new([None]),
+            previous_asks: Box::new([]),
             entries: Box::new([]),
         }),
     );

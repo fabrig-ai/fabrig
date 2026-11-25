@@ -1,6 +1,7 @@
 use super::{commit_text, landing_words};
 use alloc::boxed::Box;
 
+mod ask_dropped;
 mod call_room;
 mod due_ready;
 mod flake;
@@ -5158,7 +5159,7 @@ fn the_root_forms_a_fresh_repositorys_train_while_another_repository_is_unread()
     let members = members.expect("the fresh train is admitted");
     assert_eq!(members.len(), 1);
     assert_eq!(members.first().unwrap().change, 8);
-    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+    assert_eq!(domain.forge.landing_of(7), None);
 }
 
 #[test]
@@ -5168,7 +5169,7 @@ fn the_root_forms_a_train_from_a_restored_change_with_a_stale_landing_link() {
     for phase in [None, Some(landing::Phase::Landed), Some(landing::Phase::Cancelled)] {
         let (mut domain, env) = train_root(false);
         let mut row = domain.forge.change(7).unwrap().clone();
-        row.change.landing = Some(99);
+        row.previous = Some(forge::PreviousLink { landing: Some(99), ask: None });
         let forge_env = super::super::environment_forge(&env);
         let event = forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) };
         forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
@@ -5181,7 +5182,7 @@ fn the_root_forms_a_train_from_a_restored_change_with_a_stale_landing_link() {
         }
         domain.forge.fit_restored(&env.limits.forge).unwrap();
         judge_trains(&mut domain, &env);
-        let formed = domain.forge.change(7).unwrap().change.landing.unwrap();
+        let formed = domain.forge.landing_of(7).unwrap();
         assert_ne!(formed, 99, "the stale member is taken again, before the later task");
         assert_eq!(domain.forge.landing(formed).unwrap().landing.members[0].change, 7);
     }
@@ -5192,8 +5193,8 @@ fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     use super::{Work, forge, tasks};
     let (mut domain, env) = train_root(false);
     judge_trains(&mut domain, &env);
-    let first = domain.forge.change(7).unwrap().change.landing.unwrap();
-    assert_eq!(domain.forge.change(8).unwrap().change.landing, None);
+    let first = domain.forge.landing_of(7).unwrap();
+    assert_eq!(domain.forge.landing_of(8), None);
     assert_eq!(domain.forge.landing(first).unwrap().landing.branch.as_ref(), b"main");
     // Cancelling the landing releases its ready member and frees the train.
     domain.work.push(Work::Forge(forge::Event::SettleEffects {
@@ -5212,7 +5213,7 @@ fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
         }),
     }));
     judge_trains(&mut domain, &env);
-    let second = domain.forge.change(8).unwrap().change.landing.unwrap();
+    let second = domain.forge.landing_of(8).unwrap();
     assert_ne!(first, second);
     assert_eq!(domain.forge.landing(first).unwrap().landing.phase, super::landing::Phase::Cancelled);
     domain.work.push(Work::Forge(forge::Event::SettleEffects {
@@ -5221,15 +5222,15 @@ fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
         ending: forge::ReleaseEnding::Cancelled,
     }));
     judge_trains(&mut domain, &env);
-    let replacement = domain.forge.change(8).unwrap().change.landing.unwrap();
+    let replacement = domain.forge.landing_of(8).unwrap();
     assert_ne!(replacement, second, "cancellation frees the train with its member still ready");
     assert_eq!(domain.forge.landing(second).unwrap().landing.phase, super::landing::Phase::Cancelled);
 
     let (mut domain, env) = train_root(false);
     domain.work.push(Work::Forge(forge::Event::Priority { task: 8, priority: -1_i32 }));
     judge_trains(&mut domain, &env);
-    assert!(domain.forge.change(8).unwrap().change.landing.is_some(), "priority is judged before forming");
-    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+    assert!(domain.forge.landing_of(8).is_some(), "priority is judged before forming");
+    assert_eq!(domain.forge.landing_of(7), None);
 }
 #[test]
 fn either_train_holds_the_units_first_change_in_dependency_order() {
@@ -5273,7 +5274,7 @@ fn a_unit_holds_its_first_dependency_and_a_release_refuses_it_again() {
     let (mut domain, env) = train_root(true);
     judge_trains(&mut domain, &env);
     for task in [7, 8] {
-        assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
+        assert_eq!(domain.forge.landing_of(task), None);
     }
     let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(8).unwrap().phase else {
         panic!("unit hold")
@@ -5291,7 +5292,7 @@ fn a_unit_holds_its_first_dependency_and_a_release_refuses_it_again() {
     judge_trains(&mut domain, &env);
     let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("held again") };
     assert!(domain.core.tasks.task(8).unwrap().revisions.hold > revision, "released, then held anew");
-    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+    assert_eq!(domain.forge.landing_of(7), None);
 }
 
 #[test]

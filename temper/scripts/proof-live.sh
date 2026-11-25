@@ -20,6 +20,10 @@ case ${1-} in
     *) printf '%s\n' 'usage: scripts/proof-live.sh [forge-land|forge-land-claude|forge-land-claude-key|rung-b0]' >&2; exit 2 ;;
 esac
 [ "$#" -le 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh [forge-land|forge-land-claude|forge-land-claude-key|rung-b0]' >&2; exit 2; }
+# Resolve paths even when the last name (a fresh story's store) is absent.
+resolved() {
+    python3 -I -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"
+}
 # The key is admitted by stat alone, never opened, read or printed.
 if [ "${1-}" = forge-land-claude-key ]; then
     [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is for forge-land' >&2; exit 2; }
@@ -48,8 +52,75 @@ if metadata.st_size == 0:
     refuse("is empty")
 PYTHON
 fi
-# The held directory is opened without following a link and listed once.
-# Only its metadata and entry names are inspected; no entry is opened.
+# Inspect only metadata, and at Claude admission list entry names once, without
+# opening any entry (temper/docs/design/testing/live-tier.md, 5).
+held_metadata() {
+    python3 -I - "$1" "$2" <<'PYTHON'
+import os
+import stat
+import sys
+
+kind, path = sys.argv[1:]
+
+def refuse(message):
+    source = "TEMPER_TEST_LIVE_CLAUDE" if kind == "claude-in" else "TEMPER_TEST_LIVE_ACCOUNT"
+    print(f"{source} {message}", file=sys.stderr)
+    sys.exit(2)
+
+def directory_identity(metadata):
+    return (metadata.st_dev, metadata.st_ino, stat.S_IMODE(metadata.st_mode), metadata.st_uid)
+
+try:
+    before = os.lstat(path)
+except OSError:
+    before = None
+
+if kind == "account-in":
+    if before is None or not stat.S_ISREG(before.st_mode):
+        refuse("names no regular file")
+    if stat.S_IMODE(before.st_mode) != 0o600:
+        refuse("is not 0600")
+    sys.exit(0)
+
+if kind == "account-back":
+    if (before is None or not stat.S_ISREG(before.st_mode) or
+            stat.S_IMODE(before.st_mode) != 0o600 or before.st_size <= 0):
+        sys.exit(1)
+    print(f"LOGIN BACK: regular file mode=600 bytes={before.st_size} owner={before.st_uid}")
+    sys.exit(0)
+
+if kind == "claude-in":
+    if before is None:
+        refuse("names no directory")
+    if not stat.S_ISDIR(before.st_mode):
+        refuse("is not a directory or is a link")
+    if stat.S_IMODE(before.st_mode) != 0o700:
+        refuse("is not 0700")
+    if before.st_uid != os.geteuid():
+        refuse("is not owned by this user")
+    name = os.path.basename(path)
+    if not 1 <= len(name) <= 32 or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in name):
+        refuse("has no valid source name (1 to 32 lowercase letters, digits or hyphens)")
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            held = os.fstat(fd)
+            if not stat.S_ISDIR(held.st_mode) or directory_identity(held) != directory_identity(before):
+                refuse("changed during admission")
+            if not os.listdir(fd):
+                refuse("is empty")
+        finally:
+            os.close(fd)
+    except OSError:
+        refuse("cannot be opened as a directory without following a link")
+    before = held
+elif before is None or not stat.S_ISDIR(before.st_mode):
+    sys.exit(1)
+
+dev, ino, mode, uid = directory_identity(before)
+print(f"{dev}:{ino}:{mode:o}:{uid}:directory")
+PYTHON
+}
 claude_identity=
 if [ "${1-}" = forge-land-claude ]; then
     [ -n "${TEMPER_TEST_LIVE_CLAUDE-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_CLAUDE is required for forge-land-claude' >&2; exit 2; }
@@ -57,45 +128,8 @@ if [ "${1-}" = forge-land-claude ]; then
     while [ "${TEMPER_TEST_LIVE_CLAUDE%/}" != "$TEMPER_TEST_LIVE_CLAUDE" ]; do
         TEMPER_TEST_LIVE_CLAUDE=${TEMPER_TEST_LIVE_CLAUDE%/}
     done
-    claude_identity=$(python3 -I - "$TEMPER_TEST_LIVE_CLAUDE" <<'PYTHON'
-import os
-import stat
-import sys
-
-def refuse(message):
-    print("TEMPER_TEST_LIVE_CLAUDE " + message, file=sys.stderr)
-    sys.exit(2)
-
-path = sys.argv[1].rstrip("/")
-try:
-    before = os.stat(path, follow_symlinks=False)
-except OSError:
-    refuse("names no directory")
-if not stat.S_ISDIR(before.st_mode):
-    refuse("is not a directory or is a link")
-if stat.S_IMODE(before.st_mode) != 0o700:
-    refuse("is not 0700")
-if before.st_uid != os.geteuid():
-    refuse("is not owned by this user")
-name = os.path.basename(path)
-if not 1 <= len(name) <= 32 or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in name):
-    refuse("has no valid source name (1 to 32 lowercase letters, digits or hyphens)")
-try:
-    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    try:
-        held = os.fstat(fd)
-        if (held.st_dev, held.st_ino, held.st_mode, held.st_uid) != (before.st_dev, before.st_ino, before.st_mode, before.st_uid):
-            refuse("changed during admission")
-        if not os.listdir(fd):
-            refuse("is empty")
-    finally:
-        os.close(fd)
-except OSError:
-    refuse("cannot be opened as a directory without following a link")
-print(f"{held.st_dev}:{held.st_ino}:{stat.S_IMODE(held.st_mode):o}:{held.st_uid}:directory")
-PYTHON
-    ) || exit 2
-    TEMPER_TEST_LIVE_CLAUDE=$(readlink -f -- "$(dirname -- "$TEMPER_TEST_LIVE_CLAUDE")")/$(basename -- "$TEMPER_TEST_LIVE_CLAUDE")
+    claude_identity=$(held_metadata claude-in "$TEMPER_TEST_LIVE_CLAUDE") || exit 2
+    TEMPER_TEST_LIVE_CLAUDE=$(resolved "$(dirname -- "$TEMPER_TEST_LIVE_CLAUDE")")/$(basename -- "$TEMPER_TEST_LIVE_CLAUDE")
     export TEMPER_TEST_LIVE_CLAUDE
 elif [ -n "${TEMPER_TEST_LIVE_CLAUDE-}" ]; then
     printf '%s\n' 'TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude' >&2
@@ -116,7 +150,7 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = fo
     else
         stores=${TEMPER_TEST_LIVE_STORE:-$HOME/src/rust/tmp/live-store}
         mkdir -p -- "$stores"
-        stores=$(readlink -f -- "$stores")
+        stores=$(resolved "$stores")
         store=$stores/$1
         export TEMPER_TEST_LIVE_STORE="$stores"
     fi
@@ -128,18 +162,14 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = fo
     fi
     store_parent=$(dirname -- "$store")
     mkdir -p -- "$store_parent"
-    store=$(readlink -f -- "$store")
+    store=$(resolved "$store")
     if [ "$rung" = true ]; then export TEMPER_TEST_LIVE_STORE="$store"; fi
     if [ -n "${TEMPER_TEST_LIVE_ACCOUNT-}" ]; then
         # A held record moved in by ctl account import (client/ctl/areas.md), which removes it.
         [ "$rerun" = false ] || { printf '%s\n' 'a held account moves into a fresh store only' >&2; exit 2; }
         # Its path goes to ctl account import alone, never into this script's words.
-        if [ -L "$TEMPER_TEST_LIVE_ACCOUNT" ] || [ ! -f "$TEMPER_TEST_LIVE_ACCOUNT" ]; then
-            printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT names no regular file' >&2
-            exit 2
-        fi
-        [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT")" = 600 ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is not 0600' >&2; exit 2; }
-        TEMPER_TEST_LIVE_ACCOUNT=$(readlink -f -- "$TEMPER_TEST_LIVE_ACCOUNT")
+        held_metadata account-in "$TEMPER_TEST_LIVE_ACCOUNT" || exit 2
+        TEMPER_TEST_LIVE_ACCOUNT=$(resolved "$TEMPER_TEST_LIVE_ACCOUNT")
         export TEMPER_TEST_LIVE_ACCOUNT
         if [ "${1-}" = forge-land ]; then held_landing=true; fi
         printf '%s\n' 'moving the held ChatGPT account in; needs no person'
@@ -150,31 +180,52 @@ elif [ -n "${TEMPER_TEST_LIVE_ACCOUNT-}" ]; then
 fi
 export NEXTEST_DOUBLE_SPAWN=0
 export TEMPER_INTERNAL_BUNDLE=${TEMPER_INTERNAL_BUNDLE:-none}
-scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live.XXXXXX")")
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/temper-live.XXXXXX")
+scratch=$(resolved "$scratch")
 # Snapshot process working directories in one process, without opening their files.
 processes_in() {
     python3 -I - "$1" "$2" <<'PYTHON'
 import os
+import subprocess
 import sys
 
+def proc_cwds():
+    try:
+        processes = os.scandir("/proc")
+    except OSError:
+        return
+    with processes:
+        for process in processes:
+            if not process.name.isdecimal():
+                continue
+            try:
+                cwd = os.readlink(process.path + "/cwd")
+            except OSError:
+                continue
+            yield process.name, cwd
+
+def lsof_cwds():
+    try:
+        output = subprocess.run(
+            ["/usr/sbin/lsof", "-a", "-u", str(os.geteuid()), "-d", "cwd", "-Fpn"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        ).stdout
+    except OSError:
+        return
+    # A process may disappear during the listing; read the fields lsof found.
+    pid = None
+    for line in os.fsdecode(output).split("\n"):
+        field, value = line[:1], line[1:]
+        if field == "p":
+            pid = value if value.isascii() and value.isdecimal() else None
+        elif field == "n" and pid and value.startswith("/"):
+            yield pid, os.path.realpath(value)
+
 scratch, store = sys.argv[1:]
-pids = []
-try:
-    processes = os.scandir("/proc")
-except OSError:
-    sys.exit(0)
-with processes:
-    for process in processes:
-        if not process.name.isdecimal():
-            continue
-        try:
-            cwd = os.readlink(process.path + "/cwd")
-        except OSError:
-            continue
-        if ((scratch and cwd.startswith(scratch + "/")) or
-                (store and (cwd == store or cwd.startswith(store + "/")))):
-            pids.append(process.name)
-print(" ".join(pids))
+cwds = lsof_cwds() if sys.platform == "darwin" else proc_cwds()
+print(" ".join(pid for pid, cwd in cwds if
+    (scratch and cwd.startswith(scratch + "/")) or
+    (store and (cwd == store or cwd.startswith(store + "/")))))
 PYTHON
 }
 # A kept deployment may already have processes. Only this sitting's new
@@ -209,6 +260,52 @@ stop_owned() {
     done
     [ -z "$left" ]
 }
+# The installed hook has 60 seconds, including its group of child processes.
+# shellcheck disable=SC2317
+give_back() {
+    python3 -I -c '
+import os
+import signal
+import subprocess
+import sys
+
+hook = subprocess.Popen(sys.argv[1:], start_new_session=True)
+try:
+    hook.wait(timeout=60)
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(hook.pid, signal.SIGTERM)
+        # A stopped group must be able to take the pending TERM.
+        os.killpg(hook.pid, signal.SIGCONT)
+    except ProcessLookupError:
+        pass
+    hook.wait()
+' "$1"
+}
+# This runs in the background; exec makes the follower PID the one finish can kill.
+follow_notice() {
+    exec python3 -I - "$1" "$2" <<'PYTHON'
+import os
+import shutil
+import sys
+import time
+
+path, runner = sys.argv[1], int(sys.argv[2])
+with open(path, "rb") as notice:
+    while True:
+        try:
+            os.kill(runner, 0)
+            running = True
+        except ProcessLookupError:
+            running = False
+        # Read after sampling the runner, so the last pass drains its final writes.
+        shutil.copyfileobj(notice, sys.stdout.buffer)
+        sys.stdout.buffer.flush()
+        if not running:
+            break
+        time.sleep(0.2)
+PYTHON
+}
 notice=$scratch/notice
 : > "$notice"
 chmod 600 "$notice"
@@ -233,7 +330,7 @@ finish() {
         # Anything at the lent path is left alone, including unsafe metadata.
         if [ ! -e "$TEMPER_TEST_LIVE_ACCOUNT" ] && [ ! -L "$TEMPER_TEST_LIVE_ACCOUNT" ]; then
             if [ -x "$store/give-back" ]; then
-                timeout 60 "$store/give-back" >> "$notice" 2>&1
+                give_back "$store/give-back" >> "$notice" 2>&1
             fi
             if [ ! -e "$TEMPER_TEST_LIVE_ACCOUNT" ] && [ ! -L "$TEMPER_TEST_LIVE_ACCOUNT" ]; then
                 TEMPER_TEST_LIVE_STORE="$store" TMPDIR="$scratch" ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter --run-ignored only \
@@ -244,17 +341,15 @@ finish() {
     stopped=true
     stop_owned || { stopped=false; status=1; }
     if [ "$rung" = true ] || [ "$held_landing" = true ]; then
-        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
-           [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
-           ! [ "$(stat -c %s -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
+        if returned=$(held_metadata account-back "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null); then
+            printf '%s\n' "$returned" >> "$notice"
+        else
             printf 'LOGIN NOT BACK: final stat failed; store %s retained for recovery\n' "$store" >&2
             status=1
-        else
-            stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_TEST_LIVE_ACCOUNT" >> "$notice"
         fi
     fi
     if [ -n "$claude_identity" ]; then
-        returned=$(LC_ALL=C stat -c '%d:%i:%a:%u:%F' -- "$TEMPER_TEST_LIVE_CLAUDE" 2>/dev/null)
+        returned=$(held_metadata claude-back "$TEMPER_TEST_LIVE_CLAUDE" 2>/dev/null)
         if [ "$stopped" = true ] && [ "$returned" = "$claude_identity" ]; then
             printf '%s\n' 'CLAUDE LOGIN BACK: box stopped; same private directory, inode and owner; used in place' >> "$notice"
         else
@@ -309,12 +404,12 @@ launched=true
 TMPDIR=$scratch ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter \
     --run-ignored only --no-capture -E "binary(=live) & test(=$test_name)" &
 runner=$!
-tail -n +1 -f --sleep-interval=0.2 --pid="$runner" "$notice" &
+follow_notice "$notice" "$runner" &
 follower=$!
 status=0
 wait "$runner" || status=$?
 runner=
-# Let tail flush notices appended just before the run returned.
+# Let the follower flush notices appended just before the run returned.
 wait "$follower" || true
 follower=
 exit "$status"

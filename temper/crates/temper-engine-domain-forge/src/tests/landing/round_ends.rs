@@ -131,7 +131,6 @@ impl World {
             change.change.task = change.task;
             change.change.state =
                 temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: w.env.wall };
-            change.change.landing = None;
             change.pull = Some(1_u64.checked_add(n).unwrap());
             change.branch = alloc::format!("temper/c{n}").into_bytes().into_boxed_slice();
             if goal {
@@ -161,7 +160,7 @@ impl World {
         let mut row = landing_row(TASK, policy::Phase::Preparing);
         row.landing.preparation = round.checked_sub(1).unwrap();
         row.landing.members = members.into_boxed();
-        row.asks = alloc::vec![None; count.try_into().unwrap()].into_boxed_slice();
+
         if goal {
             row.landing.branch = b"temper/g".as_slice().into();
         }

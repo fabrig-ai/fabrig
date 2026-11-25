@@ -226,7 +226,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
-                asks: Box::new([None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             };
             d.landing.rows.insert(60, row).unwrap();
@@ -409,7 +409,7 @@ fn erased_change_stays_while_a_landing_names_it() {
                     last_prepare: None,
                     branch: b"main".as_slice().into(),
                 },
-                asks: Box::new([None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             },
         )

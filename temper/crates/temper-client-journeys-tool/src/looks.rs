@@ -65,9 +65,14 @@ pub(crate) fn landings(bytes: &[u8]) -> Result<Vec<Landing>, String> {
 #[derive(Default)]
 pub(crate) struct Page {
     bytes: Box<[u8]>,
-    entries: BTreeMap<(String, String), String>,
+    entries: BTreeMap<(String, String), Standing>,
     first_section: Option<Insertion>,
     after_heading: Option<Insertion>,
+}
+
+pub(crate) struct Standing {
+    pub(crate) commit: String,
+    pub(crate) result: String,
 }
 
 struct Insertion {
@@ -110,8 +115,10 @@ impl Page {
             let position = if inline { start + leading + 1 } else { start };
             page.first_section.get_or_insert(Insertion { offset: position, inline });
             match std::str::from_utf8(rest).ok().and_then(|rest| entry(rest, next_closes)) {
-                Some([name, _, landed, _, result]) => {
-                    page.entries.entry((name.into(), landed.into())).or_insert_with(|| result.into());
+                Some([name, commit, landed, _, result]) => {
+                    page.entries
+                        .entry((name.into(), landed.into()))
+                        .or_insert(Standing { commit: commit.into(), result: result.into() });
                 }
                 None => host.err(format!("{caller}: ignoring malformed verdict at {path}:{}\n", index + 1).as_bytes()),
             }
@@ -120,10 +127,37 @@ impl Page {
     }
 
     pub(crate) fn result(&self, name: &str, landed: &str) -> Option<&str> {
-        self.entries.get(&(name.into(), landed.into())).map(String::as_str)
+        Some(self.standing(name, landed)?.result.as_str())
     }
 
-    pub(crate) fn prepend(self, entries: &[String]) -> Box<[u8]> {
+    pub(crate) fn standing(&self, name: &str, landed: &str) -> Option<&Standing> {
+        self.entries.get(&(name.into(), landed.into()))
+    }
+
+    pub(crate) fn updated(
+        self,
+        entries: &[String],
+        candidates: &[(String, String)],
+    ) -> Result<Option<Box<[u8]>>, String> {
+        let added = !entries.is_empty();
+        let bytes = if added { self.prepend(entries) } else { self.bytes };
+        let foot = retirement_footer(candidates);
+        let Some(body_end) = last_tag(&bytes, b"</body") else {
+            if foot.is_empty() {
+                return Ok(added.then_some(bytes));
+            }
+            return Err("missing closing body tag".into());
+        };
+        let (before_body, body_close) = bytes.split_at_checked(body_end).expect("last_tag locates a tag in the page");
+        let before_foot = before_footer(before_body).unwrap_or(before_body);
+        let previous = before_body.get(before_foot.len()..).expect("before_foot is a prefix of before_body");
+        if previous == foot.as_bytes() {
+            return Ok(added.then_some(bytes));
+        }
+        Ok(Some([before_foot, foot.as_bytes(), body_close].concat().into_boxed_slice()))
+    }
+
+    fn prepend(self, entries: &[String]) -> Box<[u8]> {
         if self.bytes.is_empty() {
             let heading = tag_lines(&format!(
                 "<html lang=\"en\"><head><meta charset=\"utf-8\"><title>{TITLE}</title></head><body><h1>{TITLE}</h1>"
@@ -142,6 +176,41 @@ impl Page {
         let entries = if inline { entries.concat() } else { format!("{}\n", entries.join("\n")) };
         [&self.bytes[..offset], entries.as_bytes(), &self.bytes[offset..]].concat().into_boxed_slice()
     }
+}
+
+fn last_tag(bytes: &[u8], tag: &[u8]) -> Option<usize> {
+    for (start, window) in bytes.windows(tag.len()).enumerate().rev() {
+        if window == tag {
+            let end = start.checked_add(tag.len())?;
+            if bytes.get(end..)?.trim_ascii_start().starts_with(b">") {
+                return Some(start);
+            }
+        }
+    }
+    None
+}
+
+fn before_footer(before_body: &[u8]) -> Option<&[u8]> {
+    let before_close = before_body.trim_ascii_end().strip_suffix(b"</footer\n>")?;
+    let start = last_tag(before_close, b"<footer")?;
+    let (before_foot, opening) = before_close.split_at_checked(start)?;
+    opening.starts_with(b"<footer\n><h2\n>Journeys to retire</h2\n>").then_some(before_foot)
+}
+
+fn retirement_footer(candidates: &[(String, String)]) -> String {
+    if candidates.is_empty() {
+        return String::new();
+    }
+    let mut foot = String::from(concat!(
+        "<footer><h2>Journeys to retire</h2>",
+        "<p>Journeys look requests added whose verdicts stand identical, which no walk starts after. ",
+        "Whoever starts look requests' goals proposes which go.</p><ul>",
+    ));
+    for (path, name) in candidates {
+        write!(foot, "<li>{}, added by {name}</li>", escaped(path)).expect("write to String");
+    }
+    foot.push_str("</ul></footer>");
+    tag_lines(&foot)
 }
 
 fn entry(mut rest: &str, next_closes: bool) -> Option<[&str; 5]> {

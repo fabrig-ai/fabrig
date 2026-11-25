@@ -296,7 +296,7 @@ fn a_refused_landing_forms_nothing_and_retries_after_room_returns() {
     assert!(rows.is_empty() && orphan_holds.is_empty(), "refused make left rows={rows:?}, holds={orphan_holds:?}");
     assert_eq!(after, before + 1, "no second forming in the same decision");
     let row = world.store.change(change).expect("waiting change");
-    assert_eq!(row.change.landing, None);
+    assert_eq!(world.root.forge().landing_of(row.task), None);
     assert_eq!(row.change.ready_since, ready_since);
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
     let mut warnings = Vec::new();
@@ -530,7 +530,7 @@ pub(crate) fn ready_behind_landing(landings: u32) -> (World, u64, u64) {
             break;
         }
     }
-    let landing = world.root.forge().change(first).expect("first change").change.landing.expect("first landing");
+    let landing = world.root.forge().landing_of(first).expect("first landing");
     assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
     let chat = world.assigned[0].clone();
     let (change, producer) = make_change(&mut world, &chat, 101, b"org/repo");
@@ -572,7 +572,7 @@ fn a_ready_change_waits_when_landing_room_is_full() {
             Record::Core(_) => None,
         })
         .expect("change remains");
-    assert_eq!(row.change.landing, None);
+    assert_eq!(world.root.forge().landing_of(row.task), None);
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
     assert!(landing_rows(&world).iter().all(|row| row.landing.members.iter().all(|member| member.change != change)));
     assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
@@ -847,9 +847,13 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
         .values()
         .filter_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::ChangeHot(row) => {
-                    Some((row.task, row.change.landing, row.change.state.clone(), row.pending, row.effect))
-                }
+                forge_top::Stored::ChangeHot(row) => Some((
+                    row.task,
+                    world.root.forge().landing_of(row.task),
+                    row.change.state.clone(),
+                    row.pending,
+                    row.effect,
+                )),
                 _ => None,
             },
             Record::Core(_) => None,

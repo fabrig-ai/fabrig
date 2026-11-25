@@ -10,6 +10,8 @@ use crate::{
 
 use super::{Checkout, Stop, changed, child, diagnostic, fail};
 
+mod retire;
+
 impl Checkout {
     pub(super) fn check_requests(&self, host: &mut Host, tip: &str, printed: &[u8]) -> Result<Vec<u8>, Stop> {
         match self.check_landed(host, tip, printed) {
@@ -34,9 +36,15 @@ impl Checkout {
         let landings = looks::landings(&log).map_err(Stop::Host)?;
         let mut lines = String::new();
         let mut roots = [Root::new(false), Root::new(true)];
+        let mut identical = Vec::new();
         for landing in landings.iter().rev() {
-            let root = &mut roots[usize::from(looks::is_tui(&landing.name))];
-            if root.has_verdict(host, self, tip, landing)? {
+            let [web, tui] = &mut roots;
+            let root = if looks::is_tui(&landing.name) { tui } else { web };
+            let page = root.page(host, self, tip)?;
+            if let Some(entry) = page.standing(&landing.name, &landing.commit) {
+                if entry.result == "identical" {
+                    identical.push((landing.name.as_str(), entry.commit.clone()));
+                }
                 continue;
             }
             let checked = self.check_request(host, landing, tip, printed)?;
@@ -47,11 +55,15 @@ impl Checkout {
                 Check::Ready { commit, verdict } => {
                     writeln!(lines, "checked {}: {}", landing.name, verdict.result()).expect("write to String");
                     root.entries.push(verdict.section(landing, &commit, tip));
+                    if verdict.result() == "identical" {
+                        identical.push((landing.name.as_str(), commit));
+                    }
                 }
             }
         }
-        for root in roots {
-            root.write(host, self)?;
+        let candidates = retire::candidates(self, host, tip, &identical)?;
+        for (root, candidates) in roots.into_iter().zip(candidates) {
+            root.write(host, self, &candidates)?;
         }
         Ok(lines)
     }
@@ -59,12 +71,8 @@ impl Checkout {
     fn check_request(&self, host: &mut Host, landing: &Landing, tip: &str, printed: &[u8]) -> Result<Check, Stop> {
         let name = &landing.name;
         let branch = request::branch(name);
-        let remote =
-            self.here(Program::new(b"git", &[b"ls-remote", b"--exit-code", b"--refs", b"origin", branch.as_bytes()]));
-        match child(host, remote)?.code {
-            Some(0) => (),
-            Some(2) => return Ok(Check::not_checked("0".repeat(tip.len()), format!("origin lacks docs/look/{name}"))),
-            _ => return Err(fail(&[b"cannot look up docs/look/", name.as_bytes(), b" on origin"])),
+        if !self.request_branch_exists(host, name, &branch)? {
+            return Ok(Check::not_checked("0".repeat(tip.len()), format!("origin lacks docs/look/{name}")));
         }
         request::fetch(host, Some(&self.root), &branch).map_err(Stop::Host)?;
         let request = match request::fetched(host, Some(&self.root), name, None) {
@@ -98,6 +106,16 @@ impl Checkout {
         }
         let render = Render::read(&ran.stdout).map_err(Stop::Host)?;
         Ok(Check::Ready { commit: request.commit, verdict: Verdict::Checked(render) })
+    }
+
+    fn request_branch_exists(&self, host: &mut Host, name: &str, branch: &str) -> Result<bool, Stop> {
+        let remote =
+            self.here(Program::new(b"git", &[b"ls-remote", b"--exit-code", b"--refs", b"origin", branch.as_bytes()]));
+        match child(host, remote)?.code {
+            Some(0) => Ok(true),
+            Some(2) => Ok(false),
+            _ => Err(fail(&[b"cannot look up docs/look/", name.as_bytes(), b" on origin"])),
+        }
     }
 
     fn restore_roots(&self, host: &mut Host, tip: &str) -> Result<(), Stop> {
@@ -157,29 +175,22 @@ impl Root {
         Self { path: looks::path(tui), page: None, entries: Vec::new() }
     }
 
-    fn has_verdict(
-        &mut self,
-        host: &mut Host,
-        checkout: &Checkout,
-        tip: &str,
-        landing: &Landing,
-    ) -> Result<bool, Stop> {
-        let page = if let Some(page) = &self.page {
-            page
-        } else {
-            let page =
-                looks::Page::at(host, Some(&checkout.root), tip, &self.path, "journey-pages").map_err(Stop::Host)?;
-            self.page.insert(page)
-        };
-        Ok(page.result(&landing.name, &landing.commit).is_some())
+    fn page(&mut self, host: &mut Host, checkout: &Checkout, tip: &str) -> Result<&looks::Page, Stop> {
+        if let Some(ref page) = self.page {
+            return Ok(page);
+        }
+        let page = looks::Page::at(host, Some(&checkout.root), tip, &self.path, "journey-pages").map_err(Stop::Host)?;
+        Ok(self.page.insert(page))
     }
 
-    fn write(mut self, host: &mut Host, checkout: &Checkout) -> Result<(), Stop> {
-        if let Some(page) = self.page
-            && !self.entries.is_empty()
-        {
+    fn write(mut self, host: &mut Host, checkout: &Checkout, candidates: &[(String, String)]) -> Result<(), Stop> {
+        if let Some(page) = self.page {
             self.entries.reverse();
-            return changed(host, Ask::Write(checkout.root.join(self.path), page.prepend(&self.entries)));
+            let updated =
+                page.updated(&self.entries, candidates).map_err(|why| Stop::Host(format!("{}: {why}", self.path)))?;
+            if let Some(bytes) = updated {
+                changed(host, Ask::Write(checkout.root.join(self.path), bytes))?;
+            }
         }
         Ok(())
     }

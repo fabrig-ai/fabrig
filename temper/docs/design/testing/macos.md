@@ -124,14 +124,22 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   `/usr/bin/false`, `/usr/bin/env`, `/usr/bin/git`, `/usr/bin/python3`.
   Linux's `/usr/bin/kill` and `/usr/bin/date` and macOS's missing
   `/bin/true` are no such path, and util-linux's `flock`, `setsid` and
-  `unshare`, `/dev/full`, and GNU's `stat -c` and `timeout` are Linux's
-  alone. So:
+  `unshare`, `/dev/full`, and GNU's `stat -c`, `timeout`, `tail`'s
+  `--pid` and `--sleep-interval`, and `readlink -f` on a path whose last
+  name does not exist yet, which macOS's refuses, are Linux's alone. So:
   - **its own descriptors** are listed in `/dev/fd`, which on Linux is a
     link to `/proc/self/fd`, so Linux reads the same list;
   - **another process's state** (its name, its run state, its
-    descriptors) is read from `/proc` on Linux, unchanged, and on macOS
-    from `/bin/ps` and `/usr/sbin/lsof`, the two behind
-    `cfg(target_os = "linux")` and its negation;
+    descriptors, its working directory) is read from `/proc` on Linux,
+    unchanged, and on macOS from `/bin/ps` and `/usr/sbin/lsof`, the two
+    behind `cfg(target_os = "linux")` and its negation, or in a script
+    behind its system's name;
+  - **a path a script resolves** before its last name exists is resolved
+    as its parent, joined with that name, or by Python's
+    `os.path.realpath`, which agree on both systems;
+  - **a file a script follows** while a process runs, and **a bound it
+    sets on a command's time**, are the script's own, in `/bin/sh` or
+    `/usr/bin/python3 -I`, never `tail --pid` or `timeout`;
   - **a lock a script holds across an `exec`** is `flock(2)` taken on a
     descriptor the script opened, by `/usr/bin/python3 -I -B -c 'import
     fcntl; fcntl.flock(9, fcntl.LOCK_EX)'`, the same lock as Rust's
@@ -173,6 +181,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   | `bin/temper-box/tests/process.rs`: `a_default_box_with_a_sign_in_registration_starts_without_dns` | it takes the box's network and name service away with Linux's namespaces (`unshare`) |
   | `bin/temper-box/tests/process.rs`: `temper_box_restarts_a_killed_forgejo_while_the_engine_serves`; `bin/temper-box/tests/suite/startover.rs`: `an_owned_setup_killed_at_its_run_is_kept_and_a_removal_cut_finishes_on_restart` | each finds a box's step among its processes by the step's `/proc` executable or command line, and on macOS the box's tree reads empty (section 2) |
   | `crates/temper-box-shell/src/tests.rs`: `the_standalone_operations_check_retains_no_descriptors` | it names each open descriptor's file by its `/proc/self/fd` link, and macOS's `/dev/fd` holds no links |
+  | `crates/temper-box-shell/tests/real/init/tests.rs`: `a_port_another_init_listens_on_between_bind_and_listen_gets_a_kernel_port` and `a_kernel_chosen_port_another_takes_before_listen_gets_another` | each binds a second socket to a port a first holds unlistened, which Linux's `SO_REUSEADDR` allows until one listens; macOS refuses that bind without `SO_REUSEPORT`, which skein doesn't set, so another init there takes a kernel-chosen port at its bind and no race is left between bind and listen |
   | `crates/temper-qa-tool/tests/suite/build_files.rs`: `real_checksums_keep_a_non_utf8_path_as_its_bytes` | APFS, macOS's file system, holds no file name that is not UTF-8; its plain and escaped UTF-8 halves run on both systems (`qa/builds.md`, 4), and so do the QA world's byte paths, held in memory (`qa/README.md`, 6) |
   | The cluster's stories, each reading its description through `testing/temper-box-kit`'s `Cluster::read` or `Cluster::read_from`: in `bin/temper-box/tests/process.rs`, `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `the_cluster_stops_in_reverse_each_exiting_0`, `a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal`, `a_task_runs_on_each_worker_of_the_deployments_binaries`, `a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes`, `a_worker_stopped_past_the_silence_links_again_as_the_same_process` and `an_unexpected_member_exit_is_reported_after_its_client_settles`, with the helpers only they use; its `cluster_turn` module, whole; `bin/temper-box/tests/live_github.rs`, the whole binary | the cluster's members run in skein-world's cgroup trees, which the user's service manager delegates on Linux alone (`../protocol/cluster.md`, 5); macOS has no cgroups |
 
@@ -604,8 +613,8 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   script's environment: `TMPDIR` a fresh private directory,
   `TEMPER_TEST_LIVE_STORE` another, and `TEMPER_TEST_LIVE_NOTICE` a 0600
   file in the first. Its model is the story's own, `claude-haiku-5-5`.
-  The script itself stays a person's sitting: it reads `/proc` and takes
-  GNU's `tail` and `stat` options, which macOS doesn't have.
+  The script itself stays a person's sitting, which runs on either
+  system by section 3's rules; the part runs its nextest command alone.
 - **skein's Anthropic stories:** the profile `live-skein`'s stories
   named `anthropic_`, ignored but for it, through `tools/tiers/run skein
   live` with `--run-ignored only`, on

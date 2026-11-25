@@ -414,6 +414,19 @@ fn a_held_landing_waits_until_released() {
     assert_eq!(next.landing.members[0].gates[0].faults, 0);
 }
 #[test]
+fn a_claim_holds_the_current_phase_and_resumes_it_on_release() {
+    let landing = dispatched();
+    let why = Hold::Claimed { change: 8 };
+    let held = crate::claim(landing.clone(), 8);
+    assert_eq!(held.decision, Decision::Hold(why));
+    assert_eq!(held.landing.phase, Phase::Held { was: Box::new(landing.phase.clone()), why });
+    let held_again = crate::claim(held.landing, 8);
+    assert_eq!(decide(&held_again.landing, &facts()).decision, Decision::Wait { until: None, on: Awaited::Release });
+    let resumed = crate::held(held_again.landing, true, at(10));
+    assert_eq!(resumed.decision, Decision::None);
+    assert_eq!(resumed.landing, landing);
+}
+#[test]
 fn current_runs_poll_and_wait_for_a_receipt_before_proving() {
     for run in [None, Some(Verdict::Running), Some(Verdict::Passed), Some(Verdict::Failed)] {
         let mut f = facts();

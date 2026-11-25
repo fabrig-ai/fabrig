@@ -34,9 +34,7 @@ fn change(state: State) -> Change {
     Change {
         ended_held: None,
         early: Early::None,
-        landing_ask: None,
         way: crate::Way::Queue,
-        landing: None,
         task: 7,
         state,
         gates: Box::new([]),
@@ -57,6 +55,9 @@ fn change(state: State) -> Change {
         clock: None,
     }
 }
+fn handed(ask: crate::Ask) -> crate::Handed {
+    crate::Handed { number: 17, landing: 8, round: 1, ask }
+}
 fn facts() -> Facts {
     Facts {
         revision: 0,
@@ -65,6 +66,7 @@ fn facts() -> Facts {
         rerun: false,
         pending: Box::new([]),
         ask: None,
+        landing: None,
         branch: Some(HEAD),
         titled: true,
         expected_base: BASE,

@@ -503,7 +503,7 @@ impl Domain {
         if !self.landing.held {
             return false;
         }
-        if self.merge_withheld.contains(&row.task) || crate::landing::waiting(row) {
+        if self.merge_withheld.contains(&row.task) || crate::landing::waiting(self, row) {
             return true;
         }
         if let Some(entry) = row.pending
@@ -1740,7 +1740,7 @@ impl Domain {
             reviewing |= gate.kind == change::GateKind::Agent;
         }
         if reviewing {
-            if let Some(landing) = row.change.landing {
+            if let Some(landing) = self.landing_of(task) {
                 emit(out, Request::WakeProcedure { task: landing });
             }
             emit(out, Request::WakeProcedure { task });
@@ -5177,14 +5177,14 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
             d.steps.remove(&owner);
         }
     }
-    if let Some(decision) = change_terminal(row) {
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
+    if row.change.way == change::Way::Turn
+        && let Some(change::Handed { ask: change::Ask::Landed { prefix }, .. }) = crate::landing::members::head(row)
+    {
+        step_verified(d, env, task, *prefix, heard, out);
         return;
     }
-    if row.change.way == change::Way::Turn
-        && let Some(change::Ask::Landed { prefix }) = crate::landing::ask_for(d, row)
-    {
-        step_verified(d, env, task, prefix, heard, out);
+    if let Some(decision) = change_terminal(row) {
+        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return;
     }
     if let Some(merge) = landed_commit(&row.change.state) {
@@ -5448,7 +5448,10 @@ fn step_verified(
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
     let prior = row.change.clone();
     row.change = stepped.change;
-    crate::landing::change_advanced(d, env, &mut row, &prior, stepped.decision, out);
+    if let Some(took) = stepped.took {
+        crate::landing::members::take(&mut row, took, out);
+    }
+    crate::landing::change_advanced(d, &row, &prior, out);
     if landed_commit(&prior.state).is_none() && landed_commit(&row.change.state).is_some() {
         reds::landed(d, &env.limits, &row, out);
     }
@@ -6549,7 +6552,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     if crate::follow_check::asked(&row).is_some() {
         row.change.since = env.wall;
     }
-    let facts = change_facts(d, env, &row, &pending, base_tip);
+    let mut facts = change_facts(d, env, &row, &pending, base_tip);
     let mut heard = change_standing(d, &row, &pending);
     let live_close = match row.delegate {
         Some((_, change::Delegate::Close)) => pending.heard.delegate_live,
@@ -6594,6 +6597,10 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             return;
         }
         row.change = stepped.change;
+        if let Some(took) = stepped.took {
+            crate::landing::members::take(&mut row, took, out);
+            facts.ask = crate::landing::members::head(&row).cloned();
+        }
         if let change::Decision::Delegate(change::Delegate::Gate { .. }) = stepped.decision {
             row.gate_revision = facts.revision;
         }
@@ -6675,7 +6682,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                     d.stall_words.insert(row.task, report).expect("bounded tasks");
                 }
                 crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
-                crate::landing::change_advanced(d, env, &mut row, &prior, decision, out);
+                crate::landing::change_advanced(d, &row, &prior, out);
                 let withdrawn = take_landed_merge(d, &mut row);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
                 if let Some(entry) = withdrawn {
@@ -7032,7 +7039,8 @@ fn change_facts(
         verification: d.change_verification(row.task),
         verification_bound,
         wait,
-        ask: crate::landing::ask_for(d, row),
+        ask: crate::landing::members::head(row).cloned(),
+        landing: d.landing_of(row.task),
         branch: pending.branch,
         titled: !row.title.is_empty() || row.pull.is_some(),
         expected_base: base_tip,
@@ -7289,7 +7297,7 @@ fn emit_change_effect(
     crate::room::leave(d, crate::room::Waiter::Change(row.task));
     let facts = change_facts(d, env, row, pending, pending.base_tip.unwrap_or([0; 32]));
     keep_step_progress(d, env, row, pending, &facts, out);
-    crate::landing::change_advanced(d, env, row, &prior, change::Decision::Effect(effect), out);
+    crate::landing::change_advanced(d, row, &prior, out);
     row.pending = Some(pending.entry);
     row.effect = change::EffectResult::Pending;
     row.effect_account = match effect {
@@ -7358,7 +7366,7 @@ fn hold_owned_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, out: 
     row.change.released = None;
     row.change.owns_turn = false;
     crate::change_history::advanced(d, env.wall, row, &prior, out);
-    crate::landing::change_advanced(d, env, row, &prior, change::Decision::Hold(change::Hold::PullClosed), out);
+    crate::landing::change_advanced(d, row, &prior, out);
     d.changes.insert(row.task, row.clone()).expect("retained change");
     wake_after_turn(d, row, prior.owns_turn);
     save_queue_change(d, env, before, row.clone(), out);
@@ -9311,12 +9319,12 @@ fn committed(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Req
         };
         if merge {
             let direct = d.changes.contains_key(&task);
-            for (change, row) in &d.changes {
-                if (direct && *change == task) || (!direct && row.change.landing == Some(task)) {
-                    let facts = d.review_facts.remove(change);
-                    d.review_heads.remove(change);
-                    if facts.is_some() {
-                        emit(out, Request::Marked { tasks: Box::new([crate::APPROVALS_SUBJECT, *change]) });
+            if direct {
+                clear_merge_reviews(&mut d.review_facts, &mut d.review_heads, task, out);
+            } else if let Some(row) = d.landing.rows.get(&task) {
+                for member in &row.landing.members {
+                    if d.landing_of(member.change) == Some(task) {
+                        clear_merge_reviews(&mut d.review_facts, &mut d.review_heads, member.change, out);
                     }
                 }
             }
@@ -10346,6 +10354,19 @@ fn deleting_entry(d: &Domain, task: u64, resource: &skein_forge_client::Resource
     }
 }
 
+fn clear_merge_reviews(
+    facts: &mut Map<u64, crate::ReviewFacts>,
+    heads: &mut Map<u64, ReviewHead>,
+    task: u64,
+    out: &mut Queue<Request>,
+) {
+    let changed = facts.remove(&task).is_some();
+    heads.remove(&task);
+    if changed {
+        emit(out, Request::Marked { tasks: Box::new([crate::APPROVALS_SUBJECT, task]) });
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable row restoration dispatcher")]
 fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     let started = d.restore_started.expect("restore_begin precedes every restored row");
@@ -10432,7 +10453,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                 row.room = None;
             }
             crate::landing::restoring(d, env, &row);
-            d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
+            d.landing.restore_row(row);
         }
         Stored::Receipt { key, receipt } => {
             d.landing.receipts.insert(key, receipt).expect("restored receipt within limits");
@@ -11107,7 +11128,7 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
     let task = row.task;
     let mut tasks = List::with_capacity(crate::MARKED);
     tasks.push(task).expect("own subject");
-    if let Some(landing) = row.change.landing {
+    if let Some(landing) = d.landing_of(row.task) {
         tasks.push(landing).expect("member landing subject");
     }
     // A retained ready time keeps the queue and status panels fresh after the turn ends.
@@ -11173,7 +11194,7 @@ fn save_queue_panel(
     }
     let mut tasks = List::with_capacity(crate::MARKED);
     tasks.push(row.task).expect("own subject");
-    if let Some(landing) = row.change.landing {
+    if let Some(landing) = d.landing_of(row.task) {
         tasks.push(landing).expect("member landing subject");
     }
     if let Some(subject) = crate::views::changes_mark(d, row.repository) {

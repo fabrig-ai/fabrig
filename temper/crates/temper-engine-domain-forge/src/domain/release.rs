@@ -295,6 +295,7 @@ fn outputs(
             | Request::BoxGroup { .. }
             | Request::BoxRemove { .. }
             | Request::LandingNews { .. }
+            | Request::AskDropped { .. }
             | Request::LandingReady { .. }
             | Request::LandingDecision { .. }
             | Request::Settled { .. }
@@ -357,6 +358,8 @@ fn outputs(
             | Request::Read { .. }
             | Request::RestartDone { .. }
             | Request::Replace { .. }
+            | Request::LinkDisagreed { .. }
+            | Request::ConversionAskDropped { .. }
             | Request::LandingUnmade { .. }
             | Request::LandingRead(_)
             | Request::HoldDropped { .. }

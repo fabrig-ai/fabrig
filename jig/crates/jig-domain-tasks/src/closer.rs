@@ -140,6 +140,20 @@ fn refused(domain: &mut Domain, env: &Env<Limits>, task: u64, why: Hold, out: &m
     publish(domain, env, task, out);
 }
 
+/// A parked finish awaits the cancellation it ordered, not another run to judge it.
+pub(crate) fn wake_for_delegate(row: &crate::TaskRecord, delegate: u64, ending: &crate::Ending) -> bool {
+    match ending {
+        crate::Ending::Cancelled { by, reason, .. } => {
+            *by != Party::Task(row.number)
+                || !reason.is_empty()
+                || row.phase != Phase::Active(Active::Idle)
+                || row.parked_result.is_none()
+                || row.closer == Some(delegate)
+        }
+        crate::Ending::Done(_) | crate::Ending::Failed { .. } => true,
+    }
+}
+
 pub(crate) fn ended(
     domain: &mut Domain,
     env: &Env<Limits>,
