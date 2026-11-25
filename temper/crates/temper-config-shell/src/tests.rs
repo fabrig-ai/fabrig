@@ -8,6 +8,52 @@ pub(crate) fn facts() -> Facts {
 fn document(read: &Read) -> Value {
     serde_json::from_slice(&read.document).expect("start's JSON")
 }
+
+const WORKER_ENGINE: &str = "engine = \"127.0.0.1:7200\"\n";
+// 32 UTF-8 bytes, the stock link.name bound (configuration/file.md, 3.1).
+const HOST_NAME_AT_BOUND: &str = "0123456789abcdefghijklmnopqrsté";
+
+fn long_host_name() -> Facts {
+    Facts { hostname: format!("{HOST_NAME_AT_BOUND}x"), ..facts() }
+}
+
+#[test]
+fn the_default_worker_name_keeps_every_byte_at_the_bound() {
+    let facts = Facts { hostname: HOST_NAME_AT_BOUND.into(), ..facts() };
+    let read = parse(WORKER_ENGINE.as_bytes(), Shape::WorkerAlone, &facts).expect("host name at the bound");
+    assert_eq!(document(&read)["workers"][0]["name"], HOST_NAME_AT_BOUND);
+}
+
+#[test]
+fn the_default_worker_name_past_the_bound_names_the_remedy() {
+    let found = parse(WORKER_ENGINE.as_bytes(), Shape::WorkerAlone, &long_host_name())
+        .expect_err("host name one byte past the bound");
+    assert_eq!(
+        found.lines().as_ref(),
+        b"temper.toml: name (its default): the host's name is 33 bytes, past its bound of 32; give name explicitly\n"
+    );
+}
+
+#[test]
+fn an_explicit_worker_name_overrides_an_overlong_host_name() {
+    let text = format!("{WORKER_ENGINE}name = \"w\"\n");
+    let read = parse(text.as_bytes(), Shape::WorkerAlone, &long_host_name()).expect("explicit name");
+    assert_eq!(document(&read)["workers"][0]["name"], "w");
+}
+
+#[test]
+fn shapes_with_an_engine_ignore_an_overlong_host_name() {
+    let facts = long_host_name();
+    for (shape, text, names) in
+        [(Shape::Standalone, "", vec!["local"]), (Shape::EngineAlone, "workers = \"127.0.0.1:7200\"\n", vec![])]
+    {
+        let read = parse(text.as_bytes(), shape, &facts).expect("the host does not name a worker in this shape");
+        let value = document(&read);
+        let workers = value["workers"].as_array().expect("workers array");
+        assert_eq!(workers.iter().map(|worker| worker["name"].as_str().expect("name")).collect::<Vec<_>>(), names);
+    }
+}
+
 #[test]
 fn the_examples_give_the_documents_and_pass_the_shapes_checks() {
     let read = parse(b"listen = \"127.0.0.1:7100\"\n", Shape::Standalone, &facts()).expect("box file");

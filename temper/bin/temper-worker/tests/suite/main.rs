@@ -97,7 +97,7 @@ fn shape_file(shape: Shape) -> Box<[u8]> {
     let file = match shape {
         Shape::Standalone => File { listen: Some(address), ..File::default() },
         Shape::EngineAlone => File { workers: Some(address), ..File::default() },
-        Shape::WorkerAlone => File { engine: Some(address), ..File::default() },
+        Shape::WorkerAlone => File { engine: Some(address), name: Some("w1".into()), ..File::default() },
     };
     render(&file, shape)
 }
