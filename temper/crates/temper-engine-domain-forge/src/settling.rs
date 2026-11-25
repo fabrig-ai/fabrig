@@ -5,8 +5,8 @@ use skein_lib::List;
 use temper_engine_domain_forge_change as change;
 
 /// The checked head at which a change can settle into its train.
-fn settling_head(row: &ChangeRow) -> Option<Commit> {
-    if row.change.way != change::Way::Turn || row.change.landing.is_some() || row.terminal() {
+fn settling_head(landing: Option<u64>, row: &ChangeRow) -> Option<Commit> {
+    if row.change.way != change::Way::Turn || landing.is_some() || row.terminal() {
         return None;
     }
     match row.change.state {
@@ -41,8 +41,8 @@ fn settling_head(row: &ChangeRow) -> Option<Commit> {
 /// Gates passed by the reports a change step would build, or a delegate's
 /// terminal is back for that step to consume. This does not grant readiness.
 #[must_use]
-pub fn gates_settled(row: &ChangeRow, returned: Option<(u64, Commit)>, capacity: u32) -> bool {
-    let Some(head) = settling_head(row) else { return false };
+pub fn gates_settled(d: &Domain, row: &ChangeRow, returned: Option<(u64, Commit)>, capacity: u32) -> bool {
+    let Some(head) = settling_head(d.landing_of(row.task), row) else { return false };
     let reports = crate::follow_check::reports(row, &row.verdicts, capacity);
     if change::gates_pass(&row.change, &reports, head, row.spec_revision) {
         return true;
@@ -69,7 +69,7 @@ impl Domain {
     /// same due step still hold until it ends.
     pub fn hold_forming(&mut self, task: u64, step: u64) -> bool {
         let Some(row) = self.change(task) else { return false };
-        let Some(head) = settling_head(row) else { return false };
+        let Some(head) = settling_head(self.landing_of(task), row) else { return false };
         if let Some((spent, at)) = self.forming_holds.get(&task)
             && *at == head
         {
@@ -82,7 +82,7 @@ impl Domain {
 
 pub(crate) fn forget(d: &mut Domain, row: &ChangeRow) {
     if let Some((_, head)) = d.forming_holds.get(&row.task)
-        && settling_head(row) != Some(*head)
+        && settling_head(d.landing_of(row.task), row) != Some(*head)
     {
         d.forming_holds.remove(&row.task);
     }

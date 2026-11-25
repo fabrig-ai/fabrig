@@ -10,7 +10,7 @@ pub(crate) fn unfollowed(state: &change::State) -> bool {
 }
 
 pub(crate) fn landing(d: &Domain, row: &ChangeRow) -> Option<history::InLanding> {
-    let task = row.change.landing?;
+    let task = d.landing_of(row.task)?;
     let landing = d.landing.rows.get(&task)?;
     for member in &landing.landing.members {
         if member.change == row.task {
@@ -248,11 +248,6 @@ pub(crate) fn advanced(
         && let Some(head) = crate::domain::landed_commit(&row.change.state)
     {
         let mut event = step(d, row, history::What::Landed);
-        if event.landing.is_none() {
-            let mut member = row.clone();
-            member.change.landing = prior.landing;
-            event.landing = landing(d, &member);
-        }
         event.head = Some(head);
         write(d, wall, row, event, out);
     }

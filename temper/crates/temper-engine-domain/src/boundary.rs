@@ -298,6 +298,16 @@ pub enum Fact {
         changes: Box<[u64]>,
     },
     LandingRead(temper_engine_domain_forge::LandingReadNote),
+    LinkDisagreed {
+        change: u64,
+        named: u64,
+        landing: Option<u64>,
+    },
+    ConversionAskDropped {
+        change: u64,
+        landing: u64,
+        kind: &'static str,
+    },
     /// Start's Link repairs (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,

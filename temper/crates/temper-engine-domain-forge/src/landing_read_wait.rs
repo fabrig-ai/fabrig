@@ -214,7 +214,7 @@ fn connected(d: &Domain, forge: u16) -> bool {
 pub(super) fn changed(old: &LandingRow, row: &LandingRow) -> bool {
     let LandingRow {
         landing,
-        asks,
+        previous_asks: _,
         entries,
         follows: _,
         flake_reruns,
@@ -226,7 +226,6 @@ pub(super) fn changed(old: &LandingRow, row: &LandingRow) -> bool {
         read_hold: _,
     } = row;
     landing_changed(&old.landing, landing)
-        || *asks != old.asks
         || entries_changed(&old.entries, entries)
         || follows_changed(old.follows(), row.follows())
         || *flake_reruns != old.flake_reruns

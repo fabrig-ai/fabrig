@@ -84,7 +84,7 @@ impl Domain {
     #[must_use]
     pub fn inspection_gates_settled(&self, task: u64) -> bool {
         let Some(row) = self.changes.get(&task) else { return false };
-        crate::settling::gates_settled(row, None, self.landing.limits.change_policy.gates)
+        crate::settling::gates_settled(self, row, None, self.landing.limits.change_policy.gates)
     }
 
     /// The last step's merge was withheld by the operator's landing hold. No policy reads it

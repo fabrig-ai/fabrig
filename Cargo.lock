@@ -8090,6 +8090,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-store",
+ "jig-tasks-kit",
  "skein-codec",
  "skein-codegen",
  "skein-fake-machine",

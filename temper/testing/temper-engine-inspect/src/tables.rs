@@ -175,16 +175,11 @@ fn landings(view: &View<'_>) -> Table {
     };
     for (task, row) in forge.inspection_landings() {
         let release = if landing_ended(&row.landing.phase) || view.ended(*task) {
-            let unhanded = row.asks.iter().enumerate().any(|(index, ask)| {
-                let Some(ask) = ask else { return false };
-                let Some(member) = row.landing.members.get(index) else { return true };
-                !forge.change(member.change).is_some_and(|change| change.change.landing_ask.as_deref() == Some(ask))
-            });
             // An ended landing retains its sent writes until their outcomes
             // settle (domain/forge/room.md, 2; testing/engine-checks.md, 2.3).
             // A reference whose outbox entry is gone has outlived that rule.
             let retired = row.entries.iter().any(|entry| forge.inspection_entry(entry.entry).is_none());
-            if retired || unhanded {
+            if retired {
                 Release::Due
             } else if row.entries.is_empty() {
                 Release::Kept

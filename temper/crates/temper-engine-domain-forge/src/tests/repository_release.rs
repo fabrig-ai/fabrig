@@ -136,7 +136,7 @@ fn families(repository: api::Repository, project: u32, n: u32) -> Vec<(Key, Stor
         asked: None,
         landed: None,
     }]);
-    landing.asks = Box::new([None]);
+
     rows.push((Key::Landing(task), Stored::Landing(landing)));
     let Stored::Receipt { mut key, receipt } = restore_fit::row(RecordKind::Receipt, n) else {
         unreachable!("receipt fixture")

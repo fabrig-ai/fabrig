@@ -86,7 +86,7 @@ fn moment(world: &World, action: &Action) -> bool {
     let change = world.change(task(action));
     match action.when {
         When::Opened => true, // change() above reads the durable row, not a driver flag.
-        When::Landing => change.change.landing.is_some_and(|task| {
+        When::Landing => world.landing_of(change.task).is_some_and(|task| {
             let row = &world.landing(task).landing;
             !matches!(row.phase, landing::Phase::Landed | landing::Phase::Cancelled)
                 && row
@@ -116,7 +116,7 @@ fn fire(world: &mut World, trains: &mut Trains, held: &mut Vec<Held>, action: &A
         Act::CancelLanding => {
             assert!(moment(world, action), "landing cancellation has a live member");
             {
-                let task = world.change(member).change.landing.expect("live member");
+                let task = world.landing_of(member).expect("live member");
                 let members: Vec<_> = world
                     .landing(task)
                     .landing
@@ -127,11 +127,7 @@ fn fire(world: &mut World, trains: &mut Trains, held: &mut Vec<Held>, action: &A
                     .collect();
                 world.event(top::Event::SettleEffects { task, root: task, ending: top::ReleaseEnding::Cancelled });
                 for (change, ready) in members {
-                    assert_eq!(
-                        world.change(change).change.landing,
-                        None,
-                        "cancelled landing returns its members to the line"
-                    );
+                    assert_eq!(world.landing_of(change), None, "cancelled landing returns its members to the line");
                     assert_eq!(world.change(change).change.ready_since, ready);
                 }
             }
@@ -140,7 +136,7 @@ fn fire(world: &mut World, trains: &mut Trains, held: &mut Vec<Held>, action: &A
             assert!(moment(world, action), "hold strikes a live member");
             held.push(Held {
                 task: member,
-                landing: world.change(member).change.landing.expect("live member"),
+                landing: world.landing_of(member).expect("live member"),
                 ready,
                 left: false,
             });
@@ -424,7 +420,7 @@ fn run(seed: u64) -> World {
             {
                 continue;
             }
-            if world.change(task).change.landing.is_none() {
+            if world.landing_of(task).is_none() {
                 advance(&mut world, task, 20_000 + step * 10 + task - 51);
             }
         }
@@ -432,6 +428,7 @@ fn run(seed: u64) -> World {
         // Once every act has fired, only the finite forge work remains; let its timers run.
         world.run_for(if actions.iter().all(|action| action.fired) { 10 } else { 1 });
         world.check().expect("world invariants");
+        world.check_landing_members();
         settled = actions.iter().all(|action| action.fired)
             && live(&world).is_none()
             && members.iter().all(|&task| {
@@ -472,7 +469,7 @@ fn run(seed: u64) -> World {
                 Some(top::Ending::Cancelled),
                 "cancelled change leaves the train"
             );
-            assert!(world.change(cancelled).change.landing.is_none());
+            assert!(world.landing_of(cancelled).is_none());
             assert!(
                 !world
                     .stored()

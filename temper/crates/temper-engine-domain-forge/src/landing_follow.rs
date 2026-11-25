@@ -170,7 +170,7 @@ pub(crate) fn rebuild(d: &mut Domain) {
     // The next settlement/observation writes the upgraded row. If the start
     // cuts before then, the same outbox and row are still available to read.
     for row in upgraded.into_boxed() {
-        d.landing.rows.insert(row.landing.task, row).expect("retained landing");
+        d.landing.remember(row).expect("retained landing");
     }
 }
 

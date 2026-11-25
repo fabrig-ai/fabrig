@@ -136,7 +136,7 @@ fn a_parked_producing_change_with_its_live_delegate_passes() {
 fn a_preparing_change_without_a_landing_waits_on_its_write() {
     let (world, change) = super::forge_routes::reviews::preparing_review_repair(None);
     let row = world.root.forge().change(change).expect("preparing change");
-    assert_eq!(row.change.landing, None);
+    assert_eq!(world.root.forge().landing_of(row.task), None);
     assert_eq!(row.delegate, None);
     let entry = row.pending.expect("preparing write");
     assert_eq!(world.root.forge().inspection_entry(entry).expect("live write").task, change);
@@ -263,7 +263,7 @@ fn a_ready_change_waits_on_the_landing_filling_its_room() {
     let (world, change, landing) = super::forge_routes::landing::full_landing_room();
     let row = world.root.forge().change(change).expect("ready change");
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
-    assert_eq!(row.change.landing, None);
+    assert_eq!(world.root.forge().landing_of(row.task), None);
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
     assert_eq!(wait.kind, "change: ready");
@@ -365,7 +365,7 @@ fn a_ready_change_waits_for_its_train_with_landing_room_free() {
     assert!(world.root.forge().inspection_landings().len() < world.root.forge().inspection_landings().capacity());
     let row = world.root.forge().change(change).expect("ready change");
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
-    assert_eq!(row.change.landing, None);
+    assert_eq!(world.root.forge().landing_of(row.task), None);
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
     assert_eq!(wait.kind, "change: ready");
@@ -509,7 +509,6 @@ fn ended_landing_write(retired: bool) -> (World, u64) {
             }
             row.landing.phase = temper_engine_domain_forge_landing::Phase::Cancelled;
             row.waiting = None;
-            row.asks.fill(None);
             engine::step(
                 &mut world.root,
                 &world.env,
@@ -570,7 +569,7 @@ fn a_ready_change_waits_for_its_refused_trains_retry() {
     let (world, change) = refused_train();
     let row = world.root.forge().change(change).expect("ready change");
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
-    assert_eq!(row.change.landing, None);
+    assert_eq!(world.root.forge().landing_of(row.task), None);
     assert!(world.root.forge().inspection_landings().is_empty());
     let due = world.root.inspection_forming_retry(change).expect("refused train has a retry");
     assert!(due > world.env.wall);

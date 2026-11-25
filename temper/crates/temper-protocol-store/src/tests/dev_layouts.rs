@@ -30,9 +30,12 @@ pub(super) struct Dev {
 }
 impl Dev {
     pub(super) fn new() -> Self {
+        Self::with_layout(DEV)
+    }
+    pub(super) fn with_layout(old: &str) -> Self {
         Self {
             binary: schema::parse(fixtures::layouts::BINARY.as_bytes()).unwrap(),
-            old: schema::parse(DEV.as_bytes()).unwrap(),
+            old: schema::parse(old.as_bytes()).unwrap(),
             work: Workspace::new(),
             out: Buffer::with_capacity(1_048_576),
         }

@@ -102,7 +102,7 @@ impl Domain {
                 },
             way: row.change.way,
             in_landing: if row.change.way == change::Way::Turn {
-                match row.change.landing {
+                match self.landing_of(row.task) {
                     Some(task) => Some(task),
                     None => match self.newest_landing(task) {
                         Some(landing) => Some(landing.task),
@@ -162,8 +162,8 @@ impl Domain {
             change::State::Judging { .. } | change::State::Gating { .. } | change::State::CancellingGates { .. } => {
                 PanelStep::Gating
             }
-            change::State::Ready { .. } => PanelStep::Ready { landing: row.change.landing },
-            change::State::Preparing { .. } => PanelStep::Preparing { landing: row.change.landing },
+            change::State::Ready { .. } => PanelStep::Ready { landing: self.landing_of(row.task) },
+            change::State::Preparing { .. } => PanelStep::Preparing { landing: self.landing_of(row.task) },
             change::State::Queued { .. } => {
                 let (place, ahead) = queue_place(self, row, now, limits);
                 PanelStep::Queued { place, ahead }

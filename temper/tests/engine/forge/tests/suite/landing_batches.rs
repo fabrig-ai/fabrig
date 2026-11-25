@@ -244,8 +244,8 @@ fn a_prepare_conflict_names_its_member_and_tells_branch_from_member() {
             landings::step_landing_heard(&mut world, LANDING, 200, news),
             landing::Decision::Leave { member: 1, why }
         );
-        assert_eq!(world.change(52).change.landing, None);
-        assert_eq!(world.change(52).change.landing_ask.is_some(), with == "branch");
+        assert_eq!(world.landing_of(52), None);
+        assert_eq!(!world.change(52).asks.is_empty(), with == "branch");
         landings::drive_landing(&mut world, LANDING);
         let row = world.landing(LANDING);
         assert!(row.landing.members[0].landed.is_some() && row.landing.members[2].landed.is_some());
@@ -256,9 +256,9 @@ fn a_prepare_conflict_names_its_member_and_tells_branch_from_member() {
         );
         if with == "member" {
             assert!(matches!(world.change(52).change.state, change::State::Ready { .. }));
-            assert!(world.change(52).change.landing.is_none());
+            assert!(world.landing_of(52).is_none());
             trains.judge(&mut world);
-            let task = world.change(52).change.landing.expect("next landing");
+            let task = world.landing_of(52).expect("next landing");
             landings::drive_landing(&mut world, task);
             assert!(world.landing(task).landing.members[0].landed.is_some());
         }
@@ -288,7 +288,8 @@ fn drill_9_an_earlier_conflict_keeps_first_place_then_resolves_only_against_the_
         landings::step_landing_heard(&mut world, LANDING, 200, news),
         landing::Decision::Leave { member: 1, why: landing::Leave::EarlierConflict }
     );
-    assert_eq!(world.landing(LANDING).asks[1], None, "no resolution against another member");
+    let change = world.landing(LANDING).landing.members[1].change;
+    assert!(world.change(change).asks.is_empty(), "no resolution against another member");
     landings::drive_landing(&mut world, LANDING);
     assert_eq!(world.change(52).change.resolutions, 0);
     assert_eq!(world.change(52).change.ready_since, since);
@@ -299,8 +300,8 @@ fn drill_9_an_earlier_conflict_keeps_first_place_then_resolves_only_against_the_
     landings::ready_on(&mut world, 50, b"temper/later", b"main");
     assert!(world.change(50).change.ready_since > since);
     trains.judge(&mut world);
-    let next = world.change(52).change.landing.expect("first in the next landing");
-    assert_eq!(world.change(50).change.landing, None);
+    let next = world.landing_of(52).expect("first in the next landing");
+    assert_eq!(world.landing_of(50), None);
     assert_eq!(world.landing(next).landing.members[0].change, 52);
     let mut preparing = false;
     for entry in 300..320 {

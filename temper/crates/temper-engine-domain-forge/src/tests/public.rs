@@ -1,4 +1,5 @@
 //! Public source-table tests (temper/docs/design/client/forge/README.md, 9.4).
+use crate::tests::landing_routes::erase_landing;
 use crate::*;
 use skein_lib::{Duration, Env, Time, Wall};
 use temper_client_protocol_wire::v1::Record;
@@ -239,12 +240,14 @@ fn change_row() -> ChangeRow {
         body: Box::new([]),
         priority: 1,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
-            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
+
             task: CHANGE,
             state: change::State::Opening { requested: true },
             gates: Box::new([]),
@@ -460,7 +463,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
-                asks: Box::new([None, None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             },
         )
@@ -844,7 +847,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
     for task in [CHANGE, SECOND, QUEUED] {
         d.changes.remove(&task);
     }
-    d.landing.rows.remove(&LANDING);
+    erase_landing(&mut d, LANDING);
     let mut public = List::with_capacity(73);
     public.push(PublicTask { task: GOAL, goal: Some(GOAL) }).expect("goal");
     let mut members = List::with_capacity(8);
@@ -913,7 +916,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         last_prepare: None,
                         branch: Box::from(b"main".as_slice()),
                     },
-                    asks: Box::new([const { None }; 8]),
+                    previous_asks: Box::new([]),
                     entries: Box::new([]),
                 },
             )
@@ -959,7 +962,7 @@ fn install_log(d: &mut Domain, landings: Box<[LoggedLanding]>) {
 }
 fn queue_history() -> Domain {
     let mut d = setup();
-    d.landing.rows.remove(&LANDING);
+    erase_landing(&mut d, LANDING);
     for task in [CHANGE, SECOND, QUEUED] {
         d.changes.get_mut(&task).expect("change").change.state = c::State::Cleared { merge: MERGE };
     }

@@ -121,7 +121,7 @@ fn landing(d: &mut Domain) {
                     last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
-                asks: Box::new([None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             },
         )
@@ -410,7 +410,7 @@ fn project_rules_add_to_the_deployments() {
     second.repository.repository = 3;
     second.candidate = Some([8; 32]);
     row.landing.members = Box::new([first, second]);
-    row.asks = Box::new([None, None]);
+
     assert_eq!(d.judge_landing(5, 5, 0, 61, HEAD, &evidence, &[]), Some(JudgeVerdict::Refuse));
     evidence.head = Some([8; 32]);
     evidence.ci = change::Status::Failed;

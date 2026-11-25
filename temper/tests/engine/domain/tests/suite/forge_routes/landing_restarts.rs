@@ -753,7 +753,7 @@ fn an_unmade_landings_members_form_again_and_land_after_restart() {
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Landing(crate::reconcile::UNMADE))));
     for (task, first_ready) in queue.iter().zip(ready) {
         let row = world.store.change(*task).expect("member");
-        assert_eq!(row.change.landing, None);
+        assert_eq!(world.root.forge().landing_of(row.task), None);
         assert_eq!(row.change.ready_since, first_ready);
     }
     world.release_landings();

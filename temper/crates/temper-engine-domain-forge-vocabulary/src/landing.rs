@@ -41,7 +41,8 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<policy::Member>()).ok()?)?,
         )?
         .checked_add(
-            skein_lib::len_u64(row.asks.len()).checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
+            skein_lib::len_u64(row.previous_asks.len())
+                .checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
         )?
         .checked_add(
             skein_lib::len_u64(row.entries.len()).checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
@@ -69,7 +70,7 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<skein_forge::api::JobAttempt>()).ok()?)?,
         )?;
     }
-    for ask in &row.asks {
+    for ask in &row.previous_asks {
         if let Some(change::Ask::Judge(target)) = ask {
             bytes = bytes
                 .checked_add(skein_lib::len_u64(target.branch.len()))?

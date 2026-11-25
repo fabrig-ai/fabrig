@@ -650,12 +650,14 @@ mod tests {
             body: Box::new([]),
             priority: 0,
             ci: None,
+            asks: Box::new([]),
+            handed: 0,
+            previous: None,
             change: change::Change {
                 ended_held: None,
                 early: change::Early::None,
-                landing_ask: None,
                 way: change::Way::Queue,
-                landing: None,
+
                 task: 7,
                 state: change::State::Gating { head: [7; 32], asked: Box::new([1]) },
                 gates: Box::new([change::Gate {
