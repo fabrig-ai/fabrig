@@ -1,6 +1,6 @@
 //! Close request admission and job encoding (temper/docs/design/domain/forge/change/README.md, 1;
 //! temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2),
-//! and failure retirement (temper/docs/design/domain/forge/contracts.md, 3).
+//! and failure retirement (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes::copy_of};
