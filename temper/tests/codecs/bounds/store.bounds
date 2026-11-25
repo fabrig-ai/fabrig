@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1162378784 decoded=1162673632; at_most(3) encoded=3071 decoded=2010
+ChangeHot: ceilings encoded=1162378819 decoded=1162673632; at_most(3) encoded=3106 decoded=2010
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
 ChangeSource: ceilings encoded=4133 decoded=4096; at_most(3) encoded=40 decoded=3
@@ -71,7 +71,8 @@ ClassItem: ceilings encoded=127 decoded=120; at_most(3) encoded=10 decoded=3
 ClassSubject: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 ClientRow: ceilings encoded=10555703 decoded=11014688; at_most(3) encoded=480 decoded=733
 ClientValue: ceilings encoded=10555703 decoded=11014688; at_most(3) encoded=480 decoded=733
-CloseAt: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
+CloseAt: ceilings encoded=99 decoded=0; at_most(3) encoded=99 decoded=0
+CloseRefused: ceilings encoded=33 decoded=0; at_most(3) encoded=33 decoded=0
 Closer: ceilings encoded=3224938618 decoded=3225067520; at_most(3) encoded=1040 decoded=1236
 ClosingAsked: ceilings encoded=1048589 decoded=1048576; at_most(3) encoded=16 decoded=3
 ClosingForm: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0

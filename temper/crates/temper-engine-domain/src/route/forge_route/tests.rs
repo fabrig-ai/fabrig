@@ -5830,7 +5830,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         step,
         connector,
         code,
-        (change::Delegate::Repair(change::Repair::Ci), None),
+        &(change::Delegate::Repair(change::Repair::Ci), None),
     );
     let Some(super::Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. })) = domain.work.pop() else {
         panic!("delegate step")

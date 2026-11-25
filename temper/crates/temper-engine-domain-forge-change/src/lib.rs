@@ -24,10 +24,10 @@ mod tests;
 
 pub use boundary::{
     AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Below,
-    Change, Ci, CloseAt, Decision, Delegate, DelegateSpend, Early, Effect, EffectResult, FOLLOW_CHECK_GATE, Facts,
-    Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Judgement, Landed, Limits, Open, Pending,
-    PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State,
-    Status, Stepped, Verification, WORDS_WAITING, Wait, Waiting, Way,
+    Change, Ci, CloseAt, CloseRefused, Decision, Delegate, DelegateSpend, Early, Effect, EffectResult,
+    FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Judgement,
+    Landed, Limits, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route,
+    Stands, StartedFrom, State, Status, Stepped, Verification, WORDS_WAITING, Wait, Waiting, Way,
 };
 pub use clock::{Clock, Execution, Reading};
 pub use domain::{authority_words, gates_pass, held_on_ci, prefix_verdict, released, review_failed, step};

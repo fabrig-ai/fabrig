@@ -4335,6 +4335,7 @@ fn delegated(
     row.delegate = Some((child, kind));
     if let Some(at) = close_at {
         row.close_at = Some(at);
+        row.report = Box::new([]);
     }
     row.delegate_head = row.change.last_head;
     if let Some(read) = d.settling.get_mut(&task) {
@@ -4585,7 +4586,7 @@ fn delegate_result(
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
     if expected != child
-        || ((crate::change_history::asked(kind).is_some() || merge_delegate(kind))
+        || ((crate::change_history::asked(kind).is_some() || merge_delegate(kind) || kind == change::Delegate::Close)
             && (row.delegate_status == change::Status::Passed || row.delegate_status == change::Status::Failed))
     {
         return;
@@ -4669,13 +4670,22 @@ fn delegate_result(
             }
         }
         change::Delegate::Close => {
-            producer_result(row, false, failed, words);
-            if status == change::Status::Passed {
+            crate::close::clear_refusal(row);
+            if row.delegate_status == change::Status::Passed {
+                // Keep the raw result until a branch read sent after this end can judge it.
                 let bound = match d.close_kind {
-                    Some((_, result)) => result,
+                    Some((_, result)) => skein_lib::usize_of(result),
                     None => 0,
                 };
-                row.report = crate::text::fit(words, skein_lib::usize_of(bound), b"...");
+                if words.len() <= bound {
+                    row.report = Box::from(words);
+                } else {
+                    row.delegate_status = change::Status::Failed;
+                    row.producer_failure = Some(crate::close::finished_words(words));
+                }
+            } else if !cancelled {
+                row.producer_failure =
+                    Some(if failed { crate::close::broke_words(words) } else { crate::close::finished_words(words) });
             }
         }
         change::Delegate::Produce => producer_result(row, no_change, failed, words),
@@ -5543,8 +5553,8 @@ fn step_read(
         return;
     }
     let closing = close_unrequested(row);
-    let close_without_head = closing && pending.branch.is_none();
-    if pending.stage == StepStage::CloseLanding || (close_without_head && pending.stage == StepStage::Base) {
+    let close_needs_tips = closing && (pending.branch.is_none() || row.delegate_status == change::Status::Failed);
+    if pending.stage == StepStage::CloseLanding || (close_needs_tips && pending.stage == StepStage::Base) {
         let known = if let Ok(skein_forge::api::Answer::Commit(commit)) = &result { *commit != [0; 32] } else { false };
         if !known {
             wait_for_forge(d, env, &pending, None, out);
@@ -5651,7 +5661,7 @@ fn step_read(
                     unreachable!("fresh read answer checked");
                 }
             }
-            if close_without_head {
+            if close_needs_tips {
                 pending.stage = StepStage::CloseLanding;
                 let landing = &d.repositories.get(&repository).expect("adopted repository").landing;
                 skein_forge::api::Read::Branch { branch: landing.clone() }
@@ -6534,6 +6544,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     if crate::follow_check::asked(&row).is_some() {
         row.change.since = env.wall;
     }
+    crate::close::judged(&mut row, pending.branch.is_some());
     let facts = change_facts(d, env, &row, &pending, base_tip);
     let mut heard = change_standing(d, &row, &pending);
     let live_close = match row.delegate {
@@ -7050,7 +7061,7 @@ fn change_facts(
         close_tips: if let Some(branch) = pending.base_read
             && let Some(landing) = pending.close_landing
         {
-            Some(change::CloseAt { branch, landing })
+            Some(change::CloseAt { branch, landing, asked: true, refused: None })
         } else {
             None
         },
@@ -7782,7 +7793,7 @@ fn accept_released_branch(
 /// Removing the durable delegate reference retires its terminal from recovery
 /// (temper/docs/design/domain/forge/change/repairs.md, A release).
 fn retire_failed_delegate(row: &mut ChangeRow) {
-    // The close change keeps the last job's failure for its own release.
+    // The close change keeps the last job's account and observation for its own release.
     if row.close.is_some()
         || (row.delegate_status != change::Status::Failed && !row.delegate_flake && !row.delegate_no_test)
     {

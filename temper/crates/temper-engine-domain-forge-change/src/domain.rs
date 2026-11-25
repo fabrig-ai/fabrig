@@ -857,7 +857,12 @@ fn producing_close(
             Status::Passed => {}
         }
     }
-    if let Some(head) = facts.branch {
+    if !requested && standing.closer_waiting {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    if let Some(head) = facts.branch
+        && standing.delegate != Status::Failed
+    {
         change.state = State::Opening { requested: false };
         change.last_head = Some(head);
         change.since = now;
@@ -870,11 +875,15 @@ fn producing_close(
         }
         return waiting(change, facts, now, limits);
     }
-    if standing.closer_waiting || facts.close_tips.is_none() {
+    let Some(tips) = facts.close_tips else {
         return Stepped { change, decision: Decision::Wait { until: None } };
-    }
+    };
     change.state = State::Producing { requested: true };
-    if facts.close_tips == facts.close_at && standing.delegate == Status::Failed {
+    if let Some(at) = facts.close_at
+        && at.refused.is_some()
+        && at.branch == tips.branch
+        && at.landing == tips.landing
+    {
         return hold(change, Hold::Failed);
     }
     change.since = now;

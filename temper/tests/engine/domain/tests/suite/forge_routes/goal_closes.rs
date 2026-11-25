@@ -1,6 +1,7 @@
 //! Stock template goals close without an agent's judgement after their work lands
 //! (temper/docs/design/protocol/configuration/stock.md;
 //! temper/docs/design/domain/forge/branches.md, 2; jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
+use super::close_change::{CLOSE_COUNTS, check_refusal, finish_with};
 use super::goal_branch::{branch_tip, stock_defaults};
 use super::goal_closer::{
     close_job, closer_row, finish_close as push_close, producer_for, result_words, wait_ended, wait_held, wait_landing,
@@ -798,23 +799,89 @@ fn a_released_close_waits_until_its_repair_lands() {
     world.close();
 }
 
-fn replay_words(world: &mut World, close: u64, branch: &[u8]) -> String {
-    let branch = forge_top::commit_text(&translate::commit(branch_tip(world, branch)));
-    let main = forge_top::commit_text(&translate::commit(branch_tip(world, b"main")));
-    let short_branch = core::str::from_utf8(&branch[..12]).expect("goal commit prefix");
-    let short_main = core::str::from_utf8(&main[..12]).expect("main commit prefix");
-    let close = row(world, close);
-    let words =
-        core::str::from_utf8(close.producer_failure.as_deref().expect("failed job's words")).expect("UTF-8 failure");
+struct RefusedClose {
+    world: World,
+    run: engine::Assignment,
+    closer: u64,
+    close: u64,
+    job: u64,
+    at: change::CloseAt,
+}
+
+fn goal_with_refused_close() -> RefusedClose {
+    let (mut world, goal, branch) = goal_world(4);
+    let head = translate::commit(branch_tip(&mut world, &branch));
+    let main = translate::commit(branch_tip(&mut world, b"main"));
+    park_goal(&mut world, &goal);
+    let closer = closer_of(&mut world, goal.task);
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_with(&mut world, &job, &check_refusal(head, main));
+    wait_held(&mut world, close, goal.task);
+    let run = awakened(&mut world, goal.task);
+    let at = change::CloseAt {
+        branch: head,
+        landing: main,
+        asked: true,
+        refused: Some(change::CloseRefused { counts: Some(CLOSE_COUNTS) }),
+    };
+    RefusedClose { world, run, closer, close, job: job.run.raw(), at }
+}
+
+fn short(commit: [u8; 32]) -> String {
+    let digits = forge_top::commit_text(&commit);
+    core::str::from_utf8(&digits[..12]).expect("short commit").to_owned()
+}
+
+fn refusal_words(at: change::CloseAt) -> String {
+    let branch = short(at.branch);
+    let main = short(at.landing);
     format!(
-        "not measured again: the goal's branch is at {short_branch} and main at {short_main}, as when its close job failed; it closes again once either moves.\n\n{words}"
+        "the close check refused the goal's branch at {branch}, against main at {main} with counts 333333333333: test A::rules rule_00; it checks again once the goal's branch or main moves."
+    )
+}
+
+fn replay_words(at: change::CloseAt) -> String {
+    let branch = short(at.branch);
+    let main = short(at.landing);
+    let words = refusal_words(at);
+    format!(
+        "not measured again: the goal's branch is at {branch} and main at {main}, as when its close check refused; it checks again once either moves.\n\n{words}"
     )
 }
 
 #[test]
+fn a_refused_close_holds_and_wakes_its_goal_once() {
+    let RefusedClose { mut world, run, close, job, at, .. } = goal_with_refused_close();
+    world.advance_ticks(100);
+    let ended = ended(&world, job).expect("one successful terminal at the first attempt");
+    assert!(matches!(ended.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Job { .. }))));
+    assert!(world.jobs.is_empty(), "a judgment spent no retry");
+    assert_eq!(goal_runs(&world, run.task), 2);
+    assert_eq!(row(&world, close).close_at, Some(at));
+    assert_eq!(
+        row(&world, close).change.state,
+        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed }
+    );
+    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    world.close();
+}
+
+#[test]
+fn a_restart_keeps_a_refused_closes_hold_and_inputs() {
+    let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
+    park_goal(&mut world, &run);
+    restart_closing(&mut world);
+    wait_held(&mut world, close, run.task);
+    assert_eq!(row(&world, close).close_at, Some(at));
+    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    world.close();
+}
+
+#[test]
 fn a_released_close_does_not_measure_unchanged_tips_again() {
-    let (mut world, run, branch, _, close) = goal_with_failed_close();
-    let words = replay_words(&mut world, close, &branch);
+    let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
+    let words = replay_words(at);
     release(&mut world, &run, close, 93);
     world.advance_ticks(100);
     assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
@@ -824,8 +891,8 @@ fn a_released_close_does_not_measure_unchanged_tips_again() {
 
 #[test]
 fn a_released_close_wakes_when_its_repair_changes_nothing() {
-    let (mut world, run, branch, closer, close) = goal_with_failed_close();
-    let words = replay_words(&mut world, close, &branch);
+    let RefusedClose { mut world, run, closer, close, at, .. } = goal_with_refused_close();
+    let words = replay_words(at);
     let (work, producer) = make_change(&mut world, &run, 93);
     release(&mut world, &run, close, 94);
     world.advance_ticks(100);
