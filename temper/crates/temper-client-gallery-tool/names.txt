@@ -16,6 +16,7 @@ accounts-usage
 accounts-usage-calm
 accounts-usage-filling
 accounts-usage-limited
+accounts-usage-model-week
 agent-work
 all-home
 all-home-away

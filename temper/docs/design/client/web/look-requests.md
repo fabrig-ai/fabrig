@@ -63,9 +63,11 @@ A look request's round trip: drawing it, landing it, accounting for it and check
      pages of NAME into its directory, and draws on them.
   3. **A gallery state** (`gallery.md`), where the world can't set the
      facts: an account's usage, a long name, a box's front. The
-     gallery's pages carry no overlay: the person copies the page, with
-     the gallery's assets it links, into a hand-made directory and
-     draws there, as for the next.
+     gallery's pages carry no overlay: the person copies the page into a
+     hand-made directory and draws there, as for the next. The
+     gallery's stylesheets are byte for byte the repository's own, so
+     the copy links those, as a journey's pages do (`journeys.md`, 5.3),
+     and there is no bundle to copy beside it.
   4. **A hand-made page,** last, in a directory of its own under
      `journeys/` whose `README.md` says it is hand-made and from what.
      Its values are written in by hand, and no journey's print will
