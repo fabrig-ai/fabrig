@@ -225,7 +225,7 @@ fn ending_an_unanswered_question_gives_its_room_back() {
 }
 
 #[test]
-fn a_legacy_answer_has_only_refusable_notice_room() {
+fn a_notice_for_a_question_saved_without_reserved_room_can_be_refused() {
     let mut h = setup();
     stepped(&ask(&mut h, ASKED), None);
     let crate::Stored::Live(saved) = h.stored.get_mut(&crate::Key::Live(ASKED)).expect("fixture task or record") else {
@@ -239,10 +239,10 @@ fn a_legacy_answer_has_only_refusable_notice_room() {
     for number in [12, 13] {
         sent(&fill(&mut h, ASKED, number), true);
     }
-    let ordinary = message(ASKED, 15, Party::Task(ASKER), MessageKind::Words, b"legacy notice");
+    let ordinary = message(ASKED, 15, Party::Task(ASKER), MessageKind::Words, b"unreserved notice");
     let notice = ProcedureMessage { message: ordinary.clone(), notice: Some(QUESTION) };
-    // Adding a word before the legacy notice fills its slot in the same
-    // projection. No part of this attempt may commit.
+    // Adding a word before the unreserved notice fills its slot in the
+    // same projection. No part of this attempt may commit.
     let last = ProcedureMessage::ordinary(message(ASKED, 14, Party::Task(ASKER), MessageKind::Words, b"full"));
     stepped(&step(&mut h, Box::new([last, notice.clone()])), Some(Refusal::Busy));
     assert_eq!(h.domain.task(ASKED).expect("fixture task or record").inbox.len(), 3);
