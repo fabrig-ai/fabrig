@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use skein_io::kernel::{Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Way};
+use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Way};
 
 use crate::run::{BRIEFLY, Run, unexpected, usize_of};
 use crate::{Backend, Check};
@@ -19,10 +19,18 @@ pub struct Processes {
     echoed: Vec<u8>,
     eof: Vec<u8>,
     echo_exit: Result<Done, Error>,
+    null_input: NullInput,
     status_exit: Result<Done, Error>,
     never_waited: bool,
     signalled: Result<Done, Error>,
     killed_exit: Result<Done, Error>,
+}
+
+#[derive(Debug)]
+struct NullInput {
+    spawn: Complete,
+    output: Result<Done, Error>,
+    exit: Result<Done, Error>,
 }
 
 impl Check for Processes {
@@ -30,6 +38,15 @@ impl Check for Processes {
         assert_eq!(self.echoed, MESSAGE, "the child echoes bytes through chosen descriptors");
         assert!(self.eof.is_empty(), "a pipe reaches EOF after the child exits");
         assert_eq!(self.echo_exit, Ok(Done::Exit(Exit::Code(0))), "echo exits successfully");
+        let null = &self.null_input;
+        assert!(matches!(null.spawn.result, Ok(Done::Spawned { .. })), "echo spawns with null input");
+        let Op::Spawn { spawn } = &null.spawn.kind else { unexpected("the returned Spawn", &null.spawn.kind) };
+        assert!(
+            matches!(spawn.pipes.as_ref(), [Pipe { parent: None, .. }, Pipe { parent: Some(_), .. }]),
+            "null input has no parent end and piped output returns one"
+        );
+        assert_eq!(null.output, Ok(Done::Count(0)), "the first read of echo's output is EOF");
+        assert_eq!(null.exit, Ok(Done::Exit(Exit::Code(0))), "echo exits successfully on null input");
         assert_eq!(self.status_exit, Ok(Done::Exit(Exit::Code(42))), "a child's exit status is preserved");
         assert!(self.never_waited, "Wait stays pending while the child is alive");
         assert_eq!(self.signalled, Ok(Done::Nothing), "a signal is delivered by pidfd");
@@ -66,6 +83,8 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     let reaped = run.call(process, Op::Wait { pidfd: echo_pidfd, reap: true });
     assert!(matches!(reaped.result, Ok(Done::Exit(_))), "an observed child reaps at once");
     run.close(process, echo_pidfd);
+
+    let null_input = echo_from_null(&mut run, process, root, executable);
 
     let mut missing = command(executable, root, &[b"exit", b"42"], &[Pipe { child: 1, way: Way::Out, parent: None }]);
     missing.dir = Box::from(&b"missing-spawn-directory"[..]);
@@ -159,10 +178,35 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     run.close(process, pidfd);
     run.close(process, root);
     run.finish();
-    Processes { echoed, eof, echo_exit, status_exit, never_waited, signalled, killed_exit }
+    Processes { echoed, eof, echo_exit, null_input, status_exit, never_waited, signalled, killed_exit }
 }
 
-pub(crate) fn spawned(complete: skein_io::kernel::Complete) -> (Fd, Vec<Fd>) {
+fn echo_from_null<B: Backend>(run: &mut Run<'_, B>, process: B::Process, root: Fd, executable: &[u8]) -> NullInput {
+    let spawn = command(
+        executable,
+        root,
+        &[b"echo", b"0", b"1"],
+        &[Pipe { child: 0, way: Way::Null, parent: None }, Pipe { child: 1, way: Way::Out, parent: None }],
+    );
+    let complete = run.call(process, Op::Spawn { spawn: Box::new(spawn) });
+    let (Op::Spawn { spawn }, Ok(Done::Spawned { pidfd, .. })) = (&complete.kind, &complete.result) else {
+        unexpected("echo spawns with null input", &complete)
+    };
+    let pidfd = *pidfd;
+    let [_, Pipe { parent: Some(output), .. }] = spawn.pipes.as_ref() else {
+        unexpected("a parent descriptor for echo's output", &spawn.pipes)
+    };
+    let output = *output;
+    let read = run.call(process, Op::PipeRead { fd: output, buf: Box::new([0; 1]) }).result;
+    let exit = run.call(process, Op::Wait { pidfd, reap: false }).result;
+    let reaped = run.call(process, Op::Wait { pidfd, reap: true });
+    assert_eq!(reaped.result, exit, "the observed exit status is reaped unchanged");
+    run.close(process, output);
+    run.close(process, pidfd);
+    NullInput { spawn: complete, output: read, exit }
+}
+
+pub(crate) fn spawned(complete: Complete) -> (Fd, Vec<Fd>) {
     match (complete.kind, complete.result) {
         (Op::Spawn { spawn }, Ok(Done::Spawned { pidfd, .. })) => {
             (pidfd, spawn.pipes.iter().map(|pipe| pipe.parent.expect("parent pipe slot filled")).collect())

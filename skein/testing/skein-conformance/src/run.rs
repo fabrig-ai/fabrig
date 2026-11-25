@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::mem;
 
-use skein_io::kernel::{Addr, Complete, Done, Entry, Error, Family, Fd, Kind, Op, OpenHow, Pipe, Stat, Submit};
+use skein_io::kernel::{Addr, Complete, Done, Entry, Error, Family, Fd, Kind, Op, OpenHow, Pipe, Stat, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token};
 
 use crate::{Backend, Item};
@@ -340,6 +340,9 @@ impl<'b, B: Backend> Run<'b, B> {
             (Op::Spawn { spawn }, Ok(Done::Spawned { pidfd, .. })) => {
                 assert!(self.open.insert((process, *pidfd)), "a new pidfd is not already open");
                 for pipe in &spawn.pipes {
+                    if pipe.way == Way::Null || pipe.way == Way::Inherit {
+                        continue;
+                    }
                     let fd = pipe.parent.expect("every requested parent end is written");
                     assert!(self.open.insert((process, fd)), "a new pipe descriptor is not already open");
                 }
@@ -1030,10 +1033,14 @@ fn handed_back<P>(flight: &Flight<P>, complete: &Complete) {
             assert_eq!(before.child, after.child, "a Spawn keeps each requested child descriptor");
             assert_eq!(before.way, after.way, "a Spawn keeps each requested pipe direction");
             assert!(before.parent.is_none(), "parent ends are empty on submission (runtime/kernel.md, section 4)");
+            let filled = match before.way {
+                Way::In | Way::Out | Way::Given(_) => complete.result.is_ok(),
+                Way::Null | Way::Inherit => false,
+            };
             assert_eq!(
                 after.parent.is_some(),
-                complete.result.is_ok(),
-                "only a successful Spawn fills its parent end slots (runtime/kernel.md, section 4)"
+                filled,
+                "only a successful Spawn fills requested parent ends (runtime/kernel.md, section 4)"
             );
         }
     }
