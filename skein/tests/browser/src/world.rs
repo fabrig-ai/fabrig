@@ -419,6 +419,7 @@ impl World {
             page: Token::new(3),
             url: b"https://example.test/".to_vec().into_boxed_slice(),
             requests,
+            files: false,
         });
     }
 

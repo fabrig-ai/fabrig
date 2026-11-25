@@ -23,7 +23,7 @@ fn page_trouble_reports_kind_text_and_url_without_judging() {
 #[test]
 fn the_session_page_asks_for_requests() {
     let url: Box<[u8]> = b"http://127.0.0.1:9/".as_slice().into();
-    let skein_browser::boundary::Request::Page { person, page, url: opened, requests } =
+    let skein_browser::boundary::Request::Page { person, page, url: opened, requests, files: false } =
         super::session_page(url.clone())
     else {
         panic!("Page")
