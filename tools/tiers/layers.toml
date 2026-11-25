@@ -196,6 +196,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-config-shell::real" = "real-loop" # The host name from the shell and the Linux kernel.
 "temper-conformance-world::suite" = "domain" # Engine root on crash harness; workers and peers faked.
 "temper-engine-domain::history" = "step" # Public history-range containment, without a world.
+"temper-engine-domain::load_limits" = "step" # Public store load admission, without a world.
 "temper-engine-domain::room" = "step" # Public brief-room admission and diagnostics, without a world.
 "temper-engine-domain-ways::suite" = "step"
 "temper-engine-domain-world::suite" = "domain"
