@@ -362,7 +362,7 @@ impl OwnedKernel {
                     self.descriptors.insert(*pidfd);
                     self.children.insert(*pidfd);
                     for pipe in &spawn.pipes {
-                        if pipe.way == Way::Inherit {
+                        if pipe.way == Way::Null || pipe.way == Way::Inherit {
                             continue;
                         }
                         self.descriptors.insert(pipe.parent.expect("a spawned pipe has its parent end"));
