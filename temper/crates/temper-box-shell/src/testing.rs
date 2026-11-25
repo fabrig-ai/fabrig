@@ -51,7 +51,8 @@ pub mod scripted {
 
 pub mod serve {
     pub use crate::serve::{
-        agents_setting_over, configured_agent, local_setting_over, operations_with_copies, prepare_with_limits,
+        PipeKind, agents_setting_over, configured_agent, local_setting_over, operations_with_copies, pipe_kind,
+        prepare_with_limits,
     };
 }
 
