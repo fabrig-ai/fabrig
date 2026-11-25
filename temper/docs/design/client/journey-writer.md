@@ -31,8 +31,9 @@ look requests drawn on their pages are `web/look-requests.md`'s.
   committed recording or page.
 - **A request is checked against the print** (section 6):
   `look-refresh.sh` drops a request once the last `Printed:` covers its
-  landing, and whoever lands one prints into scratch in its own tree
-  and compares, committing no written file.
+  landing, and whoever lands one runs `look-compare.sh` in its own
+  tree, which prints into scratch and writes the account's rows,
+  committing no written file (6.1).
 - **After a landing, never inside one:** a walk that stops holds no
   landing. It fails the writer's run, an after-landing red of its
   runner's (the user, 2026-11-18).
@@ -240,15 +241,130 @@ opens nothing, and needs no ctl directory and no way to push.
   holds none; then, for each request, `kept NAME`, `kept NAME, done on
   main by C12, not yet printed`, or `dropped NAME, done on main by C12,
   printed at PRINTED12`.
-- **Whoever lands a request** prints every journey into scratch in its
-  own tree, `cargo run -p temper-client-walk -- print --out DIR`, and
-  compares each page the request changes with the request's commit's,
-  read from `docs/look/NAME`, equal where their facts agree
-  (`journey-walks.md`, 5.1; `web/look-requests.md`, 3). It commits
-  no written file, and its last commit carries `Look-landed: NAME`.
-  The print needs no box and reads no committed recording or page.
+- **Whoever lands a request** compares it with
+  `scripts/look-compare.sh NAME C` (6.1), which prints its journeys
+  into scratch in the landing's own tree (`web/look-requests.md`, 3).
+  It commits no written file, and its last commit carries
+  `Look-landed: NAME`. The print needs no box and reads no committed
+  recording or page.
 - **The render check follows the writer's change** that prints the
   landing (`web/look-requests.md`, 4).
+
+### 6.1 The comparison
+
+`scripts/look-compare.sh NAME C`, beside `look-refresh.sh`, run by
+whoever lands the request NAME in the landing's own tree, C the
+request's commit on `docs/look/NAME` (`web/look-requests.md`, 3 and
+7). It runs `cargo run --locked --quiet --manifest-path ROOT/Cargo.toml
+-p temper-client-journeys -- look-compare NAME C` as `look-refresh.sh`
+runs `look-refresh` (section 4): the command (`../testing/tools.md`, 2)
+asks for each effect as a value, a child with its arguments or a
+file, and decides on the answer. Its words go to stderr as
+`look-compare: WHY`, and its exit is the script's. It starts no
+browser, terminal or box, so a plan runs it. Its rows are the
+account's evidence; the account's judgement stays the landing's
+(`web/look-requests.md`, 5).
+
+1. **Its arguments:** NAME, `[a-z0-9][a-z0-9-]*`, and C, 7 to 64
+   lowercase hexadecimal digits. Any other argument or count is
+   refused.
+2. **Reads the request:** it fetches `docs/look/NAME` from `origin`,
+   with no tags. The fetched tip must be C, its hash starting with C's
+   digits, with one parent, P, and exactly one `Look-request: NAME`
+   trailer. P holds the requests below, so P to C is this request's
+   edit alone.
+3. **Sorts what C changes** from P, under the two journeys roots:
+   - a page, `NN.html` or the TUI's `NN.txt`, of a directory whose
+     `walk` in C starts with exactly `walk 2`: a journey's page,
+     compared (step 5);
+   - any file of a directory with no such `walk` in C: a hand-made
+     directory, one row, not compared, since no print meets it;
+   - a root's `overlay.css`: its rules (step 6).
+
+   Any other path, a walk's sources among them, gives no row.
+4. **Prints** the journeys of step 3's pages, once, into `print` under
+   `look-compare` in the checkout's git directory, which each run makes
+   afresh and leaves for reading: `TEMPER_INTERNAL_BUNDLE=none cargo
+   run --locked --quiet -p temper-client-walk -- print --out DIR
+   JOURNEY...` (`journey-walks.md`, 5.1).
+   - A journey whose directory in the landing's tree has no `walk` of
+     version 2 is a row, missing, and is not printed.
+   - A TUI journey whose name has a `walk` under the browser's root
+     too can't be printed by its name, which finds the browser's first
+     (`journey-walks.md`, 5.1): the comparison stops before printing,
+     exit 3, naming both directories, for the landing to rename one.
+   - A `stopped NAME: WHY` line is a row, and that journey's pages get
+     none. A stopped walk holds no landing (section 1): the landing
+     repairs one its own change stopped, and the account names any
+     other.
+   - A request that changes no journey's page prints nothing.
+5. **Compares each page three ways, with git:** the page as P holds it
+   (what the person drew on), as C holds it (what they drew), and as
+   DIR holds it (what landed).
+   - Each is first made comparable: its generated ids are numbered
+     afresh by `temper-client-walk-lines`' `print::numbered_ids`
+     (`web/journeys.md`, 5.3), so that an element moved on either side
+     renumbers no reference. The three texts are written under
+     `look-compare`.
+   - `git merge-file -p` applies the person's edit, P's page to C's,
+     to DIR's page. Where the result equals DIR's page, the page
+     landed. Otherwise each hunk between DIR's page and the result,
+     by `git diff --no-index`, is a row: an edit that didn't land, or
+     landed otherwise.
+   - Each conflict, where both the person and the landing changed one
+     tag, is a row, to account for by reading.
+   - A page P doesn't hold, such as a page of a walk the request adds,
+     is compared whole: each hunk between C's page and DIR's is a row. The
+     world prints the same bytes from the same tree, so each difference
+     is this landing's or another's since M, never the world's.
+   - A page C holds and DIR lacks is a row, missing. A page C removes
+     has landed where DIR lacks it too.
+6. **Compares the rules** each overlay of C adds, changes or removes
+   from P's. A rule is its selector, its declarations and the
+   conditional at-rules around it, `@media` and `@supports`,
+   outermost first. In one sheet, two rules of one selector and
+   condition are one, the later declaration winning. Selectors,
+   conditions and values compare with comments dropped and whitespace
+   collapsed, property names lowercased but for custom properties.
+   - A browser rule is matched against the rules of its selector and
+     condition in the landing's `temper.css` and `task-pages.css`
+     (`temper/crates/temper-client-shell-web/`), taken together: landed,
+     each of its declarations there with its value; differing, naming
+     those that aren't; or missing, where no rule has its selector and
+     condition.
+   - A removed rule has landed when no landed rule of its selector and
+     condition keeps its declarations.
+   - Listed for the landing to read: the order the browser's rules
+     cascade in, one row, which the render check sees
+     (`web/look-requests.md`, 4); each of the TUI's rules, which land
+     in its theme's code (`tui/journeys.md`, 10); and each other
+     at-rule C changes, by its prelude.
+7. **Writes the account's rows** on stdout, as `web/look-requests.md`,
+   5's table: its header, then a row for each directory and page, the
+   browser's root first, each in path order; then the rules, the
+   browser's first, in their overlay's order, removed rules after;
+   then one row to fill for the states C's message names in words.
+   Each hunk and conflict a row names goes to stderr under that row's
+   item. A request of rules alone prints nothing, and gets rule rows
+   alone beside the row to fill.
+
+   | Item | Result |
+   |---|---|
+   | `` `web/journeys/J/NN.html` ``, a page by its path below `temper/docs/design/client/` | `landed`, or `missing` where DIR lacks it |
+   | `` `PAGE`, lines A-B ``, DIR's lines; `line A` for one; `after line A` where DIR has none | `differs` or `conflict` |
+   | `` `web/journeys/J` ``, a directory | `stopped: WHY`, `missing: no walk`, or `not compared: hand-made` |
+   | `` rule `SELECTOR` ``, or `` rule `SELECTOR` in `CONDITION` `` | `landed`, `differs: PROPERTY, ...` or `missing` |
+   | `` removed rule `SELECTOR` ``, with its condition as above | `landed`, or `differs: kept` |
+   | `the order the rules cascade in`; `` TUI rule `SELECTOR` ``; `` at-rule `PRELUDE` `` | `to read` |
+   | `each state the message names in words` | `to fill, a row each` |
+
+   A `|` within a cell is written `\|`.
+8. **Its exit:** 0, every row landed, to read or to fill; 1, a row
+   differs, is missing, conflicts or stopped; 2, its arguments, a
+   fetch that fails, a tip that isn't C, or a request it can't read: a
+   merge, a root commit, or not exactly one `Look-request: NAME`; 3,
+   the comparison couldn't finish: another git child, the print (an
+   exit but 0 or 1) or a file failed. On 2 and 3 no row is written.
 
 ## 7. Its tests
 
@@ -301,6 +417,19 @@ Focused and native: no box, browser or terminal starts.
   request without its trailer, with a malformed or repeated one, or a
   merge commit refused before rebasing, exit 2; an unsuitable checkout
   refused before fetching, exit 2.
+- **The comparison's decisions,** step tests in the same library, the
+  `look-compare` command on canned answers (git's output and exit, the
+  print's lines and exit, the files read), then its rows, stderr and
+  exit (6.1): every edit landed, exit 0; an edit missing, its hunk a
+  row, exit 1; one tag changed by both sides, a conflict row;
+  generated ids renumbered by a moved element, no row; a rule landed,
+  one differing, one missing, one removed; a request of rules alone,
+  rule rows alone and no print; a new walk's page compared whole; a
+  stopped walk, a row, exit 1; the TUI's rules listed to read; a
+  hand-made directory not compared; a tip that isn't C, and each
+  refused argument, exit 2; a print that can't finish, exit 3. Each of
+  its effects is a value these steps answer, so its script has no
+  witness.
 - **Their witnesses,** in `temper-client-journeys`'s suite, the
   shipped scripts in scratch repositories with real git, a fake `cargo`
   first on `PATH` that runs the built tool for `-p
