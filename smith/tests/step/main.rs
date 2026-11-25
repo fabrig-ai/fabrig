@@ -147,6 +147,7 @@ fn the_live_arguments_carry_private_program_homes() {
 mod fake_lookup;
 mod live_tests;
 mod program_contract;
+mod refusal_echo;
 
 pub use smith_end_to_end_kit as support;
 
