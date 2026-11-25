@@ -67,6 +67,52 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
+fn an_earlier_closer_defaults_to_an_unread_report() {
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_closer::{Closer, ReportCheck, relay::Relay};
+    use temper_engine_domain_forge_vocabulary::{CloserRow, Stored};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before =
+        family.current.replace("report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none ", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"closer")).unwrap();
+    let new_root = new.root(b"Row", Some(b"closer")).unwrap();
+    let mut row = CloserRow {
+        task: 8,
+        goal: 7,
+        closer: Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        superseded: Box::new([]),
+        landing_changes: Box::new([]),
+        relay: Relay::new(),
+        done: false,
+    };
+    let expected = Stored::Closer(row.clone());
+    assert_eq!(row.closer.report_check, ReportCheck::Unread);
+    assert_eq!(row.closer.goal_left, None);
+    row.closer.report_check = ReportCheck::Held;
+    row.closer.goal_left = Some(b"an earlier layout cannot retain this".as_slice().into());
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&Stored::Closer(row)), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("closer additions default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let limits = &super::fixtures::LIMITS;
+    let bounds = crate::bounds(limits, limits.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(expected));
+}
+
+#[test]
 fn a_landing_layout_without_wait_defaults_it_to_cleared() {
     landing_layout_defaults(" wait: SettingsLandingWait = cleared");
 }

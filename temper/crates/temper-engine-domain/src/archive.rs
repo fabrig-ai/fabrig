@@ -26,6 +26,7 @@ pub(crate) enum Waiting {
     GoalWords,
     Notes,
     Document,
+    CloserReport,
     Remember,
     Parts,
 }
@@ -43,6 +44,7 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
         Some(Read::Document(_)) => Some(Waiting::Document),
+        Some(Read::CloserReport(_)) => Some(Waiting::CloserReport),
         Some(Read::Parts(_)) => Some(Waiting::Parts),
         Some(Read::Remember(_)) => Some(Waiting::Remember),
         None => None,
@@ -162,6 +164,7 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
             Read::ChangeDelegate { .. }
             | Read::History { .. }
             | Read::Parts(_)
+            | Read::CloserReport(_)
             | Read::Document(_)
             | Read::Remember(_)
             | Read::SettingsNote { .. }
@@ -178,6 +181,10 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
 }
 
 pub(crate) fn note_failed(domain: &mut Domain, waiter: Token) {
+    if waiting(domain, waiter) == Some(Waiting::CloserReport) {
+        crate::route::forge_route::goal_report::failed(domain, waiter);
+        return;
+    }
     if waiting(domain, waiter) == Some(Waiting::Remember) {
         crate::route::remember::failed(domain, waiter);
         return;

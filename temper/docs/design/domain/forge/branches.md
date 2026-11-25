@@ -271,6 +271,52 @@ section 6).
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
      ends the goal (jig's `domain/tasks/lifecycle-endings.md`, 3).
+- **What its goal's report leaves holds it first.** A goal's own
+  record of what it has not done is its report's `Left:` line
+  (`../agent/agents.md`, 3, *A goal's report*), kept as its charter
+  says: each part it planned and has not cut into changes, and what it
+  leaves undone, with why, and no line where nothing is left. A goal
+  that ends done while that line stands ends with its work missing and
+  its design describing it as built, so the closer reads the line
+  before it makes its first step, or reports where it makes none, and
+  again before any step it makes once new work has ended (*New work
+  waits for, and reopens, the steps*, below):
+  - *The read:* the newest note in the goal's scope whose description
+    opens `report: `, by `changed` then number, and its `Left:` line,
+    each as the client takes them (`../agent/agents.md`, 3): the last
+    line whose start, past spaces, is `Left: `, its words past that,
+    trimmed. No such note, or none with a `Left:` line, passes, so a
+    charter that asks for no report meets no check. A read that fails
+    is made again after a wait, as an unknown containment is (below).
+  - *Held:* a `Left:` line no release has passed holds the closer,
+    before it makes any step, its words `the goal's report leaves work
+    undone: WORDS`, WORDS the line's words, cut from their end where
+    they pass what a hold's words hold and marked `…`. It escalates to
+    the goal as any of its holds does (above). The goal cuts what the
+    line names, its changes the closer's new work, and takes it off the
+    line; or, for a part it drops, has its design's status record it as
+    not built and gives why on the line; then releases.
+  - *Released:* the release is the goal's word that what the line still
+    names stays undone. The closer goes on to its steps, waiting first
+    for any new work as ever, and holds on the line no more in its
+    life; it still reads the line before each step new work makes, for
+    its report. One release, final, keeps the goal's word its own and
+    the closer out of a loop over wording.
+  - *On its row:* the line it last read, none where it read none, and
+    where its check stands, unread, held or released, so that a restart
+    neither holds again past a release nor loses what its report
+    names. They are added fields of the closer's row in `temper-store`,
+    a registered family (jig's `protocol/store/layouts.md`, 1), read as
+    unread and none in a row stored before.
+  - *Why the close refuses, not the result alone:* the hold reaches the
+    goal while its branch is unlanded and its judgement is to be had,
+    so an uncut part is cut into the same landing, or dropped with its
+    design's status saying so, before its base takes a design that
+    describes it as built. A result naming the line alone would end the
+    goal done with that design landed, the repair left to its
+    requester, and a goal outside a milestone has no one above it to
+    catch it. temper reads no word of a plan: what is left is the
+    goal's own line, written as its charter says.
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
@@ -471,7 +517,8 @@ section 6).
   `domain/tasks/lifecycle-endings.md`, 3). The closer, kept, makes no new step while it
   is pending, and a step's change already made goes on: a landing into
   whose branch the new work lands takes it as its new head (`change/drift.md`, 1). Once
-  the work has ended, the closer reads afresh: a change of the goal that
+  the work has ended, the closer reads afresh, its goal's report first
+  (*What its goal's report leaves holds it first*, above): a change of the goal that
   landed into the goal's branch since its close step makes the close
   step again, beside a landing whose change is still live, which stays
   open meanwhile, its questions relayed (*Its open steps*, above), and
@@ -522,6 +569,7 @@ Landed:
   LINE
 Ended without landing:
 - TN TITLE: WHY
+Left by the goal: WORDS
 The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
 CI selection:
 - pull request #P: LINE
@@ -543,6 +591,9 @@ CI selection:
   closer's own left out, ascending: why, `cancelled`,
   `failed: ` then its failure's first line, or `no change: ` then its
   result's first line. The part is left out where none did.
+- **What the goal left:** the `Left:` line its report last read
+  (*What its goal's report leaves holds it first*, above), its words
+  whole, on one line; left out where it read none.
 - **The landing:** its pull request, the base, its merge commit (the
   first line of its result's words), and the task numbers of the
   repairs and the resolutions its change made, each list left out where
@@ -562,9 +613,9 @@ CI selection:
   a job with no identity, or a forge that names no job among them. The
   part is left out where no pull landed into the base.
 - **Cut to the contract's bound** as any report is: where the whole
-  passes the contract's words bound, the `Left` sections are cut first,
-  from the last change's back, each cut one replaced by `  Left: [N
-  bytes cut]`; then, if it still passes, the report keeps its first
+  passes the contract's words bound, the changes' `Left` sections are
+  cut first, from the last change's back, each cut one replaced by `  Left: [N
+  bytes cut]`, the goal's own line never among them; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped.
 

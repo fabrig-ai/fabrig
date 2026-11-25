@@ -889,7 +889,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 };
                 total = total.checked_add(held)?;
             }
-            total.checked_add(row.relay.held_bytes()?)
+            let goal_left = match &row.closer.goal_left {
+                Some(line) => bytes(line),
+                None => 0,
+            };
+            total.checked_add(row.relay.held_bytes()?)?.checked_add(goal_left)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
             .checked_add(match &row.source {

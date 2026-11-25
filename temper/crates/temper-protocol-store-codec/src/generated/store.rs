@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x96, 0xb1, 0xb9, 0xa2, 0xe8, 0x76, 0xe0, 0xcd, 0xdf, 0xf9, 0x9c, 0xaa, 0x82, 0xbc, 0xe0, 0xda, 0x2c, 0x5c, 0xd4,
-    0x09, 0x02, 0x52, 0x04, 0xb1, 0xb9, 0xd1, 0x5b, 0x66, 0xc1, 0xdf, 0xb7, 0x94,
+    0xf4, 0xb4, 0x4a, 0xc4, 0x4f, 0xa1, 0x10, 0xf3, 0x25, 0x14, 0xa6, 0x68, 0x9d, 0xe0, 0xab, 0x9a, 0x55, 0xc3, 0xd7,
+    0xa4, 0x07, 0xe5, 0x7e, 0xff, 0x26, 0xa4, 0x5b, 0xe3, 0x8c, 0x85, 0x35, 0x77,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -295,6 +295,7 @@ pub struct Limits {
     pub closing_message_words: u32,
     pub closing_relay_replies: u32,
     pub closing_relay_waiting: u32,
+    pub closer_goal_left_some: u32,
     pub closer_close_changes: u32,
     pub closer_landing_changes: u32,
     pub closer_selections: u32,
@@ -666,6 +667,7 @@ pub const CEILINGS: Limits = Limits {
     closing_message_words: 1_048_576,
     closing_relay_replies: 1_024,
     closing_relay_waiting: 1_024,
+    closer_goal_left_some: 1_048_576,
     closer_close_changes: 1_024,
     closer_landing_changes: 1_024,
     closer_selections: 1_024,
@@ -1037,6 +1039,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "closing_message_words",
     "closing_relay_replies",
     "closing_relay_waiting",
+    "closer_goal_left_some",
     "closer_close_changes",
     "closer_landing_changes",
     "closer_selections",
@@ -1412,6 +1415,7 @@ impl Limits {
             self.closing_message_words,
             self.closing_relay_replies,
             self.closing_relay_waiting,
+            self.closer_goal_left_some,
             self.closer_close_changes,
             self.closer_landing_changes,
             self.closer_selections,
@@ -1788,6 +1792,7 @@ impl Limits {
             closing_message_words: self.closing_message_words.min(most),
             closing_relay_replies: self.closing_relay_replies.min(most),
             closing_relay_waiting: self.closing_relay_waiting.min(most),
+            closer_goal_left_some: self.closer_goal_left_some.min(most),
             closer_close_changes: self.closer_close_changes.min(most),
             closer_landing_changes: self.closer_landing_changes.min(most),
             closer_selections: self.closer_selections.min(most),
@@ -2161,6 +2166,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CLOSING_MESSAGE_WORDS,
     paths::CLOSING_RELAY_REPLIES,
     paths::CLOSING_RELAY_WAITING,
+    paths::CLOSER_GOAL_LEFT,
     paths::CLOSER_CLOSE_CHANGES,
     paths::CLOSER_LANDING_CHANGES,
     paths::CLOSER_SELECTIONS,
@@ -3797,6 +3803,9 @@ pub mod paths {
     pub const CLOSING_RELAY_REPLIES: Path = Path::new("ClosingRelay.replies");
     pub const CLOSING_RELAY_WAITING: Path = Path::new("ClosingRelay.waiting");
     pub const CLOSING_RELAY_TAIL: Path = Path::new("ClosingRelay (tail)");
+    pub const CLOSING_REPORT_CHECK_TAG: Path = Path::new("ClosingReportCheck (tag)");
+    pub const CLOSER_REPORT_CHECK: Path = Path::new("Closer.report_check");
+    pub const CLOSER_GOAL_LEFT: Path = Path::new("Closer.goal_left");
     pub const CLOSER_TASK: Path = Path::new("Closer.task");
     pub const CLOSER_GOAL: Path = Path::new("Closer.goal");
     pub const CLOSER_CLOSED: Path = Path::new("Closer.closed");
@@ -31538,9 +31547,72 @@ impl Record for ClosingRelay {
     }
 }
 
+// Type: ClosingReportCheck.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ClosingReportCheck {
+    Unread,
+    Held,
+    Released,
+}
+
+// Record: ClosingReportCheck.
+impl ClosingReportCheck {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for ClosingReportCheck {
+    type Limits = Limits;
+    const TAIL: Path = paths::CLOSING_REPORT_CHECK_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ClosingReportCheck")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ClosingReportCheck")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Unread => field::put(out, &[0], paths::CLOSING_REPORT_CHECK_TAG),
+            Self::Held => field::put(out, &[1], paths::CLOSING_REPORT_CHECK_TAG),
+            Self::Released => field::put(out, &[2], paths::CLOSING_REPORT_CHECK_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::CLOSING_REPORT_CHECK_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Unread),
+            1 => Ok(Self::Held),
+            2 => Ok(Self::Released),
+            3..=u8::MAX => Err(Problem { path: paths::CLOSING_REPORT_CHECK_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: Closer.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Closer {
+    pub report_check: ClosingReportCheck,
+    pub goal_left: Option<Box<[u8]>>,
     pub task: u64,
     pub goal: u64,
     pub closed: Option<ClosingTasks>,
@@ -31560,36 +31632,39 @@ pub struct Closer {
 // Record: Closer.
 impl Closer {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ClosingReportCheck"),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, closer_goal_left_some) },
+        skein_codec::bounds::Node::Option { item: 1 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("ClosingTasks"),
-        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Option { item: 5 },
         skein_codec::bounds::Node::Named("ClosingRun"),
-        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Option { item: 7 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Option { item: 9 },
         skein_codec::bounds::Node::Named("ClosingRun"),
-        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Option { item: 11 },
         skein_codec::bounds::Node::Named("ClosingStep"),
-        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Option { item: 13 },
         skein_codec::bounds::Node::Named("ClosingStep"),
-        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Option { item: 15 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_close_changes), item: 14, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_close_changes), item: 17, size: size_of::<u64>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_landing_changes), item: 16, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_landing_changes), item: 19, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("ClosingSelection"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_selections), item: 18, size: size_of::<ClosingSelection>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_selections), item: 21, size: size_of::<ClosingSelection>() },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("ClosingRelay"),
-        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Option { item: 24 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_superseded), item: 23, size: size_of::<u64>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 20, 22, 24] },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_superseded), item: 26, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 23, 25, 27] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 116;
+    pub const ENCODED_AT_ZERO: u64 = 122;
 }
 
 impl Record for Closer {
@@ -31614,6 +31689,8 @@ impl Record for Closer {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.report_check, limits, out, paths::CLOSER_REPORT_CHECK)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.closer_goal_left_some.min(CEILINGS.closer_goal_left_some) } }, &self.goal_left, limits, out, paths::CLOSER_GOAL_LEFT)?;
         field::write(field::U64, &self.task, limits, out, paths::CLOSER_TASK)?;
         field::write(field::U64, &self.goal, limits, out, paths::CLOSER_GOAL)?;
         field::write(field::Optional { item: field::Nested }, &self.closed, limits, out, paths::CLOSER_CLOSED)?;
@@ -31633,6 +31710,8 @@ impl Record for Closer {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
+            report_check: field::read(field::Nested, limits, reader, paths::CLOSER_REPORT_CHECK)?,
+            goal_left: field::read(field::Optional { item: field::Bytes { limit: limits.closer_goal_left_some.min(CEILINGS.closer_goal_left_some) } }, limits, reader, paths::CLOSER_GOAL_LEFT)?,
             task: field::read(field::U64, limits, reader, paths::CLOSER_TASK)?,
             goal: field::read(field::U64, limits, reader, paths::CLOSER_GOAL)?,
             closed: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_CLOSED)?,
@@ -40803,6 +40882,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ClosingMessage", nodes: ClosingMessage::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingQuestion", nodes: ClosingQuestion::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingRelay", nodes: ClosingRelay::SHAPE },
+    skein_codec::bounds::Declaration { name: "ClosingReportCheck", nodes: ClosingReportCheck::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingRun", nodes: ClosingRun::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingSelection", nodes: ClosingSelection::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingSelectionProgress", nodes: ClosingSelectionProgress::SHAPE },
@@ -41580,6 +41660,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.closing_message_words,
     CEILINGS.closing_relay_replies,
     CEILINGS.closing_relay_waiting,
+    CEILINGS.closer_goal_left_some,
     CEILINGS.closer_close_changes,
     CEILINGS.closer_landing_changes,
     CEILINGS.closer_selections,

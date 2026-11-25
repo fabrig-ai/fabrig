@@ -915,6 +915,7 @@ pub(crate) enum Work {
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },
     ProposalFailed { waiter: Token },
     TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
+    CloserReportReady { task: u64 },
     EndedLoad { waiter: Token, task: u64 },
     EndedLoaded { waiter: Token, rows: Box<[Record]> },
     ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
@@ -1007,6 +1008,7 @@ pub(crate) enum Read {
     SettingsNote { to: Token, call: Box<Call> },
     Parts(Box<crate::route::parts::Flight>),
     Document(Box<crate::route::document::DocumentRead>),
+    CloserReport(Box<forge_route::goal_report::Flight>),
     Remember(Box<crate::route::remember::RememberRead>),
 }
 

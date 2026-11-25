@@ -661,6 +661,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
             Work::ProposalFailed { waiter } => proposals::historical_failed(domain, waiter),
             Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
+            Work::CloserReportReady { task } => forge_route::resume_closer_step(domain, env, decision, task),
             Work::EndedLoad { waiter, task } => emit(
                 decision,
                 &env.limits,

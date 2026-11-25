@@ -42,7 +42,8 @@ use temper_engine_domain_translate::{Holdings, change_llm, in_subtree, resource_
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
-    Pending as CloserStep, made as closer_made, refused as closer_refused, start_closer_step,
+    Pending as CloserStep, goal_report, made as closer_made, refused as closer_refused, resume_closer_step,
+    start_closer_step,
 };
 pub(crate) mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
@@ -833,6 +834,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::EscalationFailed { .. }
             | Work::ProposalLoaded { .. }
             | Work::ProposalFailed { .. }
+            | Work::CloserReportReady { .. }
             | Work::EndedLoad { .. }
             | Work::EndedLoaded { .. }
             | Work::ChangeFromLoaded { .. }
@@ -4163,11 +4165,7 @@ pub(crate) fn outputs(
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::StepDependents { task } => step_dependents(domain, env, task),
-            forge::Request::CloserChecked { task } => {
-                if let Some(context) = domain.core.tasks.run_context(task) {
-                    start_closer_step(domain, env, &context);
-                }
-            }
+            forge::Request::CloserChecked { task } => resume_closer_step(domain, env, decision, task),
             forge::Request::WakeProcedure { task } => {
                 if domain.forge.room_asked(task) {
                     let can_step = match domain.core.tasks.task(task) {

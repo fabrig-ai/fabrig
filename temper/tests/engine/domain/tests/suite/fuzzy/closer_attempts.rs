@@ -1,6 +1,6 @@
 //! A closer's attempt bound over seeded endings (temper/docs/design/domain/forge/branches.md, 2).
 use skein_lib::Rng;
-use temper_engine_domain_forge_closer::{Child, Closer, Decision, Facts, Running, Step, step};
+use temper_engine_domain_forge_closer::{Child, Closer, Decision, Facts, ReportRead, Running, Step, step};
 
 #[test]
 fn seeded_step_endings_hold_only_for_the_branch_or_the_bound() {
@@ -12,6 +12,7 @@ fn seeded_step_endings_hold_only_for_the_branch_or_the_bound() {
         let mut closer = Closer::new();
         closer.closed = Some(Box::new([]));
         let mut f = Facts {
+            report: ReportRead::Read(None),
             goal_branch: true,
             close_job: true,
             pending: false,
