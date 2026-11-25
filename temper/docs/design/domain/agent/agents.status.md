@@ -3,11 +3,6 @@
 2026-11-24. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
-- **Not yet:** 3, *A goal's report*, *Its words*: charter 5's files ask
-  for no `Left:` line of what a goal planned and has not cut, so its
-  goals keep that in words of their own, which the closer doesn't read [in flight: change 17020].
-- **Not yet:** 3, *A goal's report*: the goal's closer reads no report
-  note [in flight: change 17019].
 - **Not yet:** 3, *What a document draws*: `chat.txt` and `drafter.txt`
   draw a flow only where a sequence says more drawn, with no example and
   no word on one path a flow or options in a table; `ask.txt`'s
