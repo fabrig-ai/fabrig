@@ -80,6 +80,11 @@ class Status(unittest.TestCase):
                            + "- **Not yet:** 4: x [in flight: change 12].\n"},
              expected(counts="1 Not yet (1 in flight), 0 Departs, 0 Design lags, 0 Design departs, 0 Open",
                       opened=f"- {DESIGN}/a.status.md, 2026-11-20: 1 Not yet (1 in flight)")),
+            ("wrapped in flight", {f"{DESIGN}/a.status.md": OPENING
+                            + "- **Not yet:** 4: x\r\n  [in\r\n"
+                            + "  flight: \t\r\n  change\r\n  12].\r\n"},
+             expected(counts="1 Not yet (1 in flight), 0 Departs, 0 Design lags, 0 Design departs, 0 Open",
+                      opened=f"- {DESIGN}/a.status.md, 2026-11-20: 1 Not yet (1 in flight)")),
             ("tag must end entry", {f"{DESIGN}/a.status.md": OPENING
                        + "- **Not yet:** 4: x [in flight: change 12] more\n"
                        + "  - 5: x [in flight: change 12] .\n"
