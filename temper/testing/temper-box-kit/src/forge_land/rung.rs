@@ -251,7 +251,7 @@ impl Driver {
         Self::new_at(
             store,
             client,
-            skein_scratch::paths::binary("temper-box"),
+            skein_scratch::paths::built("temper-box", "temper-box"),
             Deadline::arm("the rung's setup", Duration::from_secs(300)),
         )
     }

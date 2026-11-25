@@ -223,7 +223,7 @@ impl Cluster {
     /// Lay the native description's process directories and fake git link, without a cgroup probe.
     #[must_use]
     pub fn lay_description_from(scratch: &Path, directory: &Path) -> Self {
-        let binary = skein_scratch::paths::binary("temper-box");
+        let binary = skein_scratch::paths::built("temper-box", "temper-box");
         let cluster = Self::description_with_binary(scratch, directory, &binary);
         std::os::unix::fs::symlink(binary, scratch.join("git")).expect("fake git link");
         for spec in &cluster.specs {
@@ -276,7 +276,7 @@ impl Cluster {
     /// The deployment's binaries in place of the box's for the engine and the workers,
     /// and temper-agent as each worker's agent (protocol/cluster.md, 5 and 6).
     pub fn deployment_binaries(&mut self) {
-        let temper = skein_scratch::paths::binary("temper-box");
+        let temper = skein_scratch::paths::built("temper-box", "temper-box");
         for name in ["temper-engine", "temper-worker", "temper-agent"] {
             let binary = temper.with_file_name(name);
             assert!(binary.is_file(), "build the deployment's binary: cargo build -p {name} --bin {name}");

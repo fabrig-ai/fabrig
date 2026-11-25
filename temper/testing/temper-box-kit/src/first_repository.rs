@@ -754,7 +754,7 @@ pub fn generated(root: &Path) {
     let addresses = super::free_addresses::<5>(&[]);
     let answer = temper_init::files(
         &Facts {
-            binary: skein_scratch::paths::binary("temper-box").as_os_str().as_bytes(),
+            binary: skein_scratch::paths::built("temper-box", "temper-box").as_os_str().as_bytes(),
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),

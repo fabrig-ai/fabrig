@@ -254,7 +254,7 @@ fn apply_with(
     }));
     steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
-        program: skein_scratch::paths::binary("temper-box").with_file_name(
+        program: skein_scratch::paths::built("temper-box", "temper-box").with_file_name(
             match super::read_file_shape(
                 &Path::new(std::ffi::OsStr::from_bytes(&directories.config)).join(temper_config_shell::FILE),
             ) {

@@ -45,7 +45,7 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
 
 #[must_use]
 pub fn prepare_command(directory: &Path, forge: u16) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command
         .args(["forge", "prepare"])
         .args(super::configuration::flags(directory))
@@ -343,7 +343,7 @@ impl Programs {
 }
 #[must_use]
 pub fn command(directory: &Path, program: &str) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command
         .args(["forge", "run"])
         .args(super::configuration::flags(directory))

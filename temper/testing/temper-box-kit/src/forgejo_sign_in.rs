@@ -282,7 +282,7 @@ fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: s
 fn start_serve(directory: &Path, leg: &str) -> (Serve, std::process::ChildStdout, String) {
     let log = fs::File::create(directory.join(format!("sign-in-{leg}-serve.log"))).expect("private log");
     let mut serve = Serve {
-        child: Command::new(skein_scratch::paths::binary("temper-box"))
+        child: Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .arg("serve")
             .args(configuration::flags(directory))
             .current_dir(directory)
@@ -320,7 +320,7 @@ fn confidential_source(directory: &Path, instructions: &std::process::Output) {
 
 fn public_source(directory: &Path) -> String {
     for _ in 0..2 {
-        let added = Command::new(skein_scratch::paths::binary("temper-box"))
+        let added = Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .args(["forge", "source"])
             .args(configuration::flags(directory))
             .arg("1")
@@ -695,7 +695,7 @@ fn connect(
 
 fn ctl(directory: &Path, arguments: &[&str]) -> std::process::Output {
     super::story_command::standalone(
-        Command::new(skein_scratch::paths::binary("temper-box"))
+        Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .arg("ctl")
             .arg(directory.join("ctl"))
             .args(arguments)

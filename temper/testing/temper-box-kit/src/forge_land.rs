@@ -49,7 +49,7 @@ pub fn initialize(paths: &[PathBuf; 3]) {
         fs::create_dir(path).expect("fresh deployment directory");
         fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private deployment directory");
     }
-    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+    let initialized = std::process::Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
         .arg("init")
         .arg("--box")
         .args(
@@ -2413,7 +2413,7 @@ impl LiveJudge<'_> {
             } else if words.starts_with(&["account", "import"])
                 && matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) })
             {
-                self.plan.held_import(&skein_scratch::paths::binary("temper-box"), &words)
+                self.plan.held_import(&skein_scratch::paths::built("temper-box", "temper-box"), &words)
             } else {
                 super::ctl::Call::new(&words)
             }));
@@ -2541,11 +2541,11 @@ pub fn run_live_counted(
     } else {
         super::limit_settings::install_paths(plan.paths);
     }
-    plan.install_return_hook(&skein_scratch::paths::binary("temper-box"))?;
+    plan.install_return_hook(&skein_scratch::paths::built("temper-box", "temper-box"))?;
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: deployment_flags(plan.paths)
                 .into_iter()
                 .map(Into::into)

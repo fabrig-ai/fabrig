@@ -162,7 +162,7 @@ fn run_fixture(
     let Options { provider, person, watching } = options;
     assert_no_children();
     let mut command_arguments: Vec<std::ffi::OsString> = arguments.iter().map(std::ffi::OsString::from).collect();
-    let smith = skein_scratch::paths::binary("smith");
+    let smith = skein_scratch::paths::built("smith", "smith");
     let smith = smith.to_str().expect("the binary's path is UTF-8");
     let program = match watching {
         window::Story::Resize => {
