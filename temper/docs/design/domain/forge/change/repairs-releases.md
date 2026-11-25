@@ -165,6 +165,38 @@ whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
 
+A close job ends one of three ways, as the close check's verdict does
+(`../../../protocol/tooling.md`, 4.2; `../../../draft/whose-red.md`, 4),
+since 2026-11-25:
+
+- **Settled:** it finished with `settled`. A head pushed opens the pull
+  request, and nothing staged ends the change with no change.
+- **Refused:** it finished with the close check's refusal, taken as one
+  only where its job asked for it, its `head` is the commit the job's
+  checkout started at, the goal's branch's tip the change read as it
+  made the job, and nothing was pushed. The change holds at once at
+  producing, as on a producer failed for good, spending no try of the
+  job's, and escalates to the goal at once. Its words, cut to the hold's
+  bytes at a character's end: `the close check refused the goal's
+  branch at G, against main at B with counts C: F1, F2 and N more; it
+  checks again once the goal's branch or main moves.`, G the head's
+  first 12 hex digits, B the refusal's base's or `no base`, C its
+  counts' or `none`, each F a failure's
+  name as the refusal lists it, `and N more` present where the refusal
+  or the bytes left some out (N the refusal's `more` and those cut).
+  The change keeps the refusal's counts beside the tips it read (below).
+- **Broke:** the close check didn't judge the goal. A job that fails for
+  good, its command having exited otherwise, past its deadline, or
+  with a result missing or past its bound, has been tried within the
+  run's class by jig; and a job that finished with any other result (one
+  neither `settled` nor this job's refusal, a refusal its job didn't ask
+  for among them) is the command's failure at once, since a finished
+  job has no tries left and the same command gives the same result.
+  Either way the change holds at producing, its words `the close check
+  broke and didn't judge the goal: R; its release runs it again.`, R the
+  job's failure words, or `it finished with ` and the result's first 64
+  bytes.
+
 A close job that fails for good ends with that failure (2026-11-24,
 replacing the held job of 11-12). Its change holds at producing on it,
 as on a producer failed for good, carrying its words, and as it takes
@@ -184,25 +216,34 @@ makes a close job only for what is new to check:
   waits, with no hold, until its closer wakes it once that work has
   ended, and then decides afresh. A release meanwhile is taken, never
   refused, and nothing is held or escalated for it.
-- **Where nothing it checks has moved** since its last close job was
-  made: the goal's branch's tip and the repository's landing branch's
-  tip, each read afresh before it decides, against the two it read as
-  it made that job, its request being its own and fixed. It makes no
-  job and holds again at once on that job's failure, its words `not
-  measured again: the goal's branch is at G and main at M, as when its
-  close job failed; it closes again once either moves.`, a blank line,
-  then that job's words, cut to the hold's bytes; G and M are the two
-  commits' first 12 hex digits. Main's tip stands for main's published
-  counts, which follow its landings: the engine reads no counts of its
-  own.
-- **Otherwise** it makes a fresh close job, in the change's checkout as
+- **A refusal where nothing it judged has moved:** the goal's branch's
+  tip and the repository's landing branch's tip, each read afresh
+  before it decides, against the two it read as it made that job, its
+  request being its own and fixed. It makes no job and holds again at
+  once on that refusal, its words `not measured again: the goal's
+  branch is at G and main at M, as when its close check refused; it
+  checks again once either moves.`, a blank line, then the refusal's
+  words, cut to the hold's bytes; G and M are the two commits' first 12
+  hex digits. Main's tip stands for main's published counts, which
+  follow its landings: the engine reads no counts of its own, and keeps
+  the refusal's for its words. This departs from
+  `../../../draft/whose-red.md`, 4.2, which compares the counts too
+  (decided by the goal's requester, 2026-11-25): a forge read of
+  `refs/temper/counts` would take a new call across skein's forge kit
+  for the one case of counts published while both tips stand, and the
+  counts keep one entry per main commit in their window, so an entry
+  once published doesn't change. The gap that remains, a close checking
+  before its base's entry is published, is not judged: the check breaks
+  rather than refuses (`tools/pre-pr/design.md`, 4.1), so no refusal is
+  held on counts that weren't there yet.
+- **Otherwise,** a close that broke among them whether or not anything
+  moved, it makes a fresh close job, in the change's checkout as
   on its first attempt: the change's repository, its own branch
-  writable, made at the goal's branch's tip
-  (`../../../protocol/tooling.md`, 4.2; `../../worker/jobs.md`). It
+  writable, made at the goal's branch's tip as it read it, fetched by
+  that commit, the job's spec asking for a typed refusal
+  (`../../../protocol/tooling.md`, 4.2; `../../worker/jobs.md`, 2). It
   keeps the two commits it read, for the next release to compare. The
-  job's end is the change's producer's result: a head pushed opens the
-  pull request, nothing staged ends the change with no change, and a
-  failure for good holds it again with the new words.
+  job's end is the change's producer's result, as above.
 
 A close change never asks an agent producer: a head on its branch at
 producing, which only a close job's success pushes, opens its pull
@@ -213,6 +254,27 @@ stored with its row, as `ChangeHot`'s `close_at`, a `CloseAt` of the
 goal branch's and the landing branch's commits, a field of the store's
 registered family that defaults to none, so no version moves. A row
 stored before reads as none, and its next release makes a fresh job.
+Beside the two commits, `CloseAt` keeps `asked`, a `bool` defaulting to
+`false`, true where the job made with them asked for a typed refusal,
+and `refused`, an `option CloseRefused` defaulting to none, set when
+that job's end was a refusal: `CloseRefused { counts: option fixed 32 }`,
+the refusal's `counts`, none where it named none. A broke end clears
+`refused`. Both fields are added with defaults, so no version moves: a
+`CloseAt` stored before reads as not asked and not refused, so a
+refusal its job made by exit 3 is the command's failure, and its
+release makes a fresh job, which asks.
+
+*Why* (2026-11-25, `../../../draft/whose-red.md`, 4): goals 15519 and
+15520's close checks refused on test failures and each ran three more
+times in full before holding, about 23 and 8 minutes of a worker, the
+goal hearing that much later, since any exit but 0 failed the job. A
+refusal is a verdict the same inputs give again, so it finishes the job
+and holds at once; a broken check judged nothing, so its job is tried
+within its class and its release runs it again. The head, not the tree,
+checks a refusal against its attempt: the engine never sees the tree
+settlement makes. Turned down: a new job kind for the ask, which every
+project's policy would have to grant before any close could run
+(`../../../protocol/wires.md`, 8).
 
 *Why* (2026-11-24): goals on the lean template spent 28% of their agent
 time closing, seven of them 16 to 52 close jobs each, every one

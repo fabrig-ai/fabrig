@@ -22,7 +22,7 @@ pub(super) fn spec(
     super::append(&mut request, b"\",\"base\":\"");
     super::append(&mut request, &super::commit_text(base));
     super::append(&mut request, b"\"}");
-    let spec = v1::JobSpec { command: path.finish(), request: request.into_boxed() };
+    let spec = v1::JobSpec { command: path.finish(), request: request.into_boxed(), refusal: false };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }

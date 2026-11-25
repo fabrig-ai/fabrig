@@ -243,7 +243,11 @@ impl World {
             })
             .collect();
         let spec = if decoded {
-            Ok(wire::JobSpec { command: b"home/tools/check".as_slice().into(), request: b"request".as_slice().into() })
+            Ok(wire::JobSpec {
+                command: b"home/tools/check".as_slice().into(),
+                request: b"request".as_slice().into(),
+                refusal: false,
+            })
         } else {
             Err(wire::Undecodable)
         };

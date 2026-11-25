@@ -15,6 +15,13 @@ pub type Commit = [u8; 32];
 pub struct CloseAt {
     pub branch: Commit,
     pub landing: Commit,
+    pub asked: bool,
+    pub refused: Option<CloseRefused>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CloseRefused {
+    pub counts: Option<Commit>,
 }
 
 /// The status of a fact or requirement at the named head.

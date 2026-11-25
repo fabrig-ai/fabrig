@@ -9588,20 +9588,64 @@ pub fn regate_to_domain(record: crate::v25::Regate) -> temper_engine_domain_forg
 }
 
 #[must_use]
+pub fn close_refused_to_record(value: &temper_engine_domain_forge_change::CloseRefused) -> crate::v25::CloseRefused {
+    let temper_engine_domain_forge_change::CloseRefused { counts: field_000000 } = value;
+    crate::v25::CloseRefused {
+        counts: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn close_refused_to_domain(record: crate::v25::CloseRefused) -> temper_engine_domain_forge_change::CloseRefused {
+    let crate::v25::CloseRefused { counts: field_000000 } = record;
+    temper_engine_domain_forge_change::CloseRefused {
+        counts: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
 pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) -> crate::v25::CloseAt {
-    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001 } = value;
+    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = value;
     crate::v25::CloseAt {
         branch: *field_000000,
-        landing: *field_000001
+        landing: *field_000001,
+        asked: *field_000002,
+        refused: match field_000003 {
+            Some(item) => {
+                let converted = close_refused_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
 #[must_use]
 pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_forge_change::CloseAt {
-    let crate::v25::CloseAt { branch: field_000000, landing: field_000001 } = record;
+    let crate::v25::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = record;
     temper_engine_domain_forge_change::CloseAt {
         branch: field_000000,
-        landing: field_000001
+        landing: field_000001,
+        asked: field_000002,
+        refused: match field_000003 {
+            Some(item) => {
+                let converted = close_refused_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 

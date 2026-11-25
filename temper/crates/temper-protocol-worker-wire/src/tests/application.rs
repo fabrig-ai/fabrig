@@ -36,7 +36,7 @@ fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
         (
             Carried::JobSpec,
             "JobSpec",
-            v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into() }
+            v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: false }
                 .encode(&limits)
                 .unwrap(),
         ),
@@ -119,7 +119,7 @@ fn temper_roots_round_trip_in_their_carried_directions() {
         "landed: list 64 Landed }",
         "repositories: list 64 SavedRepository }",
         "record Tag { tag: u64 }",
-        "request: bytes 1048576 }",
+        "refusal: bool = false }",
         "email: text 256 }",
         "record Head { head: fixed 32 }",
         "reds: list 256 Red }",
@@ -149,6 +149,35 @@ fn temper_roots_round_trip_in_their_carried_directions() {
             Carried::JobResult => unreachable!("opaque, not a temper root"),
         }
     }
+}
+
+/// temper/docs/design/protocol/wires.md, 8: an older worker can only keep a job that doesn't ask.
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the fixture derives an older schema text")]
+fn an_older_worker_cannot_keep_a_jobs_refusal_ask() {
+    use jig_protocol_worker_wire::layouts::{Cause, Nested};
+    use skein_codec::{layout::Mode, schema::parse};
+    let engine = parse(wire::TEXT.as_bytes()).unwrap();
+    let (before, field) = wire::TEXT.split_once(" refusal:").expect("the appended JobSpec field");
+    let (_, after) = field.split_once(" }").expect("the end of JobSpec");
+    let text = format!("{before} }}{after}");
+    let worker = parse(text.as_bytes()).unwrap();
+    let mut peer = peer(&worker);
+    let mut value = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: true };
+    let limits = fixtures::limits();
+    let root = Nested::Carried(Carried::JobSpec);
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+
+    let asked = value.encode(&limits).unwrap();
+    let problem = peer.down(root, &asked, &mut out).expect_err("old workers cannot keep the ask");
+    assert_eq!(problem.cause, Cause::Field);
+    assert_eq!(&*problem.kept(), b"the worker's layout cannot keep temper-worker-wire JobSpec.refusal: field");
+    assert_eq!(out.as_slice(), []);
+
+    value.refusal = false;
+    let unasked = value.encode(&limits).unwrap();
+    peer.down(root, &unasked, &mut out).expect("old workers keep the default");
+    assert_eq!(transcode(Mode::Read, &worker, &engine, "JobSpec", out.as_slice()), unasked);
 }
 
 #[test]

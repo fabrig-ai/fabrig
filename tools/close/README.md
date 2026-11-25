@@ -86,4 +86,8 @@ repository root, even when settlement stages nothing. The check covers the
 goal's changes since its merge base with the checkout's main
 (`tools/pre-pr/design.md`, 1) and returns its exit status to the worker. A missing verifier, unavailable comparison,
 failed check or expired job prevents successful close. The worker still
-owns committing and pushing the settled tree.
+owns committing and pushing the settled tree. Where the worker asks for a
+typed refusal, `TEMPER_CLOSE_REFUSAL=3` in the environment, a refusal
+replaces settlement's result with its own and exits 3, and an error of
+the check's own exits 2 (`tools/pre-pr/design.md`, 4.1); without it,
+either exits 1. A settlement that fails stops before the check, exit 1.

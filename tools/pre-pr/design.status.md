@@ -10,3 +10,7 @@ detail for interpreting earlier receipts.
   deleted whole as written files, so it refuses one deleted beside its
   sources, and it lets a `walk` deleted while its pages stay through.
   [in flight: change 18160]
+- **Not yet:** 1, 4.1: a close reads main's counts after its tests, takes
+  `refs/remotes/origin/main` as its base without them, warns where they
+  are unavailable, and refuses as `budgets` a goal outside their window.
+  [in flight: change 18068]

@@ -176,7 +176,11 @@ impl Domain {
                 }
 
                 change::Delegate::Close => {
-                    (Start::Branch(row.base.clone()), Some(row.branch.clone()), Some(row.task), None, false)
+                    let start = match row.close_at {
+                        Some(at) => Start::Commit(at.branch),
+                        None => Start::Branch(row.base.clone()),
+                    };
+                    (start, Some(row.branch.clone()), Some(row.task), None, false)
                 }
                 change::Delegate::Repair(_) => (
                     Start::Branch(row.branch.clone()),
