@@ -128,9 +128,9 @@ its tests, is `cluster.md`.
     versions, the owner sets temper hands jig's store, the golden
     deployment, named refusals and the policy on stored changes.
 18. **wires.md:** the wires between the engine, its workers, their
-    agents and its clients: their versions moving with their layouts,
-    what the opening states, a mismatch, the host tools' contract, and
-    `versions`.
+    agents and its clients: their frozen versions and their layouts,
+    what the opening states, the engine converting, a mismatch, the host
+    tools' contract, and `versions`.
 19. **checkpoints.md:** a deployment's state at one commit, taken
     while the engine serves by an owner's act, or over a stopped
     deployment by the binaries' `checkpoint`, on jig's store.
@@ -203,9 +203,10 @@ Moved to [`service-process.md`](service-process.md), section 1.
 
 ## 7. Versions
 
-jig's rules hold (jig's `protocol/README.md`, section 7): one version at a
-time, moving with its layout, and a reader that refuses another and says
-so. The wires between temper's parts, and what their opening states,
+jig's rules hold (jig's `protocol/README.md`, section 7): one version,
+frozen, a layout named by its fingerprint, and a reader that converts
+another layout by a plan or refuses it by name. The wires between
+temper's parts, and what their opening states,
 are `wires.md`'s. jig's versions
 (its channel's, its store's format and families', its clients' per
 owner) and smith's (its charter's, transcript's and result's) are as
@@ -217,7 +218,7 @@ section 8 give them. temper's sit beside them:
 | `temper-worker-wire` | `temper-protocol-worker-wire` | temper's parts: the workspace items, the saved-work branch, the work, the preparation, a job's spec; a git identity's value | the worker's credential at the link's opening: another layout is refused as *wires* (channel.md, section 3; wires.md, section 4) |
 | `temper-host-tools` | `temper-engine-smith` | the host tools a charter offers: names, effects, inputs | its kept text, by the gate (wires.md, section 7) |
 | `STORE_VERSION` | `temper-protocol-store` | temper's families | at the store's opening: a store written by another refuses to open (store-versions.md, section 1) |
-| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`); it moves with its layout (wires.md, section 9) |
+| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`); frozen, its layout compared at the hello (wires.md, section 9) |
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge/README.md, section 3) |
 | configuration | none | — | unknown members refuse the start (configuration/README.md, section 2) |
 
@@ -225,11 +226,12 @@ section 8 give them. temper's sit beside them:
   and 2). Registered families convert at read through the registry;
   defaults, former names and written jobs change them without a patch,
   version move or map walk. Formats outside the registry are fixed at
-  their versions (`floor.md`, 6). The wires' and clients' versions move
-  at the landing that changes their layouts (wires.md, sections 3 and 9).
+  their versions (`floor.md`, 6). The wires' and clients' versions are
+  frozen too: a change of layout moves none (wires.md, sections 3 and 9).
 - **Both channel components are given temper's wire,** its `Spoken`
-  statement, its bridge and the declarations its parts hold, when they
-  are made; neither knows what it covers (wires.md, sections 4 and 6).
+  statement and the roots its parts hold, when they are made; neither
+  knows what it covers, and the engine's converts each part by its
+  plans (wires.md, sections 4 and 6).
 - **The store keeps the wires** the last start spoke (jig's
   `protocol/store/records.md`, 3, `Wires`): temper's shell hands jig's store
   every wire of `temper_engine_service::wires()`, jig's and smith's beside

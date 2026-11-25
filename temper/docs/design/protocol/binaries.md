@@ -112,9 +112,12 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`
     (`README.md`, section 7; jig's `format::current`);
   - for each wire of `temper_engine_service::wires()`, in its order
-    (`wires.md`, section 10): `wire NAME LOWEST HIGHEST`, LOWEST its
-    floor, then `layout NAME VERSION FINGERPRINT` for each version from
-    LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits;
+    (`wires.md`, section 10): `wire NAME LOWEST HIGHEST`, then `layout
+    NAME VERSION FINGERPRINT` for each version from LOWEST to HIGHEST,
+    FINGERPRINT its layout's 64 lowercase hex digits. A worker wire's
+    LOWEST and HIGHEST are both its frozen version, so it has one
+    `layout` line; `temper-host-tools`' range runs from its floor
+    (`wires.md`, 7);
   - `bound stop SECONDS`, the settled stop's bound at the stock limits
     (`../domain/root-restart.md`, 1.2), `bound stop 602`, then `bound report
     SECONDS`, a wait's report bound (`service-process.md`, 1.3), `bound report

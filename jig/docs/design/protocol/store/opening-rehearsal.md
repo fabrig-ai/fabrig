@@ -134,7 +134,8 @@ deployment's lock as a start does (1, step 1).
   recovery, the stray's removal) writes a shared file (2, step 2). Past it, or with
   no previous generation or no manifest, it refuses, `Back { why }`,
   changing nothing: the upgraded generation has made commits of its own,
-  which may have acted beyond the store, and going back is restoring a
+  which may have acted beyond the store, and going back is starting the
+  previous build over the store as it stands (below), or restoring a
   backup. A restored generation names no predecessor in its manifest, so
   going back refuses it `NoPrevious` (`restoring.md`, 4.4).
 - **Going back past the first commit:** the previous build is started
@@ -152,8 +153,9 @@ deployment's lock as a start does (1, step 1).
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach } // `directory` never written; `scratch` emptied, never removed
 pub enum Reach { Whole, Openings }                     // `Openings`: `Rehearsing`, then `Closed` unasked
 Adoption::Rehearse { scratch: Fd, reach: Reach }      // the host's adoption (`host.rs`), beside `Back` and `Checkpoint`
-Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>, workers: Option<Box<[KeptWorker]>>, linked: u32, copied: u32 } // before `Opened` or `OpenRefused`; files linked into the scratch and copied (`Whole` links none)
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[KeptOpening]>, workers: Option<Box<[KeptWorker]>>, linked: u32, copied: u32 } // before `Opened` or `OpenRefused`; files linked into the scratch and copied (`Whole` links none)
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
+pub enum KeptOpening { Current(WorkerOpening), BeforeLayouts { worker: Box<str> } }        // an opening kept before workers stated layouts is named, its body unread (`records.md`, 3)
 pub struct KeptWorker { pub number: u32, pub name: Box<[u8]>, pub withdrawn: bool }        // a stored worker change, in number order; `None`: one does not decode
 pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
 pub struct OpenedWire { pub name: Box<str>, pub layout: [u8; 32], pub text: Box<[u8]> }   // `records.md`, 3

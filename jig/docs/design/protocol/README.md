@@ -143,7 +143,7 @@ section 4. What is still open is listed in section 14.
 | service | a process's `iterate` with its root and protocol layer; its `main` is its shell |
 | worker's link | a worker's one channel with its engine, dialled and redialled (`channel/README.md`); the hub's link to the core, over a channel |
 | worker's credential | what a worker's opening carries: its name, its secret, the wires it speaks (`channel/README.md`, 4.1) |
-| wire | an encoding two builds exchange, whose version moves with its layout: jig's channel, smith's charter, turns and channel, and the application's own parts carried inside jig's records, each stated at the opening by its versions and layouts (`channel/wires.md`) |
+| wire | an encoding two builds exchange, its version frozen and its layouts named by fingerprint: jig's channel, smith's charter, turns and channel, and the application's own parts carried inside jig's records, each stated at the opening by its layout and its text (`channel/wires.md`) |
 | credential grant | an LLM account's grant, or an application's credential, named by account and source (or the application's number for it) and generation, with how long it is valid; its value is beside it (section 8). An LLM account's is a credential with its scheme, `bearer` or `key`, or a program source's name, which carries no value (`llm.md`, section 6). Not the authority's grant (`../domain/README.md`, section 4) |
 | table | a component's holding of secrets' values, by account, source and generation; jig's accounts' table, or the application's of its credentials |
 | secrets' records | what the store keeps of secrets that change while the engine runs: minted credentials' and services' digests, LLM accounts' records and keys, and an application's own |
@@ -231,7 +231,9 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
 
 ## 7. Versions
 
-- **Registered families keep their versions.** The store converts a
+- **Every family keeps its version,** stored or sent alike, and a
+  layout is named by its fingerprint (skein's `data/codec/README.md`,
+  section 5). The store converts a
   value at read from the texts in its registry (`store/layouts.md`, 4).
   An added field takes a default, a renamed part its former name
   (`was`), and a change no plan derives its owner's written job
@@ -240,29 +242,31 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
   carries no map patch. Formats outside the registry are fixed at their
   current versions (`store/records.md`, 3): a change to one designs and
   brings, in the same landing, how a store at the floor reaches it.
-- **Wires move their versions with their layouts** (the user,
-  2026-11-12). A wire, an encoding two builds exchange, moves its version
-  at the landing that changes its layout, keeps the old text and brings
-  its forward patch (skein's `data/codec/README.md`, section 5;
-  `data/codec/command.md`, 2, the wire rule). A reader refuses another
-  version, saying so. Each build's floor is its current version, so
-  nothing is translated yet.
+- **Wires convert in the engine.** A wire, an encoding two builds
+  exchange, changes its layout in its current text alone, with no old
+  text and no patch. A worker states each wire's layout and sends its
+  text at its opening; the engine converts what it receives by Read
+  plans and what it sends by Keep plans, the worker speaking its own
+  layouts alone (`channel/layouts.md`). A value the worker's layout
+  can't keep is refused before it is sent (`channel/layouts.md`, 5).
 - **The engine and its workers may be of two builds.** The store opens
   only at or above its floor and at the build's owner levels: one
   without the floor, below it or behind the levels is refused, naming
   `FLOOR_BRIDGE` (`store/opening.md`, 1.8).
   A non-empty store without a registry is refused too, never seeded.
-  A worker whose wires another build laid out is refused at its
-  channel's opening, by name (`channel/wires.md`, 3).
-- **The channel** is a wire, agreed at its opening, its kinds' table in
+  A worker whose layouts give the engine no plan, or whose
+  `smith-pieces` layout is not the engine's, is refused at its channel's
+  opening, by name (`channel/wires.md`, 3).
+- **The channel** is a wire, its version frozen, its kinds' table in
   its schema; the application's payloads inside it and smith's charter,
-  turns and channel are wires beside it, which the worker's credential
-  states (`channel/wires.md`, 2).
-- **smith's charter, turns and results** carry smith's versions (smith's
-  `protocol/README.md`, section 8). The engine writes charters in the
-  version its smith writes, and a worker that reads another refuses the
-  assignment for its version, which costs no try (`channel/wires.md`,
-  6).
+  turns and pieces are wires beside it, which the worker's credential
+  states (`channel/wires.md`, 2). smith's channel joins a worker to its
+  own agent, one build, and is stated nowhere.
+- **smith's charter, turns and results** carry smith's frozen versions
+  (smith's `protocol/README.md`, section 8). The engine writes a charter
+  at its own layout and converts it to the worker's, and reads a result
+  or a turn the worker's agent wrote by a Read plan to its own
+  (`channel/layouts.md`, 2.1).
 - **What outlives a process** carries its version: the store's records,
   per family (`store/records.md`), and the client's small store
   (`../client/domain/client/small-store.md`, section 1).

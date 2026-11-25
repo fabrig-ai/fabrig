@@ -325,12 +325,12 @@ to an older reader or writer. Each has one version at a time.
 
 - **One version per format.** The channel, the charter with its result,
   turns and transcripts, the event stream, and what a host keeps in files
-  each carry a version of their own. Any change a reader would notice is
-  a new version. Nothing is translated, and no older version is read.
-  Until its baseline, the charter changed in place, its version unmoved,
-  since a writer and its agents are built together
-  (the owner, 2026-11-09: the `save` grant and ask, ../domain/run-delivery.md, 1.5);
-  from it, it moves with its layout, as the next bullet says.
+  each carry a version of their own. A format of a schema keeps its
+  version, its layout named by its fingerprint (skein's
+  `data/codec/README.md`, section 5); smith reads and writes its own
+  layouts alone, and what converts between builds is its host's (next
+  bullet). Any other format has one version at a time, and no older
+  version is read.
 - **The charter and turns cross builds by layout:** a host that speaks
   to agents of several builds (jig's engine) converts a charter down and
   its result up, and turns both ways, between its layouts and its

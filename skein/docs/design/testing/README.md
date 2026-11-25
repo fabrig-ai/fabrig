@@ -241,7 +241,7 @@ Chromium and the UI example's browser tier use `browser-skein`
 backstop, separate from their CPU budget. skein-llm against real endpoints
 uses `live-skein`, with a key or a plan's token from the environment.
 These two slow tiers stay out of the gate, each with the user's CPU
-budget and wall hard limit under 8.1, in `tools/tiers/budgets.toml`. Schema, value, fingerprint, diff, patch, redirect
+budget and wall hard limit under 8.1, in `tools/tiers/budgets.toml`. Schema, value, fingerprint, layout plan, redirect
 admission and fake-browser checks run in focused step tests and worlds;
 seeded decoder comparisons, sign-in faults including restart, and the
 forge machine world's every-byte TLS sweep run in fuzzy.
