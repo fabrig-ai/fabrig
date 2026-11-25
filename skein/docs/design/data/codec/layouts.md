@@ -37,8 +37,8 @@ written converter (jig's `protocol/channel/layouts.md`, 6).
 - **A pass over the bytes** (3): copy, insert a default's bytes, skip a
   dropped field, widen or narrow an integer, write a moved tag or a new
   head, convert a held record or a piece in its length. No generic
-  value, no index of nodes, no machine: one pass, its stack as deep as
-  the layouts' nesting.
+  value, no index of nodes, no machine: one pass, as deep as the
+  layouts' nesting.
 - **Step code,** in `skein-codec`'s `layout` module, bounded by its
   texts and the value's room (5).
 
