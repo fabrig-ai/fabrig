@@ -243,8 +243,8 @@ terminal client, the captures and the faults.
   service leaving nothing for the next one in its process, each
   numbering its first tasks from one, the first's agent roots read
   released before the next fresh disk resets them, through
-  `temper-playground`'s `machine::roots_are_released`, a seam behind its
-  `test-inspection` feature that production never builds; and those `../protocol/channel.md`,
+  `temper-playground`'s `machine::roots_are_released`, public in every
+  build (skein's `foundation/cli.md`, 3); and those `../protocol/channel.md`,
   9, `../client/testing.md` and `../protocol/sign-in.md`, 2.5 place here.
 - **Which test checks what** is the code's; a story moved here from the
   real loop is beside its holders in

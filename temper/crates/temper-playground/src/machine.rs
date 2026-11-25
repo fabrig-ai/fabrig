@@ -392,8 +392,7 @@ impl Machine {
         });
     }
 }
-/// Observe agent-root teardown without resetting the fake machine's registry.
-#[cfg(feature = "test-inspection")]
+/// Returns whether the current thread's agent-root registry is empty, without resetting it.
 #[must_use]
 pub fn roots_are_released() -> bool {
     ROOTS.with(|roots| roots.borrow().bindings.is_empty())
