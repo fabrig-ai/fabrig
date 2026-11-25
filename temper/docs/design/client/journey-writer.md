@@ -289,6 +289,10 @@ account's evidence; the account's judgement stays the landing's
    JOURNEY...` (`journey-walks.md`, 5.1).
    - A journey whose directory in the landing's tree has no `walk` of
      version 2 is a row, missing, and is not printed.
+   - A TUI journey whose name has a `walk` under the browser's root
+     too can't be printed by its name, which finds the browser's first
+     (`journey-walks.md`, 5.1): the comparison stops before printing,
+     exit 3, naming both directories, for the landing to rename one.
    - A `stopped NAME: WHY` line is a row, and that journey's pages get
      none. A stopped walk holds no landing (section 1): the landing
      repairs one its own change stopped, and the account names any
