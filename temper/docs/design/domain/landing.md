@@ -250,8 +250,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   first in line by its kept time. Cancelled, by a person's act on the
   landing task, its members are left ready and in no landing, each
   unless it is recorded landed (`landing-turn.md`, section 1), and the train forms again.
-  Either way every change that names it, member or not, stops naming
-  it as it ends, an ask it still keeps for one going onto that change.
+  Either way its members are in it no longer as it ends, by the index
+  its row keeps (`landing-members.md`, 2.1), and the asks it owes them
+  wait in their queues (`landing-members.md`, 3.5).
   Either end wakes its own train's waiting changes, no other's, and
   its writes leave the outbox (`forge/room.md`, 2): its entries not
   yet sent withdrawn, each in flight as it settles. Cancelled, it
@@ -317,9 +318,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   ready again it is first in line by that time. Leaving is never a
   repair by itself.
 - **Its link goes as it leaves:** at the leave, whatever its change
-  does next, the change stops naming the landing (section 12), and the
-  landing's ask for it, a resolution or a repair with its context, goes
-  onto the change, kept there until it takes it. No landing keeps a
+  does next, the row records it left, so the change is in the landing
+  no longer (`landing-members.md`, 2.1), and the landing's ask for it, a
+  resolution or a repair with its context, waits in the change's queue
+  until it takes it (`landing-members.md`, 3). No landing keeps a
   change that left it out of its queue.
 - **The rest stay:** a member that leaves while the job stacks is
   skipped by that job (`landing-prepare.md`, 1.2). One that leaves later ends the round (`landing-prepare.md`, 1.1),
@@ -433,11 +435,12 @@ Three kinds join `forge/effects.md`'s section 1, each a row of its own:
   purposes and identities.
 - **`Receipt`,** keyed by the project, the repository, the gate and the
   key: the verdict, the run, the candidate and the time.
-- **A change's state** grows its landing, its clean merges' heads, its
-  way (`queue` or `turn`), its judgement at its prefix, its landing's
-  asks: judge, resolve, repair, landed. It names only a landing it is
-  in and has not left; an ask handed over as it left or as its landing
-  ended is kept on the change (4.2, 4.3). The landing's row keeps the
+- **A change's state** grows its clean merges' heads, its
+  way (`queue` or `turn`), its judgement at its prefix, and the queue of
+  its landings' asks: judge, resolve, repair, landed
+  (`landing-members.md`, 3). It stores no landing: the landing's row
+  holds its members, and a change's landing is derived from the live
+  rows (`landing-members.md`, 2). The landing's row keeps the
   times of its last event and its turn's start, and its latest wait
   (`landing-waits.md`, 4).
 - **Registered layouts,** converted at read (`../protocol/store-versions.md`,
@@ -515,10 +518,12 @@ documents for another task or project remain errors.
   squashed member's record, uncertain, is found by its pull request
   read merged at its prefix, and made where it is not; ended, its
   release goes on.
-- **A link to an ended landing is dropped** as the store is read: a
-  change naming a landing ended, or one the store does not hold, stops
-  naming it, an ask that landing still keeps for it going onto the
-  change; ready, it waits in its train's queue by its kept time.
+- **Members by the rows:** the index from change to live landing is
+  built from the restored rows, after a change two live landings claim
+  is given to the older (`landing-members.md`, 2.2), and the previous
+  build's links and asks are converted once (`landing-members.md`,
+  4.2). A change in no live landing, ready, waits in its train's queue
+  by its kept time.
 - **Forming** is judged again for every train (`landing-turn.md`, section 2).
 
 ## 16. The world

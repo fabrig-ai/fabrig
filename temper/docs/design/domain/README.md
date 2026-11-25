@@ -73,6 +73,11 @@ all. Then temper's:
      made before anything of it is saved, a refused make forming
      nothing while its train waits a queue window, and a start ending a
      landing whose task was never made.
+   - `landing-members.md`: a landing's members kept once, by its row,
+     a change's landing derived from the live rows, and the asks a
+     landing hands a member queued on the change until it takes them;
+     `landing-members-contracts.md` holds its goal's shared shapes while
+     the goal runs.
    - `landing-preparing.md`: a round at preparing reading at each step
      whether its prepare lives, has answered or is absent, and
      recovering across a restart, a worker's loss and a release.

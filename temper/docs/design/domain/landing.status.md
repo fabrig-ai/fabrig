@@ -19,3 +19,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   11, 16: GitHub's turn, its
   ref fast-forwarded (kind 19), a squashed member's pull request closed
   there, and its stories on the fake GitHub. 14: `repository receipts`.
+
+- **Not yet:** 4.2 (*It ends*), 4.3 (*Its link goes as it leaves*), 12
+  (*A change's state*), 15 (*Members by the rows*): a change stores its
+  landing and one handed-over ask, as `landing-members.status.md` lists.
