@@ -457,7 +457,7 @@ can't call a build script's code.
 ### 3.4 Generated tests
 
 `tests/boundary/tests/generated_tests.rs`, from `temper/docs/design/draft/archive/gate-compile.md`, 3.2 and
-7, milestone C1 of its execution file, and `temper/docs/design/draft/codec-shape.md`, 5.3. Generated
+7, milestone C1 of its execution file, and `temper/docs/design/draft/archive/codec-shape.md`, 5.3. Generated
 record code holds no tests, the generator writing none, and a codec crate's library builds no test
 target when it holds no other tests, so that a test build compiles its generated code once (skein's
 `data/codec/golden.md`, section 1). The check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each

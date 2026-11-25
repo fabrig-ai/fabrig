@@ -27,7 +27,7 @@ temper/docs/design/draft/reference-code-production.notes.md landing-model.md # t
 temper/docs/design/draft/archive/redeploys.execution.md data/codec/bridges.md # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/archive/redeploys.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/archive/redeploys.md skein/docs/design/data/codec/command.md 7 # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/codec-shape.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/codec-shape.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/bridges.md # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it

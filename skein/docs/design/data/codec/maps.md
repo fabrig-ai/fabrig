@@ -1,6 +1,6 @@
 # Translation from maps files
 
-2026-11-21, from goal K5 of `temper/docs/design/draft/codec-shape.md`, 4.
+2026-11-21, from goal K5 of `temper/docs/design/draft/archive/codec-shape.md`, 4.
 How a family's generated records are translated to the domain's types
 and back. A maps file beside the schema says where the domain's side
 differs from the record's; `skein-codegen` writes the translation from
@@ -14,7 +14,7 @@ it.
 
 - **The record stays its own type,** the schema's and nothing else's,
   and the codec crates depend on nothing new
-  (`temper/docs/design/draft/codec-shape.md`, 4.4). The translation
+  (`temper/docs/design/draft/archive/codec-shape.md`, 4.4). The translation
   lives in the owner's translation crate, which already names both the
   domain and the records.
 - **One maps file per family that has something to generate:**
@@ -184,7 +184,7 @@ must be held `tuple`.
 
 ### 3.3 What stays by hand
 
-The owner's own shape (`temper/docs/design/draft/codec-shape.md`, 4.1,
+The owner's own shape (`temper/docs/design/draft/archive/codec-shape.md`, 4.1,
 the third kind), each declaration marked `by hand`:
 
 - a record split, joined or flattened otherwise than the domain's; a
@@ -349,7 +349,7 @@ schema's name, for:
   is `skein-codegen`'s crate, the converters `skein-codec`'s, both
   already the job's generator. A conflicted maps file is a conflicted
   source, left with the generated module for the resolution
-  (`temper/docs/design/draft/codec-shape.md`, 6.2).
+  (`temper/docs/design/draft/archive/codec-shape.md`, 6.2).
 - **The list's check:** `fabrig-boundary`'s `merge_codecs` reproduces a
   row whose last input is a maps file through `translate`.
 
@@ -377,7 +377,7 @@ schema's name, for:
 ## 9. The wires' ends
 
 A wire's record is the one type its two sides share, each translating
-it into its own vocabulary (`temper/docs/design/draft/codec-shape.md`,
+it into its own vocabulary (`temper/docs/design/draft/archive/codec-shape.md`,
 4.4). Its versions are frozen and its layouts named by fingerprint
 (`temper/docs/design/draft/layouts-both-ways.md`, 3), so a map is
 written once against the family's text and moves with it.

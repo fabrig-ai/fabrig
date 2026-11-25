@@ -1,6 +1,6 @@
 # layouts-both-ways: execution
 
-2026-11-18. How [layouts-both-ways.md](layouts-both-ways.md) gets built. The user approved both drafts on 11-18, to run as two milestones, one per draft, on the lean design template. This draft is the second milestone, its seven goals below, made once [codec-shape.execution.md](codec-shape.execution.md)'s has ended. Each goal writes its own design from the draft as it runs, and lands whole, with its own tests, fixtures, workspace entries and gate rules. Plans use the focused and fuzzy suites alone.
+2026-11-18. How [layouts-both-ways.md](layouts-both-ways.md) gets built. The user approved both drafts on 11-18, to run as two milestones, one per draft, on the lean design template. This draft is the second milestone, its seven goals below, made once [archive/codec-shape.execution.md](archive/codec-shape.execution.md)'s has ended. Each goal writes its own design from the draft as it runs, and lands whole, with its own tests, fixtures, workspace entries and gate rules. Plans use the focused and fuzzy suites alone.
 
 ## 1. The goals
 

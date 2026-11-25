@@ -1,6 +1,6 @@
 # layouts-both-ways: one conversion, either way, for the store and every wire
 
-Draft, 2026-11-17, from a session with the user. They asked for "some elegant way to extend what we're doing to new->old flows and not only to old->new flow", since the store's problem and the wires' "are really the same one". This draft is the data's half: how a value or a message written at one layout is read or written at another. [codec-shape.md](codec-shape.md) is the code's half. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
+Draft, 2026-11-17, from a session with the user. They asked for "some elegant way to extend what we're doing to new->old flows and not only to old->new flow", since the store's problem and the wires' "are really the same one". This draft is the data's half: how a value or a message written at one layout is read or written at another. [archive/codec-shape.md](archive/codec-shape.md) is the code's half. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
 Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening-rehearsal.md`, 1) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/archive/redeploys.md`, 3 and 4). That holds until its goals fold it into them.
 
@@ -112,7 +112,7 @@ A plan converts bytes at a source layout into bytes at a target layout. It is de
 ### 4.5 Tests
 
 - **A round trip for every pair:** a value converted from source to target in Keep mode, then back in Read mode, is the value itself.
-- **Generated over `every`'s texts** ([codec-shape.md](codec-shape.md), 5), and over pairs the fuzzy suite derives from them by the change kinds of 4.2.
+- **Generated over `every`'s texts** ([archive/codec-shape.md](archive/codec-shape.md), 5), and over pairs the fuzzy suite derives from them by the change kinds of 4.2.
 - **Each refusal and each "no plan"** has a case of its own.
 
 ### 4.6 Where it lives
@@ -212,7 +212,7 @@ A frame names its layout as a registered value does, with its texts in the regis
   - the command's patch writing and renumbering (`skein/docs/design/data/codec/command.md`, 2 and 6);
   - their designs (`skein/docs/design/data/codec/patches.md`, `skein/docs/design/data/codec/bridges.md`).
 - **`.layouts` lists and version ranges:** the `.layouts` lists, the ranges and floors in each `schema/wires`, and the opening's agreement on a highest common version (`temper/docs/design/draft/archive/redeploys.md`, 3.2).
-- **The store's committed fingerprints** ([codec-shape.md](codec-shape.md), 6.1).
+- **The store's committed fingerprints** ([archive/codec-shape.md](archive/codec-shape.md), 6.1).
 
 ## 10. Later and open questions
 

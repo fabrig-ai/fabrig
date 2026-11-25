@@ -1,7 +1,7 @@
 # layouts-both-ways L5: the wires' translation, counted
 
 2026-11-24, on the goal branch at `0bfdbcb710`, before L5's changes. The
-count `temper/docs/design/draft/codec-shape.md`, 4.1 asks of goal L5,
+count `temper/docs/design/draft/archive/codec-shape.md`, 4.1 asks of goal L5,
 owner by owner: each declaration of each wire's schema, read against
 each crate's hand-written translation and its domain type. Read-only
 surveys, declaration by declaration, with the kinds of

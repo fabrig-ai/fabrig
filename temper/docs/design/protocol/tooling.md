@@ -179,7 +179,7 @@ baseline recounted, a generated file made again), with no model.
   runs the family's drift test, whose world builds the very codec
   crates left in conflict. A module whose schema text, maps file or
   generator conflicts too is left with them
-  (`../draft/codec-shape.md`, 6.2). It settles a conflict at a
+  (`../draft/archive/codec-shape.md`, 6.2). It settles a conflict at a
   journey's recording, page or file printed beside them with the base's
   copy, the landing branch's, or with none where the base holds none,
   deletions and renames among them, since only the journeys' writer
