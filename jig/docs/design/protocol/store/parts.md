@@ -62,7 +62,7 @@ it, and a hot part holding the rest.
 
 ```
 # The live task's part that changes, at its live key (parts.md, 2).
-record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 talk: option Talk }
+record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool dropped question_woken: u64 = 0 talk: option Talk }
 # TaskHistory without instructions; TaskDefinition without spec, contract and authority.
 record HotHistory { ... }
 record HotDefinition { ... }

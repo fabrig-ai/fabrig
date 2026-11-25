@@ -312,8 +312,10 @@ fn waiting(world: &World) -> Option<&[u8]> {
     })
 }
 
-fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
-    let mut world = story::world(seed, true);
+fn read_question_in_run(seed: u64, wakes: bool, asker_parks: bool) -> (World, (u64, u64), tasks::Word, u64) {
+    let mut setup = story::setup(seed, true);
+    setup.limits.core.tasks.retries.run.retries = 2;
+    let mut world = World::new(setup);
     world.grant_account(2);
     let caller = fixtures::run(&world);
     let mut member = fixtures::member(&world, tasks::Executor::Agent { charter: 2 }, b"answer questions");
@@ -322,9 +324,24 @@ fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
     let task = fixtures::delegate(&mut world, caller, 1, member);
     let first = (task, live_row(&world, task).attempt);
     assert_eq!(waiting(&world), None);
-    let question = story::question(&mut world, first);
+    let child = story::child(&mut world, first);
+    let question = story::question_from(&mut world, child, first.0);
+    world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Tasks(tasks::Event::Subscribe {
+        reads_project: false,
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(9481)),
+        task: first.0,
+        subscription: tasks::Subscription {
+            number: 9481,
+            kind: tasks::SubscriptionKind::Task { target: child.0, held: false, result: true },
+        },
+    })));
+    assert!(live_row(&world, first.0).subscriptions.iter().any(|watch| watch.number == 9481));
+    if asker_parks {
+        story::park_on_wakes(&mut world, child, None);
+        assert_eq!(live_row(&world, child.0).phase, tasks::Phase::Active(tasks::Active::Idle));
+    }
     story::turn(&mut world, first, None);
-    story::park(&mut world, first, None);
+    story::park_on_wakes(&mut world, first, None);
     if !wakes {
         fixtures::ask(
             &mut world,
@@ -338,14 +355,16 @@ fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
     let read = next.messages.last().expect("question or words").number;
     assert_eq!(waiting(&world), None, "a start message is not repeated");
     story::turn(&mut world, run, Some(read));
-    story::park(&mut world, run, Some(read));
+    (world, run, question, read)
+}
+
+fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
+    let (mut world, run, question, read) = read_question_in_run(seed, wakes, false);
+    story::park_on_wakes(&mut world, run, Some(read));
     assert!(live_row(&world, run.0).inbox.is_empty());
     if wakes {
-        let reminder = world.assigned.as_ref().expect("one wake for the read question");
-        let reminder = (reminder.task, reminder.attempt);
-        assert!(reminder.1 > run.1);
-        story::park(&mut world, reminder, None);
         assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Idle));
+        assert_eq!(live_row(&world, run.0).tries, tasks::Tries::NONE);
     }
     fixtures::ask(
         &mut world,
@@ -353,6 +372,23 @@ fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
         people::Ask::Say { project: 1, task: run.0, words: b"person's words".as_slice().into() },
     );
     (world, run, question)
+}
+
+#[test]
+fn a_dead_watch_retries_with_the_question_part_and_spends_tries() {
+    let (mut world, run, question, read) = read_question_in_run(866, true, true);
+    let mut prior = run;
+    for (spent, read) in [(1, Some(read)), (2, None)] {
+        story::park_on_wakes(&mut world, prior, read);
+        let next = world.assigned.as_ref().expect("a stuck question starts another run");
+        assert_eq!(next.task, run.0);
+        assert!(next.attempt > prior.1, "park {spent}: {:?}", live_row(&world, run.0).phase);
+        assert_eq!(live_row(&world, run.0).tries.run, spent);
+        assert_eq!(live_row(&world, run.0).last_message, question.number);
+        assert_eq!(next.run.policy.instructions.as_ref(), b"S\n\nQ");
+        prior = (next.task, next.attempt);
+    }
+    world.close();
 }
 
 #[test]
@@ -597,17 +633,7 @@ fn arriving_after_preparation(seed: u64, kind: Arriving) {
     let assignments = world.assignments.len();
     story::park(&mut world, second, Some(arriving.number));
     assert_eq!(world.assignments.len(), assignments, "the workspace completion still gates a later claim");
-    if matches!(kind, Arriving::Question) {
-        assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Preparing));
-        let reminder = world.domain.take_workspace().expect("the read question wakes once despite the timer");
-        world.send(jig_test_domain::Event::Core(reminder));
-        let next = world.assigned.as_ref().expect("question reminder run");
-        let next = (next.task, next.attempt);
-        assert!(next.1 > second.1);
-        assert_eq!(live_row(&world, run.0).question_woken, arriving.number);
-        story::park(&mut world, next, None);
-    }
-    // The consumed directing words get one wake after the question's rule.
+    // A live timer leaves the question idle; only the directing words wake once.
     assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert_eq!(live_row(&world, run.0).words_woken, words_number);
     let reminder = world.domain.take_workspace().expect("unrecorded words wake once");
@@ -617,6 +643,15 @@ fn arriving_after_preparation(seed: u64, kind: Arriving) {
     story::park(&mut world, next, None);
     assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert!(world.domain.take_workspace().is_none());
+    assert_eq!(live_row(&world, run.0).tries, tasks::Tries::NONE);
+    if matches!(kind, Arriving::Question) {
+        assert!(
+            live_row(&world, run.0)
+                .question_lines
+                .iter()
+                .any(|line| line.message == arriving.number && line.answer.is_none())
+        );
+    }
     world.close();
 }
 

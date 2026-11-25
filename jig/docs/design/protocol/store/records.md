@@ -203,14 +203,16 @@ follow from the limits that bound each kind (4).
   `Credit` or a `Word`; decoding separates them into questions and
   unread words. The task record also keeps `asked_requester`, the
   durable latch set by admitting its first question-form message to its
-  current requester, never cleared (`../../domain/tasks/lifecycle-endings.md`, 1),
-  and `question_woken`, a `u64`: the newest question number that has
-  woken it once at a park while it held a timer or a task watch, 0 for
-  none, never lowered (`../../domain/tasks/lifecycle.md`, 2).
+  current requester, never cleared (`../../domain/tasks/lifecycle-endings.md`, 1).
+  It keeps no `question_woken`: a parked task's open questions are
+  judged at each park (`../../domain/tasks/stuck.md`, 5), so the field
+  is a tombstone in the tasks family's schema
+  (`skein/docs/design/data/codec/README.md`, 3), and a record that
+  holds one reads with it dropped.
 - **Unrecorded words are kept with the inbox.** The tasks family keeps a
   task's unrecorded words (`../../domain/tasks/messages.md`, 2), each a
   whole `Word` as the inbox keeps one, oldest first, and `words_woken`, a
-  `u64`, 0 for none, never lowered, wherever `question_woken` is kept
+  `u64`, 0 for none, never lowered, in the task's record
   (`../../domain/tasks/lifecycle.md`, 2). An added `InboxItem` variant
   holds the words; `words_woken` is an added field with default 0: no
   version moves and no patch is written (`layouts.md`). Since
