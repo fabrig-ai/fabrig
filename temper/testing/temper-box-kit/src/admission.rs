@@ -60,7 +60,6 @@ pub fn seeds() -> settings::Seeds {
 #[must_use]
 pub fn worker_runtime() -> temper_service::WorkerRuntime {
     temper_service::WorkerRuntime {
-        wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
         agent: temper_playground::documents::pinned_agent(),

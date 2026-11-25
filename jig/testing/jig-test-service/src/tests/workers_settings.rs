@@ -95,7 +95,11 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
     let mut wires = List::with_capacity(codec.credential_wires);
     for spoken in wire::spoken().into_boxed() {
         wires
-            .push(wire::Wire { name: spoken.name.as_bytes().into(), lowest: spoken.lowest, layouts: spoken.layouts })
+            .push(wire::Wire {
+                name: spoken.name.as_bytes().into(),
+                layout: spoken.layout,
+                text: spoken.text.as_bytes().into(),
+            })
             .unwrap();
     }
     let credential = wire::Credential {
@@ -179,6 +183,7 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
                 | engine::Request::Ended { .. }
                 | engine::Request::Up { .. }
                 | engine::Request::Unsent { .. }
+                | engine::Request::Unread { .. }
                 | engine::Request::Closed
                 | engine::Request::Lower { .. } => {}
             }

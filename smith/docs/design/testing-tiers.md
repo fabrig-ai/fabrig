@@ -17,10 +17,10 @@ This document holds smith's testing tiers, split from [`testing.md`](testing.md)
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
 tests build values with public fields or fixed-rule encodings from
-embedded schema text; earlier versions use their kept texts. Drift compares
+embedded schema text. Drift compares
 the records' module with the committed code (skein's
 `data/codec/golden.md`, section 1). Families keep no golden files or
-generated test targets; event JSONL and patch goldens remain. Memory and
+generated test targets; event JSONL goldens remain. Memory and
 boundary tests check the generated `encoded_bound` and `decoded_bound`
 vocabulary.
 

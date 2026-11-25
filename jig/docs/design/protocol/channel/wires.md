@@ -60,14 +60,11 @@ converts is `layouts.md`'s; an application names its own wires
   application's, each name once. The engine checks the same list from
   its own side.
 - **A wire's version is frozen** at its header (temper's
-  `draft/layouts-both-ways.md`, 3): `jig-worker-wire` 22, `smith-charter`
-  5, the application's at theirs (temper's `protocol/wires.md`, 3). A
-  versioned record's head keeps that number, so no byte of one layout
-  moves. A focused test in each wire's crate holds its header at its
-  frozen number. `smith-transcript` and `smith-pieces` keep their
-  versions as their crate's patch history moves them (temper's
-  `protocol/wires.md`, 3); the opening states their layouts the same
-  way.
+  `draft/layouts-both-ways.md`, 3): `jig-worker-wire` 22, `smith-pieces`
+  1, `smith-charter` 5, `smith-transcript` 8, the application's at theirs
+  (temper's `protocol/wires.md`, 3.1). A versioned record's head keeps
+  that number, so no byte of one layout moves. A focused test in each
+  wire's crate holds its header at its frozen number.
 - **The channel's own version** is agreed by skein's opening (skein's
   `net/channel.md`, 5.2), each side's range `jig-worker-wire`'s one
   version.

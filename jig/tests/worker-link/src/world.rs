@@ -192,7 +192,7 @@ impl World {
     )]
     fn route(&mut self, request: Request) {
         match request {
-            request @ (Request::Restarting { .. } | Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => {
+            request @ Request::Restarting { .. } => {
                 self.root.push(request);
             }
             Request::Dial => {

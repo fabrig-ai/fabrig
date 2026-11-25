@@ -2,12 +2,12 @@
 //! The text check includes comments and strings, and ignores whitespace around
 //! the manifest macro. Its own matcher examples are excluded, as in outward.rs.
 //! Kits find binaries without the caller's Cargo variables (tools/crates/design.md, 3.2).
-//! Codec golden bytes stay with every and patches (skein's data/codec/README.md, 5, and data/codec/golden.md, 1).
+//! Codec golden bytes stay with every (skein's data/codec/golden.md, 1).
 
 use std::{fs, path::Path, process::Command};
 
 fn compiled_fixture_path(source: &str) -> bool {
-    let rewrites = ["SKEIN_CODEGEN_WRITE", "SKEIN_DIFF_WRITE", "SKEIN_PATCH_WRITE", "temper_test_env::rewrite"];
+    let rewrites = ["SKEIN_CODEGEN_WRITE", "temper_test_env::rewrite"];
     if !rewrites.iter().any(|switch| source.contains(switch)) {
         return false;
     }
@@ -113,46 +113,42 @@ fn codec_golden_outside_kept_places(path: &str) -> bool {
     if !codec_name || !directories.contains(&"golden") {
         return false;
     }
-    let every = directories.starts_with(&["skein", "tests", "codec", "golden"]);
-    let patch_goldens = directories.windows(2).any(|pair| pair == ["patches", "golden"]);
-    let patch_story =
-        directories.starts_with(&["skein", "tests", "codec-patches", "story"]) && directories.get(5) == Some(&"golden");
-    !(every || patch_goldens || patch_story)
+    !directories.starts_with(&["skein", "tests", "codec", "golden"])
 }
 
 #[test]
 fn only_kept_codec_goldens_are_tracked() {
     let offenders: Vec<_> = tracked_files().into_iter().filter(|path| codec_golden_outside_kept_places(path)).collect();
-    assert!(offenders.is_empty(), "Codec golden files belong only to every and patches:\n{}", offenders.join("\n"));
+    assert!(
+        offenders.is_empty(),
+        "Codec golden files belong only in skein/tests/codec/golden:\n{}",
+        offenders.join("\n")
+    );
 }
 
 #[test]
-fn codec_golden_paths_keep_only_pins_and_patches() {
+fn codec_golden_paths_keep_only_pins() {
     let paths = [
         "smith/crates/smith-channel/golden/v11/record_frame_full.bin",
         "other/golden/record_row_smallest.bin",
         "other/golden/enum_kind_full.bin",
         "other/golden/enum_kind_smallest.bin",
         "skein/tests/codec/golden/record_every_full.bin",
-        "jig/crates/jig-protocol-store/patches/golden/0003/record_row_smallest.bin",
-        "skein/tests/codec-patches/story/rename/golden/enum_kind_full.bin",
         "jig/crates/jig-client-view/golden/rendered/record_row_full.txt",
         "other/record_row_full.bin",
         "other/goldenish/record_row_full.bin",
         "skein/tests/codec/goldenish/golden/record_row_full.bin",
-        "other/patches/goldenish/golden/record_row_full.bin",
-        "skein/tests/codec-patches/story/rename/deeper/golden/record_row_full.bin",
     ];
     let offenders: Vec<_> = paths.into_iter().filter(|path| codec_golden_outside_kept_places(path)).collect();
-    assert_eq!(offenders, [paths[0], paths[1], paths[2], paths[3], paths[10], paths[11], paths[12],]);
+    assert_eq!(offenders, [paths[0], paths[1], paths[2], paths[3], paths[8]]);
 }
 
 #[test]
 fn rewrite_sources_need_runtime_paths() {
     for source in [
         r#"SKEIN_CODEGEN_WRITE env!("CARGO_MANIFEST_DIR")"#,
-        r#"SKEIN_DIFF_WRITE concat!(env!("CARGO_MANIFEST_DIR"), "/golden")"#,
-        "SKEIN_PATCH_WRITE env! ( \n \"CARGO_MANIFEST_DIR\" )",
+        r#"SKEIN_CODEGEN_WRITE concat!(env!("CARGO_MANIFEST_DIR"), "/golden")"#,
+        "SKEIN_CODEGEN_WRITE env! ( \n \"CARGO_MANIFEST_DIR\" )",
         r#"temper_test_env::rewrite() env!("CARGO_MANIFEST_DIR")"#,
     ] {
         assert!(compiled_fixture_path(source), "{source}");

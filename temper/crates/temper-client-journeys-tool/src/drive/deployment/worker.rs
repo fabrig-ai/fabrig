@@ -20,8 +20,11 @@ impl Worker {
         Ok(Self { name, digest: digest.into() })
     }
     pub fn listed(&self, bytes: &[u8]) -> Result<bool, String> {
-        let Json::Array(rows) = Json::parse("worker list", bytes, DOCUMENT_BYTES)? else {
-            return Err("worker list: expected an array".into());
+        let Json::Object(members) = Json::parse("worker list", bytes, DOCUMENT_BYTES)? else {
+            return Err("worker list: expected an object".into());
+        };
+        let Some((_, Json::Array(rows))) = members.iter().find(|(key, _)| key.as_ref() == b"rows") else {
+            return Err("worker list: expected a rows array".into());
         };
         for row in rows {
             if row.member_string("worker list", b"name")? == self.name {

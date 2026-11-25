@@ -1,34 +1,63 @@
-//! The engine's statement, or the worker's single versions (protocol/channel/bridges.md, 3).
-use jig_protocol_worker_wire::{Agreed, Spoken, v22};
+//! Construction checks and the initiator's terms (jig/docs/design/protocol/channel/wires.md, 5).
+use jig_protocol_worker_wire::{Kind, Root, Spoken};
+use skein_channel::{Direction, Term, Version};
 use skein_lib::List;
 
-pub(crate) fn singletons(wires: &List<Spoken>) -> Option<List<Agreed>> {
-    let mut agreed = List::with_capacity(wires.len());
-    for wire in wires {
-        if wire.layouts.len() != 1 {
-            return None;
+pub(crate) fn roots_present(spoken: &List<Spoken>, roots: &List<Root>) -> bool {
+    for root in roots {
+        let mut named = false;
+        for wire in spoken {
+            if wire.name == root.wire {
+                named = true;
+                break;
+            }
         }
-        agreed.push(Agreed { name: wire.name, version: wire.lowest }).expect("one agreement per wire");
+        if !named {
+            return false;
+        }
     }
-    Some(agreed)
+    for wire in spoken {
+        let mut schema = None;
+        for root in roots {
+            if root.wire == wire.name {
+                if schema.is_none() {
+                    let Ok(parsed) = skein_codec::schema::parse(wire.text.as_bytes()) else { return false };
+                    schema = Some(parsed);
+                }
+                if schema.as_ref().expect("the root's text is parsed").find(root.declaration.as_bytes()).is_none() {
+                    return false;
+                }
+            }
+        }
+    }
+    true
 }
 
-pub(crate) fn statement(wires: &List<Spoken>, statement: &v22::Agreed) -> Option<List<Agreed>> {
-    let mut agreed: List<Agreed> = List::with_capacity(statement.wires.len());
-    for stated in &statement.wires {
-        let mut found = None;
-        for wire in wires {
-            if wire.name.as_bytes() == stated.name.as_ref() && wire.layout(stated.version).is_some() {
-                found = Some(Agreed { name: wire.name, version: stated.version });
-            }
+pub(crate) fn optional(kind: u16) -> bool {
+    for notice in [Kind::Paused, Kind::Part, Kind::Usage, Kind::UsageRead] {
+        if notice.number() == kind {
+            return true;
         }
-        let found = found?;
-        for earlier in &agreed {
-            if earlier.name == found.name {
-                return None;
-            }
-        }
-        agreed.push(found).expect("one agreement per stated wire");
     }
-    Some(agreed)
+    false
+}
+
+pub(crate) fn terms_gap(table: &Version, terms: &List<Term>) -> Option<u16> {
+    for rule in &table.kinds {
+        if rule.direction == Direction::FromInitiator {
+            let mut bound = None;
+            for term in terms {
+                if term.kind == rule.kind {
+                    bound = Some(term.largest);
+                    break;
+                }
+            }
+            match bound {
+                Some(bound) if bound >= rule.largest => {}
+                None if optional(rule.kind) => {}
+                Some(_) | None => return Some(rule.kind),
+            }
+        }
+    }
+    None
 }

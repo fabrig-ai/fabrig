@@ -3,8 +3,9 @@
 use crate::{fixtures, processes::ServiceHost};
 use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Record;
-use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
-use skein_lib::Queue;
+use skein_channel::Control;
+use skein_io::kernel::{Fd, Op, Submit};
+use skein_lib::{Reader, Secret, Writer};
 
 #[derive(Default)]
 pub(crate) struct Starts {
@@ -24,37 +25,31 @@ impl Starts {
     pub(crate) fn arm(&mut self) {
         self.phase = Phase::Refusing;
     }
-    pub(crate) fn receive(&mut self, input: &mut Queue<Complete>) {
+    pub(crate) fn corrupt_open(&mut self, submit: &mut Submit) {
         if !matches!(self.phase, Phase::Refusing) {
             return;
         }
-        for _ in 0..input.len() {
-            let mut complete = input.pop().expect("completion count");
-            if let (Op::Recv { buf, .. }, Ok(Done::Count(count))) = (&mut complete.kind, &complete.result) {
-                let bytes = &mut buf[..usize::try_from(*count).expect("receive count")];
-                if bytes.len() >= 8 && skein_channel::parse_header(&bytes[..8]).is_ok_and(|head| head.kind == 1) {
-                    // Wrong credentials make the real responder refuse the opening.
-                    // The calm story delivers this small opening in one receive.
-                    assert!(bytes.len() > 22, "opening carries credentials");
-                    let mut parts =
-                        wire::Credential::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(&bytes[22..]))
-                            .expect("whole opening credential");
-                    let mut secret = parts.secret.expose().to_vec();
-                    *secret.first_mut().expect("nonempty fixture secret") ^= 1;
-                    parts.secret = skein_lib::Secret::new(secret.into_boxed_slice());
-                    let credential = parts;
-                    let mut encoded = skein_lib::Writer::new(
-                        usize::try_from(
-                            credential.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-                        )
-                        .expect("credential length"),
-                    );
-                    credential.write(&jig_protocol_worker_wire::CEILINGS, &mut encoded).expect("measured credential");
-                    bytes[22..].copy_from_slice(&encoded.finish());
-                }
-            }
-            input.push(complete);
+        let Op::Send { bytes, from: 0, .. } = &mut submit.kind else { return };
+        let Some((head, body)) = bytes.split_at_checked(8) else { return };
+        let Ok(header) = skein_channel::parse_header(head) else { return };
+        if header.kind != 1 {
+            return;
         }
+        // Rewrite the worker's whole Open before transport can split it. The real responder refuses the wrong secret.
+        let (_, limits) = fixtures::peer_bounds();
+        let mut open = skein_channel::decode_control(header.kind, body, &limits).expect("whole Open");
+        let Control::Open { credential, .. } = &mut open else { unreachable!("Open kind") };
+        let mut parts =
+            wire::Credential::decode(&wire::CEILINGS, &mut Reader::new(credential)).expect("whole opening credential");
+        let mut secret = parts.secret.expose().to_vec();
+        *secret.first_mut().expect("nonempty fixture secret") ^= 1;
+        parts.secret = Secret::new(secret.into_boxed_slice());
+        let mut encoded = Writer::new(credential.len());
+        parts.write(&wire::CEILINGS, &mut encoded).expect("same-sized credential");
+        *credential = encoded.finish();
+        let frame = skein_channel::control_frame(&open, &limits).expect("same-sized Open");
+        bytes.copy_from_slice(frame.bytes());
+        self.phase = Phase::Normal;
     }
     pub(crate) fn cut_record(&mut self, submit: &Submit) -> bool {
         let Op::Send { bytes, from: 0, .. } = &submit.kind else { return false };

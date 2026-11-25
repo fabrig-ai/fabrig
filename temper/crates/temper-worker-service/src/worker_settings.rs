@@ -23,7 +23,7 @@ pub fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
     operations(&git_component(*git))
 }
 
-/// A world's worker link, independent of the engine's whole ranges (protocol/wires.md, 11).
+/// The prepared wires and roots for the worker's link (protocol/wires.md, 4).
 #[derive(Debug)]
 pub struct Wires {
     pub jig: skein_lib::List<jig_protocol_worker_wire::Spoken>,
@@ -36,6 +36,7 @@ pub struct Prepared {
     pub root: root::Limits,
     pub link: link::Limits,
     pub schema: skein_channel::Schema,
+    pub wires: Wires,
     pub payload: v1::Limits,
     pub prefix: u64,
     pub address: io::Addr,
@@ -91,7 +92,8 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
     {
         return Err(problem(b"limits", What::Bound));
     }
-    Ok(Prepared { root: domain_limits, link, schema, payload, prefix, address })
+    let wires = wires(&payload).or(Err(problem(b"limits", What::Bound)))?;
+    Ok(Prepared { root: domain_limits, link, schema, wires, payload, prefix, address })
 }
 
 #[must_use]
@@ -177,18 +179,25 @@ fn programs_valid(programs: &[settings::Program]) -> bool {
     true
 }
 
+/// The worker's current texts and application roots, in opening order.
+pub(crate) fn wires(limits: &v1::Limits) -> Result<Wires, v1::Problem> {
+    let application = payload::application(limits)?;
+    Ok(Wires { jig: jig_protocol_worker_wire::spoken(), application })
+}
+
 /// The application's wire is part of every worker's statement (protocol/wires.md, 4).
+#[must_use]
 pub fn credential(
     worker: &settings::Worker,
     secret: &[u8],
-    limits: &v1::Limits,
-) -> Result<link::Credential, skein_codec::bridge::BridgeError> {
-    Ok(link::Credential {
+    application: jig_protocol_worker_wire::Application,
+) -> link::Credential {
+    link::Credential {
         opening: jig_protocol_worker_wire::Opening::Link,
         name: worker.jig.name.clone(),
         secret: config::secret(secret.into()),
-        application: payload::application(limits)?,
-    })
+        application,
+    }
 }
 
 fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {

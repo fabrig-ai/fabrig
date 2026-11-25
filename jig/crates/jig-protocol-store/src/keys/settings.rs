@@ -144,3 +144,8 @@ pub(crate) fn changed_model(bytes: &[u8]) -> Option<u32> {
     }
     Some(number)
 }
+
+/// Deployment-scoped changes of the worker kind, ordered by setting number.
+pub(crate) fn worker_changes() -> skein_kv::Range {
+    skein_kv::Range::prefix(&[super::JIG, 0, 8, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0])
+}

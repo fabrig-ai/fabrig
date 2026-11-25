@@ -7,7 +7,6 @@ from pathlib import Path
 LANDED_CASES = {
     'client_layouts': ('client_versions_are_frozen',),
     'host_tools': ('host_tool_contract_history_is_kept',),
-    'patches': ('stored_changes_have_patches',),
 }
 
 

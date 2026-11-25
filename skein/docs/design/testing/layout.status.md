@@ -9,12 +9,7 @@
   through `#[path]`, as other crates load `*_tests.rs`, and
   `skein-llm/src/translate.rs` and other source files hold inline test
   modules; no reason is recorded (the code's side is
-  `skein/docs/development/debt/D027-step-test-layouts.md`). 1: `skein-scratch`
-  is the tests' scratch directory, removed when dropped, but
-  `skein/testing/skein-codegen/tests/suite/patch_run.rs` and
-  `patch_generated.rs` make theirs by hand and remove them after their
-  assertions, so a failing test leaves one behind, and a reused pid then
-  fails on it; no reason is recorded.
+  `skein/docs/development/debt/D027-step-test-layouts.md`).
   1: `smith/benchmarks/tasks/repository/shell-cwd/grader`, outside the
   workspace, reads `skein_llm_world`, because its first grade takes that world
   from the frozen workspace's own git source.

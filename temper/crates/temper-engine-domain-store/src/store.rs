@@ -795,8 +795,8 @@ pub struct WorkerStatement {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenedWire {
     pub name: Box<str>,
-    pub lowest: u16,
-    pub layouts: Box<[[u8; 32]]>,
+    pub layout: [u8; 32],
+    pub text: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenedTerm {
@@ -1154,7 +1154,7 @@ pub fn owned_bytes(write: &Write) -> Option<u64> {
             for wire in &opening.statement.wires {
                 bytes = bytes
                     .checked_add(skein_lib::len_u64(wire.name.len()))?
-                    .checked_add(skein_lib::len_u64(wire.layouts.len()).checked_mul(32)?)?;
+                    .checked_add(skein_lib::len_u64(wire.text.len()))?;
             }
             Some(bytes)
         }

@@ -395,3 +395,29 @@ fn files_collectors_measure_complete_outputs_beside_the_expected_mirror() {
         );
     }
 }
+
+#[test]
+fn retained_inventory_keeps_the_openings_layout_and_text() {
+    let mut world = committed();
+    let text = b"opaque wire schema\0bytes".as_slice();
+    let opening = store::WorkerOpening {
+        worker: "worker".into(),
+        wires: Box::new([store::OpenedWire { name: "wire".into(), layout: [9; 32], text: text.into() }]),
+        output: 2048,
+        terms: Box::new([]),
+        at: skein_lib::Wall::from_nanos(12),
+    };
+    world.commit(Box::new([Write::Save(root::header(2)), Write::Opening(opening)])).expect("worker opened");
+    let key = keys::encode_own(&keys::Own::Opening("worker".into()), root::limits().store.key).expect("opening key");
+    let rows = inventory(&mut world, PAGE_ROWS, PAGE_BYTES);
+    let bytes = &rows[&key];
+    assert_eq!(&bytes[..2], &2_u16.to_be_bytes());
+    let row =
+        store::openings_v2::WorkerOpening::decode(&store::openings_v2::CEILINGS, &mut skein_lib::Reader::new(bytes))
+            .expect("retained row at the current version");
+    assert_eq!(row.worker.as_ref(), b"worker");
+    let [wire] = row.wires.as_slice() else { panic!("one kept wire") };
+    assert_eq!(wire.name.as_ref(), b"wire");
+    assert_eq!(wire.layout, [9; 32]);
+    assert_eq!(wire.text.as_ref(), text);
+}

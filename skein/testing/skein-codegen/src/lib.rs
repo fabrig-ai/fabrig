@@ -9,7 +9,6 @@ mod analysis;
 mod bounds_text;
 mod check;
 mod constructs;
-pub mod diff;
 mod emit_limits;
 mod emit_types;
 mod fixed_values;
@@ -17,7 +16,6 @@ mod largest;
 mod lean;
 mod maps;
 mod parse;
-pub mod patch;
 mod values;
 
 pub use bounds_text::bounds_text;

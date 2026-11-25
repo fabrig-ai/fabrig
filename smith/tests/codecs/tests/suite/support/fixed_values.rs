@@ -2,18 +2,12 @@
 
 pub fn all(family: &str, version: u16) -> Vec<skein_codegen::FixedValue> {
     let text = match (family, version) {
-        ("charter", 5) => smith_charter::SCHEMA,
-        ("transcript", 8) => smith_transcript::SCHEMA,
-        ("channel", 14) => smith_channel::CHANNEL_SCHEMA,
-        ("channel", 9) => include_str!("../../../../../crates/smith-channel/schema/kept/smith-channel-v9.schema"),
-        ("channel", 7) => include_str!("../../../../../crates/smith-channel/schema/kept/smith-channel-v7.schema"),
+        ("charter", smith_charter::wire::VERSION) => smith_charter::wire::TEXT,
+        ("transcript", smith_transcript::wire::VERSION) => smith_transcript::wire::TEXT,
+        ("channel", smith_channel::wire::VERSION) => smith_channel::wire::TEXT,
         _ => panic!("no embedded schema for {family} v{version}"),
     };
-    if (family == "channel" && version == 14) || family == "charter" || family == "transcript" {
-        skein_codegen::values(text).fixed.clone()
-    } else {
-        skein_codegen::fixed_values(&skein_codegen::parse(text).expect("valid embedded schema"))
-    }
+    skein_codegen::values(text).fixed.clone()
 }
 
 pub fn fixed_value(family: &str, version: u16, name: &str) -> Vec<u8> {

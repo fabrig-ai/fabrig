@@ -110,8 +110,8 @@ fn opening_refusals_name_the_reason_and_the_engines_text() {
     for (reason, text, expected) in [
         (
             257,
-            "wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000",
-            "temper-worker worker: the engine refused the opening: wires: wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000\n",
+            "wire smith-charter: the worker's text is not its layout cd34000000000000",
+            "temper-worker worker: the engine refused the opening: wires: wire smith-charter: the worker's text is not its layout cd34000000000000\n",
         ),
         (
             1,
@@ -357,7 +357,6 @@ fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
         (Loss::Busy, "lost worker-a [::1]:7100 busy\n"),
         (Loss::Fault, "lost worker-a [::1]:7100 fault\n"),
         (Loss::Unreachable, "lost worker-a [::1]:7100 unreachable\n"),
-        (Loss::EngineStatesNoWires, "lost worker-a [::1]:7100 the engine states no wires: restart the engine first\n"),
         (Loss::Closed(Closed::RefusedHere(2)), "lost worker-a [::1]:7100 refused terms\n"),
         (Loss::Closed(Closed::RefusedHere(3)), "lost worker-a [::1]:7100 refused malformed\n"),
         (Loss::Closed(Closed::RefusedHere(256)), "lost worker-a [::1]:7100 refused unauthorized\n"),
