@@ -21,13 +21,19 @@ fn ready(world: &World) -> usize {
 #[test]
 fn a_room_below_a_frame_the_worker_sends_is_not_made() {
     use jig_protocol_worker_link::{Component, Limits, Unusable, valid};
-    use jig_protocol_worker_wire::{self as wire, Kind, sizes};
+    use jig_protocol_worker_wire::{self as wire, Kind, Record, sizes};
 
     // A large body makes each named kind exceed the channel's 270-byte refusal.
     const LARGE: u32 = 4096;
     const HEADER: u32 = 8;
+    // Open's fixed fields before the credential, as counted by valid_with_schema.
+    const OPEN_FIXED_BODY: u32 = 14;
     const REFUSE: u32 = 270;
     let base = fixtures::SIZES;
+    let codec = sizes::limits(&base).expect("fixture codec limits");
+    let credential = u32::try_from(wire::Credential::encoded_bound(&codec).expect("finite credential"))
+        .expect("credential fits in u32");
+    let open = OPEN_FIXED_BODY + credential + HEADER;
     let turn = sizes::Sizes { turn: LARGE, ..base };
     let call = sizes::Sizes { call_input: LARGE, ..base };
     let answer = sizes::Sizes { result: LARGE, ..base };
@@ -38,9 +44,11 @@ fn a_room_below_a_frame_the_worker_sends_is_not_made() {
         .map(|rule| frame(&base, rule.body))
         .max()
         .expect("worker sends records")
+        .max(open)
         .max(REFUSE);
     for (name, sizes, room, made) in [
         ("largest frame fits", base, largest, true),
+        ("open", base, open - 1, false),
         ("turn", turn, frame(&turn, Kind::Turn) - 1, false),
         ("call", call, frame(&call, Kind::Call) - 1, false),
         ("answer", answer, frame(&answer, Kind::Answer) - 1, false),

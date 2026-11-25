@@ -230,10 +230,49 @@ fn three_reads_and_an_opening_leave_as_one_ordered_batch() {
 }
 
 #[test]
+fn reads_wait_during_starting_then_leave_alone_or_batched() {
+    for count in [1, 2] {
+        let mut h = fixtures::Harness::new(&fixtures::limits());
+        h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
+        for number in 1..=count {
+            gather(&mut h, number);
+        }
+        h.link.settle(&mut h.out);
+        assert!(h.has(&Request::OpenStream { credential: None, version: w::VERSION, replaces: None }));
+        assert_eq!(h.exchanges(), 0);
+        assert_eq!(read_count(&h), 0);
+        h.clear();
+
+        h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
+        assert_eq!(h.exchanges(), 1);
+        let mut members = None;
+        let mut batched = false;
+        for request in &h.out {
+            if let Request::Exchange { message: Message::Read(body), .. } = request {
+                let owned = w::Owned::decode(h.link.limits.wire(), &mut Reader::new(body)).unwrap();
+                members = Some(List::from_boxed(Box::new([w::Member::Read(owned)])));
+            }
+            if let Request::Exchange { message: Message::Batch(body), .. } = request {
+                members = Some(w::Batch::decode(h.link.limits.wire(), &mut Reader::new(body)).unwrap().members);
+                batched = true;
+            }
+        }
+        assert_eq!(batched, count > 1);
+        let members = members.expect("reads released by matching Opened");
+        assert_eq!(u64::from(members.len()), count);
+        for (number, member) in (1..=count).zip(&members) {
+            let w::Member::Read(owned) = member else { panic!("read member") };
+            let value = w::Read::decode(h.link.limits.wire(), &mut Reader::new(&owned.record)).unwrap();
+            assert_eq!(value, w::Read::Project(w::ReadProject { project: u32::try_from(number).unwrap() }));
+        }
+    }
+}
+
+#[test]
 fn sixty_four_members_take_one_credit_and_the_rest_wait_in_order() {
     let base = fixtures::limits();
     let limits = Limits::new(jig_client_domain::Limits { reads: 70, ..*base.client() }, 1).unwrap();
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     for n in 1..=67 {
         gather(&mut h, n);
     }
@@ -258,7 +297,7 @@ fn batch_bytes_split_before_the_bound_and_an_oversize_read_leaves_alone() {
     let base = fixtures::limits();
     let limits =
         Limits::new(jig_client_domain::Limits { reads: 8, document_bytes: 262_144, ..*base.client() }, 4).unwrap();
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     for (n, size) in [60_000_usize, 60_000, 20_000, 140_000].into_iter().enumerate() {
         h.link.step(
             Time::ZERO,
@@ -296,7 +335,7 @@ fn batch_bytes_split_before_the_bound_and_an_oversize_read_leaves_alone() {
 #[test]
 fn parts_route_by_member_and_a_cut_batch_keeps_its_answered_reads() {
     for done in [false, true] {
-        let mut h = fixtures::Harness::new(&fixtures::limits());
+        let mut h = fixtures::Harness::with_hello(&fixtures::limits());
         for n in 1..=3 {
             gather(&mut h, n);
         }
@@ -319,7 +358,7 @@ fn parts_route_by_member_and_a_cut_batch_keeps_its_answered_reads() {
 #[test]
 fn a_family_members_busy_or_lost_reply_keeps_the_transient_reason() {
     for ending in 0_u8..4 {
-        let mut h = fixtures::Harness::new(&fixtures::limits());
+        let mut h = fixtures::Harness::with_hello(&fixtures::limits());
         gather(&mut h, 1);
         h.link.step(
             Time::ZERO,
@@ -360,7 +399,7 @@ fn a_family_members_busy_or_lost_reply_keeps_the_transient_reason() {
 #[test]
 fn an_invalid_or_repeated_part_loses_unanswered_members_until_the_terminal() {
     for bad in 0_u8..3 {
-        let mut h = fixtures::Harness::new(&fixtures::limits());
+        let mut h = fixtures::Harness::with_hello(&fixtures::limits());
         for n in 1..=3 {
             gather(&mut h, n);
         }

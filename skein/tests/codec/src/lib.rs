@@ -74,6 +74,3 @@ pub mod mapped_records;
 #[rustfmt::skip]
 #[path = "generated/maps/mapped.rs"]
 pub mod mapped_translation;
-
-#[path = "../patches/mod.rs"]
-pub mod patches;

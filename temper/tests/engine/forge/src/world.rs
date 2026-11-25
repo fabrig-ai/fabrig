@@ -2076,6 +2076,7 @@ impl World {
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }
                 other @ (top::Request::ChangeDecision { task, .. }
+                | top::Request::CloseDecision { task, .. }
                 | top::Request::LandingDecision { task, .. }
                 | top::Request::WakeProcedure { task }) => {
                     self.owed.insert(task);

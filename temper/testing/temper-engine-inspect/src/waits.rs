@@ -206,6 +206,15 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             }
             if matches!(row.change.state, State::Producing { requested: false }) {
                 follow_restart(view, row.task, &mut wakes);
+                if row.close.is_some()
+                    && let Some(root) = view.root
+                    && let Some(task) = root.tasks().task(row.task)
+                    && let tasks::Party::Task(closer) = task.requester
+                    && view.forge.closer(closer).is_some()
+                    && root.tasks().task(closer).is_some_and(|owner| !owner.waiting_on.is_empty())
+                {
+                    wakes.push(view.waiter(closer));
+                }
             }
         }
     }

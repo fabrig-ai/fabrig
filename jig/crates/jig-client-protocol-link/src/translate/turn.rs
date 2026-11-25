@@ -1,6 +1,7 @@
 //! Complete single-turn admission before allocating its owned envelope (client/domain/client/README.md, 6).
 use super::Undecodable;
 use crate::Limits;
+use crate::generated::client;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::VERSION;
@@ -83,7 +84,7 @@ pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::Arc
     };
     Ok(c::ArchivedTurn {
         task: record.task,
-        name: c::TurnName { attempt: record.name.attempt, number: record.name.number },
+        name: client::turn_name_to_domain(record.name),
         cumulative: record.cumulative,
         read: record.read,
         at: Wall::from_nanos(record.at),

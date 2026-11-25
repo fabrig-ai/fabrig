@@ -1,4 +1,4 @@
-//! Shipped smith on its own live accounts (smith/docs/design/testing.md, section 2.3).
+//! Shipped smith on its own live accounts (smith/docs/design/testing-tiers.md, section 3).
 //! The live profile selects these stories serially, without retries.
 
 pub use smith_end_to_end_kit as support;
@@ -86,7 +86,7 @@ fn claude_delivers_a_commit_in_place() {
 }
 
 #[test]
-#[ignore = "live: needs an Anthropic API key; run by the owner (smith/docs/design/testing.md, 2.3)"]
+#[ignore = "live: needs an Anthropic API key; run by the owner (smith/docs/design/testing-tiers.md, 3)"]
 fn an_anthropic_key_delivers_a_commit_in_place() {
     commit("anthropic-key");
 }

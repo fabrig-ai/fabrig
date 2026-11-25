@@ -149,6 +149,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
+            | forge::Event::CloseDelegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::WaitsRefused { .. }
@@ -168,6 +169,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
             | forge::Event::ChangeEnding { .. }
+            | forge::Event::RetireFailedClose { .. }
             | forge::Event::ReleaseChange { .. }
             | forge::Event::GoalReleased { .. }
             | forge::Event::SettleEffects { .. }

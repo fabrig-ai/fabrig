@@ -21,6 +21,9 @@
   The client reads a family's request only by its owner, version and size
   (`vocabulary.md`, 1.3); its domain recognizes top-level jig `Seen` to decide whether to
   keep it (below).
+
+## 1. Request keys and names
+
 - **The key is the application's name for a request:** its asker, and a
   number the asker draws from its seed, fresh for each request it means.
   A second `Send` under a key the client holds is joined to the first
@@ -49,6 +52,9 @@
     another request is still a key conflict, loud.
   - *Not joined.* The table keeps one asker per named entry, `Seen`
     included.
+
+## 2. The request table
+
 - **Through skein-lib's request table** (skein's `runtime/lib.md`, section 12),
   which the client holds. It is the client's only way out for a keyed
   request without a carried value, as the journal is the engine's root's
@@ -81,6 +87,9 @@
   after completion a retry checks current subject and authority and may
   answer `Unknown` after forget or `Role` after authority loss
   (../contract/requests.md, 1 and 2).
+
+## 3. Requests carrying values
+
 - **A request carrying a value,** such as an LLM account's key added or
   replaced, or a moved file moved in (../contract/requests.md, 2), or an
   application's request's credential, is sent once and never kept, so
@@ -113,6 +122,9 @@
   keeps the record: the file is the application's shell's, written
   new, private and synced before *written*, and removed once a move
   in is answered, or once a *written* is refused *cancelled*.
+
+## 4. Progress and answers
+
 - **Progress, for showing.** `Pending { key }` says the request's
   progress changed: in flight, retrying, parked (offline, signed out, or
   another party's), or held for its owner's version (`watches.md`, 2). Retrying
@@ -148,6 +160,9 @@
   (`../../../domain/model.md`, section 11), so the client never says done
   before it is. Nothing a presentation shows as done may come before
   this answer.
+
+## 5. Proposals and decisions
+
 - **Proposing is explicit.** A `Create` or an `Amend` beyond the party's
   authority is refused, naming what it lacked and whether a proposal
   could be accepted; `Propose` asks (../contract/requests.md, 5). Each document's
@@ -165,6 +180,9 @@
   with each live delegate cancelled or moved to the party; amending a
   held task and releasing it; reordering goals). The client never chains
   two requests, so nothing is left to undo when the second is refused.
+
+## 6. A version not served
+
 - **A version not served** keeps the request: while its owner's version
   is not served (`watches.md`, 2), the request is kept and unsent, held for its
   owner's version, and it is sent under its key once a hello serves that

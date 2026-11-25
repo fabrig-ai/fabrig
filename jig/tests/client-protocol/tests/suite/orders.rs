@@ -1,11 +1,11 @@
 //! Durability and exchange order in a world with a scripted parent and slow store.
 //! See skein/docs/foundation/programming-model.md, 7.2.
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
-use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
+use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved, Streamed};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_world::fixtures::{self, PROJECT};
-use skein_lib::{Duration, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
+use skein_lib::{Duration, List, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
 use std::collections::BTreeMap;
 
 // One occupied read plus three keyed exchanges fills this transport edge,
@@ -48,6 +48,10 @@ impl World {
             terminals: vec![],
             loads: vec![],
         };
+        world.event(Event::OpenStream);
+        world.event(Event::Streamed { message: Streamed::Record(hello(limits.client())) });
+        // Persist the stream name before delaying the keyed writes.
+        world.stored();
         world.event(Event::Read { read: BLOCKER, what: Readable::Jig(contract::Read::Me) });
         // A composing parent's turn holds its outputs until every record is
         // gathered. Observe the issued exchange name before Save gathers it;
@@ -99,7 +103,10 @@ impl World {
                     self.sent.push(keyed.key);
                     self.exchanges.push(exchange);
                 }
-                Request::Exchange { message: Message::Read(_), .. } => {}
+                Request::Exchange { message: Message::Read(_), .. }
+                | Request::OpenStream { .. }
+                | Request::Hello { served: true, .. } => {}
+                Request::Watch { watch, .. } if watch == Token::new(0) => {}
                 Request::Answer { attempt, .. } => self.terminals.push((attempt, "answer")),
                 Request::NotKept { attempt } => self.terminals.push((attempt, "not kept")),
                 other @ (Request::Exchange { .. }
@@ -111,7 +118,6 @@ impl World {
                 | Request::NotWritten { .. }
                 | Request::Dropped
                 | Request::ServiceCredential { .. }
-                | Request::OpenStream { .. }
                 | Request::StreamsFull { .. }
                 | Request::Signing { .. }
                 | Request::CloseStream
@@ -141,6 +147,24 @@ impl World {
     }
 }
 
+fn hello(limits: &jig_client_domain::Limits) -> Box<[u8]> {
+    let mut served = vec![w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION }];
+    let mut layouts = Vec::new();
+    for owner in limits.owners {
+        served.push(w::Served {
+            owner: w::Owner::Family(w::Family { number: owner.family }),
+            first: owner.version,
+            last: owner.version,
+        });
+        layouts.push(jig_client_test_records::family_layout(owner.family, owner.layout));
+    }
+    let hello =
+        w::Hello { stream: [7; 16], served: List::from_boxed(served.into_boxed_slice()), heartbeat: limits.heartbeat };
+    jig_client_test_records::opened_with_layouts(hello, jig_client_test_records::frame_record(), &layouts)
+        .encode(&w::CEILINGS)
+        .expect("bounded opened fixture")
+}
+
 fn send(number: u8) -> Event {
     Event::Send {
         attempt: Token::new(u64::from(number)),
@@ -152,14 +176,11 @@ fn send(number: u8) -> Event {
 
 fn saved(number: u8) -> Saved {
     let Event::Send { key, ask, .. } = send(number) else { unreachable!("send fixture") };
-    Saved {
-        version: jig_client_domain::TABLE_VERSION,
-        record: RequestRecord {
-            key,
-            scope: u64::from(PROJECT),
-            first_sent: None,
-            request: Held { key: Key { asker: Asker::JIG, number: u64::from(number) }, request: ask },
-        },
+    RequestRecord {
+        key,
+        scope: u64::from(PROJECT),
+        first_sent: None,
+        request: Held { key: Key { asker: Asker::JIG, number: u64::from(number) }, request: ask },
     }
 }
 

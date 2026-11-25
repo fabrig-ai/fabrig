@@ -109,7 +109,7 @@
   - *Claude Code's sign-in* is the welcome's, its card in its two forms,
     its note, Cancel and endings, drawn by the same functions (`welcome.md`,
     1, its Model step, *Claude Code's sign-in*), through the TUI in front
-    whichever page it shows (`../../draft/claude-sign-in.md`, 7,
+    whichever page it shows (`../../draft/archive/claude-sign-in.md`, 7,
     *Settings' "Add a Claude account"*). Signed in, the page lands on
     `Accounts` with its confirmation, as a sign-in's end does. A Claude
     card already connected keeps "Add another plan", to the way's page and
@@ -227,7 +227,7 @@
 
   The first run reaches its ways on the welcome's Model step (`welcome.md`, 1),
   and its "Continue with ChatGPT" signs in with the default document's
-  OpenAI (`../../protocol/setup/init.md`, 3).
+  OpenAI (`../../protocol/setup/init.md`, 6).
 
 ## 2. LLM accounts' words
 

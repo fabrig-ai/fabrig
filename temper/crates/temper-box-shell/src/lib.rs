@@ -539,7 +539,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     serve::operations_in_with("temper", environment, working, directories, config, given)
 }
-/// The effective user's login (protocol/setup/init.md, 2); macOS users need not appear in passwd.
+/// The effective user's login (protocol/setup/init.md, 5); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
     skein_shell::login(user)
 }

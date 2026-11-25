@@ -5,6 +5,9 @@
   and reads, ../contract/README.md) and from the client's public surface, as an
   application's own code is. A helper an application ignores costs it
   nothing, and any application may write its own instead.
+
+## 1. `shapes`
+
 - **`shapes`:** functions composing plumbing requests from templates,
   the application's data that `me` serves (../contract/requests.md, 6;
   `../../../protocol/configuration-templates.md`, 1):
@@ -62,6 +65,9 @@
     whose choices its document cut), a value its helper takes no input
     for (a chat's executor, budget or deadline the creator's to give),
     or a `shallower` of 0, which no task's authority may be.
+
+## 2. `facts`
+
 - **`facts`:** pure functions over the documents the client holds, the
   same for an application's own presentation as for the reference UI:
   - *a chat's status,* from its chip's phase and its host's last report,
@@ -114,7 +120,13 @@
     proposal, what it needs and who funds it, with what the funder has
     left and will have after (../contract/documents.md, 4). jig's check holds a
     tree a person decided on to them (../testing.md, 6.2).
+
+## 3. `thread`
+
 - **`thread`:** a conversation's thread (`conversations.md`).
+
+## 4. `words`
+
 - **`words`:** jig's English for its enums (phases, holds, refusals, what
   a task waits on) and for a decision's facts, as phrases with holes an
   application overrides phrase by phrase, built with skein-ui's
@@ -129,6 +141,9 @@
   run and it awaits nothing else: `WaitsOn` names no run wait either, so a
   client that reads the task's `run_wait` chooses the word, and no
   `WaitsOn` maps to it.
+
+## 5. What jig adopts
+
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and
@@ -136,7 +151,7 @@
   Correctness (revisions, once, atomicity) is never sugar: it is
   plumbing.
 
-## 1. Refused starts
+## 6. Refused starts
 
 `chat_status` also reads the task document's optional `run_wait`: a
 chat due or preparing whose run wait is `Refused` is refused by its

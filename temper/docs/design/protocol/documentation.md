@@ -3,7 +3,7 @@
 Provisional, 2026-10-26, revised 2026-11-11. temper's documentation,
 for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
-temper's own runs through a host tool. It builds `../draft/agent-docs.md`
+temper's own runs through a host tool. It builds `../draft/archive/agent-docs.md`
 (the readers, the map, the kinds and the voice); this document is its
 contract for the pages and their machinery, and `../client/ctl/README.md` for ctl's
 help. People read the site, which is outside temper's design.
@@ -401,7 +401,7 @@ rendering, since the box's crate links every table.
 ## 9. Errors
 
 What an agent meets when something goes wrong is documentation at the
-point of use (`../draft/agent-docs.md`, section 3), and the most read.
+point of use (`../draft/archive/agent-docs.md`, section 3), and the most read.
 
 - **An error is one line, at most 240 bytes:** what is wrong, in the
   concept's words; the value or bound that made it so; and the act that

@@ -45,7 +45,7 @@ python3 -I -B tools/citations/test_citations.py
   over it, renames mapped (`DESIGN.md`, 5). A tree is listed once its layout keeps every file
   under the limit. Its line reads `PATH: size N bytes, over the 65,536-byte limit: split it
   along its concepts, each piece under 40 KB (DESIGN.md, 5); don't cut text to fit`. Nothing
-  fails at the 48 KB mark: `status.py` lists those files.
+  fails at the 48 KB mark or at an opening past 8 KB: `status.py` lists those files.
 - **The fixed page:** in the trees `sized.txt` lists, a tree's `docs/design/STATUS.md` whose
   text isn't, byte for byte, the page `status.py --page TREE` prints fails `--all`, and fails
   the gate whatever the base's page holds, with the line `PATH: STATUS.md is a fixed page
@@ -93,7 +93,14 @@ python3 -I -B tools/citations/test_status.py
   the tag only sentence punctuation and spaces.
 - **Done:** it has labels and none has an entry, or it has none and its text is empty or
   reads "No gap." alone. An empty text is what `close` leaves when it settles a file's last
-  entry, and it reads as done.
+  entry, and it reads as done. A draft's status is also done when no label but **Design
+  departs** has an entry, so when its **Design lags** and **Open** read none: departures
+  record what the design does instead, and nothing closes them, since goals leave a draft's
+  text as it is (`temper/docs/design/draft/design-upkeep.md`, 2.5 and 3.2). A design
+  document's status is done only as the first sentence says, whatever its labels.
+- **Archived:** a status file under `docs/design/draft/archive/` counts no entry, neither in
+  the open entries nor as a line of a status file with an open entry: its draft has gone.
+  It is still read, and listed as unread when it is in neither form.
 - **Unread:** a file without the opening, or with no label and any text but "No gap.". It is
   listed as unread, never as done, and counts no entry.
 - **What it prints,** for each tree in the order named, or `temper`, `smith`, `skein`, `jig`,
@@ -112,6 +119,9 @@ python3 -I -B tools/citations/test_status.py
   Over the mark, 49,152 bytes, largest first:
   - temper/docs/design/domain/landing.md: 65,526 bytes
 
+  Openings over 8,192 bytes, largest first:
+  - temper/docs/design/testing/process-tier.md: 46,132 bytes
+
   Drafts done, outside draft/archive/:
   - temper/docs/design/draft/archive/flake-regate.md
 
@@ -120,17 +130,26 @@ python3 -I -B tools/citations/test_status.py
   ```
 
   - **Open entries:** the tree's entries by label, every label shown, zeros too, with the
-    **Not yet** entries in flight.
-  - **A status file's line:** each file with an entry, with its date and its labels that have
-    entries, in the order above; "(N in flight)" only where N isn't 0.
+    **Not yet** entries in flight; none from `draft/archive/`.
+  - **A status file's line:** each file with an entry, outside `draft/archive/`, with its date
+    and its labels that have entries, in the order above; "(N in flight)" only where N isn't 0.
   - **Over the mark:** every Markdown file under the tree's `docs/design/` over 49,152 bytes
     (`DESIGN.md`, 5), status files and `draft/archive/` included, largest first, then by path.
+  - **Openings over 8,192 bytes:** every Markdown file under the tree's `docs/design/` whose
+    opening is over 8,192 bytes, giving the opening's bytes, largest opening first, then by
+    path (`DESIGN.md`, 5; `design-upkeep.md`, 4.1). A file's opening is its bytes before the
+    first line that starts with `## ` and a digit, a numbered section's heading, in a code
+    fence or not; all its bytes where it has no such line. Status files, notes files and
+    execution files (`*.status.md`, `*.notes.md`, `*.execution.md`) are left out, not read
+    for an opening; `draft/archive/` is included, as over the mark.
   - **Drafts done:** each draft whose status file is done, outside `draft/archive/`, named by
     the draft's own path (`DESIGN.md`, 4); a draft's notes file and execution file are never drafts.
   - **Unread status files.**
 - **The page,** printed by `--page TREE` and returned by `page(tree)`, TREE one of the five:
   the text below, less the two spaces that indent it here, with `TREE` replaced by the tree's
-  name, ending in one newline. It changes only with this rule (`DESIGN.md`, 4).
+  name, ending in one newline. It changes only with this rule (`DESIGN.md`, 4): its summary of
+  what's due stays as written, though the roll-up also lists the long openings and counts a
+  draft with only departures left as done.
 
   ```
   # Status

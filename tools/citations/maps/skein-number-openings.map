@@ -1,0 +1,4 @@
+# Number the long openings without splitting any documents.
+renumber skein/docs/design/net/http/testing.md
+renumber skein/docs/design/runtime/io/files.md
+renumber skein/docs/design/ui/web/elements.md

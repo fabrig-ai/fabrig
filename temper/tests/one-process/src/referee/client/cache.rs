@@ -9,7 +9,7 @@ pub(crate) struct Table {
     key: [u8; 16],
     scope: u64,
     first_sent: bool,
-    version: u16,
+    layout: [u8; 32],
     picker: bool,
 }
 pub(crate) enum Event {
@@ -25,7 +25,7 @@ impl fmt::Debug for Table {
             .field("key", &self.key)
             .field("scope", &self.scope)
             .field("first_sent", &self.first_sent)
-            .field("version", &self.version)
+            .field("layout", &self.layout)
             .field("picker", &self.picker)
             .finish()
     }
@@ -163,7 +163,7 @@ fn tables(bytes: &[u8], limits: &wire::Limits) -> Option<Vec<Table>> {
             key: entry.key,
             scope: entry.scope,
             first_sent: entry.first_sent.is_some(),
-            version: kept.store_version,
+            layout: kept.layout,
             picker: super::picker(&entry.owner, entry.request.as_ref()),
         });
     }

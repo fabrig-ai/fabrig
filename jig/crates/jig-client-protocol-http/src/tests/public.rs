@@ -1,12 +1,16 @@
 //! Public calls and freshness (jig/docs/design/protocol/client/default-http.md, 5).
 use super::{fixtures::mapping, *};
 use skein_lib::List;
+const LAYOUT: [u8; 32] = [
+    0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1,
+];
 fn path(ids: &[u64]) -> PublicPath {
     let mut list = List::with_capacity(2);
     for id in ids {
         list.push(*id).unwrap();
     }
-    PublicPath { owner: 0, version: 1, kind: 3, ids: list }
+    PublicPath { owner: 0, layout: LAYOUT, kind: 3, ids: list }
 }
 #[test]
 fn the_public_call_is_a_get_with_no_bearer_or_body() {
@@ -14,17 +18,17 @@ fn the_public_call_is_a_get_with_no_bearer_or_body() {
     assert_eq!(call.method, Method::Get);
     assert!(call.body.is_empty());
     assert!(call.headers.is_empty());
-    assert_eq!(call.path.as_ref(), b"/jig/v1/public/0/1/3/0000000000000001/0000000000000002");
+    assert_eq!(call.path.as_ref(), b"/jig/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/3/0000000000000001/0000000000000002");
     assert_eq!(PUBLIC_KEEP, &["cache-control", "age", "retry-after"]);
 }
 #[test]
 fn the_printed_target_is_the_canonical_path() {
     for (path, expected) in [
-        (path(&[]), b"/v1/public/0/1/3".as_slice()),
-        (path(&[0x0123_4567_89ab_cdef]), b"/v1/public/0/1/3/0123456789abcdef"),
+        (path(&[]), b"/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/3".as_slice()),
+        (path(&[0x0123_4567_89ab_cdef]), b"/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/3/0123456789abcdef"),
         (
-            PublicPath { owner: 65535, version: 65535, kind: 65535, ..path(&[0, u64::MAX]) },
-            b"/v1/public/65535/65535/65535/0000000000000000/ffffffffffffffff",
+            PublicPath { owner: 65535, layout: [0xff; 32], kind: 65535, ..path(&[0, u64::MAX]) },
+            b"/v1/public/65535/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/65535/0000000000000000/ffffffffffffffff",
         ),
     ] {
         assert_eq!(public_target(&path).as_ref(), expected);

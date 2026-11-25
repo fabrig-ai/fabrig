@@ -2,11 +2,12 @@
 use super::parties::{actor, decision};
 use super::parts::resource_line_piece;
 use super::{
-    Child, budget, chip_hold, dependencies, document_text, hold_category, part, party, person_address, person_wait,
-    proposal_key, requester, retry_notice, run_stage, take_chip, take_chip_phase, take_ending, take_owner_chip_details,
-    take_owner_chip_ending, take_result_value, wake_policy,
+    Child, budget, chip_hold, dependencies, document_text, part, party, person_wait, proposal_key, requester,
+    retry_notice, take_chip, take_chip_phase, take_ending, take_owner_chip_details, take_owner_chip_ending,
+    take_result_value, wake_policy,
 };
 use crate::Limits;
+use crate::generated::client;
 use crate::translate::text_problem;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
@@ -14,32 +15,11 @@ use jig_client_protocol_wire as w;
 use skein_lib::{List, Map, Wall, bytes};
 
 pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
-    match value {
-        w::ChipExecutor::Job(row) => c::ChipExecutor::Job { kind: row.kind },
-        w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter },
-        w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector, kind: row.kind },
-        w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party },
-        w::ChipExecutor::Role(row) => c::ChipExecutor::Role { project: row.project, role: row.role },
-    }
+    client::chip_executor_to_domain(value.clone())
 }
 
 pub(crate) fn phase(value: &w::Phase) -> c::Phase {
-    match value {
-        w::Phase::Waiting => c::Phase::Waiting,
-        w::Phase::Idle => c::Phase::Idle,
-        w::Phase::Due => c::Phase::Due,
-        w::Phase::Preparing => c::Phase::Preparing,
-        w::Phase::Claimed => c::Phase::Claimed,
-        w::Phase::Running => c::Phase::Running,
-        w::Phase::BackingOff => c::Phase::BackingOff,
-        w::Phase::Active => c::Phase::Active,
-        w::Phase::Closing => c::Phase::Closing,
-        w::Phase::Held => c::Phase::Held,
-        w::Phase::Ended => c::Phase::Ended,
-        w::Phase::Done => c::Phase::Done,
-        w::Phase::Failed => c::Phase::Failed,
-        w::Phase::Cancelled => c::Phase::Cancelled,
-    }
+    client::phase_to_domain(value.clone())
 }
 
 pub(crate) fn chip_fields(
@@ -58,40 +38,11 @@ pub(crate) fn chip_fields(
 }
 
 pub(crate) fn closing_stage(value: &w::ClosingStage) -> c::ClosingStage {
-    match value {
-        w::ClosingStage::Run(row) => c::ClosingStage::Run { attempt: row.attempt },
-        w::ClosingStage::Delegates => c::ClosingStage::Delegates,
-        w::ClosingStage::Effects => c::ClosingStage::Effects,
-        w::ClosingStage::Releases => c::ClosingStage::Releases,
-        w::ClosingStage::Settled => c::ClosingStage::Settled,
-    }
+    client::closing_stage_to_domain(value.clone())
 }
 
 pub(crate) fn chip_phase(value: &w::ChipPhase) -> c::ChipPhase {
-    match value {
-        w::ChipPhase::Waiting(row) => {
-            let mut list0 = List::with_capacity(row.dependencies.len());
-            for item in &row.dependencies {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            c::ChipPhase::Waiting { dependencies: list0, more: row.more, holds: row.holds }
-        }
-        w::ChipPhase::Active(row) => c::ChipPhase::Active(run_stage(&row.value)),
-        w::ChipPhase::Person(row) => {
-            let opt0 = match &row.taken_by {
-                Some(item) => Some(*item),
-                None => None,
-            };
-            let opt1 = match &row.since {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            c::ChipPhase::Person { address: person_address(&row.address), taken_by: opt0, since: opt1 }
-        }
-        w::ChipPhase::Closing(row) => c::ChipPhase::Closing(closing_stage(&row.value)),
-        w::ChipPhase::Held(row) => c::ChipPhase::Held { reason: hold_category(&row.reason), revision: row.revision },
-        w::ChipPhase::Ended => c::ChipPhase::Ended,
-    }
+    client::chip_phase_to_domain(value.clone())
 }
 
 pub(crate) fn chip_phase_fields(
@@ -203,39 +154,11 @@ pub(crate) fn ending_fields(
 }
 
 pub(crate) fn prior_phase(value: &w::PriorPhase) -> c::PriorPhase {
-    match value {
-        w::PriorPhase::Waiting => c::PriorPhase::Waiting,
-        w::PriorPhase::Active(row) => c::PriorPhase::Active(run_stage(&row.value)),
-        w::PriorPhase::Closing(row) => c::PriorPhase::Closing(closing_stage(&row.value)),
-    }
-}
-
-pub(crate) fn chip_work(value: &w::ChipWork) -> c::ChipWork {
-    match value {
-        w::ChipWork::Preparing => c::ChipWork::Preparing,
-        w::ChipWork::Starting => c::ChipWork::Starting,
-        w::ChipWork::Active => c::ChipWork::Active,
-        w::ChipWork::Writing => c::ChipWork::Writing,
-        w::ChipWork::Tool(row) => {
-            c::ChipWork::Tool { call: bytes::copy_of(row.call.as_ref()), tool: bytes::copy_of(&row.tool) }
-        }
-        w::ChipWork::Waiting => c::ChipWork::Waiting,
-        w::ChipWork::Ending => c::ChipWork::Ending,
-    }
+    client::prior_phase_to_domain(value.clone())
 }
 
 pub(crate) fn chip_observation(value: &w::ChipObservation) -> c::ChipObservation {
-    let opt0 = match &value.started {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    c::ChipObservation {
-        channel: skein_lib::Token::new(value.channel),
-        work: chip_work(&value.work),
-        since: Wall::from_nanos(value.since),
-        reported_at: Wall::from_nanos(value.reported_at),
-        started: opt0,
-    }
+    client::chip_observation_to_domain(value.clone())
 }
 
 pub(crate) fn chip_details_fields(
@@ -340,7 +263,7 @@ pub(crate) fn chip_ending_fields(
 }
 
 pub(crate) fn result_field(value: &w::ResultField) -> c::ResultField {
-    c::ResultField { name: bytes::copy_of(&value.name), value: bytes::copy_of(&value.value) }
+    client::result_field_to_domain(value.clone())
 }
 
 pub(crate) fn result_value_fields(

@@ -38,7 +38,7 @@ This document holds the configuration checks at a start, split from [`README.md`
     document seeds no project, its first owners the deployment's alone,
     and offers policy 1, which every project made starts from; the
     green-CI landing rule is in `landing.deployment` for every project
-    (../setup/init.md, 3). A deployment whose first start seeded a project
+    (../setup/init.md, 6). A deployment whose first start seeded a project
     keeps it: no later start removes or renames it.
 - **Every start:**
   - jig's parts apply as jig says (jig's `protocol/configuration.md`,

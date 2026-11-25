@@ -61,7 +61,11 @@ fn each_page_reads_its_documents() {
                 Some(PublicRead {
                     doc,
                     owner,
-                    version: if owner == 2 { forge::PUBLIC_VERSION } else { jig_client_protocol_wire::PUBLIC_VERSION },
+                    layout: if owner == 2 {
+                        temper_client_protocol_wire::PUBLIC_LAYOUT
+                    } else {
+                        jig_client_protocol_wire::PUBLIC_LAYOUT
+                    },
                     kind,
                     ids
                 })

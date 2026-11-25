@@ -13,7 +13,9 @@ open is listed in `README.md`, section 10.
 
 - `hosted-runs.md`: assignments, lifecycle and failures.
 - `agent-processes.md`: the worker's agent processes and their bounds.
-- `checkouts.md`: workspaces, preparing, delivering and saving, and the checkout's open questions.
+- `checkouts.md`: workspaces, their stores and holds, a workspace kept for its run, and the checkout's open questions.
+- `checkouts-prepare.md`: checkout preparation, starting points and failure diagnostics.
+- `checkouts-push.md`: delivery, saving and their open questions.
 - `jobs.md`: the worker's job capability, its kinds, commands and failure diagnostics.
 
 ## 1. In one page
@@ -85,7 +87,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   apply, on standard error after the figures' line: `stop bound S s,
   drain D s`, S the stop bound and D the drain's bound, in whole seconds
   rounded up. A service manager's stop timeout sits above it
-  (`../../draft/redeploys.md`, 6.1): temper's help gives the worker's
+  (`../../draft/archive/redeploys.md`, 6.1): temper's help gives the worker's
   unit `KillMode=mixed`, so that a stop signals the worker alone, and a
   `TimeoutStopSec` of the printed bound and a margin, past which the
   unit kills what is left, an agent or a command among them
@@ -96,7 +98,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   slots and refuses every assignment as busy; it gives up the turns and
   answers it keeps, counted, once no run is left and the engine is still
   out of reach past the grace, or at its stop bound.
-- **Told to stop, the worker drains** (`../../draft/redeploys.md`, 6.1),
+- **Told to stop, the worker drains** (`../../draft/archive/redeploys.md`, 6.1),
   a worker alone or a cluster's at its first termination signal, which
   its unit sends it alone (`KillMode=mixed`). At
   once it asks its hub to drain (jig's `domain/hosts/hub.md`, 7): each
@@ -124,7 +126,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   `domain/hosts/hub.md`, 9).
 - **Asked over its link, the worker pauses or drains, and stays up**
   (jig's `protocol/channel/pause.md`; jig's `domain/hosts/hub.md`, 7,
-  *Paused over the link*; `../../draft/worker-restarts.md`, section 2).
+  *Paused over the link*; `../../draft/archive/worker-restarts.md`, section 2).
   Paused, it takes no new run or job, and its runs go on. Draining, it
   takes nothing and drains as a stop does: each agent stops at the end
   of its current turn, a run not yet live is cancelled, and at the
@@ -142,7 +144,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   asked`, D the drain's bound in whole seconds; `drained: no run or job
   left; a stop now loses nothing`; `taking work again, as the engine
   asked`. So a redeploy drains a worker, then stops it
-  (`../../draft/redeploys.md`, 7.2), and an operator keeps one from new
+  (`../../draft/archive/redeploys.md`, 7.2), and an operator keeps one from new
   work without a stop.
 - **A signal to its agents is the worker's to decide.** Its agents run
   in process groups of their own, inside its unit. A termination signal
@@ -164,7 +166,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   what its saved work leaves out, ignored files and build outputs: its
   conversation, its committed calls and its saved work go on in its next
   attempt, on any worker (jig's `domain/engine/executors-transcripts.md`, 1;
-  `../../draft/redeploys.md`, 6.2).
+  `../../draft/archive/redeploys.md`, 6.2).
 - **In one process,** the worker is stopped after the engine has drained
   and settled its claims, so it does not drain: it cancels at once
   (`../../protocol/service-process.md`, section 1).
@@ -191,7 +193,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   turns, checks, saves and pushes go on; a relayed call the link never
   carried is asked again within its deadlines with no uncertain effect,
   and a completion whose grant lapsed waits for its renewal (jig's
-  `domain/hosts/hub.md`, 6; `../../draft/redeploys.md`, 5.3). The engine
+  `domain/hosts/hub.md`, 6; `../../draft/archive/redeploys.md`, 5.3). The engine
   holds their claims as long (jig's `domain/engine/fleet.md`, *A restart
   said holds its runs*).
 - **A start that fails is the engine still away.** An engine that

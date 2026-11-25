@@ -26,7 +26,7 @@ fn a_worker_restarted_mid_delivery_links_again_on_its_directories() {
     story("cluster-turn-delivery", Cut::Worker).unwrap_or_else(|why| panic!("{why}"));
 }
 
-/// worker-restarts.md, 9, test 8: unit stop and a stray agent signal while an answer is held.
+/// draft/archive/worker-restarts.md, 9, test 8: unit stop and a stray agent signal while an answer is held.
 #[test]
 fn a_unit_stop_settles_a_workers_held_turn() {
     story("cluster-unit-stop", Cut::Unit).unwrap_or_else(|why| panic!("{why}"));

@@ -35,7 +35,7 @@ fn a_reported_build_refusal_draws_and_stops_every_host_send_until_close() {
                 assert!(temper_client_tui::sign_in_drawn(&host.root, host.state()));
                 ClientEvent::Up {
                     up: if family {
-                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None }
+                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false }
                     } else {
                         Up::Served { served: false, versions: None }
                     },

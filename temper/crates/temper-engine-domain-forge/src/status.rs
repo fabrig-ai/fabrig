@@ -1,5 +1,5 @@
 //! Project landings, sittings and briefs (temper/docs/design/domain/forge/attention.md, 2, 3).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;

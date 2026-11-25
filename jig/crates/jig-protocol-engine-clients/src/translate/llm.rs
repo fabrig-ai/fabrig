@@ -2,6 +2,7 @@
 //! configuration's order, the client by name (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
 use super::w;
 use crate::Model;
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_authority::Models;
@@ -240,11 +241,7 @@ pub fn models(offer: &[jig_domain_core_vocabulary::Offered], models: &[Model]) -
                 None => None,
             },
             number: model.number,
-            source: match model.source {
-                jig_domain_core_vocabulary::settings::ModelSource::Stock => w::ModelSource::Stock,
-                jig_domain_core_vocabulary::settings::ModelSource::List => w::ModelSource::List,
-                jig_domain_core_vocabulary::settings::ModelSource::Person => w::ModelSource::Person,
-            },
+            source: mapped::model_source_to_record(&model.source),
             estimated: model.estimated,
             name: bytes::copy_of(&model.name),
             provider: model.provider,
@@ -255,13 +252,7 @@ pub fn models(offer: &[jig_domain_core_vocabulary::Offered], models: &[Model]) -
             shown: model.shown.clone(),
             accounts: offered.accounts.clone(),
             picker: model.picker,
-            prices: w::MePrices {
-                input: model.prices.input,
-                cached: model.prices.cached,
-                cache_write: model.prices.cache_write,
-                output: model.prices.output,
-                unit: model.prices.unit,
-            },
+            prices: mapped::me_prices_to_record(&model.prices),
             description: model.description.clone(),
         })
         .expect("same capacity");
@@ -522,14 +513,7 @@ pub(crate) fn refusal(model: u8, why: p::LlmWhy, models: &[Model]) -> Result<w::
     if model.name.is_empty() {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     }
-    let why = match why {
-        p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
-        p::LlmWhy::Effort => w::LlmWhy::Effort,
-        p::LlmWhy::Charter => w::LlmWhy::Charter,
-        p::LlmWhy::Authority => w::LlmWhy::Authority,
-        p::LlmWhy::Procedure => w::LlmWhy::Procedure,
-        p::LlmWhy::Repeated => w::LlmWhy::Repeated,
-    };
+    let why = crate::generated::client::llm_why_to_record(&why);
     Ok(w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of(&model.name), why }))
 }
 

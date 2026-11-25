@@ -81,7 +81,7 @@ forge's connector, which judges them (jig's `domain/engine/settings-application.
   gates, `authority.roles` approvals and 6 sets; `forge.landing_rules`, a limit of the
   forge's (`limits.md`), is 4 in `small`, as jig's requirements per scope
   bound the rules today.
-- **A project's rule may name a branch** (`../../draft/stock-ways.md`,
+- **A project's rule may name a branch** (`../../draft/archive/stock-ways.md`,
   3.2): a pattern of kind 2 may begin at `branch` in place of `forge`,
   the host, the owner and the name, `{"segments": ["branch"], "last":
   "exact", "value": "main"}` for `main`, or `"last": "open", "value": ""`
@@ -230,7 +230,7 @@ forge's connector, which judges them (jig's `domain/engine/settings-application.
   kind 6 (`none` on the stock), kept on the change's row as its
   questions parameter (`../../domain/forge/change/README.md`, 1), and a later change
   of the setting reaches only the changes made after it.
-- **A goal template's work, kind 11** (`../../draft/stock-ways.md`, section
+- **A goal template's work, kind 11** (`../../draft/archive/stock-ways.md`, section
   4; `../../draft/whole-story.execution.md`, P3f): whether the coordinator
   of a goal started from a template designs first and whether it makes a
   close-out, said by a setting of the template rather than guessed from

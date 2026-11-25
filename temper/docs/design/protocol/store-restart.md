@@ -39,7 +39,7 @@ This document holds the store's restart and restore protocol, split from [`store
   NAME the family's variant in `store.md`, section 2 and N its number. A store
   below the floor is refused earlier (`floor.md`, 4),
   so QA knows which named build to use or copy to make again
-  (`../draft/landed-qa.md`, 5). It is jig's row that
+  (`../draft/archive/landed-qa.md`, 5). It is jig's row that
   does not decode, which stops the engine (jig's
   `protocol/store/loads.md`, 1), said by name.
 - **Nothing else is read** but the landing history: no load, get or
@@ -51,7 +51,7 @@ This document holds the store's restart and restore protocol, split from [`store
 - **A row of `Making` restored** comes back waiting if it was making,
   its `copying` kept: nothing runs from the restore itself, and the
   setup's pull starts it once its forge is connected
-  (`../domain/forge/adoption.md`, 5).
+  (`../domain/forge/adoption.md`, 9).
 - **The core's ranges are jig's, filtered.** jig's restart ranges
   (jig's `protocol/store/keys.md`, 1.3, and `jig/docs/design/protocol/store/loads.md`, 2) are coarser than the root's
   core ranges. The routing asks for the jig ranges holding a root range,

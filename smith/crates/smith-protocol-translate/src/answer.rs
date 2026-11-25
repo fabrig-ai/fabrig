@@ -1,5 +1,5 @@
 //! Domain answer and refusal translation (smith/docs/design/protocol/channel.md, section 5).
-use crate::{Error, encode_result};
+use crate::{Error, encode_result, generated::channel as mapped};
 use channel::Record;
 use skein_lib::Token;
 use smith_channel as channel;
@@ -16,13 +16,11 @@ pub fn answer_record(
 ) -> Result<channel::Answer, Error> {
     let (turns, spent, result) = match answer {
         run::Answer::Refused(refusal) => {
-            let reason = match refusal {
-                run::Refusal::Busy => channel::StartRefusal::Busy,
-                run::Refusal::Invalid(invalid) => {
-                    let value = channel::InvalidStartValue { value: invalid_start(invalid, bodies)? };
-                    channel::StartRefusal::Invalid(value)
-                }
-            };
+            let reason = mapped::start_refusal_to_record(&refusal);
+            match &reason {
+                channel::StartRefusal::Busy => (),
+                channel::StartRefusal::Invalid(invalid) => check_invalid_start(&invalid.value, bodies)?,
+            }
             let refused = channel::Refused { reason };
             (0, 0, channel::RunResult::Refused(refused))
         }
@@ -51,30 +49,14 @@ pub fn answer_record(
 
 /// Translate a refused charter into the channel refusal vocabulary.
 pub fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<channel::InvalidStart, Error> {
-    let value = match invalid {
-        run::Invalid::CharterVersion => channel::InvalidStart::CharterVersion,
-        run::Invalid::MalformedCharter => channel::InvalidStart::MalformedCharter,
-        run::Invalid::Endpoint => channel::InvalidStart::Endpoint,
-        run::Invalid::Messages => channel::InvalidStart::Messages,
-        run::Invalid::Activation => channel::InvalidStart::Activation,
-        run::Invalid::Window => channel::InvalidStart::Window,
-        run::Invalid::Conventions => channel::InvalidStart::Conventions,
-        run::Invalid::TooLarge => channel::InvalidStart::TooLarge,
-        run::Invalid::Workspace => channel::InvalidStart::Workspace,
-        run::Invalid::Grants => channel::InvalidStart::Grants,
-        run::Invalid::Outcome => channel::InvalidStart::Outcome,
-        run::Invalid::Budget(refusal) => {
-            channel::InvalidStart::Budget(channel::BudgetRefusalValue { value: budget_refusal(refusal) })
-        }
-        run::Invalid::Price(rate) => channel::InvalidStart::Price(channel::PriceRateValue { value: price_rate(rate) }),
-        run::Invalid::Llm => channel::InvalidStart::Llm,
-        run::Invalid::Effort => channel::InvalidStart::Effort,
-        run::Invalid::Conversation => channel::InvalidStart::Conversation,
-        run::Invalid::HostPart { bound } => channel::InvalidStart::HostPart(channel::WindowBound { bound }),
-        run::Invalid::Room { bound } => channel::InvalidStart::Room(channel::WindowBound { bound }),
-    };
+    let value = mapped::invalid_start_to_record(&invalid);
+    check_invalid_start(&value, limits)?;
+    Ok(value)
+}
+
+fn check_invalid_start(value: &channel::InvalidStart, limits: &channel::Limits) -> Result<(), Error> {
     match value.measure(limits) {
-        Ok(_) => Ok(value),
+        Ok(_) => Ok(()),
         Err(problem) => Err(Error::ChannelBody(problem)),
     }
 }
@@ -82,12 +64,7 @@ pub fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<
 fn failure_record(failure: run::RunFailure, now: skein_lib::Time) -> channel::RunFailure {
     match failure {
         run::RunFailure::Transcript(refusal) => {
-            let value = match refusal {
-                run::TranscriptRefusal::Version => channel::TranscriptRefusal::Version,
-                run::TranscriptRefusal::Malformed => channel::TranscriptRefusal::Malformed,
-                run::TranscriptRefusal::Unresolved => channel::TranscriptRefusal::Unresolved,
-                run::TranscriptRefusal::TooLarge => channel::TranscriptRefusal::TooLarge,
-            };
+            let value = mapped::transcript_refusal_to_record(&refusal);
             channel::RunFailure::Transcript(channel::TranscriptRefusalValue { value })
         }
         run::RunFailure::Model(fault) => {
@@ -95,7 +72,7 @@ fn failure_record(failure: run::RunFailure, now: skein_lib::Time) -> channel::Ru
             channel::RunFailure::Model(channel::ModelFaultValue { value })
         }
         run::RunFailure::Budget { exhausted, used, bound } => {
-            let value = budget_failure(exhausted);
+            let value = mapped::budget_failure_to_record(&exhausted);
             channel::RunFailure::Budget(channel::BudgetFailureValue { value, used, bound })
         }
         run::RunFailure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
@@ -110,13 +87,7 @@ fn model_fault(fault: run::Fault, now: skein_lib::Time) -> channel::ModelFault {
     match fault {
         run::Fault::Completion { failure, evidence, model, attempts, report } => {
             let (failure, retry_after) = completion_failure(failure);
-            let evidence = match evidence {
-                run::CompletionEvidence::Unsent => channel::CompletionEvidence::Unsent,
-                run::CompletionEvidence::Unknown => channel::CompletionEvidence::Unknown,
-                run::CompletionEvidence::Response { status } => {
-                    channel::CompletionEvidence::Response(channel::ResponseEvidence { status })
-                }
-            };
+            let evidence = mapped::completion_evidence_to_record(&evidence);
             channel::ModelFault::Completion(channel::CompletionFault {
                 failure,
                 evidence,
@@ -153,131 +124,26 @@ fn model_fault(fault: run::Fault, now: skein_lib::Time) -> channel::ModelFault {
     }
 }
 
-fn budget_failure(exhausted: run::Exhausted) -> channel::BudgetFailure {
-    match exhausted {
-        run::Exhausted::Turns => channel::BudgetFailure::Turns,
-        run::Exhausted::Spend => channel::BudgetFailure::Spend,
-        run::Exhausted::Time => channel::BudgetFailure::Time,
-        run::Exhausted::Tokens(receiving) => {
-            let value = match receiving {
-                run::ReceivingLimit::Input => channel::ReceivingLimit::Input,
-                run::ReceivingLimit::Output => channel::ReceivingLimit::Output,
-                run::ReceivingLimit::CacheRead => channel::ReceivingLimit::CacheRead,
-                run::ReceivingLimit::CacheWrite => channel::ReceivingLimit::CacheWrite,
-            };
-            channel::BudgetFailure::Tokens(channel::ReceivingLimitValue { value })
-        }
-        run::Exhausted::Overflow(overflow) => {
-            let value = match overflow {
-                run::Overflow::Spend => channel::BudgetOverflow::Spend,
-                run::Overflow::Usage => channel::BudgetOverflow::Usage,
-            };
-            channel::BudgetFailure::Overflow(channel::OverflowValue { value })
-        }
-    }
-}
-
-fn price_rate(rate: run::Rate) -> channel::PriceRate {
-    match rate {
-        run::Rate::Input => channel::PriceRate::Input,
-        run::Rate::Cached => channel::PriceRate::Cached,
-        run::Rate::CacheWrite => channel::PriceRate::CacheWrite,
-        run::Rate::Output => channel::PriceRate::Output,
-    }
-}
-
-fn budget_part(part: run::Part) -> channel::BudgetPart {
-    match part {
-        run::Part::Turns => channel::BudgetPart::Turns,
-        run::Part::Spend => channel::BudgetPart::Spend,
-        run::Part::Time => channel::BudgetPart::Time,
-    }
-}
-
-fn budget_refusal(refusal: run::BudgetRefusal) -> channel::BudgetRefusal {
-    match refusal {
-        run::BudgetRefusal::Ceiling(ceiling) => {
-            let value = match ceiling {
-                run::Ceiling::Turns(value) => channel::BudgetCeiling::Turns(channel::BudgetTurns { value }),
-                run::Ceiling::Spend(value) => channel::BudgetCeiling::Spend(channel::BudgetSpend { value }),
-                run::Ceiling::Time(value) => channel::BudgetCeiling::Time(channel::BudgetTime { value }),
-            };
-            channel::BudgetRefusal::Ceiling(channel::BudgetCeilingValue { value })
-        }
-        run::BudgetRefusal::Empty(part) => {
-            channel::BudgetRefusal::Empty(channel::BudgetPartValue { value: budget_part(part) })
-        }
-        run::BudgetRefusal::Reserve(part) => {
-            channel::BudgetRefusal::Reserve(channel::BudgetPartValue { value: budget_part(part) })
-        }
-        run::BudgetRefusal::Completion { most } => {
-            channel::BudgetRefusal::Completion(channel::BudgetCompletion { most })
-        }
-        run::BudgetRefusal::Checks { reserve, checks } => {
-            channel::BudgetRefusal::Checks(channel::BudgetChecks { reserve, checks })
-        }
-    }
-}
-
-fn completion_limit(which: run::Limit) -> channel::CompletionLimit {
-    match which {
-        run::Limit::Pool { reservation } => channel::CompletionLimit::Pool(channel::PoolLimit { reservation }),
-        run::Limit::Path(cap) => channel::CompletionLimit::Path(channel::PathCap { value: completion_cap(cap) }),
-        run::Limit::History => channel::CompletionLimit::History,
-        run::Limit::Window => channel::CompletionLimit::Window,
-        run::Limit::Call => channel::CompletionLimit::Call,
-        run::Limit::Message => channel::CompletionLimit::Message,
-    }
-}
-
-const fn completion_cap(cap: run::Cap) -> channel::Cap {
-    match cap {
-        run::Cap::Request => channel::Cap::Request,
-        run::Cap::RequestHead => channel::Cap::RequestHead,
-        run::Cap::ResponseHead => channel::Cap::ResponseHead,
-        run::Cap::ResponseFields => channel::Cap::ResponseFields,
-        run::Cap::Skip => channel::Cap::Skip,
-        run::Cap::Field => channel::Cap::Field,
-        run::Cap::Retained => channel::Cap::Retained,
-        run::Cap::Tokens => channel::Cap::Tokens,
-        run::Cap::Depth => channel::Cap::Depth,
-        run::Cap::Strings => channel::Cap::Strings,
-        run::Cap::Number => channel::Cap::Number,
-        run::Cap::Reasoning => channel::Cap::Reasoning,
-        run::Cap::OutputItems => channel::Cap::OutputItems,
-        run::Cap::Metadata => channel::Cap::Metadata,
-        run::Cap::Tools => channel::Cap::Tools,
-        run::Cap::HistoryItems => channel::Cap::HistoryItems,
-        run::Cap::Output => channel::Cap::Output,
-        run::Cap::Answer => channel::Cap::Answer,
-        run::Cap::ErrorBody => channel::Cap::ErrorBody,
-        run::Cap::AccessToken => channel::Cap::AccessToken,
-    }
-}
-
-const fn completion_phase(phase: run::CompletionPhase) -> channel::CompletionPhase {
-    match phase {
-        run::CompletionPhase::Connect => channel::CompletionPhase::Connect,
-        run::CompletionPhase::Handshake => channel::CompletionPhase::Handshake,
-        run::CompletionPhase::Head => channel::CompletionPhase::Head,
-        run::CompletionPhase::Idle => channel::CompletionPhase::Idle,
-        run::CompletionPhase::Whole => channel::CompletionPhase::Whole,
-    }
-}
-
 fn completion_failure(failure: run::CompletionFailure) -> (channel::CompletionFailure, Option<skein_lib::Duration>) {
     match failure {
-        run::CompletionFailure::Limit { which, bound } => {
-            (channel::CompletionFailure::Limit(channel::LimitFailure { which: completion_limit(which), bound }), None)
-        }
+        run::CompletionFailure::Limit { which, bound } => (
+            channel::CompletionFailure::Limit(channel::LimitFailure {
+                which: mapped::completion_limit_to_record(&which),
+                bound,
+            }),
+            None,
+        ),
         run::CompletionFailure::ApplicationLimit => (channel::CompletionFailure::ApplicationLimit, None),
         run::CompletionFailure::Protocol => (channel::CompletionFailure::Protocol, None),
         run::CompletionFailure::Cancelled => (channel::CompletionFailure::Cancelled, None),
         run::CompletionFailure::Overloaded => (channel::CompletionFailure::Overloaded, None),
         run::CompletionFailure::Unavailable => (channel::CompletionFailure::Unavailable, None),
-        run::CompletionFailure::TimedOut { phase } => {
-            (channel::CompletionFailure::TimedOut(channel::TimeoutFailure { phase: completion_phase(phase) }), None)
-        }
+        run::CompletionFailure::TimedOut { phase } => (
+            channel::CompletionFailure::TimedOut(channel::TimeoutFailure {
+                phase: mapped::completion_phase_to_record(&phase),
+            }),
+            None,
+        ),
         run::CompletionFailure::ContextTooLong => (channel::CompletionFailure::ContextTooLong, None),
         run::CompletionFailure::Invalid => (channel::CompletionFailure::Invalid, None),
         run::CompletionFailure::Refused => (channel::CompletionFailure::Refused, None),

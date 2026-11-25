@@ -1,6 +1,7 @@
 //! Exhaustive owner translations (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 pub mod answers;
 pub mod asks;
+pub(crate) mod client;
 pub mod documents;
 mod facts;
 pub mod live;

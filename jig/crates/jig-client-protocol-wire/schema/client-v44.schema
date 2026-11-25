@@ -468,7 +468,7 @@ enum SignInRedirectWhy { not_waiting, address, state, too_many }
 record RefusalSignInRedirect { why: SignInRedirectWhy }
 enum AccountMoveWhy { not_signed_in, not_ours, held, cancelled, moving }
 record RefusalAccountMove { why: AccountMoveWhy }
-record Cursor { value: bytes 1024 }
+record Cursor { value: bytes 1056 }
 record ScopeProject { value: u32 }
 enum Scope { project: ScopeProject, deployment, own }
 record Window { rows: u32 after: option Cursor }
@@ -944,7 +944,8 @@ record BatchReply { member: u16 reply: option bytes 16777228 }
 record Gone { stream: fixed 16 }
 record Hello { stream: fixed 16 served: list 16 Served heartbeat: duration }
 record Delivery { watch: u64 document: Owned }
-record Opened { hello: Hello me: Owned }
+record Layout { owner: Owner layout: fixed 32 }
+record Opened { hello: Hello layouts: list 16 Layout me: Owned }
 record WatchEnded { watch: u64 why: WatchEnd }
 record StreamText { watch: u64 value: RunText }
 enum StreamEvent { hello: Hello, delivery: Delivery, text: StreamText, ended: WatchEnded, opened: Opened }

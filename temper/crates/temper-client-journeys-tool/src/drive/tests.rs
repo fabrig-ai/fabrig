@@ -463,7 +463,7 @@ impl Pages {
                 Action::Find(find) => {
                     let name = match find.target {
                         Target::Role { name, .. } | Target::ExactRole { name, .. } | Target::TextBox { name } => name,
-                        Target::Text { text } => text,
+                        Target::Text { text } | Target::ParagraphText { text } => text,
                     };
                     let id = if self.page == 0 && name.as_ref() == b"Start" {
                         1

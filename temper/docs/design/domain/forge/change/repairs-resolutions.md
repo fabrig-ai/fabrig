@@ -66,7 +66,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   the shared coding charter applies it to repairs and resolutions too,
   with the same proviso.
   **A deletion or a rename is intended content too**
-  (`../../../draft/merge-deletions.md`, 2): a file deleted on the base
+  (`../../../draft/archive/merge-deletions.md`, 2): a file deleted on the base
   stays deleted unless the requested change needs it; a file deleted on
   the head, or renamed on either side, stays so, the other side's edits
   carried where they still apply; and the agent reads the commit that

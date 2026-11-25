@@ -173,7 +173,17 @@ fn versions_print_each_wire_range_then_its_layout() {
         assert_eq!(lines.next(), Some(format!("family {family} {version}").as_str()));
     }
     let wires = temper_engine_service::wires();
-    assert!(wires.iter().any(|wire| wire.name == "temper-worker-wire"));
+    assert_eq!(wires.len(), 6);
+    for (worker, (name, frozen)) in wires.iter().take(5).zip([
+        ("jig-worker-wire", 22),
+        ("smith-pieces", 1),
+        ("smith-charter", 5),
+        ("smith-transcript", 8),
+        ("temper-worker-wire", 12),
+    ]) {
+        assert_eq!((worker.name, worker.lowest, worker.highest()), (name, frozen, frozen));
+    }
+    assert_eq!(wires.get(5).expect("host-tools row").name, "temper-host-tools");
     for wire in &wires {
         let (name, lowest, highest) = (wire.name, wire.lowest, wire.highest());
         assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));

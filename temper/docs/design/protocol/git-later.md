@@ -64,4 +64,4 @@
   garbage collection and maintenance, which costs little while a new
   workstream makes its workspace again. A clone kept past one
   (`../domain/worker/checkouts.status.md`) gathers old objects until a make, and a
-  store gathers every fetch's for the worker's life (`../domain/worker/checkouts.md`, 2). Default: nothing collects them.
+  store gathers every fetch's for the worker's life (`../domain/worker/checkouts.md`, 30). Default: nothing collects them.

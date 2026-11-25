@@ -28,6 +28,7 @@ impl Stand {
                 family: None,
                 first: jig_client_protocol_wire::VERSION,
                 last: jig_client_protocol_wire::VERSION,
+                layout: jig_client_protocol_wire::LAYOUT,
             })
             .unwrap();
         let settings = kit::Settings {

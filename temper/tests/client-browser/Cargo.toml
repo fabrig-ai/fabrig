@@ -30,6 +30,7 @@ skein-http.workspace = true
 jig-protocol-config.workspace = true
 skein-browser.workspace = true
 skein-scratch.workspace = true
+skein-shell.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-ui.workspace = true

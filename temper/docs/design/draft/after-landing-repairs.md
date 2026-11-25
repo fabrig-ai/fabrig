@@ -193,7 +193,7 @@ Focused and fuzzy suites alone, each failing first:
 
 - **Repairs in the culprit's milestone:** a red blamed on a goal of a milestone repaired by a goal beneath that milestone, its maker answering and its budget paying, and the milestone complete only once its landings are verified and their reds cleared.
 - **A dependency that waits for verification,** as a goal's choice, for a project whose next goal must build on verified work.
-- **QA on the same path:** a QA finding blamed on the landing whose case found it, suspected, since a case's landing may not be its cause, which the triager confirms or moves (`landed-qa.md`, section 8).
+- **QA on the same path:** a QA finding blamed on the landing whose case found it, suspected, since a case's landing may not be its cause, which the triager confirms or moves (`archive/landed-qa.md`, section 8).
 - **A revert as a red's option:** the culprit's landing reverted, where nothing landed since builds on it.
-- **Main's reds for goals' checks:** a goal's branch carries main's failures, which its check could pass as inherited from the red findings, once a tier's test ids map to the check's keys (`branch-reds.md`, section 12).
+- **Main's reds for goals' checks:** a goal's branch carries main's failures, which its check could pass as inherited from the red findings, once a tier's test ids map to the check's keys (`archive/branch-reds.md`, section 12).
 - **A repair goal's own tier run,** to see its fix pass before it lands, rather than at the next run after.

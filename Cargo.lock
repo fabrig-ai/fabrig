@@ -835,6 +835,7 @@ dependencies = [
  "skein-sim",
  "skein-world",
  "smith-agent-process-world",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-charter",
@@ -871,6 +872,7 @@ dependencies = [
  "skein-channel",
  "skein-fake-llm-domain",
  "skein-fake-peers",
+ "skein-io",
  "skein-lib",
  "skein-llm",
  "skein-sim",
@@ -1069,6 +1071,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-domain",
+ "jig-client-test-records",
  "jig-client-view",
  "jig-domain-core",
  "jig-domain-notes",
@@ -1082,6 +1085,7 @@ dependencies = [
  "jig-test-connector",
  "jig-test-domain",
  "jig-test-service",
+ "skein-checks",
  "skein-fake-machine",
  "skein-fake-person",
  "skein-http",
@@ -1651,6 +1655,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-worker-wire",
  "skein-channel",
+ "skein-codec",
  "skein-fake-channel",
  "skein-io",
  "skein-lib",
@@ -1960,14 +1965,12 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-store",
  "skein-codec",
- "skein-codegen",
  "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
- "skein-scratch",
  "skein-tls",
 ]
 
@@ -2038,6 +2041,7 @@ dependencies = [
  "jig-domain-link",
  "jig-domain-tasks",
  "jig-protocol-tools",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -2349,9 +2353,8 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
- "skein-codegen",
+ "skein-heap",
  "skein-lib",
- "skein-scratch",
  "smith-channel",
  "smith-charter",
  "smith-transcript",
@@ -2756,6 +2759,8 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
+ "smith-charter",
 ]
 
 [[package]]
@@ -3170,15 +3175,6 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-rows",
-]
-
-[[package]]
-name = "skein-codec-patches"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
 ]
 
 [[package]]
@@ -3961,12 +3957,10 @@ name = "skein-oauth"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-json",
  "skein-lib",
  "skein-oauth-codec",
  "skein-rows",
- "skein-scratch",
  "skein-tls",
 ]
 
@@ -4530,6 +4524,7 @@ dependencies = [
  "skein-sim",
  "skein-tls-kit",
  "skein-world",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-agent-world",
@@ -4541,6 +4536,7 @@ dependencies = [
  "smith-events",
  "smith-fake-claude",
  "smith-faults",
+ "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
@@ -4632,6 +4628,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -4734,9 +4731,7 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -4772,9 +4767,7 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -4782,7 +4775,6 @@ name = "smith-codecs-world"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
- "skein-checks",
  "skein-codec",
  "skein-codegen",
  "skein-heap",
@@ -4799,7 +4791,6 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-translate",
  "smith-transcript",
- "smith-transcript-patches",
 ]
 
 [[package]]
@@ -4972,6 +4963,7 @@ name = "smith-host-protocol"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -5321,6 +5313,7 @@ name = "smith-protocol-channel"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -5488,6 +5481,7 @@ name = "smith-protocol-translate"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-codegen",
  "skein-lib",
  "smith-channel",
@@ -5576,18 +5570,7 @@ name = "smith-transcript"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
-]
-
-[[package]]
-name = "smith-transcript-patches"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
 ]
 
 [[package]]
@@ -5989,6 +5972,7 @@ dependencies = [
  "skein-oauth",
  "skein-playground",
  "skein-scratch",
+ "skein-shell",
  "skein-sim",
  "skein-tls-kit",
  "skein-ui",
@@ -6047,6 +6031,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-records",
+ "skein-codec",
  "skein-lib",
  "skein-ui",
  "temper-client-protocol-wire",
@@ -6642,7 +6627,6 @@ name = "temper-codecs-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
- "jig-client-view-codec",
  "jig-protocol-config",
  "jig-protocol-store",
  "sha2",
@@ -6658,6 +6642,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
@@ -6829,6 +6814,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-tasks-kit",
+ "skein-codec",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
@@ -7393,6 +7379,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-engine-service-startup",
@@ -7425,6 +7412,7 @@ dependencies = [
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-fake-machine",
  "skein-forge",
  "skein-forge-client",
@@ -8050,6 +8038,7 @@ dependencies = [
 name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
+ "skein-codec",
  "skein-lib",
  "temper-client-protocol-wire",
 ]
@@ -8059,9 +8048,7 @@ name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -8127,9 +8114,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-worker-wire",
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]

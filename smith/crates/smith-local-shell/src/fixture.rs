@@ -1,5 +1,5 @@
 //! Inline startup fixtures share settings and limits without entering a world loop.
-//! Contract: smith/docs/design/testing.md, section 2.1.
+//! Contract: smith/docs/design/testing-tiers.md, section 1.
 
 use crate::settings::{self, Layer, Source};
 use std::path::PathBuf;

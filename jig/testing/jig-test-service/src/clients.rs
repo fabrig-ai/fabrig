@@ -134,7 +134,12 @@ impl Clients {
         };
         let application = config::clients::Application {
             link,
-            served: kit::host::served(kit::Served { family: Some(1), first: VERSION, last: VERSION }),
+            served: kit::host::served(kit::Served {
+                family: Some(1),
+                first: VERSION,
+                last: VERSION,
+                layout: jig_client_test_protocol_wire::LAYOUT,
+            }),
             public: List::with_capacity(0),
             moved_bytes: jig_protocol_accounts::moved::bound(&config.limits.driver.client.document),
         };

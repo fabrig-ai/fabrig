@@ -1,5 +1,6 @@
 //! The service's paged, unified limits read (configuration/limit-settings.md, 2.4 and 7).
 use super::LimitSettings;
+use crate::generated::client_wire::{limit_applies_to_record, limit_unit_to_record};
 use alloc::boxed::Box;
 use jig_domain_core::settings::Override;
 use jig_protocol_config::names as jig;
@@ -25,15 +26,11 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
         let row = w::LimitRow {
             name: name.name.as_bytes().into(),
             line: name.line.as_bytes().into(),
-            unit: match name.unit {
-                jig::Unit::Count => w::LimitUnit::Count,
-                jig::Unit::Bytes => w::LimitUnit::Bytes,
-                jig::Unit::Milliseconds => w::LimitUnit::Milliseconds,
-            },
+            unit: limit_unit_to_record(&name.unit),
             stock: Some((name.value)(&stock.jig)),
             setting,
             in_force: Some(in_force),
-            applies: applies(name.applies),
+            applies: limit_applies_to_record(&name.applies),
             waiting: (state.held && has(&state.jig, name.name.as_bytes())) || wanted != in_force,
             left_out: false,
             held: None,
@@ -53,15 +50,11 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
         let row = w::LimitRow {
             name: name.name.as_bytes().into(),
             line: name.line.as_bytes().into(),
-            unit: match name.unit {
-                own::Unit::Count => w::LimitUnit::Count,
-                own::Unit::Bytes => w::LimitUnit::Bytes,
-                own::Unit::Milliseconds => w::LimitUnit::Milliseconds,
-            },
+            unit: limit_unit_to_record(&jig_unit(name.unit)),
             stock: Some((name.value)(&stock.temper)),
             setting,
             in_force: Some(in_force),
-            applies: applies(name.applies),
+            applies: limit_applies_to_record(&name.applies),
             waiting: (state.held && has(&state.temper, name.name.as_bytes())) || wanted != in_force,
             left_out: false,
             held: if name.name == "transcript_memory" { Some(held) } else { None },
@@ -107,11 +100,11 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
     let record = w::LimitsAnswer { rows: page, next, revision: state.revision };
     Some(wire::limits_answer(&record))
 }
-fn applies(applies: jig::Applies) -> w::LimitApplies {
-    match applies {
-        jig::Applies::AtOnce => w::LimitApplies::AtOnce,
-        jig::Applies::Live => w::LimitApplies::Live,
-        jig::Applies::NextStart => w::LimitApplies::NextStart,
+fn jig_unit(unit: own::Unit) -> jig::Unit {
+    match unit {
+        own::Unit::Count => jig::Unit::Count,
+        own::Unit::Bytes => jig::Unit::Bytes,
+        own::Unit::Milliseconds => jig::Unit::Milliseconds,
     }
 }
 fn has(values: &[Override], name: &[u8]) -> bool {

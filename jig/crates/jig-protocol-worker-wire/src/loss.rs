@@ -18,6 +18,4 @@ pub enum Loss {
     Fault,
     /// The dial failed (`Event::Unreachable`).
     Unreachable,
-    /// The older engine cannot state the agreed versions of the worker's ranges.
-    EngineStatesNoWires,
 }

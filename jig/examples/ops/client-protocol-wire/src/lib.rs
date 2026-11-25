@@ -14,5 +14,7 @@ pub mod v1;
 
 /// The single version spoken by both connector families.
 pub const VERSION: u32 = 1;
+/// The layout spoken by both connector families.
+pub use v1::LAYOUT;
 
 pub mod codec;

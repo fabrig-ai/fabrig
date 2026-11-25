@@ -11,7 +11,7 @@ temper/docs/design/testing/real-loop.md changes/1.md # the walk repository's fil
 temper/docs/design/draft/configuring.md process.md # a charter's document in an example, quoted
 temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's document, the test's data
 # History kept on purpose.
-temper/docs/design/draft/checkpoints.md ../redeploy.md # the retired redeploy tool's design, readable at the commit that removed it
+temper/docs/design/draft/archive/checkpoints.md ../redeploy.md # the retired redeploy tool's design, readable at the commit that removed it
 temper/docs/design/draft/reconciling-start.md temper/docs/design/redeploy.md # the retired redeploy tool's design, readable at the commit that removed it
 temper/docs/design/draft/archive/journey-walks.md ../client/journey-clock.md # the retired fixed clock's design, readable at the commit that removed it
 temper/docs/design/draft/archive/journey-walks.md ../../client/journey-placeholders.md # the retired placeholders' design, readable at the commit that removed it
@@ -19,11 +19,22 @@ temper/docs/design/draft/archive/journey-walks.md ../journey-clock.md # the reti
 temper/docs/design/draft/archive/journey-walks.md ../journey-placeholders.md # the retired placeholders' draft, readable at the commit that removed it
 temper/docs/design/draft/archive/journey-walks.md ../real-journeys.md # the retired real journeys' draft, readable at the commit that removed it
 temper/docs/design/draft/archive/journey-walks.md ../record-anywhere.md # the retired recording draft, readable at the commit that removed it
-temper/docs/design/draft/landed-qa.md real-journeys.md # the retired real journeys' draft, readable at the commit that removed it
+temper/docs/design/draft/archive/landed-qa.md real-journeys.md # the retired real journeys' draft, readable at the commit that removed it
 temper/docs/design/draft/test-budgets*.md default-wall-230.md # the retired band-aid draft, readable at the commit that removed it
-temper/docs/design/draft/branch-reds.md known-reds-merge.md # the retired stopgap draft, readable at the commit that removed it
+temper/docs/design/draft/archive/branch-reds.md known-reds-merge.md # the retired stopgap draft, readable at the commit that removed it
 temper/docs/design/draft/notes.md notes/contracts.md # a plan's file name in the replay's account, not a document here
 temper/docs/design/draft/reference-code-production.notes.md landing-model.md # the retired draft, readable at the commit it names
+temper/docs/design/draft/archive/redeploys.execution.md data/codec/bridges.md # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/redeploys.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/redeploys.md skein/docs/design/data/codec/command.md 7 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/codec-shape.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/bridges.md # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 5 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 6 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/patches.md # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/store-shape.md skein/docs/design/data/codec/diff.md # the retired patch machine's design, readable at the commit that removed it
 # The citation README's examples of the forms it describes.
 tools/citations/README.md x.md # an example of a citation form, not a document
 tools/citations/README.md ../../a.md # an example of a relative citation path, not a document

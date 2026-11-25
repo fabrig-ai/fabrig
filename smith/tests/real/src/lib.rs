@@ -1,5 +1,5 @@
-//! The real kernel beneath the shared local-process stories (testing.md,
-//! sections 2.2, 5 and 6). Scratch files and outside git observations are kept
+//! The real kernel beneath the shared local-process stories (testing-tiers.md, section 2, and testing.md, sections 5 and 6
+//! ). Scratch files and outside git observations are kept
 //! here; service state is never inspected. `World::settle` registers the same
 //! local and agent factories over one ring, with TLS peers on loopback.
 

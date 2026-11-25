@@ -1,4 +1,4 @@
-//! Embed the kept texts and the binary's schema histories for the floor guard
+//! Embed the deployed schema texts for the floor guard
 //! (temper/docs/design/protocol/floor.md, 6).
 
 use std::{
@@ -25,10 +25,6 @@ fn contents(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_else(|why| panic!("{}: {why}", path.display()))
 }
 
-fn texts(directory: &Path, extension: &str) -> Vec<String> {
-    files(directory, extension).iter().map(|path| contents(path)).collect()
-}
-
 fn main() {
     let deployed = Path::new("deployed");
     println!("cargo:rerun-if-changed={}", deployed.display());
@@ -45,22 +41,6 @@ fn main() {
             .collect();
         writeln!(fixtures, "Deployed {{ directory: {directory:?}, inventory: {inventory:?}, texts: &{schemas:?} }},")
             .expect("Rust fixture");
-    }
-    fixtures.push_str("];\nconst CURRENT: &[History] = &[\n");
-    for tree in ["skein", "smith", "jig", "temper"] {
-        let crates = Path::new("../../..").join(tree).join("crates");
-        println!("cargo:rerun-if-changed={}", crates.display());
-        for owner in entries(&crates) {
-            let schema = owner.join("schema");
-            let current = texts(&schema, "schema");
-            if current.is_empty() {
-                continue;
-            }
-            let kept = texts(&schema.join("kept"), "schema");
-            let patches = texts(&owner.join("patches"), "patch");
-            writeln!(fixtures, "History {{ current: &{current:?}, kept: &{kept:?}, patches: &{patches:?} }},")
-                .expect("Rust fixture");
-        }
     }
     fixtures.push_str("];\n");
     #[expect(clippy::disallowed_methods, reason = "Cargo supplies the build script's output directory")]

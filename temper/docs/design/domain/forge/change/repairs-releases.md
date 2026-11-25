@@ -165,31 +165,75 @@ whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
 
-A close job held for its failures stays its change's delegate while it
-lives (2026-11-12). Its change holds at producing on that failure, as on
-a producer failed for good, carrying its words; the job's escalation
-reaches the goal above as any held task's, so either task may be
-released:
+A close job that fails for good ends with that failure (2026-11-24,
+replacing the held job of 11-12). Its change holds at producing on it,
+as on a producer failed for good, carrying its words, and as it takes
+that hold cancels the job, its reason `its change holds on its
+failure`, and names no delegate after it; the job's cancel neither ends
+the hold nor replaces its words. So one task is held and escalates, the
+change, and only its release closes again. A change held before this
+build with its close job still held cancels that job as its release is
+taken, before it decides.
 
-- **The job released** runs again as its change's close job, in the
-  change's checkout as on its first attempt: the change's repository,
-  its own branch writable, made at the goal's branch's tip
-  (`../../../protocol/tooling.md`, 4.2; `../../worker/jobs.md`). Its end is
-  the change's producer's result, and it ends the change's hold on that
-  failure with no release of the change, as a delegate ending ends a
-  stall at its wait (a result that arrives on a held change, above): a
-  head pushed opens the pull request, nothing staged ends the change with
-  no change, and a failure for good holds the change again with the new
-  words.
-- **The change released** decides afresh as at producing, with a fresh
-  close job; the held one is cancelled once the fresh one is made and
-  before it starts, its reason `superseded by its change's fresh close
-  job, task M`, M the fresh job's task, so that no close job its change
-  no longer names runs.
+The change released decides afresh at producing, and a close change
+makes a close job only for what is new to check:
+
+- **While its closer waits on its goal's new work** (`../branches.md`,
+  2, *New work waits for, and reopens, the steps*: a repair or a
+  catch-up the goal made after its close step), it makes no job and
+  waits, with no hold, until its closer wakes it once that work has
+  ended, and then decides afresh. A release meanwhile is taken, never
+  refused, and nothing is held or escalated for it.
+- **Where nothing it checks has moved** since its last close job was
+  made: the goal's branch's tip and the repository's landing branch's
+  tip, each read afresh before it decides, against the two it read as
+  it made that job, its request being its own and fixed. It makes no
+  job and holds again at once on that job's failure, its words `not
+  measured again: the goal's branch is at G and main at M, as when its
+  close job failed; it closes again once either moves.`, a blank line,
+  then that job's words, cut to the hold's bytes; G and M are the two
+  commits' first 12 hex digits. Main's tip stands for main's published
+  counts, which follow its landings: the engine reads no counts of its
+  own.
+- **Otherwise** it makes a fresh close job, in the change's checkout as
+  on its first attempt: the change's repository, its own branch
+  writable, made at the goal's branch's tip
+  (`../../../protocol/tooling.md`, 4.2; `../../worker/jobs.md`). It
+  keeps the two commits it read, for the next release to compare. The
+  job's end is the change's producer's result: a head pushed opens the
+  pull request, nothing staged ends the change with no change, and a
+  failure for good holds it again with the new words.
+
+A close change never asks an agent producer: a head on its branch at
+producing, which only a close job's success pushes, opens its pull
+request as that job's push does.
+
+The two commits a close change read as it made its last close job are
+stored with its row, as `ChangeHot`'s `close_at`, a `CloseAt` of the
+goal branch's and the landing branch's commits, a field of the store's
+registered family that defaults to none, so no version moves. A row
+stored before reads as none, and its next release makes a fresh job.
+
+*Why* (2026-11-24): goals on the lean template spent 28% of their agent
+time closing, seven of them 16 to 52 close jobs each, every one
+`superseded by its change's fresh close job`. Each goal released its
+held close change as soon as it had made the repair, as its charter
+says; the release made a fresh job at once, at a goal's branch the
+repair had not reached, which failed as the last had and woke the goal,
+which released again, until the repair landed. Each failure reached the
+goal twice, the job's escalation and its change's, and a job released
+ran again with no wait to hold it. The job's own replay
+(`tools/pre-pr/design.md`, 4.1) is each worker's and keeps no test
+failure, so each fresh job measured again. Turned down: replaying in
+the job alone (each attempt still a job, a checkout and a worker's
+minutes), refusing a release while the work runs (the release the
+charter asks for would be an error, waking the goal), and keeping both
+tasks releasable (two escalations for one failure, and a release no
+wait holds).
 
 A close job reserves none of its change's spend: it runs no model and
-makes no children, so a held one leaves its change's budget whole for a
-fresh one (2026-11-12). A merge job's reservation is unchanged.
+makes no children, so a failed one leaves its change's budget whole for
+a fresh one (2026-11-12). A merge job's reservation is unchanged.
 
 ## 2. Open questions
 

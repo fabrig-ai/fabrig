@@ -1,5 +1,6 @@
 //! Whole secret-free accounts documents (client/domain/contract/documents.md, 1; domain/accounts.md, 3, and domain/accounts-uses.md, 1, and domain/accounts.md, 5).
-use super::{deployment, owner, pieces, w};
+use super::{owner, pieces, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as a;
@@ -41,39 +42,11 @@ pub fn facts(value: &List<d::AccountFactLine>) -> List<w::AccountFact> {
 }
 #[must_use]
 pub fn payer(value: a::Use) -> w::AccountUse {
-    match value {
-        a::Use::Party(party) => w::AccountUse::Party(w::AccountUseParty { party }),
-        a::Use::Project(project) => w::AccountUse::Project(w::AccountUseProject { project }),
-    }
+    mapped::account_use_to_record(&value)
 }
 #[must_use]
 pub fn holder(value: a::Holder) -> w::AccountHolder {
-    match value {
-        a::Holder::Deployment => w::AccountHolder::Deployment,
-        a::Holder::Party(party) => w::AccountHolder::Party(w::AccountHolderParty { party }),
-    }
-}
-fn kind(value: a::Kind) -> w::AccountKind {
-    match value {
-        a::Kind::SignIn => w::AccountKind::SignIn,
-        a::Kind::Key => w::AccountKind::Key,
-        a::Kind::Program => w::AccountKind::Program,
-        a::Kind::None => w::AccountKind::None,
-    }
-}
-fn bound(value: a::Bound) -> w::AccountBound {
-    match value {
-        a::Bound::Accounts => w::AccountBound::Accounts,
-        a::Bound::HolderAccounts => w::AccountBound::HolderAccounts,
-        a::Bound::Sources => w::AccountBound::Sources,
-        a::Bound::SignIns => w::AccountBound::SignIns,
-    }
-}
-fn key_failure(value: a::KeyFailure) -> w::AccountKeyFailure {
-    match value {
-        a::KeyFailure::TooLong => w::AccountKeyFailure::TooLong,
-        a::KeyFailure::NotStored => w::AccountKeyFailure::NotStored,
-    }
+    mapped::account_holder_to_record(&value)
 }
 #[must_use]
 pub fn refusal(value: a::Refusal) -> w::AccountRefusal {
@@ -91,39 +64,30 @@ pub fn refusal(value: a::Refusal) -> w::AccountRefusal {
         a::Refusal::Unknown => w::AccountRefusal::Unknown,
         a::Refusal::NotLimited => w::AccountRefusal::NotLimited,
         a::Refusal::Uses => w::AccountRefusal::Uses,
-        a::Refusal::NotKept { why } => w::AccountRefusal::NotKept(w::AccountRefusalNotKept { why: key_failure(why) }),
-        a::Refusal::Limit { bound } => w::AccountRefusal::Limit(w::AccountRefusalLimit { bound: self::bound(bound) }),
+        a::Refusal::NotKept { why } => {
+            w::AccountRefusal::NotKept(w::AccountRefusalNotKept { why: mapped::account_key_failure_to_record(&why) })
+        }
+        a::Refusal::Limit { bound } => {
+            w::AccountRefusal::Limit(w::AccountRefusalLimit { bound: mapped::account_bound_to_record(&bound) })
+        }
         a::Refusal::Held { provider } => w::AccountRefusal::Held(w::AccountRefusalHeld { provider }),
         a::Refusal::Provider { provider } => w::AccountRefusal::Provider(w::AccountRefusalProvider { provider }),
         a::Refusal::Subject => w::AccountRefusal::Subject,
         a::Refusal::Numbers => w::AccountRefusal::Numbers,
-        a::Refusal::Kind { kind } => w::AccountRefusal::Kind(w::AccountRefusalKind { kind: self::kind(kind) }),
+        a::Refusal::Kind { kind } => {
+            w::AccountRefusal::Kind(w::AccountRefusalKind { kind: mapped::account_kind_to_record(&kind) })
+        }
         a::Refusal::Closing => w::AccountRefusal::Closing,
         a::Refusal::NotStarted => w::AccountRefusal::NotStarted,
     }
 }
 #[must_use]
 pub fn failure(value: a::Failure) -> w::AccountFailure {
-    match value {
-        a::Failure::Later { after } => w::AccountFailure::Later(w::AccountFailureLater { after }),
-        a::Failure::SignInAgain => w::AccountFailure::SignInAgain,
-        a::Failure::MissingScope { scope } => w::AccountFailure::MissingScope(w::AccountFailureMissingScope { scope }),
-        a::Failure::Misconfigured => w::AccountFailure::Misconfigured,
-        a::Failure::Unloaded { at, why } => w::AccountFailure::Unloaded(w::AccountFailureUnloaded {
-            at: deployment::account_place(at),
-            why: deployment::account_unread(why),
-        }),
-        a::Failure::Cancelled => w::AccountFailure::Cancelled,
-    }
+    mapped::account_failure_to_record(&value)
 }
 #[must_use]
 pub fn end(value: a::End) -> w::AccountEnd {
-    match value {
-        a::End::Made { account, declined } => w::AccountEnd::Made(w::AccountEndMade { account, declined }),
-        a::End::Renewed { account, declined } => w::AccountEnd::Renewed(w::AccountEndRenewed { account, declined }),
-        a::End::Refused { refusal } => w::AccountEnd::Refused(w::AccountEndRefused { refusal: self::refusal(refusal) }),
-        a::End::Failed { failure } => w::AccountEnd::Failed(w::AccountEndFailed { failure: self::failure(failure) }),
-    }
+    mapped::account_end_to_record(&value)
 }
 #[must_use]
 pub fn uses(value: Option<&List<a::Use>>) -> Option<List<w::AccountUse>> {
@@ -136,20 +100,7 @@ pub fn uses(value: Option<&List<a::Use>>) -> Option<List<w::AccountUse>> {
 }
 #[must_use]
 pub fn source(value: &d::SourceLine) -> w::AccountSource {
-    w::AccountSource {
-        name: value.name.clone(),
-        place: value.place,
-        number: value.number,
-        kind: kind(value.kind),
-        state: deployment::account_state(value.state),
-        usable: value.usable,
-        expiring: value.expiring,
-        attention: value.attention,
-        spent_until: match value.spent_until {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-    }
+    mapped::account_source_to_record(value)
 }
 pub fn source_pieces(
     value: &List<d::SourceLine>,
@@ -197,14 +148,14 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
     let accounts = pieces(&accounts, limits.accounts_accounts, w::paths::ACCOUNTS_ACCOUNTS)?;
     let mut signing = List::with_capacity(value.signing.len());
     for row in &value.signing {
-        let row = w::AccountSignIn { source: row.source, provider: row.provider, holder: holder(row.holder) };
+        let row = mapped::account_sign_in_to_record(row);
         let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
         row.write(limits, &mut out).expect("measured sign-in line");
         signing.push(out.finish()).expect("supplied sign-in pieces fit");
     }
     let signing = pieces(&signing, limits.accounts_signing, w::paths::ACCOUNTS_SIGNING)?;
     let last_end = match &value.last_end {
-        Some(row) => Some(w::AccountLastEnd { source: row.source, end: end(row.end) }),
+        Some(row) => Some(mapped::account_last_end_to_record(row)),
         None => None,
     };
     Ok(w::Accounts {
@@ -217,8 +168,8 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
             Some(login) => Some(terminal_login(login)),
             None => None,
         },
-        lent_end: match value.lent_end {
-            Some(ended) => Some(w::AccountLentEnd { number: ended.number, end: login_end(ended.end) }),
+        lent_end: match &value.lent_end {
+            Some(ended) => Some(mapped::account_lent_end_to_record(ended)),
             None => None,
         },
         readiness: super::catalogue::readiness(&value.readiness, limits.accounts_readiness, limits)?,
@@ -232,39 +183,11 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
 /// Public history only, without the child's model-name bits.
 #[must_use]
 pub fn list(value: Option<&d::AccountList>) -> Option<w::AccountList> {
-    let value = value?;
-    let failure = match value.failure {
-        Some(jig_domain_accounts::ReadFailure::Refused { status }) => {
-            Some(w::AccountListFailure::Refused(w::AccountListRefused { status }))
-        }
-        Some(jig_domain_accounts::ReadFailure::Unreachable) => Some(w::AccountListFailure::Unreachable),
-        Some(jig_domain_accounts::ReadFailure::Unreadable) => Some(w::AccountListFailure::Unreadable),
-        Some(jig_domain_accounts::ReadFailure::Deadline) => Some(w::AccountListFailure::Deadline),
-        Some(jig_domain_accounts::ReadFailure::Agent) => Some(w::AccountListFailure::Agent),
-        Some(jig_domain_accounts::ReadFailure::Room) => Some(w::AccountListFailure::Room),
-        None => None,
-    };
-    Some(w::AccountList {
-        read: match value.read {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        tried: match value.tried {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        failure,
-        left_out: value.left_out,
-    })
+    Some(mapped::account_list_to_record(value?))
 }
 
 pub(crate) fn terminal_login(value: &a::TerminalLogin) -> w::TerminalLogin {
-    w::TerminalLogin {
-        number: value.number,
-        provider: value.provider,
-        name: value.name.clone(),
-        cancelled: value.cancelled,
-    }
+    mapped::terminal_login_to_record(value)
 }
 pub(crate) fn terminal(value: Option<&a::TerminalLogin>) -> w::Terminal {
     w::Terminal {
@@ -272,25 +195,5 @@ pub(crate) fn terminal(value: Option<&a::TerminalLogin>) -> w::Terminal {
             Some(login) => Some(terminal_login(login)),
             None => None,
         },
-    }
-}
-fn login_exit(value: a::LoginExit) -> w::LoginExit {
-    match value {
-        a::LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited { code }),
-        a::LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled { signal }),
-        a::LoginExit::NotStarted => w::LoginExit::NotStarted,
-    }
-}
-fn login_end(value: a::LoginEnd) -> w::LoginEnd {
-    match value {
-        a::LoginEnd::SignedIn { source } => w::LoginEnd::SignedIn(w::LoginEndSignedIn { source }),
-        a::LoginEnd::NotFinished { exit } => w::LoginEnd::NotFinished(w::LoginEndNotFinished {
-            exit: match exit {
-                Some(exit) => Some(login_exit(exit)),
-                None => None,
-            },
-        }),
-        a::LoginEnd::Cancelled => w::LoginEnd::Cancelled,
-        a::LoginEnd::Refused { refusal: why } => w::LoginEnd::Refused(w::LoginEndRefused { refusal: refusal(why) }),
     }
 }

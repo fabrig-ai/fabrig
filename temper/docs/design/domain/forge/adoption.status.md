@@ -2,7 +2,7 @@
 
 2026-11-19. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
-- **Not yet:** 9: a new request drops at most one expired answer, and
+- **Not yet:** 13: a new request drops at most one expired answer, and
   is answered busy while kept answers and pending requests fill
   `forge.applications`, never making room by the oldest answered
   (`temper-engine-domain-forge/src/adoption.rs`, `room`) [in flight:
@@ -20,7 +20,7 @@ files-omitted notice names the page and recovery tools, and comparison
 continues without reading later files pages. The forge domain world's
 review table covers a section gathered with an oversized file page.
 
-- **Departs:** 5: no step writes `Made`: a run's end goes to
+- **Departs:** 9: no step writes `Made`: a run's end goes to
   `Adopting` in one decision, or erases a row with no `into`
   (`temper-engine-domain-forge/src/making.rs`, `made`), so the variant is
   read and carried by the store and the wire, and never written; no
@@ -33,8 +33,8 @@ review table covers a section gathered with an oversized file page.
   - `change/questions.md`, 1, *Which target*: the real-model question-target proof remains `change/questions.status.md`, 1, *Which target*.
   - `change/questions.md`, 1, *The next producer merges the landing tip first*: the resumed-producer deployment proof remains `change/questions.status.md`, 1, *The next producer merges the landing tip first*.
   -  the browser readoption story remains `change/gates.status.md`, 3.
-  - 4: the GitHub status and dispatch gap remains `change/gates.status.md`, 1.
-  - 4: the native-queue gap remains `queues.status.md`, 1.
+  - 8: the GitHub status and dispatch gap remains `change/gates.status.md`, 1.
+  - 8: the native-queue gap remains `queues.status.md`, 1.
   -  the findings projection gap remains `issues.status.md` (Not yet, the whole document).
   -  the parked landing hold remains `topics.status.md`, 1.3.
   -  the per-change bounds and gates gap remains `change/README.status.md`, 1.

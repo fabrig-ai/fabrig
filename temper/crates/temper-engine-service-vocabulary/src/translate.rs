@@ -1,6 +1,7 @@
 //! Stateless application parts between the root and its channel (protocol/channel.md, 7).
-use crate::settings;
+use crate::{generated::worker_wire, settings};
 use alloc::boxed::Box;
+use skein_codec::Reason;
 use skein_lib::{List, Secret, Writer};
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::{
@@ -34,39 +35,21 @@ pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
     if !reader.is_empty() {
         return None;
     }
-    Some(match ask {
-        v1::Ask::Reds => engine::wire::Ask::Reds,
-        v1::Ask::Landed(value) => engine::wire::Ask::Landed { head: value.head },
-        v1::Ask::Results(value) => engine::wire::Ask::Results(results(value)?),
-    })
+    worker_wire::ask_to_domain(ask).ok()
 }
 
-fn results(parts: v1::CheckResults) -> Option<engine::wire::CheckResults> {
-    if !wire::red_head(&parts.tree) {
-        return None;
+pub(crate) fn head_to_domain(head: Box<[u8]>) -> Result<Box<[u8]>, Reason> {
+    if !wire::red_head(&head) {
+        return Err(Reason::Bound);
     }
-    if let Some(base) = &parts.base
-        && !wire::red_head(base)
-    {
-        return None;
+    Ok(head)
+}
+
+pub(crate) fn head_to_record(head: &[u8]) -> Result<Box<[u8]>, Reason> {
+    if !wire::red_head(head) {
+        return Err(Reason::Bound);
     }
-    let mut flakes = List::with_capacity(parts.flakes.len());
-    for flake in parts.flakes.into_boxed() {
-        flakes.push(engine::wire::Flake { key: flake.key, log: flake.log }).expect("one row per decoded flake");
-    }
-    Some(engine::wire::CheckResults {
-        tag: parts.tag,
-        check: parts.check_number,
-        tree: parts.tree,
-        base: parts.base,
-        verdict: match parts.verdict {
-            v1::Verdict::Passed => engine::wire::Verdict::Passed,
-            v1::Verdict::Refused => engine::wire::Verdict::Refused,
-        },
-        passed: parts.passed.into_boxed(),
-        failed: parts.failed.into_boxed(),
-        flakes: flakes.into_boxed(),
-    })
+    Ok(head.into())
 }
 
 /// Encode the root's goal-local snapshot within the engine's bounds.
@@ -77,11 +60,9 @@ pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[
         engine::wire::Answer::Unlanded => v1::Answer::Unlanded,
         engine::wire::Answer::Reds { reds } => {
             let mut rows = List::with_capacity(limits.reds_reds);
-            for red in reds {
-                if !wire::red_head(&red.head) {
-                    return Err(problem(v1::paths::RED_HEAD));
-                }
-                let row = v1::Red { key: red.key, head: red.head };
+            // A row is checked before it takes room; no later row is checked once the list refuses one.
+            for red in &reds {
+                let row = worker_wire::red_to_record(red)?;
                 rows.push(row).or(Err(problem(v1::paths::REDS_REDS)))?;
             }
             v1::Answer::Reds(v1::Reds { reds: rows })
@@ -111,6 +92,7 @@ pub(crate) fn workspace_items(
         return Ok(None);
     }
     let mut repositories = List::with_capacity(limits.items_repositories);
+    // Refuse at the first failing lookup, item conversion or list insertion, in assignment order.
     for repository in &workspace.repositories {
         let value = repository_item(repository, save, forges, tokens, limits)?;
         repositories.push(value).or(Err(problem(v1::paths::ITEMS_REPOSITORIES)))?;
@@ -170,25 +152,22 @@ fn repository_item(
     })
 }
 fn start(start: &engine::ForgeStart, limits: &v1::Limits) -> Result<v1::Start, v1::Problem> {
-    Ok(match start {
-        engine::ForgeStart::Commit(commit) => v1::Start::Commit(v1::Commit { commit: *commit }),
-        engine::ForgeStart::Base(branch) => v1::Start::Base(v1::Branch { branch: branch.clone() }),
-        engine::ForgeStart::Branch(branch) => v1::Start::Branch(v1::Branch { branch: branch.clone() }),
-        engine::ForgeStart::Saved(branch) => v1::Start::Saved(v1::Branch { branch: branch.clone() }),
-        engine::ForgeStart::Merge { branch, base } => {
-            v1::Start::Merge(v1::Merge { branch: branch.clone(), base: *base })
+    use engine::ForgeStart;
+    match start {
+        ForgeStart::Merged { heads, .. } if heads.len() > skein_lib::usize_of(limits.merged_heads) => {
+            return Err(problem(v1::paths::MERGED_HEADS));
         }
-        engine::ForgeStart::Merged { branch, heads } => {
-            let mut ordered = List::with_capacity(limits.merged_heads);
-            for head in heads {
-                ordered.push(*head).or(Err(problem(v1::paths::MERGED_HEADS)))?;
-            }
-            v1::Start::Merged(v1::Merged { branch: branch.clone(), heads: ordered })
-        }
-    })
+        ForgeStart::Commit(_)
+        | ForgeStart::Base(_)
+        | ForgeStart::Branch(_)
+        | ForgeStart::Saved(_)
+        | ForgeStart::Merge { .. }
+        | ForgeStart::Merged { .. } => (),
+    }
+    worker_wire::start_to_record(start)
 }
 fn problem(path: v1::Path) -> v1::Problem {
-    v1::Problem { path, reason: skein_codec::Reason::Bound }
+    path.problem(Reason::Bound)
 }
 
 /// Each decoded optional part reaches its matching root field.
@@ -200,9 +179,7 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
     });
     if let Some(left) = left {
         for head in left.landed.into_boxed() {
-            pushed
-                .push(temper_engine_domain_forge::Pushed { tag: head.tag, commit: head.commit, checked: head.checked })
-                .expect("bounded heads");
+            pushed.push(worker_wire::landed_to_domain(head)).expect("bounded heads");
         }
     }
     let saved = match saved {
@@ -228,11 +205,7 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
     };
     let preparation = match preparation {
         Some(v1::Preparation::Missing(missed)) => {
-            let missing = match missed.missing {
-                v1::Missing::Repository => engine::Missing::Repository,
-                v1::Missing::Branch => engine::Missing::Branch,
-                v1::Missing::Commit => engine::Missing::Commit,
-            };
+            let missing = worker_wire::missing_to_domain(missed.missing);
             Some(engine::Preparation::Missing { tag: missed.tag, missing })
         }
         Some(v1::Preparation::Refused(tag)) => Some(engine::Preparation::Refused { tag: tag.tag }),
@@ -304,6 +277,55 @@ pub fn github_identity(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reds_check_the_first_row_that_exceeds_capacity_but_no_later_rows() {
+        const FIRST_ROW_ONLY: u32 = 1;
+        const SHA1_BYTES: usize = 20;
+        const SHORT_HEAD: usize = SHA1_BYTES - 1;
+        let limits = v1::Limits { reds_reds: FIRST_ROW_ONLY, ..v1::CEILINGS };
+        for (head, path) in [
+            (Box::<[u8]>::from([0; SHORT_HEAD]), v1::paths::RED_HEAD),
+            (Box::<[u8]>::from([0; SHA1_BYTES]), v1::paths::REDS_REDS),
+        ] {
+            let reds = Box::new([
+                engine::RunRed { key: Box::from([1]), head: Box::from([0; SHA1_BYTES]) },
+                engine::RunRed { key: Box::from([2]), head },
+                engine::RunRed { key: Box::from([3]), head: Box::from([0; SHORT_HEAD]) },
+            ]);
+            assert_eq!(answer(engine::wire::Answer::Reds { reds }, &limits), Err(problem(path)));
+        }
+    }
+
+    #[test]
+    fn items_look_up_the_first_repository_that_exceeds_capacity_but_no_later_ones() {
+        use crate::tests::fixtures;
+        const FIRST_REPOSITORY_ONLY: u32 = 1;
+        const UNKNOWN_FORGE: u16 = 99;
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        let first = fixtures::repository(1, b"acme", b"first");
+        let limits = v1::Limits { items_repositories: FIRST_REPOSITORY_ONLY, ..fixtures::wire_limits() };
+        for (forge, path) in
+            [(UNKNOWN_FORGE, v1::paths::REPOSITORY_REMOTE), (first.provider.forge, v1::paths::ITEMS_REPOSITORIES)]
+        {
+            let mut second = fixtures::repository(2, b"acme", b"second");
+            second.provider.forge = forge;
+            let mut third = fixtures::repository(3, b"acme", b"third");
+            third.provider.forge = UNKNOWN_FORGE;
+            let workspace = engine::ForgeWorkspace { repositories: Box::new([first.clone(), second, third]) };
+            assert_eq!(workspace_items(&workspace, false, &forges, &tokens, &limits), Err(problem(path)));
+        }
+    }
+
+    #[test]
+    fn merged_start_refuses_a_head_past_the_configured_bound() {
+        const FIRST_HEAD_ONLY: u32 = 1;
+        let limits = v1::Limits { merged_heads: FIRST_HEAD_ONLY, ..v1::CEILINGS };
+        let merged =
+            engine::ForgeStart::Merged { branch: b"base".as_slice().into(), heads: Box::new([[1; 32], [2; 32]]) };
+        assert_eq!(start(&merged, &limits), Err(problem(v1::paths::MERGED_HEADS)));
+    }
 
     #[test]
     fn repository_items_encode_the_tasks_own_delivery_without_an_expected_head() {

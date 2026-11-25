@@ -151,13 +151,7 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
             let record = proposal_items(page)?;
             let mut items = List::with_capacity(record.items.len());
             for item in record.items.into_boxed() {
-                let edit = match item.edit {
-                    w::SettingEdit::Set(value) => {
-                        c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(value.value) })
-                    }
-                    w::SettingEdit::Removed => c::SettingEdit::Removed,
-                    w::SettingEdit::Reset => c::SettingEdit::Reset,
-                };
+                let edit = crate::generated::client_wire::setting_edit_to_domain(item.edit);
                 items
                     .push(c::SettingItem {
                         setting: c::Setting::Application { kind: item.kind, scope: item.scope, number: item.number },
@@ -169,6 +163,10 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
         }
     }
 }
+pub(crate) fn setting_value_to_domain(record: w::SettingValue) -> c::SettingSet {
+    c::SettingSet { value: c::SettingValue::Application(record.value) }
+}
+
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
     if call.form == 11 {
         return Some(c::Setting::Limits);

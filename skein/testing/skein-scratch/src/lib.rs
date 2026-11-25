@@ -35,7 +35,7 @@ impl Scratch {
     /// the shell's startup reads refuse links there (runtime/readiness.md, 5),
     /// and macOS's temporary directory is under
     /// `/var`, a link to `/private/var`. It is made `0o700` whatever the
-    /// process's umask, as a private root is (runtime/io/files.md, 3): a test
+    /// process's umask, as a private root is (runtime/io/files.md, 11): a test
     /// that hands it to a check refusing what others may read passes under
     /// umask 022 as under 077.
     #[must_use]

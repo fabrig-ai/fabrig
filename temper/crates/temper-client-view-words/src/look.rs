@@ -721,7 +721,7 @@ pub const WELCOME_SHEET_FOOT: Style = Style { owner: owner(), token: 171 };
 pub const WELCOME_PROJECT: Style = Style { owner: owner(), token: 172 };
 /// The welcome forge's indeterminate setup bar (temper/docs/design/client/pages/README.md).
 pub const FLOW_BUSY: Style = Style { owner: owner(), token: 173 };
-/// The welcome forge's fetch meter (temper/docs/design/draft/fetch-progress.md, 5 and 6).
+/// The welcome forge's fetch meter (temper/docs/design/draft/archive/fetch-progress.md, 5 and 6).
 /// No node carries it yet.
 pub const FLOW_METER: Style = Style { owner: owner(), token: 174 };
 /// The project settings (temper/docs/design/client/pages/README.md).

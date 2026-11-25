@@ -10,12 +10,16 @@
   no request's key can be (a request's is 16 bytes); nothing else of the
   client's, and never a credential, an answer, a request carrying a
   value, or one whose answer carries one (`README.md`, section 3). A top-level `Seen` has no stored record. Each
-  kept record is encoded with jig's wire, with its store version.
+  kept record is encoded with jig's wire, `Kept { layout, record }`, its
+  `layout` that of jig's wire it was written at (`versions.md`, section 1), and its
+  head, `layout` included, the same at every layout. A request's entry,
+  `TableEntry`, names beside its owner and version its owner's layout,
+  the one the client declared it at.
 - **A kept record holds the largest request.** A kept record's bytes
   (`Kept.record`) are bounded by the widest request-table entry
   (`TableEntry`), so that every request the client admits can be kept,
   and so sent: 1,114,368 bytes, the request's 1,114,240 and 128 for the
-  entry's other fields and the request's length (56 at their widest).
+  entry's other fields and the request's length (88 at their widest).
   The client's own
   limits still bound what it writes (its `document_bytes`, `README.md`, section 10).
   A record past them is not kept (below, *Kept requests stored before
@@ -64,12 +68,12 @@
   acknowledgement.
 - **Read at start,** the records the application's shell loaded handed
   to `jig-client` as it starts, each request's to the request table, and
-  the stream's name to the link (`wire.md`, section 2); one of a
-  version the client does not read is dropped, and the application told,
-  so a request kept across an update that changed its record's version
-  is lost, not sent wrong. A family's request whose owner and version
-  are not among those the application declares is one
-  (`../../client/domain/client/small-store.md`, 1). Pre-release, nothing is
+  the stream's name to the link (`wire.md`, section 2); one at a layout
+  of jig's wire the client does not speak is dropped, and the
+  application told, so a request kept across an update that changed its
+  record's layout is lost, not sent wrong. A request whose owner,
+  version and layout are not among those the application declares is
+  one (`../../client/domain/client/small-store.md`, 1). Pre-release, nothing is
   translated.
 - **An unanswered `Seen` is lost** on closing, reload or crash, since
   it is in memory alone; the next opening checks and sends the

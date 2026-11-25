@@ -402,6 +402,7 @@ fn a_cancelled_ready_change_ends_without_becoming_unready() {
             entry: 101,
             heard: c::Heard {
                 review_request: None,
+                closer_waiting: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,

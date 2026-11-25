@@ -1,4 +1,4 @@
-//! Decide the sibling program's lookup from file facts (smith/docs/design/testing.md, 2.3).
+//! Decide the sibling program's lookup from file facts (smith/docs/design/testing-tiers.md, 3).
 
 use crate::support::{FakeFile, FakeLookup};
 use std::{path::Path, path::PathBuf};

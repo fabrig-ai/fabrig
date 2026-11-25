@@ -9,7 +9,8 @@ fn the_link_s_credential_names_temper_s_wire() {
     let files = fixtures::worker_files();
     let secret = files.contents(&settings.jig.secret).unwrap();
     let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();
-    let credential = worker_settings::credential(&settings, secret, &payload).unwrap();
+    let wires = worker_settings::wires(&payload).unwrap();
+    let credential = worker_settings::credential(&settings, secret, wires.application);
     assert_eq!(credential.application.spoken.len(), 1);
     assert_eq!(credential.application.spoken.get(0), Some(&temper_protocol_worker_wire::spoken()));
     assert_eq!(credential.secret.expose(), b"worker-secret-value");
@@ -320,7 +321,6 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
         crate::WorkerRuntime {
-            wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
@@ -381,7 +381,6 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
             &fixtures::worker_limits(),
             &fixtures::worker_files(),
             crate::WorkerRuntime {
-                wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
@@ -423,7 +422,6 @@ fn a_worker_s_secret_is_read_and_checked_at_its_path() {
             &fixtures::worker_limits(),
             &files,
             crate::WorkerRuntime {
-                wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),

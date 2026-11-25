@@ -79,8 +79,8 @@ NAME`). What comes later is `README.md`, section 9; what is open,
   and no credential, which are the client's. With `--box` it adds the
   box's parts: the welcome's member, the owned Forgejo and the
   playground. `temper box` runs `temper-box init --box` first on an empty
-  configuration directory (`init.md`, 2, 3).
-- **A first run is empty** (`init.md`, 3): the store holds no forge, and, where
+  configuration directory (`init.md`, 5, 6).
+- **A first run is empty** (`init.md`, 6): the store holds no forge, and, where
   the document shows the welcome (../configuration/engine.md), the
   person tries the playground or sets temper up. The playground is made
   when chosen (`StartPlayground`): a fake forge's record, its box group,
@@ -342,7 +342,7 @@ connected  the forge component       ◄── its access, built from the record
 | the webhooks' secret | Forgejo, every mode | the person, pasted; a setup plan, drawn (`reconcile.md`, 4) | the `WebhookSecret` record | the webhooks' listener; Forgejo's hooks |
 | a GitHub App's key | GitHub | GitHub, at the manifest's conversion; the person, pasted as PEM | the `AppKey` record, DER; a PEM never | the forge component, for its tokens; the setup host, while a plan runs |
 | an installation's token; a GitHub git token | GitHub | the forge component, from the App's key | memory alone | the forge component; git |
-| the scripted model's key | the playground | `temper-box init`, random (`init.md`, 2), or the fake LLM from its seed in a document's form (`playground.md`) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the playground's start for the deployment's scripted account (`playground.md`) |
+| the scripted model's key | the playground | `temper-box init`, random (`init.md`, 5), or the fake LLM from its seed in a document's form (`playground.md`) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the playground's start for the deployment's scripted account (`playground.md`) |
 
 - **Every credential the engine holds is a record** in jig's secrets'
   store (../credentials.md, the records), written by the setup host's
@@ -376,7 +376,7 @@ Moved to [`crate-layout.md`](crate-layout.md), section 1.
 ## 8. Where it serves
 
 - **The first milestone** (`../../README.md`, section 2), on a box run from
-  a copy of the owned example (`init.md`, 1), its CI Actions on the owned runner.
+  a copy of the owned example (`init.md`, 4), its CI Actions on the owned runner.
   the page `box` is its walk, from the binaries to a change asked
   for.
 - **The process tier** (`../../testing/process-tier.md`), on owned mode in place of
@@ -386,7 +386,7 @@ Moved to [`crate-layout.md`](crate-layout.md), section 1.
 
 Each is intended; what it needs is named with it.
 
-- **The reference's combined project settings** (`init.md`, 3;
+- **The reference's combined project settings** (`init.md`, 6;
   `../configuration/reference.md`): its after-landing walk applies
   `docs/examples/reference/project.json` after making the project,
   setting both its ways and its main-only rule 1. The stage-one
@@ -394,7 +394,7 @@ Each is intended; what it needs is named with it.
   without it the project's stock still asks CI and review on goal
   branches (`../configuration/reference.status.md`).
 
-- **The TUI's fresh-box terminal check** (`box-supervision.md`, 1, `init.md`, 3): after landing,
+- **The TUI's fresh-box terminal check** (`box-supervision.md`, 1, `init.md`, 6): after landing,
   check local sign-in with nothing pasted, then the pasted-link and
   browser-approval fallbacks, refusal and asking again
   (`../../client/README.md`, section 5). The recorded approval journey
@@ -424,10 +424,10 @@ Each is intended; what it needs is named with it.
   place under a failing test. A coding run's own child belongs to the
   run's sandbox lifetime.
 
-- Four agents on a laptop: `init.md`, section 4.
+- Four agents on a laptop: `init.md`, section 7.
 - The fake box's retained ports under concurrent stories: `box.md`, section 7.
 
-- Discovering models per account: `init.md`, section 4.
+- Discovering models per account: `init.md`, section 7.
 
 - A handover made by a Forgejo's own restart: `owned.md`, section 10.
 - A box killed outright on macOS: `box.md`, section 7.
@@ -449,9 +449,9 @@ Each is intended; what it needs is named with it.
   outright do (skein's `runtime/shell-startup.md`, 1.3); the box stops at its
   life pipe's end.
 
-- A start holding the engine's documents to temper's clients: `init.md`, section 4.
-- The deployment's own UX: `init.md`, section 4.
-- Flags of their own: `init.md`, section 4.
+- A start holding the engine's documents to temper's clients: `init.md`, section 7.
+- The deployment's own UX: `init.md`, section 7.
+- Flags of their own: `init.md`, section 7.
 - **After the first repository** (`owned-repositories.md`, 1): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The
@@ -459,13 +459,13 @@ Each is intended; what it needs is named with it.
   from the adoption form, or by ctl's call in its own run, while the
   playground's start makes its acts itself (`playground.md`). Projects are
   made at runtime by jig's `MakeProject` (jig's `domain/model.md`,
-  6.1), none seeded (`init.md`, 3): the welcome's Ready makes the first run's,
+  6.1), none seeded (`init.md`, 6): the welcome's Ready makes the first run's,
   "Hello" for `work/hello` (`../../client/pages/README.md`), and ctl's `forge setup`
   makes its `--project`, named after the repository unless the call
   names one, so that on a box set up by ctl alone `work/hello` is
   project 1's, the first made (`../../client/ctl/areas.md`).
 - An owned forge made managed: `owned.md`, section 10.
-- The LLM providers out of the document,: `init.md`, section 4.
+- The LLM providers out of the document,: `init.md`, section 7.
 - A lock and an exec in skein's shell,: `owned.md`, section 10.
 - A story of Reconcile over TLS: `reconcile.md`, section 7.
 - A secret drawn at a reconcile with no repository,: `reconcile.md`, section 7.
@@ -519,7 +519,7 @@ Each is intended; what it needs is named with it.
 
 ## 10. Open questions
 
-- Good defaults for a person's real work: `init.md`, section 4.
+- Good defaults for a person's real work: `init.md`, section 7.
 - Overrides of `app.ini`: `owned.md`, section 10.
 - **A token for the person's scripts and agents.** Settled: the
   preparation makes two, the person's read and write header files
@@ -529,7 +529,7 @@ Each is intended; what it needs is named with it.
   ).
 - Backups beyond an upgrade's: `owned.md`, section 10.
 - Two deployments on one managed forge: `reconcile.md`, section 7.
-- A task's text past what the clients receive: `init.md`, section 4.
+- A task's text past what the clients receive: `init.md`, section 7.
 - **The managed picker's departure.** On a managed or owned Forgejo the
   picker lists every repository the site admin can see, not those the
   bot can write, as a connected forge's does, since adoption grants the

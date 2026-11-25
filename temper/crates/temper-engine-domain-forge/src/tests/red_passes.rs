@@ -66,6 +66,7 @@ fn merged_pull() -> PendingStep {
         branch_fresh: false,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
+        close_landing: None,
         pull: Some(skein_forge::api::Pull {
             number: 1,
             head: b"temper/51".as_slice().into(),

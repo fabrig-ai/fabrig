@@ -3,7 +3,7 @@ pub mod application;
 mod limit_settings;
 #[cfg(test)]
 pub(crate) use limit_settings::Preflight;
-pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
+pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, carrier_floors, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 pub use crate::limits::{engine_reference, reference};

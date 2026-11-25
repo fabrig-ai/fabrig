@@ -19,11 +19,12 @@ fn admits(service: &Stages) -> bool {
 // The drain and shell readiness agree on both admission and the retained
 // pending-message edge credit before offering the head channel event.
 pub(super) fn channel_event_ready(service: &Stages) -> bool {
-    if service.admission.run().is_none() && service.pending_messages.room() == 0 {
-        return false;
-    }
     match service.channel_events.iter().next() {
-        Some(channel::Heard::Start { .. } | channel::Heard::Message { .. }) => admits(service),
+        Some(channel::Heard::Start { .. }) => service.host.gone() || admits(service),
+        Some(channel::Heard::Message { .. }) => {
+            service.host.gone()
+                || ((service.admission.run().is_some() || service.pending_messages.room() > 0) && admits(service))
+        }
         Some(
             channel::Heard::Opened { .. }
             | channel::Heard::Event { .. }
@@ -72,7 +73,7 @@ pub(super) fn llm_events_ready(service: &Stages, frame: Option<&Frame>) -> bool 
 }
 
 pub(super) fn domain_request_credit(service: &Stages, frame: Option<&Frame>) -> bool {
-    llm_events_ready(service, frame) && super::down::channel_takes(frame)
+    llm_events_ready(service, frame) && (service.host.gone() || super::down::channel_takes(frame))
 }
 
 pub(super) fn submissions_ready(service: &Stages) -> bool {

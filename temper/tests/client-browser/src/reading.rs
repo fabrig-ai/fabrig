@@ -3,6 +3,8 @@ use skein_fake_person_browser::Step;
 
 /// Eight replies span three windows; the long story reads them by their place.
 pub const LONG_MESSAGES: u32 = 8;
+/// The long story's shorter screen for crossing the head and then the foot margin.
+pub const LATER_HEIGHT: u32 = 600;
 /// The second-last reply anchors the position story's read above it to the first.
 pub const POSITION_MESSAGES: u32 = 3;
 /// Two `PageUp` keys leave the log's foot and show Latest, while the chat opens whole.

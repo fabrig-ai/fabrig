@@ -3,12 +3,12 @@
 Provisional, 2026-11-12, revised 2026-11-14. A recipe says how a fresh
 place of its kind, a fake box or a deployment
 (`../testing/qa/deployment.md`), reaches a state that QA's cases start
-from (`../draft/landed-qa.md`, 5): a directory in the repository, its
+from (`../draft/archive/landed-qa.md`, 5): a directory in the repository, its
 steps in the drive session's lines (`drive.md`, 3), its last lines the
 state's check, walked by `temper-client-journeys recipe walk` from a
 fresh place or from one a place restored from an ancestor's copy. The copy itself, its archive,
 its place and when it is made again are the QA tool's
-(`../draft/landed-qa.md`, 5 and 9); this document gives the hash that
+(`../draft/archive/landed-qa.md`, 5 and 9); this document gives the hash that
 names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
 5 the walk, 6 the code, 7 its tests, 8 what is open.
 
@@ -42,7 +42,7 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
   no web and no tui line walks in a ctl session, a deployment's on its
   processes (section 5).
 - **Its first failed line stops the walk,** naming the recipe and the
-  line; a place then judges it (`../draft/landed-qa.md`, 5).
+  line; a place then judges it (`../draft/archive/landed-qa.md`, 5).
 
 ## 2. The directory
 
@@ -56,11 +56,11 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
   (`../protocol/setup/box-backends.md`, 1), an object of `cued`, `asked` and
   `otherwise`, each optional. The scripts cover its own steps and,
   where its cases go on past its state, theirs
-  (`../draft/landed-qa.md`, 6).
+  (`../draft/archive/landed-qa.md`, 6).
 - **`files/`,** where its `forge commit` or `forge push` lines commit
   any or its `deployment patch` lines read any: each such file, at its path under
   `files/`, so that the recipe holds all it gives
-  (`../draft/landed-qa.md`, 5): `files/PATH` for a line's PATH
+  (`../draft/archive/landed-qa.md`, 5): `files/PATH` for a line's PATH
   (`drive.md`, 3.5 and 3.8). Each PATH a `forge commit`, `forge push` or
   `deployment patch` line of the recipe names is a regular file there, at most 64
   KiB, and each file there is named by one of its lines; a file missing,
@@ -123,7 +123,7 @@ recipe's own `files/`, just as `forge commit` (`drive.md`, 3.5).
   `check` whose last line is not a `see`, or a `check` with no line
   after it, is refused, naming it. So a recipe with no web and no tui
   line, a deployment's among them, ends with `check` and its ctl lines
-  (`../draft/landed-qa.md`, 5).
+  (`../draft/archive/landed-qa.md`, 5).
 - **At most 1024 lines.**
 
 ### 3.2 Its chain
@@ -156,10 +156,10 @@ part, in Q6, so each copy is made again once at its next restore
 
 - **It changes with any parent's** recipe, scripts, files, documents or name, so
   that a copy named by it is never restored for a chain that differs
-  (`../draft/landed-qa.md`, 5 and 11). `README.md` is not hashed: a
+  (`../draft/archive/landed-qa.md`, 5 and 11). `README.md` is not hashed: a
   reworded paragraph makes no copy again.
 - **The copy's name** is the QA tool's: this hash and the commit whose
-  build made it (`../draft/landed-qa.md`, 5).
+  build made it (`../draft/archive/landed-qa.md`, 5).
 
 ## 5. The walk
 
@@ -193,7 +193,7 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   run from the repository's root finds it.
 - **`--from ANCESTOR`:** NAME or one of its ancestors, whose copy the
   scratch directory's box holds, restored there by the place
-  (`../draft/landed-qa.md`, 5). Without it, the scratch directory holds
+  (`../draft/archive/landed-qa.md`, 5). Without it, the scratch directory holds
   no box, no `config/` and no `data/`, or the walk refuses, naming them;
   with it, it holds `data/`, and `config/` where its box made one (a box
   with fake backends keeps its configuration under `data/`), or the walk
@@ -204,7 +204,7 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   neither. On `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
   root first, as `--scripts`, and `--strict` and `--ports` as given: on
-  a pass's box `--strict` is (`../draft/landed-qa.md`, 6), and a place
+  a pass's box `--strict` is (`../draft/archive/landed-qa.md`, 6), and a place
   with ports gives them (`../testing/qa/places.md`, 2).
 - **Its lines,** given to the session in this order, with the chain's
   recipes R1 to Rk, root first:
@@ -231,7 +231,7 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
 - **Stopped at the first failed line:** the session ended at once, its
   box stopped (`drive.md`, 2.4), the last stdout line `stopped at
   NAME:N: WHY`, exit 5. Whether the recipe is the one to follow or
-  temper failed is the place's to judge (`../draft/landed-qa.md`, 5),
+  temper failed is the place's to judge (`../draft/archive/landed-qa.md`, 5),
   from the line and what the session answered.
 - **Walked:** every line `ok`, the box stopped, the last stdout line
   `walked NAME HASH`, exit 0, the scratch directory's box a copy of
@@ -247,14 +247,14 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
 - **`recipe list [--setups DIR]`** prints a line per recipe, in name
   order: `NAME`, then ` (after PARENT)` where it has one, then `: ` and
   its README's first sentence. It is the setups' catalogue that triage
-  reads (`../draft/landed-qa.md`, 4). A recipe that does not read is
+  reads (`../draft/archive/landed-qa.md`, 4). A recipe that does not read is
   listed as `NAME: refused: WHY`, and the list goes on.
 
 ## 6. Its code
 
 - **`temper-client-journeys-tool`'s `recipe` module,** public, beside
   `drive` and sharing its `line` grammar (`drive.md`, 5), so that the
-  QA tool links it (`../draft/landed-qa.md`, 2):
+  QA tool links it (`../draft/archive/landed-qa.md`, 2):
   - `recipe::Chain::read(setups: &Path, name: &str) -> Result<Chain,
     Refusal>`, the chain read and checked, root first;
   - `Chain::hash(&self) -> [u8; 32]`, section 4's;
@@ -306,5 +306,5 @@ Focused, with no browser and no box:
 
 - **The catalogue as a file:** `recipe list` prints it from the recipes.
   Default: printed, with no file to keep in step.
-- **The bound of eight:** a twin's chain (`../draft/landed-qa.md`, 6)
+- **The bound of eight:** a twin's chain (`../draft/archive/landed-qa.md`, 6)
   may want more. Default: eight, raised when a twin's recipe needs it.

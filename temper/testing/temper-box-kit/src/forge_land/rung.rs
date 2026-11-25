@@ -251,7 +251,7 @@ impl Driver {
         Self::new_at(
             store,
             client,
-            skein_scratch::paths::binary("temper-box"),
+            skein_scratch::paths::built("temper-box", "temper-box"),
             Deadline::arm("the rung's setup", Duration::from_secs(300)),
         )
     }
@@ -689,8 +689,14 @@ pub fn green_light() {
     run_walk(&store, &paths, &account, None).unwrap_or_else(|message| panic!("{message}"));
 }
 
+// The no-task sitting commits the prospective copies before the next start
+// reads them. A restore on its own would replace them with the store's defaults.
+fn bootstrap_settings(paths: &[PathBuf; 3]) {
+    let steps = crate::provider_setup::steps(paths[0].join("rung-providers.json"), &paths[1]);
+    crate::limit_settings::install_paths_with(paths, steps.into());
+}
+
 fn box_command(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> skein_world::end_to_end::Command {
-    crate::limit_settings::install_paths(paths);
     skein_world::end_to_end::Command {
         program: binary.into(),
         arguments: super::deployment_flags(paths)
@@ -733,6 +739,7 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, probe: Option<&I
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
     let mut driver = Driver::owned(store, &client);
     super::super::held_login::return_hook(&driver.binary, store, &driver.client, account)?;
+    bootstrap_settings(paths);
     let boxed = match probe {
         Some(_) => WalkBox::Twin(Box::new(start_twin_box(&driver.binary, store, paths))),
         None => WalkBox::Live(start_box(&driver.binary, store, paths, false)),
@@ -911,6 +918,8 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
     fs::create_dir(&donor).expect("fake account donor");
     let donor_paths = ["config", "data", "cache"].map(|name| donor.join(name));
     deployment(&donor_paths);
+    // The donor's B0 agent figures need the same limits as the walk's box.
+    bootstrap_settings(&donor_paths);
     let issuer = sign_in::patch_configuration(&donor_paths[0]);
     let _ = super::cache_forgejo_binaries(&donor_paths[2]);
     let outcome = boxed::run_ctl_with_account(

@@ -1,5 +1,5 @@
 //! Machine scenarios on Skein's harness (protocol/agent.md, sections 2 and 8;
-//! testing.md, sections 2.1 and 5). Each settled request owns one application
+//! testing-tiers.md, section 1, and testing.md, section 5). Each settled request owns one application
 //! process; the scenario retains only its fake disk, absolute clock and trace.
 //! The component never knows fake filesystem state. Requests enter through
 //! `World::request`; IO completion routing remains the application's pass.

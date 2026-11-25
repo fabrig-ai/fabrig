@@ -15,7 +15,7 @@ puts through the channel is its own (temper's `protocol/wires.md`).
 - **The engine converts, the worker does not** (2). Every frame and
   every part of another owner's that crosses a channel is at the
   worker's layout on the wire. The worker, and the agent its build pins
-  (temper's `draft/redeploys.md`, 4.4), know nothing of other builds.
+  (temper's `draft/archive/redeploys.md`, 4.4), know nothing of other builds.
 - **A wire at the engine's layout converts nothing** (2.3): one build's
   parts meet only this case, and no text is parsed for it.
 - **Otherwise a plan for each value type, in each direction it
@@ -112,7 +112,7 @@ alone. A wire at another layout whose value types' plans all keep
   `wires.md`, 3 gives it. A value type with no plan, and no written
   converter (6), names the wire, the value type, the direction and the
   change, so the operator knows which worker to drain and restart on the
-  new build (temper's `draft/redeploys.md`, 6.1).
+  new build (temper's `draft/archive/redeploys.md`, 6.1).
 - **The worker's kinds' table** comes from its `jig-worker-wire` text
   (`wires.md`, 4), and the engine accepts the channel with it.
 - **Kept by the worker's text:** the engine's workers component keeps,
@@ -218,7 +218,7 @@ past its bound.
   (`draft/layouts-both-ways.md`, 6.1): no gate holds these kinds total
   across layouts. A change that a running attempt's messages cannot
   carry to the previous build's workers is met by draining them
-  (temper's `draft/redeploys.md`, 6.1).
+  (temper's `draft/archive/redeploys.md`, 6.1).
 
 ### 5.3 What the engine receives
 

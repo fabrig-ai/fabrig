@@ -401,9 +401,10 @@ fn a_carried_value_is_kept_before_the_application_sees_its_request() {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("jig");
-    settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
+    settings.served.push(Served { family: Some(1), first: 1, last: 1, layout: [1; 32] }).expect("family");
     let mut peer = Peer::started(&settings);
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/request", carrying_request(b"a carried key"), Some(&bearer));

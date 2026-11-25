@@ -1,0 +1,64 @@
+records crate::cursor_v2
+use d = jig_domain_core_vocabulary::documents
+use r = jig_domain_core_vocabulary::reads
+use n = jig_domain_notes
+use p = jig_domain_people
+use s = skein_codec::convert
+use h = crate::translate::cursor
+by hand h
+refuses h::owner_key_to_record
+refuses h::owner_key_to_domain
+refuses h::requester_to_record
+refuses h::phase_to_domain
+refuses h::executor_to_domain
+refuses h::tracked_to_domain
+refuses h::order_to_domain
+refuses h::scope_to_record
+refuses h::scope_to_domain
+
+record Number stands for value
+record Project
+record Blob stands for value
+enum Proposer = p::Proposer { task tuple, party tuple }
+record Proposal
+enum InboxObject = d::InboxObject {
+    question { value = message }
+    escalation { value = revision }
+    reply { value = message }
+    result { value = position }
+}
+record InboxCursor { at via s::wall }
+enum DocumentCursor = d::Cursor { number { value = number } }
+record OwnerKey by hand
+record InboxPosition { at via s::wall }
+enum Position = r::Position { owner tuple }
+enum Group = r::Group
+record Filter = r::Filter
+record Inbox by hand
+enum Last = n::Last { exact tuple, open tuple }
+record Pattern = n::Pattern { segments slice }
+record Goal
+record Resources
+record NoteScopeParty
+enum NoteScope = n::Scope { project { value = project } }
+record ScopedNotes by hand
+record Question by hand
+record Reply by hand
+record Turn by hand
+record History by hand
+enum Requester by hand
+record PartAsk = d::PartAsk
+record Query = d::TaskQuery {
+    phase via h::phase
+    executor via h::executor
+    tracked via h::tracked
+    order via h::order
+}
+enum Scope by hand
+record LiveCursor
+record StoreCursor
+enum Cursor = r::Cursor
+record Tree by hand
+record Owner by hand
+enum Form by hand
+record Held by hand

@@ -55,6 +55,7 @@ skein-shell.workspace = true
 smith-agent-process-world.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-service.workspace = true
+smith-agent-profile.workspace = true
 smith-protocol-channel.workspace = true
 smith-protocol-llm.workspace = true
 smith-host-domain.workspace = true

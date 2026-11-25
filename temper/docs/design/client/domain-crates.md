@@ -1,8 +1,8 @@
 # The client domain's crates
 
-Provisional, 2026-11-15. From `temper/docs/design/draft/gate-compile.md`, 5, milestone C4 of
-`temper/docs/design/draft/gate-compile.execution.md`: `temper-client-domain` split by
-`temper/docs/design/draft/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
+Provisional, 2026-11-15. From `temper/docs/design/draft/archive/gate-compile.md`, 5, milestone C4 of
+`temper/docs/design/draft/archive/gate-compile.execution.md`: `temper-client-domain` split by
+`temper/docs/design/draft/archive/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
 each piece holds and why, the interface through which the pages reach the root, the preparation
 that lets every file go whole to one piece, where the tests go, the change of moves, and the
 readers. What the client root does is `root.md`, section 1, and `sign-in.md`, section 1: nothing here changes a
@@ -50,7 +50,7 @@ has landed. A directory goes with the file of its name unless a row says otherwi
 | `temper-client-domain` | `lib.rs`, `domain.rs`, `route.rs`, `boundary.rs`, `approve.rs`, `asked.rs`, `authorize.rs`, `copy.rs`, `sign_in_tab.rs` |
 
 Their sizes, read by `tools/crates/design.md`, 2's rules, are each under the bound of
-`crate-graph.md`, 7.3, estimated from today's files, code and own tests: about 14,000 and 3,500
+`../draft/archive/crate-graph.md`, 7.3, estimated from today's files, code and own tests: about 14,000 and 3,500
 lines for the forge's side; 26,000 and 2,700 for the pages; and 2,000 and 43,000 for
 `temper-client-domain`, nearly all of it the tests that build a `Domain` (4.1).
 
@@ -68,7 +68,7 @@ lines for the forge's side; 26,000 and 2,700 for the pages; and 2,000 and 43,000
 
 ### 2.3 Why there
 
-From the crate's history, `crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
+From the crate's history, `../draft/archive/crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
 
 - **The history.** From 2026-10-28 to `a0ed35aa3c`, 174 landings changed the crate's library
   sources, a module's own tests not counted. By the pieces of 2.1, the pages changed in 122, the
@@ -81,7 +81,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   156 of the 174 changed `temper-client-view` too, so the view's pieces rebuild in most builds
   anyway. What the split buys is the forge's side reused under the pages' changes, smaller units,
   and the readers of section 6 off the pages and the root. The figure after landing says whether
-  the pieces were reused (`gate-compile.md`, 8).
+  the pieces were reused (`../draft/archive/gate-compile.md`, 8).
 - **A chain, not side by side.** The pages read the forge's side's state in 26 of their modules,
   72 places, so the pages can't compile beside it. The forge's side names the pages in 7 places and
   the root in 4, which section 3.1 moves.
@@ -95,7 +95,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   crate costs (5.2's fifth rule). They go below with the forge's side, which names them.
 - **The pages are not cut further.** `Pages` holds every page's state and `pages::step` routes
   each of them: it is the pages' state machine, with the methods every page module adds to it
-  (`crate-graph.md`, 5.2's fourth rule).
+  (`../draft/archive/crate-graph.md`, 5.2's fourth rule).
 
 ### 2.4 Their roots
 
@@ -105,7 +105,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   `address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind, WorkFilter}`
   and `limits::{Limits, valid}`; the pages' root declares `pages` and `acts` and re-exports the
   forge's side's modules and those root items.
-- **`temper-client-domain` keeps its name and every public path** (`crate-graph.md`, 5.3), but the
+- **`temper-client-domain` keeps its name and every public path** (`../draft/archive/crate-graph.md`, 5.3), but the
   three below: its root re-exports `address`, `amend`, `forge`, `key`, `limits`, `owner`, `public`,
   `question`, `sign_in`, `views` and `words` from the forge's side and `pages` and `acts` from the
   pages, keeps `domain`, `approve`, `asked`, `authorize`, `boundary` and `copy`, and today's root
@@ -298,7 +298,7 @@ each stage a `#[cfg(test)]` module of the crate's root:
 
 ## 5. Landing the split
 
-One change of moves, after the preparation (`crate-graph.md`, 5.3):
+One change of moves, after the preparation (`../draft/archive/crate-graph.md`, 5.3):
 
 - **Each file moved whole** to its piece, by 2.1 and 4.3, and not edited but where the build forces
   it, in a commit after the moves: a `mod` line naming a file now in another piece becoming its
@@ -313,7 +313,7 @@ One change of moves, after the preparation (`crate-graph.md`, 5.3):
   `tests/boundary/tests/binaries.rs` name the two new pieces; `.config/gate/wasm32.txt` names them
   beside `temper-client-domain`; `.config/fixture-readers.toml` follows (4.4).
 - **Out of the way of plans in flight:** it lands between other landings in the crate, as
-  `crate-graph.md`, 5.3 says, and goes before none that was marked first. Main is read afresh
+  `../draft/archive/crate-graph.md`, 5.3 says, and goes before none that was marked first. Main is read afresh
   before it: a landing there in the crate that the goal's branch lacks is caught up first, so that
   the moves carry it.
 
@@ -350,5 +350,5 @@ readers at `a0ed35aa3c`:
   through `&Domain` in one function (`words::accounts::mark` in `temper-client-view-words`); through
   `&dyn pages::Root` they would need only the pages' piece, and a change to the root alone would
   rebuild none of the view's words.
-- **The figure after landing** is `gate-compile.md`, 8's: each piece's units against
+- **The figure after landing** is `../draft/archive/gate-compile.md`, 8's: each piece's units against
   `temper-client-domain`'s in its section 2, and whether the builds after it reused a piece.

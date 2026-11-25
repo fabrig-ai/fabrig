@@ -67,7 +67,7 @@ fn input(value: &[u8]) -> Line {
     }
 }
 fn kept(record: &[u8]) -> Box<[u8]> {
-    let value = w::Kept { store_version: 1, record: record.into() };
+    let value = w::Kept { layout: w::LAYOUT, record: record.into() };
     let mut writer = Writer::new(skein_lib::length::usize_of(
         value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
     ));
@@ -350,6 +350,7 @@ fn a_stored_value_keeps_its_kept_head() {
         let (Line::Stored { value, .. } | Line::Save { value, .. }) = &output[0] else { panic!("stored or save") };
         let mut reader = Reader::new(value);
         let value = w::Kept::decode(&w::CEILINGS, &mut reader).expect("kept head still decodes");
+        assert_eq!(value.layout, w::LAYOUT);
         assert!(value.record.as_ref() == HIDDEN, "sixteen x bytes");
         assert!(reader.is_empty(), "no trailing bytes");
     }

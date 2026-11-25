@@ -1,6 +1,6 @@
 # Deleting a project takes its forge records with it
 
-Draft, 2026-11-15, on the user's word. This is the root fix behind `../deleted-repository-rows.md`, the stop-gap, which repairs stores that already carry the leftovers.
+Draft, 2026-11-15, on the user's word. This is the root fix behind `deleted-repository-rows.md`, the stop-gap, which repairs stores that already carry the leftovers.
 
 On staging, 11-15, `temper ctl project delete` removed a project's repository records but left other records naming the repository. The next start refused them as missing links, and the deployment couldn't start until the leftovers were cleared.
 
@@ -19,7 +19,7 @@ On staging, 11-15, `temper ctl project delete` removed a project's repository re
 
 ## 2. Out
 
-- Stores that already carry the leftovers: `../deleted-repository-rows.md`.
+- Stores that already carry the leftovers: `deleted-repository-rows.md`.
 - Deleting anything on the external forge. A release never touches it.
 
 ## 3. Tests

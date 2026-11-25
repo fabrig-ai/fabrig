@@ -11,9 +11,10 @@
   own fingerprint. Names, former names, defaults, comments, the text's
   layout and `boxed` are not in it. A record held from another family is
   named by its family and type, since its layout is that family's.
-  These are the wires' and the patches' fingerprints, unchanged; a
-  stored value's layout is 1.4's, which leaves the family's version out
-  and resolves what a value holds.
+  A family's fingerprint names a build's layout of the family, as a
+  wire's peers state it (jig's `protocol/channel/wires.md`, 2; jig's
+  `protocol/client/versions.md`, 1); a value's layout is 1.4's, which
+  leaves the family's version out and resolves what a value holds.
 - **A family's fingerprint** is over all its declarations', in the
   text's order, including those no other declaration names: the schema
   text is the unit, and any declaration may be a root, which only its
@@ -23,15 +24,15 @@
   each named type's fingerprint read from the entries already made, so
   nothing recurses. It allocates that table alone, a fingerprint per
   declaration, at most `MAX_DECLARATIONS`.
-- **A rename moves no fingerprint.** For a patched family, the command
-  refreshes a text not frozen or keeps renames waiting beside a frozen
-  one (`command.md`, 4), so that a later diff never mistakes a rename
-  for a field dropped and another added. A registered family's former
-  names are in its current schema (`README.md`, section 3).
-- **A family's fingerprint is not a value type's layout.** The patch
-  check judges changes by the diff and, for wires, the family
-  fingerprint (`command.md`, 2). Registered values use 1.4's layout
-  fingerprints, not kept versions of the family.
+- **A rename moves no fingerprint.** Its former names stay in the
+  current text (`README.md`, section 3), so that a plan between two
+  layouts never mistakes a rename for a part dropped and another added
+  (`layouts.md`, 2).
+- **A family's fingerprint is not a value type's layout.** Two builds
+  whose family fingerprints are equal need no plan; where they differ,
+  each value type is planned by its own layout (1.4), so a change to
+  one declaration moves the layouts of the value types that reach it
+  alone.
 
 ### 1.1 The encoding
 
@@ -119,8 +120,8 @@ root: a book's layout is `Envelope` with `Entry` at `book` alone, so a
 change to `Note` moves the book's layout not at all.
 
 - **The root,** `Root { decl, variant }`: `variant` may be given only
-  when `decl` is broad, a declaration with a leading enumeration as
-  `patches.md`, 3.1 defines it (an enumeration itself, or a record whose
+  when `decl` is broad, a declaration with a leading enumeration (an
+  enumeration itself, or a record whose
   first field's type is an enumeration with no `list` or `option`
   level), and names a variant of that enumeration. Any other root takes
   none. A broad root without one is the declaration whole, every variant
@@ -129,9 +130,8 @@ change to `Note` moves the book's layout not at all.
   whose `follows` leads it; a key that holds an older variant beside the
   one its owner writes).
 - **Without the family's version.** A `versioned` record is encoded by
-  its flag alone, so that a layout keeps its fingerprint while its
-  family's version moves, and a value type whose bytes no change reached
-  keeps its layout across versions.
+  its flag alone: a value type's layout is the shape of its bytes,
+  whatever version its head names.
 - **What a value holds, resolved.** A `bytes N holds F T` (or a `secret`
   that says so) whose family `F` the caller gives (its text among
   `held`) is encoded by `T`'s own layout in that text, so a change to a
@@ -150,9 +150,9 @@ value       = record' | enumeration'        # the root's
 record'     = 0x01 · (0x00 | 0x01) · u32 count · type'*   # versioned by its flag alone
 enumeration' = 0x02 · u32 count · (0x00 | 0x01 · inner)*
 restricted  = 0x04 · u32 index · (0x00 | 0x01 · inner)    # a broad root's leading enumeration at its variant
-type'       = as 9.1's type, each named declaration 0x0d · inner, each held' in place of held
+type'       = as 1.1's type, each named declaration 0x0d · inner, each held' in place of held
             | 0x0f · restricted                           # a broad record's first field, at its variant
-held'       = held                                        # 9.1's, for a family not given, and pieces by inner
+held'       = held                                        # 1.1's, for a family not given, and pieces by inner
             | 0x03 · inner                                # holds F T, F given: T's layout
 inner       = SHA-256(0x02 · record' | 0x02 · enumeration')  # a declaration's, by this encoding
 ```

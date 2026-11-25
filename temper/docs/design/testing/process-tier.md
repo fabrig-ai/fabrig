@@ -3,6 +3,8 @@
 `bin/temper-box/tests/process.rs`, after jig's reference binary's (jig's
 `protocol/service-testing.md`, section 1): temper as it ships, as processes.
 
+## 1. Scope and focused coverage
+
 - **Only what processes show** (skein/docs/foundation/testing-strategy.md, 2.9; the user,
   10-23, for every story): a path through `main` (its arguments,
   configuration, startup checks, printed lines, exit statuses and
@@ -54,6 +56,8 @@
   world's `moves` tests; HTTP routes, listener refusal and handover-file
   bounds use the service and host's step tests. The `temper-box` package has
   no QA binary or QA-named test group.
+
+## 2. Owned setup and process stories
 
 - **Account transfer interrupted by a signal,** one short process story:
   import an account on a fake issuer, interrupt an export while its write
@@ -127,6 +131,8 @@
   | `a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run` | the same, the delivery in an ignored path: the successor's key the departed one's, its run shared | D `landing_goal_midproof.rs`, `a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run`; F `landing_proofs.rs`, `a_departed_landings_run_proves_a_successor_with_the_same_key` |
   | `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` | four, the second red, on the shipped capacities and a copied policy: narrowed, the rest landed in round 2 | D `landing_copied.rs`, `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` |
 
+## 3. Cluster restarts and real landings
+
 - **The cluster's restarts on the fake forge,** two stories of
   `bin/temper-box/tests/cluster_turn/mod.rs` (in `temper-box::process`), on the cluster's processes
   (`testing/temper-box-kit/src/cluster.rs`; the cluster, below): the
@@ -192,6 +198,8 @@
   by `forgejo::JobBarrier`; they need `TEMPER_TEST_FORGEJO` and
   `TEMPER_TEST_FORGEJO_RUNNER`, as every owned-Forgejo story does.
 
+## 4. Playground, setup and box lifetime
+
 - **The playground and the set up, in and out,** each a story of its
   own (../protocol/setup/testing.md, 4): a first run into the playground and
   out by its reset, the store then read empty and the welcome at its
@@ -212,8 +220,10 @@
   other paths of a box's first run
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
+## 5. Restarts on a new build
+
 - **A box at its place restarted with a newer build**
-  (`../protocol/setup/box.md`, 1, and `../protocol/setup/box-backends.md`, 1; `../draft/landed-qa.md`, 10 and
+  (`../protocol/setup/box.md`, 1, and `../protocol/setup/box-backends.md`, 1; `../draft/archive/landed-qa.md`, 10 and
   11), one story on `temper box --fake-backends` on its fake backends
   alone, as a QA place runs it: the box started from a `bin/` of its
   own, holding copies of `temper-box` and `fake-claude` and a bundle's
@@ -245,7 +255,7 @@
 
 - **A deployment at its place restarted with a newer build**
   (`a_stopped_deployment_restored_at_its_place_uses_new_files`;
-  `qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
+  `qa/deployment.md`; `../draft/archive/landed-qa.md`, 10 and 11), one story,
   as a QA place of the deployment's kind runs it: a place directory of
   the story's own, its `bin/` holding copies of `temper-box`,
   `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
@@ -286,11 +296,13 @@
   with two released builds and an owned Forgejo's migration needs
   that pair of builds (`../draft/upgrades.md`, section 13).
 
+## 6. Services and dependencies
+
 - **What runs:**
   - the real `temper-box` binary: `temper-box forge prepare`, `temper-box forge run`
     for Forgejo and for its runner, then `temper-box serve`, on a scratch
     directory, with a configuration the test writes from the owned
-    example (../protocol/setup/init.md, 1);
+    example (../protocol/setup/init.md, 4);
   - skein's fake LLM peer, a process of its own on loopback, over TLS
     with a test root the agent's configuration trusts, scripted for the
     stories, accepting a key the test makes; the owned example's LLM
@@ -324,6 +336,8 @@
   with the secret reconcile drew and naming the pushed commit. What
   temper does with a delivery is the protocol-forge world's
   (../protocol/setup/webhooks.md, 1, *Checked*).
+
+## 7. Builds, exits and client stories
 
 - **The build it runs in.** The tier runs the binary its build made,
   with or without its browser (`TEMPER_INTERNAL_BUNDLE`; ../client/web/bundle.md,
@@ -372,6 +386,8 @@
   the stock charters' parking intervals to one millisecond: parking time
   is tested with simulated clocks, not by sleeping through it here.
 
+## 8. Sign-in and test fixtures
+
 - **Forgejo signing in through temper,** a test of its own at the end of
   `bin/temper-box/tests/process.rs`, on `testing/temper-box-kit/src/forgejo_sign_in.rs`
   (../protocol/openid-provider.md, 8): an owned Forgejo prepared by temper's
@@ -396,14 +412,17 @@
   fixed at its start, and once more for the links-only restart: first a
   public source, added by `forge source` twice and kept once, whose
   exchange joins the owner's existing account to its `sub`; then the
-  confidential source above, its secret on no output, the member made,
+  confidential source above, for which the same Forgejo is started again
+  once on its database, since a running Forgejo keeps the sources it
+  loaded at its start, its secret on no output, the member made,
   the links-only restart (`../draft/dogfood-hacks.md`, 2.8) and the
   admin's connect. The box's one click is a test of its own
   (`a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click`).
   It aims at 2 s, as a world's story
   does (`checks.md`, 1), and takes about 3 s whole: about 2.5 s is the owned
   Forgejo's preparation and start, as every owned-Forgejo story pays,
-  and about 0.5 s is temper's part; being past its aim, it waits on the
+  and about 0.5 s is temper's part; the confidential leg's restart of
+  Forgejo adds about 1 s to that whole; being past its aim, it waits on the
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
 - **The throwaway Forgejo** is the one in skein's `testing/fakes/throwaway.md`,
@@ -430,6 +449,9 @@
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
   (../protocol/setup/README.md, sections 3 and 5).
+
+## 9. Offline and cluster proofs
+
 - **The plan's model face, offline**
   (`testing/temper-box-kit/src/forge_land.rs`), one test,
   `a_persons_plan_is_connected_and_answers_a_chat_with_its_bearer_on_every_request`:
@@ -464,7 +486,7 @@
   alone, the kill only past the stop timeout its printed stop bound
   gives), with a stray termination signal to its run's agent, while the
   run's LLM answer is held, its turn then committed before the worker
-  exits 0 (`../draft/worker-restarts.md`, 9, test 8); a member's
+  exits 0 (`../draft/archive/worker-restarts.md`, 9, test 8); a member's
   unexpected end reported once its client settles; and a mixed document
   refused, exit 1. What a loss, a fence, a late or returning worker or a
   drain does to the run is the engine's domain world's, jig's fleet's
@@ -522,6 +544,8 @@
   (`.config/nextest.toml`), so each binary's other tests stay in the
   suites that hold them.
 
+## 10. Running the tier
+
 - **Outside the gate suites:** nextest profile `process-temper`, run
   once the binary and the fake `claude` beside it are built. The 6-minute aim is the starting point for
   the process tier's CPU budget, the user's to set from measurements,
@@ -563,6 +587,8 @@
 
   A story that can't share one runs in a named nextest test group, as
   `temper-real-loop` does, the reason beside the group.
+
+## 11. The fake-box walks
 
 - **The fake box keeps two walks** (the user, 2026-11-01): fake-based
   coverage on `temper box --fake-backends` is one short path through
@@ -627,7 +653,7 @@
     the person's follow-up message reaches the chat's run, which
     rewrites its note whole.
   - **Copies made and adopted,** in the one-process world (`tiers.md`, 1.5), whose
-    service runs the setup's copies (`../domain/forge/adoption.md`, 5), as the joint world
+    service runs the setup's copies (`../domain/forge/adoption.md`, 9), as the joint world
     does not: `suite::ready_copies::readys_two_copies_are_made_in_order_and_adopted_with_the_first_as_home`,
     the person's press of Ready sending both copies in one client pass,
     made one at a time in that order and adopted, the first as home; and

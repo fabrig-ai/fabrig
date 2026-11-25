@@ -5,13 +5,11 @@ use super::{
 };
 use crate::{
     PublicRead, PublicReply,
-    public::{Names, Of, PublicKind},
+    public::{Names, Of, PublicKind, records},
 };
 use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::{self as wire, public_v1};
 use skein_lib::{List, Secret, Wall, Writer, length::len_u64};
-#[path = "records.rs"]
-mod records;
 
 #[derive(Debug)]
 enum Key {
@@ -88,7 +86,7 @@ impl State {
             }
         }
         for kind in &settings.public {
-            if kind.first > kind.last || not_served(*kind, &env.limits.wire).is_none() {
+            if not_served(*kind, &env.limits.wire).is_none() {
                 return Err(Unusable::Limits);
             }
         }
@@ -195,7 +193,7 @@ impl Component {
             public_reply(exchange, PublicReply::Unknown, out);
             return;
         }
-        if read.version < kind.first || read.version > kind.last {
+        if read.layout != Some(kind.layout) {
             let record = not_served(kind, &env.limits.wire).expect("public versions checked at start");
             public_reply(exchange, PublicReply::NotServed { record }, out);
             return;
@@ -224,7 +222,7 @@ impl Component {
             Some(id) => Some(names.number(*id, Of::Task)),
             None => None,
         };
-        let read = core::PublicRead { owner: read.owner, version: read.version, kind: read.kind, project, task };
+        let read = core::PublicRead { owner: read.owner, version: kind.version, kind: read.kind, project, task };
         let name = self.name();
         self.public.pending.insert(name, Reservation { exchange: Some(exchange), kind }).expect("public room admitted");
         out.push(Request::Core(Box::new(core::Event::PublicRead { reply: ReplyTo::new(name), read })));
@@ -282,13 +280,13 @@ fn not_served(kind: PublicKind, limits: &w::Limits) -> Option<Box<[u8]>> {
         None => w::Owner::Jig,
         Some(number) => w::Owner::Family(w::Family { number }),
     };
-    // The refusal is the ordinary served envelope, narrowed to this public kind's versions.
+    // The ordinary served envelope names only this public kind's version.
     let value = w::NotServed {
         owner: owner.clone(),
         served: {
             let mut ranges = List::with_capacity(1);
             ranges
-                .push(w::Served { owner, first: u32::from(kind.first), last: u32::from(kind.last) })
+                .push(w::Served { owner, first: u32::from(kind.version), last: u32::from(kind.version) })
                 .expect("one range");
             ranges
         },

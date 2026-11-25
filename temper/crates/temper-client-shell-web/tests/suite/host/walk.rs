@@ -264,9 +264,10 @@ fn linked() -> Walk {
     {
         served.push(w::Served { owner, first: version, last: version }).expect("two families");
     }
-    let asks = walk.streamed(&jig_client_test_records::opened(
+    let asks = walk.streamed(&jig_client_test_records::opened_with_layouts(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
+        &[jig_client_test_records::family_layout(wire::FORGE, wire::CLIENT_LAYOUT)],
     ));
     let _ = asks;
     let watch = 0;
@@ -384,9 +385,10 @@ fn key_ready() -> Walk {
     {
         served.push(w::Served { owner, first: version, last: version }).expect("two families");
     }
-    let asks = walk.streamed(&jig_client_test_records::opened(
+    let asks = walk.streamed(&jig_client_test_records::opened_with_layouts(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
+        &[jig_client_test_records::family_layout(wire::FORGE, wire::CLIENT_LAYOUT)],
     ));
     let _ = asks;
     let watch = 0;

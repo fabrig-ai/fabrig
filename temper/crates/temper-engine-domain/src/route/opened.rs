@@ -1,6 +1,6 @@
 //! A person's own change, built and admitted as their Create batch
 //! (temper/docs/design/domain/forge/change/opened.md, 2 and 3).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{Domain, Work, forge, forge_route};
 use alloc::boxed::Box;
 use jig_domain_core as core;

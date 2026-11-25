@@ -1,4 +1,4 @@
-//! The secret has lowercase hexadecimal digits (protocol/setup/init.md, 2).
+//! The secret has lowercase hexadecimal digits (protocol/setup/init.md, 5).
 use alloc::boxed::Box;
 use skein_lib::Writer;
 

@@ -10,7 +10,6 @@ mod generic_support;
 mod support;
 
 mod bounds;
-mod diff;
 mod drawn;
 mod drift;
 mod every;
@@ -22,7 +21,6 @@ mod lean_bounds;
 mod mapped;
 mod memory;
 mod named_limits;
-mod patch;
 mod wire;
 mod worst;
 
@@ -30,7 +28,6 @@ mod fuzzy {
     mod decode;
     mod generic;
     mod layout;
-    mod patch;
 }
 
 mod codec_memory {

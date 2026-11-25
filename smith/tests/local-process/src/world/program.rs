@@ -1,5 +1,5 @@
 //! Program-account stories keep only the fake's generated account files across
-//! invocations, beside the ordinary chat store (smith/docs/design/testing.md, 2.1 and 4).
+//! invocations, beside the ordinary chat store (smith/docs/design/testing-tiers.md, 1, and smith/docs/design/testing.md, 4).
 use super::{Ending, HostedProgram, How, Machine, Placement, Proc, World, process};
 use crate::terminal::Action;
 use skein_fake_llm_domain::api;

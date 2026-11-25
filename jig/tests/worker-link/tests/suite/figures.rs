@@ -76,7 +76,7 @@ fn a_link_reports_every_figures_at_opening_live_and_after_redial() {
     let mut world = Joined::new(&f::joined_limits(), 1);
     world.figures(figures(4));
     world.run();
-    assert_eq!(world.engine_records().get(..2), Some([w::Kind::Wires.number(), w::Kind::Figures.number()].as_slice()));
+    assert_eq!(world.engine_records().first(), Some(&w::Kind::Figures.number()));
     assert_eq!(received(&world).len(), 1);
     assert_eq!(world.engine_channels().len(), 1);
     world.figures(figures(8));

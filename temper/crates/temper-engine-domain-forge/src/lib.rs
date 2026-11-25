@@ -16,6 +16,15 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod public;
+}
+
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::address;

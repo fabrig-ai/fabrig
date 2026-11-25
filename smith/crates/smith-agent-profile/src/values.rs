@@ -36,6 +36,27 @@ pub struct Limits {
     pub memory: u64,
     /// Event ownership, absent for a host that has no process stream.
     pub events: Option<smith_protocol_events::EventLimits>,
+    /// The link before and after startup knows which event destinations it owns.
+    pub link: Link,
+}
+
+/// Link policy from the profile, resolved once into the process's full link figures at startup.
+#[derive(Clone, Copy, Debug)]
+pub enum Link {
+    /// Only the profile's cancellation policy, before startup has finalized event ownership.
+    Policy { cancel_grace: Duration },
+    /// The derived link figures used by the framed agent and its startup report.
+    Derived { cancel_grace: Duration, no_progress: Duration, orphan_exit: Duration },
+}
+
+impl Link {
+    /// The run's grace to answer after the host is gone.
+    #[must_use]
+    pub const fn cancel_grace(self) -> Duration {
+        match self {
+            Self::Policy { cancel_grace } | Self::Derived { cancel_grace, .. } => cancel_grace,
+        }
+    }
 }
 
 /// All startup inputs except the inherited descriptors, which the shell

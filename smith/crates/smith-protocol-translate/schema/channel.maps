@@ -1,0 +1,62 @@
+records smith_channel::v14
+use r = smith_domain::run
+use s = skein_codec::convert
+use hand = crate::channel_hand
+by hand crate::channel_hand
+refuses hand::delivered_to_domain
+refuses hand::delivery_refusal_to_domain
+refuses hand::host_reply_to_domain
+direction to record
+
+record CallName = r::CallName to domain
+record Window = smith_domain::Window to domain
+record Directory = crate::Mount to domain { conflicts slice }
+enum GrantValue by hand
+record Grant by hand
+record Receipt by hand
+record Delivered by hand
+record Marker by hand
+record DeliveryRefusal by hand
+enum DeliveryReason = r::DeliveryReason to domain
+record DeliveryFailure by hand
+enum Delivery = r::Delivery to domain { delivered tuple, refused tuple, failed tuple }
+record HostReply by hand
+record DeliveryReply stands for value
+enum SavedReply = smith_domain::Answered to domain { host tuple, delivery tuple boxed }
+record AnsweredCall = smith_domain::AnsweredCall to domain { reply = answer }
+record Message = r::Message to domain { name via s::token }
+record Start by hand
+enum ReceivingLimit = r::ReceivingLimit
+enum Overflow = r::Overflow
+record ReceivingLimitValue stands for value
+record OverflowValue stands for value
+enum BudgetFailure = r::Exhausted { tokens tuple, overflow tuple }
+enum Cap = r::Cap
+record PathCap stands for value
+record PoolLimit
+enum CompletionLimit = r::Limit { path tuple }
+enum CompletionPhase = r::CompletionPhase
+enum CompletionFailure by hand
+record ResponseEvidence
+enum CompletionEvidence = r::CompletionEvidence
+enum ModelFault by hand
+enum TranscriptRefusal = r::TranscriptRefusal
+enum RunFailure by hand
+enum PriceRate = r::Rate
+record PriceRateValue stands for value
+enum BudgetPart = r::Part
+record BudgetPartValue stands for value
+record BudgetTurns stands for value
+record BudgetSpend stands for value
+record BudgetTime stands for value
+enum BudgetCeiling = r::Ceiling { turns tuple, spend tuple, time tuple }
+record BudgetCeilingValue stands for value
+record BudgetCompletion
+record BudgetChecks
+enum BudgetRefusal = r::BudgetRefusal { ceiling tuple, empty tuple, reserve tuple }
+record BudgetRefusalValue stands for value
+record WindowBound
+enum InvalidStart = r::Invalid { budget tuple, price tuple }
+record InvalidStartValue stands for value
+enum StartRefusal = r::Refusal { invalid tuple }
+record Answer by hand

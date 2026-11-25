@@ -76,7 +76,11 @@ pub fn hello(version: u32) -> Box<[u8]> {
     else {
         unreachable!("me fixture");
     };
-    event(&w::StreamEvent::Opened(w::Opened { hello, me: delivery.document }))
+    event(&w::StreamEvent::Opened(w::Opened {
+        hello,
+        layouts: jig_client_test_records::layouts(&[]),
+        me: delivery.document,
+    }))
 }
 pub fn event(value: &w::StreamEvent) -> Box<[u8]> {
     let mut out = Writer::new(
@@ -244,16 +248,10 @@ pub fn answer(value: &w::KeyedAnswer) -> Box<[u8]> {
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
-pub fn other_store_version(record: &mut Record) {
-    let value = w::Kept::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).unwrap();
-    let mut parts = value;
-    parts.store_version = parts.store_version.checked_add(1).unwrap();
-    let value = parts;
-    let mut writer = Writer::new(
-        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
-    );
-    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
-    record.bytes = writer.finish();
+pub fn other_store_layout(record: &mut Record) {
+    let mut kept = w::Kept::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).unwrap();
+    kept.layout[0] ^= 1;
+    record.bytes = kept.encode(&w::CEILINGS).unwrap();
 }
 
 pub fn answers(requests: &[Request]) -> List<(Key, Outcome)> {
@@ -534,7 +532,7 @@ pub fn kept_seen(key: Key, name: skein_lib::RequestKey, first_sent: Option<Wall>
         usize::try_from(table.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
     table.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
-    let kept = w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: writer.finish() };
+    let kept = w::Kept { layout: w::LAYOUT, record: writer.finish() };
     let mut writer = Writer::new(
         usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );

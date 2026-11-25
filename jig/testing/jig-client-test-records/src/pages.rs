@@ -35,7 +35,11 @@ fn archive(
     w::ArchivedTurn { task: 7, name: w::TurnName { attempt, number }, cumulative, read, at, turn }
 }
 #[must_use]
-pub fn carried_activity_page() -> w::ActivityPage {
+pub fn carried_activity_page(cursor_layout: &[u8; 32]) -> w::ActivityPage {
+    let version = [0, 2];
+    let form =
+        [0, 1, 10, 0, 0, 0, 0, 0, 0, 0, 7, 1, 0, 0, 0, 0, 19, 1, 1, 11, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 7];
+    let cursor = [version.as_slice(), cursor_layout.as_slice(), form.as_slice()].concat().into_boxed_slice();
     let first = activity_row(
         13,
         31,
@@ -56,12 +60,7 @@ pub fn carried_activity_page() -> w::ActivityPage {
             second.encode(&crate::limits()).expect("literal record encodes"),
             third.encode(&crate::limits()).expect("literal record encodes"),
         ]),
-        before: Some(w::Cursor {
-            value: Box::from([
-                0, 2, 0, 1, 10, 0, 0, 0, 0, 0, 0, 0, 7, 1, 0, 0, 0, 0, 19, 1, 1, 11, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0,
-                0, 0, 0, 0, 7,
-            ]),
-        }),
+        before: Some(w::Cursor { value: cursor }),
         after: None,
     }
 }

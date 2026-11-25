@@ -29,10 +29,7 @@ pub fn gather(panel: Option<&w::FollowsPanel>) -> List<Follow> {
     let mut follows = List::uncapped();
     if let Some(panel) = panel {
         for row in &panel.follows {
-            let owner = match &row.setting.owner {
-                w::FollowOwner::Person(person) => Owner::Person(person.person),
-                w::FollowOwner::Task(task) => Owner::Task(task.task),
-            };
+            let owner = crate::generated::client_wire::follow_owner_to_domain(row.setting.owner.clone());
             let status = if row.stopped.is_some() {
                 Box::from(b"stopped".as_slice())
             } else {
