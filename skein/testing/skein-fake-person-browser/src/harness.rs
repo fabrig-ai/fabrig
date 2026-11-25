@@ -123,7 +123,7 @@ pub trait Play {
     }
 }
 mod account;
-use account::{Account, Expiry};
+use account::{Account, Arming, Expiry};
 mod commands;
 mod run;
 mod scripted;
@@ -552,12 +552,13 @@ impl Runtime {
                 self.browser_pid = pid;
             }
             if let Some(pid) = pid {
-                self.deadline.as_mut().expect("run deadline armed").watch_process(pid);
+                let watch = skein_world::ProcessWatch::capture(&[pid]);
+                self.deadline.as_mut().expect("run deadline armed").watch_snapshot(&watch);
                 for account in self.step_accounts.iter_mut().flatten() {
-                    account.deadline.watch_process(pid);
+                    account.deadline.watch_snapshot(&watch);
                 }
                 for command in self.commands.iter_mut().flatten() {
-                    command.watch_process(pid);
+                    command.watch_snapshot(&watch);
                 }
             }
         } else if let Some(index) =
@@ -566,9 +567,10 @@ impl Runtime {
             let command = self.commands[index].as_mut().expect("matching command");
             command.pid = pid;
             if let Some(pid) = pid {
-                command.watch_process(pid);
+                let watch = skein_world::ProcessWatch::capture(&[pid]);
+                command.watch_snapshot(&watch);
                 if let Some(account) = &mut self.step_accounts[index] {
-                    account.deadline.watch_process(pid);
+                    account.deadline.watch_snapshot(&watch);
                 }
             }
         }
@@ -901,6 +903,7 @@ impl Runtime {
         if matches!(self.server_state, ServerState::Stopping | ServerState::Starting) {
             return;
         }
+        let mut arming = Arming::new(self.native(), now, self.server_pid, self.browser_pid);
         for (index, (play, face)) in people.iter_mut().zip(faces).enumerate() {
             if !self.opened[index] || done[index] {
                 continue;
@@ -917,14 +920,7 @@ impl Runtime {
             let step = play.at();
             let command =
                 self.commands[index].as_ref().filter(|command| !command.settled).and_then(|command| command.pid);
-            let native = self.native();
-            StepAccount::begin(
-                &mut self.step_accounts[index],
-                step,
-                [self.server_pid, self.browser_pid, command],
-                now,
-                native,
-            );
+            StepAccount::begin(&mut self.step_accounts[index], step, command, &mut arming);
             face.clear_look_wake();
             let next = play.next(face, now);
             if play.at() != step {
@@ -963,7 +959,7 @@ impl Runtime {
                 }
             }
             if let Some(action) = face.command_action() {
-                self.command_action(index, action, face, step);
+                self.command_action(index, action, face, step, &mut arming);
             }
             if let Some(asked) = play.request() {
                 self.exchanges.push(request::Exchange::new(

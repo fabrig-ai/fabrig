@@ -48,16 +48,10 @@ pub(super) struct Context<'a> {
     pub address: &'a str,
     pub peers: &'a [(Box<[u8]>, String)],
     pub write_cap: usize,
-    pub server_pid: Option<u32>,
-    pub browser_pid: Option<u32>,
 }
 impl Process {
     pub fn new(serial: u64, command: Command, context: Context<'_>, deadline: Account) -> Self {
-        let mut deadline = deadline;
-        for pid in [context.server_pid, context.browser_pid].into_iter().flatten() {
-            deadline.watch_process(pid);
-        }
-        let Context { held, root, address, peers, write_cap, .. } = context;
+        let Context { held, root, address, peers, write_cap } = context;
         let owner = Token::new(FIRST.checked_add(serial).expect("command identity fits"));
         let mut input = VecDeque::new();
         let mut error = None;
@@ -118,6 +112,11 @@ impl Process {
     pub fn watch_process(&mut self, pid: u32) {
         if let Some((deadline, _)) = &mut self.wait {
             deadline.watch_process(pid);
+        }
+    }
+    pub fn watch_snapshot(&mut self, watch: &skein_world::ProcessWatch) {
+        if let Some((deadline, _)) = &mut self.wait {
+            deadline.watch_snapshot(watch);
         }
     }
     fn down(&mut self, pipe: Token, down: Down) {
@@ -353,6 +352,7 @@ impl super::Runtime {
         action: super::CommandAction,
         face: &mut crate::BrowserFace<'_>,
         step: u32,
+        arming: &mut super::Arming,
     ) {
         match action {
             super::CommandAction::Run(command) => {
@@ -368,8 +368,7 @@ impl super::Runtime {
                     self.pending_commands[index] = Some(command);
                     return;
                 }
-                let deadline =
-                    Account::arm(self.native(), "the scenario command's readiness", command.within, self.benv.now);
+                let deadline = arming.arm("the scenario command's readiness", command.within, None);
                 let command = Process::new(
                     self.command_serial,
                     command,
@@ -379,8 +378,6 @@ impl super::Runtime {
                         address: self.address.as_deref().expect("server address"),
                         peers: &self.peer_addresses,
                         write_cap: usize::try_from(self.ienv.limits.output).expect("output fits"),
-                        server_pid: self.server_pid,
-                        browser_pid: self.browser_pid,
                     },
                     deadline,
                 );
@@ -388,13 +385,8 @@ impl super::Runtime {
                 self.commands[index] = Some(command);
             }
             super::CommandAction::Exit { code, within } => {
-                let native = self.native();
                 if let Some(command) = &mut self.commands[index] {
-                    let mut deadline =
-                        Account::arm(native, "the scenario command's expected exit", within, self.benv.now);
-                    for pid in [self.server_pid, self.browser_pid, command.pid].into_iter().flatten() {
-                        deadline.watch_process(pid);
-                    }
+                    let deadline = arming.arm("the scenario command's expected exit", within, command.pid);
                     command.wait = Some((deadline, WaitFor::Exit { code }));
                 } else {
                     face.command_complete();
@@ -412,12 +404,13 @@ impl super::Runtime {
         page_addresses: fn(&[u8]) -> bool,
     ) -> Option<CommandExpiry> {
         let mut expiry = None;
+        let mut arming = super::Arming::new(self.native(), self.benv.now, self.server_pid, self.browser_pid);
         for (index, face) in faces.iter_mut().enumerate() {
             if !self.closing.active()
                 && self.commands[index].as_ref().is_some_and(|previous| previous.settled)
                 && let Some(command) = self.pending_commands[index].take()
             {
-                self.command_action(index, super::CommandAction::Run(command), face, people[index].at());
+                self.command_action(index, super::CommandAction::Run(command), face, people[index].at(), &mut arming);
             }
             let Some(command) = &mut self.commands[index] else { continue };
             if self.closing.active() {

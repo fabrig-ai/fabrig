@@ -1,5 +1,5 @@
 //! Per-person scheduler accounts and step findings (skein/docs/design/ui/web/testing.md, 2).
-use super::{Account, Play};
+use super::{Account, Arming, Play};
 use crate::BrowserFace;
 use skein_lib::{Duration, Time};
 
@@ -8,13 +8,10 @@ pub(super) struct StepAccount {
     pub deadline: Account,
 }
 impl StepAccount {
-    pub fn begin(account: &mut Option<Self>, step: u32, pids: [Option<u32>; 3], now: Time, native: bool) {
+    pub fn begin(account: &mut Option<Self>, step: u32, command: Option<u32>, arming: &mut Arming) {
         if account.as_ref().is_none_or(|account| account.step != step) {
             // The arriving expiry supplies its own bound. This account only measures.
-            let mut deadline = Account::arm(native, "the browser step", Duration::from_nanos(0), now);
-            for pid in pids.into_iter().flatten() {
-                deadline.watch_process(pid);
-            }
+            let deadline = arming.arm("the browser step", Duration::from_nanos(0), command);
             *account = Some(Self { step, deadline });
         }
     }

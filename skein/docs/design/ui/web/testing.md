@@ -219,7 +219,12 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     as its step begins, at its page's first step and each time its
     position (`Play::at`) moves, watching the server's, Chromium's and
     the person's command's processes (../../testing/service-tiers.md,
-    1). It classifies the step's expiry against that account with the
+    1). Step and command waits begun in the same dispatch share their
+    scheduler origin and the snapshot of their common roots, not their
+    bounds. A spawn supplies one sample to the accounts watching it,
+    without changing when those waits began. Opening the command's link
+    keeps its Chromium watch if the process identity is unchanged.
+    The harness classifies the step's expiry against that account with the
     bound the expiry passed (`Deadline::expired_for`, there). Starved,
     the harness ends what it owns and the story ends as a starved pass,
     its one line naming the figures, counted as every starved pass is;

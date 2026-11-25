@@ -254,9 +254,16 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   Figures}` carry the wait and its scheduler accounting.
   `Deadline::arm(what, patience)` starts the calling thread's account;
   `watch(&Binary)` and `watch_process(pid)` add owned process trees,
-  preserving earlier watches. Descendants count; a thread first seen
-  after arming counts from zero only when its process provably began
-  after arming. Unreadable or vanished threads contribute nothing.
+  preserving earlier watches. A repeated `watch_process` of the same PID
+  and start time keeps the first sample. `DeadlineOrigin::capture` lets
+  waits beginning together share a clock and thread origin, and
+  `watch_snapshot(&ProcessWatch)` shares the sample of their owned roots
+  without reading procfs again. A stable arming scan reads the caller's
+  owner once, each process's owner once and identity before and after its
+  records, and each thread's scheduler and children records. Descendants
+  count; a thread counts from zero only when its own or its process's
+  birth proves it began after arming. Unreadable or vanished accounting
+  contributes nothing.
   `passed`, `remaining` and `until` let the loop wait; `expired` classifies
   an unanswered wait once it passes. `expired_for(what, bound)` classifies
   one of the waits an account armed for several covers, as a browser
