@@ -159,6 +159,7 @@ mod fake_lookup;
 mod live_tests;
 mod program_contract;
 mod refusal_echo;
+mod stories_path;
 
 pub use smith_end_to_end_kit as support;
 
