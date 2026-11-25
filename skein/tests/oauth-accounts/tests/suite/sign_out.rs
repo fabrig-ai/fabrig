@@ -161,7 +161,8 @@ fn a_cancelled_exchange_sends_none_of_its_queued_output_and_signs_out_clean() {
                 | accounts::Lower::Window { .. }
                 | accounts::Lower::Usage { .. }
                 | accounts::Lower::Signal { .. }
-                | accounts::Lower::Close { .. }) => stale_output.push(request),
+                | accounts::Lower::Close { .. }
+                | accounts::Lower::CloseAfterFlush { .. }) => stale_output.push(request),
             }
         }
     }

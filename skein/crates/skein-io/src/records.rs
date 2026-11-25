@@ -58,6 +58,9 @@ pub enum Request {
     /// also receives its owed `Cancelled` terminal before `Closed`
     /// (runtime/lib-streams.md, 1.1; runtime/io/sockets.md, 3).
     Close { entity: Token },
+    /// Close a socket after flushing and half-closing, without waiting for the peer's end
+    /// or arming the close deadline. As with `Close`, the socket reports `Closed` once settled.
+    CloseAfterFlush { entity: Token },
     /// A close at once, whatever is in flight or queued. On the classic face
     /// only `Closed` follows; a pending native output right also receives its
     /// owed `Cancelled` terminal before `Closed` (runtime/lib-streams.md, 1.1; runtime/io/sockets.md, 3).
@@ -82,6 +85,7 @@ impl Request {
             | Self::Output { .. }
             | Self::Signal { .. }
             | Self::Close { .. }
+            | Self::CloseAfterFlush { .. }
             | Self::Abort { .. } => None,
         }
     }
@@ -102,6 +106,7 @@ impl Request {
             | Self::Output { .. }
             | Self::Signal { .. }
             | Self::Close { .. }
+            | Self::CloseAfterFlush { .. }
             | Self::Abort { .. } => {}
         }
         self

@@ -541,7 +541,7 @@ impl Owner {
     pub(super) fn finish_socket(&mut self, identity: Token, response: &mut &[u8]) -> bool {
         let mut closed = false;
         while let Some(request) = self.io.pop() {
-            if let Lower::Close { .. } | Lower::Abort { .. } = request {
+            if let Lower::Close { .. } | Lower::CloseAfterFlush { .. } | Lower::Abort { .. } = request {
                 self.socket_up(LowerEvent::Closed { owner: identity });
                 closed = true;
             } else if let Lower::Stream { down: Down::Demand { read, room }, .. } = request {
@@ -838,11 +838,15 @@ impl Owner {
                     }
                     Down::Finish => {}
                 },
-                Lower::Close { entity } | Lower::Abort { entity } if entity == Token::new(11) => {
+                Lower::Close { entity } | Lower::CloseAfterFlush { entity } | Lower::Abort { entity }
+                    if entity == Token::new(11) =>
+                {
                     closed = true;
                     self.socket(LowerEvent::Closed { owner: callback });
                 }
-                Lower::Close { entity } | Lower::Abort { entity } if entity == Token::new(10) => {
+                Lower::Close { entity } | Lower::CloseAfterFlush { entity } | Lower::Abort { entity }
+                    if entity == Token::new(10) =>
+                {
                     self.socket(LowerEvent::Closed { owner: listener });
                 }
                 request @ (Lower::Listen { .. }
@@ -857,6 +861,7 @@ impl Owner {
                 | Lower::Usage { .. }
                 | Lower::Window { .. }
                 | Lower::Close { .. }
+                | Lower::CloseAfterFlush { .. }
                 | Lower::Abort { .. }) => deferred.push(request),
             }
         }

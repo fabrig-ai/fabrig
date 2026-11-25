@@ -10,7 +10,7 @@ use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, OutputUp, Read, 
 use skein_lib::{Env, Id, Intake, Queue, Token, bytes};
 
 use crate::kernel::{self, Addr, Done, Fd, Op, Submit};
-use crate::layer::{self, Entity, Flight, Landed, Purpose, Tables, Timer};
+use crate::layer::{self, Close, Entity, Flight, Landed, Purpose, Tables, Timer};
 use crate::limits::Limits;
 use crate::output::Reservation;
 use crate::records::{self, Event};
@@ -179,8 +179,8 @@ struct Broken {
     write: Option<Writing>,
 }
 
-/// A graceful close (runtime/io/sockets.md): the output flushed and half-closed, the input
-/// discarded until the peer ends, under the close deadline.
+/// A close that flushes and half-closes (runtime/io/sockets.md, 3). A draining
+/// close also discards input until the peer ends, under the close deadline.
 #[derive(Debug)]
 struct Closing {
     owner: Token,
@@ -200,6 +200,9 @@ enum Drain {
     Stalled,
     /// The peer ended, or the receive failed: nothing more to discard.
     Done,
+    /// Do not read any more. An old receive may complete during the flush;
+    /// if still in flight afterwards it is cancelled when settling.
+    Skip(Option<Id<Flight>>),
 }
 
 /// What a graceful close flushes.
@@ -309,7 +312,7 @@ impl Closing {
     const fn stalled(&self) -> bool {
         let drain = match self.drain {
             Drain::Stalled => true,
-            Drain::Receiving(_) | Drain::Done => false,
+            Drain::Receiving(_) | Drain::Done | Drain::Skip(_) => false,
         };
         let flush = match self.flush {
             Flush::Stalled { .. } | Flush::Unshut => true,
@@ -321,7 +324,7 @@ impl Closing {
     /// Whether it is drained and flushed.
     const fn done(&self) -> bool {
         match self.drain {
-            Drain::Done => match self.flush {
+            Drain::Done | Drain::Skip(_) => match self.flush {
                 Flush::Done => true,
                 Flush::Sending(_) | Flush::Stalled { .. } | Flush::Shutting(_) | Flush::Unshut => false,
             },
@@ -453,11 +456,11 @@ fn state_request(
     tidy(stream, id, tables);
 }
 
-/// `Close` (graceful) or `Abort`.
+/// The owner's close or abort request.
 fn state_close(
     stream: &mut State,
     id: Id<Entity>,
-    abort: bool,
+    how: Close,
     env: &Env<Limits>,
     tables: &mut Tables,
     subs: &mut Queue<Submit>,
@@ -491,17 +494,17 @@ fn state_close(
             State::Settling(settling)
         }
         State::Open(open) => {
-            if abort {
+            if how == Close::Abort {
                 let (recv, write) = in_flight(open.reader, &open.writer);
                 wind_down(open.owner, open.fd, recv, write, id, tables, subs)
             } else {
-                close_open(open, id, env, tables, subs)
+                close_open(open, how == Close::Drain, id, env, tables, subs)
             }
         }
         // Nothing to flush once it failed: a close is an abort.
         State::Broken(broken) => wind_down(broken.owner, broken.fd, broken.recv, broken.write, id, tables, subs),
         State::Closing(closing) => {
-            if abort {
+            if how == Close::Abort {
                 abort_closing(closing, id, tables, subs)
             } else {
                 State::Closing(closing)
@@ -567,7 +570,7 @@ fn state_retried(
         State::Closing(closing) => {
             closing.drain = match closing.drain {
                 Drain::Stalled => Drain::Receiving(receive(closing.fd, env.limits.receive, id, tables, subs)),
-                drain @ (Drain::Receiving(_) | Drain::Done) => drain,
+                drain @ (Drain::Receiving(_) | Drain::Done | Drain::Skip(_)) => drain,
             };
             closing.flush = match mem::replace(&mut closing.flush, Flush::Done) {
                 Flush::Stalled { bytes, from } => Flush::Sending(send(closing.fd, bytes, from, id, tables, subs)),
@@ -620,7 +623,13 @@ fn follow(
 fn tidy(stream: &State, id: Id<Entity>, tables: &mut Tables) {
     let (closing, stalled) = match stream {
         State::Open(open) => (false, open.stalled()),
-        State::Closing(closing) => (true, closing.stalled()),
+        State::Closing(closing) => {
+            let drain = match closing.drain {
+                Drain::Receiving(_) | Drain::Stalled | Drain::Done => true,
+                Drain::Skip(_) => false,
+            };
+            (drain, closing.stalled())
+        }
         State::Opening { .. }
         | State::Socket { .. }
         | State::Connecting { .. }
@@ -1272,18 +1281,28 @@ fn broken_landed(broken: Broken, happened: Happened) -> Broken {
     }
 }
 
-/// `Close` of an open stream: flush and half-close, discarding the input,
-/// under the close deadline; or released at once if nothing is left to do.
-fn close_open(open: Open, id: Id<Entity>, env: &Env<Limits>, tables: &mut Tables, subs: &mut Queue<Submit>) -> State {
+/// Flush and half-close, optionally discarding input under the close deadline.
+fn close_open(
+    open: Open,
+    drain: bool,
+    id: Id<Entity>,
+    env: &Env<Limits>,
+    tables: &mut Tables,
+    subs: &mut Queue<Submit>,
+) -> State {
     let Open { owner, fd, intake: _, demand: _, granted: _, classic_grant: _, independent: _, reader, writer, output } =
         open;
     // Discarding starts now, so a peer blocked on its upload drains, then
     // reads what is flushed to it.
-    let drain = match reader {
-        Reader::Receiving(flight) => Drain::Receiving(flight),
-        Reader::Full => Drain::Receiving(receive(fd, env.limits.receive, id, tables, subs)),
-        Reader::Stalled => Drain::Stalled,
-        Reader::Ended | Reader::Told => Drain::Done,
+    let input = if drain {
+        match reader {
+            Reader::Receiving(flight) => Drain::Receiving(flight),
+            Reader::Full => Drain::Receiving(receive(fd, env.limits.receive, id, tables, subs)),
+            Reader::Stalled => Drain::Stalled,
+            Reader::Ended | Reader::Told => Drain::Done,
+        }
+    } else {
+        Drain::Skip(in_flight(reader, &writer).0)
     };
     let flush = match writer {
         Writer::Idle => Flush::Shutting(shutdown(fd, id, tables, subs)),
@@ -1293,13 +1312,12 @@ fn close_open(open: Open, id: Id<Entity>, env: &Env<Limits>, tables: &mut Tables
         Writer::Unshut => Flush::Unshut,
         Writer::Shut => Flush::Done,
     };
-    let closing = Closing { owner, fd, drain, flush, queue: output.queue };
-    if closing.done() {
-        return release(Some(owner), fd, id, tables, subs);
+    let closing = Closing { owner, fd, drain: input, flush, queue: output.queue };
+    if drain && !closing.done() {
+        let at = env.now.saturating_add(env.limits.close_timeout);
+        tables.deadlines.arm((id, Timer::Close), at).expect("a close deadline for every draining socket");
     }
-    let at = env.now.saturating_add(env.limits.close_timeout);
-    tables.deadlines.arm((id, Timer::Close), at).expect("a close deadline for every socket");
-    State::Closing(closing)
+    closed_if_done(closing, id, tables, subs)
 }
 
 fn closing_received(
@@ -1313,7 +1331,11 @@ fn closing_received(
     let Received { flight, buf, result } = received;
     match closing.drain {
         Drain::Receiving(receiving) => assert!(receiving == flight, "the receive that completed is the one in flight"),
-        Drain::Stalled | Drain::Done => unreachable!("a receive completes while one is in flight"),
+        Drain::Skip(Some(receiving)) => {
+            assert!(receiving == flight, "the receive that completed is the one in flight");
+            return State::Closing(Closing { drain: Drain::Skip(None), ..closing });
+        }
+        Drain::Stalled | Drain::Done | Drain::Skip(None) => unreachable!("a receive completes while one is in flight"),
     }
     // Freed before the next receive's is made: one buffer per stream at once
     // (runtime/io/sockets.md, 4).
@@ -1405,7 +1427,11 @@ fn closed_if_done(closing: Closing, id: Id<Entity>, tables: &mut Tables, subs: &
     if !closing.done() {
         return State::Closing(closing);
     }
-    release(Some(closing.owner), closing.fd, id, tables, subs)
+    match closing.drain {
+        Drain::Skip(Some(recv)) => wind_down(closing.owner, closing.fd, Some(recv), None, id, tables, subs),
+        Drain::Done | Drain::Skip(None) => release(Some(closing.owner), closing.fd, id, tables, subs),
+        Drain::Receiving(_) | Drain::Stalled => unreachable!("a draining close waits until drained"),
+    }
 }
 
 /// The deadline passed, or the owner aborted: what the close still had in
@@ -1413,6 +1439,7 @@ fn closed_if_done(closing: Closing, id: Id<Entity>, tables: &mut Tables, subs: &
 fn abort_closing(closing: Closing, id: Id<Entity>, tables: &mut Tables, subs: &mut Queue<Submit>) -> State {
     let recv = match closing.drain {
         Drain::Receiving(flight) => Some(flight),
+        Drain::Skip(flight) => flight,
         Drain::Stalled | Drain::Done => None,
     };
     let write = match closing.flush {
@@ -1636,7 +1663,7 @@ pub(crate) fn request(
 pub(crate) fn close(
     stream: &mut Stream,
     id: Id<Entity>,
-    abort: bool,
+    how: Close,
     env: &Env<Limits>,
     tables: &mut Tables,
     subs: &mut Queue<Submit>,
@@ -1660,7 +1687,7 @@ pub(crate) fn close(
         | State::Releasing { .. }
         | State::Closed => {}
     }
-    state_close(&mut stream.state, id, abort, env, tables, subs);
+    state_close(&mut stream.state, id, how, env, tables, subs);
 }
 
 pub(crate) fn expired(

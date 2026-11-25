@@ -105,6 +105,11 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     compiler and does not recompile hot functions in its optimizing tier.
     On the playground walk, the optimizing tier costs more than it saves.
     The Wasm and the stories' checks are unchanged;
+  - `--use-mock-keychain`: on macOS the profile keeps its secrets, its
+    cookies' key among them, in a keychain of its own, never the
+    user's, which a browser whose `HOME` is a scratch directory cannot
+    find (temper's `client/drive.md`, 2.2). A fresh profile has no
+    secret to keep, and on other systems the flag does nothing;
   - `about:blank` as the first page.
 
   The environment is minimal, and it is the child's whole environment
@@ -123,9 +128,27 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   then a kill, as for any child (../runtime/io/processes.md). It is a lifecycle
   notification, as `skein-llm`'s `Close` is: the kit stops, and the
   pipes and the child stay the owner's to settle.
-- **A browser that ends on its own** (its replies' pipe ends, or it
-  breaks) fails every operation in flight with `Crashed`, closes every
-  page and person, and is `Closed`.
+- **A browser that ends on its own** first says why, once, as `Ended`
+  (section 5); then it fails every operation in flight with `Crashed`,
+  closes every page and person, and is `Closed`. Its `Ending` is one of:
+  - `Pipe`: its replies' pipe ended or failed, or its commands' pipe
+    ended, failed or gave bytes; the detail names the pipe and io's
+    fault;
+  - `Message`: a message the wire refuses (section 4): no delimiter, past
+    `Limits::message`, nested too deep, or not JSON, the detail naming
+    which;
+  - `Unsent`: a reply to an id the kit never sent, the detail its id;
+  - `Neither`: a message that is neither a reply nor an event;
+  - `Refused`: `Browser.getVersion`, the browser's cancel or
+    `Browser.close` answered with an error, the detail its method and
+    the error's message;
+  - `Unanswered`: one of those three unanswered within
+    `Limits::answer`, the detail its method.
+
+  The child is still running when the kit ends: its owner ends it, and
+  that exit is the owner's doing, never the browser's own
+  (`../ui/web/testing.md`, 2). Without `Ended`, an owner that kills the
+  child could only report the kill.
 
 ## 4. The wire
 
@@ -231,8 +254,11 @@ pub enum Event {                                         // to the test
     Sent    { page: Token, id: Box<[u8]>, load: Box<[u8]>, document: bool,
               method: Box<[u8]>, url: Box<[u8]> },        // a request its main frame sent, on a page that asks
     Answered { page: Token, id: Box<[u8]> },             // the first answer to a request reported Sent
+    Ended   { why: Ending, detail: Box<[u8]> },          // the browser ended on its own, once, before its Closed (section 3)
     Closed  { owner: Token },                            // terminal
 }
+
+pub enum Ending  { Pipe, Message, Unsent, Neither, Refused, Unanswered }  // section 3; detail at most Limits::text
 
 pub struct Query { role: Box<[u8]>, name: Box<[u8]>, matching: Match, within: Option<Node>, boxes: bool }
 pub enum Match   { Exact, Words }                        // Words: the name contains the query's bytes

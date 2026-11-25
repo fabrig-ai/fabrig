@@ -40,6 +40,14 @@ pub(crate) enum Entity {
     Signals(Signals),
 }
 
+/// How a socket ends its pending work.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Close {
+    Drain,
+    Flush,
+    Abort,
+}
+
 /// What io keeps beside its entities, which the handlers of an entity touch
 /// while it is borrowed from its slab.
 #[derive(Debug)]
@@ -684,8 +692,9 @@ pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<S
             io.tables.usage = Some(flight);
             subs.push(Submit { op: flight.token(), kind: Op::Usage });
         }
-        Request::Close { entity } => close(io, env, entity, false, subs),
-        Request::Abort { entity } => close(io, env, entity, true, subs),
+        Request::Close { entity } => close(io, env, entity, Close::Drain, subs),
+        Request::CloseAfterFlush { entity } => close(io, env, entity, Close::Flush, subs),
+        Request::Abort { entity } => close(io, env, entity, Close::Abort, subs),
     }
 }
 
@@ -798,7 +807,7 @@ fn output_request(io: &mut Io, env: &Env<Limits>, token: Token, down: OutputDown
     }
 }
 
-fn close(io: &mut Io, env: &Env<Limits>, token: Token, abort: bool, subs: &mut Queue<Submit>) {
+fn close(io: &mut Io, env: &Env<Limits>, token: Token, how: Close, subs: &mut Queue<Submit>) {
     let id = Id::<Entity>::from_token(token);
     if let Some(Entity::Child(_)) = io.entities.get(id) {
         process::close(io, id, subs);
@@ -809,12 +818,12 @@ fn close(io: &mut Io, env: &Env<Limits>, token: Token, abort: bool, subs: &mut Q
     };
     match entity {
         Entity::Listener(listener) => listener::close(listener, id, &mut io.tables, subs),
-        Entity::Stream(stream) => stream::close(stream, id, abort, env, &mut io.tables, subs),
-        Entity::Pipe(pipe) => pipe::close(pipe, id, abort, env, &mut io.tables, subs),
+        Entity::Stream(stream) => stream::close(stream, id, how, env, &mut io.tables, subs),
+        Entity::Pipe(pipe) => pipe::close(pipe, id, how == Close::Abort, env, &mut io.tables, subs),
         Entity::Child(_) => unreachable!("handled above"),
         Entity::Signals(signals) => signals::close(signals, id, &mut io.tables, subs),
         Entity::Named(listener) => joined::close_listener(listener, id, &mut io.tables),
-        Entity::Joined(end) => joined::close_end(end, id, abort, env, &mut io.tables),
+        Entity::Joined(end) => joined::close_end(end, id, how, env, &mut io.tables),
     }
 }
 

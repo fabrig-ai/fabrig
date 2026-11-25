@@ -994,7 +994,7 @@ fn settle_worker_service(linked: bool) {
         for _ in 0..stand.worker.io().len() {
             let request = stand.worker.io().pop().unwrap();
             match request {
-                io::Request::Close { .. } | io::Request::Abort { .. } => {
+                io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
                     stand.worker.up(now, io::Event::Closed { owner: link_owner });
                 }
                 io::Request::Connect { owner, .. } => {

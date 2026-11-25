@@ -6,9 +6,9 @@ use skein_fake_person_browser::{BrowserFace, Outcome, Play, Script, Setup, Step}
 use skein_lib::Time;
 use skein_ui::Role;
 use std::{
-    fs, io,
+    fs,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Child, Command},
 };
 use temper_client_browser_world::{WITHIN, chromium, playground_serve};
 use temper_playground::{programs, story};
@@ -129,23 +129,21 @@ fn story_steps() -> Vec<Step> {
         .collect()
 }
 
-fn download_size(directory: &Path) -> (u64, u64) {
+fn start_download_measurement(directory: &Path, compressed: &Path) -> (u64, Option<Child>) {
     let mut files = Vec::new();
     let raw = download_files(directory, &mut files);
     if files.is_empty() {
-        return (raw, 0);
+        return (raw, None);
     }
-    // gzip writes a separate member for each file, so the stream's length is the sum of their lengths
-    // (temper/docs/design/playground.md, 9).
-    let mut gzip = Command::new("gzip")
+    // Each file gets its own gzip member. Writing to a file lets gzip run during the walk
+    // without waiting for the test to drain a pipe.
+    let gzip = Command::new("gzip")
         .args(["--no-name", "--stdout", "--"])
         .args(files)
-        .stdout(Stdio::piped())
+        .stdout(fs::File::create(compressed).expect("create compressed download measurement"))
         .spawn()
         .expect("gzip is required to measure the compressed download");
-    let bytes = io::copy(&mut gzip.stdout.take().expect("gzip output pipe"), &mut io::sink());
-    assert!(gzip.wait().expect("gzip exit").success(), "gzip failed");
-    (raw, bytes.expect("count gzip output"))
+    (raw, Some(gzip))
 }
 
 fn download_files(directory: &Path, files: &mut Vec<PathBuf>) -> u64 {
@@ -194,6 +192,8 @@ fn story_a_walks_on_the_built_playground() {
     steps
         .push(Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Download the session log") }));
     let mut walk = Walk { script: Script::new(steps.into_boxed_slice()), figures: vec![], download: None, until: None };
+    let compressed = scratch.path().join("bundle.gz");
+    let (raw, gzip) = start_download_measurement(&out, &compressed);
     // Empty expected trouble means the harness rejects every CSP violation and exception.
     assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut walk]), Outcome::Done);
     let bytes = fs::read(walk.download.expect("completed session log download")).expect("downloaded log");
@@ -216,7 +216,10 @@ fn story_a_walks_on_the_built_playground() {
     let slice =
         walk.figures[1].strip_prefix("Longest slice ").expect("slice label").strip_suffix(" ms").expect("slice unit");
     let _: f64 = slice.parse().expect("slice milliseconds");
-    let (raw, gzip) = download_size(&out);
+    let gzip = gzip.map_or(0, |mut gzip| {
+        assert!(gzip.wait().expect("gzip exit").success(), "gzip failed");
+        fs::metadata(&compressed).expect("compressed download measurement").len()
+    });
     eprintln!(
         "playground figures: download raw {raw} B gzip {gzip} B; memory high water {memory} B; longest slice {slice} ms"
     );

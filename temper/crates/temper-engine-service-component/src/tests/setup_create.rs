@@ -147,7 +147,9 @@ impl Forge {
                         }
                     }
                     skein_io::Request::Stream { down, .. } => self.pipe.client_down(down),
-                    skein_io::Request::Close { .. } | skein_io::Request::Abort { .. } => {
+                    skein_io::Request::Close { .. }
+                    | skein_io::Request::CloseAfterFlush { .. }
+                    | skein_io::Request::Abort { .. } => {
                         let (owner, _) = self.socket.unwrap();
                         self.record_requests();
                         self.socket = None;

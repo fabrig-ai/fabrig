@@ -141,6 +141,7 @@ fn start(component: &mut Component, up: &mut Queue<Event>, io: &mut Queue<Lower>
         | Lower::Usage { .. }
         | Lower::Signal { .. }
         | Lower::Close { .. }
+        | Lower::CloseAfterFlush { .. }
         | Lower::Abort { .. }) => panic!("expected connect, got {other:?}"),
     }
 }
@@ -455,6 +456,7 @@ fn abort_starts_one_binding_per_entrance_and_waits_for_physical_settlement() {
             | Lower::Usage { .. }
             | Lower::Signal { .. }
             | Lower::Close { .. }
+            | Lower::CloseAfterFlush { .. }
             | Lower::Abort { .. }) => panic!("{other:?}"),
         };
         component.up(&env, LowerEvent::Connecting { owner, socket: owner }, &mut up, &mut io);
@@ -525,7 +527,8 @@ fn is_abort(request: Option<Lower>) -> bool {
             | Lower::Window { .. }
             | Lower::Usage { .. }
             | Lower::Signal { .. }
-            | Lower::Close { .. },
+            | Lower::Close { .. }
+            | Lower::CloseAfterFlush { .. },
         )
         | None => false,
     }
@@ -655,6 +658,7 @@ fn two_endpoints_drive_uploads_with_their_own_client_limits() {
             | Lower::Usage { .. }
             | Lower::Signal { .. }
             | Lower::Close { .. }
+            | Lower::CloseAfterFlush { .. }
             | Lower::Abort { .. }) => panic!("expected connect, got {other:?}"),
         };
         component.up(&env, LowerEvent::Connecting { owner, socket: owner }, &mut up, &mut io);
@@ -670,6 +674,7 @@ fn two_endpoints_drive_uploads_with_their_own_client_limits() {
                 Lower::Stream { .. }
                 | Lower::Connect { .. }
                 | Lower::Close { .. }
+                | Lower::CloseAfterFlush { .. }
                 | Lower::Abort { .. }
                 | Lower::Listen { .. }
                 | Lower::Bind { .. }

@@ -146,6 +146,7 @@ pub(super) fn component_down(service: &mut Stages) {
             | io::Request::Window { .. }
             | io::Request::Usage { .. }
             | io::Request::Close { .. }
+            | io::Request::CloseAfterFlush { .. }
             | io::Request::Abort { .. }) => service.io_requests.push(other),
         }
     }

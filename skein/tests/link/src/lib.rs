@@ -113,7 +113,7 @@ impl World {
                         self.wire.take(down);
                     }
                 }
-                Request::Close { entity } => {
+                Request::Close { entity } | Request::CloseAfterFlush { entity } => {
                     assert_eq!(entity, SOCKET);
                     self.trace.push(Trace::Close);
                     self.socket_closing = true;

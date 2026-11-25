@@ -1261,6 +1261,7 @@ mod admission_tests {
                         | io::Request::Usage { .. }
                         | io::Request::Window { .. }
                         | io::Request::Close { .. }
+                        | io::Request::CloseAfterFlush { .. }
                         | io::Request::Abort { .. }) => waiting.push(request),
                     }
                 }

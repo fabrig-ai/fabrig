@@ -1,6 +1,6 @@
 //! Harness reports passed to the drive logic (client/drive.md, 5).
 use super::*;
-use crate::drive::io::page_event;
+use crate::drive::io::{page_event, transport_trouble};
 use skein_fake_person_browser::harness::session::Report;
 
 #[test]
@@ -46,6 +46,45 @@ fn page_report_preserves_trouble() {
     assert_eq!(trouble, Trouble::Log);
     assert_eq!(text.as_ref(), b"resource refused");
     assert_eq!(url.as_ref(), b"http://localhost:8367/missing");
+}
+
+#[test]
+fn a_lost_browser_ends_a_web_line_with_status_four_and_its_tail() {
+    for (failure, exit_reason) in [
+        (Some("browser ended: message: past the message limit"), "browser ended: message: past the message limit"),
+        (Some("Chromium exited: Code(19)"), "Chromium exited: Code(19)"),
+        (None, "box exited 1"),
+    ] {
+        let mut machine = journey_ready();
+        let action = if let Some(why) = failure {
+            assert!(matches!(line(&mut machine, "web look 420").as_slice(), [Action::Screenshot { width: 420, .. }]));
+            let tail = (0..24).map(|n| format!("Chromium {n}")).collect::<Vec<_>>().join("\n");
+            step(&mut machine, transport_trouble(why.into(), Some(tail.into_bytes().into())))
+        } else {
+            step(&mut machine, Event::End)
+        };
+        assert!(matches!(action.as_slice(), [Action::CancelFace, Action::StopCtl, Action::CloseBrowser]), "{action:?}");
+        assert!(matches!(
+            step(&mut machine, Event::FaceDone(Ok(()))).as_slice(),
+            [Action::Stop { process: Process::Box, force: false }]
+        ));
+        assert!(matches!(step(&mut machine, exited(Process::Box, 1)).as_slice(), [Action::Classify]));
+        let actions = step(
+            &mut machine,
+            Event::Logs {
+                box_tail: vec![b"box log line".as_slice().into()],
+                serve: vec![b"serve log line".as_slice().into()],
+                forges: vec![],
+            },
+        );
+        let exit = finish(&actions);
+        assert_eq!(exit.status, 4);
+        let mut shown = vec![format!("box failed: {exit_reason}"), "| box log line".into(), "| serve log line".into()];
+        if failure.is_some() {
+            shown.extend((4..24).map(|n| format!("| Chromium {n}")));
+        }
+        assert_eq!(exit.shown, shown);
+    }
 }
 
 #[test]

@@ -12,12 +12,14 @@ use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
 use skein_lib::stream::{self, Delimiter, Read};
-use skein_lib::{Env, List, Queue, Time, Token};
+use skein_lib::{Decimal, Env, List, Queue, Time, Token};
 
-use crate::boundary::{Below, Down, Event, Expect, Go, Key, Match, Point, Query, Rect, Refusal, Seen, States, Trouble};
+use crate::boundary::{
+    Below, Down, Ending, Event, Expect, Go, Key, Match, Point, Query, Rect, Refusal, Seen, States, Trouble,
+};
 use crate::limits::Limits;
 use crate::params::Params;
-use crate::wire::decode::{Array, Document, Text, Value};
+use crate::wire::decode::{Array, DecodeError, Document, Text, Value};
 use crate::wire::encode;
 
 /// CDP's modifier bit for Shift.
@@ -513,6 +515,9 @@ impl Browser {
     }
 
     fn flush(&mut self, env: &Env<Limits>, below: &mut Queue<Down>) {
+        if self.phase == Phase::Closed {
+            return;
+        }
         if self.releasing_documents {
             self.release_retired_documents(env);
         }
@@ -1292,7 +1297,14 @@ pub fn down(
 
 /// An event from a child pipe.
 pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Queue<Event>, below: &mut Queue<Down>) {
-    if browser.phase == Phase::Closed && browser.events.is_empty() {
+    if browser.phase == Phase::Closed {
+        match event {
+            Below::Errors(stream::Up::Bytes(bytes)) => browser.keep_stderr(env, &bytes),
+            Below::Commands(_)
+            | Below::Replies(_)
+            | Below::Errors(stream::Up::End | stream::Up::Failed(_) | stream::Up::Room) => {}
+        }
+        browser.emit(above);
         return;
     }
     match event {
@@ -1300,8 +1312,12 @@ pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Qu
             browser.room = true;
             browser.command_demanded = false;
         }
-        Below::Commands(stream::Up::Failed(_) | stream::Up::End | stream::Up::Bytes(_))
-        | Below::Replies(stream::Up::End | stream::Up::Failed(_) | stream::Up::Room) => browser.crash(),
+        Below::Commands(broken @ (stream::Up::Failed(_) | stream::Up::End | stream::Up::Bytes(_))) => {
+            browser.pipe_ended(env, b"commands pipe", broken);
+        }
+        Below::Replies(broken @ (stream::Up::End | stream::Up::Failed(_) | stream::Up::Room)) => {
+            browser.pipe_ended(env, b"replies pipe", broken);
+        }
         Below::Replies(stream::Up::Bytes(bytes)) => {
             browser.replies_demanded = false;
             browser.framed_message(env, bytes);
@@ -1316,10 +1332,7 @@ pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Qu
         }
         Below::Errors(stream::Up::Bytes(bytes)) => {
             browser.errors_demanded = false;
-            let limit = usize::try_from(env.limits.stderr).expect("u32 fits usize");
-            let room_for_old = limit.saturating_sub(bytes.len());
-            browser.stderr.drain(..browser.stderr.len().saturating_sub(room_for_old));
-            browser.stderr.extend_from_slice(bytes.get(bytes.len().saturating_sub(limit)..).unwrap_or_default());
+            browser.keep_stderr(env, &bytes);
             if browser.phase != Phase::Closed {
                 below.push(Down::Errors(stream::Down::Demand {
                     read: Read::Line { max: env.limits.stderr.max(1) },
@@ -1367,7 +1380,9 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
             PendingKind::Release | PendingKind::Dialog => {}
             PendingKind::Css(page) => browser.css_refused(env, page, Refusal::Timeout, b""),
             PendingKind::Paused(page) => browser.interception_failed(page),
-            PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => browser.crash(),
+            PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => {
+                browser.end(Ending::Unanswered, bounded_detail(pending.method, env.limits.text));
+            }
             PendingKind::Context(person)
             | PendingKind::Downloads(person)
             | PendingKind::CancelPerson(person)
@@ -1448,26 +1463,59 @@ impl Browser {
         }
     }
 
-    fn framed_message(&mut self, env: &Env<Limits>, bytes: Box<[u8]>) {
-        let Ok(document) = Document::from_frame(bytes, env.limits.message) else {
-            self.crash();
-            return;
+    fn keep_stderr(&mut self, env: &Env<Limits>, bytes: &[u8]) {
+        let limit = usize::try_from(env.limits.stderr).expect("u32 fits usize");
+        let room_for_old = limit.saturating_sub(bytes.len());
+        self.stderr.drain(..self.stderr.len().saturating_sub(room_for_old));
+        self.stderr.extend_from_slice(bytes.get(bytes.len().saturating_sub(limit)..).unwrap_or_default());
+    }
+
+    fn pipe_ended(&mut self, env: &Env<Limits>, pipe: &[u8], up: stream::Up) {
+        let fault = match up {
+            stream::Up::End => b"end".as_slice(),
+            stream::Up::Failed(stream::Fault::Reset) => b"reset",
+            stream::Up::Failed(stream::Fault::Invalid) => b"invalid",
+            stream::Up::Failed(stream::Fault::Other) => b"other fault",
+            stream::Up::Room => b"unexpected room",
+            stream::Up::Bytes(_) => b"unexpected bytes",
         };
-        self.message_document(env, &document);
+        self.end(Ending::Pipe, protocol_detail(pipe, fault, env.limits.text));
+    }
+
+    fn framed_message(&mut self, env: &Env<Limits>, bytes: Box<[u8]>) {
+        let decoded = Document::from_frame(bytes, env.limits.message);
+        self.decoded_message(env, decoded);
     }
 
     #[cfg(test)]
     fn message(&mut self, env: &Env<Limits>, bytes: &[u8]) {
-        let Ok(document) = Document::parse(bytes, env.limits.message) else {
-            self.crash();
-            return;
-        };
-        self.message_document(env, &document);
+        let decoded = Document::parse(bytes, env.limits.message);
+        self.decoded_message(env, decoded);
+    }
+
+    fn decoded_message(&mut self, env: &Env<Limits>, decoded: Result<Document, DecodeError>) {
+        match decoded {
+            Ok(document) => self.message_document(env, &document),
+            Err(error) => {
+                let detail = match error {
+                    DecodeError::MissingNul => b"missing NUL delimiter".as_slice(),
+                    DecodeError::TooLong => b"past the message limit",
+                    DecodeError::TooDeep => b"nested too deep",
+                    DecodeError::Syntax => b"not JSON",
+                };
+                self.end(Ending::Message, bounded_detail(detail, env.limits.text));
+            }
+        }
     }
 
     fn message_document(&mut self, env: &Env<Limits>, document: &Document) {
         let root = document.root();
         if let Some(id) = field_u64(root, b"id") {
+            if self.unsent(id) {
+                let digits = Decimal::of(id);
+                self.end(Ending::Unsent, bounded_detail(digits.as_bytes(), env.limits.text));
+                return;
+            }
             let mut at = None;
             for (index, pending) in self.pending.iter().enumerate() {
                 if pending.id == id {
@@ -1478,9 +1526,7 @@ impl Browser {
             let Some(at) = at else {
                 // A command that reached its deadline or whose operation
                 // closed may still answer later. Its id is never reused.
-                if id >= self.next_id {
-                    self.crash();
-                } else if let Some(result) = root.get(b"result")
+                if let Some(result) = root.get(b"result")
                     && let Some(object) = result_object(result)
                 {
                     let session = field_text(root, b"sessionId");
@@ -1501,8 +1547,20 @@ impl Browser {
         } else if let Some(method) = field_text(root, b"method") {
             self.notification(env, &method, root);
         } else {
-            self.crash();
+            self.end(Ending::Neither, bounded_detail(b"neither a reply nor an event", env.limits.text));
         }
+    }
+
+    fn unsent(&self, id: u64) -> bool {
+        if id == 0 || id >= self.next_id {
+            return true;
+        }
+        for command in &self.outgoing {
+            if command.id == id {
+                return true;
+            }
+        }
+        false
     }
 
     fn command_error(&mut self, env: &Env<Limits>, method: &[u8], kind: PendingKind, error: Value<'_>) {
@@ -1521,7 +1579,9 @@ impl Browser {
             PendingKind::Release | PendingKind::Dialog => {}
             PendingKind::Css(page) => self.css_refused(env, page, Refusal::Protocol, &message),
             PendingKind::Paused(page) => self.interception_failed(page),
-            PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => self.crash(),
+            PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => {
+                self.end(Ending::Refused, protocol_detail(method, &message, env.limits.text));
+            }
             PendingKind::Context(person)
             | PendingKind::Downloads(person)
             | PendingKind::CancelPerson(person)
@@ -1995,6 +2055,16 @@ impl Browser {
             Some(Load::Go(op)) => self.finish_done(op),
             None => {}
         }
+    }
+
+    fn end(&mut self, why: Ending, detail: Box<[u8]>) {
+        for slot in &mut self.ops {
+            if let Some(op) = slot.take() {
+                self.events.push_back(Event::Refused { op: op.token, why: Refusal::Crashed, detail: Box::default() });
+            }
+        }
+        self.events.push_back(Event::Ended { why, detail });
+        self.crash();
     }
 
     fn crash(&mut self) {
@@ -2529,6 +2599,8 @@ mod cdp_tests;
 
 #[cfg(test)]
 mod credit_tests;
+#[cfg(test)]
+mod ending_tests;
 
 #[cfg(test)]
 mod press_tests;
@@ -2574,6 +2646,11 @@ fn node_missing(message: &[u8]) -> bool {
 fn cut_text(text: Box<[u8]>, limit: u32) -> Box<[u8]> {
     let limit = usize::try_from(limit).expect("u32 fits usize");
     if text.len() > limit { Box::from(text.get(..limit).expect("text is longer than limit")) } else { text }
+}
+
+fn bounded_detail(detail: &[u8], limit: u32) -> Box<[u8]> {
+    let length = detail.len().min(usize::try_from(limit).expect("text limit fits usize"));
+    Box::from(detail.get(..length).expect("prefix within detail"))
 }
 
 fn protocol_detail(method: &[u8], message: &[u8], limit: u32) -> Box<[u8]> {

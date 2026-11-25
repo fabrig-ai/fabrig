@@ -564,7 +564,9 @@ impl Peer {
                     exchange.to_engine.take(down);
                 }
             }
-            skein_io::Request::Close { entity } => self.close_socket(entity, ExchangeState::Drained),
+            skein_io::Request::Close { entity } | skein_io::Request::CloseAfterFlush { entity } => {
+                self.close_socket(entity, ExchangeState::Drained);
+            }
             skein_io::Request::Abort { entity } => self.close_socket(entity, ExchangeState::Cut),
             skein_io::Request::Reject { .. } => panic!("unexpected rejected socket"),
             skein_io::Request::Connect { .. }

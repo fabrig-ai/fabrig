@@ -575,6 +575,7 @@ mod tests {
                         | IoRequest::Usage { .. }
                         | IoRequest::Window { .. }
                         | IoRequest::Close { .. }
+                        | IoRequest::CloseAfterFlush { .. }
                         | IoRequest::Abort { .. } => panic!("only the configured stream"),
                     }
                 }

@@ -116,7 +116,9 @@ fn copy_io(request: &skein_io::Request) -> skein_io::Request {
                 Down::Finish => Down::Finish,
             },
         },
-        skein_io::Request::Close { entity } => skein_io::Request::Close { entity: *entity },
+        skein_io::Request::Close { entity } | skein_io::Request::CloseAfterFlush { entity } => {
+            skein_io::Request::Close { entity: *entity }
+        }
         skein_io::Request::Abort { entity } => skein_io::Request::Abort { entity: *entity },
         skein_io::Request::Listen { .. }
         | skein_io::Request::Bind { .. }

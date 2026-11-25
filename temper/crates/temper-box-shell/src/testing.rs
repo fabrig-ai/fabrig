@@ -50,10 +50,55 @@ pub mod scripted {
 }
 
 pub mod serve {
+    use skein_io::kernel::Fd;
+    use temper_service_shell::{Host, configuration};
+    use temper_shell::directories::{Directories, EnvironmentEntry};
+
+    use crate::Service;
+    #[cfg(target_os = "linux")]
     pub use crate::serve::{
         PipeKind, agents_setting_over, configured_agent, local_setting_over, operations_with_copies, pipe_kind,
         prepare_with_limits,
     };
+    pub use crate::served::SERVED;
+
+    /// Prepare as `temper-box serve` does without inherited listeners or a supervising box.
+    /// The world takes the returned descriptors and supplies its own signal pipe.
+    pub fn hosted(
+        environment: &[EnvironmentEntry],
+        working: &[u8],
+        directories: Directories,
+        output: impl std::io::Write + 'static,
+    ) -> Result<(Host<Service>, Vec<Fd>), String> {
+        const BINARY: &str = "temper-box";
+        let read = configuration::read(&directories, temper_config_shell::Shape::Standalone)
+            .map_err(|why| temper_service_shell::serve_error(BINARY, &why))?;
+        let programs = read.programs().map_err(|why| temper_service_shell::serve_error(BINARY, &why))?;
+        let mut owned = Vec::new();
+        match read.prepare(|bytes| {
+            crate::serve::prepare_with_store(
+                BINARY,
+                environment,
+                working,
+                &directories,
+                bytes,
+                &mut owned,
+                false,
+                &programs,
+            )
+        }) {
+            Ok((mut service, store)) => {
+                owned.extend_from_slice(service.engine_component().store().log_descriptors());
+                let mut host = Host::with_binary(BINARY, service, SERVED, directories, environment);
+                temper_service_shell::testing::hosted_output(&mut host, store, output);
+                Ok((host, owned))
+            }
+            Err(why) => {
+                temper_service_shell::close(owned);
+                Err(temper_service_shell::serve_error(BINARY, &why))
+            }
+        }
+    }
 }
 
 pub mod upgrade {

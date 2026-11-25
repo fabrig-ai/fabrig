@@ -264,7 +264,9 @@ impl Below {
                 assert_eq!(to, kernel::Target::Group);
                 self.signals += 1;
             }
-            records::Request::Close { entity } | records::Request::Abort { entity } => self.close(entity),
+            records::Request::Close { entity }
+            | records::Request::CloseAfterFlush { entity }
+            | records::Request::Abort { entity } => self.close(entity),
             other @ (records::Request::Listen { .. }
             | records::Request::Connect { .. }
             | records::Request::Bind { .. }

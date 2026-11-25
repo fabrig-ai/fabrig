@@ -73,6 +73,7 @@ fn served(mut pages: serve::Pages, path: &str, peers: &[(Box<[u8]>, String)]) ->
             | Request::Usage { .. }
             | Request::Window { .. }
             | Request::Close { .. }
+            | Request::CloseAfterFlush { .. }
             | Request::Abort { .. }) => panic!("unexpected page request: {other:?}"),
         }
     }

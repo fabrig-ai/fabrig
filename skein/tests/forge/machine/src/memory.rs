@@ -349,7 +349,9 @@ impl World {
                         Down::Finish => Down::Finish,
                     },
                 ),
-                skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => Io::Close(*entity),
+                skein_io::Request::Close { entity }
+                | skein_io::Request::CloseAfterFlush { entity }
+                | skein_io::Request::Abort { entity } => Io::Close(*entity),
                 other @ (skein_io::Request::Reject { .. }
                 | skein_io::Request::Output { .. }
                 | skein_io::Request::Spawn { .. }

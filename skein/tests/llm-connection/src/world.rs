@@ -452,7 +452,7 @@ impl World {
                     peer.closing = true;
                     self.trace.push(format!("abort {entity:?}"));
                 }
-                IoRequest::Close { entity } => {
+                IoRequest::Close { entity } | IoRequest::CloseAfterFlush { entity } => {
                     let peer = self.peers.get_mut(&entity).expect("physical peer");
                     peer.closing = true;
                     self.trace.push(format!("close {entity:?}"));

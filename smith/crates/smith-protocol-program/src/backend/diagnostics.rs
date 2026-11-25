@@ -40,6 +40,7 @@ impl core::fmt::Debug for Below {
                     | io::Request::Usage { .. }
                     | io::Request::Window { .. }
                     | io::Request::Close { .. }
+                    | io::Request::CloseAfterFlush { .. }
                     | io::Request::Abort { .. } => 0,
                 },
             ),

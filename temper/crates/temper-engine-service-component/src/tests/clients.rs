@@ -431,6 +431,44 @@ fn closing_a_listener_during_start_closes_the_component() {
 }
 
 #[test]
+fn a_first_shutdown_drains_with_an_idle_client_that_never_ends() {
+    use skein_lib::Time;
+    const PASSES: u32 = 256; // Calm, ready kernel completions with the clock held fixed.
+    let now = Time::from_nanos(1);
+    let mut directory = super::fixtures::directory::Directory::new();
+    let mut service = directory.service();
+    for _ in 0..PASSES {
+        directory.full_turn(&mut service);
+        let engine = service.engine.as_ref().expect("engine");
+        if engine.domain.ready() && engine.clients.opened() {
+            break;
+        }
+    }
+    assert!(service.engine.as_ref().expect("engine").domain.ready());
+    let (peer, fd) = directory.idle_client();
+    let stall = now.saturating_add(crate::limits::server(&jig_protocol_config_fixtures::small()).stall);
+    for _ in 0..PASSES {
+        directory.full_turn(&mut service);
+        if service.engine.as_ref().expect("engine").clients.next_deadline() == Some(stall) {
+            break;
+        }
+    }
+    assert_eq!(service.engine.as_ref().expect("engine").clients.next_deadline(), Some(stall), "socket admitted");
+
+    service.shutdown();
+    for _ in 0..PASSES {
+        directory.full_turn(&mut service);
+        if service.is_empty() {
+            break;
+        }
+    }
+    assert!(service.engine.as_ref().expect("engine").clients.closed, "clients close before the peer");
+    assert_eq!(service.end(), Some(&crate::End::Drained));
+    assert!(service.is_empty(), "the first shutdown settled at the same clock tick");
+    directory.close_idle_client(peer, fd);
+}
+
+#[test]
 fn closing_clients_wait_idle_for_the_socket_terminal() {
     const SOCKET: Token = Token::new(78);
     // One turn each for the component's Closed and the server's finish,
@@ -446,7 +484,9 @@ fn closing_clients_wait_idle_for_the_socket_terminal() {
     clients.down(kit::Event::Close);
     client_close_turn(&mut clients);
     let Some(skein_io::Request::Close { entity: listener }) = clients.io.pop() else { panic!("listener close") };
-    let Some(skein_io::Request::Close { entity: socket }) = clients.io.pop() else { panic!("socket close") };
+    let Some(skein_io::Request::CloseAfterFlush { entity: socket }) = clients.io.pop() else {
+        panic!("socket closes without waiting for the peer")
+    };
     assert_eq!((listener, socket), (LISTENER, SOCKET));
     clients.up(skein_io::Event::Closed { owner: listener_owner });
 

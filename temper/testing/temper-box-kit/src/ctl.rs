@@ -438,6 +438,7 @@ enum BoxStderr {
     Captured,
 }
 pub struct Calls {
+    hosted_output: Option<super::hosted::LinkOutput>,
     serve_data: Option<PathBuf>,
     root: Option<Fd>,
     client: Box<[u8]>,
@@ -476,6 +477,14 @@ pub struct Calls {
     submit: Queue<Submit>,
 }
 impl Calls {
+    pub(super) fn hosted(root: Fd, client_root: &Path, steps: Vec<Step>, output: super::hosted::LinkOutput) -> Self {
+        assert!(steps.iter().all(|step| matches!(step, Step::Run(_) | Step::Then(_))), "serial ctl steps");
+        let mut calls = Self::new(root, steps, None, None);
+        calls.client = client_root.join("client").as_os_str().as_bytes().into();
+        calls.hosted_output = Some(output);
+        calls
+    }
+
     /// A box's first link precedes serve; defer link sign-in until its listener is up.
     #[must_use]
     pub fn with_serve_data(mut self, data: &Path) -> Self {
@@ -584,6 +593,9 @@ impl Calls {
     pub fn ends(&self) -> &[Ended] {
         &self.ends
     }
+    pub(super) fn into_ends(self) -> Vec<Ended> {
+        self.ends
+    }
     /// Wall input at completed response observation, parallel to ends (not server sample time).
     #[must_use]
     pub fn observed_at(&self) -> &[Option<Wall>] {
@@ -629,6 +641,7 @@ impl Calls {
     }
     pub(super) fn new(root: Fd, steps: Vec<Step>, streams: Option<&Streams>, forgejo: Option<u32>) -> Self {
         let mut calls = Self {
+            hosted_output: None,
             serve_data: None,
             root: Some(root),
             client: b"client".as_slice().into(),
@@ -740,11 +753,18 @@ impl Calls {
                 bytes
             }
         };
-        let program = call
-            .program
-            .or(call.ctl_program)
-            .unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
-        self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
+        let program = if self.hosted_output.is_some() {
+            assert!(call.program.is_none() && call.ctl_program.is_none() && call.directory, "hosted ctl invocation");
+            super::hosted::CTL.into()
+        } else {
+            call.program
+                .or(call.ctl_program)
+                .unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"))
+                .as_os_str()
+                .as_bytes()
+                .into()
+        };
+        self.spawn(program, args, input, started);
         if started {
             self.started.as_mut().expect("started call").0.kind = kind;
         } else {
@@ -773,6 +793,10 @@ impl Calls {
         self.finish_step(true);
         match self.action.take().expect("current action") {
             Action::Run => {
+                if self.hosted_output.is_some() && ended.exit != Some(Exit::Code(0)) {
+                    // No dependent call may see a refused prerequisite.
+                    self.steps.clear();
+                }
                 self.ends.push(ended);
                 self.observed_at.push(Some(self.wall));
             }
@@ -1135,7 +1159,14 @@ impl Host for Calls {
         }
         if self.finding.is_none() {
             self.bound(now);
-            if self.closing == 0 && (self.output.is_none() || super::printed_link(&self.link).is_some()) {
+            if let Some(output) = &self.hosted_output
+                && self.link.is_empty()
+            {
+                self.link = output.take_link();
+            }
+            if self.closing == 0
+                && (self.hosted_output.is_none() && self.output.is_none() || super::printed_link(&self.link).is_some())
+            {
                 self.advance(now);
             }
         }

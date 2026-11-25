@@ -144,6 +144,7 @@ impl LinkPeer {
         self.exchange(worker)
     }
     // Exchange demanded bytes while leaving root entrances queued for inspection.
+    #[expect(clippy::too_many_lines, reason = "the fixture keeps both directions of one link exchange together")]
     pub(crate) fn exchange(&mut self, worker: &mut crate::Worker) -> Option<engine_link::Request> {
         for _ in 0..worker.io().len() {
             let request = worker.io().pop().expect("queued IO");
@@ -179,6 +180,7 @@ impl LinkPeer {
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
                 | io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }
                 | io::Request::Abort { .. }) => panic!("link request: {other:?}"),
             }
         }
@@ -465,7 +467,7 @@ impl AgentPeer {
                 assert_eq!(stream, AGENT_INPUT);
                 self.input_finishes = self.input_finishes.checked_add(1).unwrap();
             }
-            io::Request::Close { entity } => {
+            io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } => {
                 assert_eq!(entity, AGENT_OUTPUT);
                 self.output_closes = self.output_closes.checked_add(1).unwrap();
             }

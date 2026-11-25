@@ -269,7 +269,9 @@ impl Peer {
                             Down::Finish => {}
                         }
                     }
-                    IoRequest::Close { entity } | IoRequest::Abort { entity } => {
+                    IoRequest::Close { entity }
+                    | IoRequest::CloseAfterFlush { entity }
+                    | IoRequest::Abort { entity } => {
                         let binding = self.bindings.remove(&entity).expect("one physical close");
                         self.component.from_below(
                             &self.env,

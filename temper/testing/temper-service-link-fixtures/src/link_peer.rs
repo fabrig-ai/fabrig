@@ -190,6 +190,7 @@ impl LinkPeer {
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
                 | io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }
                 | io::Request::Abort { .. }) => panic!("link request: {other:?}"),
             }
         }

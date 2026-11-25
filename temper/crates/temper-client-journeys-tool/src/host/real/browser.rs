@@ -154,7 +154,7 @@ impl Browser {
                 observe(event, trouble);
             }
             for report in reports {
-                if let Report::Trouble(why) = report {
+                if let Report::Trouble { why, .. } = report {
                     failure = Some(why);
                 }
             }
@@ -169,7 +169,7 @@ impl Browser {
 
 fn problem(reports: Vec<Report>) -> Option<String> {
     reports.into_iter().find_map(|report| match report {
-        Report::Trouble(why) => Some(why),
+        Report::Trouble { why, .. } => Some(why),
         Report::BrowserClosed => Some("Chromium closed".into()),
         _ => None,
     })

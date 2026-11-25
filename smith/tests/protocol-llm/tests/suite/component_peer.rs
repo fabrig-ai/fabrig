@@ -423,7 +423,7 @@ fn run_story(
                     assert_eq!(stream, Token::new(100));
                     wire.take(down);
                 }
-                IoRequest::Close { entity } | IoRequest::Abort { entity } => {
+                IoRequest::Close { entity } | IoRequest::CloseAfterFlush { entity } | IoRequest::Abort { entity } => {
                     assert_eq!(entity, Token::new(100));
                     assert!(!component.closed(), "the socket still owes its close terminal");
                     close_terminals += 1;
