@@ -5,9 +5,11 @@ use skein_channel::{Direction, Version};
 use skein_codec::layout::{Misconverted, Mode, Plan, Refused, Workspace};
 use skein_lib::{Buffer, List};
 
+mod gaps;
 mod plans;
 mod table;
 mod words;
+pub use gaps::{Gap, Site};
 pub use plans::Plans;
 
 /// Worker texts kept per wire.
@@ -78,6 +80,28 @@ pub enum Cause {
     Malformed,
 }
 
+impl Cause {
+    fn from_refused(why: Refused) -> Self {
+        match why {
+            Refused::Variant => Self::Variant,
+            Refused::Field => Self::Field,
+            Refused::Narrowed => Self::Narrowed,
+            Refused::Absent => Self::Absent,
+        }
+    }
+
+    fn words(self) -> &'static [u8] {
+        match self {
+            Self::Variant => b"variant",
+            Self::Field => b"field",
+            Self::Narrowed => b"narrowed",
+            Self::Absent => b"absent",
+            Self::Large => b"too large",
+            Self::Malformed => b"malformed",
+        }
+    }
+}
+
 /// A value that did not convert, named by the source text's names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Unconverted {
@@ -91,29 +115,13 @@ impl Unconverted {
     /// The text of a value the worker's layout cannot keep.
     #[must_use]
     pub fn kept(&self) -> Box<[u8]> {
-        self.words(b"the worker's layout cannot keep ")
+        words::kept(&self.wire, &self.declaration, &self.part, self.cause)
     }
 
     /// The tail of a diagnostic for a value the engine cannot read.
     #[must_use]
     pub fn read(&self) -> Box<[u8]> {
-        self.words(b"")
-    }
-
-    fn words(&self, prefix: &[u8]) -> Box<[u8]> {
-        let why = match self.cause {
-            Cause::Variant => b"variant".as_slice(),
-            Cause::Field => b"field",
-            Cause::Narrowed => b"narrowed",
-            Cause::Absent => b"absent",
-            Cause::Large => b"too large",
-            Cause::Malformed => b"malformed",
-        };
-        let dot = if self.part.is_empty() { b"".as_slice() } else { b"." };
-        words::join(
-            &[prefix, self.wire.as_bytes(), b" ", self.declaration.as_bytes(), dot, self.part.as_bytes(), b": ", why],
-            usize::MAX,
-        )
+        words::value(b"", &self.wire, &self.declaration, &self.part, self.cause)
     }
 }
 
@@ -346,13 +354,7 @@ fn problem(wire: &str, declaration: &str, part: &str, plan: Option<&Plan>, error
         Misconverted::Refused(index) => {
             let (why, declaration, part) =
                 plan.expect("a plan refused the value").refusal(index).expect("an indexed plan refusal");
-            let cause = match why {
-                Refused::Variant => Cause::Variant,
-                Refused::Field => Cause::Field,
-                Refused::Narrowed => Cause::Narrowed,
-                Refused::Absent => Cause::Absent,
-            };
-            return unconverted(wire, declaration, part, cause);
+            return unconverted(wire, declaration, part, Cause::from_refused(why));
         }
         Misconverted::Room => Cause::Large,
         Misconverted::Short | Misconverted::Tag | Misconverted::Bool | Misconverted::Bound | Misconverted::Trailing => {

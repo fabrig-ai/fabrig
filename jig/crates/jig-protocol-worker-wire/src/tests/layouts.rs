@@ -1,10 +1,13 @@
 //! Opening and converting worker layouts (jig/docs/design/protocol/channel/layouts.md, 8).
 use crate as wire;
-use crate::layouts::{Cause, MAX_TEXTS, Nested, Peer, Plans, Theirs};
+use crate::layouts::{Cause, MAX_TEXTS, Nested, Peer, Plans, Site, Theirs};
 use crate::{Carried, KINDS, Kind, Record, Root, VERSION, v22};
 #[expect(clippy::disallowed_types, reason = "the test spells a fingerprint independently of the protocol")]
 use core::fmt::Write;
-use skein_codec::{layout::Mode, schema::Schema};
+use skein_codec::{
+    layout::{Mode, Refused},
+    schema::Schema,
+};
 use skein_lib::{Buffer, List, Reader, Rng};
 
 #[expect(
@@ -61,6 +64,7 @@ fn equal_layouts_do_not_parse_worker_texts_or_convert_values() {
     }
     let mut peer = plans.judge(&theirs).expect("equal digests bypass parsing");
     assert!(peer.same());
+    assert!(peer.gaps().is_empty());
     assert_eq!(plans.derivations(crate::wire::FAMILY), 0);
     assert_eq!(peer.table(&LIMITS).expect("peer table"), current_table());
     let mut out = Buffer::with_capacity(8);
@@ -91,6 +95,68 @@ fn equal_layouts_do_not_parse_worker_texts_or_convert_values() {
         assert_eq!(out.as_slice(), bytes);
     }
     assert_eq!(peer.up(Nested::Charter, bytes, &mut out).expect_err("wrong direction").cause, Cause::Malformed);
+}
+
+#[test]
+fn worker_only_additions_do_not_make_keep_gaps() {
+    let text = samples::richer(crate::SCHEMA);
+    let text = replace(&text, ", part_busy: PartBusy", ", part_busy: PartBusy, worker_only: PartBusy");
+    let peer = judge_worker(&parse(&text));
+    assert!(!peer.same());
+    assert!(peer.gaps().is_empty());
+}
+
+#[test]
+fn missing_optional_kinds_are_not_gaps_but_their_present_payloads_can_refuse() {
+    let text = replace(
+        crate::SCHEMA,
+        ", restarting: Restarting, figures: Figures, read_usage: ReadUsage, pause: Pause, part_kept: PartKept, part_busy: PartBusy",
+        "",
+    );
+    assert!(judge_worker(&parse(&text)).gaps().is_empty());
+
+    let text = replace(&text, "job: Job, ", "");
+    let text = replace(&text, "asked: Asked", "asked: Asked, figures: Figures");
+    let text = replace(&text, "places: u32 limits: list 1024 Limit", "places: u32 limits: list 512 Limit");
+    let gaps = judge_worker(&parse(&text)).gaps();
+    assert_eq!(gaps.len(), 2);
+    let job = gaps.get(0).expect("required kind");
+    assert_eq!((job.site, job.why), (Site::Frame, Refused::Variant));
+    assert_eq!(&*job.words(), b"the worker's layout cannot keep jig-worker-wire FromEngine.job: variant");
+    let figures = gaps.get(1).expect("present optional kind's payload");
+    assert_eq!((figures.site, figures.why), (Site::Frame, Refused::Narrowed));
+    assert_eq!(&*figures.words(), b"the worker's layout cannot keep jig-worker-wire Figures.limits: narrowed");
+}
+
+#[test]
+fn keep_gaps_follow_value_type_order_not_wire_or_root_order() {
+    let frame = replace(crate::SCHEMA, "record Check { name: text 32 }", "record Check { name: text 3 }");
+    let charter = replace(smith_charter::SCHEMA, "    check_timeout: option duration\n", "");
+    let turn = replace(smith_transcript::SCHEMA, "    model: text 128\n", "    model: text 32\n");
+    let app = replace(APP, " engine_note: u32 = 7", "");
+    let worker = [&app, &turn, &charter, &frame].map(|text| parse(text));
+    let mut roots = List::with_capacity(9);
+    for &(carried, declaration, _) in CARRIED.iter().rev() {
+        roots.push(Root { carried, wire: "jig-test-app", declaration }).expect("one root per part");
+    }
+    let gaps = Plans::new(&[APP, crate::SCHEMA, smith_charter::SCHEMA, smith_transcript::SCHEMA], &roots)
+        .expect("engine texts")
+        .judge(&worker.each_ref().map(stated))
+        .expect("worker layout fits")
+        .gaps();
+    let expected = [
+        (Site::Frame, "jig-worker-wire", Refused::Narrowed, "Check", "name"),
+        (Site::Charter, "smith-charter", Refused::Field, "Charter", "check_timeout"),
+        (Site::Turn, "smith-transcript", Refused::Narrowed, "Turn", "model"),
+        (Site::Carried(Carried::Items), "jig-test-app", Refused::Field, "Down", "engine_note"),
+        (Site::Carried(Carried::JobSpec), "jig-test-app", Refused::Field, "Down", "engine_note"),
+        (Site::Carried(Carried::Grant), "jig-test-app", Refused::Field, "Down", "engine_note"),
+        (Site::Carried(Carried::Answer), "jig-test-app", Refused::Field, "Down", "engine_note"),
+    ];
+    assert_eq!(gaps.len(), 7);
+    for (gap, expected) in gaps.iter().zip(expected) {
+        assert_eq!((gap.site, gap.wire.as_ref(), gap.why, gap.declaration.as_ref(), gap.part.as_ref()), expected);
+    }
 }
 
 #[test]
