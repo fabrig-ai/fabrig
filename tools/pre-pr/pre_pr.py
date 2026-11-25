@@ -178,19 +178,15 @@ def checked_git(args, root, env, data=None):
     return result.stdout
 
 
-# Where a scope's change starts, read from the checkout's own refs, first one held (section 1):
-# the worker's landing pin for a delivery. A close job's pin is the goal branch itself, so a close
-# starts from main's newest published commit in HEAD (refs/temper/counts), else a main ref held.
+# Delivery and child change selection starts from the worker's landing pin (section 1).
 BASES = {'delivery': ('refs/temper/landing', 'refs/remotes/origin/main'),
-         'child': ('refs/temper/landing', 'refs/remotes/origin/main'),
-         'close': ('refs/temper/counts', 'refs/remotes/origin/main')}
-# The counts' commits are main's last landings; the newest one the goal holds is main as merged.
+         'child': ('refs/temper/landing', 'refs/remotes/origin/main')}
 
 
 UNCHECKED_SAVE = 'Unchecked: work in progress, saved before a question'
 
 
-def change_base(root, env, scope, published=None):
+def change_base(root, env, scope):
     """The merge base of HEAD, any pending MERGE_HEAD and the scope's first base reference present.
 
     The worker's unchecked saves are stepped past along first parents, so their edits are checked.
@@ -199,13 +195,6 @@ def change_base(root, env, scope, published=None):
     if git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD^{commit}'], root, env).returncode == 0:
         heads.append('MERGE_HEAD')
     for name in BASES.get(scope, ()):
-        if name == 'refs/temper/counts':
-            counts = runpy.run_path(str(TIERS / 'counts.py'))
-            data = published[0] if published is not None else published_counts(counts, root, env)
-            commit = counts['base'](data, root, env) if data else None
-            if commit:
-                return commit, "main's newest published commit in HEAD"
-            continue
         result = git(['merge-base', name, *heads], root, env)
         if result.returncode or not result.stdout.strip():
             continue
@@ -224,14 +213,17 @@ def scope_base(root, env, scope, has_git, published=None):
     """The base a delivery, child or close check compares with, or why there is none."""
     if not has_git:
         return None, None, 'no base: this is no git checkout, so nothing says what changed'
-    try:
-        base, name = change_base(root, env, scope, published)
-    except ValueError as error:
-        return None, None, f'no base: {error_line(error)}'
+    if scope == 'close':
+        # Main as last merged by the goal, also the base of its budget comparison (section 4.1).
+        if problem := budget_problem(published):
+            return None, None, f'no base: {problem}'
+        base, name = published['base'], "main's newest published commit in HEAD"
+    else:
+        try:
+            base, name = change_base(root, env, scope)
+        except ValueError as error:
+            return None, None, f'no base: {error_line(error)}'
     lacks = "; the worker's checkout lacks what pre-PR compares with"
-    if base is None and scope == 'close':
-        return None, None, ("no base: none of main's last published commits is in HEAD, and no "
-                            "refs/remotes/origin/main shares its history; update from main and close again")
     if base is None:
         return None, None, f"no base: this checkout has no {' or '.join(BASES[scope])} sharing history with HEAD" + lacks
     if scope == 'close' and base == git(['rev-parse', 'HEAD'], root, env).stdout.decode().strip():
@@ -534,55 +526,52 @@ def close_measurements(runs, partial_binaries):
     return measured
 
 
-def budget_input(repository, env, data):
+def budget_input(counts, repository, env, data):
     """Select the applicable published counts while the real checkout is available."""
-    if not data:
-        return {}
+    if data is None or 'unavailable' in data:
+        return data
     if not (repository / '.git').exists() or git(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
                                                 repository, env).returncode:
         return {'unavailable': 'the source checkout has no commit for budget selection'}
-    counts = runpy.run_path(str(TIERS / 'counts.py'))
+    window = data.get('commits')
+    if not isinstance(window, list) or any(not isinstance(commit, str) or
+            not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) for commit in window):
+        return {'unavailable': 'invalid published commit window'}
     base = counts['base'](data, repository, env)
     if base is None:
         shallow = git(['rev-parse', '--is-shallow-repository'], repository, env)
         if shallow.stdout.strip() != b'false' or git(['rev-list', '--count', 'HEAD'], repository, env).returncode:
-            return {'unavailable': 'source ancestry is incomplete for budget selection'}
+            return {'unavailable': 'source ancestry is incomplete; update from main and close again'}
     return {**data, 'base': base}
 
 
-PUBLISHED = {}
-
-
-def published_counts(counts, repository, env):
-    """Main's counts from the checkout, else fetched alone into private scratch once a run (section 4.1)."""
-    data = counts['read'](repository, env)
-    if data is not None or PUBLIC_SOURCE is None or not (repository / '.git').exists():
-        return data
-    if PUBLIC_SOURCE not in PUBLISHED:
-        PUBLISHED[PUBLIC_SOURCE] = fetched_counts(counts)
-    return PUBLISHED[PUBLIC_SOURCE]
+def budget_problem(data):
+    """Why close cannot compare the goal with the published window (section 4.1)."""
+    prefix = "main's published counts unavailable"
+    if not isinstance(data, dict):
+        return f'{prefix}: cannot read refs/temper/counts'
+    if 'unavailable' in data:
+        return f"{prefix}: {data['unavailable']}"
+    if 'base' not in data or not isinstance(data.get('profiles'), dict):
+        return f'{prefix}: invalid published counts'
+    if data['base'] is None:
+        return "the goal is older than main's last twenty landings; update from main and close again"
+    return None
 
 
 def close_counts(repository, env):
-    """Bind a close's local counts to the commit actually read, or report no local source."""
+    """Select main's counts once for both close checks, also retaining the local source (section 4.1)."""
+    if not (repository / '.git').exists():
+        return None, None
     counts = runpy.run_path(str(TIERS / 'counts.py'))
-    local_ref = None
-
-    def read(root, read_env):
-        nonlocal local_ref
-        if root != repository:  # The private fetch is not the checkout's published ref.
-            return counts['read'](root, read_env)
-        tip = git(['rev-parse', '--verify', '--quiet', 'refs/temper/counts^{commit}'], root, read_env)
-        if tip.returncode:
-            return None
+    tip = git(['rev-parse', '--verify', '--quiet', 'refs/temper/counts^{commit}'], repository, env)
+    if tip.returncode == 0:
         ref = tip.stdout.decode().strip()
-        data = counts['read'](root, read_env, ref=ref)
+        data = counts['read'](repository, env, ref=ref)
         if data is not None:
-            local_ref = ref
-        return data
-
-    data = published_counts({**counts, 'read': read}, repository, env)
-    return data, local_ref
+            return budget_input(counts, repository, env, data), ref
+    data = fetched_counts(counts) if PUBLIC_SOURCE is not None else None
+    return budget_input(counts, repository, env, data), None
 
 
 def fetched_counts(counts):
@@ -598,8 +587,7 @@ def fetched_counts(counts):
                             'refs/temper/counts:refs/temper/counts'], cwd=cache, env=fetch,
                            stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
         except (OSError, subprocess.SubprocessError) as error:
-            print(f'budgets: published counts unavailable: {error_line(error)}', flush=True)
-            return None
+            return {'unavailable': f'public fetch failed: {error_line(error)}'}
         return counts['read'](Path(cache), fetch)
 
 
@@ -609,25 +597,21 @@ def close_budgets(root, repository, env, runs, published=None):
     runs maps each profile to its run directories; a bare list is the focused profile's.
     """
     by_profile = runs if isinstance(runs, dict) else {'default': runs}
-    counts = runpy.run_path(str(TIERS / 'counts.py'))
-    try:
-        if WORKER_COUNTS.is_file():
-            data = json.loads(WORKER_COUNTS.read_bytes())
-        else:
-            source = published[0] if published is not None else published_counts(counts, repository, env)
-            data = budget_input(repository, env, source)
-        if 'unavailable' in data:
-            print(f"budgets: no verdict at close: {data['unavailable']}; the gate still judges", flush=True)
-            return []
-        base = data['base']
-        data['profiles']['default']
-    except (KeyError, TypeError, ValueError, OSError):
-        print("budgets: no main's counts in this repository (refs/temper/counts); "
-              'no verdict at close, an infrastructure fault to repair; the gate still judges', flush=True)
-        return []
-    if base is None:
-        return [failure('budgets', "the goal is older than main's last twenty landings; update from main and close again")]
+    data = published
+    if data is None:
+        # Standalone evaluation can also use the worker's already selected packet.
+        try:
+            if WORKER_COUNTS.is_file():
+                data = json.loads(WORKER_COUNTS.read_bytes())
+            else:
+                data, _ = close_counts(repository, env)
+        except (ValueError, OSError) as error:
+            data = {'unavailable': error_line(error)}
+    if problem := budget_problem(data):
+        return [broken('budgets', problem)]
+    base = data['base']
 
+    counts = runpy.run_path(str(TIERS / 'counts.py'))
     cpu = runpy.run_path(str(TIERS / 'cpu.py'))
     with (root / 'tools/tiers/budgets.toml').open('rb') as file:
         gate = tomllib.load(file).get('gate', {})
@@ -635,13 +619,13 @@ def close_budgets(root, repository, env, runs, published=None):
     for name, profile_runs in by_profile.items():
         which = '' if name == 'default' else name + ' '
         try:
-            published = data['profiles'][name]
+            profile_counts = data['profiles'][name]
             old = counts['binaries'](data, name, base)
             base_layers, base_cpu = defaultdict(int), defaultdict(float)
             for binary, entry in old.items():
                 key = entry['tree'], entry['layer']
                 base_layers[key] += entry['instructions']
-                base_cpu[key] += published['binaries'][binary]['cpu_s']
+                base_cpu[key] += profile_counts['binaries'][binary]['cpu_s']
         except (KeyError, TypeError, ValueError):
             print(f"budgets: no {which}counts in main's published counts; no {which}verdict at close", flush=True)
             continue
@@ -656,7 +640,7 @@ def close_budgets(root, repository, env, runs, published=None):
         judged += 1
         profile = gate.get(name, {})
         ceilings = cpu['gate_ceilings'](profile, 'instructions')
-        credits = cpu['instruction_move_credits'](profile, published, base_layers, base_cpu)
+        credits = cpu['instruction_move_credits'](profile, profile_counts, base_layers, base_cpu)
         head = base_layers.copy()
         grew = defaultdict(list)
         for binary, (key, count) in measured.items():
@@ -1618,10 +1602,10 @@ def check(scope, commits):
             tree_id = snapshot(root, work, env, source_env, work / '.git/index')
             checked_git(['checkout-index', '-a'], work, env)
             paths = [os.fsdecode(p) for p in checked_git(['ls-files', '-z'], work, env).split(b'\0') if p]
-            published = close_counts(root, source_env) if scope == 'close' and has_git else None
-            if published is not None:
-                _, counts_ref = published
-            if scope in BASES:
+            published = None
+            if scope == 'close' and has_git:
+                published, counts_ref = close_counts(root, source_env)
+            if scope in BASES or scope == 'close':
                 base_id, base_name, no_base = scope_base(root, source_env, scope, has_git, published)
                 if no_base:
                     errors.append(broken('base', no_base))

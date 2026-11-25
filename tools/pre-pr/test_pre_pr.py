@@ -361,7 +361,6 @@ class Delivery(unittest.TestCase):
                     stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
                     stack.enter_context(mock.patch.object(PRE, 'scope_base', return_value=('b' * 40, 'base', None)))
                     stack.enter_context(mock.patch.object(PRE, 'changed_paths', return_value=[]))
-                    stack.enter_context(mock.patch.object(PRE, 'published_counts', return_value=None))
                     stack.enter_context(mock.patch.object(PRE, 'workspace_checks', side_effect=workspace))
                     stack.enter_context(mock.patch.object(PRE, 'goal_checks', side_effect=goal))
                     errors = [PRE.failure('journeys', 'mixture')] if failed else []
@@ -718,7 +717,6 @@ class Changes(unittest.TestCase):
                     'GIT_COMMITTER_NAME': 'Fixture', 'GIT_COMMITTER_EMAIL': 'fixture@example.test'}
         self.enterContext(mock.patch.object(subprocess, 'Popen', side_effect=self.git_only))
         self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
-        self.enterContext(mock.patch.dict(PRE.PUBLISHED, clear=True))
         self.git('init', '-q')
         for name in ('kept.rs', 'edited.rs', 'unstaged.md', 'gone.md'):
             (self.root / name).write_text(name + '\n')
@@ -844,17 +842,8 @@ class Changes(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn(f'written files:\n{name}\nother path: skein/a.rs', output)
 
-    def test_close_compares_with_main_not_the_pin(self):
-        self.git('update-ref', 'refs/remotes/origin/main', self.main)
-        self.change()
-        self.git('update-ref', 'refs/temper/landing', 'HEAD')
-        self.assertEqual(PRE.change_base(self.root, self.env, 'close'),
-                         (self.main, 'merge base of refs/remotes/origin/main and HEAD'))
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery'),
-                         (self.git('rev-parse', 'HEAD'), 'merge base of refs/temper/landing and HEAD'))
-
-    def publish(self, commits):
-        data = json.dumps(dict(version=1, commits=commits, profiles={}))
+    def publish(self, commits, **extra):
+        data = json.dumps(dict(version=1, commits=commits, profiles={}, **extra))
         blob = subprocess.run(['git', 'hash-object', '-w', '--stdin'], cwd=self.root, env=self.env, input=data,
                               capture_output=True, text=True, check=True).stdout.strip()
         tree = subprocess.run(['git', 'mktree'], cwd=self.root, env=self.env, input=f'100644 blob {blob}\tcounts.json\n',
@@ -865,9 +854,11 @@ class Changes(unittest.TestCase):
         later = self.git('commit-tree', 'HEAD^{tree}', '-p', self.main, '-m', 'main moved on')
         self.change()
         self.git('update-ref', 'refs/remotes/origin/main', later)
+        self.git('update-ref', 'refs/temper/landing', 'HEAD')
         self.publish(['0' * 40, self.main, later])
-        self.assertEqual(PRE.change_base(self.root, self.env, 'close'),
-                         (self.main, "main's newest published commit in HEAD"))
+        published, _ = PRE.close_counts(self.root, self.env)
+        self.assertEqual(PRE.scope_base(self.root, self.env, 'close', True, published),
+                         (self.main, "main's newest published commit in HEAD", None))
 
     def close_checkout(self):
         self.git('update-ref', 'refs/remotes/origin/main', self.main)
@@ -876,6 +867,60 @@ class Changes(unittest.TestCase):
         (self.root / 'unstaged.md').write_text('settlement edit\n')
         self.git('add', 'unstaged.md')
         return self.git('rev-parse', 'HEAD'), self.git('write-tree')
+
+    def assert_close_breaks_before_checks(self, why):
+        job = self.root.parent / 'job'
+        job.mkdir()
+        result = job / 'result.json'
+        settlement = b'{"settled":["unstaged.md"]}\n'
+        result.write_bytes(settlement)
+        env = {**self.env, 'TEMPER_JOB': str(job)}
+        env.pop('TEMPER_CLOSE_REFUSAL', None)
+        for opt_in, status in (({}, 1), ({'TEMPER_CLOSE_REFUSAL': '3'}, 2)):
+            with self.subTest(opt_in=opt_in), mock.patch.object(Path, 'cwd', return_value=self.root), \
+                 mock.patch.dict(os.environ, {**env, **opt_in}, clear=True), \
+                 mock.patch.object(PRE, 'workspace_checks') as checks, mock.patch.object(PRE, 'run') as run, \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(PRE.main(['--close']), status)
+                checks.assert_not_called()
+                run.assert_not_called()
+                self.assertTrue(err.getvalue().startswith('pre-pr: broke: '), err.getvalue())
+                self.assertIn(why, err.getvalue())
+                self.assertEqual(result.read_bytes(), settlement)
+                receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
+                self.assertEqual(receipt['verdict'], 'broke')
+                self.assertEqual(receipt['counts']['new'], 0)
+                self.assertEqual(receipt['counts']['broke'], 1)
+                entry, = receipt['failures']
+                self.assertEqual(entry['class'], 'broke')
+                self.assertIn(why, entry['detail'])
+
+    def test_close_breaks_when_public_counts_fetch_fails_even_with_origin_main(self):
+        self.close_checkout()
+        run = subprocess.run
+
+        def fail_fetch(args, **kwargs):
+            if args[:2] == ['git', 'fetch']:
+                raise subprocess.CalledProcessError(128, args)
+            return run(args, **kwargs)
+
+        with mock.patch.object(PRE, 'PUBLIC_SOURCE', 'fixture'), \
+             mock.patch.object(subprocess, 'run', side_effect=fail_fetch) as commands:
+            self.assert_close_breaks_before_checks('public fetch failed')
+        fetches = [call for call in commands.call_args_list if call.args[0][:2] == ['git', 'fetch']]
+        self.assertEqual(len(fetches), 2)  # One for each close attempt, including the retry.
+
+    def test_close_breaks_when_published_counts_are_marked_unavailable(self):
+        self.close_checkout()
+        self.publish([self.main], unavailable='the ledger has not been published yet')
+        self.assert_close_breaks_before_checks('the ledger has not been published yet')
+
+    def test_close_breaks_when_head_is_outside_the_published_window(self):
+        self.close_checkout()
+        later = self.git('commit-tree', 'HEAD^{tree}', '-p', self.main, '-m', 'main moved on')
+        self.git('update-ref', 'refs/remotes/origin/main', later)
+        self.publish([later])
+        self.assert_close_breaks_before_checks('update from main and close again')
 
     def test_typed_close_binds_the_refusal_to_the_checked_tree_and_local_counts(self):
         head, tree = self.close_checkout()
@@ -888,8 +933,8 @@ class Changes(unittest.TestCase):
         output = io.StringIO()
 
         def refuse(root, paths, tree_id, env, errors, outcomes, **options):
-            self.assertEqual((root, paths, tree_id, options['base_id']),
-                             (self.root, ['unstaged.md'], tree, self.main))
+            self.assertEqual((root, paths, tree_id, options['base_id'], options['published']['base']),
+                             (self.root, ['unstaged.md'], tree, self.main, self.main))
             if publish:
                 # The refusal names the counts read, not the ref's tip after the check.
                 self.git('update-ref', 'refs/temper/counts', head)
@@ -913,10 +958,13 @@ class Changes(unittest.TestCase):
                 output.truncate()
                 with mock.patch.object(Path, 'cwd', return_value=self.root), \
                      mock.patch.dict(os.environ, {**self.env, 'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(job)}), \
+                     mock.patch.object(PRE, 'PUBLIC_SOURCE', 'fixture'), \
+                     mock.patch.object(PRE, 'fetched_counts', return_value=dict(commits=[self.main], profiles={})) as fetch, \
                      mock.patch.object(PRE, 'workspace_checks', side_effect=refuse), \
                      mock.patch.object(PRE, 'replace_file', side_effect=after_report), \
                      redirect_stdout(output), redirect_stderr(io.StringIO()):
                     self.assertEqual(PRE.main(['--close']), 3)
+                self.assertEqual(fetch.call_count, int(not publish))
                 receipt = json.loads(check_file.read_bytes())
                 self.assertEqual((receipt['goal_head'], receipt['tree'], receipt['base']), (head, tree, self.main))
                 expected = (f'{{"refused":{{"head":"{head}","tree":"{tree}","base":"{self.main}",'
@@ -995,17 +1043,15 @@ class Changes(unittest.TestCase):
         self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], side)
 
     def test_without_a_usable_base_the_check_breaks_loudly(self):
-        for scope in ('delivery', 'child', 'close'):
+        for scope in ('delivery', 'child'):
             base, name, why = PRE.scope_base(self.root, self.env, scope, True)
             self.assertEqual((base, name), (None, None))
-            self.assertIn('update from main' if scope == 'close' else 'sharing history with HEAD', why)
+            self.assertIn('sharing history with HEAD', why)
             self.assertIn('no base', PRE.scope_base(self.root, self.env, scope, False)[2])
         self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
         self.assertEqual(PRE.scope_base(self.root, self.env, 'delivery', True)[:2],
                          (self.main, 'merge base of refs/remotes/origin/main and HEAD'))
-        base, name, why = PRE.scope_base(self.root, self.env, 'close', True)
-        self.assertIsNone(base)
-        self.assertIn('is HEAD itself', why)
+        self.publish([self.main])
         for args, name, why in [([], 'pre-pr-light-failures.json', 'sharing history with HEAD'),
                                 (['--close'], 'goal-close-pre-pr.json', 'is HEAD itself')]:
             if not args:
@@ -1061,7 +1107,7 @@ class Changes(unittest.TestCase):
         self.assertTrue(PRE.seed(self.root, work, self.env, work / '.git/index'))
 
     def test_without_a_base_reference_there_is_no_base(self):
-        for scope in ('delivery', 'child', 'close', 'goal'):
+        for scope in ('delivery', 'child', 'goal'):
             self.assertEqual(PRE.change_base(self.root, self.env, scope), (None, None))
 
     def test_the_seeded_snapshot_is_the_fresh_one(self):
@@ -1110,7 +1156,6 @@ class CloseBudgets(unittest.TestCase):
         self.profile['binaries'][self.BINARY]['counts'][self.main] = 50 * self.G
         self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', self.root / 'no-worker-counts.json'))
         self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
-        self.enterContext(mock.patch.dict(PRE.PUBLISHED, clear=True))
         # The allowance's own rules; the close's margin has a test of its own.
         self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0))
         self.budget_table()
@@ -1153,11 +1198,10 @@ class CloseBudgets(unittest.TestCase):
     def verdict(self, *runs):
         return PRE.close_budgets(self.root, self.repository, self.env, runs)
 
-    def test_no_counts_warns_once_and_passes(self):
-        self.assertEqual(self.verdict(self.result(self.process(50 * self.G))), [])
-        self.assertEqual(self.log.getvalue(),
-                         "budgets: no main's counts in this repository (refs/temper/counts); "
-                         'no verdict at close, an infrastructure fault to repair; the gate still judges\n')
+    def test_no_counts_breaks_budget_evaluation(self):
+        error, = self.verdict(self.result(self.process(50 * self.G)))
+        self.assertIn('cannot read refs/temper/counts', error['broke'])
+        self.assertEqual(self.log.getvalue(), '')
 
     def test_a_budget_refusal_names_its_figures_in_the_hold_and_the_receipt(self):
         self.publish()
@@ -1212,17 +1256,18 @@ class CloseBudgets(unittest.TestCase):
         self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', 'file://' + str(public)))
         self.enterContext(mock.patch.object(PRE, 'PUBLIC_PROTOCOLS', 'file'))
         self.enterContext(mock.patch.object(subprocess, 'Popen', side_effect=POPEN))
-        error, = self.verdict(self.result(self.process(30 * self.G)))
-        self.assertIn('instruction growth over allowance', error['log'])
-        self.assertIsNone(module(HERE.parent / 'tiers/counts.py').read(self.repository, self.env))
         data, source = PRE.close_counts(self.repository, self.env)
-        self.assertEqual(data['commits'], [self.base, self.main])
+        self.assertEqual(data['base'], self.base)
         self.assertIsNone(source)
+        self.assertIsNone(module(HERE.parent / 'tiers/counts.py').read(self.repository, self.env))
+        with mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('counts were selected again')):
+            runs = [self.result(self.process(30 * self.G))]
+            error, = PRE.close_budgets(self.root, self.repository, self.env, runs, published=data)
+        self.assertIn('instruction growth over allowance', error['log'])
 
     def test_selected_baseline_can_be_used_without_git(self):
         self.publish()
-        counts = module(HERE.parent / 'tiers/counts.py')
-        packet = PRE.budget_input(self.repository, self.env, counts.read(self.repository, self.env))
+        packet, _ = PRE.close_counts(self.repository, self.env)
         path = self.root / 'worker-counts.json'
         path.write_text(json.dumps(packet))
         self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', path))
@@ -1233,14 +1278,13 @@ class CloseBudgets(unittest.TestCase):
     def test_tree_without_head_has_no_budget_baseline(self):
         self.publish()
         self.git('symbolic-ref', 'HEAD', 'refs/heads/unborn')
-        self.assertEqual(self.verdict(self.result(self.process(30 * self.G))), [])
-        self.assertIn('source checkout has no commit', self.log.getvalue())
+        error, = self.verdict(self.result(self.process(30 * self.G)))
+        self.assertIn('source checkout has no commit', error['broke'])
 
-    def test_stale_base_refuses_close(self):
+    def test_stale_base_breaks_budget_evaluation(self):
         self.publish([self.main])
         error, = self.verdict(self.result(self.process(25 * self.G)))
-        self.assertEqual(error['name'], 'budgets')
-        self.assertIn("older than main's last twenty landings; update from main and close again", error['log'])
+        self.assertIn("older than main's last twenty landings; update from main and close again", error['broke'])
 
     def test_one_uncounted_step_warns_once_and_suppresses_red(self):
         self.publish()
