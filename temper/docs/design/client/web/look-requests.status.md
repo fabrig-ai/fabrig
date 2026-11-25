@@ -8,7 +8,8 @@
     first held request;
     `scripts/look-refresh.sh` refreshes and drops by `Look-request`
     and the print, not by holds.
-  - 4: no built render comparison checks the request against main's
-    pages as the writer printed them. The after-landing owner carries
-    out the comparison. There is no render-check command; section 8
-    defers one.
+  - 4: no `look-render` command renders a landed request beside the
+    print. [in flight: change 17984]
+  - 4: the writer's run checks no landed request and writes no
+    `looks.html`, so no verdict reaches whoever starts requests' goals.
+    [in flight: change 17985]
