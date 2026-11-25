@@ -407,19 +407,24 @@ pub fn held(mut landing: Landing, released: bool, now: Wall) -> Stepped {
     if !released {
         return Stepped { landing, decision: Decision::Wait { until: None, on: Awaited::Release } };
     }
-    if let Phase::Held { was, why: Hold::Claimed { .. } } = landing.phase {
+    let Phase::Held { was, why } = landing.phase else { unreachable!("release of a held landing") };
+    if let Hold::Claimed { .. } = why {
         landing.phase = *was;
         return Stepped { landing, decision: Decision::None };
     }
     if landing.round.branch.is_empty() {
         landing.phase = Phase::Preparing;
     } else {
-        if let Phase::Held { why: Hold::Record { .. }, .. } = landing.phase {
+        if let Hold::Record { .. } = why {
             landing.phase = Phase::Turn { at: now };
         } else {
             landing.phase = Phase::Preparing;
-            landing.round.ending = Some(crate::RoundEnd::Stale);
+            // An ended round's cleanup resumes at its original suffix boundary.
+            if landing.round.ending.is_none() {
+                landing.round.ending = Some(crate::RoundEnd::Stale);
+            }
         }
+        landing.round.cleanup = None;
         landing.last_prepare = None;
     }
     for member in &mut landing.members {
@@ -615,6 +620,13 @@ fn prepared(mut landing: Landing, facts: &Facts) -> Stepped {
     done(landing, Decision::None)
 }
 
+/// A confirmed refusal may be read from the round after the outbox entry is gone.
+#[must_use]
+pub fn cleanup_hold(mut landing: Landing) -> Stepped {
+    landing.phase = Phase::Held { was: Box::new(landing.phase), why: Hold::Cleanup };
+    done(landing, Decision::Hold(Hold::Cleanup))
+}
+
 fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Stepped {
     // A released prepare can finish before its prefixes enter the round.
     // Its pushes settle before cleanup (domain/landing-prepare.md, 1.1–1.2).
@@ -630,12 +642,13 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
             member.combined = Some(combined);
         }
     }
-    if landing.round.pull.is_some() && facts.closed != Status::Passed {
-        return if facts.closed == Status::Pending {
-            wait(landing, None, Awaited::Close)
-        } else {
-            done(landing, Decision::Close)
-        };
+    if landing.round.pull.is_some() {
+        match facts.closed {
+            Status::Failed => return cleanup_hold(landing),
+            Status::Pending => return wait(landing, None, Awaited::Close),
+            Status::Unknown => return done(landing, Decision::Close),
+            Status::Passed => {}
+        }
     }
     let first = match ending {
         crate::RoundEnd::Stale => 0,
@@ -650,17 +663,17 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
         if !remaining || index < usize::from(first) || member.candidate.is_none() {
             continue;
         }
-        if fresh.deleted != Status::Passed {
-            return if fresh.deleted == Status::Pending {
-                wait(landing, None, Awaited::Delete { member: position(index) })
-            } else {
-                done(landing, Decision::Delete { member: position(index) })
-            };
+        match fresh.deleted {
+            Status::Failed => return cleanup_hold(landing),
+            Status::Pending => return wait(landing, None, Awaited::Delete { member: position(index) }),
+            Status::Unknown => return done(landing, Decision::Delete { member: position(index) }),
+            Status::Passed => {}
         }
     }
     landing.round.pull = None;
     landing.round.merges = 0;
     landing.round.ending = None;
+    landing.round.cleanup = None;
     landing.round.changed = None;
     for member in landing.members.get_mut(usize::from(first)..).expect("changed member") {
         member.base = None;

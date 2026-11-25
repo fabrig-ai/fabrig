@@ -108,8 +108,8 @@ fn a_room_bound_fails_release_without_a_cleanup_write() {
     assert!(
         failed.contains(&Request::ReleaseFailed {
             task: TASK,
-            account: Some(EffectAccount { entry: 1, words: words.into_bytes().into_boxed_slice() }),
-            reason: None,
+            entry: None,
+            words: words.into_bytes().into_boxed_slice(),
         }),
         "{failed:?}"
     );
@@ -293,10 +293,58 @@ fn permanent_release_refusals_are_not_hidden_by_a_full_outbox() {
             sent.push(request).unwrap();
         }
         let out = sent.into_boxed();
-        assert!(release_failed(&out, TASK), "{refusal}: {out:?}");
+        let (op, cause, resource) = match refusal {
+            "duplicate" => ("close item", "outbox entry 1 is already kept", "org/repo #1"),
+            "read-only" => ("close item", "the repository is context", "org/repo #1"),
+            "kind" => ("close item", "its adoption does not take kind close", "org/repo #1"),
+            "missing" => ("close item", "the repository is not adopted", "repository 2 #1"),
+            "oversize" => ("delete branch", "past forge.client.op_bytes (1)", "org/repo branch"),
+            _ => unreachable!("each refusal has its own account"),
+        };
+        release_account(&out, TASK, None, &[op, "not sent: ", cause, resource]);
+        assert!(entries(&out).is_empty());
+        assert!(d.releases.get(&TASK).unwrap().failed);
         assert_eq!(d.releases.get(&TASK).unwrap().room, None);
         assert_eq!(d.releases.get(&TASK).unwrap().pending, None);
         assert_eq!(room::reserved(&d), 0);
+    }
+}
+
+#[test]
+fn release_comment_bound_counts_the_key_and_body() {
+    // Deployment frame (3), namespace (4), release identity (11 + 6), body (2).
+    const SIZE: u32 = 26;
+    const BODY: &[u8] = b"no";
+    for limit in [1, SIZE - 1, SIZE] {
+        let mut d = refusals::adopted_domain();
+        pull(&mut d);
+        let mut clock = env();
+        clock.limits.client.op_bytes = limit;
+        let mut out = Queue::uncapped();
+        step(
+            &mut d,
+            &clock,
+            Event::Release {
+                task: TASK,
+                root: TASK,
+                ending: ReleaseEnding::Cancelled,
+                reason: Some(BODY.into()),
+                entry: FRESH,
+            },
+            &mut out,
+        );
+        let out = collected(out);
+        if limit == SIZE {
+            assert!(!release_failed(&out, TASK));
+            let entries = entries(&out);
+            let [entry] = entries.as_ref() else { panic!("one keyed comment: {out:?}") };
+            assert!(matches!(&entry.effect.write, Write::Post { number: 1, body, .. } if body.as_ref() == BODY));
+        } else {
+            let bound = format!("past forge.client.op_bytes ({limit}): {SIZE} bytes");
+            release_account(&out, TASK, None, &["post comment: not sent: ", &bound, "resource org/repo #1"]);
+            assert!(entries(&out).is_empty());
+            assert!(d.releases.get(&TASK).unwrap().failed);
+        }
     }
 }
 

@@ -4657,20 +4657,15 @@ pub(crate) fn outputs(
                     },
                 )));
             }
-            forge::Request::ReleaseFailed { task, account, reason } => {
-                if let Some(account) = account {
+            forge::Request::ReleaseFailed { task, entry, words } => {
+                if let Some(entry) = entry {
                     domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
                         task,
                         why: tasks::Hold::EffectFailed,
-                        source: Box::new(holds::source(domain, Some(account.entry), account.words)),
+                        source: Box::new(holds::source(domain, Some(entry), words)),
                     }));
                 } else {
-                    holds::hold_as(
-                        domain,
-                        task,
-                        tasks::Hold::EffectFailed,
-                        reason.as_deref().unwrap_or(b"forge could not release this task's resources"),
-                    );
+                    holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
                 }
             }
             forge::Request::ProjectionEffect { row, entry, description } => {

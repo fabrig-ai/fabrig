@@ -247,7 +247,18 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
         let failed = result == Err(Error::Refused);
         let answered = fixtures::answer(&mut d, call, result);
         if failed {
-            assert!(answered.contains(&Request::ReleaseFailed { task: WRITER, account: None, reason: None }));
+            let branch = if design { "g3" } else { "c3" };
+            let target = format!("resource org/repo branch temper/1/{branch}");
+            release_account(
+                &answered,
+                WRITER,
+                None,
+                &[
+                    "read branch: ",
+                    "the reread after run 2 of task 4 failed: forge policy refused the operation",
+                    &target,
+                ],
+            );
             assert!(!answered.contains(&Request::Released { task: WRITER }));
             assert!(d.releases.contains_key(&WRITER));
             continue;
@@ -304,7 +315,7 @@ fn a_release_waiting_for_its_writer_reread_fails_at_its_step_figure() {
     clock.limits.client.read_attempts = 1;
     fixtures::answer_at(&mut d, &clock, call, Err(Error::Unavailable));
     let failed = fire_at(&mut d, &clock, advanced_wall(clock.wall, clock.limits.waits.step));
-    let expected = Request::ReleaseFailed { task: DELEGATE, account: None, reason: Some(b"no progress at release for 30 minutes: waiting for a writer's reread of branch temper/1/c3; the last answer: forge unavailable".as_slice().into()) };
+    let expected = Request::ReleaseFailed { task: DELEGATE, entry: None, words: b"no progress at release for 30 minutes: waiting for a writer's reread of branch temper/1/c3; the last answer: forge unavailable".as_slice().into() };
     assert!(failed.contains(&expected), "{failed:?}");
     assert_eq!(
         d.hold(&name).expect("lost writer hold retained").writer,

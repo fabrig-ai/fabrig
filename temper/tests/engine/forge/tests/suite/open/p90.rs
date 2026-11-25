@@ -37,14 +37,14 @@ fn a_refused_close_of_an_open_pull_holds_with_words() {
     assert_eq!(found.state, raw::State::Open);
     let Some(top::Stored::Release(release)) = world.stored().get(&top::Key::Release(51)) else { panic!("release") };
     assert!(release.failed, "the refused close holds cleanup");
-    let account = world
+    let words = world
         .seen()
         .iter()
         .find_map(|request| match request {
-            top::Request::ReleaseFailed { task: 51, account, .. } => account.as_ref(),
+            top::Request::ReleaseFailed { task: 51, entry: Some(10), words } => Some(words),
             _ => None,
         })
-        .expect("a refused close holds with an account");
-    super::words_name(&account.words, &["close", "permission"]);
-    assert!(String::from_utf8_lossy(&account.words).contains(&pull.to_string()), "{:?}", account.words);
+        .expect("a refused close holds with a write's account");
+    super::words_name(words, &["close", "permission"]);
+    assert!(String::from_utf8_lossy(words).contains(&pull.to_string()), "{words:?}");
 }
