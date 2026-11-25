@@ -432,7 +432,14 @@ fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
     let before = world.records.clone();
     let reply_to = world.to();
     let call = reply_to.into_token();
-    world.send(Event::Procedure { reply_to: skein_lib::ReplyTo::new(call), task: ROOT, step: 1, read: None, decision });
+    world.send(Event::Procedure {
+        reads_project: false,
+        reply_to: skein_lib::ReplyTo::new(call),
+        task: ROOT,
+        step: 1,
+        read: None,
+        decision,
+    });
     assert!(matches!(&world.replies[&call.raw()], Reply::Refused(problem)
         if problem.why == Refusal::Circle { cut: false }
         && problem.blocked_by.as_deref() == Some(&[REQUESTER, HOLDER])));
@@ -687,6 +694,7 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
     let reply_to = world.to();
     let message = world.record(HOLDER).last_message + 1;
     world.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: HOLDER,

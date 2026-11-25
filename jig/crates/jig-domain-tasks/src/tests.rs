@@ -45,6 +45,7 @@ mod kept;
 mod keys;
 mod refusals;
 pub(crate) mod revisions;
+mod subscriptions;
 mod summary;
 mod waiting;
 
@@ -62,7 +63,6 @@ mod address;
 mod instructions;
 
 mod deadlines;
-mod topic_apart;
 
 mod index;
 

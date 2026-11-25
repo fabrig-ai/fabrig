@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0x83, 0xf4, 0xa6, 0x84, 0x09, 0xa1, 0x3c, 0xf2, 0x98, 0xe7, 0x7c, 0x97, 0xe0, 0xf3, 0x47, 0x60, 0xad, 0xda, 0x79,
-    0x03, 0x35, 0xd8, 0x18, 0x45, 0xbe, 0x2b, 0x5b, 0x0e, 0x3f, 0x8e, 0xee, 0xf8,
+    0x0c, 0x7e, 0x53, 0x21, 0xb5, 0x4e, 0x5a, 0x33, 0xca, 0x26, 0xc6, 0x39, 0x57, 0xee, 0x87, 0x35, 0xc7, 0xa1, 0x15,
+    0x3f, 0x3f, 0x98, 0xc6, 0x52, 0xd4, 0x51, 0x5e, 0x62, 0x91, 0x8f, 0x2d, 0x94,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -11147,6 +11147,7 @@ pub enum NoticeState {
     Done,
     Failed,
     Cancelled,
+    Unreadable,
 }
 
 // Record: NoticeState.
@@ -11156,7 +11157,8 @@ impl NoticeState {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -11190,6 +11192,7 @@ impl Record for NoticeState {
             Self::Done => field::put(out, &[1], paths::NOTICE_STATE_TAG),
             Self::Failed => field::put(out, &[2], paths::NOTICE_STATE_TAG),
             Self::Cancelled => field::put(out, &[3], paths::NOTICE_STATE_TAG),
+            Self::Unreadable => field::put(out, &[4], paths::NOTICE_STATE_TAG),
         }
     }
 
@@ -11200,7 +11203,8 @@ impl Record for NoticeState {
             1 => Ok(Self::Done),
             2 => Ok(Self::Failed),
             3 => Ok(Self::Cancelled),
-            4..=u8::MAX => Err(Problem { path: paths::NOTICE_STATE_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::Unreadable),
+            5..=u8::MAX => Err(Problem { path: paths::NOTICE_STATE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

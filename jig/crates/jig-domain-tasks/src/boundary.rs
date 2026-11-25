@@ -69,13 +69,14 @@ pub enum NewsClass {
     Dropped,
 }
 
-/// State of a watched task, distinct from a terminal result.
+/// State reported by a task watch, distinct from a terminal result.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoticeState {
     Held { revision: u64 },
     Done,
     Failed,
     Cancelled,
+    Unreadable,
 }
 
 /// One bounded standing task, timer or topic interest.
@@ -1824,6 +1825,8 @@ pub enum Event {
     },
     /// Fenced decision from the owner of one due procedure task.
     Procedure {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         reply_to: ReplyTo,
         task: u64,
         step: u64,
@@ -1904,6 +1907,8 @@ pub enum Event {
     },
     /// Root-checked amendment of a live delegate, with a fresh commit-order message number.
     Amend {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Ended dependencies and the ended requesters used to judge their reach.
         places: Box<[crate::DependencyPlace]>,
         reply_to: ReplyTo,
@@ -1921,6 +1926,8 @@ pub enum Event {
     },
     /// Install one root-numbered standing interest for a current task.
     Subscribe {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         reply_to: ReplyTo,
         task: u64,
         subscription: Subscription,
@@ -1931,18 +1938,16 @@ pub enum Event {
         task: u64,
         subscription: Subscription,
     },
-    /// Root-authorized connector topic admitted one past the task's `subscriptions`
-    /// (domain/tasks/messages.md, 4).
-    SubscribeTopicApart {
-        reply_to: ReplyTo,
-        task: u64,
-        subscription: Subscription,
-    },
     /// Remove one interest owned by a current task.
     Unsubscribe {
         reply_to: ReplyTo,
         task: u64,
         subscription: u64,
+    },
+    /// End task watches by reading in trees requested by parties who lost their project role.
+    ReadingLost {
+        project: u32,
+        parties: Box<[u64]>,
     },
     /// Root places a merged state/timer/connector hint in a subscribed inbox.
     Notice {
@@ -2159,6 +2164,8 @@ pub enum Event {
     /// Create an authorized whole batch and reservations atomically, producing `Made` or
     /// `Refused` plus bounded persistence/lifecycle outputs.
     Make {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Party behind a Delegate; reach and history are theirs, topology remains the creator's
         /// (jig/docs/design/domain/tasks/README.md, 4).
         maker: Option<u64>,
@@ -2175,6 +2182,8 @@ pub enum Event {
     },
     /// Admit the accepted batch of a result-created proposal while its proposer closes.
     MakeResultFollowups {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Destination owed one `Made` or `Refused` terminal for the whole batch.
         reply_to: ReplyTo,
         /// The closing task whose result made this proposal.
@@ -2245,6 +2254,8 @@ pub enum Event {
     /// Admit a root-fenced activation terminal with explicit expense provenance; emits one
     /// `Acknowledged` or `Refused` and atomic resulting saves.
     Activation {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Destination owed one `Acknowledged` or `Refused` terminal; root delays exposure until
         /// the decision is durable.
         reply_to: ReplyTo,

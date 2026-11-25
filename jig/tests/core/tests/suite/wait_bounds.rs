@@ -55,6 +55,7 @@ fn subscribe(world: &mut World, task: u64, number: u64, at: Wall) {
             reply_to: ReplyTo::new(Token::new(number)),
             task,
             subscription: tasks::Subscription { number, kind: tasks::SubscriptionKind::Timer { at, period: None } },
+            reads_project: false,
         },
     );
 }

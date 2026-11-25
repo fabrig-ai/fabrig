@@ -2528,6 +2528,7 @@ fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
         &mut core,
         &env.limits,
         tasks::Event::Amend {
+            reads_project: false,
             reply_to: ReplyTo::new(FIRST),
             by: tasks::Party::Person(1),
             places: Box::new([]),

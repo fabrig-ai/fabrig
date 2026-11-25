@@ -297,6 +297,7 @@ pub(crate) struct AmendPlan {
     pub(crate) met: Option<u64>,
 }
 
+#[expect(clippy::too_many_arguments, reason = "amend takes the core's reading and loaded dependency places")]
 pub(crate) fn amend(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -304,6 +305,7 @@ pub(crate) fn amend(
     by: Party,
     change: Amend,
     places: &[DependencyPlace],
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
     let number = change.task;
@@ -311,7 +313,7 @@ pub(crate) fn amend(
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    match check_amend(domain, &Staged::new(0), env, by, change, places) {
+    match check_amend(domain, &Staged::new(0), env, by, change, places, reads_project) {
         Ok(plan) => {
             apply_amend(domain, env, by, plan, out);
             out.push(Request::Done { reply_to: to });
@@ -328,6 +330,7 @@ pub(crate) fn check_amend(
     by: Party,
     amendment: Amend,
     places: &[DependencyPlace],
+    reads_project: bool,
 ) -> Result<AmendPlan, Box<crate::Problem>> {
     let number = amendment.task;
     let mut plan = match check_amend_fields(domain, staged, env, by, amendment) {
@@ -368,7 +371,7 @@ pub(crate) fn check_amend(
             return Err(Box::new(crate::Problem::new(Some(*dependency), Refusal::Unknown)));
         }
         let reaching = Reaching { project: old.project, task: number, dependency: *dependency };
-        if !dependency_reached(domain, staged, env, by, reaching, places) {
+        if !dependency_reached(domain, staged, env, by, reaching, places, reads_project) {
             return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency])));
         }
         if record(domain, *dependency).is_some() {
@@ -429,6 +432,7 @@ fn dependency_reached(
     by: Party,
     reaching: Reaching,
     places: &[DependencyPlace],
+    reads_project: bool,
 ) -> bool {
     let Reaching { project, task, dependency } = reaching;
     if task == dependency {
@@ -443,8 +447,9 @@ fn dependency_reached(
             },
         },
         Party::Task(amender) => {
-            if record(domain, dependency).is_some() {
-                return below(domain, dependency, amender, env.limits.tasks)
+            if let Some(row) = record(domain, dependency) {
+                return reads_project && row.project == project
+                    || below(domain, dependency, amender, env.limits.tasks)
                     || match staged.record(domain, amender) {
                         Some(parent) => {
                             crate::batch::contains(&parent.delegates, dependency)
@@ -454,6 +459,12 @@ fn dependency_reached(
                     };
             }
             let Some(parent) = staged.record(domain, amender) else { return false };
+            if reads_project
+                && let Some(row) = place(places, dependency)
+                && row.project == project
+            {
+                return true;
+            }
             if staged.reference(domain, amender, dependency) {
                 return true;
             }

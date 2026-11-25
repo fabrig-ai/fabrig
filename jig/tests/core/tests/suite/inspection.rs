@@ -58,6 +58,7 @@ fn key(run: (u64, u64), completion: u32) -> core::CallKey {
 
 fn subscribe(world: &mut World, task: u64, kind: tasks::SubscriptionKind) {
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(9901)),
         task,
         subscription: tasks::Subscription { number: 9901, kind },

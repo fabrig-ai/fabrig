@@ -961,6 +961,7 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
     };
     let member = resource_member(&world, 1, b"wait for its report");
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(u64::MAX - 3)),

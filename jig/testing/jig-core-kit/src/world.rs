@@ -1059,6 +1059,7 @@ impl World {
             return;
         }
         self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(subscription)),
             task,
             subscription: tasks::Subscription {

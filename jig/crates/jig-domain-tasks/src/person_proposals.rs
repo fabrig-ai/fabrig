@@ -173,6 +173,7 @@ pub(crate) fn check(domain: &Domain, env: &Env<Limits>, proposal: &PersonProposa
         crate::Party::Person(proposal.proposer),
         crate::control::Amend { funder: None, task: *task, message, stop_run: false, amendment: Box::new(amendment) },
         &[],
+        false,
     )?;
     Ok(())
 }

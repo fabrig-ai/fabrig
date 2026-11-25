@@ -127,7 +127,7 @@ pub(crate) fn make_batch(
     if !crate::funders::carve_recurring(domain, project, task, period, budget, &mut saves) {
         return;
     }
-    if crate::batch::check(domain, &env.limits, Party::Task(task), &batch).is_err() {
+    if crate::batch::check(domain, &env.limits, Party::Task(task), &batch, false).is_err() {
         domain.funding.remove(&funder);
         *domain.funding.get_mut(&Funder::Period { project, period }).expect("period retained") = parent;
         return;

@@ -79,6 +79,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     let mut w = World::new(20, LIMITS);
     let reply_to = w.to();
     w.stage(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to,
@@ -91,6 +92,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     assert_eq!(w.live(), 0);
     let reply_to = w.to();
     w.stage(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to,
@@ -174,6 +176,7 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
     let record = w.record(1).clone();
     let reply_to = w.to();
     w.send(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -197,6 +200,7 @@ fn a_crash_before_finished_decision_resumes_current_attempt() {
     assert!(started.is_some());
     let reply_to = w.to();
     w.stage(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -220,6 +224,7 @@ fn terminal_and_settlement_each_have_a_durable_cut_before_delivery() {
     w.claim_task(1);
     let reply_to = w.to();
     w.stage(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -277,6 +282,7 @@ fn delegate_cancel_cut_after_durability_stops_adopted_runs_then_closes_deepest()
     w.observe(jig_tasks_world::referee::Seen::Cancelled { task: 2 });
     let reply_to = w.to();
     w.stage(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -877,6 +883,7 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
     let reply_to = source.to();
     let call = reply_to.into_token().raw();
     source.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: 2,

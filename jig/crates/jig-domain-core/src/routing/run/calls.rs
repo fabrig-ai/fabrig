@@ -139,13 +139,21 @@ pub(crate) fn named_proposal_accept(
             }
             if result_followups {
                 tasks::Event::MakeResultFollowups {
+                    reads_project: false,
                     reply_to: ReplyTo::new(token),
                     proposer: proposal.proposer,
                     proposal: proposal.number,
                     batch,
                 }
             } else {
-                tasks::Event::Make { maker: None, places: Box::new([]), reply_to: ReplyTo::new(token), creator, batch }
+                tasks::Event::Make {
+                    reads_project: false,
+                    maker: None,
+                    places: Box::new([]),
+                    reply_to: ReplyTo::new(token),
+                    creator,
+                    batch,
+                }
             }
         }
         tasks::ProposalAction::Amend { task, amendment, .. } => {
@@ -159,6 +167,7 @@ pub(crate) fn named_proposal_accept(
             let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
+                reads_project: false,
                 operation: tasks::Amend {
                     funder: Some(tasks::Funder::Task(key.task)),
                     task,
@@ -176,6 +185,7 @@ pub(crate) fn named_proposal_accept(
                 return proposal_refused(core, ReplyTo::new(token), key, tasks::Refusal::Busy);
             };
             tasks::Event::Amend {
+                reads_project: false,
                 operation: tasks::Amend {
                     funder: Some(tasks::Funder::Task(key.task)),
                     task,
@@ -610,6 +620,7 @@ pub(crate) fn named_action(
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
             work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
+                reads_project: false,
                 reply_to: ReplyTo::new(token),
                 task: key.task,
                 subscription: tasks::Subscription { number: subscription, kind },
@@ -896,6 +907,7 @@ pub(crate) fn route_refused_payload(
                 end: tasks::End::Failed(tasks::Class::Invalid),
             });
             work.push(Work::Event(Event::Tasks(tasks::Event::Activation {
+                reads_project: false,
                 reply_to: ReplyTo::new(request),
                 task,
                 attempt,
@@ -1004,6 +1016,7 @@ pub(crate) fn named_amend(
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
     work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+        reads_project: false,
         operation: tasks::Amend { funder, task: target, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
         reply_to: ReplyTo::new(token),

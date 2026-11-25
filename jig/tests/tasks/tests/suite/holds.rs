@@ -114,6 +114,7 @@ fn a_task_waiting_past_its_bound_for_a_hold_is_held_and_its_requester_told() {
     waiter.holdings = Box::new([resource(1)]);
     assert_eq!(world.make(Party::Task(1), vec![holder, waiter]), Reply::Made(vec![2, 3]));
     world.send(jig_domain_tasks::Event::Subscribe {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(500)),
         task: 1,
         subscription: Subscription {
@@ -419,6 +420,7 @@ fn a_held_notice_carries_the_holds_revision() {
     assert_eq!(world.make(Party::Task(REQUESTER), vec![task(CHILD, &[])]), Reply::Made(vec![CHILD]));
     world.send(Event::Hold { task: CHILD, why: Hold::Budget });
     world.send(Event::Subscribe {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(REPLY)),
         task: REQUESTER,
         subscription: Subscription {

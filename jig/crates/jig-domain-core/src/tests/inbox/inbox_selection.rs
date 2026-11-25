@@ -364,6 +364,7 @@ fn finished_chat() -> (Core, Limits, Box<[Record]>) {
         },
         // The final turn is kept before its finish is admitted and closing settles.
         tasks::Event::Activation {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(task)),
             task,
             attempt,

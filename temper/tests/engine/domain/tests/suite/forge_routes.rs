@@ -2859,9 +2859,9 @@ fn forge_subscription_rooms_name_their_limits() {
     for (bound, tool, expected) in [
         ("forge", b"subscribe_forge".as_slice(), "subscriptions (limit 1)"),
         ("resources", b"subscribe_forge", "resources_per_task (limit 1)"),
-        ("task", b"subscribe_forge", "tasks.subscriptions (limit 1)"),
-        ("timer", b"subscribe", "it holds its most subscriptions (at most 1"),
-        ("delegate", b"subscribe", "it holds its most subscriptions (at most 1"),
+        ("task", b"subscribe_forge", "tasks.subscriptions (limit 2)"),
+        ("timer", b"subscribe", "it holds its most subscriptions (at most 2"),
+        ("delegate", b"subscribe", "it holds its most subscriptions (at most 2"),
         ("paths", b"subscribe_forge", "paths_per_subscription (limit 0)"),
         ("path_bytes", b"subscribe_forge", "path exceeds name_bytes"),
         ("branch_bytes", b"subscribe_forge", "branch exceeds name_bytes"),
@@ -2891,6 +2891,16 @@ fn forge_subscription_rooms_name_their_limits() {
             );
             assert!(matches!(first, engine::CallAnswer::Subscribed { .. }), "room at the bound: {first:?}");
         }
+        if bound == "task" || task_room {
+            let second = subscription_json(
+                &mut world,
+                &goal,
+                b"subscribe_forge",
+                94,
+                br#"{"topic":{"kind":"landings","branch":"other"}}"#,
+            );
+            assert!(matches!(second, engine::CallAnswer::Subscribed { .. }), "shared extra room: {second:?}");
+        }
         let long = "x".repeat(usize::try_from(world.env.limits.forge.name_bytes).expect("name bound") + 1);
         let branch = match bound {
             "branch_bytes" => long.as_str(),
@@ -2910,7 +2920,7 @@ fn forge_subscription_rooms_name_their_limits() {
         } else {
             format!(r#"{{"topic":{{"kind":"landings","branch":"{branch}"}},"paths":{paths}}}"#)
         };
-        let answer = subscription_json(&mut world, &goal, tool, 94, input.as_bytes());
+        let answer = subscription_json(&mut world, &goal, tool, 95, input.as_bytes());
         subscription_feedback(&answer, expected);
         world.close();
     }

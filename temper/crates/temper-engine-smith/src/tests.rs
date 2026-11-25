@@ -1778,10 +1778,10 @@ fn a_second_proposal_is_refused_naming_the_one_pending() {
 fn a_subscription_refused_for_a_full_room_names_its_bound() {
     let value = engine::CallAnswer::SubscriptionRefused(busy_problem(
         tasks::CapacityAction::Subscription { number: 23 },
-        tasks::CapacityCause::Subscriptions { limit: 4 },
+        tasks::CapacityCause::Subscriptions { limit: 5 },
     ));
     let rendered = answer(&value);
-    assert_eq!(rendered.text(), b"Refused: task 2 busy: it holds its most subscriptions (at most 4, counting the topics the engine keeps for a goal); unsubscribe one it made to make room");
+    assert_eq!(rendered.text(), b"Refused: task 2 busy: it holds its most subscriptions (at most 5, counting the topics the engine keeps for a goal); unsubscribe one it made to make room");
     assert!(rendered.error());
 }
 

@@ -101,6 +101,7 @@ pub(crate) fn amend_route(
     }
     let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
     routed.work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+        reads_project: false,
         operation: tasks::Amend { funder, task, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
         reply_to: ReplyTo::new(request),

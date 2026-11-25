@@ -61,6 +61,7 @@ fn goals_per_project_count_only_live_tracked_tasks_after_a_restart() {
     };
     let call = world.to().into_token().raw();
     world.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: THIRD_GOAL,
@@ -83,6 +84,7 @@ fn goals_per_project_count_only_live_tracked_tasks_after_a_restart() {
     world.restart();
     let call = world.to().into_token().raw();
     world.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: THIRD_GOAL,

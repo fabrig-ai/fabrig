@@ -87,6 +87,7 @@ fn notification_goal() -> World {
         let reply_to = world.to();
         let call = reply_to.into_token().raw();
         world.send(Event::Subscribe {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(call)),
             task: 1,
             subscription: Subscription {
@@ -98,6 +99,7 @@ fn notification_goal() -> World {
     }
     let reply_to = world.to();
     world.send(Event::Subscribe {
+        reads_project: false,
         reply_to,
         task: 1,
         subscription: Subscription {
@@ -271,6 +273,7 @@ fn release_after_a_deadline_amendment_does_not_reuse_a_handled_message_reason() 
     assert_eq!(world.make(PERSON_PARTY, vec![goal]), Reply::Made(vec![1]));
     let reply_to = world.to();
     world.send(Event::Subscribe {
+        reads_project: false,
         reply_to,
         task: 1,
         subscription: Subscription {
@@ -342,6 +345,7 @@ fn extend_goal_deadline(world: &mut World) {
     authority.budget.deadline = Some(Wall::from_nanos(1_500));
     let funder = world.record(1).funder;
     let reply = jig_tasks_world::response(world, |reply_to| Event::Amend {
+        reads_project: false,
         reply_to,
         by: PERSON_PARTY,
         places: Box::new([]),
@@ -626,6 +630,7 @@ fn procedure_watch(seed: u64, count: u32, age: u64) -> World {
     let reply_to = world.to();
     let call = reply_to.into_token().raw();
     world.send(Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(call)),
         task: 1,
         step: 1,
@@ -713,7 +718,14 @@ fn procedure_step(
 ) -> Reply {
     let to = world.to();
     let key = to.into_token().raw();
-    world.send(Event::Procedure { reply_to: ReplyTo::new(Token::new(key)), task: 1, step, read, decision });
+    world.send(Event::Procedure {
+        reads_project: false,
+        reply_to: ReplyTo::new(Token::new(key)),
+        task: 1,
+        step,
+        read,
+        decision,
+    });
     world.replies[&key].clone()
 }
 

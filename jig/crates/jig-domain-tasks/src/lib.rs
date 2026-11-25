@@ -141,6 +141,7 @@ pub use summary::{
 };
 mod stored;
 pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
+pub use subscriptions::kept_capacity as subscription_capacity;
 mod subscriptions;
 #[cfg(test)]
 mod tests;

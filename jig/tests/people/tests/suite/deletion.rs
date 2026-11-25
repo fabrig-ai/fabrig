@@ -74,6 +74,7 @@ fn route(rows: &[Request]) -> Token {
             Request::Route { request, .. } | Request::Act { request, .. } => Some(*request),
             Request::Acted { .. }
             | Request::ServiceMade { .. }
+            | Request::ReadingLost { .. }
             | Request::RolesApplied { .. }
             | Request::Reply { .. }
             | Request::Save { .. }

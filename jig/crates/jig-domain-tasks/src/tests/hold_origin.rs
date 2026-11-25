@@ -56,6 +56,7 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
     assert_eq!(h.domain.task(1).unwrap().held_since, Some(first_at));
     h.env.wall = Wall::from_nanos(1_795_501_200_000_000_000);
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,
@@ -176,6 +177,7 @@ fn wait_holds_raise_escalation_and_restore_before_release() {
                     end: End::Parked,
                     saved: None,
                     cause: Cause::Unpriced,
+                    reads_project: false,
                 });
             }
             h.env.wall = DEADLINE;
@@ -212,6 +214,7 @@ fn an_amendment_that_moves_and_releases_a_deadline_makes_the_idle_task_due() {
         end: End::Parked,
         saved: None,
         cause: Cause::Unpriced,
+        reads_project: false,
     });
     h.env.wall = DEADLINE;
     h.send(Event::HoldFrom {

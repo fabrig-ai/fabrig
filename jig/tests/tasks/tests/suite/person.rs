@@ -61,6 +61,7 @@ fn a_person_report_outside_its_bounds_refuses_the_whole_batch() {
                 batch.push(new);
                 let reply_to = world.to();
                 world.stage(Event::Make {
+                    reads_project: false,
                     reply_to,
                     maker: None,
                     places: Box::new([]),
@@ -373,6 +374,7 @@ fn readdressing_an_offered_task_restarts_its_clock_but_not_its_notice() {
     let new_address = PersonAddress::Person(7);
     assert_eq!(
         response(&mut world, |reply_to| Event::Amend {
+            reads_project: false,
             reply_to,
             by: PERSON_PARTY,
             places: Box::new([]),

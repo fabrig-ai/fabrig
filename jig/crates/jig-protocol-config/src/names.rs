@@ -126,7 +126,7 @@ pub static NAMES: [Name; 258] = [
         name: "tasks.subscriptions",
         unit: Unit::Count,
         applies: Applies::NextStart,
-        line: "Bounds standing interests per task.",
+        line: "Bounds standing interests per task, with one extra and all kinds counted alike.",
         value: |limits| u64::from(limits.core.tasks.subscriptions),
     },
     Name {

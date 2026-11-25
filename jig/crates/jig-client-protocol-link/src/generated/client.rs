@@ -2693,6 +2693,7 @@ pub fn notice_state_to_domain(record: jig_client_protocol_wire::v44::NoticeState
         jig_client_protocol_wire::v44::NoticeState::Done => jig_client_domain::contract::NoticeState::Done,
         jig_client_protocol_wire::v44::NoticeState::Failed => jig_client_domain::contract::NoticeState::Failed,
         jig_client_protocol_wire::v44::NoticeState::Cancelled => jig_client_domain::contract::NoticeState::Cancelled,
+        jig_client_protocol_wire::v44::NoticeState::Unreadable => jig_client_domain::contract::NoticeState::Unreadable,
     }
 }
 

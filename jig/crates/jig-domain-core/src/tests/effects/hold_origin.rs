@@ -158,6 +158,7 @@ fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -171,6 +172,7 @@ fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
             &mut core,
             &limits,
             tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: ReplyTo::new(Token::new(2)),
                 task: 1,
                 step: 1,
@@ -349,6 +351,7 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

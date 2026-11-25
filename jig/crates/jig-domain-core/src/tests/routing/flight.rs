@@ -502,6 +502,7 @@ fn a_procedure_owner_hears_its_step_before_a_retained_activation() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

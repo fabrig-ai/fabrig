@@ -67,6 +67,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::super::internal(u64::MAX),
@@ -111,6 +112,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     super::turn_project(&mut domain);
     assert!(domain.forge.project_batch(1, 3));
     domain.work.push(Work::Tasks(tasks::Event::Procedure {
+        reads_project: false,
         reply_to: super::super::super::internal(u64::MAX),
         task: LATCH,
         step: 1,

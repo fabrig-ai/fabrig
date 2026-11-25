@@ -234,6 +234,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -262,6 +263,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -287,6 +289,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -328,6 +331,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -352,6 +356,7 @@ pub(crate) fn tag_fleet(
                         core,
                         env,
                         tasks::Event::Activation {
+                            reads_project: false,
                             reply_to: ReplyTo::new(token),
                             task: run.raw(),
                             attempt: attempt.raw(),
@@ -831,6 +836,7 @@ pub(crate) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::Gath
     tag_brief(core, env, out)
 }
 
+#[expect(clippy::too_many_lines, reason = "the fleet entrance keeps its fences and refusal routing together")]
 pub(crate) fn route_fleet(
     core: &mut Core,
     env: &Env<Limits>,
@@ -847,6 +853,7 @@ pub(crate) fn route_fleet(
             core,
             env,
             tasks::Event::Activation {
+                reads_project: false,
                 reply_to: ReplyTo::new(token),
                 task: run.raw(),
                 attempt: attempt.raw(),

@@ -70,7 +70,7 @@ pub enum RestoreBound {
     Exemptions,
     Delegates,
     References,
-    Subscriptions,
+    Timers,
     InboxMessages,
     SavedResources,
     RootHoldings,

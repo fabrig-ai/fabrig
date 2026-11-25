@@ -79,11 +79,24 @@ pub(super) fn apply_roles(
         }
     }
     let holdings = Box::<[Holding]>::from(holdings);
-    out.push(Request::Save { record: Stored::Roles { project, holdings: holdings.clone() } });
-    let saved = domain.roles.insert(project, holdings);
-    assert!(saved.is_ok(), "existing role row replaces without consuming capacity");
-    prune_unheld_roles(domain, project);
+    replace_roles(domain, project, holdings, out);
     Ok(())
+}
+
+pub(super) fn replace_roles(domain: &mut Domain, project: u32, holdings: Box<[Holding]>, out: &mut Queue<Request>) {
+    out.push(Request::Save { record: Stored::Roles { project, holdings: holdings.clone() } });
+    let previous = domain.roles.insert(project, holdings).expect("role row room validated");
+    prune_unheld_roles(domain, project);
+    let Some(previous) = previous else { return };
+    let mut parties = List::with_capacity(u32::try_from(previous.len()).expect("bounded previous roster"));
+    for holder in previous {
+        if role(domain, holder.person, project).is_none() {
+            parties.push(holder.person).expect("subset of previous roster");
+        }
+    }
+    if !parties.is_empty() {
+        out.push(Request::ReadingLost { project, parties: parties.into_boxed() });
+    }
 }
 
 pub(super) fn valid_roles(domain: &Domain, limits: &Limits, project: u32, holdings: &[Holding]) -> Result<(), Outcome> {

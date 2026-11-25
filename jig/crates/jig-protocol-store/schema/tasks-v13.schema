@@ -184,7 +184,7 @@ enum RetryNotice { failed: FailedRetry, refused: RefusedRetry }
 
 
 record NoticeHeld { revision: u64 }
-enum NoticeState { held: NoticeHeld, done, failed, cancelled }
+enum NoticeState { held: NoticeHeld, done, failed, cancelled, unreadable }
 enum NewsClass { wakes, kept, dropped }
 record ApprovalMessage { state: bytes 524288 words_present: bool }
 record VerdictMessage { code: u32 fields: bytes 1048576 pieces ResultField }

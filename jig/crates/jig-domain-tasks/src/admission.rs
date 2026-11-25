@@ -173,6 +173,7 @@ pub(crate) fn activation(
     to: ReplyTo,
     ended: crate::run::Ended,
     cumulative: u64,
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
     let crate::run::Ended { number, attempt, end, saved, park } = ended;
@@ -259,9 +260,14 @@ pub(crate) fn activation(
                 }
                 match followups {
                     ResultFollowups::Delegates(batch) => {
-                        if let Err(problem) =
-                            crate::batch::check_direct_followups(domain, &environment.limits, number, charge, batch)
-                        {
+                        if let Err(problem) = crate::batch::check_direct_followups(
+                            domain,
+                            &environment.limits,
+                            number,
+                            charge,
+                            batch,
+                            reads_project,
+                        ) {
                             return crate::capacity::refused(domain, environment, to, problem, out);
                         }
                     }

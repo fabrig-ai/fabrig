@@ -67,6 +67,7 @@ pub(crate) fn goal_decide(
                 tasks::PersonAction::Batch(mut batch) => {
                     crate::admission::deadlines::fund(&mut batch, source, env.wall);
                     tasks::Event::Make {
+                        reads_project: false,
                         maker: None,
                         places: Box::new([]),
                         reply_to: ReplyTo::new(request),
@@ -88,6 +89,7 @@ pub(crate) fn goal_decide(
                         return;
                     };
                     tasks::Event::Amend {
+                        reads_project: false,
                         operation: tasks::Amend { funder: Some(source), task, message, stop_run, amendment },
                         places: Box::new([]),
                         reply_to: ReplyTo::new(request),
@@ -313,6 +315,7 @@ pub(crate) fn person_proposal_accept(
             }
             if result_followups {
                 tasks::Event::MakeResultFollowups {
+                    reads_project: false,
                     reply_to: ReplyTo::new(request),
                     proposer: proposal.proposer,
                     proposal: proposal.number,
@@ -320,6 +323,7 @@ pub(crate) fn person_proposal_accept(
                 }
             } else {
                 tasks::Event::Make {
+                    reads_project: false,
                     maker: None,
                     places: Box::new([]),
                     reply_to: ReplyTo::new(request),
@@ -345,6 +349,7 @@ pub(crate) fn person_proposal_accept(
             let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
+                reads_project: false,
                 operation: tasks::Amend {
                     funder: Some(source),
                     task,
@@ -363,6 +368,7 @@ pub(crate) fn person_proposal_accept(
                 return;
             };
             tasks::Event::Amend {
+                reads_project: false,
                 operation: tasks::Amend {
                     funder: Some(source),
                     task,

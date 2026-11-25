@@ -328,8 +328,9 @@ dependencies among them.
   dependencies and inputs within the party's reach, never the task's.
   The history of each task it makes names the party.
 - **Dependencies** name tasks in the same batch, or tasks the
-  creator reaches: for a task, its own live delegates, or a live task it is
-  introduced to (`messages.md`, 5); for a party, a task in their tree, or any task of
+  creator reaches: for a task, its own live delegates, a live task it is
+  introduced to, or any live task of its project that its tree's
+  requester reads (`messages.md`, 5, *Waits by reading*); for a party, a task in their tree, or any task of
   the project for a maintainer (../people/acts.md, 1). A party's batch,
   a `Create`'s or a `Delegate`'s, may name a task that has ended, judged
   on its stored row as an amendment's added dependency is (`changes.md`,

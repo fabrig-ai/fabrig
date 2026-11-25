@@ -1257,6 +1257,7 @@ pub(crate) fn procedure_proposed(
         drop_effect(out, route.connector, token, authority::Answer::Refuse);
     }
     tasks::Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
         task: route.task,
         step: route.step,
@@ -1267,6 +1268,7 @@ pub(crate) fn procedure_proposed(
 
 fn procedure_wait(core: &mut Core, work: &mut Queue<Work>, task: u64, step: u64) {
     work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
         task,
         step,

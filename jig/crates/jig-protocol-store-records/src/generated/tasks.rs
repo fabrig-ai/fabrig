@@ -2439,6 +2439,7 @@ pub fn notice_state_to_record(value: &jig_domain_tasks::NoticeState) -> crate::t
         jig_domain_tasks::NoticeState::Done => crate::tasks_v13::NoticeState::Done,
         jig_domain_tasks::NoticeState::Failed => crate::tasks_v13::NoticeState::Failed,
         jig_domain_tasks::NoticeState::Cancelled => crate::tasks_v13::NoticeState::Cancelled,
+        jig_domain_tasks::NoticeState::Unreadable => crate::tasks_v13::NoticeState::Unreadable,
     }
 }
 
@@ -2454,6 +2455,7 @@ pub fn notice_state_to_domain(record: crate::tasks_v13::NoticeState) -> jig_doma
         crate::tasks_v13::NoticeState::Done => jig_domain_tasks::NoticeState::Done,
         crate::tasks_v13::NoticeState::Failed => jig_domain_tasks::NoticeState::Failed,
         crate::tasks_v13::NoticeState::Cancelled => jig_domain_tasks::NoticeState::Cancelled,
+        crate::tasks_v13::NoticeState::Unreadable => jig_domain_tasks::NoticeState::Unreadable,
     }
 }
 

@@ -11,7 +11,46 @@ use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::{Env, Queue};
 
+impl Core {
+    /// Waits by reading use the current root requester's role, never the executor's
+    /// (jig/docs/design/domain/tasks/messages.md, 5).
+    pub(crate) fn task_reads_project(&self, task: u64) -> bool {
+        let Some(row) = self.tasks.task(task) else { return false };
+        if !self.open_project(row.project) {
+            return false;
+        }
+        let Some(root) = self.tasks.task(row.root) else { return false };
+        match root.requester {
+            tasks::Party::Person(person) => self.people.role(person, row.project).is_some(),
+            tasks::Party::Task(_) | tasks::Party::Deployment { .. } => false,
+        }
+    }
+
+    pub(crate) fn creator_reads_project(&self, creator: tasks::Party) -> bool {
+        match creator {
+            tasks::Party::Task(task) => self.task_reads_project(task),
+            tasks::Party::Person(_) | tasks::Party::Deployment { .. } => false,
+        }
+    }
+}
+
 pub(crate) fn step_tasks(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event, out: &mut Queue<tasks::Request>) {
+    // These events can arrive after loads or effects. Stamp the fact only at the child entrance.
+    if let tasks::Event::Make { creator, maker, reads_project, .. } = &mut event {
+        *reads_project = maker.is_none() && core.creator_reads_project(*creator);
+    } else if let tasks::Event::Amend { by, reads_project, .. } = &mut event {
+        *reads_project = core.creator_reads_project(*by);
+    } else if let tasks::Event::Subscribe { task, reads_project, .. }
+    | tasks::Event::Procedure { task, reads_project, .. }
+    | tasks::Event::MakeResultFollowups { proposer: task, reads_project, .. } = &mut event
+    {
+        *reads_project = core.task_reads_project(*task);
+    } else if let tasks::Event::Activation { task, end, reads_project, .. } = &mut event {
+        *reads_project = false;
+        if let tasks::End::FinishedWithFollowups { followups: tasks::ResultFollowups::Delegates(_), .. } = end {
+            *reads_project = core.task_reads_project(*task);
+        }
+    }
     let park = core.wait_alarms.park_terminal(&mut event);
     let before = out.len();
     let env = env.with(env.limits.tasks);

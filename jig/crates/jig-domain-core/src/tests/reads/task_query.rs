@@ -191,6 +191,7 @@ fn generated_event(core: &Core, draw: u64, iteration: u64) -> Event {
             ask: people::Ask::Create { project: 1, batch: Box::new([fixtures::member(b"new task", 100)]) },
         }),
         1 => Event::Tasks(tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task,

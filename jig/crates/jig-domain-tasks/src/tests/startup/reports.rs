@@ -78,6 +78,7 @@ fn make_before_ready_refuses() {
         &mut domain,
         &env,
         Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::revisions::to(),

@@ -13,6 +13,7 @@ fn amend(world: &mut World, dependencies: &[u64]) {
     let message = world.record(KEPT).last_message + 1;
     assert_eq!(
         response(world, |reply_to| Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: KEPT,
@@ -76,6 +77,7 @@ fn procedure(world: &mut World, end: ProcedureEnd) {
     let step = world.record(KEPT).attempt + 1;
     assert_eq!(
         response(world, |reply_to| Event::Procedure {
+            reads_project: false,
             reply_to,
             task: KEPT,
             step,
