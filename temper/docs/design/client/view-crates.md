@@ -1,8 +1,8 @@
 # The view's crates
 
-Provisional, 2026-11-13. From `temper/docs/design/draft/gate-compile.md`, 5, milestone C3 of
-`temper/docs/design/draft/gate-compile.execution.md`: `temper-client-view` split by
-`temper/docs/design/draft/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
+Provisional, 2026-11-13. From `temper/docs/design/draft/archive/gate-compile.md`, 5, milestone C3 of
+`temper/docs/design/draft/archive/gate-compile.execution.md`: `temper-client-view` split by
+`temper/docs/design/draft/archive/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
 each piece holds and why, the preparation that lets every file go whole to one piece, where the
 tests go, the change of moves, and the readers. What the view does is `view.md`'s: nothing here
 changes a behaviour, a public path or a test's check.
@@ -18,7 +18,7 @@ changes a behaviour, a public path or a test's check.
   `71ae32ef30`, 152 also changed `temper-client-domain`'s sources, below every piece, and 140 changed
   `words.rs`, which every page names. So a build of a landing rarely reuses a piece; what the split
   buys is smaller units side by side, and a piece's own tests built alone for work inside it. The
-  figure after landing says whether the pieces were reused (`gate-compile.md`, 8).
+  figure after landing says whether the pieces were reused (`../draft/archive/gate-compile.md`, 8).
 - **Preparation first,** each change behaviour unchanged, so that every file goes whole to one
   piece: the vocabulary and the frame's bindings gathered below the pages (3.1, 3.2); the page
   items that another piece names moved to the parts' `common` module (3.3); every file naming an
@@ -59,7 +59,7 @@ has landed. A directory goes with the file of its name unless a row says otherwi
 (`temper_client_view::pages::home`), through `temper-client-view`'s `pages` module (2.4).
 
 Their sizes, read by `tools/crates/design.md`, 2's rules, are each under the bound of
-`crate-graph.md`, 7.3, estimated from today's files, code and own tests: about 13,000 and 1,500
+`../draft/archive/crate-graph.md`, 7.3, estimated from today's files, code and own tests: about 13,000 and 1,500
 lines for the words; 13,000 and 5,000 for the parts; 12,000 and 12,000 for work; 7,500 and 3,000
 for setup; and 2,000 and 45,000 for `temper-client-view`, nearly all of it the tests that build the
 whole view (4.1).
@@ -79,7 +79,7 @@ whole view (4.1).
 
 ### 2.3 Why there
 
-From the crate's history, `crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
+From the crate's history, `../draft/archive/crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
 
 - **The history.** Over the three weeks to `71ae32ef30`, 215 landings changed the crate, a module's
   own tests counted with it. `words.rs` changed in 140, the frame in 81, the look in 69, a chat's
@@ -91,8 +91,8 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
 - **Below every piece:** 152 of the 215 also changed `temper-client-domain`'s sources, which every
   piece names, and most of the other 63 changed `jig-client` or `skein-ui`. Modelled on those 63, a
   piece would have been reused in about 7 builds for work, 11 for setup, 15 for the parts and 31 for
-  the words. A split saves only in such builds (`gate-compile.md`, 5): this one is measured before
-  the next starts (`gate-compile.execution.md`, 2).
+  the words. A split saves only in such builds (`../draft/archive/gate-compile.md`, 5): this one is measured before
+  the next starts (`../draft/archive/gate-compile.execution.md`, 2).
 - **One graph today.** Every module but `pages.rs` lies on a cycle: the words name the frame's
   `owner`, the frame names the words; cards, choices and the shared surface name pages, and the
   pages name them. So a cut needs its preparation (section 3).
@@ -111,7 +111,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   root `pub use temper_client_view_words::{look, paths, words, limits};`, and work's and setup's the
   words' and the parts' modules they name. Work's and setup's `pages` module declares its own pages
   and re-exports `common`'s `project_name` and `serves_pages` (3.2).
-- **`temper-client-view` keeps its name and every public path** (`crate-graph.md`, 5.3): its root
+- **`temper-client-view` keeps its name and every public path** (`../draft/archive/crate-graph.md`, 5.3): its root
   re-exports `words`, `look`, `paths`, `limits`, `Limits`, `valid`, `cards`, `forge`,
   `forge_sign_in`, `public`, `shared` and `sign_in` from their pieces, and keeps `frame`, with
   `owner` and `link_region`, and `View`, `build`, `act`, `act_event`, `event`, `href`,
@@ -276,7 +276,7 @@ each stage a `#[cfg(test)]` module of the crate's root:
 
 ## 5. Landing the split
 
-One change of moves, after the preparation (`crate-graph.md`, 5.3):
+One change of moves, after the preparation (`../draft/archive/crate-graph.md`, 5.3):
 
 - **Each file moved whole** to its piece, by 2.1 and 4.3, and not edited but where the build forces
   it, in a commit after the moves: a `mod` line naming a file now in another piece becoming its
@@ -290,7 +290,7 @@ One change of moves, after the preparation (`crate-graph.md`, 5.3):
   `tests/boundary/tests/binaries.rs` name the four new pieces; `.config/gate/wasm32.txt` names them
   beside `temper-client-view`; `.config/fixture-readers.toml` follows (4.4).
 - **Out of the way of plans in flight:** it lands between other landings in the crate, as
-  `crate-graph.md`, 5.3 says, and goes before none that was marked first.
+  `../draft/archive/crate-graph.md`, 5.3 says, and goes before none that was marked first.
 
 ## 6. The readers
 
@@ -315,5 +315,5 @@ depends on them instead, and its tests too where they need no more. From the rea
   the page's piece. That changes how about 1,300 tests set up, not what they check.
 - **Later: a phrasebook per piece.** Each piece's words as a family of its own, as the accounts'
   and the cards' are, so that a new phrase rebuilds its piece and the view alone.
-- **The figure after landing** is `gate-compile.md`, 8's: each piece's units against the view's row
+- **The figure after landing** is `../draft/archive/gate-compile.md`, 8's: each piece's units against the view's row
   in its section 2, and whether the builds after it reused a piece.

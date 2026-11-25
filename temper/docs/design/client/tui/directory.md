@@ -11,7 +11,7 @@ The TUI's directory and the engine's local link are split from [the TUI](README.
   `temper ctl`'s, and no argument names it.
 - **Private,** as `temper-box open`'s (`../line.md`, 1): the binary makes it and its
   missing parents `0o700` and refuses it unless it is a directory of
-  this user's with no group or other bits (skein's `runtime/io/files.md`, 3), then
+  this user's with no group or other bits (skein's `runtime/io/files.md`, 11), then
   makes the origin's own directory beneath it the same way (*One
   directory per deployment*, below) and gives that directory alone to
   `jig-client-shell-native`, as `temper-box open` gives DIRECTORY.

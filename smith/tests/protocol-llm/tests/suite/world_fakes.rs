@@ -1,4 +1,4 @@
-//! Finite world adapters held to the protocol (smith/docs/design/testing.md, section 2).
+//! Finite world adapters held to the protocol (smith/docs/design/testing-tiers.md).
 use smith_domain::{llm, tools};
 use smith_domain_session::llm as session;
 use smith_session_world::translate;

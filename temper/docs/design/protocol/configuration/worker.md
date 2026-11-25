@@ -22,7 +22,7 @@ is as the members' were:
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
 | `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker/checkouts.md`) |
-| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
+| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 5) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 5) |
 
 **The agents' environment** is `application.environment`, in the
 standalone and worker-alone shapes; an engine alone, which runs no
@@ -66,7 +66,7 @@ constant (`moved.md`, section 2): how
 long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
 2). It is 300,000, five minutes
-(`../../draft/redeploys.md`, 5.3), so that an engine's restart (its
+(`../../draft/archive/redeploys.md`, 5.3), so that an engine's restart (its
 settled stop, the swap, its store's registry commit and jobs, its switch, its listeners
 again) passes within it and each run is adopted where it stands; the
 engine's grace is derived above it (below).
@@ -75,7 +75,7 @@ engine's grace is derived above it (below).
 (jig's `domain/engine/fleet.md`, *A restart said holds its runs*): how
 long the engine's settled stop asks its workers to keep their runs after
 their links drop, 1,200,000, twenty minutes, in both of jig's profiles
-(`../../draft/redeploys.md`, 5.3 and 12), with room over every engine
+(`../../draft/archive/redeploys.md`, 5.3 and 12), with room over every engine
 restart measured so far. `temper-box init` writes none. One setting
 serves every worker, each of which keeps its runs for the longer of it
 and its own grace (`../../domain/worker/README.md`, section 2); the
@@ -87,12 +87,12 @@ stop timeout are unchanged.
   long a worker told to stop lets its runs end their turns before it
   cancels them (`../../domain/worker/README.md`, section 2). It may be
   absent, and is then 180,000, the draft's three minutes
-  (`../../draft/redeploys.md`, 6.1); `temper-box init` writes none.
+  (`../../draft/archive/redeploys.md`, 6.1); `temper-box init` writes none.
 - **The drain's grace** is jig's worker member `graces.drain_grace_ms`:
   how long a drained run's calls in flight at its answer have to end
   before its agent cuts them (jig's `domain/hosts/hub.md`, 7). It may be
   absent, and is then 10,000, the draft's ten seconds
-  (`../../draft/worker-restarts.md`, section 3); `temper-box init` writes
+  (`../../draft/archive/worker-restarts.md`, section 3); `temper-box init` writes
   none. It runs within the drain's bound, so the stop bound is
   unchanged.
 - **It is ordered under the engine's grace.** The stop bound a worker
@@ -109,7 +109,7 @@ stop timeout are unchanged.
 - **The service manager's stop timeout** sits above the stop bound: a
   unit that kills the worker sooner is a crash, losing the workspace's
   changes since its last save or delivery, and the attempt is lost
-  (`../../draft/redeploys.md`, 6.1). The worker's unit in `temper help
+  (`../../draft/archive/redeploys.md`, 6.1). The worker's unit in `temper help
   server` gives `TimeoutStopSec=` the stop bound and a margin, 360
   seconds with these graces.
 - **A hello refused for a charter's reserve names the setting.** The
@@ -160,7 +160,7 @@ stop timeout are unchanged.
   from it, so the allowance and the hub's bounds go together: the start
   refuses a document whose bounds do not hold that turn (`limits.md`).
   temper's documents give a plan's model an allowance its reasoning
-  does not reach in ordinary use (../setup/init.md, 1), a default a person
+  does not reach in ordinary use (../setup/init.md, 4), a default a person
   may lower, with the bounds it derives.
 - **`programs`** (smith's `protocol/agent.md`, section 4): each program
   the agent may run as a backend, by its adapter, with the program's
@@ -172,11 +172,11 @@ stop timeout are unchanged.
   document (../setup/owned.md, 6); the
   programs directory `temper-box init` writes is `programs` in the data
   directory (`directories.md`). The owned example's agent configures
-  Claude Code's (../setup/init.md, 1). A programs directory need not exist
+  Claude Code's (../setup/init.md, 4). A programs directory need not exist
   until `temper-box program-login` makes it; one that exists must be a
   directory of the user's own with no group or other bits, not reached
   through a link at its name, or the start is refused, naming it
-  (skein's `runtime/io/files.md`, 3). A linked parent is accepted. temper reads
+  (skein's `runtime/io/files.md`, 11). A linked parent is accepted. temper reads
   nothing inside it and creates no missing programs directory at serve.
 - **The same names as the engine's** hold by construction: the agent's
   endpoints are `engine.llm`'s, under the same names (`figures.md`,

@@ -3,6 +3,8 @@
 `jig_client::thread`, a helper (`helpers.md`): a conversation's thread,
 for any presentation of a chat or of any agent task's activity.
 
+## 1. The thread model
+
 - **A model the application holds,** `Thread`: step code with limits of
   its own, fed what the client gives: the pages of the task's activity
   read (`README.md`, section 6), the task's document and its run's text from their
@@ -15,6 +17,9 @@ for any presentation of a chat or of any agent task's activity.
 - **A committed line keeps its wall time** from the task's activity,
   including a turn that does not decode. A person's pending words have
   no committed time until their activity arrives.
+
+## 2. Committed activity and turns
+
 - **Committed, read in pages from the end.** A task's activity is a list
   the engine keeps in the order it committed: the words parties wrote to
   it, each run's beginning and end, its turns, the results and news it
@@ -77,6 +82,9 @@ for any presentation of a chat or of any agent task's activity.
   malformed, or past the client's bounds (`../../../protocol/client/wire.md`,
   section 1). It is a line of the thread, never dropped, and no other
   turn is read in its place.
+
+## 3. Live activity and pending words
+
 - **Live, then committed.** While a run is live, its text is the
   thread's provisional line, kept under the turn's name until the
   committed turn of the same attempt and number takes its place: the
@@ -100,6 +108,9 @@ for any presentation of a chat or of any agent task's activity.
   that message. A thread keeps at most its `bytes` of them, each within its
   `text`: `sending` refuses words past either, and whoever drafted them keeps
   them and says so.
+
+## 4. Window bounds and paging
+
 - **A window bounded by size.** A thread's `bytes` bound its lines: a
   line weighs its bytes of words, texts, names, inputs, outcomes and
   summaries, and `LINE_ROOM` (64) for itself and for each message, block,
@@ -122,6 +133,9 @@ for any presentation of a chat or of any agent task's activity.
   sent to the end from far away.
 - **A read that failed** leaves the window as it was and says which end
   it was for (`Thread::read_failed`), until the next read of that end.
+
+## 5. How a thread shows
+
 - **How a thread shows** (a turn's calls folded to a line each, a call to
   the engine shown as what it made) is the presentation's; the reference
   UI's is ../view.md, section 9.

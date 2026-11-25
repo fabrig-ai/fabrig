@@ -1,5 +1,10 @@
 #[cfg(test)]
+#[path = "../support/layout.rs"]
+mod layout;
+
+#[cfg(test)]
 mod tests {
+    use super::layout::split_layout;
     use core::fmt::Write;
 
     use skein_codegen::{Declaration, Error, Type, generate, parse};
@@ -123,7 +128,12 @@ mod tests {
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: bytes 8 b: bytes 9 }").expect("opaque bytes");
         assert_ne!(with, without, "the owned model retains pieces for translation validation");
-        assert_eq!(generate(&with), generate(&without));
+        let with = generate(&with).records;
+        let without = generate(&without).records;
+        let (with_layout, with_code) = split_layout(&with);
+        let (without_layout, without_code) = split_layout(&without);
+        assert_eq!(with_code, without_code, "only LAYOUT changes");
+        assert_ne!(with_layout, without_layout, "held clauses enter the family fingerprint");
     }
 
     #[test]
@@ -132,7 +142,89 @@ mod tests {
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 b: secret 9 }").expect("opaque bytes");
         assert_ne!(with, without, "the owned model retains pieces for translation validation");
-        assert_eq!(generate(&with), generate(&without));
+        let with = generate(&with).records;
+        let without = generate(&without).records;
+        let (with_layout, with_code) = split_layout(&with);
+        let (without_layout, without_code) = split_layout(&without);
+        assert_eq!(with_code, without_code, "only LAYOUT changes");
+        assert_ne!(with_layout, without_layout, "held clauses enter the family fingerprint");
+    }
+
+    #[test]
+    fn inserting_a_record_only_adds_its_own_lines() {
+        const FAMILY: &str = "family insertion 1\n";
+        const ITEM: &str = "record Item { byte: u8 }\n";
+        const REPORT: &str = "record Report { title: text 8 samples: list 2 u16 note: option bytes 7 }\n";
+        const EXTRA_ENTRIES: &[&str] = &[
+            "    pub extra_title: u32,",
+            "    pub extra_entries: u32,",
+            "    pub extra_hint_some: u32,",
+            "    extra_title: 5,",
+            "    extra_entries: 2,",
+            "    extra_hint_some: 3,",
+            "    \"extra_title\",",
+            "    \"extra_entries\",",
+            "    \"extra_hint_some\",",
+            "            self.extra_title,",
+            "            self.extra_entries,",
+            "            self.extra_hint_some,",
+            "            extra_title: self.extra_title.min(most),",
+            "            extra_entries: self.extra_entries.min(most),",
+            "            extra_hint_some: self.extra_hint_some.min(most),",
+            "    paths::EXTRA_TITLE,",
+            "    paths::EXTRA_ENTRIES,",
+            "    paths::EXTRA_HINT,",
+            "    pub const EXTRA_TITLE: Path = Path::new(\"Extra.title\");",
+            "    pub const EXTRA_ENTRIES: Path = Path::new(\"Extra.entries\");",
+            "    pub const EXTRA_HINT: Path = Path::new(\"Extra.hint\");",
+            "    pub const EXTRA_TAIL: Path = Path::new(\"Extra (tail)\");",
+        ];
+        const EXTRA_BOUNDS: &[&str] = &[
+            "    skein_codec::bounds::Declaration { name: \"Extra\", nodes: Extra::SHAPE },",
+            "    CEILINGS.extra_title,",
+            "    CEILINGS.extra_entries,",
+            "    CEILINGS.extra_hint_some,",
+        ];
+        let base = generate(&parse(&[FAMILY, ITEM, REPORT].concat()).expect("base schema")).records;
+        let (base_layout, (base_before, base_after)) = split_layout(&base);
+        let body = [ITEM, REPORT].concat();
+        // A first declaration cannot name a later one. In the middle, the list
+        // names Item, which now has a user where it did not before.
+        for (before, after, item, item_node) in
+            [("", body.as_str(), "u8", "Node::Scalar(1)"), (ITEM, REPORT, "Item", "Node::Named(\"Item\")")]
+        {
+            let text = format!(
+                "{FAMILY}{before}record Extra {{ title: text 5 entries: list 2 {item} hint: option bytes 3 }}\n{after}"
+            );
+            let expanded = generate(&parse(&text).expect("schema with Extra")).records;
+            let (expanded_layout, (expanded_before, expanded_after)) = split_layout(&expanded);
+            assert_ne!(base_layout, expanded_layout, "adding a declaration changes the family fingerprint");
+            let mut kept = base_before.lines().chain(base_after.lines()).peekable();
+            let added: Vec<_> = expanded_before
+                .lines()
+                .chain(expanded_after.lines())
+                .filter(|line| {
+                    if kept.peek() == Some(line) {
+                        kept.next();
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+            assert_eq!(kept.next(), None, "inserting Extra with {item} changed a pre-existing line");
+            let block = added
+                .strip_prefix(EXTRA_ENTRIES)
+                .and_then(|lines| lines.strip_suffix(EXTRA_BOUNDS))
+                .expect("the only new family entries are Extra's");
+            assert_eq!(block.first().copied(), Some("// Type: Extra."));
+            assert_eq!(block.iter().filter(|line| line.starts_with("// Type: ")).count(), 1);
+            let block = block.join("\n");
+            for line in ["pub struct Extra {", "// Record: Extra.", "const SHAPE:", "impl Record for Extra", item_node]
+            {
+                assert!(block.contains(line), "the added Extra block is missing {line}");
+            }
+        }
     }
 
     #[test]

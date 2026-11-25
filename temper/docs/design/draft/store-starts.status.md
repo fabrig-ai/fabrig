@@ -2,7 +2,7 @@
 
 2026-11-21. Where the design lags or departs from [store-starts.md](store-starts.md).
 
-Section 2 is designed. A zero-budget task outliving its ledger is jig's `domain/authority-budgets.md`, section 1, *A zero-budget task may outlive its ledger*, and `protocol/store/README.md`, 10.1. The typed decider is jig's `domain/tasks/proposals.md`, *An escalation's decider has its kind*; the client wire keeps its version (below, *Open*). The repair of stored rejections is jig's `protocol/store/jobs.md`, 1, `escalation-deciders`. The check before a swap is `../protocol/binaries.md`, section 2, and `redeploys.md`, 5.1.
+Section 2 is designed. A zero-budget task outliving its ledger is jig's `domain/authority-budgets.md`, section 1, *A zero-budget task may outlive its ledger*, and `protocol/store/README.md`, 10.1. The typed decider is jig's `domain/tasks/proposals.md`, *An escalation's decider has its kind*; the client wire keeps its version (below, *Open*). The repair of stored rejections is jig's `protocol/store/jobs.md`, 1, `escalation-deciders`. The check before a swap is `../protocol/binaries.md`, section 2, and `archive/redeploys.md`, 5.1.
 
 - **Design lags:** none.
 - **Design departs:**

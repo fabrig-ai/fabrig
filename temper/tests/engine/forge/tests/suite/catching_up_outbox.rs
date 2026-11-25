@@ -70,6 +70,7 @@ fn a_restored_failing_find_holds_its_lane_but_not_a_change_on_another_repository
         entry: 3,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

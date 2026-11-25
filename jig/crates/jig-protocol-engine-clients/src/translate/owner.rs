@@ -1,5 +1,6 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
 use super::{pieces, problem, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -7,65 +8,27 @@ use jig_domain_tasks as t;
 use skein_lib::{List, Wall, bytes};
 #[must_use]
 pub fn text(value: &d::Text) -> w::DocumentText {
-    w::DocumentText { bytes: bytes::copy_of(&value.bytes), cut: value.cut }
+    mapped::document_text_to_record(value)
 }
 #[must_use]
 pub fn held_role(value: jig_domain_people::Role) -> w::HeldRole {
-    match value {
-        jig_domain_people::Role::Owner => w::HeldRole::Owner,
-        jig_domain_people::Role::Maintainer => w::HeldRole::Maintainer,
-        jig_domain_people::Role::Member => w::HeldRole::Member,
-        jig_domain_people::Role::Observer => w::HeldRole::Observer,
-        jig_domain_people::Role::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
-    }
+    mapped::held_role_to_record(&value)
 }
 #[must_use]
 pub fn funder(value: t::Funder) -> w::Funder {
-    match value {
-        t::Funder::Task(number) => w::Funder::Task(w::FunderTask { value: number }),
-        t::Funder::Pool { project, person, period } => w::Funder::Pool(w::FunderPool { project, person, period }),
-        t::Funder::Recurring { project, task, period } => {
-            w::Funder::Recurring(w::FunderRecurring { project, task, period })
-        }
-        t::Funder::Period { project, period } => w::Funder::Period(w::FunderPeriod { project, period }),
-    }
+    mapped::funder_to_record(&value)
 }
 #[must_use]
 pub fn numbers(value: t::Numbers) -> w::Numbers {
-    w::Numbers { budget: value.budget, spent: value.spent, spent_below: value.spent_below, reserved: value.reserved }
+    mapped::numbers_to_record(&value)
 }
 #[must_use]
 pub fn budget(value: &d::BudgetLine) -> w::Budget {
-    w::Budget {
-        numbers: numbers(value.numbers),
-        left: value.left,
-        funder: funder(value.funder),
-        deadline: match value.deadline {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    }
+    mapped::budget_to_record(value)
 }
 #[must_use]
 pub fn ledger(value: &d::Ledger) -> w::PoolLedger {
-    w::PoolLedger {
-        source: funder(value.source),
-        parent: match value.parent {
-            Some(item) => Some(funder(item)),
-            None => None,
-        },
-        numbers: numbers(value.numbers),
-        left: value.left,
-        closed: value.closed,
-        began: match value.began {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-        next: match value.next {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    }
+    mapped::pool_ledger_to_record(value)
 }
 #[must_use]
 pub fn executor(value: t::Executor) -> w::Executor {
@@ -80,36 +43,15 @@ pub fn executor(value: t::Executor) -> w::Executor {
 }
 #[must_use]
 pub fn requester(value: t::Party) -> w::Requester {
-    match value {
-        t::Party::Task(number) => w::Requester::Task(w::RequesterTask { value: number }),
-        t::Party::Person(number) => w::Requester::Person(w::RequesterPerson { value: number }),
-        t::Party::Deployment { project } => w::Requester::Deployment(w::RequesterDeployment { project }),
-    }
+    mapped::requester_to_record(&value)
 }
 #[must_use]
 pub fn wake_rule(value: t::WakeRule) -> w::WakeRule {
-    match value {
-        t::WakeRule::Never => w::WakeRule::Never,
-        t::WakeRule::Immediate => w::WakeRule::Immediate,
-        t::WakeRule::Batch { count, age } => w::WakeRule::Batch(w::WakeRuleBatch { count, age }),
-        t::WakeRule::Paced { span } => w::WakeRule::Paced(w::WakeRulePaced { span }),
-    }
+    mapped::wake_rule_to_record(&value)
 }
 #[must_use]
 pub fn wake(value: t::WakePolicy) -> w::WakePolicy {
-    w::WakePolicy {
-        words: wake_rule(value.words),
-        notices: wake_rule(value.notices),
-        news: wake_rule(value.news),
-        results: match value.results {
-            t::ResultsWake::Never => w::ResultsWake::Never,
-            t::ResultsWake::Each => w::ResultsWake::Each,
-            t::ResultsWake::LastOrFailure => w::ResultsWake::LastOrFailure,
-        },
-        questions: value.questions,
-        answers: value.answers,
-        timers: value.timers,
-    }
+    mapped::wake_policy_to_record(&value)
 }
 fn project(
     value: &d::FrameProjectRole,
@@ -164,10 +106,6 @@ pub(crate) fn frame_named(
     for item in &value.projects {
         projects.push(project(item, models, names, limits)?).expect("supplied projects");
     }
-    let updates = match value.updates {
-        d::Count::Known(value) => w::Count { value, limited: false },
-        d::Count::AtLeast(value) => w::Count { value, limited: true },
-    };
     Ok(w::Me {
         providers: super::catalogue::offers(&value.providers, limits.me_providers, limits)?,
         providers_cut: value.providers_cut,
@@ -177,22 +115,14 @@ pub(crate) fn frame_named(
         sign_in_expires: expires.as_nanos(),
         party: w::MeParty {
             number: value.party,
-            kind: match value.kind {
-                jig_domain_people::Kind::Person => w::PartyKind::Person,
-                jig_domain_people::Kind::Service => w::PartyKind::Service,
-            },
+            kind: mapped::party_kind_to_record(&value.kind),
             login: text(&value.login),
             name: text(&value.name),
         },
         projects: me_projects_pieces(&projects, limits.me_projects, w::paths::ME_PROJECTS, limits)?,
-        needs: w::Needs {
-            questions: value.need_counts.questions,
-            proposals: value.need_counts.proposals,
-            escalations: value.need_counts.escalations,
-            person_tasks: value.need_counts.person_tasks,
-        },
+        needs: mapped::needs_to_record(&value.need_counts),
         needs_total: value.needs,
-        updates,
+        updates: super::live::count(value.updates),
         results_seen: value.results_seen,
         cut: value.cut,
         retention: value.retention,
@@ -205,23 +135,11 @@ pub(crate) fn frame_named(
 
 #[must_use]
 pub fn part_kind(value: t::PartKind) -> w::PartKind {
-    match value {
-        t::PartKind::Resource => w::PartKind::Resource,
-        t::PartKind::Pool => w::PartKind::Pool,
-        t::PartKind::Result => w::PartKind::Result,
-        t::PartKind::Procedure => w::PartKind::Procedure,
-        t::PartKind::Effect => w::PartKind::Effect,
-        t::PartKind::Outbox => w::PartKind::Outbox,
-        t::PartKind::Hold => w::PartKind::Hold,
-    }
+    mapped::part_kind_to_record(&value)
 }
 #[must_use]
 pub fn part(value: &t::Part) -> w::Part {
-    let key = match &value.key {
-        t::PartKey::Number(number) => w::PartKey::Number(w::PartKeyNumber { value: *number }),
-        t::PartKey::Path(value) => w::PartKey::Path(w::PartKeyPath { value: value.clone() }),
-    };
-    w::Part { connector: value.connector, kind: part_kind(value.kind), key }
+    mapped::part_to_record(value)
 }
 #[must_use]
 pub fn pattern(segments: &List<Box<[u8]>>, last: &d::PatternEnd) -> w::Pattern {
@@ -273,7 +191,7 @@ pub fn authority(
                 jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
                 models,
             ),
-            tools: value.tools.0,
+            tools: crate::translate::convert::tools_to_record(&value.tools),
             grants,
             delegation: w::Delegation { kinds, tasks: value.tasks, depth: value.depth },
             spend: value.ceiling.spend,
@@ -281,7 +199,7 @@ pub fn authority(
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-            notes: value.notes.0,
+            notes: crate::translate::convert::scopes_to_record(value.notes),
             note_resources,
         },
     })
@@ -289,16 +207,7 @@ pub fn authority(
 
 #[must_use]
 pub fn authority_executor(value: t::AuthorityExecutor) -> w::AuthorityExecutor {
-    match value {
-        t::AuthorityExecutor::Job(value) => w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value }),
-        t::AuthorityExecutor::Charter(number) => {
-            w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter { value: number })
-        }
-        t::AuthorityExecutor::Procedure(number) => {
-            w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value: number })
-        }
-        t::AuthorityExecutor::Role(number) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value: number }),
-    }
+    mapped::authority_executor_to_record(&value)
 }
 pub fn grants_pieces(
     rows: &List<w::Grant>,
@@ -385,21 +294,11 @@ pub fn subscriptions(value: &List<t::Subscription>, bound: u32) -> w::Subscripti
 
 #[must_use]
 pub fn subscription_kind(value: t::SubscriptionKind) -> w::SubscriptionKind {
-    match value {
-        t::SubscriptionKind::Task { target, held, result } => {
-            w::SubscriptionKind::Task(w::SubscriptionKindTask { target, held, result })
-        }
-        t::SubscriptionKind::Timer { at, period } => {
-            w::SubscriptionKind::Timer(w::SubscriptionKindTimer { at: at.as_nanos(), period })
-        }
-        t::SubscriptionKind::Topic { connector, topic } => {
-            w::SubscriptionKind::Topic(w::SubscriptionKindTopic { connector, topic })
-        }
-    }
+    mapped::subscription_kind_to_record(&value)
 }
 #[must_use]
 pub fn subscription(value: t::Subscription) -> w::Subscription {
-    w::Subscription { number: value.number, kind: subscription_kind(value.kind) }
+    mapped::subscription_to_record(&value)
 }
 pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
@@ -423,14 +322,7 @@ pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskCo
         d::ContractLine::Verdict { choices, cut } => {
             let mut rows = List::with_capacity(choices.len());
             for item in choices {
-                let mut fields = List::with_capacity(super::count(item.fields.len())?);
-                for field in &item.fields {
-                    fields
-                        .push(w::FieldRule { name: bytes::copy_of(&field.name), max: field.max })
-                        .expect("supplied field rules");
-                }
-                rows.push(w::VerdictChoice { code: item.code, words: item.words, followups: item.followups, fields })
-                    .expect("supplied choices");
+                rows.push(crate::translate::client::verdict_choice(item)?).expect("supplied choices");
             }
             w::TaskContractDocument::Verdict(w::TaskContractDocumentVerdict {
                 choices: choices_pieces(

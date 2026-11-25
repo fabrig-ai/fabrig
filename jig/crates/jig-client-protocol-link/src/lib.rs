@@ -9,6 +9,15 @@ mod authorize;
 mod batch;
 pub mod boundary;
 mod component;
+mod generated {
+    #[rustfmt::skip]
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "maps use one borrowed signature for every to-record translation (skein/docs/design/data/codec/maps.md, 4.1)"
+    )]
+    pub(crate) mod client;
+}
+mod hello;
 pub mod limits;
 mod retired;
 mod sign_in;

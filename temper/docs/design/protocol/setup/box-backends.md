@@ -21,7 +21,7 @@ into the effective sandbox. Box startup performs no build or fetch.
 
 Without the test override below, a sandbox written by init takes the
 kernel's ports, a bind of port 0 for each of its five, never the 8367 to
-8371 a person's box prefers (`init.md`, 2). So a
+8371 a person's box prefers (`init.md`, 5). So a
 fake box leaves those to the box a person starts after it. A kernel-chosen
 port lost between bind and listen is closed and chosen again, within 32
 attempts; the fake peers' reservations likewise retry address-in-use,
@@ -92,7 +92,7 @@ for that contract.
 **Scripts given.** `--scripts FILE`, repeatable, gives the fake model
 scripts in place of those the box generates, and `--strict` its strict
 switch (skein's `testing/fakes/llm.md`, 2.5), at every start, of a new
-sandbox or a retained one: QA's (`../../draft/landed-qa.md`, 6) and the
+sandbox or a retained one: QA's (`../../draft/archive/landed-qa.md`, 6) and the
 process tier's. Each FILE is a JSON object of the document form's script
 members, `cued`, `asked` and `otherwise`, each optional (`playground.md`,
 the document form). Before any step starts the box reads them in the
@@ -125,7 +125,7 @@ arguments add `--state D'/github-forge.state` and `--state
 D'/forgejo-forge.state` (`../../testing/fakes.md`, 2), written at each
 one's orderly stop, so a stopped box's data holds its Apps,
 installations, repositories, pull requests and CI as they stood, and a
-copy of that data holds them (`../../draft/landed-qa.md`, 6). A forge
+copy of that data holds them (`../../draft/archive/landed-qa.md`, 6). A forge
 that exits otherwise starts again from what its last orderly stop wrote,
 or from its seed when none has. The model and the issuer keep their
 memory for one launch: a restarted one uses the same seed, scripts and

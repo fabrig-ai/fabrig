@@ -55,7 +55,7 @@ impl Story {
         self.start_at(seed, wall, documents::FORGE)
     }
 
-    /// Start the composition at the caller's forge address (playground.md, 4).
+    /// Start the composition at the caller's forge address (temper/docs/design/playground.md, 4).
     #[must_use]
     pub fn start_at(&self, seed: u64, wall: Wall, address: SocketAddr) -> Start {
         let seeds = documents::seeds(seed);

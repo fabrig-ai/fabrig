@@ -119,7 +119,7 @@ making it refuses any other shape, and a restart takes what was made
 agent's: its requester's `Conclude` is its word, and it ends done once
 that is said and its delegates have ended (`gatherings.md`, section 3). It changes no right
 to cancel. It travels with the task from the client's making, through
-storage and preparation, to its run's charter (../hosts/charters.md, 1),
+storage and preparation, to its run's charter (../hosts/charters.md, 4),
 whatever the charter the task's agent shares with others.
 
 A task its requester ends:

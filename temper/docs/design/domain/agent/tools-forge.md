@@ -13,7 +13,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
   on that resource (`../routing.md`, 2) and the run never names a number.
 - **The forge's reads are three tools,** each taking a `what` that names
   the read, `repository` beside it, and the union of its reads' members,
-  each member described once (`../../draft/tools-by-role.md`, 4; the split
+  each member described once (`../../draft/archive/tools-by-role.md`, 4; the split
   in three keeps each within `declarations.md`, 3's bound):
 
   | Tool | `what` | Required | Optional | Formerly |
@@ -92,7 +92,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
   - **A branch left out is the default branch.** `read_forge`'s
     `branch`, `protection` and `file` take `branch` left out, or empty,
     as the repository's default branch: the one its adoption keeps as the
-    forge's own, as last read (`../forge/adoption.md`, 8), which Ask
+    forge's own, as last read (`../forge/adoption.md`, 12), which Ask
     temper's `file` reads at too (`ask-temper.md`, 1). smith decodes it
     as an empty name, and the root, resolving the repository's name,
     puts the default branch's name in its place, as it puts the

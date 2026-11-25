@@ -38,12 +38,7 @@ pub(super) fn names(words: &Words, names: &List<team::AreaName>, last: &[u8]) ->
     joined
 }
 pub(super) fn holder_name(words: &Words, facts: &team::Facts, holder: &w::Holder) -> Box<[u8]> {
-    let holder = match holder {
-        w::Holder::Task(task) => team::Holder::Task(task.number),
-        w::Holder::Party(party) => team::Holder::Party(party.number),
-        w::Holder::Role(role) => team::Holder::Role(role.number),
-    };
-    named_holder(words, Some(facts), &holder)
+    named_holder(words, Some(facts), &team::area_holder(holder))
 }
 fn reader(facts: &team::Facts, party: u64) -> bool {
     for person in &facts.people {

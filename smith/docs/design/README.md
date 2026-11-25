@@ -83,3 +83,5 @@
 16. **benchmarks/agents.md:** agent adapters and model tiers.
 17. **benchmarks/results.md:** the result schema and statistics.
 18. **benchmarks/isolation.md:** isolating attempts, logins, and process trees.
+19. **testing.md:** the testing strategy, fakes, scenarios, checks, and layout.
+20. **testing-tiers.md:** the tiers, including simulated worlds, the real loop, and end to end.

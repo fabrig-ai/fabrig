@@ -15,6 +15,9 @@
   connector's resource has room again. The application checks that the hold
   is still the one it saw (the task's hold revision) before asking. No party,
   tool or step asks for either release.
+
+## 1. Amendments
+
 - **What an amendment may change:** the spec and its parameters; the wake
   policy; the dependencies, added or removed (below); the authority,
   narrowed freely and widened only within
@@ -82,6 +85,9 @@
   next run would take, a revision of settings or an account's state, stops a
   run. A task its result ends hears an LLM amendment as any amendment, and
   its next run takes the choice.
+
+## 2. Adding and removing dependencies
+
 - **Adding and removing dependencies.** An amendment names a task's
   whole list of dependencies, with its spec's revision: what it names
   anew is added, what it leaves out is removed, at any phase before
@@ -131,6 +137,9 @@
     done.
   - *Kept:* each added dependency with when it was added and by whom
     (`README.md`, section 3), and its history as every amendment's.
+
+## 3. Tracking and untracking
+
 - **Tracking and untracking.** A task an amendment tracks is a goal from
   that commit, with all a goal has (../model.md, 6.2). One it untracks is no
   goal from that commit: the core ends its goals' topics, and its
@@ -139,6 +148,9 @@
   tracked, its turns are still entries for its requester, with their
   read position and unread count (`README.md`, section 3; ../people/README.md, section 5). No
   tracking is refused for a task's being a conversation.
+
+## 4. Decision revisions and instructions
+
 - **A decision names what it saw.** An amendment names its task's spec's
   revision, and a release its hold's (`lifecycle-holds.md`, 1), whoever makes it: a party,
   as their client showed it (`../../client/domain/contract/documents.md`, 2); a
@@ -165,6 +177,9 @@
   once it goes on. A run already live hears it as it arrives; a narrowing it
   cannot honour (a grant its live run is using) cancels that run, and the
   next starts with the narrower authority.
+
+## 5. Cancellation
+
 - **Cancelling closes down the tree.** A cancelled task, and every task
   below it, is closing (`lifecycle.md`, 1), each with the same reason: live runs are
   cancelled, pending proposals withdrawn, outbox entries not yet sent
@@ -198,6 +213,9 @@
   it, and the task is then cancelled with this later cancel's maker and
   reason, since that cancel is what ends it. If its grace ends no sooner,
   nothing of the task changes.
+
+## 6. Moving tasks and naming successors
+
 - **Moving a task.** A party may make themselves the requester of a live
   task they may amend, so that it outlives the task that asked for it,
   as a goal outlives the chat it came from. Its reservation moves to
@@ -251,6 +269,9 @@
   to the question; otherwise its requester, as news naming the question
   and the ended task. A cancelled task's questions are cancelled with
   it.
+
+## 7. Several operations, one decision
+
 - **Several operations, one decision.** A party's compound request
   (../people/acts.md, 1) cancels, moves, amends, releases, messages and stops
   in one decision, all or none: so a conversation is closed in one

@@ -4,8 +4,7 @@
 
 use super::down::drain_facts;
 use super::routing::route_io_event;
-use super::teardown::Teardown;
-use super::{COMPONENT_TAG, Failure, Frame, Owner, PendingMessage, Stages, credential, face, program, teardown};
+use super::{COMPONENT_TAG, Failure, Frame, Owner, PendingMessage, Stages, credential, face, program};
 use skein_io::file_layer::step;
 use skein_io::{self as io, file_layer, kernel};
 use skein_lib::{Id, Time, Token};
@@ -96,7 +95,9 @@ pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) 
 
 pub(super) fn lower_event(service: &mut Stages, framed: bool, event: domain::Below) {
     if framed {
-        service.domain_events.push(domain::Event::Below(event));
+        if !service.host.dropped() {
+            service.domain_events.push(domain::Event::Below(event));
+        }
     } else {
         service.lower_events.push(event);
     }
@@ -129,6 +130,9 @@ fn llm_io(service: &Stages, event: &io::Event) -> bool {
 }
 
 pub(super) fn live_step(service: &mut Stages, frame: Option<&mut Frame>, action: crate::live::Action<'_>) {
+    if service.host.gone() {
+        return;
+    }
     let Some(channel) = face::channel_mut(frame) else {
         return;
     };
@@ -229,6 +233,19 @@ fn llm_measure_batch(service: &mut Stages, mut frame: Option<&mut Frame>, pendin
 }
 
 pub(super) fn component_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
+    if let Some(frame) = frame.as_deref_mut() {
+        for _ in 0..service.channel_events.capacity() {
+            if !super::channel_event_ready(service) {
+                super::orphan::detect_blocked_loss(service);
+                if !service.host.gone() {
+                    break;
+                }
+            }
+            let Some(event) = service.channel_events.pop() else { break };
+            channel_event(service, frame, event);
+        }
+        super::orphan::abandon(service, frame);
+    }
     program::fire(service);
     llm_measures(service, frame.as_deref_mut());
     if super::channel_room(service, frame.as_deref())
@@ -251,15 +268,6 @@ pub(super) fn component_up(service: &mut Stages, mut frame: Option<&mut Frame>) 
     };
     if machine_due {
         service.machine.fire(&service.machine_env, &mut service.machine_events, &mut service.machine_below);
-    }
-    if let Some(frame) = frame.as_deref_mut() {
-        for _ in 0..service.channel_events.capacity() {
-            if !super::channel_event_ready(service) {
-                break;
-            }
-            let Some(event) = service.channel_events.pop() else { break };
-            channel_event(service, frame, event);
-        }
     }
     let framed = frame.is_some();
     llm_events_up(service, frame);
@@ -319,6 +327,9 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
 }
 
 fn text_arrived(service: &mut Stages, frame: Option<&mut Frame>, bytes: u32) {
+    if service.host.gone() {
+        return;
+    }
     let Some(frame) = frame else { return };
     let token = service.next_send();
     let result = frame.channel.send_text_arrived(
@@ -360,6 +371,10 @@ fn program_failure(frame: Option<&mut Frame>, owner: Token, failure: domain::llm
 }
 
 pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: channel::Heard) {
+    if service.host.gone() {
+        super::orphan::channel_terminal(service, event);
+        return;
+    }
     match event {
         channel::Heard::Opened { version: _ } => {}
         channel::Heard::Start { start } => {
@@ -423,39 +438,21 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 service.domain_events.push(domain::Event::PartKept { run, number });
             }
         }
-        channel::Heard::WriteFailed => {
-            service.host_word_closed = true;
-            service.mark_failed(Failure::WriteFailed);
-            match service.teardown {
-                Teardown::Live { .. } => {
-                    if let Some(run) = service.admission.run() {
-                        service.domain_events.push(domain::Event::Disconnected { run });
-                    } else {
-                        super::admission::cancel(service);
-                    }
-                }
-                Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
-            }
-        }
-        channel::Heard::Ended { why: _ } => {
-            service.host_word_closed = true;
-            match service.teardown {
-                Teardown::Live { .. } => {
-                    service.mark_failed(Failure::ChannelEnded);
-                    if let Some(run) = service.admission.run() {
-                        service.domain_events.push(domain::Event::Disconnected { run });
-                    } else {
-                        teardown::answered(service);
-                    }
-                }
-                Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
-            }
-        }
+        channel::Heard::WriteFailed => super::orphan::host_lost(service, Failure::WriteFailed),
+        channel::Heard::Ended { why: _ } => super::orphan::host_lost(service, Failure::ChannelEnded),
     }
 }
 
 pub(super) fn domain_up(service: &mut Stages, frame: &mut Frame) {
     drain_facts(service, Some(&mut *frame));
+    if service.host.dropped() {
+        return;
+    }
+    if service.host.gone() {
+        // Deliver the disconnect before resuming work already made ready by
+        // the run. Its deferred closes must not wait on output credit.
+        domain_entrances(service, frame);
+    }
     // An entrance's facts drain to the sinks before the next entrance.
     for _ in 0..service.limits.domain.run.conversations {
         if !super::domain_entrance_ready(service, Some(&*frame)) || !frame.domain.is_ready() {
@@ -465,6 +462,17 @@ pub(super) fn domain_up(service: &mut Stages, frame: &mut Frame) {
         drain_content(frame);
         drain_facts(service, Some(&mut *frame));
     }
+    if !service.host.gone() {
+        domain_entrances(service, frame);
+    }
+    if super::domain_entrance_ready(service, Some(&*frame)) && frame.domain.is_due(service.domain_env.now) {
+        domain::fire(&mut frame.domain, &service.domain_env, &mut service.domain_requests);
+        drain_content(frame);
+        drain_facts(service, Some(&mut *frame));
+    }
+}
+
+fn domain_entrances(service: &mut Stages, frame: &mut Frame) {
     for _ in 0..service.limits.queue {
         if !super::domain_entrance_ready(service, Some(&*frame)) {
             break;
@@ -472,11 +480,6 @@ pub(super) fn domain_up(service: &mut Stages, frame: &mut Frame) {
         let Some(event) = service.domain_events.pop() else { break };
         observe_messages(service, &event);
         domain::step(&mut frame.domain, &service.domain_env, event, &mut service.domain_requests);
-        drain_content(frame);
-        drain_facts(service, Some(&mut *frame));
-    }
-    if super::domain_entrance_ready(service, Some(&*frame)) && frame.domain.is_due(service.domain_env.now) {
-        domain::fire(&mut frame.domain, &service.domain_env, &mut service.domain_requests);
         drain_content(frame);
         drain_facts(service, Some(&mut *frame));
     }

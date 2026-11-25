@@ -461,7 +461,7 @@ fn whole_values_changes_and_history_keep_every_nonempty_field() {
 #[test]
 fn settings_change_survives_the_small_store_and_carried_transport() {
     let ask = c::Ask::ChangeSettings(values::settings_change());
-    let saved = fixtures::saved_table(ask.clone());
+    let saved = fixtures::table_record(ask.clone());
     let mut h = fixtures::Harness::new(&fixtures::limits());
     h.start_store(fixtures::one_store_read(fixtures::store_read(saved.clone())));
     assert!(h.restored(&saved));

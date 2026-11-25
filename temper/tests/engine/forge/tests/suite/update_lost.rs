@@ -373,6 +373,7 @@ fn decide_before_check(world: &mut World, entry: u64) -> change::Decision {
         entry,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

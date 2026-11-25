@@ -808,7 +808,8 @@ mod list_tests {
             let channel = Token::new(1);
             let mut state = Connection::new(
                 crate::limits::schema(&fixtures::LIMITS).expect("schema"),
-                &fixtures::LIMITS,
+                crate::limits::channel(&fixtures::LIMITS).expect("channel limits"),
+                fixtures::LIMITS.handshake,
                 Time::ZERO,
                 false,
             );

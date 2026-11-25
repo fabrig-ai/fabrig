@@ -971,7 +971,7 @@ fn program_endpoints(count: u32) -> Box<[u32]> {
 
 #[test]
 fn program_endpoints_are_valid_up_to_the_cap_and_distinct() {
-    // domain/hosts/charters.md, 1: 64 distinct endpoint identities per hello.
+    // domain/hosts/charters.md, 4: 64 distinct endpoint identities per hello.
     const ENDPOINT_CAP: u32 = 64;
     let mut duplicate = program_endpoints(ENDPOINT_CAP);
     *duplicate.last_mut().expect("nonempty endpoint list") = 0;

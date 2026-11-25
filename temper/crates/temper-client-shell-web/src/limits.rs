@@ -45,6 +45,7 @@ pub fn client_for(small_window: bool) -> client::Limits {
             owners: &[jig_client::Spoken {
                 family: temper_client_protocol_wire::FORGE,
                 version: temper_client_protocol_wire::CLIENT_VERSION,
+                layout: temper_client_protocol_wire::CLIENT_LAYOUT,
             }],
             requests,
             // A jig ask reserves this much, so the table holds `requests` asks.

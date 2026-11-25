@@ -63,7 +63,7 @@ pub enum Layouts {
   value type's `Unplanned`, nor one fingerprint of it twice; a job's count names at most 16, each given once
   within the job, 1 to 32 bytes of ASCII letters, digits and `-`.
 - **jig's set declares one job, `escalation-deciders`.** Every store at
-  the floor (temper's `draft/store-floor.md`, section 3) needs none of
+  the floor (temper's `draft/archive/store-floor.md`, section 3) needs none of
   its retired jobs. Their done rows stay, inert, and their names stay
   reserved: `milestones`, `live-task-parts`, `projection-parts`,
   `charter-versions`, `retention-rows`, `retention-proposals`,
@@ -101,7 +101,7 @@ pub enum Layouts {
     escalation and no read shows it, and the ancestor that decided it
     may have ended since.
   - Its code goes once dev.fabrig.ai has run it, as every job's does
-    (temper's `draft/store-floor.md`).
+    (temper's `draft/archive/store-floor.md`).
 - **temper's jobs** (temper's `protocol/store-versions.md`, 1), in this order:
   `test-ids-landing`, `test-ids-receipt`, `test-ids-tier` and
   `test-ids-verification`, written jobs (4) each converting its value

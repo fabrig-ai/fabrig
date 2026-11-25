@@ -18,7 +18,7 @@ Before its loop, a service's `main`, with the kit:
    belongs on a filesystem mounted `nodev`: the ring refuses to open a
    device beneath it, but only after the device's own `open` has run. It
    opens the files it appends to beneath them, a trace among them, which
-   io adopts as streams once the service is made (io/files.md, 1);
+   io adopts as streams once the service is made (io/files.md, 9);
 5. resolves the configured peer host names into socket addresses
    (io/README.md, 3), and hands on an in-process name as configured,
    unresolved;
@@ -65,7 +65,7 @@ kernel's error. Once the loop runs, files are io's (io/files.md).
 
 `read_private_file` reads a secret that configuration names (a key, a
 credential, a digest) the same way, within the same maximum, and makes
-io's private-file checks (io/files.md, 3) on what it opened before it reads a
+io's private-file checks (io/files.md, 11) on what it opened before it reads a
 byte:
 
 - a regular file, reached through no link: no component of its path is
@@ -79,7 +79,7 @@ Anything else is refused unread, and the service does not start: the
 refusal says what was unsafe, as io's `Unsafe` names it (a link, the
 kind, the bits, the link count, the owner). A file another user keeps
 private fails its open for want of permission; the read names it as io
-does, by a path-only open whose stat decides nothing (io/files.md, 3). The
+does, by a path-only open whose stat decides nothing (io/files.md, 11). The
 bytes are a secret's: the caller keeps them out of logs, traces and
 `Debug` (lib-bytes.md, section 1).
 
@@ -94,7 +94,7 @@ caller refuses what the shell's opens refuse, and no other link.
 **The process's own identity** is read the same way, once, at startup,
 through the ring adapter:
 - `effective_user()`, the effective user ID, for io's private files
-  (io/files.md, 3);
+  (io/files.md, 11);
 - `process_id()`, the process ID, for a service that reports it, such
   as smith's `session.started`.
 
@@ -389,14 +389,14 @@ kit's functions, each before startup's step 7, through the kernel as
 Startup writes what it must keep, a key a person gave it or a generated
 configuration, with the kit, as it reads what it needs (1.1).
 `store_file(kernel, clock, store)` runs io's whole-file store (io/files.md,
-2) to its end, on the kernel it is given, before the service is made:
+10) to its end, on the kernel it is given, before the service is made:
 the sync, the rename and the directory's sync are io's, and no caller
 drives them by hand.
 
 - The caller opens the root with `open_root`. The store takes it, and
   closes it on every path.
 - The file goes in that directory, or in a private directory named under
-  it, which the store opens through io's private-file checks (io/files.md, 3)
+  it, which the store opens through io's private-file checks (io/files.md, 11)
   as the effective user the caller read.
 - It answers `Kept`, or `Conflict` when the expectation failed. Otherwise
   it answers why not: the unsafe entry io's checks found, the kernel's

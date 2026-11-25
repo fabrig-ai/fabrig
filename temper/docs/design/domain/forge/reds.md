@@ -1,14 +1,14 @@
 # A goal's reds
 
-Provisional, 2026-11-14. Written from `../../draft/branch-reds.md`,
-sections 3 to 7, 9 and 10, its milestones B1 and B2. What temper keeps
+Provisional, 2026-11-14. Written from `../../draft/archive/branch-reds.md`, sections 3 to 7 and 9 to 10
+, its milestones B1 and B2. What temper keeps
 of the failures a goal's branch carries, how a goal's run records and
 ends them, how a delivery's check reads them at its start, and what the
 check reports at its end: the reds it passed, which end when its change
 lands, and the tests that failed only under load, filed as flakes. The
 reference project's check reads and writes them as
 `tools/pre-pr/design.md`, 4 to 7 says. What is open is listed in
-section 9.
+`reds.md`, section 9.
 
 ## 1. In one page
 
@@ -62,7 +62,7 @@ section 9.
 - **Each key once in a goal.** A record of a key the goal already holds
   replaces that red whole: its head, why, recorder and time, under a new
   generation. So a later record of a key is told from an earlier one by
-  its generation (`../../draft/branch-reds.md`, 6, which ends by it).
+  its generation (`../../draft/archive/branch-reds.md`, 6, which ends by it).
 - **Bounded:** a goal holds at most `forge.branch_reds` reds
   (`../../protocol/configuration/limits.md`).
 - **It applies where its cause is:** a check counts a red only where its
@@ -138,7 +138,7 @@ section 9.
   destination, its `Change` row's `base` branch, as a goal branch
   (`branches.md`); for a goal's own run, its own. A repair of a goal's
   landing into main, whose destination no goal holds, has none: main's
-  reds are no goal's (`../../draft/branch-reds.md`, 12).
+  reds are no goal's (`../../draft/archive/branch-reds.md`, 12).
 - **The answer:** that goal's reds as pairs of key and head, every one,
   in key order, at most `forge.branch_reds`. A task that is not live, an
   attempt that is not its current one, or a run with no such goal is
@@ -222,7 +222,7 @@ section 9.
   layouts and a worker's (jig's `protocol/channel/layouts.md`, 2.1). A
   worker whose engine's terms lack `ask` never asks, so its checks have
   no reds file, and judge every lint or test failure as the delivery's
-  (`../../draft/branch-reds.md`, 10).
+  (`../../draft/archive/branch-reds.md`, 10).
 - **The worker's figures:** an ask of reds is a few bytes; an answer at
   most `forge.branch_reds` reds of `forge.red_key_bytes`, which temper
   gives jig as the application's largest answer (jig's
@@ -252,7 +252,7 @@ with the check. The reference's check writes it as
   - `failed KEY`: an entry of `temper/reds` its run selected that failed,
     inherited as it was;
   - `flake KEY`: a test that failed in its run and passed when its
-    process ran again (`../../draft/branch-reds.md`, 7; the reference's,
+    process ran again (`../../draft/archive/branch-reds.md`, 7; the reference's,
     `../../../../../tools/pre-pr/design.md`, 4), then its log under load,
     each line of it as `| TEXT`, an empty one as `|`, at most 1,536 bytes
     of text.
@@ -434,7 +434,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   hold past the bound.
 - **The ask:** the engine's answer to a producer's ask, to one of an
   attempt that isn't live (refused), and to bytes that don't decode;
-  both wires' patches and bridges, by their crates' tests.
+  both wires' conversion between layouts, by their crates' tests and
+  jig's (`../../protocol/wires.md`, 11).
 - **The worker:** the file written fresh at each check's start, a check
   run again included, and removed at its end and at prepare; reds whose
   head the base doesn't contain left out; a slow or failed ask writing
@@ -460,8 +461,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   refusing a filing without refusing the report.
 - **The report's way:** the engine answering `kept` and deciding on a
   report, a report of an attempt not live refused, bytes that don't
-  decode refused; `temper-worker-wire`'s patch and bridge by its crate's
-  tests.
+  decode refused; `temper-worker-wire`'s conversion between layouts by
+  its crate's tests (`../../protocol/wires.md`, 11).
 - **The worker's report:** `temper/rerun` written at prepare;
   `temper/check-results` removed at prepare and at each check's start,
   read at each check's end, a refused check's included, and sent with

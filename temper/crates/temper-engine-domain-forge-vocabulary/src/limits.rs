@@ -37,7 +37,7 @@ pub struct Limits {
     pub output: u32,
     pub facts: u32,
     pub adoptions: u32,
-    /// Repositories being made or failed (temper/docs/design/domain/forge/adoption.md, 5).
+    /// Repositories being made or failed (temper/docs/design/domain/forge/adoption.md, 9).
     pub makings: u32,
     pub applications: u32,
     /// Durable member address bindings (protocol/sign-in.md, 5).

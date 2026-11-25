@@ -264,7 +264,7 @@ fn rebuild_one(d: &Domain, row: &LandingRow, record: &LandingFollow) -> Option<(
     Some((key, follow))
 }
 
-// Goes once dev.fabrig.ai has run this build (temper/docs/design/draft/store-floor.md):
+// Goes once dev.fabrig.ai has run this build (temper/docs/design/draft/archive/store-floor.md):
 // reconstruct follows once from dispatch/rerun entries retained by the old writer.
 fn legacy(d: &Domain, row: &LandingRow, flights: &mut List<(ReceiptKey, runs::Follow)>) -> Option<LandingRow> {
     let mut moved = List::with_capacity(super::follow_slots(&d.landing.limits).expect("landing follow bound"));

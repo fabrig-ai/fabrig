@@ -1,4 +1,4 @@
-//! The made repository's connector act (temper/docs/design/domain/forge/adoption.md, 5;
+//! The made repository's connector act (temper/docs/design/domain/forge/adoption.md, 9;
 //! jig/docs/design/domain/people/acts.md, 3).
 use super::{Domain, Work, core, forge, forge_route, people};
 use alloc::boxed::Box;

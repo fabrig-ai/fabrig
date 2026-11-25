@@ -33,9 +33,10 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     }
     streamed(
         &mut host,
-        &jig_client_test_records::opened(
+        &jig_client_test_records::opened_with_layouts(
             w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
             jig_client_test_records::frame_record(),
+            &[jig_client_test_records::family_layout(wire::FORGE, wire::CLIENT_LAYOUT)],
         ),
     );
     let watch = 0;

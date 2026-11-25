@@ -1,7 +1,7 @@
 //! One shipped credential command against a listening provider fixture.
 //! The referee keeps readiness and browser progress, never credential values;
 //! entry points observe sign-in ownership (smith/docs/design/protocol/host.md, section 5.4)
-//! through shipped commands (smith/docs/design/testing.md, sections 2.3 and 5).
+//! through shipped commands (smith/docs/design/testing-tiers.md, section 3, and smith/docs/design/testing.md, section 5).
 use super::{Process, Ran};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -165,7 +165,7 @@ pub fn run(
 
 fn start(scratch: &Scratch, name: &str, logout: bool, mode: Mode) -> Binary {
     let mut command = Command {
-        program: skein_scratch::paths::binary("smith"),
+        program: skein_scratch::paths::built("smith", "smith"),
         arguments: vec![if logout { "logout".into() } else { "login".into() }, name.into()],
         environment: vec![
             ("HOME".into(), scratch.path().into()),

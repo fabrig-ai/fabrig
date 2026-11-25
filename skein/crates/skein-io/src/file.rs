@@ -8,7 +8,7 @@ use crate::kernel::{Fd, Kind, Stat};
 use alloc::boxed::Box;
 use skein_lib::Token;
 
-/// The target version a store's owner permits replacing (runtime/io/files.md, section 2).
+/// The target version a store's owner permits replacing (runtime/io/files.md, section 10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Expect {
     /// The owner permits replacing any target, without reading its content.
@@ -41,7 +41,7 @@ pub enum Request {
         path: Box<[u8]>,
         mode: u32,
     },
-    /// Opens or makes a private root: `Opened`, `Refused` or `Failed` (runtime/io/files.md, 3).
+    /// Opens or makes a private root: `Opened`, `Refused` or `Failed` (runtime/io/files.md, 11).
     OpenPrivate {
         owner: Token,
         root: Token,
@@ -351,7 +351,7 @@ pub struct Entry {
     pub kind: Kind,
 }
 
-/// The unsafe metadata io found before reading a private root or file (runtime/io/files.md, 3).
+/// The unsafe metadata io found before reading a private root or file (runtime/io/files.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unsafe {
     /// The requested name or a parent is a symbolic link.
@@ -479,7 +479,7 @@ pub enum Event {
         owner: Token,
         error: crate::kernel::Error,
         /// A Store's rename succeeded before this failure. The new file is
-        /// present; its durability may be unknown (runtime/io/files.md, section 2).
+        /// present; its durability may be unknown (runtime/io/files.md, section 10).
         /// False for failures of other file requests.
         committed: bool,
         /// A temporary still beside the target after its removal failed.

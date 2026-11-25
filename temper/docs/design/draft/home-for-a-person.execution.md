@@ -1,6 +1,6 @@
 # home-for-a-person: execution
 
-2026-11-15. How [home-for-a-person.md](home-for-a-person.md) and [milestones.md](milestones.md) get built. It designs nothing: each milestone writes its own design from its draft as it runs, and lands whole, with its own tests. Each is a goal, and the user approved them all on the mockups (2026-11-15), so each starts once what it needs has landed. Plans use the focused and fuzzy suites alone; walks and render checks come after landing. A registered store change uses defaults, former names or a written job (jig's `protocol/store/layouts.md`). A wire that a milestone changes moves its version and brings its bridge (`redeploys.md`, sections 3 and 4). Its look is `../client/web/home-for-a-person/`.
+2026-11-15. How [home-for-a-person.md](home-for-a-person.md) and [milestones.md](milestones.md) get built. It designs nothing: each milestone writes its own design from its draft as it runs, and lands whole, with its own tests. Each is a goal, and the user approved them all on the mockups (2026-11-15), so each starts once what it needs has landed. Plans use the focused and fuzzy suites alone; walks and render checks come after landing. A registered store change uses defaults, former names or a written job (jig's `protocol/store/layouts.md`). A wire that a milestone changes moves its version and brings its bridge (`archive/redeploys.md`, sections 3 and 4). Its look is `../client/web/home-for-a-person/`.
 
 ## 1. The milestones
 

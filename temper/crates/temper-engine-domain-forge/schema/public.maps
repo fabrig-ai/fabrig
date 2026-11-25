@@ -1,0 +1,37 @@
+records temper_client_protocol_wire::public_v1
+use c = temper_engine_domain_forge_change
+use l = temper_engine_domain_forge_landing
+by hand crate::public
+
+direction to record
+
+enum PublicStep by hand
+record PublicGateNumber by hand
+record PublicBlamed by hand
+record PublicSearchBound by hand
+record PublicSearch by hand
+enum PublicRepair by hand
+enum PublicHold by hand
+enum PublicCi = c::Status
+enum PublicGateKind by hand
+enum PublicVerdict = c::Status { none = Unknown, approved = Passed, changes = Failed }
+record PublicGate = crate::PanelGate { blocks = blocking }
+record PublicUsed = crate::PanelUsed
+enum PublicWay = c::Way
+record PublicChange by hand
+
+enum PublicLandingPhase by hand
+record PublicLandingLine by hand
+record PublicQueued by hand
+record PublicQueue by hand
+record PublicLandings by hand
+
+enum PublicLandingHold by hand
+enum PublicCombined = l::Combine
+enum PublicLandingStep by hand
+enum PublicLeave by hand
+record PublicJudgement = crate::PrefixJudgement { gates slice }
+enum PublicProof by hand
+record PublicGateProof by hand
+record PublicMember by hand
+record PublicLanding by hand

@@ -58,6 +58,11 @@ impl Find {
     pub fn text(text: &[u8]) -> Self {
         Self { nth: 0, within: Box::new([]), target: Target::Text { text: Box::from(text) } }
     }
+    /// Find a paragraph by its whole displayed text, rather than an accessible name.
+    #[must_use]
+    pub fn paragraph_text(text: &[u8]) -> Self {
+        Self { nth: 0, within: Box::new([]), target: Target::ParagraphText { text: Box::from(text) } }
+    }
     /// The n-th match in the tree's (the document's) order, from 0.
     #[must_use]
     pub fn nth(mut self, nth: u32) -> Self {
@@ -83,6 +88,8 @@ pub enum Target {
     TextBox { name: Box<[u8]> },
     /// Words in visible text, including a drawing's ordinary fallback.
     Text { text: Box<[u8]> },
+    /// A paragraph and its exact visible words, including case.
+    ParagraphText { text: Box<[u8]> },
 }
 
 /// One instruction, with the application's own address type.
@@ -330,6 +337,9 @@ impl fmt::Display for Target {
                 write!(f, "text box named exactly {}", alloc::string::String::from_utf8_lossy(name))
             }
             Self::Text { text } => write!(f, "text containing {}", alloc::string::String::from_utf8_lossy(text)),
+            Self::ParagraphText { text } => {
+                write!(f, "paragraph with exact text {}", alloc::string::String::from_utf8_lossy(text))
+            }
         }
     }
 }

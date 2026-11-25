@@ -1,5 +1,5 @@
 //! Reusable local host, terminal, browser, peer configuration and outside
-//! referee (testing.md, sections 2.1, 2.2 and 5). Processes keep only their IO
+//! referee (testing-tiers.md, sections 1 and 2, and testing.md, section 5). Processes keep only their IO
 //! and public observations; Skein owns the loop, hosting, replay and heaps.
 
 pub mod oauth;

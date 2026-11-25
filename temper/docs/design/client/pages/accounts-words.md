@@ -8,9 +8,9 @@ temper's phrasebook words what jig's accounts document holds (jig's
 `client/domain/contract/watches.md`, 1.1; jig's `domain/accounts-sources.md`, 2, and `domain/accounts.md`, 5
 ); the providers' names and their plans' are the
 configuration's. The owned example and the default document offer
-OpenAI's ChatGPT sign-in and API keys (`../../protocol/setup/init.md`, 1),
+OpenAI's ChatGPT sign-in and API keys (`../../protocol/setup/init.md`, 4),
 and the default document Anthropic's Claude Code and API keys beside
-them (`../../protocol/setup/init.md`, 3).
+them (`../../protocol/setup/init.md`, 6).
 The words for each offered source are:
 
 - **The providers' words.** A provider is named by its configured name,
@@ -245,7 +245,7 @@ The words for each offered source are:
     shortfall of the checks timeout does: "See temper help settings for
     held revisions."
 
-  A wait about to end (jig's `client/domain/client/helpers.md`, 1) stays
+  A wait about to end (jig's `client/domain/client/helpers.md`, 6) stays
   "Starting". A Chats row holds no wait, and says "Starting".
 - **The composer's line** names the account and model the work's next
   run takes, just above its field on an agent's task's page, with the picker

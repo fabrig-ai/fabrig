@@ -53,12 +53,12 @@ impl Harness {
         }
     }
     pub fn reading() -> (Self, Token) {
-        let mut harness = Self::new(&limits());
+        let mut harness = Self::with_hello(&limits());
         let exchange = harness.read(Readable::Jig(history_read()));
         (harness, exchange)
     }
     pub fn reading_family() -> (Self, Token) {
-        let mut harness = Self::new(&limits());
+        let mut harness = Self::with_hello(&limits());
         let exchange = harness.read(Readable::Family {
             scope: jig_client_domain::contract::Scope::Project(1),
             window: jig_client_domain::contract::Window { rows: 3, after: None },

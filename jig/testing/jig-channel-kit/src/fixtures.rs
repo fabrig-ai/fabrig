@@ -396,17 +396,20 @@ pub fn peer_bounds_for(
 }
 
 fn build_peer_bounds(sizes: &jig_protocol_worker_wire::sizes::Sizes) -> (skein_channel::Schema, skein_channel::Limits) {
-    let codec = jig_protocol_worker_wire::sizes::limits(sizes).expect("small wire");
-    let cap = jig_protocol_worker_wire::sizes::worker_cap(sizes).expect("peer output").cap;
+    use jig_protocol_worker_wire as wire;
+    let codec = wire::sizes::limits(sizes).expect("small wire");
+    let credential = u32::try_from(wire::Credential::encoded_bound(&codec).expect("credential bound"))
+        .expect("credential bound fits");
+    let cap = wire::sizes::worker_cap(sizes).expect("peer output").cap;
     let limits = skein_channel::Limits {
         chunk: 16_384,
-        credential: 4096,
+        credential,
         skip: 16_384,
         output_bytes: cap.bytes,
         output_frames: cap.frames,
-        kinds: u32::try_from(jig_protocol_worker_wire::KINDS.len()).expect("kinds fit"),
+        kinds: u32::try_from(wire::KINDS.len()).expect("kinds fit"),
     };
-    (jig_protocol_worker_wire::schema(&codec).expect("small schema"), limits)
+    (wire::schema(&codec).expect("small schema"), limits)
 }
 
 pub(crate) fn engine_call_document() -> Vec<u8> {
@@ -476,7 +479,7 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
 #[must_use]
 pub fn provider_turns(script: &Script) -> Box<[skein_fake_llm_domain::api::Turn]> {
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
-    if let crate::stories::Story::Resume(point) | crate::stories::Story::Crash(point) = script.story {
+    if let crate::stories::Story::Resume(point) | crate::stories::Story::Crash(point, _) = script.story {
         return crate::restarts::turns(point, script.result.clone());
     }
     if matches!(script.story, crate::stories::Story::Window) {

@@ -1,4 +1,4 @@
-//! Atomic replacement beside an opened parent directory (skein/docs/design/runtime/io/files.md, 2).
+//! Atomic replacement beside an opened parent directory (skein/docs/design/runtime/io/files.md, 10).
 //!
 //! Each state owns its descriptors and temporary name, with one kernel operation
 //! in flight. A terminal follows every close and temporary removal attempt;

@@ -1,11 +1,13 @@
 # A branch's path
 
 The stops a change takes to land on a branch, derived in code from the
-settings that apply there (`../../../draft/stock-ways.md`, section 4): the
+settings that apply there (`../../../draft/archive/stock-ways.md`, section 4): the
 engine derives, and every client draws what it is given, so that the
 ways on Ask temper's page (`../../../protocol/configuration/settings.md`, 8),
 Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
 `../../../client/pages/chat/conversation.md`, 3) and the terminal never disagree.
+
+## 1. How the path is derived
 
 - **Over a project, a repository of it and a branch,** from what
   applies to that branch as the forge holds it then:
@@ -41,6 +43,9 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   needed; the small words over its own, or none; and what it opens: a
   charter, a rule, a gate, a tier, the queue or the turn. The card each
   stop opens is the path's too (below).
+
+## 2. A run through the path
+
 - **A typical run, with one repair,** a segment per branch the change
   lands on, each in this order:
   1. *Who starts,* on the first segment alone: for a chat's change, "you
@@ -105,6 +110,9 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the
      path.
+
+## 3. Rules and stops on the path
+
 - **A rule by path** (`../../../draft/what-reaches-you.md`, section 7) is a
   rule whose `sets` the project's classes all hold: it covers a change
   only where the change touches one of them at the head judged (`gates.md`, 2).
@@ -119,7 +127,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   otherwise, two sets or more or a longer name, "by path". Its card names
   the paths (*An approval's card*, below). A repair, a conflict and a
   resolution keep their own small words, or none.
-- **Drawn apart** (`../../../draft/stock-ways.md`, section 4): a stop made
+- **Drawn apart** (`../../../draft/archive/stock-ways.md`, section 4): a stop made
   only when needed is marked so, which a client draws outlined: each
   "repair", "conflict", "resolve" and "catch up". The small words over a
   stop's own, at most 16 bytes, are a repair's, what it answers:
@@ -166,6 +174,9 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
 - **No agent's stop below the line:** a conflict, a merge, a catch-up,
   a prepare, a proof and a turn are code's whatever the settings, the
   derivation having no other actor for them.
+
+## 4. Stop cards and their capabilities
+
 - **A stop's card,** from the same reads: for an agent, its charter's
   number and its name on the path ("the coding agent" for the producer,
   "the reviewer" for the reviews' charter, "the coordinator" for a
@@ -207,8 +218,11 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   family, as Ask temper's do (`../../../protocol/configuration/stock.md`),
   and otherwise "read the facts in its task; never merge", as the
   status agent's (`../attention.md`, 3).
+
+## 5. CI's card
+
 - **CI's card** names what CI is. Its fact "Workflows", where the forge
-  holds the repository's CI workflows (`../adoption.md`, 7), their names as the record
+  holds the repository's CI workflows (`../adoption.md`, 11), their names as the record
   holds them, joined by ", " and a last " and ", but those a test gate
   or a tier of the repository names: temper dispatches those on its own
   branches, never at a change's head, so they report no check CI folds,
@@ -221,6 +235,9 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   the change's head", since CI then folds every check reported there. A
   name or a context not UTF-8 is left out whole. The workflows are the
   landing branch's on every segment of the path.
+
+## 6. Tiers and rules on cards
+
 - **A tier's card** names the tier: `who` "code · checks what landed"
   on the landing branch, "code · checks the goal's branch" on a goal's;
   `name` the tier's name; its fact "Runs", "the tier NAME after each
@@ -245,6 +262,9 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   would say it, of a rule covering every change ("an owner approves",
   "×N" past one; "one of you"), joined by "; ". A rule there is none
   of is `not_drawn`, "no rule K/N.".
+
+## 7. Roles and rules shown under the path
+
 - **The project's roles,** the view `roles` (`../../../client/pages/chat/conversation.md`,
   3): every agent the project's work runs, whether or not its path
   draws it (`../../../draft/surfaces.md`, section 7), a role a charter, each
@@ -331,7 +351,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   gathers what it reads, from the core and the forge, in the decision
   that answers.
 
-## 1. Open questions
+## 8. Open questions
 
 - **A closer's stops on a goal's path** (`branch-path.md`; `../branches.md`, 2): its close step's
   change and its landing draw as a change into the goal's branch and

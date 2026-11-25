@@ -111,6 +111,7 @@ impl Domain {
         &mut self,
         family: u16,
         versions: Option<crate::contract::VersionRange>,
+        served: bool,
         out: &mut Queue<Request>,
     ) {
         let mut index = None;
@@ -122,11 +123,7 @@ impl Domain {
         let Some(index) = index else { return };
         let owner = self.owners.get_mut(index).expect("declared owner");
         owner.versions = versions;
-        owner.served = match versions {
-            Some(v) => v.contains(owner.spoken.version),
-            None => false,
-        };
-        let served = owner.served;
+        owner.served = served;
         self.not_served.clear();
         for owner in &self.owners {
             if !owner.served {
@@ -134,6 +131,7 @@ impl Domain {
             }
         }
         if !served {
+            self.refuse_reads(Some(family), versions, out);
             for _ in 0..self.watches.len() {
                 let mut found = None;
                 for (id, w) in &self.watches {
@@ -293,15 +291,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::Up::SignedIn => domain.signed_in(out),
             crate::Up::SignedOut => domain.signed_out(out),
             crate::Up::NotKept { key } => domain.not_kept(key, out),
-            crate::Up::FamilyServed { family, versions } => domain.family_served(family, versions, out),
+            crate::Up::FamilyServed { family, versions, served } => domain.family_served(family, versions, served, out),
             crate::Up::Unreadable => {
                 domain.unreadable = true;
                 domain.set_link(crate::Link::OutOfDate, out);
+                domain.refuse_reads(None, domain.jig_versions, out);
             }
             crate::Up::Served { served, versions } => {
                 domain.jig_versions = versions;
                 if !served {
                     domain.set_link(crate::Link::OutOfDate, out);
+                    domain.refuse_reads(None, versions, out);
                     domain.up(
                         env,
                         crate::Up::WatchEnded { watch: Token::new(0), end: crate::contract::WatchEnd::NotServed },

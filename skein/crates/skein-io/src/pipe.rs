@@ -1,4 +1,4 @@
-//! One-way pipes and adopted append files (runtime/io/sockets.md and runtime/io/files.md, 1 and runtime/io/processes.md).
+//! One-way pipes and adopted append files (runtime/io/sockets.md and runtime/io/files.md, 9 and runtime/io/processes.md).
 //! Data-carrying states follow programming-model.md, 5.4. Output writes
 //! keep the owner's deadline; graceful closing replaces it with io's.
 
@@ -158,6 +158,19 @@ impl Pipe {
             | State::Settling { .. }
             | State::Releasing { .. }
             | State::Closed => false,
+        }
+    }
+    pub(crate) const fn pending_output(&self) -> u32 {
+        match &self.state {
+            State::Writing(write) => write.output.bytes,
+            State::Flushing(Flushing { output, flush: Flush::Whole, .. }) => output.bytes,
+            State::Pending
+            | State::Flushing(_)
+            | State::Adopted { .. }
+            | State::Reading(_)
+            | State::Settling { .. }
+            | State::Releasing { .. }
+            | State::Closed => 0,
         }
     }
     pub(crate) const fn is_closed(&self) -> bool {

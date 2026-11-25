@@ -1,5 +1,7 @@
 //! Visibility decisions and the last fresh proxy copy (temper/docs/design/protocol/sign-in.md, 2.5).
-use super::{checks::PROXY, observation::Observer, proxy::Proxy, requests, service_checks, visitor::Visitor};
+use super::{
+    checks::PROXY, jig_target, observation::Observer, proxy::Proxy, requests, service_checks, visitor::Visitor,
+};
 use crate::fixtures;
 use jig_client::contract as c;
 use jig_client_protocol_wire::Record as _;
@@ -41,7 +43,7 @@ impl Walk {
             self.calls.push(visitor.send(
                 address,
                 Method::Get,
-                format!("/jig/v1/public/0/1/2/{project:016x}").as_bytes(),
+                jig_target(&format!("2/{project:016x}")).as_bytes(),
                 &[(b"Host", b"one.example")],
             ));
         }
@@ -132,7 +134,7 @@ impl Walk {
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
                     Method::Get,
-                    b"/jig/v1/public/0/1/1",
+                    jig_target("1").as_bytes(),
                     &[(b"Host", b"one.example")],
                 ));
             }
@@ -252,7 +254,7 @@ impl Walk {
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
                     Method::Get,
-                    format!("/jig/v1/public/0/1/2/{:016x}", self.projects[self.race_project]).as_bytes(),
+                    jig_target(&format!("2/{:016x}", self.projects[self.race_project])).as_bytes(),
                     &[(b"Host", b"one.example")],
                 ));
                 self.stage = 21;

@@ -165,7 +165,7 @@ One run, then exit:
     of its own (../protocol/events.md, 5.2), adopted by what it is: a
     regular file as an append stream, a pipe or a terminal as a write
     stream, each under the stream's write deadline (skein's `runtime/io/files.md`,
-    1).
+    9).
 - **`--chat NAME`** resumes or starts that chat. Without it, the run
   starts a new chat, named in `session.started` and on standard error.
 - **`--ephemeral`** keeps no chat: its files live in a private temporary

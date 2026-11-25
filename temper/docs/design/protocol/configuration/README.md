@@ -186,11 +186,11 @@ Documents:
   driver takes them (skein's `oauth/accounts.md`, 2): its token endpoint's,
   and the origins of its issuer, its keys and its revocation. One that
   does not resolve, the default document's `auth.openai.com` on a
-  machine without DNS (../setup/init.md, 3), refuses no start: its address is
+  machine without DNS (../setup/init.md, 6), refuses no start: its address is
   held at `127.0.0.1:0`, which no listener can hold, so each exchange of
   that provider's sign-in, a sign-in, a refresh or a revocation, fails
   at its connect as unreachable, until a start that resolves it, as a
-  held forge waits for one (../setup/init.md, 3). An address, port, server
+  held forge waits for one (../setup/init.md, 6). An address, port, server
   name or trust file that is wrong still refuses the start, naming its
   member; Google's sign-in's endpoints (`../sign-in.md`, 3.1) still refuse
   it, naming the host.
@@ -201,7 +201,7 @@ Documents:
   reference binary's test configuration (`jig-test`'s
   `tests/support/mod.rs`, made from jig's channel world's `fixtures.rs`).
   temper's process tier writes its own the same way (`../../testing/process-tier.md`
-  ), and the owned example is a whole document (../setup/init.md, 1).
+  ), and the owned example is a whole document (../setup/init.md, 4).
 - **What standalone requires of jig's parts,** each checked at start, a
   failure naming its path:
   - `workers` has exactly one entry, named `local`, whose `engine` is
@@ -311,10 +311,10 @@ Moved to [`worker.md`](worker.md), section 2.
 | File | Named by | Holds | Read by |
 |---|---|---|---|
 | an owned or fake forge's handover: its admin's token | `admin_token` in the forge's directory under data, named by its number, `forge-N` for an owned forge (../setup/README.md, section 3); named by no member | the token's bytes | the engine's setup host, once, at start or the box's `started` (../setup/owned.md, 5); a fake forge, before binding (../setup/playground.md) |
-| a worker's secret | jig's worker part, a data path: `worker.secret` in the data directory as `temper-box init` writes it (../setup/init.md, 2); its digest is the worker's setting's, no file (jig's `domain/engine/workers.md`, 1) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
+| a worker's secret | jig's worker part, a data path: `worker.secret` in the data directory as `temper-box init` writes it (../setup/init.md, 5); its digest is the worker's setting's, no file (jig's `domain/engine/workers.md`, 1) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
 | Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper-box serve`, once, at start, within `sign_in.secret_bytes` |
 | the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration-engine.md`, section 1) | jig's formats: the key PKCS#8 PEM, made by `temper-box forge sign-in` (../setup/owned-sign-in.md, 1) or a box's first run (`../openid-provider.md`, 9) | `temper-box serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
-| the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper-box init` writes it (../setup/init.md, 2) | the key's bytes | the fake LLM, at its start; `temper-box serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
+| the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper-box init` writes it (../setup/init.md, 5) | the key's bytes | the fake LLM, at its start; `temper-box serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
 
 - **A secret file holds its bytes and nothing else** but a final
   newline, which is not part of the secret (jig's
@@ -372,7 +372,7 @@ Moved to [`startup.md`](startup.md), section 1.
 - **`temper-box forge prepare|run [DIRECTORIES] FORGE`** and **`temper box
   [DIRECTORIES]`** read the same document as `temper-box serve` (`startup.md`, section 1;
   ../setup/owned.md and ../setup/box.md); **`temper-box init [DIRECTORIES] [--box]`**
-  writes it (../setup/init.md, 2). Reconcile is no command: the
+  writes it (../setup/init.md, 5). Reconcile is no command: the
   engine's setup host runs it, at each start and at a connect (../setup/README.md,
   the setup host in the engine).
 
@@ -502,18 +502,18 @@ Its `engine.limits` names the overrides `limits.md` asks. The worker
 takes its limits and agent configuration from the engine's figures
 (`figures.md`), so its part names neither `limits` nor `agent`.
 The owned example, `docs/examples/owned.json`, is a whole document for
-one owned Forgejo's place, with its own values (../setup/init.md, 1).
+one owned Forgejo's place, with its own values (../setup/init.md, 4).
 
 ## 9. Open questions
 
-- A landing branch with another name than `main`: `stock.md`, section 1.
+- A landing branch with another name than `main`: `stock.md`, section 9.
 - **The reference's project rule in stage one** (`reference.md`): its settings
   description must include the project's own rule 1 alongside the
   deployment's rules, so a goal's branches do not inherit the stock's
   CI and review. Default: apply `project.json` after making the project;
   the golden's missing obligation remains a gap in the status file.
 
-- Ask temper's real-model walk: `stock.md`, section 1.
+- Ask temper's real-model walk: `stock.md`, section 9.
 
 - **A cut sub-agent answer's rest** (`settings-output.md`, 1): smith's `domain/run.md`,
   section 13 leaves retention for a continuation undecided. Default:
@@ -525,14 +525,14 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   Default: retain the narrow authority; satisfying that instruction
   needs separate authority work, and remains a gap in the status file.
 
-- The reference's later runs: `reference.md`, section 1.
+- The reference's later runs: `reference.md`, section 5.
 
 - Settings refusal positions: `settings.md`, section 9.
-- The checks' deadline: `reference.md`, section 1.
+- The checks' deadline: `reference.md`, section 5.
 - A reference call of 128 KB: `settings.md`, section 9.
 - Large arguments through a real program: `settings.md`, section 9.
 
-- A chat checking the forge before declaring a repository absent: `stock.md`, section 1.
+- A chat checking the forge before declaring a repository absent: `stock.md`, section 9.
 - **Four agents' resident memory** (`stock.md`): the slot, workspace and git
   operation fit checks admit four; they do not establish the memory used
   by four agent processes and their programs on a laptop. Default: four
@@ -567,4 +567,4 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   of the agent's largest size with its wrapper can pass. Default: such a
   turn, which no plan's model reaches in ordinary use, shows as too
   large to read (jig's `protocol/store/loads.md`, 3).
-- Who writes the case's workflows: `reference.md`, section 1.
+- Who writes the case's workflows: `reference.md`, section 5.

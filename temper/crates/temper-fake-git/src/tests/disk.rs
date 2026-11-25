@@ -33,9 +33,8 @@ impl Disk {
         self.machine.close(fd);
         Some(value)
     }
-    pub fn run(&mut self, mut spawn: k::Spawn, net: &mut Net, mut input: &[u8]) -> crate::Answer {
+    pub fn run(&mut self, spawn: &k::Spawn, net: &mut Net, mut input: &[u8]) -> crate::Answer {
         let root = descriptor(self.machine.reopen_root(0));
-        spawn.dir = b"repo".as_slice().into();
         let mut held: BTreeSet<_> = [Fd::new(10000), Fd::new(10001), Fd::new(10002), Fd::new(10003)].into();
         let mut owned: Vec<_> = held.iter().copied().collect();
         owned.push(root);
@@ -44,7 +43,7 @@ impl Disk {
             pipes: Box::new([(0, Fd::new(10000)), (1, Fd::new(10001)), (2, Fd::new(10002))]),
             owned: owned.into(),
         };
-        let mut host = crate::Git::new(&spawn, start, crate::Route::new(limits()));
+        let mut host = crate::Git::new(spawn, start, crate::Route::new(limits()));
         let mut answer = crate::Answer { exit: 0, stdout: Vec::new(), stderr: Vec::new() };
         // The runs-bound row crosses 1024 tiny HTTP exchanges; normal rows settle in hundreds of jobs.
         for _ in 0..1_000_000 {

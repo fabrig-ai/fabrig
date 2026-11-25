@@ -93,10 +93,12 @@ is made:
 
 - **its magic:** four bytes naming the application's protocol;
 - **its versions:** the contiguous range this side speaks. A channel's
-  bodies are a wire, whose version moves with its layout
-  (../data/codec/README.md, 5). An application that speaks one version at
-  a time has that one as its range, a peer of another is refused with
-  *version* (5.2), and nothing is translated;
+  bodies are a wire, whose version is frozen and whose layouts are named
+  by fingerprint (../data/codec/README.md, 5). An application that
+  speaks one version has that one as its range, and a peer of another is
+  refused with *version* (5.2); a peer at another layout of the bodies
+  is its owner's to judge and convert (5.2, accepting with the peer's
+  table);
 - **for each version, its kinds:** for each kind, its direction and the
   largest body this side takes or may send of it, from the owner's limits;
 - **the role:** initiator or responder, for this machine;

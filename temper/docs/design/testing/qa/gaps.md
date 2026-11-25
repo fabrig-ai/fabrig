@@ -1,6 +1,6 @@
 # Gaps: what QA can't judge yet
 
-Provisional, 2026-11-16, from `../../draft/landed-qa.md`, 8, on the user's
+Provisional, 2026-11-16, from `../../draft/archive/landed-qa.md`, 8, on the user's
 word: "file the gap but don't act". A gap is a landing, or one of its
 cases, that QA should judge and can't yet: temper ctl offers no way to
 do or see what a person would, the fakes show no such behaviour, or QA's

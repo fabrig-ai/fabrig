@@ -80,7 +80,7 @@ and a tier's card and `see settings gates`; no page says a charter's
 words yet (`../../domain/forge/README.md`, section 11, *A role's words on its
 card*), and `see ways` says no headline (`../../domain/agent/ask-temper.status.md`,
 1). The stock holds no tier, so it has no tier's words
-(`../../draft/stock-ways.md`, section 9).
+(`../../draft/archive/stock-ways.md`, section 9).
 
 `stock.md` has stock charters 1, 2, 4, 5, 9, 10, 11 and 12 and
 templates 1, 2, 4, 5 and 6; charter 3, template 3 and `configuring.txt`
@@ -135,7 +135,7 @@ resolve at start is held at `127.0.0.1:0`
 `serve/tests.rs`' `accounts_runtime_holds_unresolved_hosts` checks, and
 the process tier's story of a default box starting without DNS,
 `a_default_box_with_a_sign_in_registration_starts_without_dns`, is no
-longer ignored (`../../testing/process-tier.md`; `../setup/init.md`, 3).
+longer ignored (`../../testing/process-tier.md`; `../setup/init.md`, 6).
 
 `reference.md`'s `project.json` sets its project's rule 1 to main alone,
 with no gate or approval, over the stock's every-branch rule; its two
@@ -250,7 +250,7 @@ or in the terminal refusal naming the item and rejected way.
 
 - **Design departs:** `stock.md`, the status-agent numbering and authority departure remains `stock.status.md` (Design departs, ui-home-status).
 
-- **Design departs:** `stock.md`, the init document-text departure remains `../setup/README.status.md` (`init.md`, 1).
+- **Design departs:** `stock.md`, the init document-text departure remains `../setup/README.status.md` (`init.md`, 4).
 - **Design departs:** `reference.md`, the project-settings file departure remains `reference.status.md` (Design departs, ui-settings).
 
 - **Departs:**  1: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The elsewhere-forge configuration-advice gap remains `../../client/forge/deployment.status.md` (Not yet, the whole document).  the unnamed stock procedures remain `stock.status.md` (Departs, the whole document).

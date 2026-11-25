@@ -1,0 +1,16 @@
+# Number temper’s long design openings without splitting the documents.
+renumber temper/docs/design/client/engine.md
+renumber temper/docs/design/client/testing.md
+renumber temper/docs/design/client/tui/theme.md
+renumber temper/docs/design/domain/forge/adoption.md
+renumber temper/docs/design/domain/forge/change/branch-path.md
+renumber temper/docs/design/domain/worker/jobs.md
+renumber temper/docs/design/protocol/components.md
+renumber temper/docs/design/protocol/configuration/engine.md
+renumber temper/docs/design/protocol/configuration/reference.md
+renumber temper/docs/design/protocol/configuration/stock.md
+renumber temper/docs/design/protocol/setup/init.md
+renumber temper/docs/design/protocol/setup/playground.md
+renumber temper/docs/design/testing/live-tier.md
+renumber temper/docs/design/testing/process-tier.md
+renumber temper/docs/design/testing/real-loop.md

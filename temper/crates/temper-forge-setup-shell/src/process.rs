@@ -116,7 +116,7 @@ pub fn id() -> u32 {
     std::process::id()
 }
 
-/// The effective user's login from the system command (protocol/setup/init.md, 2).
+/// The effective user's login from the system command (protocol/setup/init.md, 5).
 /// Kept on every platform so Linux tests compare macOS's lookup with passwd's.
 pub fn login_id() -> Result<Box<[u8]>, String> {
     skein_shell::login_id()

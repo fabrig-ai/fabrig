@@ -264,11 +264,13 @@ pub struct Query {
     pub boxes: bool,
 }
 
-/// How an accessible name matches the query.
+/// How a node matches the query.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Match {
     Exact,
     Words,
+    /// A paragraph's rendered text from its accessibility subtree, not the paragraph's name.
+    ParagraphText,
 }
 
 /// Whole CSS pixels from the node's box's top left.

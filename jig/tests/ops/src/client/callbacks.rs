@@ -89,6 +89,7 @@ pub fn events(
                             event: jig_client::Event::Up {
                                 up: Up::FamilyServed {
                                     family,
+                                    served: true,
                                     versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
                                 },
                             },

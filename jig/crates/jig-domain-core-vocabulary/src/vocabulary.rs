@@ -325,7 +325,7 @@ pub enum Held {
     },
     /// Every earlier commit is durable when the journal releases this terminal.
     Drained,
-    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 1).
+    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 5).
     Restarting {
         wait: skein_lib::Duration,
     },
@@ -1052,9 +1052,9 @@ pub enum Event {
     },
     /// Last store report; refresh the deployment document (protocol/store/growth.md, 1.3).
     Census(Box<crate::documents::deployment::StoreCensus>),
-    /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
+    /// Refuse new decisions while the service drains (domain/engine/restart.md, 5).
     Stopping,
-    /// Place nothing while taking every commit (domain/engine/restart.md, 1).
+    /// Place nothing while taking every commit (domain/engine/restart.md, 5).
     Settling,
     /// A connector's state change names its opaque subjects in this decision.
     Marked {

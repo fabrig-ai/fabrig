@@ -76,7 +76,7 @@ Each within jig's suites' budgets.
   attempt, a hold, another ending) fails it at once in those words. A
   failed run prints its agent trace's failures (class, status, code)
   before the trace is erased. The test catches nothing
-  (`temper/docs/design/draft/panics.md`, 5): the story's run and its
+  (`temper/docs/design/draft/archive/panics.md`, 5): the story's run and its
   final check return their findings, and on one the test prints those
   failures and its wall time, erases the records and traces and keeps
   the rest of its scratch, as it does now, then fails. Whatever else

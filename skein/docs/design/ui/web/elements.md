@@ -3,9 +3,11 @@
 Each node is one element, by its role, through the page part's default
 mapping, this table (../tree.md, 1.1 and 1.2, and ../shells.md, 1); the browser's face finds
 the person's roles through the same table (`testing.md`, 2). An application
-overrides it for its own nodes only (1). A role, state or property the
+overrides it for its own nodes only (5). A role, state or property the
 light path adds (../tree.md, 2.3) adds its row here, with its golden row in
 the host tests (`testing.md`).
+
+## 1. The default mapping
 
 | Role | Element (ARIA role where the element has none) |
 |---|---|
@@ -48,6 +50,9 @@ the host tests (`testing.md`).
   A leaf has no group, and removing the last item removes its group.
   The browser derives levels and set sizes from this nesting where the
   owner gives no explicit count or position.
+
+## 2. Attributes
+
 - **Attributes:**
   - *a name* is `aria-label` where the element's own text does not give
     it; a button, a tab, a menu item and an option show their name as
@@ -74,7 +79,7 @@ the host tests (`testing.md`).
     `<span>`, in the tree's order, its element made as anywhere else, and a
     patch to it or under it lands there. No attribute stands for it. A
     summary is phrasing content, so an owner whose nodes there are blocks
-    gives them a `<span>` through its own elements (`elements.md`, section 1). Its words
+    gives them a `<span>` through its own elements (`elements.md`, section 5). Its words
     join the summary's, the disclosure's accessible name;
   - *states:* disabled is `disabled` where the element takes it, else
     `aria-disabled`; expanded `aria-expanded`; busy `aria-busy`; current
@@ -117,7 +122,7 @@ the host tests (`testing.md`).
     a row's position `aria-rowindex`;
   - *a list's order* is `<ol start="N">` in place of `<ul>`, N its first
     number, written at 1 too, and the browser numbers its items. An
-    element a look gives the list (1) keeps its tag, and `start`
+    element a look gives the list (5) keeps its tag, and `start`
     goes only on an `<ol>`;
   - *a cell's spans* are `colspan` and `rowspan`, left out at 1; *a
     column header's sort* is `aria-sort`, `ascending` or `descending`;
@@ -126,6 +131,9 @@ the host tests (`testing.md`).
     `aria-keyshortcuts`, in ARIA's form (`Alt+K`, `K`, `Escape`), a
     primary one by the primary modifier the page part was given (`README.md`, 4.1):
     `Control+K`, or `Meta+K`, never both.
+
+## 3. Images, values and text
+
 - **An image's address** is a path on the origin or an `https` URL,
   checked by skein-ui as Markdown's external links are (../tree.md, 1.5);
   the `src` takes it as is. An `https` one needs its origin in the
@@ -141,6 +149,9 @@ the host tests (`testing.md`).
 - **Text is text:** every name, description, run, value and mark's text
   is written as text, never read as markup (../markdown.md); bytes
   that are not UTF-8 show as U+FFFD.
+
+## 4. Reserved attributes and event routing
+
 - **What the page part sets, and so reserves:** `data-node`, a node's
   id, on its element; `data-region`; `data-drawn` on a drawing's figure
   while its scene is drawn; `data-act` on a mark that carries an act
@@ -158,7 +169,7 @@ the host tests (`testing.md`).
   `<button>` take a click on their content (../tree.md, section 1); a click
   inside none of them, its nearest `data-node`.
 
-## 1. An application's elements and components
+## 5. An application's elements and components
 
 - **Another element,** for a role carrying one of its owner's style
   tokens (an `<article>` for a region carrying `notes-card`), keeps the

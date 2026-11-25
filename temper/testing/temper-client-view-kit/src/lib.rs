@@ -88,6 +88,7 @@ pub fn limits() -> Limits {
                 owners: &[jig_client::Spoken {
                     family: temper_client_protocol_wire::FORGE,
                     version: temper_client_protocol_wire::CLIENT_VERSION,
+                    layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),

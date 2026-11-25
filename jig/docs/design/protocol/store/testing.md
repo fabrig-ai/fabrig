@@ -74,7 +74,7 @@ Each within jig's suites' budgets.
   A change to the framing (`transcripts.md`, 1: the frame's length at both ends and its
   checksum, around the body) fails it, naming the format. The framing
   stays as it is: a change designs how the store reaches it in that
-  landing (temper's `draft/store-floor.md`, section 5). The core's
+  landing (temper's `draft/archive/store-floor.md`, section 5). The core's
   `TurnRecord` and smith's turn move by their layouts
   (`transcripts.md`, 6).
 - **Rehearsing and going back** (`opening-rehearsal.md`, 1), in the store's world over

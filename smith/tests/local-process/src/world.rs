@@ -1,6 +1,6 @@
 //! The shared harness owns every loop, hosted admission and descriptor lifecycle.
 //! This module supplies scenario configuration and the fake machine's filesystem
-//! and git face, never process routing (testing.md, sections 2.1, 3.2 and 5).
+//! and git face, never process routing (testing-tiers.md, section 1, and testing.md, sections 3.2 and 5).
 use crate::credential_fixture;
 use crate::{
     process::{self, Finalizer, Launch, Proc},

@@ -101,9 +101,9 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   configuration does not declare the same way (configuration/worker.md, section
   2), so no run's charter fails for a name.
 - **Which LLM providers:** OpenAI, with keys and ChatGPT's sign-in, in
-  the owned example (setup/init.md, 1), Anthropic, with Claude Code's
+  the owned example (setup/init.md, 4), Anthropic, with Claude Code's
   program and keys in one provider, a run's source choosing its endpoint
-  (setup/init.md, 3; jig's `domain/accounts-sources.md`, 1), and any other smith's dialects speak over skein's LLM
+  (setup/init.md, 6; jig's `domain/accounts-sources.md`, 1), and any other smith's dialects speak over skein's LLM
   client, such as a local model's server, whose source is *none*. Claude
   Code is the one program, through smith's program backend. temper
   keeps no provider's dialect, no program's adapter and no fake provider

@@ -104,7 +104,10 @@ impl Joint {
                     jig_client::Up::Served { served: *served, versions: Some(self.session.driver.transport.served()) },
                 ));
                 for owner in owners {
-                    up.push((client, jig_client::Up::FamilyServed { family: owner.family, versions: None }));
+                    up.push((
+                        client,
+                        jig_client::Up::FamilyServed { family: owner.family, versions: None, served: false },
+                    ));
                 }
             } else {
                 let callback = super::transport::contract_event(&event).expect("original contract transport callback");

@@ -87,7 +87,11 @@ fn a_family_hello_outside_the_version_makes_the_side_out_of_date() {
             &fixtures::env(&limits),
             Event::Client {
                 event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: Some(versions) },
+                    up: jig_client::Up::FamilyServed {
+                        family: fixtures::FORGE,
+                        versions: Some(versions),
+                        served: versions.contains(temper_client_protocol_wire::CLIENT_VERSION),
+                    },
                 },
             },
             &mut out,

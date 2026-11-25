@@ -270,7 +270,7 @@ and changes no code above io:
 - **Startup reads:** what startup decides, it decides over facts handed
   to it, and the shell's own tests hand them: a whole file within its
   maximum and one past it, over the opened entry's metadata and the
-  lengths its reads return; a private file's checks (io/files.md, 3) over
+  lengths its reads return; a private file's checks (io/files.md, 11) over
   its metadata, an owner other than the expected one refused as such; a
   PEM bundle with certificates, other blocks, a certificate that does
   not parse, and malformed blocks of each kind (invalid base64,
@@ -424,7 +424,7 @@ every service's `main`.
   under the shell's rules (../../foundation/programming-model.md, 2.1): a short line to
   standard error is the most it writes, and it writes no file and starts
   no thread. Output that is large, or must be complete, such as a trace,
-  is an io stream instead (io/files.md, 1). The world harness calls the hook
+  is an io stream instead (io/files.md, 9). The world harness calls the hook
   at the same point, so the drains a world runs are the ones that ship
   (../testing/service-tiers.md, 1).
 
@@ -438,7 +438,7 @@ every service's `main`.
   loop ends when that has settled.
 - **Only io's deadlines bound it.** A service's teardown bound is io's
   close timeout, the write deadline of a stream it still writes after its
-  last word (io/files.md, 1), and the moment its cancels take to settle;
+  last word (io/files.md, 9), and the moment its cancels take to settle;
   nothing else in it waits on time once its last word is out. A
   supervisor derives its grace from that bound, and its grace exceeds
   it.

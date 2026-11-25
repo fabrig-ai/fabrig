@@ -6,7 +6,7 @@
   its parent as a root (skein-shell's `open_root`) and gives its last
   component to `jig-client-shell-native`, whose files make it `0o700` if
   it is absent and refuse it unless it is a directory of this user's
-  with no group or other bits (skein's `runtime/io/files.md`, 3). It holds the
+  with no group or other bits (skein's `runtime/io/files.md`, 11). It holds the
   bearer credential's file and the small store's, both the native
   shell's (`sign-in.md`, section 1).
 - **LINK_OR_ADDRESS** is one of:

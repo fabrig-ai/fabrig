@@ -473,7 +473,6 @@ fn route_core_with_job(
                 limit_settings::saved(domain, env, decision, &record);
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
-                forge_route::close_saved(domain, &record);
                 forge_route::job_history::saved(domain, &record, job_answer);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
@@ -662,6 +661,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
             Work::ProposalFailed { waiter } => proposals::historical_failed(domain, waiter),
             Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
+            Work::CloserReportReady { task } => forge_route::resume_closer_step(domain, env, decision, task),
             Work::EndedLoad { waiter, task } => emit(
                 decision,
                 &env.limits,
