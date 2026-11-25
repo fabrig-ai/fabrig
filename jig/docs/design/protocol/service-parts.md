@@ -216,6 +216,18 @@ and the page policy. It knows no route: what a call means is its owner's.
   response is left to come, it ends those with a call still open, after
   what they have queued. `abort` ends everything at once, and `abandon`
   one call's connection.
+  - **A connection `close` ends never waits for its peer** where nothing
+    is left to read from it: no call or request begun, or its last
+    request all read below. Once what it queued is sent, it is closed at
+    once, without io's wait for the peer's end
+    (`skein/docs/design/runtime/io/sockets.md`, its close's third step),
+    which guards only a request still coming. A connection with a
+    request still coming keeps that wait.
+  - *Why:* a browser keeps an idle connection open until it next uses
+    it, and a page that lost its stream reconnects on its own schedule,
+    so a drain that waits on the peer's end lasts until a supervisor's
+    grace turns it into an abort (`service.md`, 5, a second signal), on
+    every stop with a page open.
 - **Its `Debug` counts.** A head holds its cookies and a response its
   `Set-Cookie`, so `Server` shows its listener, its phase and how many
   connections it holds, and `Routed` its variant and its call's token.
