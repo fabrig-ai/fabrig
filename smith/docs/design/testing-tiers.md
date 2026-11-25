@@ -110,6 +110,14 @@ vocabulary.
   state and credentials directories are in it, so no test reads the
   user's own. The settings move the `sign_in` account's addresses to the
   fake issuer, and give the fake program's path as `claude_code`'s.
+- **A narrow `PATH`:** each binary a story starts, and each check it
+  runs, has `/usr/bin` and `/bin` as its `PATH`, after the directory
+  holding the test process's rg where that is neither, found as smith
+  finds rg on the commands' `PATH` (2; `protocol/agent.md`, section 2).
+  So a story finds the rg Linux's machines carry in `/usr/bin` and the
+  one macOS's workflow installs elsewhere
+  (`temper/docs/design/testing/macos.md`, 6.1), and nothing else of the
+  machine's, its own `claude` among it.
 - **The fake program** is `smith-fake-claude`'s own binary `fake-claude`
   (`testing.md`, section 4), which the build puts beside `smith` in the target's
   profile directory, where the test finds it; the package takes the
@@ -392,6 +400,12 @@ vocabulary.
   world, for each provider, against the bodies its fake provider read.
   The real loop keeps what only processes and the kernel show: two
   processes racing to publish one host ID, and a real key file's mode.
+- **A program a test names is its own.** A setting naming a program,
+  `programs.claude_code` among them, names the fake program (3) or a
+  stand-in the test writes into its scratch, `#!/bin/sh` and `exit 0`,
+  where only its being an absolute executable file is checked: never
+  the machine's `claude`, nor a path one system lacks
+  (`temper/docs/design/testing/macos.md`, 3).
 - **A boundary is tested where it lives.** An exact bound (at the cap,
   and one past it) is a test of the tier that owns the bound, with tiny
   limits: a decoder's in skein's tier, the session's in its world. A
