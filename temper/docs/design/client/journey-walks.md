@@ -451,10 +451,10 @@ is built from, as `temper-client-journeys` does, under both roots.
   test, committing no page or recording (`journey-writer.md`, 5). The
   writer prints the pages after landing, removing leftover recordings
   and surplus pages once the walk completes.
-- **A request** is compared by a print of every journey into scratch,
-  `temper-client-walk print --out DIR`, DIR's pages against the
-  request's commit's, equal where their facts agree
-  (`web/look-requests.md`, 3).
+- **A request** is compared by `scripts/look-compare.sh NAME C`, which
+  prints its journeys into scratch, `temper-client-walk print --out
+  DIR`, and compares DIR's pages three ways with the request's commit's
+  (`journey-writer.md`, 6.1; `web/look-requests.md`, 3).
 - **`welcome-playground`:** the welcome seen and marked, "Try the
   playground" pressed, the playground's New chat seen and marked.
   Two pages.

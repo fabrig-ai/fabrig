@@ -1290,8 +1290,8 @@ impl Domain {
         if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let common = [
-            self.client.next_deadline(),
+        let mut next = self.client.next_deadline();
+        for at in &[
             brief::next_deadline(self),
             self.watch_due,
             self.playground_due,
@@ -1300,23 +1300,18 @@ impl Domain {
             crate::tiers::deadline(self),
             goal_branch::deadline(self),
             self.read_line.deadline(),
-        ];
-        let mut next = common.into_iter().flatten().min();
+        ] {
+            next = earlier_time(next, *at);
+        }
         if !self.stopping {
-            for at in [
+            for at in &[
                 ci_news::deadline(self),
                 crate::follows::deadline(self),
                 outage::deadline(self),
                 crate::landing::read_deadline(self),
                 retry_deadline(self),
-            ]
-            .into_iter()
-            .flatten()
-            {
-                next = Some(match next {
-                    Some(prior) => prior.min(at),
-                    None => at,
-                });
+            ] {
+                next = earlier_time(next, *at);
             }
         }
         next
@@ -1334,18 +1329,21 @@ impl Domain {
         if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let mut next = [
-            read_session::deadline(self),
+        let mut next = read_session::deadline(self);
+        for at in &[
             crate::history::sweep::deadline(self),
             crate::findings::judging::deadline(self),
             self.room.deadline,
             crate::closer::deadline(self),
             release_reads::deadline(self),
             goal_branch::read_deadline(self),
-        ]
-        .into_iter()
-        .flatten()
-        .min();
+        ] {
+            next = match (next, *at) {
+                (Some(previous), Some(at)) => Some(previous.min(at)),
+                (previous, None) => previous,
+                (None, at) => at,
+            };
+        }
         for (goal, deadline) in &self.projection_due {
             if repository_reads::projection_fresh(self, *goal) {
                 next = Some(match next {
@@ -5042,6 +5040,14 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
         return Some(change::Decision::NoChange);
     }
     None
+}
+
+fn earlier_time(left: Option<skein_lib::Time>, right: Option<skein_lib::Time>) -> Option<skein_lib::Time> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.min(right)),
+        (left, None) => left,
+        (None, right) => right,
+    }
 }
 
 fn retry_deadline(d: &Domain) -> Option<skein_lib::Time> {

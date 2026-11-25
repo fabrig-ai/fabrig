@@ -48,7 +48,10 @@ fn pinned_product_check(conversations: i64) -> smith_bench::process::ProcessResu
     let model = smith_bench::ModelChoice { model: Some("gpt-6-luna".into()), effort: Some("low".into()) };
     let arm = smith_bench::arm::ArmRef::Installed { program: "/unused".into() };
     let environment = smith_bench::isolate::environment(
-        &smith_bench::isolate::Machine { path: "/usr/bin:/bin".into(), rustup_home: None },
+        &smith_bench::isolate::Machine {
+            path: smith_end_to_end_kit::stories_path_from_test_path(std::env::var_os("PATH").as_deref()),
+            rustup_home: None,
+        },
         &private,
         &std::collections::BTreeMap::new(),
     )

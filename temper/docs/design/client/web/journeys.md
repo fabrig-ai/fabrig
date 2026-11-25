@@ -389,8 +389,10 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   4 runs the writer's, its words, lines and exits the command's under
   the script's name (`look-refresh: WHY`), fetches
   `main` alone, rebases the branch on `origin/main`, drops each request
-  whose name a commit on `main` carries in that trailer once the last
-  `Printed:` there covers that commit (`../journey-writer.md`, 6), and pushes it
+  once main's `looks.html` holds an entry for its newest `Look-landed`,
+  or, for one landed with no `Look-landed`, once the last `Printed:` on
+  `main` covers the commit carrying its `Look-request`
+  (`../journey-writer.md`, 6), and pushes it
   with `--force-with-lease`, its lease the branch as the checkout last
   knew it, so that a branch moved from another checkout is refused,
   never overwritten. It says which commit main's pages were printed at,
@@ -410,9 +412,9 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   sources, never its pages (`look-requests.md`, 3).
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
-  state, then compares `temper-client-walk print --out DIR` in its own
-  tree with the request's pages, read from the request's commit, equal
-  where their facts agree. It needs no box and commits no page
+  state, then compares with `scripts/look-compare.sh NAME C`, which
+  prints into scratch in its own tree and compares with the request's
+  commit (`../journey-writer.md`, 6.1). It needs no box and commits no page
   (`look-requests.md`, 3; `../journey-writer.md`, 6). Its own commits carry
   the request's trailer, never the request's commit itself, and its
   last, carrying the account, `Look-landed: NAME` beside it. The account

@@ -25,6 +25,8 @@ impl Peer {
                 session: Some(Box::from(b"session".as_slice())),
                 initial_url: Box::from(b"about:blank".as_slice()),
                 requests: false,
+                files: false,
+                css: crate::browser::render::Css::Disabled,
                 frame: Some(Box::from(b"main".as_slice())),
                 document: crate::browser::document::Root::Empty,
                 navigating: false,

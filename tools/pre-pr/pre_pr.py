@@ -703,7 +703,7 @@ def merge_tests(root, env):
 
 
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
-JOURNEY_ASSETS = {'skein-ui.css', 'journey.js', 'theme.css', 'tui-journey.js'}
+JOURNEY_ASSETS = {'skein-ui.css', 'journey.js', 'theme.css', 'tui-journey.js', 'looks.html'}
 
 
 def written_journey_file(path):

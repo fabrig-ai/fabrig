@@ -1,8 +1,9 @@
 //! Focused workload rules (`jig/docs/design/domain/testing-workloads.md`, 8).
 use crate::{
     bounds, parks, people,
-    workload::{Bound, Expect, Party, Workload},
+    workload::{Bound, Expect, Observation, Party, Workload},
 };
+use jig_domain_tasks::{Active, Class, Ending, Hold, HoldSource, Phase, Was};
 use skein_lib::{Duration, Time};
 use skein_world::streams::{Stream, Streams};
 use std::collections::BTreeSet;
@@ -30,6 +31,10 @@ fn workload_kinds_have_unique_names_and_their_families() {
                 parks::ANSWERED_AFTER_ITS_END,
                 parks::ANSWERED_TO_ITS_SUCCESSOR,
                 parks::COORDINATOR_ENDS_WHILE_A_CHILD_WAITS,
+                parks::PARKS_WITH_A_QUESTION_OPEN,
+                parks::STUCK_IN_A_CIRCLE,
+                parks::PARKS_ON_NOTHING,
+                parks::WATCHES_A_TASK_THAT_CAN_ANSWER,
             ],
         ),
         (bounds::FAMILY, vec![bounds::SUBSCRIPTIONS, bounds::CREATION_REPORTS, bounds::KEPT_ANSWERS]),
@@ -138,10 +143,51 @@ fn workload_expectation_finds_a_held_task_past_its_bound() {
     let last = (Time::ZERO, 0);
     let moment = (Time::from_nanos(2_000_000_000), 2);
     let bound = Bound { time: Duration::from_secs(1), iterations: 1 };
-    assert!(Expect::Ends.check(("t0.0", 42), 19, moment, last, bound, true).is_ok());
-    let finding = Expect::Ends.check(("t0.0", 42), 19, moment, last, bound, false).expect_err("held beyond bound");
+    let ended = Phase::Ended(Ending::Failed { reason: b"failed".as_slice().into() });
+    let held = Phase::Held { was: Was::Active(Active::Idle), why: Hold::Deadline, source: None };
+    let observed = |phase| Observation { phase: Some(phase), run_tries: 0, stuck: None };
+    assert!(Expect::Ends.check(("t0.0", 42), 19, moment, last, bound, observed(&ended)).expect("ends"));
+    let finding =
+        Expect::Ends.check(("t0.0", 42), 19, moment, last, bound, observed(&held)).expect_err("held beyond bound");
     for word in ["t0.0", "42", "19", "iteration 2"] {
         assert!(finding.contains(word), "{finding}");
     }
-    assert!(Expect::Waits.check(("t0.0", 42), 19, moment, last, bound, false).is_ok());
+    assert!(Expect::Waits.check(("t0.0", 42), 19, moment, last, bound, observed(&held)).expect("may wait"));
+}
+
+#[test]
+fn workload_expects_a_stuck_run_hold_with_its_words() {
+    let words = "Task 43's question 17 is still open: Which next?";
+    let failed = |class, source| Phase::Held { was: Was::Active(Active::Due), why: Hold::Failures(class), source };
+    let preparation = |reason: &str| Some(Box::new(HoldSource::Preparation { words: reason.as_bytes().into() }));
+    let held = failed(Class::Run, preparation(words));
+    let last = (Time::ZERO, 0);
+    let moment = (Time::from_nanos(2_000_000_000), 2);
+    let bound = Bound { time: Duration::from_secs(1), iterations: 1 };
+    let check = |phase: &Phase, run_tries, now| {
+        Expect::Stuck.check(
+            ("t0", 42),
+            19,
+            now,
+            last,
+            bound,
+            Observation { phase: Some(phase), run_tries, stuck: Some((words, 2)) },
+        )
+    };
+    assert!(check(&held, 3, last).expect("exhausted with its own reason"));
+    let idle = Phase::Active(Active::Idle);
+    assert!(!check(&idle, 0, last).expect("still within the bound"));
+    for (phase, tries, wrong) in [
+        (held, 2, "not past its tries"),
+        (failed(Class::Run, preparation("different words")), 3, "wrong words"),
+        (failed(Class::Run, None), 3, "no preparation reason"),
+        (failed(Class::Transient, preparation(words)), 3, "wrong class"),
+        (idle, 0, "idle past its bound"),
+        (Phase::Ended(Ending::Failed { reason: words.as_bytes().into() }), 3, "ended rather than held"),
+    ] {
+        let finding = check(&phase, tries, moment).expect_err(wrong);
+        for part in ["seed 19", "task t0 (42)", "expected Stuck", "iteration 2"] {
+            assert!(finding.contains(part), "{finding}");
+        }
+    }
 }

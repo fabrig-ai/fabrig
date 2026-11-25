@@ -80,7 +80,9 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
     printed
 }
 
-fn numbered_ids(mut html: &str) -> String {
+/// Number each kind of generated id by its first appearance, including references to it.
+#[must_use]
+pub fn numbered_ids(mut html: &str) -> String {
     let mut words: BTreeMap<&str, BTreeMap<&str, usize>> = BTreeMap::new();
     let mut numbered = String::with_capacity(html.len());
     while let Some((before, after)) = html.split_once("skein-ui-") {

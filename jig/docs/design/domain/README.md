@@ -19,6 +19,8 @@ mechanics are those of skein's `programming-model.md`.
    (`tasks/gatherings.md`).
    - **tasks/lifecycle-holds.md:** failures and placed holds.
    - **tasks/lifecycle-endings.md:** added dependencies and ending a task.
+   - **tasks/stuck.md:** a parked task whose every wake is dead, judged
+     when it parks.
 3. **authority.md:** what a task may do: authority as a value, budgets
    and spend, checks, proposals, requirements and their verdicts.
    - **authority-budgets.md:** budgets and spend.

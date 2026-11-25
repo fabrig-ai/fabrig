@@ -510,7 +510,8 @@ the configuration that names it already given, is found at the
 baseline's commit. A tier removed from the settings starts no run;
 its record stays (`after-landing-storage.md`, section 1) and restores whatever its last run's
 task became (`after-landing-runs.md`, section 2), so a person never removes a tier to make the
-engine start.
+engine start. A run of it still live ends as its tier being gone, and
+a renamed tier is a removal and a new tier (`after-landing-runs.md`, section 2).
 
 ## 12. The world
 

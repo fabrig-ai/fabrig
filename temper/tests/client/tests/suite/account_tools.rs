@@ -31,11 +31,14 @@ fn a_lost_tools_key_answer_recovers_one_account() {
     accounts::assert_no_carried(&front);
 }
 #[test]
-fn a_tools_connect_wait_settles_at_the_sign_in_end() {
+fn a_tools_connect_wait_settles_at_the_first_grant() {
     use jig_domain_accounts as a;
+    use jig_domain_link::{Form, Scheme};
+    use skein_lib::Duration;
     let (mut front, mut root) = accounts::tools_fixture(fixtures::SEED);
     call(&mut front, &mut root, 1, &[b"account", b"connect", b"3", b"--key", b"sign-in"], None);
     let source = accounts::signing(&front);
+    front.engine.protocol.defer_grant_for = Some(source);
     front.engine.send(temper_engine_domain::Event::Account(a::Event::Visited {
         source,
         address: b"http://engine/visit".as_slice().into(),
@@ -51,6 +54,15 @@ fn a_tools_connect_wait_settles_at_the_sign_in_end() {
         declined: false,
         said: jig_domain_accounts::Said::default(),
     }));
+    accounts::settle(&mut front, &mut root);
+    assert!(root.agent().printed(2).is_none(), "the made source still awaits its grant");
+    front.engine.protocol.defer_grant_for = None;
+    front.engine.send(temper_engine_domain::Event::Account(a::Event::Component(a::FromComponent::Granted {
+        account: source,
+        generation: 1,
+        valid: Duration::from_secs(60),
+        form: Form::Credential(Scheme::Bearer),
+    })));
     accounts::settle(&mut front, &mut root);
     assert_eq!(root.agent().printed(2).expect("settled watch").status, 0);
 }

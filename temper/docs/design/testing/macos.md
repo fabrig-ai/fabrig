@@ -138,7 +138,15 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
     `File::lock` and util-linux's `flock -x 9`, so the scripts and the
     kit's own Rust exclude each other as before;
   - **a file's type, mode and size** a script checks without reading it
-    come from Python's `os.lstat`, not `stat -c`.
+    come from Python's `os.lstat`, not `stat -c`;
+  - **a pseudo-terminal's echo of end of input:** in canonical mode with
+    echo on, as a program finds its terminal before it takes it, macOS's
+    line discipline answers the person's `^D` with `^D` and two
+    backspaces, and Linux's with nothing. A transcript a story holds
+    empty, a startup refusal's in smith's end-to-end kit
+    (`smith/docs/design/testing-tiers.md`, 3) among them, holds nothing
+    on Linux, and nothing or that echo alone elsewhere, behind the
+    negation of `cfg(target_os = "linux")`.
 
   A program that is a test world's hosted name, never run (`/usr/bin/git`
   in a world's table), is no such site.

@@ -158,6 +158,7 @@ The gallery's project and settings states are split from [the gallery](gallery.m
 | `accounts-usage-filling` | a Claude subscription whose 5-hour window would fill before its reset, "full in" amber, above its week at 83%, its bar amber |
 | `accounts-usage-calm` | a week lasting to its reset, "about 59% at reset", and a 5-hour window that won't fill, not drawn |
 | `accounts-usage-limited` | a limited window: its bar red and whole, "resets in" alone |
+| `accounts-usage-model-week` | `accounts-usage-filling`'s windows and two models' weeks: Fable's, 64%, "resets in 2 d · 1.6%/h · full in 22 h 30 min", drawn under "Week" as "Fable"; Sonnet's, 0% with no rate, not drawn (the look request `usage-model-week`) |
 | `builders` | the Builders tab, its hosts connected, draining and not connected |
 | `builders-not-owner` | the Builders tab for a person with no role in the deployment |
 | `builders-none` | the Builders tab with no host connected |

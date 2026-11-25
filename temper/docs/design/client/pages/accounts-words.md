@@ -122,11 +122,20 @@ The words for each offered source are:
     is not drawn until the next report. The 5-hour window, labelled
     `five_hour`, is drawn only while it is limited or would fill before its
     reset ("we don't show the bar at all if it's not projected to fill",
-    the user); every other always. Shortest first, by length; a window of
-    no length last, by label.
+    the user), and so is a model's week, labelled `seven_day_` and its
+    model (smith's `protocol/programs-claude-code.md`, 1.6 and 1.11; the
+    look request `usage-model-week`): a model nothing uses keeps its share
+    at 0 and has no rate, so it is never drawn, and one with no rate yet
+    is drawn only while limited. Every other window always, the week for
+    all models, `seven_day`, among them. Shortest first, by length, and by
+    label where two are as long, so a model's week follows "Week"; a
+    window of no length last, by label.
   - *Its name:* its label, the name its program gives it
     (`../../draft/usage-windows.md`, 2): `five_hour` "5 h", `seven_day`
-    "Week", any other its label as it is.
+    "Week", a model's week its model with its first letter in capitals,
+    `seven_day_fable` "Fable", `seven_day_sonnet` "Sonnet". Any other its
+    label as it is, `seven_day_` with no model among them, until a design
+    names it.
   - *Its line:* its name; a bar of its share used, a meter
     (skein's `ui/tree.md`, 1.1) named by the window's name, its
     fraction the share of 10,000 basis points and its words "29% used";
