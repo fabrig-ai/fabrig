@@ -114,7 +114,11 @@ fn assign(world: &mut World, head: u64) -> Result<(), String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: b"fabrig/tools/close".as_slice().into(), request: REQUEST.into() }),
+        spec: Ok(wire::JobSpec {
+            command: b"fabrig/tools/close".as_slice().into(),
+            request: REQUEST.into(),
+            refusal: false,
+        }),
     })?;
     Ok(())
 }

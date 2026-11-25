@@ -67,12 +67,13 @@ pub enum ItemsRefusal {
     Version(jig_domain_host::Mismatch),
 }
 
-/// A job's command and request bytes, decoded by the service
+/// A job's command, request bytes and typed refusal ask, decoded by the service
 /// (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Debug)]
 pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
+    pub refusal: bool,
 }
 
 /// The repositories a run works in (`domain/worker/hosted-runs.md`, 1.1). The checkout
