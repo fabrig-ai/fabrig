@@ -63,8 +63,8 @@ import sys
 kind, path = sys.argv[1:]
 
 def refuse(message):
-    source = "CLAUDE" if kind == "claude-in" else "ACCOUNT"
-    print(f"TEMPER_TEST_LIVE_{source} {message}", file=sys.stderr)
+    source = "TEMPER_TEST_LIVE_CLAUDE" if kind == "claude-in" else "TEMPER_TEST_LIVE_ACCOUNT"
+    print(f"{source} {message}", file=sys.stderr)
     sys.exit(2)
 
 def directory_identity(metadata):
