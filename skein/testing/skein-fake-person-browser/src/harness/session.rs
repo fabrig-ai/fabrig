@@ -513,7 +513,7 @@ impl Pump {
             }
             Event::Ended { why, detail } => self.opening.ended(why, &detail, &self.browser, &mut self.reports),
             Event::Closed { owner } => {
-                self.opening.browser_closed(owner, self.child, &mut self.requests, &mut self.reports)
+                self.opening.browser_closed(owner, self.child, &mut self.requests, &mut self.reports);
             }
             Event::Found { .. }
             | Event::Met { .. }
