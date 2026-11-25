@@ -205,7 +205,7 @@ impl Ledger {
                         .filter(|build| {
                             self.reached(build)
                                 && build.order.is_some()
-                                && (build.held.is_none() || build.held == Some(pass.number))
+                                && build.held.is_none()
                                 && landing.is_none_or(|landing| {
                                     build.holds.as_ref().is_some_and(|holds| holds.contains(&landing.number))
                                 })
@@ -258,14 +258,8 @@ impl Ledger {
                 pass.cases.push(case.number);
             }
         }
-        for record in &mut self.builds {
-            if record.held == Some(number) {
-                record.held = None;
-            }
-            if record.commit == build {
-                record.held = Some(number);
-            }
-        }
+        let selected = self.builds.iter_mut().find(|record| record.commit == build).expect("selected build");
+        selected.held = Some(number);
         self.sessions.push(Session {
             number: session,
             kind: SessionKind::Pass,
