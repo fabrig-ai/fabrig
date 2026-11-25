@@ -2756,6 +2756,11 @@ pub enum Event {
         task: u64,
         ending: Ending,
     },
+    /// The close change keeps the failure, not the failed job, when it holds.
+    RetireFailedClose {
+        task: u64,
+        child: u64,
+    },
     /// A requester or person released a held change.
     ReleaseChange {
         task: u64,

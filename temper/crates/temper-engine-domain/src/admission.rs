@@ -167,6 +167,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
             | forge::Event::ChangeEnding { .. }
+            | forge::Event::RetireFailedClose { .. }
             | forge::Event::ReleaseChange { .. }
             | forge::Event::GoalReleased { .. }
             | forge::Event::SettleEffects { .. }

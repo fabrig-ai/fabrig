@@ -2341,6 +2341,16 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 d, env, task, child, ended_at, status, no_change, flake, no_test, failed, cancelled, &words, out,
             );
         }
+        Event::RetireFailedClose { task, child } => {
+            if let Some(row) = d.changes.get_mut(&task)
+                && row.delegate == Some((child, change::Delegate::Close))
+                && row.delegate_status == change::Status::Failed
+            {
+                row.delegate = None;
+                let saved = row.clone();
+                save_change(d, out, saved);
+            }
+        }
         Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
             if let Some(row) = d.changes.get_mut(&task) {
@@ -4458,10 +4468,8 @@ fn delegate_result(
     let owned = row.change.owns_turn;
     let mut ended = false;
     if let change::State::Held { was, why } = &row.change.state
-        && ((*why == change::Hold::Stalled && delegate_wait(was))
-            || (*why == change::Hold::Failed
-                && kind == change::Delegate::Close
-                && **was == (change::State::Producing { requested: true })))
+        && *why == change::Hold::Stalled
+        && delegate_wait(was)
     {
         held_why = Some(*why);
         row.change.state = (**was).clone();
@@ -6309,8 +6317,6 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     }
     let facts = change_facts(d, env, &row, &pending, base_tip);
     let mut heard = change_standing(d, &row, &pending);
-    // A close job's failure escalation is not its terminal: jig still names it
-    // live, including under its Failures hold (domain/forge/change/repairs.md).
     let live_close = match row.delegate {
         Some((_, change::Delegate::Close)) => pending.heard.delegate_live,
         Some(_) | None => false,
@@ -7543,16 +7549,24 @@ fn accept_released_branch(
 /// Removing the durable delegate reference retires its terminal from recovery
 /// (temper/docs/design/domain/forge/change/repairs.md, A release).
 fn retire_failed_delegate(row: &mut ChangeRow) {
-    if row.delegate_status != change::Status::Failed && !row.delegate_flake && !row.delegate_no_test {
+    // The close change keeps the last job's failure for its own release.
+    if row.close.is_some()
+        || (row.delegate_status != change::Status::Failed && !row.delegate_flake && !row.delegate_no_test)
+    {
         return;
     }
     match row.delegate {
-        // A close job's own release still reads its kept result.
-        Some((_, change::Delegate::Close)) => return,
         Some((_, change::Delegate::Resolve { .. } | change::Delegate::Merge { .. })) => {
             row.change.released_resolution = true;
         }
-        Some((_, change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. })) | None => {}
+        Some((
+            _,
+            change::Delegate::Produce
+            | change::Delegate::Close
+            | change::Delegate::Repair(_)
+            | change::Delegate::Gate { .. },
+        ))
+        | None => {}
     }
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;

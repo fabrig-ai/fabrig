@@ -73,7 +73,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
 pub(crate) mod delegate_record;
-pub(crate) use close::{made as close_made, saved as close_saved};
 mod merge;
 pub(crate) mod prepare;
 
@@ -3919,6 +3918,11 @@ fn change_decision_from_read(
     {
         choice = forge_change::Decision::Hold(why);
     }
+    let cancel_close = if choice == forge_change::Decision::Hold(forge_change::Hold::Failed) {
+        close::retire_on_hold(domain, task)
+    } else {
+        None
+    };
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
@@ -3926,6 +3930,9 @@ fn change_decision_from_read(
                 // The row's hold reaches its task even after another step has parked it.
                 let end = hold_change_decision(domain, env, task, why, evidence).end;
                 domain.work.push(Work::Tasks(change_hold_event(task, &end)));
+                if let Some(cancel) = cancel_close {
+                    close::cancel(domain, task, cancel);
+                }
             } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
@@ -3985,7 +3992,10 @@ fn change_decision_from_read(
     };
     let hold =
         if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
-    let decision = append_change_replies(domain, env, task, decision);
+    let mut decision = append_change_replies(domain, env, task, decision);
+    if let Some(cancel) = cancel_close {
+        decision.cancels = Box::new([cancel]);
+    }
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
     // The Words copy goes first if admitted. A refused or stale step cannot lose
     // the hold; jig ignores an identical hold already admitted by that step.

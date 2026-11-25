@@ -215,18 +215,33 @@ fn abandonment_drops_every_document_row_and_its_titles() {
 }
 
 #[test]
-fn a_saved_close_preparation_hold_fails_its_held_change() {
+fn releasing_a_restored_close_change_cancels_its_held_job() {
     use jig_domain_tasks as tasks;
-    let (source, source_env, goal) = super::projection_settled::live_goal(None);
-    let mut parent = source.core.tasks.task(goal).unwrap().clone();
-    parent.phase =
-        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Idle), why: tasks::Hold::Procedure, source: None };
+    const FAILURE: &[u8] = b"could not prepare the close job";
+    let (source, _, change_task) = super::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    let mut parent = source.core.tasks.task(change_task).unwrap().clone();
+    let child_number = change_task + 1;
+    parent.delegates = Box::new([child_number]);
+    parent.phase = tasks::Phase::Active(tasks::Active::Due);
+    parent.due_reason = tasks::Why::Released;
+    parent.revisions.hold = 1;
     let mut child = parent.clone();
-    child.number = goal + 1;
-    child.requester = tasks::Party::Task(goal);
+    child.number = child_number;
+    child.requester = tasks::Party::Task(change_task);
     child.depth = 1;
-    child.phase = tasks::Phase::Active(tasks::Active::Preparing);
-    let child_number = child.number;
+    child.delegates = Box::new([]);
+    child.executor = tasks::Executor::Job { kind: forge::CLOSE_KIND };
+    child.contract = tasks::Contract::Job { bytes: 1 };
+    child.spec.words = Box::new([]);
+    child.spec.job = Some(Box::new(tasks::JobSpec {
+        bytes: b"close".as_slice().into(),
+        deadline: skein_lib::Duration::from_secs(600),
+    }));
+    child.phase = tasks::Phase::Held {
+        was: tasks::Was::Active(tasks::Active::Preparing),
+        why: tasks::Hold::Failures(tasks::Class::Permanent),
+        source: Some(Box::new(tasks::HoldSource::Preparation { words: FAILURE.into() })),
+    };
     let (mut domain, env) = root();
     domain.core.tasks = tasks::Domain::new(
         &env.limits.tasks,
@@ -247,44 +262,39 @@ fn a_saved_close_preparation_hold_fails_its_held_change() {
     }
     for request in &restored {
         if let tasks::Request::RestoreRefused { .. } = request {
-            panic!("fixture restored: {request:?}");
+            panic!("fixture restored: {request:?}; {:?}", domain.core.tasks.restore_failure());
         }
     }
     let mut row = repair();
-    row.task = goal;
-    row.change.task = goal;
+    row.task = change_task;
+    row.change.task = change_task;
     row.change.state =
         change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed };
+    row.close = Some(b"close request".as_slice().into());
     row.delegate = Some((child_number, change::Delegate::Close));
-    domain.forge.restore_begin(source_env.wall);
+    row.delegate_status = change::Status::Failed;
+    row.producer_failure = Some(FAILURE.into());
+    domain.forge.restore_begin(env.wall);
     forge::step(
         &mut domain.forge,
         &crate::translate::environment_forge(&env),
         forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
         &mut Queue::uncapped(),
     );
-    let hold = tasks::HoldRow {
-        task: child_number,
-        position: 7,
-        at: env.wall,
-        held: tasks::Held {
-            was: tasks::Was::Active(tasks::Active::Preparing),
-            why: tasks::Hold::Failures(tasks::Class::Permanent),
-            source: Some(Box::new(tasks::HoldSource::Preparation {
-                words: b"new preparation failure".as_slice().into(),
-            })),
-        },
+    let context = domain.core.tasks.run_context(change_task).expect("released procedure");
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    assert!(!crate::route::forge_route::delegate_record::start(&mut domain, &env, &mut decision, &context));
+    let row = domain.forge.change(change_task).unwrap();
+    assert_eq!(row.change.released, Some(change::Hold::Failed));
+    assert_eq!(row.delegate, None);
+    assert_eq!(row.delegate_status, change::Status::Failed);
+    assert_eq!(row.producer_failure.as_deref(), Some(FAILURE));
+    let Some(Work::Tasks(tasks::Event::Cancel { by, operation, .. })) = domain.work.pop() else {
+        panic!("release must cancel the restored job before the change steps")
     };
-    crate::route::forge_route::close_saved(&mut domain, &jig_domain_core::Record::Tasks(tasks::Stored::Hold(hold)));
-    let Some(Work::Forge(forge::Event::DelegateResult { task, child, status, failed, words, .. })) = domain.work.pop()
-    else {
-        panic!("failure heard while change held")
-    };
-    assert_eq!((task, child), (goal, child_number));
-    assert_eq!(status, change::Status::Failed);
-    assert!(failed);
-    assert_eq!(words.as_ref(), b"new preparation failure");
-    assert!(domain.work.is_empty());
+    assert_eq!(by, tasks::Party::Task(change_task));
+    assert_eq!(operation.task, child_number);
+    assert_eq!(operation.reason.as_ref(), b"its change was released");
 }
 
 fn repair() -> forge::ChangeRow {
