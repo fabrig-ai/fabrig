@@ -16,12 +16,13 @@ pub struct Stated {
     pub text: Box<[u8]>,
 }
 
-/// The credential's wires and output, and the worker's terms in their order.
+/// The credential's wires and output, the worker's terms and the hello's job kinds, in their order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Statement {
     pub wires: List<Stated>,
     pub output: u32,
     pub terms: List<Term>,
+    pub jobs: List<jig_domain_link::JobBound>,
 }
 
 /// The opening's reason and text, after authentication.
@@ -119,7 +120,7 @@ impl Statement {
             let stated = mapped::wire_to_domain(wire).expect("credential text is UTF-8");
             wires.push(stated).expect("one slot per stated wire");
         }
-        Self { wires, output: credential.output, terms: List::with_capacity(0) }
+        Self { wires, output: credential.output, terms: List::with_capacity(0), jobs: List::with_capacity(0) }
     }
 }
 

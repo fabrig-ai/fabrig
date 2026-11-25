@@ -1,12 +1,14 @@
-records crate::openings_v2
+records crate::openings_v3
 use s = skein_codec::convert
 refuses s::text_to_domain
 
 record OpenedWire = crate::OpenedWire { name via s::text }
 record OpenedTerm = crate::OpenedTerm
+record OpenedJob = jig_domain_link::JobBound { kind via crate::rows::openings::job_kind }
 record WorkerOpening = crate::WorkerOpening {
     worker via s::text
     wires slice
     terms slice
+    jobs slice
     at via s::wall
 }

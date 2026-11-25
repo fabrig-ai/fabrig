@@ -1284,6 +1284,12 @@ fn opening_layouts_and_each_refusals_text_reach_shell_notes() {
     let worker: Box<[u8]> = b"worker-a".as_slice().into();
     let converted = skein_lib::List::from_boxed(Box::new([Box::from("smith-charter")]));
     let mut events = skein_lib::Queue::uncapped();
+    let job = jig_domain_link::JobBound {
+        kind: JobKind(4),
+        spec: 16_384,
+        result: 512,
+        deadline: skein_lib::Duration::from_secs(600),
+    };
     let statement = jig_protocol_engine_workers::Statement {
         wires: skein_lib::List::from_boxed(Box::new([
             jig_protocol_engine_workers::Stated {
@@ -1299,6 +1305,7 @@ fn opening_layouts_and_each_refusals_text_reach_shell_notes() {
         ])),
         output: 4096,
         terms: skein_lib::List::from_boxed(Box::new([skein_channel::Term { kind: 12, largest: 34 }])),
+        jobs: skein_lib::List::from_boxed(Box::new([job])),
     };
     workers.route(Output::Opened { worker: worker.clone(), converted: converted.clone(), statement }, &mut events);
     assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), converted }));
@@ -1319,6 +1326,7 @@ fn opening_layouts_and_each_refusals_text_reach_shell_notes() {
             ]),
             output: 4096,
             terms: Box::new([root::OpenedTerm { kind: 12, largest: 34 }]),
+            jobs: Box::new([job]),
         }
     );
     let text: Box<[u8]> = b"wire example-wire: the worker states none".as_slice().into();

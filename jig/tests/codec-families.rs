@@ -166,7 +166,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/openings.rs"],
-        bounds: compiled_bounds!(jig_protocol_store::openings_v2),
+        bounds: compiled_bounds!(jig_protocol_store::openings_v3),
         translations: &[Translation {
             maps: include_str!("../crates/jig-protocol-store/schema/openings.maps"),
             module: "crates/jig-protocol-store/src/generated/openings.rs",

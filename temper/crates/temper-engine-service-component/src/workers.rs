@@ -376,7 +376,12 @@ fn statement_to_root(statement: kit::Statement) -> root::WorkerStatement {
     for term in statement.terms.into_boxed() {
         terms.push(root::OpenedTerm { kind: term.kind, largest: term.largest }).expect("one root term per stated term");
     }
-    root::WorkerStatement { wires: wires.into_boxed(), output: statement.output, terms: terms.into_boxed() }
+    root::WorkerStatement {
+        wires: wires.into_boxed(),
+        output: statement.output,
+        terms: terms.into_boxed(),
+        jobs: statement.jobs.into_boxed(),
+    }
 }
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {

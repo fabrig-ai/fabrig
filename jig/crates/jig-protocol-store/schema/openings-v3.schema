@@ -1,11 +1,13 @@
-family jig-store-openings 2
+family jig-store-openings 3
 
 record OpenedWire { name: text 32 layout: fixed 32 text: bytes 65536 }
 record OpenedTerm { kind: u16 largest: u32 }
+record OpenedJob { kind: u32 spec: u32 result: u32 deadline: duration }
 versioned record WorkerOpening {
     worker: text 256
     wires: list 8 OpenedWire
     output: u32
     terms: list 64 OpenedTerm
+    jobs: list 256 OpenedJob
     at: u64
 }

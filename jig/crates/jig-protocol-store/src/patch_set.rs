@@ -37,7 +37,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
     },
     KeptFamily {
         retired: &[],
-        current: include_str!("../schema/openings-v2.schema"),
+        current: include_str!("../schema/openings-v3.schema"),
         types: &[],
         name: "jig-store-openings",
         map: KeptMap::Store,

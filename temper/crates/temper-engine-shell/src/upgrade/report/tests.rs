@@ -463,6 +463,7 @@ fn opening(name: &str) -> WorkerOpening {
             .filter(|kind| kind.direction == skein_channel::Direction::FromResponder)
             .map(|kind| jig_protocol_store::OpenedTerm { kind: kind.kind, largest: kind.largest })
             .collect(),
+        jobs: Box::new([]),
         at: Wall::from_nanos(1_794_564_000_123_456_789),
     }
 }
@@ -600,6 +601,21 @@ fn earlier_and_missing_openings_have_distinct_unknown_lines() {
         ),
         format!(
             "temper-box upgrade: worker w1 unknown: opened before layouts\ntemper-box upgrade: worker w2 unknown: no opening kept since the engine's last start\n{NO}"
+        )
+    );
+}
+
+#[test]
+fn an_opening_before_jobs_were_kept_cannot_stay() {
+    assert_eq!(
+        verdict_with_workers(
+            Some(kept()),
+            Box::new([KeptOpening::BeforeJobs { worker: "w1".into() }, KeptOpening::Current(opening("w2"))]),
+            Some(Box::new([])),
+            configured().defaults,
+        ),
+        format!(
+            "temper-box upgrade: worker w1 unknown: opened before its job kinds were kept\ntemper-box upgrade: worker w2 may stay: opened 2026-11-13T10:00:00Z\n{NO}"
         )
     );
 }

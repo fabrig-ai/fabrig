@@ -6937,6 +6937,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",

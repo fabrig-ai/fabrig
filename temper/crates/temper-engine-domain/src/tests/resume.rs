@@ -958,6 +958,12 @@ fn accepted_statement() -> crate::WorkerStatement {
         }]),
         output: 4096,
         terms: Box::new([crate::OpenedTerm { kind: 12, largest: 34 }]),
+        jobs: Box::new([jig_domain_link::JobBound {
+            kind: jig_domain_link::JobKind(4),
+            spec: 16_384,
+            result: 512,
+            deadline: skein_lib::Duration::from_secs(600),
+        }]),
     }
 }
 

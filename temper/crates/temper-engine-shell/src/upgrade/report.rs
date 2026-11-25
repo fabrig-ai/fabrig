@@ -255,7 +255,7 @@ fn workers(
         .map(|opening| {
             let name = match opening {
                 KeptOpening::Current(current) => &current.worker,
-                KeptOpening::BeforeLayouts { worker } => worker,
+                KeptOpening::BeforeLayouts { worker } | KeptOpening::BeforeJobs { worker } => worker,
             };
             (name.as_bytes(), opening)
         })
@@ -267,6 +267,12 @@ fn workers(
             Some(KeptOpening::BeforeLayouts { .. }) => {
                 allowed = false;
                 writeln!(text, "{binary} upgrade: worker {name} unknown: opened before layouts").expect("string write");
+                continue;
+            }
+            Some(KeptOpening::BeforeJobs { .. }) => {
+                allowed = false;
+                writeln!(text, "{binary} upgrade: worker {name} unknown: opened before its job kinds were kept")
+                    .expect("string write");
                 continue;
             }
             None => {
@@ -342,6 +348,7 @@ fn statement(opening: &WorkerOpening) -> Statement {
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),
+        jobs: List::from_boxed(opening.jobs.clone()),
     }
 }
 

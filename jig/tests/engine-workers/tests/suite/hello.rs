@@ -44,6 +44,7 @@ mod hello {
         world.run();
         assert_eq!(world.refusal(connection), Some((3, Box::from(b"".as_slice()))));
         assert!(world.root().is_empty());
+        assert!(matches!(world.openings(), [Request::Refused { reason: 3, .. }]));
     }
     #[test]
     fn a_hello_past_its_deadline_closes_the_channel_unheard() {
@@ -55,6 +56,18 @@ mod hello {
         world.run();
         assert!(world.gone(connection));
         assert!(world.root().is_empty());
+        assert!(world.openings().is_empty());
+    }
+    #[test]
+    fn a_channel_lost_before_its_hello_hands_up_no_opening() {
+        let mut world = world();
+        let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, APPLICATION_VERSION));
+        world.run();
+        assert!(world.ready(connection));
+        world.end_stream(connection);
+        world.run();
+        assert!(world.gone(connection));
+        assert!(world.openings().is_empty());
     }
     #[test]
     fn a_hello_not_admitted_is_refused_with_the_fleets_text() {

@@ -833,13 +833,7 @@ impl Component {
                         state.down(ChannelRequest::Finish, connection, out);
                         return;
                     }
-                    let mut statement = state.statement.take().expect("authenticated statement");
-                    statement.terms = terms;
-                    out.push(Request::Opened {
-                        worker: state.worker.expect("authenticated worker"),
-                        converted: core::mem::replace(&mut state.converted, List::with_capacity(0)),
-                        statement,
-                    });
+                    state.statement.as_mut().expect("authenticated statement").terms = terms;
                     state.phase = Phase::Hello;
                     state.deadline = state.hello_deadline;
                     state.down(ChannelRequest::Read, connection, out);
@@ -939,6 +933,10 @@ impl Component {
                     state.deadline = None;
                     state.ping = Some(now.saturating_add(self.limits.ping));
                     state.silence = Some(now.saturating_add(self.limits.silence));
+                    let mut statement = state.statement.take().expect("authenticated statement");
+                    statement.jobs = List::from_boxed(hello.jobs.clone());
+                    let converted = core::mem::replace(&mut state.converted, List::with_capacity(0));
+                    out.push(Request::Opened { worker, converted, statement });
                     out.push(Request::Hello { channel: state.channel, worker, hello });
                     state.down(ChannelRequest::Read, connection, out);
                     return;

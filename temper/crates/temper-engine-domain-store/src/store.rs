@@ -791,6 +791,7 @@ pub struct WorkerStatement {
     pub wires: Box<[OpenedWire]>,
     pub output: u32,
     pub terms: Box<[OpenedTerm]>,
+    pub jobs: Box<[jig_domain_link::JobBound]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenedWire {
@@ -1149,6 +1150,10 @@ pub fn owned_bytes(write: &Write) -> Option<u64> {
                 .checked_add(
                     skein_lib::len_u64(opening.statement.terms.len())
                         .checked_mul(u64::try_from(size_of::<OpenedTerm>()).ok()?)?,
+                )?
+                .checked_add(
+                    skein_lib::len_u64(opening.statement.jobs.len())
+                        .checked_mul(u64::try_from(size_of::<jig_domain_link::JobBound>()).ok()?)?,
                 )?;
             for wire in &opening.statement.wires {
                 bytes = bytes
