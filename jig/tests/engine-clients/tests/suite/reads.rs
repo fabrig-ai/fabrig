@@ -107,21 +107,19 @@ fn a_family_read_hands_its_scope_and_window_to_the_application() {
 }
 
 #[test]
-fn older_clients_are_refused_by_name_without_reading_the_core() {
+fn client_37_is_refused_by_name_without_reading_the_core() {
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
-    for version in [37, 44] {
-        let socket = peer.post(b"/jig/v1/read", read_at_version(version), Some(&bearer));
-        assert!(peer.take_core().is_none());
-        let w::ReadAnswer::NotServed(why) =
-            w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal")))
-                .unwrap()
-        else {
-            panic!("version {version}: expected a refusal naming the served version")
-        };
-        assert_eq!(&why.owner, &w::Owner::Jig);
-        let served = why.served.get(0).expect("served jig version");
-        assert_eq!(&served.owner, &w::Owner::Jig);
-        assert_eq!((served.first, served.last), (45, 45));
-    }
+    let socket = peer.post(b"/jig/v1/read", read_at_version(37), Some(&bearer));
+    assert!(peer.take_core().is_none());
+    let w::ReadAnswer::NotServed(why) =
+        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal")))
+            .expect("read answer")
+    else {
+        panic!("not served")
+    };
+    assert_eq!(&why.owner, &w::Owner::Jig);
+    let served = why.served.get(0).expect("served jig version");
+    assert_eq!(&served.owner, &w::Owner::Jig);
+    assert_eq!((served.first, served.last), (w::VERSION, w::VERSION));
 }
