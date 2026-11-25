@@ -7548,6 +7548,24 @@ pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay) -> temper_engin
 }
 
 #[must_use]
+pub fn closing_report_check_to_record(value: &temper_engine_domain_forge_closer::ReportCheck) -> crate::v25::ClosingReportCheck {
+    match value {
+        temper_engine_domain_forge_closer::ReportCheck::Unread => crate::v25::ClosingReportCheck::Unread,
+        temper_engine_domain_forge_closer::ReportCheck::Held => crate::v25::ClosingReportCheck::Held,
+        temper_engine_domain_forge_closer::ReportCheck::Released => crate::v25::ClosingReportCheck::Released,
+    }
+}
+
+#[must_use]
+pub fn closing_report_check_to_domain(record: crate::v25::ClosingReportCheck) -> temper_engine_domain_forge_closer::ReportCheck {
+    match record {
+        crate::v25::ClosingReportCheck::Unread => temper_engine_domain_forge_closer::ReportCheck::Unread,
+        crate::v25::ClosingReportCheck::Held => temper_engine_domain_forge_closer::ReportCheck::Held,
+        crate::v25::ClosingReportCheck::Released => temper_engine_domain_forge_closer::ReportCheck::Released,
+    }
+}
+
+#[must_use]
 pub fn follow_commit_to_record(value: &temper_engine_domain_forge_vocabulary::FollowCommit) -> crate::v25::FollowCommit {
     let temper_engine_domain_forge_vocabulary::FollowCommit { id: field_000000, message: field_000001 } = value;
     crate::v25::FollowCommit {

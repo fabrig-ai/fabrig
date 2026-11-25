@@ -68,6 +68,11 @@ impl Domain {
         }
     }
 
+    /// New work during an offered step can invalidate its containment answer.
+    pub fn discard_closer_answer(&mut self, task: u64) {
+        self.closing.checked.remove(&task);
+    }
+
     #[must_use]
     pub fn closer_checked(&self, task: u64, step: u64) -> Option<Result<bool, Error>> {
         let (checked_step, result) = self.closing.checked.get(&task)?;

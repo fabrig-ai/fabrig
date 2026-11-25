@@ -260,6 +260,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Close { task, root, ending } => {
             if connector == domain.config.forge_connector {
+                forge_route::goal_report::forget(domain, task);
                 domain.work.push(Work::Forge(forge::Event::SettleEffects {
                     task,
                     root,
@@ -582,7 +583,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
                 forge_route::start_landing_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::GOAL_CLOSER_CODE {
-                forge_route::start_closer_step(domain, env, &context);
+                forge_route::start_closer_step(domain, env, decision, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
                 forge_route::start_status_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::FOLLOW_CODE {

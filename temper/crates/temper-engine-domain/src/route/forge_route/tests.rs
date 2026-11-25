@@ -350,7 +350,8 @@ fn a_closer_waits_for_its_goals_branch_making() {
     let context = domain.core.tasks.run_context(GOAL_DELEGATE).expect("due closer");
     domain.work.clear();
 
-    super::closer_route::start_closer_step(&mut domain, &env, &context);
+    let mut decision = crate::restart::load_decision(&mut domain, &env.limits);
+    super::closer_route::start_closer_step(&mut domain, &env, &mut decision, &context);
     let mut step = None;
     while let Some(work) = domain.work.pop() {
         if let Work::Core(jig_domain_core::Event::ProcedureStep { task: GOAL_DELEGATE, decision, .. }) = work {

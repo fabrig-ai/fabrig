@@ -2,6 +2,7 @@ use super::*;
 
 fn facts() -> Facts {
     Facts {
+        report: ReportRead::Read(None),
         goal_branch: true,
         close_job: true,
         pending: false,
@@ -90,6 +91,65 @@ fn ended_steps_retry_only_below_the_bound_and_not_for_their_branch() {
             assert_eq!(released.closer.hold, None);
         }
     }
+}
+
+#[test]
+fn an_unread_report_is_read_before_the_next_step() {
+    for (goal_branch, closed) in [
+        (true, None),
+        (true, Some([9, 10])), // New work landed since the previous settlement.
+        (true, Some([9, 12])),
+        (false, None),
+    ] {
+        let mut f = facts();
+        f.goal_branch = goal_branch;
+        f.report = ReportRead::Unread;
+        let mut closer = Closer::new();
+        if let Some(tasks) = closed {
+            closer.closed = Some(Box::new(tasks));
+        }
+        assert_eq!(step(&closer, &f).decision, Decision::ReadReport);
+    }
+}
+
+#[test]
+fn an_unread_report_waits_while_new_work_is_pending() {
+    let mut f = facts();
+    f.report = ReportRead::Unread;
+    f.pending = true;
+    let mut closer = Closer::new();
+    closer.closed = Some(Box::new([9]));
+    assert_eq!(step(&closer, &f).decision, Decision::Wait);
+}
+
+#[test]
+fn a_failed_report_read_waits_and_then_asks_again() {
+    let mut f = facts();
+    f.report = ReportRead::Failed;
+    let first = step(&Closer::new(), &f);
+    assert_eq!(first.decision, Decision::Wait);
+    f.report = ReportRead::Unread;
+    assert_eq!(step(&first.closer, &f).decision, Decision::ReadReport);
+}
+
+#[test]
+fn a_released_report_check_can_read_but_not_hold_again() {
+    let mut f = facts();
+    f.report = ReportRead::Read(Some(b"the switch".as_slice().into()));
+    let held = step(&Closer::new(), &f);
+    assert_eq!(held.decision, Decision::HoldReport);
+    f.released = true;
+    let released = step(&held.closer, &f);
+    assert_eq!(released.decision, Decision::Make(Step::Close));
+    f.released = false;
+    f.close_job = false;
+    f.report = ReportRead::Unread;
+    let read = step(&released.closer, &f);
+    assert_eq!(read.decision, Decision::ReadReport);
+    f.report = ReportRead::Read(Some(b"a different switch".as_slice().into()));
+    let next = step(&read.closer, &f);
+    assert_eq!(next.decision, Decision::Make(Step::Land));
+    assert_eq!(next.closer.goal_left.as_deref(), Some(b"a different switch".as_slice()));
 }
 
 #[test]

@@ -3059,8 +3059,7 @@ fn a_closer_row_round_trips() {
                 running: Some(Running { step: Step::Close, change: 20 }),
                 landing: None,
                 hold: Some(Hold::ClosingStep { step: Step::Close, change: 20 }),
-                retry: None,
-                selections: Box::new([]),
+                ..Closer::new()
             },
             making: Some(Step::Close),
             close_changes: Box::new([20]),
@@ -3077,7 +3076,7 @@ fn a_closer_row_round_trips() {
                 landing: Some(21),
                 hold: Some(Hold::ClosingStep { step: Step::Land, change: 21 }),
                 retry: Some(Step::Land),
-                selections: Box::new([]),
+                ..Closer::new()
             },
             making: Some(Step::Land),
             close_changes: Box::new([20, 22]),
@@ -3095,7 +3094,7 @@ fn a_closer_row_round_trips() {
             landing: None,
             hold: None,
             retry: Some(Step::Close),
-            selections: Box::new([]),
+            ..Closer::new()
         },
         making: None,
         close_changes: Box::new([20]),
@@ -3114,6 +3113,23 @@ fn a_closer_row_round_trips() {
         let key = crate::keys::encode(&key, u32::MAX).expect("closer key fits");
         assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
         assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn a_closers_report_check_and_its_last_line_round_trip() {
+    use temper_engine_domain_forge_closer::{ReportCheck, relay::Relay};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for check in [ReportCheck::Unread, ReportCheck::Held, ReportCheck::Released] {
+        let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
+        row.closer.report_check = check;
+        row.closer.goal_left = Some(b"the switch, not yet cut.".as_slice().into());
+        let stored = forge::Stored::Closer(row);
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = stored.clone();
+        assert_eq!(forge::stored_bytes(&cloned), Some(meter.end().held()));
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
     }
 }
 
