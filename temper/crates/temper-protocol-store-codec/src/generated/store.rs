@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x13, 0x49, 0x0f, 0xc6, 0x8f, 0x95, 0x6e, 0x00, 0xb9, 0x37, 0xc2, 0x19, 0x94, 0xdb, 0x1d, 0xe4, 0x45, 0x75, 0x46,
-    0x4c, 0x05, 0xc7, 0xe3, 0xe3, 0xcc, 0xb9, 0x87, 0x57, 0x72, 0x40, 0x9a, 0x97,
+    0xe6, 0x65, 0xdb, 0xb7, 0xe0, 0xb1, 0x0b, 0x75, 0x86, 0xbf, 0xc5, 0xc7, 0x6c, 0xa9, 0xee, 0x03, 0x06, 0x3c, 0xcc,
+    0x4b, 0xd9, 0x62, 0x3a, 0x76, 0x96, 0x4b, 0xa3, 0xa6, 0xb6, 0xf5, 0x9a, 0x15,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -298,6 +298,7 @@ pub struct Limits {
     pub closer_close_changes: u32,
     pub closer_landing_changes: u32,
     pub closer_selections: u32,
+    pub closer_superseded: u32,
     pub landed_draft_path: u32,
     pub landed_draft_branch: u32,
     pub landed_draft_title: u32,
@@ -668,6 +669,7 @@ pub const CEILINGS: Limits = Limits {
     closer_close_changes: 1_024,
     closer_landing_changes: 1_024,
     closer_selections: 1_024,
+    closer_superseded: 1_024,
     landed_draft_path: 1_024,
     landed_draft_branch: 1_024,
     landed_draft_title: 200,
@@ -1038,6 +1040,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "closer_close_changes",
     "closer_landing_changes",
     "closer_selections",
+    "closer_superseded",
     "landed_draft_path",
     "landed_draft_branch",
     "landed_draft_title",
@@ -1412,6 +1415,7 @@ impl Limits {
             self.closer_close_changes,
             self.closer_landing_changes,
             self.closer_selections,
+            self.closer_superseded,
             self.landed_draft_path,
             self.landed_draft_branch,
             self.landed_draft_title,
@@ -1787,6 +1791,7 @@ impl Limits {
             closer_close_changes: self.closer_close_changes.min(most),
             closer_landing_changes: self.closer_landing_changes.min(most),
             closer_selections: self.closer_selections.min(most),
+            closer_superseded: self.closer_superseded.min(most),
             landed_draft_path: self.landed_draft_path.min(most),
             landed_draft_branch: self.landed_draft_branch.min(most),
             landed_draft_title: self.landed_draft_title.min(most),
@@ -2159,6 +2164,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CLOSER_CLOSE_CHANGES,
     paths::CLOSER_LANDING_CHANGES,
     paths::CLOSER_SELECTIONS,
+    paths::CLOSER_SUPERSEDED,
     paths::LANDED_DRAFT_PATH,
     paths::LANDED_DRAFT_BRANCH,
     paths::LANDED_DRAFT_TITLE,
@@ -3804,6 +3810,7 @@ pub mod paths {
     pub const CLOSER_SELECTIONS: Path = Path::new("Closer.selections");
     pub const CLOSER_DONE: Path = Path::new("Closer.done");
     pub const CLOSER_RELAY: Path = Path::new("Closer.relay");
+    pub const CLOSER_SUPERSEDED: Path = Path::new("Closer.superseded");
     pub const CLOSER_TAIL: Path = Path::new("Closer (tail)");
     pub const LANDED_DRAFT_REPOSITORY: Path = Path::new("LandedDraft.repository");
     pub const LANDED_DRAFT_PATH: Path = Path::new("LandedDraft.path");
@@ -31543,6 +31550,7 @@ pub struct Closer {
     pub selections: List<ClosingSelection>,
     pub done: bool,
     pub relay: Option<ClosingRelay>,
+    pub superseded: List<u64>,
 }
 
 // Record: Closer.
@@ -31571,11 +31579,13 @@ impl Closer {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("ClosingRelay"),
         skein_codec::bounds::Node::Option { item: 21 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 20, 22] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closer_superseded), item: 23, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 20, 22, 24] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 112;
+    pub const ENCODED_AT_ZERO: u64 = 116;
 }
 
 impl Record for Closer {
@@ -31613,6 +31623,7 @@ impl Record for Closer {
         field::write(field::Sequence { limit: limits.closer_selections.min(CEILINGS.closer_selections), minimum: 10, item: field::Nested }, &self.selections, limits, out, paths::CLOSER_SELECTIONS)?;
         field::write(field::Boolean, &self.done, limits, out, paths::CLOSER_DONE)?;
         field::write(field::Optional { item: field::Nested }, &self.relay, limits, out, paths::CLOSER_RELAY)?;
+        field::write(field::Sequence { limit: limits.closer_superseded.min(CEILINGS.closer_superseded), minimum: 8, item: field::U64 }, &self.superseded, limits, out, paths::CLOSER_SUPERSEDED)?;
         Ok(())
     }
 
@@ -31631,6 +31642,7 @@ impl Record for Closer {
             selections: field::read(field::Sequence { limit: limits.closer_selections.min(CEILINGS.closer_selections), minimum: 10, item: field::Nested }, limits, reader, paths::CLOSER_SELECTIONS)?,
             done: field::read(field::Boolean, limits, reader, paths::CLOSER_DONE)?,
             relay: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSER_RELAY)?,
+            superseded: field::read(field::Sequence { limit: limits.closer_superseded.min(CEILINGS.closer_superseded), minimum: 8, item: field::U64 }, limits, reader, paths::CLOSER_SUPERSEDED)?,
         })
     }
 }
@@ -41507,6 +41519,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.closer_close_changes,
     CEILINGS.closer_landing_changes,
     CEILINGS.closer_selections,
+    CEILINGS.closer_superseded,
     CEILINGS.landed_draft_path,
     CEILINGS.landed_draft_branch,
     CEILINGS.landed_draft_title,

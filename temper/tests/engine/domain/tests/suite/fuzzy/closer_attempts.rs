@@ -34,11 +34,22 @@ fn seeded_step_endings_hold_only_for_the_branch_or_the_bound() {
             let reason = rng.below(3);
             let branch = reason == 2;
             covered.insert((bound, failed, reason));
+            f.pending = rng.below(2) == 0;
+            // Seed live close observations as well as endings. Until its work ends,
+            // the closer must not wake or replace either kind of idle close.
+            if kind == Step::Close {
+                let held = reason == 1;
+                f.child = if reason == 0 { Child::Pending } else { Child::Idle { held } };
+                let decision =
+                    if reason == 0 || f.pending || held { Decision::Wait } else { Decision::Wake { change } };
+                let live = step(&closer, &f);
+                assert_eq!(live.decision, decision, "seed {seed}, live close {count}");
+                assert_eq!(live.closer.running, closer.running);
+            }
             f.child = Child::Ended { branch };
             f.landing_child = f.child;
             f.close_ended = if kind == Step::Close { count } else { 99 };
             f.land_ended = if kind == Step::Land { count } else { 99 };
-            f.pending = rng.below(2) == 0;
             if kind == Step::Land {
                 f.base_holds = None;
                 let checked = step(&closer, &f);
