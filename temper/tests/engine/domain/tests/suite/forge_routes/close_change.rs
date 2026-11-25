@@ -19,17 +19,7 @@ fn goal_world_with_worker(
     authority: bool,
     close_worker: bool,
 ) -> (World, engine::Assignment, Box<[u8]>, u64) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        true,
-        STEPS,
-        Gate::default(),
-        None,
-        StoryLimits { result_bytes: Some(512), ..StoryLimits::default() },
-    )
-    .with_close_job(command.then_some(COMMAND), authority)
-    .with_landing_deployment(Box::new([engine::LandingRule {
+    let landing_deployment = Box::new([engine::LandingRule {
         sets: Box::new([]),
         connector: 0,
         kind: 4,
@@ -42,7 +32,21 @@ fn goal_world_with_worker(
         up_to_date: false,
         gates: Box::new([]),
         approvals: Box::new([]),
-    }]));
+    }]);
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            result_bytes: Some(512),
+            close_job: Some((command.then(|| COMMAND.into()), authority)),
+            landing_deployment: Some(landing_deployment),
+            ..StoryLimits::default()
+        },
+    );
     world.adopt();
     if close_worker {
         hello_close_worker(&mut world);
