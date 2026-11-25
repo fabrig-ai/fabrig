@@ -12,6 +12,9 @@ use temper_box_shell::{
 
 const PROVIDER_KEY: &[u8] = include_bytes!("../../../src/init/fixtures/provider.pem");
 
+// Linux's SO_REUSEADDR lets both sockets bind the same address until one listens.
+// macOS refuses the second bind without SO_REUSEPORT, which skein doesn't set.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_port_another_init_listens_on_between_bind_and_listen_gets_a_kernel_port() {
     let mut io = Io::open().expect("startup io");
@@ -33,6 +36,9 @@ fn a_port_another_init_listens_on_between_bind_and_listen_gets_a_kernel_port() {
     io.close(other);
 }
 
+// Linux's SO_REUSEADDR lets the second socket bind the first's unlistened port.
+// macOS refuses that bind without SO_REUSEPORT, which skein doesn't set.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_kernel_chosen_port_another_takes_before_listen_gets_another() {
     let mut io = Io::open().expect("startup io");
