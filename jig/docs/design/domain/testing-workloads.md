@@ -205,7 +205,12 @@ over the same workload, recorded as it is set up:
   try, it is never held, and its first delegate ends with the answer.
 
 The drawn goals are among the workload's, at its profile: a circle
-longer than the goals drawn is cut to their number.
+longer than the goals drawn is cut to their number, and to what the
+profile's bounds admit. At the planning fixture's five live tasks and
+five tasks a tree, which the stuck walk counts from the root, a circle
+of three goals with their asking delegates needs six of each, so the
+drawn length is capped at two there; a circle of two still checks the
+walk through another goal's delegate by reading.
 
 ## 5. Tables and funds at their bounds
 
