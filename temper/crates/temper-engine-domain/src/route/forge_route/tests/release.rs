@@ -1,5 +1,5 @@
 //! The root holds a closing task with the forge's release account (domain/forge/releases.md, 2).
-use super::{change_row, change_start_fixture};
+use super::{adopted, change_start_fixture, restore_forge, task_change_row, task_event};
 use crate::{
     Decision, Work,
     route::forge_route::{forge, tasks},
@@ -29,19 +29,12 @@ fn release_failure_holds_with_the_forge_words_and_optional_entry() {
             tasks::Event::Check,
             tasks::Event::Restored,
         ] {
-            tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+            task_event(&mut domain, &env, event);
         }
         assert_eq!(domain.core.tasks.restore_failure(), None);
-        let mut row = change_row(Some(1));
-        row.task = task;
-        row.change.task = task;
-        row.repository = super::adopted(1).provider;
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        let mut row = task_change_row(task, Some(1));
+        row.repository = adopted(1).provider;
+        restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
 
         let mut out = Queue::uncapped();
         out.push(forge::Request::ReleaseFailed { task, entry, words: Box::from(account) });
@@ -49,7 +42,7 @@ fn release_failure_holds_with_the_forge_words_and_optional_entry() {
         super::super::outputs(&mut domain, &env, &mut decision, &mut out);
         let Some(Work::Tasks(event)) = domain.work.pop() else { panic!("the root asks for a task hold") };
         assert!(domain.work.is_empty());
-        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        task_event(&mut domain, &env, event);
         let tasks::Phase::Held { was: tasks::Was::Closing(_), why: tasks::Hold::EffectFailed, source: Some(source) } =
             &domain.core.tasks.task(task).unwrap().phase
         else {
