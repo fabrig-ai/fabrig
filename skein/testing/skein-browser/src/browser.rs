@@ -1597,23 +1597,19 @@ impl Browser {
     }
 
     fn enable(&mut self, env: &Env<Limits>, page: Token, index: u8) {
-        const DOMAINS: [&[u8]; 6] = [
-            b"Page.enable",
-            b"Runtime.enable",
-            b"Log.enable",
-            b"Accessibility.enable",
-            b"DOM.enable",
-            b"Inspector.enable",
-        ];
-        if let Some(method) = DOMAINS.get(usize::from(index)) {
+        // AX queries only use AX ids within one reply. DOM.getDocument
+        // enables DOM events implicitly; other DOM reads need no subscription.
+        const DOMAINS: [&[u8]; 4] = [b"Page.enable", b"Runtime.enable", b"Log.enable", b"Inspector.enable"];
+        let position = usize::from(index);
+        if let Some(method) = DOMAINS.get(position) {
             if !self.queue_page(env, page, method, &Params::Empty, PendingKind::Enable(page, index)) {
                 self.close_page_local(page);
             }
-        } else if index == 6 && self.page_requests(page) {
+        } else if position == DOMAINS.len() && self.page_requests(page) {
             if !self.queue_page(env, page, b"Network.enable", &Params::Network, PendingKind::Enable(page, index)) {
                 self.close_page_local(page);
             }
-        } else if index == 7 && self.page_requests(page) {
+        } else if position == DOMAINS.len().saturating_add(1) && self.page_requests(page) {
             if !self.queue_page(env, page, b"Page.getFrameTree", &Params::Empty, PendingKind::RequestFrame(page)) {
                 self.close_page_local(page);
             }
