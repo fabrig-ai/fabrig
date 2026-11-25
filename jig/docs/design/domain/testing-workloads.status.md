@@ -5,7 +5,7 @@
 - **Not yet:** 2, 3, 4 and 7: the stuck kinds (`STUCK_IN_A_CIRCLE`,
   `PARKS_ON_NOTHING`, `WATCHES_A_TASK_THAT_CAN_ANSWER`), `Expect::Stuck`,
   and `PARKS_WITH_A_QUESTION_OPEN` among `jig_core_kit::parks`; the parks'
-  sweep draws none of them.
+  sweep draws none of them. [in flight: change 17567]
 
 - **Not yet:**
   2, 3: the core world's kinds, its workload and its people's sweep.

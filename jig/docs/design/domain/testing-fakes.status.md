@@ -4,6 +4,7 @@
 
 - **Not yet:** 1.3: P43's scenario, `a_coordinator_watching_its_asker_is_woken`, is
   still ignored, and its exclusion is still in `jig_core_kit::open`.
+  [in flight: change 17563]
 - **Not yet:**
   1: the core kit's `World` keeps one commit per run, rehearsed in
   `World::finish`, and its rehearsal pays for its store and start alone.

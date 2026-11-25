@@ -6,6 +6,6 @@
   for each newer question while it holds a timer or a watch of a live
   task (`question_woken`), and polled otherwise; no walk judges its
   wakes, its hold's words name no chain, and nothing judges it again
-  when what it waits on changes or at a start.
+  when what it waits on changes or at a start. [in flight: change 17563]
 - **Not yet:** 5: a task past its run tries parked with nothing left to
-  await ends failed, not held.
+  await ends failed, not held. [in flight: change 17564]
