@@ -33,7 +33,8 @@ It supersedes the draft of 2026-11-04, whose vision
   the requests below the first held one that haven't landed. Each
   becomes a goal, in branch order.
 - **Compared by a script in the goal** (section 4):
-  `scripts/look-compare.sh` prints the request's journeys into scratch.
+  `scripts/look-compare.sh`, through the journeys tool's
+  `look-compare` command, prints the request's journeys into scratch.
   It compares each page three ways with git, and the request's rules
   with the landed stylesheets. Then it writes the account's rows. It
   starts no browser, so a plan may run it. The landing's last commit
@@ -89,7 +90,7 @@ In this order:
   - the next request draws on it.
 - **What a walk reaches:** what the playground's world reaches by a
   person's acts (presses, typing, approvals) and the fake model's
-  turns. Its facts are fixed (`../client/journey-walks.md`, 4.1), so
+  turns. Its facts are fixed (`../client/journey-walks-world.md`, 1.1), so
   the same tree prints the same bytes. It prints no width: widths are
   the browser's, at the person's own check and the check after landing.
 
@@ -170,7 +171,11 @@ prints them after the landing.
 ### 4.2 The comparison
 
 `scripts/look-compare.sh NAME C`, beside `look-refresh.sh`, run in the
-landing's own tree:
+landing's own tree. It runs the journeys tool's `look-compare NAME C`
+as `look-refresh.sh` runs `look-refresh` (`../client/journey-writer.md`,
+4 and 6; `../testing/tools.md`, 2): the command asks for each effect
+as a value (a child with its arguments, a file) and decides on the
+answer, and its exit is the script's.
 
 1. **Reads the request:** it fetches `docs/look/NAME`, checks that it
    holds C, and reads C and its parent P. P holds the requests below,
@@ -352,9 +357,12 @@ entry for its newest `Look-landed`. A request that landed with no
 
 Focused and native: no browser, terminal or box starts.
 
-- **The comparison:** in `crates/temper-client-journeys-tool`'s suite,
-  beside the refresh's tests, in scratch repositories with a fake
-  print. Cases:
+- **The comparison's decisions,** step tests in
+  `crates/temper-client-journeys-tool`'s library beside the refresh's:
+  the `look-compare` command on canned answers (git's output, the
+  print's lines and pages), then its rows and exit. One witness in
+  `temper-client-journeys`' suite runs the shipped script in a scratch
+  repository with real git and a fake print. Cases:
   - every edit landed: exit 0;
   - an edit missing: its hunk is a row, exit 1;
   - one tag changed by both sides: a conflict row;
@@ -365,7 +373,8 @@ Focused and native: no browser, terminal or box starts.
   - a stopped walk: a row, exit 1;
   - the TUI's rules listed for reading;
   - a branch that doesn't hold C: exit 2.
-- **The run,** with a fake check. Cases:
+- **The run's decisions,** step tests of the `writer` command on
+  canned answers, the check's among them. Cases:
   - a landed request with no entry gets one, and a checked one is
     skipped;
   - a newer `Look-landed` is checked again;
@@ -376,7 +385,8 @@ Focused and native: no browser, terminal or box starts.
   - a failed check restores the written files, exit 1;
   - main's tip unchanged since a finished run: nothing runs;
   - a new offer at the same tip gets a new key.
-- **The refresh:** a request is kept until `looks.html` holds its
+- **The refresh's decisions,** step tests of the `look-refresh`
+  command: a request is kept until `looks.html` holds its
   entry, and dropped then. One with no `Look-landed` is dropped by
   `Printed:`.
 - **The render check's reading of Chromium:** a browser-tier story,
