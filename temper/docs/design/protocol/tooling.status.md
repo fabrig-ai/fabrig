@@ -1,6 +1,9 @@
 # tooling: status
 
-2026-11-24. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-25. Where temper's code lags or departs from [tooling.md](tooling.md).
+
+- **Not yet:** 2: no close job's environment holds `TEMPER_CLOSE_REFUSAL=3`. [in flight: change 18069]
+- **Not yet:** 4.2: the engine reads a close's exit 3 as a finished job with nothing pushed, a close with nothing to settle, and holds a refusal only after the job's tries. [in flight: change 18070]
 
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their

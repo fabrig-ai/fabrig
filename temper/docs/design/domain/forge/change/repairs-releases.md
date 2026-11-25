@@ -178,9 +178,10 @@ since 2026-11-25:
   producing, as on a producer failed for good, spending no try of the
   job's, and escalates to the goal at once. Its words, cut to the hold's
   bytes at a character's end: `the close check refused the goal's
-  branch at G, against main's counts at B: F1, F2 and N more; it checks
-  again once the goal's branch or main moves.`, G the head's first 12
-  hex digits, B the refusal's base's or `no base`, each F a failure's
+  branch at G, against main at B with counts C: F1, F2 and N more; it
+  checks again once the goal's branch or main moves.`, G the head's
+  first 12 hex digits, B the refusal's base's or `no base`, C its
+  counts' or `none`, each F a failure's
   name as the refusal lists it, `and N more` present where the refusal
   or the bytes left some out (N the refusal's `more` and those cut).
   The change keeps the refusal's counts beside the tips it read (below).
