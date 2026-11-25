@@ -2,7 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [look-settings.md](look-settings.md).
 
-- **Not yet:** *An account's row*, *Usage*: the name column is 40 px, not 48 [in flight: change 17960].
 - **Not yet:** *An account's row*, *Usage*: the `usage-model-week`
   request's rendered comparison follows landing on main, owned by
   temper/ui (`look-requests.md`, 4): its hand-made

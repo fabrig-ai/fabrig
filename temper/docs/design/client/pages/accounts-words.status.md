@@ -2,7 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [accounts-words.md](accounts-words.md).
 
-- **Not yet:** 1, *Usage*: a model's week, `seven_day_fable`, is drawn always and under its label, not as its model, "Fable", and only while limited or filling before its reset [in flight: change 17960].
 
 - **Not yet:** 1: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
 
