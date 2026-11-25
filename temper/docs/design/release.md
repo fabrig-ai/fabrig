@@ -207,10 +207,19 @@ release's: no tag names it, and the workflow writes no checksum.
   keeps no file mode. `commit` names the build beside the file, as
   section 3's `--version` does within it.
 - **Where it goes is the site's:** the host that serves fabrig.ai
-  fetches the artifact and serves `temper` at `/temper/Darwin-arm64`,
-  gzipped and with its checksum, both made there, and starts the
-  workflow when it wants a newer file; all of it happens outside the
-  repository.
+  fetches the artifact and serves `temper` at `/temper/Darwin-arm64`
+  unpacked, stripped and signed as the workflow left it, with its
+  checksum made there, and starts the workflow when it wants a newer
+  file; all of it happens outside the repository.
+- **The site's two files, packed as each is fetched:** `temper`, the
+  client, at `/temper/<os>-<arch>`, is served unpacked and stripped, so
+  the install line needs no unpacking step: `curl -fL
+  https://fabrig.ai/temper/$(uname -s)-$(uname -m) -o temper && chmod +x
+  temper && ./temper box`. `temper-box`, the whole product that line's
+  first `temper box` fetches, is served in its commit's directory as
+  `<os>-<arch>/temper-box.zst`, stripped and packed by `zstd -19`, which
+  `temper` unpacks itself (`client/box-binary.md`, 3;
+  `draft/deployment-binaries.md`, section 2).
 
 ## 6. Proved on a fresh machine
 

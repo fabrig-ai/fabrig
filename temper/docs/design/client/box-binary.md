@@ -12,12 +12,13 @@ side is `../protocol/setup/box-front.md`, 1.
   is the one `temper`'s own build would give it (2).
 - **Where, in order:** beside `temper`'s own executable; in the cache, at
   `bin/<COMMIT>/<os>-<arch>/temper-box`, checked by the SHA-256 beside
-  it; downloaded from `https://fabrig.ai`, checked against the site's
-  `SHA256SUMS`, when `temper`'s commit is clean. A `-dirty` or `unknown`
-  build never downloads. No PATH (2).
+  it; downloaded from `https://fabrig.ai` as `temper-box.zst`, checked
+  against the site's `SHA256SUMS` and unpacked by `temper` itself, when
+  `temper`'s commit is clean. A `-dirty` or `unknown` build never
+  downloads. No PATH (2).
 - **The download** is the forge's fetch's way (`../protocol/setup/owned.md`,
   6): streamed into private staging files under a lock, bounded,
-  checked, made executable, synced and renamed into place (3).
+  checked, unpacked, made executable, synced and renamed into place (3).
 - **`temper internal fetch-box`** runs it in a child of `temper box`'s
   TUI, saying how far it has gone on stdout and ending with `found PATH`
   (4).
@@ -50,9 +51,9 @@ side is `../protocol/setup/box-front.md`, 1.
   from the forge's and Claude Code's caches beside it.
   - Its files: `temper-box`, `0o755`; `temper-box.sha256`, the unpacked
     file's SHA-256 as 64 lowercase hexadecimal digits and a line feed;
-    `temper-box.lock`; and while a fetch runs, `temper-box.gz.part` and
-    `temper-box.part`. Each directory from `bin/` down is made `0o700`
-    when missing.
+    `temper-box.lock`; and while a fetch runs, `temper-box.zst.part`,
+    `temper-box.part` and `temper-box.sha256.part`. Each directory from
+    `bin/` down is made `0o700` when missing.
   - **Under the lock:** the lock file, `0o600`, is opened and locked
     exclusively, waiting while another `temper` holds it, before the
     cache is read, and held until the file is published or refused, so
@@ -97,33 +98,51 @@ side is `../protocol/setup/box-front.md`, 1.
   answer, `200` with the body:
   - `SITE/temper/v{MAJOR}/<COMMIT>/SHA256SUMS`, MAJOR the first number of
     VERSION (`v0` before 1.0), at most 64 KiB;
-  - `SITE/temper/v{MAJOR}/<COMMIT>/<os>-<arch>/temper-box`, gzipped with
-    no suffix (`../draft/deployment-binaries.md`, section 2), at most 128
-    MiB as served and 512 MiB unpacked.
+  - `SITE/temper/v{MAJOR}/<COMMIT>/<os>-<arch>/temper-box.zst`, one
+    zstd frame as `zstd -19` writes it
+    (`../draft/deployment-binaries.md`, section 2), at most 128 MiB as
+    served and 512 MiB unpacked.
   Any other status refuses, naming the URL and the status. A redirect
   is followed only to the same origin, `https`, at most three; one to
   another host, port or scheme refuses, naming both URLs.
+- **Why zstd, and zstd alone:** the whole product is about 58 MB
+  unpacked, 24.0 MB gzipped and 17.0 MB as `zstd -19`, and `temper`
+  unpacks it itself, so nothing is asked of the machine; no gzip path
+  stays beside it (the user, 2026-11-25). A build reads only its own
+  commit's directory, so no build meets another's packing, and nothing
+  is bridged.
 - **The sums,** as `sha256sum` writes them: each line 64 lowercase
   hexadecimal digits, then two spaces or a space and `*`, then a name
   running to the line feed. Exactly one line's name is
-  `<os>-<arch>/temper-box`, and its digest is the served, gzipped
-  file's. None, two, or that line malformed refuses, saying which; other
-  lines are not read past their name. A body past 64 KiB refuses.
+  `<os>-<arch>/temper-box.zst`, and its digest is the served, packed
+  file's. None, two, or that line malformed refuses, saying which;
+  other lines are not read past their name. A body past 64 KiB refuses.
 - **Staged, then published,** under the lock (2):
   1. Staging files a fetch left are removed first.
-  2. The served body is streamed into `temper-box.gz.part`, private
+  2. The served body is streamed into `temper-box.zst.part`, private
      (`0o600`), hashed as it is written, within 128 MiB: past it, or
      past the answer's `Content-Length`, refuses.
   3. Its digest is checked against the sums' line: another refuses,
      naming the URL, the digest wanted and the one got.
   4. Only then is it unpacked into `temper-box.part`, private, hashed as
-     written, within 512 MiB: past it, or a gzip stream that is
-     malformed, truncated or followed by more than padding, refuses.
+     written, within 512 MiB. The file is one frame and nothing after
+     it; reading it in order, the first fault met refuses, saying which:
+     - `truncated zstd frame`: the file ends inside its frame, an empty
+       file among them;
+     - `damaged zstd frame`: any other fault the decoder finds in the
+       frame, a wrong magic number, a reserved bit set, a block that
+       doesn't decode, or a window or dictionary it won't take;
+     - `unpacked file past 512 MiB`: more unpacked bytes than the
+       bound, or a frame whose header declares more;
+     - `zstd frame followed by other bytes`: any byte after the frame's
+       end, a second frame or a skippable one among them.
+     The frame's own checksum is not what's trusted: the served file's
+     digest is checked before it is unpacked (step 3).
   5. `temper-box.part` is made `0o755` and synced; its identity is
      read (2), and another refuses, naming the line it printed.
   6. `temper-box.sha256` is written through `temper-box.sha256.part`,
      synced and renamed into place; then `temper-box.part` is renamed
-     over `temper-box`, the directory synced, and `temper-box.gz.part`
+     over `temper-box`, the directory synced, and `temper-box.zst.part`
      removed.
   A refusal removes every staging file; an interrupted fetch leaves only
   staging files, which the next removes (step 1). A `temper-box.sha256`
@@ -141,11 +160,13 @@ side is `../protocol/setup/box-front.md`, 1.
   beside `temper`, where step 1 of 2 finds it:
 
   ```
-  temper: temper-box: https://fabrig.ai/temper/v0/0123456789ab/Linux-x86_64/temper-box: cannot connect: ...
-  Fetch it by hand: curl -fL https://fabrig.ai/temper/v0/0123456789ab/Linux-x86_64/temper-box | gunzip > '/home/ada/bin/temper-box' && chmod +x '/home/ada/bin/temper-box'
+  temper: temper-box: https://fabrig.ai/temper/v0/0123456789ab/Linux-x86_64/temper-box.zst: cannot connect: ...
+  Fetch it by hand: curl -fL https://fabrig.ai/temper/v0/0123456789ab/Linux-x86_64/temper-box.zst | zstd -dc > '/home/ada/bin/temper-box' && chmod +x '/home/ada/bin/temper-box'
   ```
 
   The path is quoted for a POSIX shell, a `'` in it written `'\''`.
+  Fetched by hand, the file is unpacked by the machine's `zstd`, the
+  one program this line asks for.
 
 ## 4. `temper internal fetch-box`
 
@@ -204,8 +225,8 @@ TUI's loop.
 
 - **The host,** `temper_fetch_shell::box_binary`, on skein-io, skein-http
   and skein-tls as the forge's fetch's host, with std's files, the lock
-  as `claude_code`'s, and `flate2`'s gzip decoder, the workspace's, for
-  step 4 of 3:
+  as `claude_code`'s, and `ruzstd`'s decoder, the workspace's, for step
+  4 of 3:
 
   ```rust
   // temper_fetch_shell::box_binary
@@ -248,12 +269,14 @@ TUI's loop.
 - **The host,** in its step tests over the cache's effects and a
   candidate's facts (`../testing/shells.md`, 3.6): the lock taken before
   the cache is read, staging files removed, a candidate's identity and
-  its bound, and a refusal leaving no staging file; and on a scratch
+  its bound, the unpacking's rows (a good frame, and each of 3's four
+  faults, step 4), a good `temper-box.zst` published and a refusal
+  leaving no staging file; and on a scratch
   directory, one real candidate's run and one whole publication under
   the native lock, with its order and modes (`../testing/shells.md`, 4).
   The fetch over TLS is the forge's fetch's host's, tested there.
 - **The process tier,** written and compiled, run after landing: a fake
-  site, a loopback HTTPS server holding a gzipped `temper-box` and its
+  site, a loopback HTTPS server holding a `temper-box.zst` and its
   sums under `TEMPER_INTERNAL_SITE` and an `SSL_CERT_FILE` naming its
   certificate, through `temper box` without a terminal: the download,
   its staging, lock and publication, an interrupted fetch, and the exec.
