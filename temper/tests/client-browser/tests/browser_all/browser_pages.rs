@@ -1,7 +1,7 @@
 //! Only a browser shows Back and Forward, a replaced history entry, the composer's focus,
 //! a filter's address across a reload, and an address that's no page. Ask temper's boxes at
-//! phone width, disclosures, keys in a text area, the panic page and where project rename
-//! returns focus stay here too (client/web/testing.md, 6, stories 2, 4, 5, 11 and 15).
+//! phone width, disclosures, keys in a text area, where project rename returns focus and
+//! the panic page stay here too (client/web/testing.md, 6, stories 2, 4, 5, 11 and 15).
 use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Script, Step};
@@ -27,6 +27,8 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
         see(message()),
         keep_node("main h1:focus", "focused-chat-heading"),
     ]);
+    stories.begin("rename", &steps);
+    steps.extend(rename_steps());
     stories.begin("panic", &steps);
     steps.extend([
         go(b"/test/panic"),
@@ -35,8 +37,6 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
             within: skein_lib::Duration::from_secs(6),
         }),
     ]);
-    stories.begin("rename", &steps);
-    steps.extend(rename_steps());
     let mut script = Script::new(steps.into_boxed_slice());
     let mut setup = tier.held_setup();
     setup.expected.push(b"Uncaught".as_slice().into());
