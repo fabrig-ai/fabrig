@@ -470,7 +470,8 @@ fn assert_task_refusal_round_trip(
             let client = jig_client_protocol_link::translate::documents::deployment(decoded, &client_limits).unwrap();
             assert_eq!(client.hello_refusals.get(0).unwrap().why, expected);
         }
-        (d::TaskWaitRefused::Bounds { .. }, c::TaskWaitRefused::Bounds { .. }) => {}
+        (d::TaskWaitRefused::Bounds { .. }, c::TaskWaitRefused::Bounds { .. })
+        | (d::TaskWaitRefused::Job { .. }, c::TaskWaitRefused::Job { .. }) => {}
         _ => panic!("matching refusal shapes"),
     }
     let record = translate::task::document(&task, &[], &limits).unwrap();
@@ -592,6 +593,37 @@ fn checks_refusal_preserves_charter_through_server_bytes_and_client_tasks() {
             figures: None,
         },
     );
+}
+
+#[test]
+fn job_refusals_round_trip_in_task_bytes_at_the_frozen_version() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core_vocabulary::documents as d;
+    use jig_domain_fleet as f;
+    assert_eq!(w::VERSION, 44);
+    for (worker, why, expected, figures) in [
+        (Some(2), d::JobWhy::Short(f::JobShort::Kind), c::JobWhy::Short(c::JobShort::Kind), None),
+        (Some(2), d::JobWhy::Short(f::JobShort::Spec), c::JobWhy::Short(c::JobShort::Spec), Some((16384, 1024))),
+        (None, d::JobWhy::Short(f::JobShort::Result), c::JobWhy::Short(c::JobShort::Result), Some((512, 256))),
+        (
+            Some(2),
+            d::JobWhy::Short(f::JobShort::Deadline),
+            c::JobWhy::Short(c::JobShort::Deadline),
+            Some((1_800_000, 600_000)),
+        ),
+        (Some(2), d::JobWhy::Untranslated, c::JobWhy::Untranslated, None),
+    ] {
+        let (figures, client_figures) = match figures {
+            Some((required, offered)) => {
+                (Some(f::Figures { required, offered }), Some(c::Figures { required, offered }))
+            }
+            None => (None, None),
+        };
+        assert_task_refusal_round_trip(
+            d::TaskWaitRefused::Job { worker, kind: 4, why, figures },
+            c::TaskWaitRefused::Job { worker, kind: 4, why: expected, figures: client_figures },
+        );
+    }
 }
 
 #[test]

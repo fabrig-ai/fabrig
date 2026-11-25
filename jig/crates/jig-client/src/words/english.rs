@@ -10,6 +10,7 @@ pub(super) fn language() -> Language {
     for word in ALL {
         let segments = match word {
             Word::Decision(value) => value.segments(),
+            Word::Job(value) => value.segments(),
             Word::Lifted => Box::new([
                 Segment::Text(copy_of(b"Hold ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -61,6 +62,7 @@ impl Word {
     pub(super) const fn data(self) -> (u16, &'static [u8], &'static [HoleKind]) {
         match self {
             Self::Decision(value) => value.data(),
+            Self::Job(value) => value.data(),
             Self::Refusal(RefusalWord::HoldOwnerParty) => (118, b"", &[HoleKind::Number, HoleKind::Number]),
             Self::Refusal(RefusalWord::HoldOwnerTask) => (119, b"", &[HoleKind::Number, HoleKind::Number]),
             Self::Lifted => (120, b"", &[HoleKind::Number, HoleKind::Number]),

@@ -157,7 +157,8 @@ pub(crate) struct Run {
 pub(crate) enum State {
     /// Started, or refused as busy: waits for an eligible slot, and for no worker to
     /// host another attempt of its run. `serial` is its place in the queue.
-    Waiting { claiming: Claiming, serial: u64 },
+    /// A fresh job must have a place; a placed job refused as busy keeps its claim.
+    Waiting { claiming: Claiming, serial: u64, fresh: bool },
     /// Adopted after a restart, no worker having listed it yet: until the
     /// grace passes.
     Adopted { to: ReplyTo, until: Time },
@@ -328,7 +329,7 @@ pub(crate) fn start(
     }
     replace(domain, run, out);
     let serial = next_serial(&mut domain.serial);
-    insert(domain, run, attempt, false, assignment, State::Waiting { claiming, serial });
+    insert(domain, run, attempt, false, assignment, State::Waiting { claiming, serial, fresh: true });
     let id = *domain.names.get(&(run, attempt)).expect("inserted attempt");
     domain.attempts.get_mut(id).expect("inserted attempt").placement = placement;
     true
@@ -681,7 +682,7 @@ pub(crate) fn place(
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { claiming, serial: _ } => assigned(
+        State::Waiting { claiming, .. } => assigned(
             claiming,
             Placing { assignment: entry.assignment, job: entry.job, channel, names },
             env,
@@ -725,7 +726,7 @@ pub(crate) fn listed(
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { claiming, serial: _ } => {
+        State::Waiting { claiming, .. } => {
             hosted(claiming, channel, names, env, &mut domain.channels, &mut domain.facts, out)
         }
         State::Adopted { to, until: _ } => located(
@@ -800,9 +801,9 @@ pub(crate) fn answer(
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { claiming, serial } => {
+        waiting @ State::Waiting { .. } => {
             resent(payload, &mut domain.facts, out);
-            State::Waiting { claiming, serial }
+            waiting
         }
         State::Adopted { to, until } => match answer {
             Answer::Busy => {
@@ -820,7 +821,7 @@ pub(crate) fn answer(
             Answer::Busy => {
                 refused(payload, &mut domain.facts, out);
                 let serial = next_serial(&mut domain.serial);
-                State::Waiting { claiming, serial }
+                State::Waiting { claiming, serial, fresh: false }
             }
             Answer::Ended
             | Answer::Parked
@@ -1029,8 +1030,10 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
         if held > 0 {
             continue;
         }
-        let (workstream, version) = match &entry.state {
-            State::Waiting { claiming: Claiming { workstream, version, .. }, .. } => (*workstream, *version),
+        let (workstream, version, fresh) = match &entry.state {
+            State::Waiting { claiming: Claiming { workstream, version, .. }, fresh, .. } => {
+                (*workstream, *version, *fresh)
+            }
             State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
@@ -1087,7 +1090,7 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             chosen = Some((id, channel));
             break;
         }
-        if entry.placement.is_some() {
+        if (fresh && entry.job.is_some()) || entry.placement.is_some() {
             recheck = Some(id);
             break;
         }

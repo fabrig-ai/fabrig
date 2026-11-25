@@ -405,6 +405,9 @@ InboxPage: ceilings encoded=33556564 decoded=33556544; at_most(3) encoded=32 dec
 InboxReadGroup: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 InboxSelection: ceilings encoded=552 decoded=512; at_most(3) encoded=64 decoded=24
 InvalidReason: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+JobShort: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+JobWhy: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
+JobWhyShort: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Kept: ceilings encoded=1114406 decoded=1114368; at_most(3) encoded=41 decoded=3
 Keyed: ceilings encoded=1245344 decoded=1245312; at_most(3) encoded=38 decoded=6
 KeyedAnswer: ceilings encoded=16777228 decoded=16777216; at_most(3) encoded=41 decoded=36
@@ -1037,6 +1040,7 @@ TaskWaitAccount: ceilings encoded=21 decoded=0; at_most(3) encoded=21 decoded=0
 TaskWaitBounds: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
 TaskWaitHello: ceilings encoded=36 decoded=0; at_most(3) encoded=36 decoded=0
 TaskWaitInvalid: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+TaskWaitJob: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
 TaskWaitRefused: ceilings encoded=37 decoded=0; at_most(3) encoded=37 decoded=0
 TaskWaitSource: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 TaskWaitUntooled: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0

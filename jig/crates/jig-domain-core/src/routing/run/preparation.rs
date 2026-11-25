@@ -88,7 +88,7 @@ pub(crate) fn workspace_prepared(
     drop(core.workspace_credentials.insert(task, credentials).expect("live task credential room"));
     let Some(current) = super::parts::preparation_facts(core, &context) else {
         drop(core.workspace_credentials.remove(&task));
-        return wait_for_account(core, work, context);
+        return wait_for_readiness(core, work, context);
     };
     match context.executor {
         tasks::Executor::Job { .. } => {
@@ -115,7 +115,7 @@ pub(crate) fn workspace_prepared(
     let transcript = core.transcripts.remove(&task).expect("rendered task owns loaded transcript");
     let allowance = match core.run_admission(&current, env.wall, writes) {
         crate::RunAdmission::Allow(allowance) => allowance,
-        crate::RunAdmission::Wait(_) => return wait_for_account(core, work, current),
+        crate::RunAdmission::Wait(_) => return wait_for_readiness(core, work, current),
         crate::RunAdmission::Hold(why) => {
             work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why })));
             out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
@@ -127,14 +127,14 @@ pub(crate) fn workspace_prepared(
         let fact = core.accounts.source(binding.source).expect("selected source");
         if fact.kind != jig_domain_accounts::Kind::None {
             let Some(grant) = core.accounts.source_grant(binding.source, env.now) else {
-                return wait_for_account(core, work, current);
+                return wait_for_readiness(core, work, current);
             };
             grants.push(grant).expect("provider grant room");
         }
     }
     for number in core.run_credentials(task) {
         let Some(grant) = core.accounts.credential_grant(*number, env.now) else {
-            return wait_for_account(core, work, context);
+            return wait_for_readiness(core, work, context);
         };
         let mut present = false;
         for kept in &grants {
@@ -371,7 +371,7 @@ pub(crate) fn start_proof(
     proof
 }
 
-pub(crate) fn wait_for_account(
+pub(crate) fn wait_for_readiness(
     core: &mut Core,
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
@@ -740,9 +740,9 @@ pub(crate) fn route_activate(
     {
         match context.executor {
             tasks::Executor::Person(_) => {}
-            tasks::Executor::Job { .. } => match super::jobs::admission(core, &context, env.wall, Box::new([])) {
-                Ok(()) => return super::jobs::activate(core, work, context),
-                Err(crate::RunAdmission::Wait(_)) => remember_due(core, context),
+            tasks::Executor::Job { kind } => match super::jobs::admission(core, &context, env.wall, Box::new([])) {
+                Ok(()) if core.job_available(number, kind) => return super::jobs::activate(core, work, context),
+                Ok(()) | Err(crate::RunAdmission::Wait(_)) => remember_due(core, context),
                 Err(crate::RunAdmission::Hold(why)) => {
                     work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task: number, why })));
                 }

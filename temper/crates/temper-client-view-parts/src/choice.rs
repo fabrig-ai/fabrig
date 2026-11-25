@@ -733,6 +733,7 @@ fn sentences(w: &Words, first: Box<[u8]>, next: Box<[u8]>) -> Box<[u8]> {
 fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     match why {
         c::TaskWaitRefused::Bounds { kind, why, figures } => bound_refusal(w, times, kind, why, figures, None),
+        c::TaskWaitRefused::Job { worker, kind, why, figures } => w.job_wait(worker, kind, why, figures),
         c::TaskWaitRefused::Hello { kind, at, why, figures } => {
             match why {
                 c::HelloRefusal::Agent { why } if figures.is_some() => {
@@ -1123,7 +1124,7 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
         c::TaskRunWait::Refused(why) => {
             let at = match why {
                 c::TaskWaitRefused::Hello { at, .. } => at,
-                c::TaskWaitRefused::Bounds { .. } => skein_lib::Wall::EPOCH,
+                c::TaskWaitRefused::Bounds { .. } | c::TaskWaitRefused::Job { .. } => skein_lib::Wall::EPOCH,
             };
             return refused(w, &mut Times::new(at), why);
         }

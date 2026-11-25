@@ -8,6 +8,22 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::{Core, Event, Limits, Now, Request, routing::Work};
 
+impl Core {
+    pub(crate) fn job_declaration(&self, kind: u32) -> Option<jig_domain_link::JobBound> {
+        for job in &self.jobs {
+            if job.kind.0 == kind {
+                return Some(*job);
+            }
+        }
+        None
+    }
+
+    pub(crate) fn job_available(&self, task: u64, kind: u32) -> bool {
+        let Some(job) = self.job_declaration(kind) else { return false };
+        self.fleet.job_available(Token::new(task), job)
+    }
+}
+
 pub(crate) fn activate(core: &mut Core, work: &mut Queue<Work>, context: Box<tasks::RunContext>) -> Queue<Request> {
     let task = context.task;
     let Some(attempt) = crate::fresh(&mut core.counters, crate::Family::Run) else {
@@ -93,15 +109,19 @@ pub(crate) fn prepared(
     }
     match admission(core, &context, env.wall, writes) {
         Ok(()) => {}
-        Err(crate::RunAdmission::Wait(_)) => return super::preparation::wait_for_account(core, work, context),
+        Err(crate::RunAdmission::Wait(_)) => return super::preparation::wait_for_readiness(core, work, context),
         Err(crate::RunAdmission::Hold(why)) => return hold(work, task, why),
         Err(crate::RunAdmission::Allow(_)) => unreachable!("job admission has no run allowance"),
     }
     // Verify the current generation is grantable before the claim changes tasks.
     for number in core.run_credentials(task) {
         if core.accounts.credential_grant(*number, env.now).is_none() {
-            return super::preparation::wait_for_account(core, work, context);
+            return super::preparation::wait_for_readiness(core, work, context);
         }
+    }
+    let tasks::Executor::Job { kind } = context.executor else { unreachable!("prepared job") };
+    if !core.job_available(task, kind) {
+        return super::preparation::wait_for_readiness(core, work, context);
     }
     if !core.proofs.contains_key(&task) && core.proofs.len() == core.proofs.capacity() {
         return super::preparation::route_preparation_failed(

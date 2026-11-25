@@ -2,6 +2,7 @@
 //! (client/domain/contract/documents.md, 1; domain/accounts-uses.md, 1.3).
 
 use jig_domain_accounts as accounts;
+use jig_domain_fleet::JobShort;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 
@@ -28,6 +29,12 @@ pub enum TaskWaitRefused {
         why: Option<jig_domain_fleet::AgentShortfall>,
         figures: Option<jig_domain_fleet::Figures>,
     },
+    Job {
+        worker: Option<u32>,
+        kind: u32,
+        why: JobWhy,
+        figures: Option<jig_domain_fleet::Figures>,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -39,6 +46,12 @@ pub enum TaskWaitWhy {
     Invalid(tasks::AccountWhy),
     Untooled { worker: u32 },
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobWhy {
+    Short(JobShort),
+    Untranslated,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskSourceState {
     Moving,

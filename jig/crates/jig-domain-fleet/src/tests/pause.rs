@@ -41,15 +41,17 @@ fn pause_asks_keep_runs_and_jobs_off_freed_slots() {
         h.step(Event::StartJob { reply_to: to(A3), run: R3, attempt: A3, workstream: 3, job: JOB, adopt: false });
         assert_eq!(h.answer(C1, R1, A1, Answer::Ended, 1).as_ref(), &[answered(C1, A1, R1, Answer::Ended, 1)]);
         h.acknowledge(R1, A1);
-        assert!(h.settle().is_empty(), "pause survives a hosted answer and its freed slot");
+        assert_eq!(&*h.settle(), &[Request::Refused { to: to(A3), run: R3, attempt: A3, refusal: Refusal::Recheck }]);
         worker(&mut h, C2, 38);
+        let retry = Token::new(4);
+        h.step(Event::StartJob { reply_to: to(retry), run: R3, attempt: retry, workstream: 3, job: JOB, adopt: false });
         assert_eq!(
             h.settle().as_ref(),
             &[
                 assign(C2, R2, A2),
                 placed(R2, A2),
-                Request::AssignJob { channel: C2, run: R3, attempt: A3 },
-                placed(R3, A3),
+                Request::AssignJob { channel: C2, run: R3, attempt: retry },
+                placed(R3, retry),
             ]
         );
         for state in [PauseState::Taking, PauseState::Draining, PauseState::Drained, PauseState::Paused] {
