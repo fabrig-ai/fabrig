@@ -1,7 +1,19 @@
 # look-settings: status
 
-2026-11-22. Where the tree's code lags or departs from [look-settings.md](look-settings.md).
+2026-11-25. Where the tree's code lags or departs from [look-settings.md](look-settings.md).
 
+- **Not yet:** *An account's row*, *Usage*: the name column is 40 px, not 48 [in flight: change 17960].
+- **Not yet:** *An account's row*, *Usage*: the `usage-model-week`
+  request's rendered comparison follows landing on main, owned by
+  temper/ui (`look-requests.md`, 4): its hand-made
+  `journeys/usage-model-week/` pages on its own commit, under its
+  overlay, against the gallery state `accounts-usage-model-week`
+  (`gallery-project-states.md`, 1) at 1440, 1000 and 420 px, each
+  window's line one row at 1366 by 745 and two at 420, the name column
+  holding every model's name; and the states its message names in
+  words: a limited model's week, its bar red; a model's week with no
+  rate yet, not drawn unless limited. View and stylesheet tests check
+  the tree and rules; they establish no rendered equality.
 
 - **Not yet:** *An account's row*: the `accounts-usage` request's
   rendered comparison follows landing on main, owned by temper/ui
