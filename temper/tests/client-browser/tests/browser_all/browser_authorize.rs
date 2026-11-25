@@ -39,6 +39,16 @@ impl Play for Authorization<'_> {
         self.configured = true;
         Next::Wait { until: None }
     }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        if self.configured {
+            self.after.next_wake(face, now, runnable)
+        } else if self.reading {
+            // The address reply wakes the player before configuring the callback.
+            None
+        } else {
+            self.before.next_wake(face, now, runnable)
+        }
+    }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         if self.configured {
             self.after.check_deadline(face, now);

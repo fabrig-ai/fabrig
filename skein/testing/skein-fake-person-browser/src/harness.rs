@@ -13,7 +13,6 @@ use skein_world::{Expired, Starved};
 use std::fmt::Write as _;
 use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
 
-const POLL: Duration = Duration::from_millis(10);
 const DEFAULT_HORIZON: Duration = Duration::from_secs(40);
 const CLOSE_WINDOW: Duration = Duration::from_secs(4);
 const CAPTURE_WINDOW: Duration = Duration::from_secs(5);
@@ -100,10 +99,10 @@ pub struct Asked {
 }
 pub trait Play {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>>;
-    /// Next clock wake for this player. Browser and io events also wake the run.
+    /// The next due turn or deadline; the default waits for browser and io events.
     /// `runnable` says whether the harness can call `next`; `check_deadline` can still run.
-    fn next_wake(&self, _face: &BrowserFace<'_>, now: Time, _runnable: bool) -> Option<Time> {
-        Some(now.saturating_add(POLL))
+    fn next_wake(&self, _face: &BrowserFace<'_>, _now: Time, _runnable: bool) -> Option<Time> {
+        None
     }
     fn expected(&self) -> Vec<Box<[u8]>> {
         Vec::new()

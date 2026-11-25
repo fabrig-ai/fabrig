@@ -21,12 +21,16 @@ struct Walk {
 }
 
 impl Walk {
+    fn output_words(&self) -> &'static [u8] {
+        match self.figures.len() {
+            0 => b"Memory high water",
+            1 => b"Longest slice",
+            _ => b"Download the session log",
+        }
+    }
+
     fn wait_for_output(&mut self, face: &mut BrowserFace<'_>, now: Time, until: Time) -> Next<Box<[u8]>> {
-        let words = match self.figures.len() {
-            0 => b"Memory high water".as_slice(),
-            1 => b"Longest slice".as_slice(),
-            _ => b"Download the session log".as_slice(),
-        };
+        let words = self.output_words();
         if self.figures.len() < 2 {
             if let Found::Node(node) = face.find(&Find::text(words)) {
                 self.figures.push(
@@ -48,12 +52,27 @@ impl Walk {
 
 impl Play for Walk {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
-        let next = self.script.next(face, now);
-        if next != Next::Done {
-            return next;
+        if self.until.is_none() {
+            let next = self.script.next(face, now);
+            if next != Next::Done {
+                return next;
+            }
         }
         let until = *self.until.get_or_insert(now.saturating_add(WITHIN));
         self.wait_for_output(face, now, until)
+    }
+
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        let Some(until) = self.until else { return self.script.next_wake(face, now, runnable) };
+        let work = if runnable && self.figures.len() < 2 {
+            face.look_again_at(&Find::text(self.output_words())).unwrap_or(now)
+        } else if runnable && !face.downloads().is_empty() {
+            now
+        } else {
+            // An outstanding find or download wakes us with its browser event.
+            until
+        };
+        Some(work.min(until))
     }
 
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
