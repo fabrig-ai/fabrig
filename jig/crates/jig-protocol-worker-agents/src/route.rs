@@ -1,7 +1,9 @@
 //! Smith payloads are translated in the worker layer (jig/docs/design/protocol/channel/owners.md, 1.1 and 1.4).
+use crate::generated::channel;
 use alloc::boxed::Box;
 use jig_domain_host as hub;
-use jig_domain_link::{CountKind, Form, Grant, Scheme};
+use jig_domain_link::{Form, Grant, Scheme};
+use skein_codec::Reason;
 use skein_lib::{List, Reader, Token};
 use smith_channel::Record;
 use smith_host_domain as smith;
@@ -61,8 +63,7 @@ pub fn encode_part(
 
 #[must_use]
 pub fn encode_call_name(name: smith::CallName, limits: &Limits) -> Option<Box<[u8]>> {
-    let record =
-        smith_channel::CallName { activation: name.activation, completion: name.completion, position: name.position };
+    let record = channel::call_name_to_record(&name);
     let bytes = record.encode(&limits.bodies).ok()?;
     Some(bytes)
 }
@@ -135,18 +136,7 @@ pub fn activity(body: &[u8], limits: &Limits) -> Option<hub::AgentActivity> {
     if !reader.is_empty() {
         return None;
     }
-    let kind = match &fact.kind {
-        smith_channel::FactKind::Admitted => CountKind::Admitted,
-        smith_channel::FactKind::Ended => CountKind::Ended,
-        smith_channel::FactKind::LlmStarted => CountKind::LlmStarted,
-        smith_channel::FactKind::LlmRetried => CountKind::LlmRetried,
-        smith_channel::FactKind::LlmFinished => CountKind::LlmFinished,
-        smith_channel::FactKind::ToolStarted => CountKind::ToolStarted,
-        smith_channel::FactKind::ToolFinished => CountKind::ToolFinished,
-        smith_channel::FactKind::CheckStarted => CountKind::CheckStarted,
-        smith_channel::FactKind::CheckFinished => CountKind::CheckFinished,
-        smith_channel::FactKind::TextArrived => CountKind::TextArrived,
-    };
+    let kind = channel::fact_kind_to_domain(fact.kind);
     Some(hub::AgentActivity::Count { kind, elapsed: fact.elapsed, count: fact.count })
 }
 
@@ -384,52 +374,41 @@ fn decoded_delivery(bytes: &[u8]) -> Option<smith::Delivery> {
     if !reader.is_empty() {
         return None;
     }
-    Some(match record.value {
-        smith_channel::Delivery::Delivered(delivered) => {
-            let rows = delivered.receipts;
-            let mut receipts = List::with_capacity(rows.len());
-            for row in rows.into_boxed() {
-                let parts = row;
-                receipts.push(smith::Receipt::new(parts.directory, parts.text)?).ok()?;
-            }
-            smith::Delivery::Delivered(smith::Delivered::new(receipts.into_boxed())?)
-        }
-        smith_channel::Delivery::Nothing => smith::Delivery::Nothing,
-        smith_channel::Delivery::Stale => smith::Delivery::Stale,
-        smith_channel::Delivery::Refused(refusal) => {
-            let parts = refusal;
-            let marker = match parts.marker {
-                Some(marker) => {
-                    let fields = marker;
-                    Some(smith::Marker::new(fields.directory, fields.path)?)
-                }
-                None => None,
-            };
-            smith::Delivery::Refused(smith::DeliveryRefusal::new(marker, parts.explanation)?)
-        }
-        smith_channel::Delivery::Failed(failure) => {
-            let parts = failure;
-            smith::Delivery::Failed(smith::DeliveryFailure {
-                directory: parts.directory,
-                reason: delivery_reason(parts.reason),
-                diagnostic: smith::Diagnostic::new(&parts.diagnostic, parts.dropped),
-            })
-        }
-    })
+    channel::delivery_to_domain(record.value).ok()
 }
 
-fn delivery_reason(reason: smith_channel::DeliveryReason) -> smith::DeliveryReason {
-    match reason {
-        smith_channel::DeliveryReason::Unreachable => smith::DeliveryReason::Unreachable,
-        smith_channel::DeliveryReason::RefusedByTarget => smith::DeliveryReason::RefusedByTarget,
-        smith_channel::DeliveryReason::TimedOut => smith::DeliveryReason::TimedOut,
-        smith_channel::DeliveryReason::Broken => smith::DeliveryReason::Broken,
-        smith_channel::DeliveryReason::TooLarge => smith::DeliveryReason::TooLarge,
-        smith_channel::DeliveryReason::Missing => smith::DeliveryReason::Missing,
-        smith_channel::DeliveryReason::Busy => smith::DeliveryReason::Busy,
-        smith_channel::DeliveryReason::Unavailable => smith::DeliveryReason::Unavailable,
-        smith_channel::DeliveryReason::Cancelled => smith::DeliveryReason::Cancelled,
-        smith_channel::DeliveryReason::Unknown => smith::DeliveryReason::Unknown,
+pub(crate) fn delivered_to_domain(
+    record: smith_channel::Delivered,
+) -> Result<smith::Delivered, smith_channel::v14::Problem> {
+    let rows = record.receipts;
+    let mut receipts = List::with_capacity(rows.len());
+    let path = smith_channel::v14::paths::DELIVERED_RECEIPTS;
+    for row in rows.into_boxed() {
+        let receipt = smith::Receipt::new(row.directory, row.text).ok_or(path.problem(Reason::Malformed))?;
+        receipts.push(receipt).or(Err(path.problem(Reason::Bound)))?;
+    }
+    smith::Delivered::new(receipts.into_boxed()).ok_or(path.problem(Reason::Malformed))
+}
+
+pub(crate) fn delivery_refusal_to_domain(
+    record: smith_channel::DeliveryRefusal,
+) -> Result<smith::DeliveryRefusal, smith_channel::v14::Problem> {
+    let marker = match record.marker {
+        Some(marker) => Some(
+            smith::Marker::new(marker.directory, marker.path)
+                .ok_or(smith_channel::v14::paths::DELIVERY_REFUSAL_MARKER.problem(Reason::Malformed))?,
+        ),
+        None => None,
+    };
+    smith::DeliveryRefusal::new(marker, record.explanation)
+        .ok_or(smith_channel::v14::paths::DELIVERY_REFUSAL_EXPLANATION.problem(Reason::Malformed))
+}
+
+pub(crate) fn delivery_failure_to_domain(record: smith_channel::DeliveryFailure) -> smith::DeliveryFailure {
+    smith::DeliveryFailure {
+        directory: record.directory,
+        reason: channel::delivery_reason_to_domain(record.reason),
+        diagnostic: smith::Diagnostic::new(&record.diagnostic, record.dropped),
     }
 }
 

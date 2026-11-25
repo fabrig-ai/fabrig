@@ -131,7 +131,10 @@ io: a listener's sockets                            io: one socket, dialled
   payloads pass through both as bytes; smith's codecs are the routing's
   (`owners.md`, 1.1).
 - **Translation is a module of small total functions** in each component,
-  between records and the hub's vocabulary, exhaustive both ways. The
+  between records and the hub's vocabulary, exhaustive both ways. Where
+  a record and the hub's type match, it is generated from the
+  component's own maps file (skein's `data/codec/maps.md`, 9); the
+  opening, the parts in order and the grants stay the component's. The
   domain worlds need none of it; the channel's protocol world (`testing.md`, section 1)
   runs it with bytes.
 - **The application's parts are decoded by its protocol layer.** A

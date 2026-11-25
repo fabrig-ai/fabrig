@@ -28,7 +28,7 @@ fn a_job_delegation_kind_round_trips() {
     let wire = w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value: 7 });
     let kind = translate::documents::authority_executor_fields(&wire);
     assert_eq!(kind, c::AuthorityExecutor::Job(7));
-    assert_eq!(translate::asks::wire_owner_authority_executor(kind), wire);
+    assert_eq!(generated::client::authority_executor_to_record(&kind), wire);
 }
 
 /// Both chip projections preserve a job kind (jig/docs/design/client/domain/contract/documents.md, 7).
@@ -36,7 +36,7 @@ fn a_job_delegation_kind_round_trips() {
 fn a_job_chip_keeps_its_kind_in_documents_and_refusals() {
     let limits = fixtures::limits();
     let wire = w::ChipExecutor::Job(w::ChipExecutorJob { kind: 7 });
-    assert_eq!(translate::answers::executor(&wire), c::ChipExecutor::Job { kind: 7 });
+    assert_eq!(generated::client::chip_executor_to_domain(wire.clone()), c::ChipExecutor::Job { kind: 7 });
     let mut task = fixtures::task_record();
     let mut reader = Reader::new(task.chip.rows.as_ref());
     let mut rows = skein_lib::List::with_capacity(3);

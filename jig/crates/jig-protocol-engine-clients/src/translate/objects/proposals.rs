@@ -1,55 +1,16 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{chips, owner, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
 pub fn amendment(
     models: &[crate::Model],
     value: &d::AmendmentState,
     limits: &w::Limits,
 ) -> Result<w::AmendmentState, w::Problem> {
-    let mut dependencies = List::with_capacity(value.dependencies.len());
-    for row in &value.dependencies {
-        dependencies.push(*row).expect("supplied rows fit");
-    }
-
-    Ok(w::AmendmentState {
-        addressed: match value.addressed {
-            Some(item) => Some(chips::address(item)),
-            None => None,
-        },
-        taken_by: value.taken_by,
-        instructions: match &value.instructions {
-            Some(item) => Some(owner::text(item)),
-            None => None,
-        },
-        spec: owner::specification(&value.spec)?,
-        authority: owner::authority(models, &value.authority, limits)?,
-        wake: owner::wake(value.wake),
-        dependencies,
-        cut: value.cut,
-    })
-}
-pub fn kind(value: t::ProposalKind) -> w::MessageProposalKind {
-    match value {
-        t::ProposalKind::Settings => w::MessageProposalKind::Settings,
-        t::ProposalKind::Batch => w::MessageProposalKind::Batch,
-        t::ProposalKind::Effect => w::MessageProposalKind::Effect,
-        t::ProposalKind::Amend => w::MessageProposalKind::Amend,
-        t::ProposalKind::Widen => w::MessageProposalKind::Widen,
-        t::ProposalKind::Release => w::MessageProposalKind::Release,
-    }
-}
-pub fn holder(value: t::ProposalHolder) -> w::HistoryHolder {
-    match value {
-        t::ProposalHolder::Task(value) => w::HistoryHolder::Task(w::HistoryHolderTask { value }),
-        t::ProposalHolder::Person(value) => w::HistoryHolder::Person(w::HistoryHolderPerson { value }),
-        t::ProposalHolder::Policy { project, kind: value } => {
-            w::HistoryHolder::Policy(w::HistoryHolderPolicy { project, kind: kind(value) })
-        }
-    }
+    mapped::amendment_state_to_record(value, &(models, limits))
 }
 pub fn proposed(
     models: &[crate::Model],
@@ -137,10 +98,7 @@ pub fn action(
             w::ProposalAction::Amend(Box::new(w::ProposalActionAmend {
                 task: task::link(target, limits)?,
                 addressed: match *addressed {
-                    Some(item) => Some(w::AddressChange {
-                        revision: w::Revision { value: item.revision },
-                        address: chips::address(item.address),
-                    }),
+                    Some(item) => Some(crate::generated::client::address_change_to_record(&item)),
                     None => None,
                 },
                 before: amendment(models, before, limits)?,
@@ -166,14 +124,7 @@ pub fn action(
 pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits) -> Result<w::Proposal, w::Problem> {
     let mut funding = List::with_capacity(value.funding.len());
     for row in &value.funding {
-        funding
-            .push(w::FundingOffer {
-                source: owner::funder(row.source),
-                needed: row.needed,
-                left: row.left,
-                after: row.after,
-            })
-            .expect("supplied rows fit");
+        funding.push(mapped::funding_offer_to_record(row)).expect("supplied rows fit");
     }
 
     Ok(w::Proposal {
@@ -183,7 +134,7 @@ pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits
         reason: owner::text(&value.reason),
         action: action(models, &value.action, limits)?,
         as_holder: value.as_holder,
-        waiting: w::ProposalWaiting { holder: holder(value.waiting.holder), since: value.waiting.since.as_nanos() },
+        waiting: mapped::proposal_waiting_to_record(&value.waiting),
         funding,
         acts: task::offered(models, &value.acts, limits, limits.proposal_acts, w::paths::PROPOSAL_ACTS)?,
     })

@@ -1,5 +1,6 @@
 //! Own-scope devices reader (temper/docs/design/client/forge/records.md, devices).
 use super::{Limits, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Family, Watchable, contract as c};
 use skein_lib::{List, Wall};
@@ -43,8 +44,7 @@ pub fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
     let document = wire::decode_devices(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::uncapped();
     for row in document.rows.into_boxed() {
-        rows.push(Row { number: row.number, label: row.label, at: Wall::from_nanos(row.at), endpoint: row.endpoint })
-            .expect("uncapped devices");
+        rows.push(maps::device_row_to_domain(row)).expect("uncapped devices");
     }
     Some(rows.into_boxed())
 }

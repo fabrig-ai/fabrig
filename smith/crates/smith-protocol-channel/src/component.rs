@@ -7,6 +7,7 @@ use smith_channel::Record;
 use crate::calls;
 use crate::credentials::Credentials;
 use crate::facts;
+use crate::generated::channel;
 use crate::limits::{Error, Limits};
 use smith_domain::run;
 use smith_domain_session::record;
@@ -27,17 +28,13 @@ use smith_channel::reason::RULES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CallKey {
-    activation: u64,
-    completion: u32,
-    position: u32,
+    pub(crate) activation: u64,
+    pub(crate) completion: u32,
+    pub(crate) position: u32,
 }
 
 impl CallKey {
     fn from_domain(name: run::CallName) -> CallKey {
-        CallKey { activation: name.activation, completion: name.completion, position: name.position }
-    }
-
-    fn from_wire(name: &smith_channel::CallName) -> CallKey {
         CallKey { activation: name.activation, completion: name.completion, position: name.position }
     }
 
@@ -256,12 +253,7 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let reason = match reason {
-            run::MessageRefusal::TooLarge => smith_channel::MessageRefusal::TooLarge,
-            run::MessageRefusal::Full => smith_channel::MessageRefusal::Full,
-            run::MessageRefusal::NameInUse => smith_channel::MessageRefusal::NameInUse,
-            run::MessageRefusal::Ending => smith_channel::MessageRefusal::Ending,
-        };
+        let reason = channel::message_refusal_to_record(&reason);
         let record = smith_channel::MessageRefused { name: name.raw(), reason };
         match record.measure(&self.bodies) {
             Ok(_) => (),
@@ -378,12 +370,7 @@ impl Component {
             return Err(Error::Order);
         }
         let next = self.state.active()?.long_open.checked_add(1).ok_or(Error::Order)?;
-        let operation = match operation {
-            smith_domain::Operation::Checks => smith_channel::Operation::Check,
-            smith_domain::Operation::Completion => smith_channel::Operation::Completion,
-            smith_domain::Operation::Command => smith_channel::Operation::Command,
-            smith_domain::Operation::Grant => smith_channel::Operation::Grant,
-        };
+        let operation = channel::operation_to_record(&operation);
         let record = smith_channel::Long { operation, span };
         match record.measure(&self.bodies) {
             Ok(_) => (),
@@ -487,11 +474,7 @@ impl Component {
         }
         let body = encode_part(&part.body, &self.transcript, &self.endpoints)?;
         let bytes = part.body.owned_bytes().ok_or(Error::Window)?;
-        let kind = match part.kind {
-            record::PartKind::Answer => smith_channel::PartKind::Answer,
-            record::PartKind::Result => smith_channel::PartKind::Result,
-            record::PartKind::Window => smith_channel::PartKind::Window,
-        };
+        let kind = channel::part_kind_to_record(&part.kind);
         let value = smith_channel::Part { number, turn, thread: part.thread, call: part.call, kind, body };
         if let Err(error) = value.measure(&self.bodies) {
             return Err(Error::ChannelBody(error));

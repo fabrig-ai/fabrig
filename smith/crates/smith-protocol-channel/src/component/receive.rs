@@ -2,8 +2,8 @@
 use super::cancellation::Cancellation;
 use super::state::{Active, State};
 use super::turns::Turns;
-use super::{CallKey, CallRoute, Component, invalid_answer};
-use crate::{Error, Heard, calls};
+use super::{CallRoute, Component, invalid_answer};
+use crate::{Error, Heard, calls, generated::channel};
 use alloc::boxed::Box;
 use core::mem;
 use skein_channel::{Closed, Event, Lower, Request, Role};
@@ -204,11 +204,7 @@ impl Component {
                 return None;
             }
             let body = smith_protocol_translate::decode_part(&part.body, &self.transcript, &self.endpoints).ok()?;
-            let kind = match part.kind {
-                smith_channel::PartKind::Answer => record::PartKind::Answer,
-                smith_channel::PartKind::Result => record::PartKind::Result,
-                smith_channel::PartKind::Window => record::PartKind::Window,
-            };
+            let kind = channel::part_kind_to_domain(part.kind);
             parts
                 .push(record::Resumed {
                     activation: part.activation,
@@ -230,19 +226,20 @@ impl Component {
     }
 
     fn message(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
-        let message = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
+        let record = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
+        let message = channel::message_to_domain(record);
         to_service.push(Heard::Message {
             finish_requested: message.finish_requested,
-            name: Token::new(message.name),
-            label: Box::from(message.label.as_ref()),
-            text: Box::from(message.text.as_ref()),
+            name: message.name,
+            label: message.label,
+            text: message.text,
         });
         Ok(())
     }
 
     fn host_answer(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let answer = smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        let key = CallKey::from_wire(&answer.name);
+        let key = channel::call_name_to_domain(answer.name);
         match self.remove_call(&key).ok_or(Broken)? {
             CallRoute::Host { relay, .. } => {
                 let reply = calls::host_reply(&answer.reply).ok_or(Broken)?;
@@ -399,6 +396,8 @@ fn acknowledge(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::CallKey;
+
     #[test]
     fn a_lost_channel_settles_already_sent_calls_one_at_a_time() {
         let mut limits = crate::fixture::small();
