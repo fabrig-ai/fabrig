@@ -79,9 +79,12 @@ In this order:
      directory, and draws on them.
 3. **A gallery state** (`../client/web/gallery.md`), where the world
    can't set the facts: an account's usage, a long name, a box's front.
-   - The gallery's pages carry no overlay. The person copies the page,
-     with the gallery's assets it links, into a hand-made directory and
-     draws there, as for the next rung.
+   - The gallery's pages carry no overlay. The person copies the page
+     into a hand-made directory and draws there, as for the next rung.
+   - The gallery's stylesheets are byte for byte the repository's own,
+     so the copy links those, as a journey's pages do
+     (`../client/web/journeys.md`, 5.3), and there is no bundle to copy
+     beside it.
 4. **A hand-made page,** last, in a directory whose `README.md` says
    it is hand-made and from what. No print meets it, so neither the
    comparison nor the render check compares it (4.3, 5.2).
