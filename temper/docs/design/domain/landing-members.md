@@ -181,11 +181,14 @@ pass, after the index is built and before the unmade pass
   kind, and of two `landed`, the row's. Past the queue's bound, the
   oldest landing's asks other than `landed` are dropped, each logged.
 - **The stored landing number** is read only to log one that names
-  another landing than the index:
+  another landing than the index. Its lines, and a dropped ask's, are
+  warnings in the engine's log, as `landing-forming.md`, 4's are, `KIND`
+  the ask's kind as 3.1 names it:
 
   ```
   BINARY serve: warning: change C named landing L; by the landings' rows it is in landing M
   BINARY serve: warning: change C named landing L; by the landings' rows it is in no landing
+  BINARY serve: warning: change C: its KIND of landing L dropped as its asks were converted: its queue is full
   ```
 
 - **Its writes are the start's,** in the link pass's commit: each row
