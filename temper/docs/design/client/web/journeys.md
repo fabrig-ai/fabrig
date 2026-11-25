@@ -361,7 +361,9 @@ walks belong after landing, not to a plan (`testing.md`).
 The request's message, holds, landing, account and after-landing render
 check are `look-requests.md`, sections 1 to 7. The journeys' side:
 
-- **On the print:** the person serves the checkout, walks a journey, and
+- **On the print:** the person serves the checkout, walks a journey,
+  or a walk the request adds and the person prints with
+  `temper-client-walk print` (`look-requests.md`, 2), and
   writes rules in `overlay.css`, with the browser's tools (a DevTools
   workspace mapped to the checkout saves the Styles pane's edits to the
   file) or in an editor, then reloads. The markup is edited in place: a
@@ -370,14 +372,17 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   names, roles and regions, which the view sets, never by a part's
   position among its siblings.
 - **The diff is the request:** the overlay's rules and the pages'
-  changes, under `docs/design/client/web/journeys/`.
+  changes, under `docs/design/client/web/journeys/`, and, where no
+  journey shows the state, the sources of a walk it adds
+  (`look-requests.md`, 2).
 - **Requests stack** on a branch of the person's own, `look-requests`,
-  one commit each, named by exactly one `Look-request: NAME` trailer
+  one commit each, its author naming no person, named by exactly one
+  `Look-request: NAME` trailer
   (NAME `[a-z0-9][a-z0-9-]*`, unique on the branch), which a rebase keeps.
-  A later request is drawn on the pages the earlier ones ask for. They
-  are done in order, each
-  read by its name on the branch as it is then, as its own commit's
-  diff.
+  A later request is drawn on the pages the earlier ones ask for. Each
+  is landed by a goal of its own, oldest first, which reads it from its
+  copy on the project's forge, `docs/look/NAME`, a branch that never
+  moves, as its own commit's diff (`look-requests.md`, 7).
 - **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
   their checkout with `look-requests` checked out and clean, through
   the journeys tool's `look-refresh` command as `../journey-writer.md`,
@@ -401,14 +406,16 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   branch is refused.
 - **Never landed:** the delivery check refuses a request's pages beside
   any other file, and its overlay (`../journey-writer.md`, 5), so
-  `main`'s overlay stays empty.
+  `main`'s overlay stays empty. A walk the request adds lands as its
+  sources, never its pages (`look-requests.md`, 3).
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
   state, then compares `temper-client-walk print --out DIR` in its own
   tree with the request's pages, read from the request's commit, equal
   where their facts agree. It needs no box and commits no page
   (`look-requests.md`, 3; `../journey-writer.md`, 6). Its own commits carry
-  the request's trailer, never the request's commit itself. The account
+  the request's trailer, never the request's commit itself, and its
+  last, carrying the account, `Look-landed: NAME` beside it. The account
   and what done means are `look-requests.md`, 5; the render comparison
   follows landing on main (`look-requests.md`, 4).
 
