@@ -1020,6 +1020,19 @@ fn restore_order_is_independent_and_bad_or_oversized_records_refuse_start() {
 }
 
 #[test]
+fn replacing_a_roster_without_dropping_holders_only_saves_it() {
+    const PROJECT: u32 = 1;
+    const HOLDER: u64 = 1;
+    let mut test = Test::new(LIMITS);
+    test.send(Event::Roles { project: PROJECT, holdings: Box::new([Holding { person: HOLDER, role: Role::Member }]) });
+    let holdings = Box::<[Holding]>::from([Holding { person: HOLDER, role: Role::Observer }]);
+    assert_eq!(
+        test.send(Event::Roles { project: PROJECT, holdings: holdings.clone() }),
+        [Request::Save { record: Stored::Roles { project: PROJECT, holdings } }]
+    );
+}
+
+#[test]
 fn role_success_restores_before_identities_and_replays_after_roster_changes() {
     let mut live = Test::new(LIMITS);
     live.signin_bounded(1, 10, identity(0, 1));
@@ -1034,6 +1047,7 @@ fn role_success_restores_before_identities_and_replays_after_roster_changes() {
             Request::Save {
                 record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 2, role: Role::Member }]) }
             },
+            Request::ReadingLost { project: 1, parties: Box::new([1]) },
             Request::RolesApplied { reply_to: ReplyTo::new(reply_token), request, result: Ok(()) },
         ]
     );
