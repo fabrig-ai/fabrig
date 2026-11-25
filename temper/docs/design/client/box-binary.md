@@ -218,7 +218,7 @@ TUI's loop.
   pub fn identity(version: &str, commit: &str) -> Box<[u8]>;
   /// Twelve lowercase hexadecimal digits: a commit that may download.
   pub fn clean(commit: &[u8]) -> bool;
-  /// The sums' digest for NAME (`Linux-x86_64/temper-box`): exactly one line names it.
+  /// The sums' digest for NAME (`Linux-x86_64/temper-box.zst`): exactly one line names it.
   pub fn sum(sums: &[u8], name: &[u8]) -> Result<[u8; 32], Sums>;
   pub enum Sums { Missing, Doubled, Malformed, TooLong }
   ```
