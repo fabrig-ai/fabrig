@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-19. Where smith's code lags or departs from [agent.md](agent.md).
+2026-11-24. Where smith's code lags or departs from [agent.md](agent.md).
 
 Section 4 has no known gap in endpoint `limits`, refusing endpoint model
 lists or taking model and effort names from the charter within their bounds.

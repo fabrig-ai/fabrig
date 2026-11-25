@@ -28,7 +28,7 @@ use crate::{
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[expect(
     clippy::large_enum_variant,
-    reason = "component operations carry a whole node without a separate allocation (ui/web/elements.md, 1)"
+    reason = "component operations carry a whole node without a separate allocation (ui/web/elements.md, 5)"
 )]
 pub enum Op {
     Insert { node: NodeId, parent: NodeId, before: Option<NodeId>, shown_folded: bool, element: Element },

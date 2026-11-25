@@ -3,7 +3,7 @@ use crate::{
     address::Public,
     public::{Doc, Heard, PublicEvent, PublicLimits, PublicRead, Reader, Shown},
 };
-use jig_client_protocol_wire::public_v2 as jig;
+use jig_client_protocol_wire::public_v1 as jig;
 use skein_lib::{Duration, List, Queue, Time, Writer};
 use temper_client_protocol_wire::public_v1 as forge;
 use temper_client_protocol_wire::v1::Record;
@@ -25,10 +25,10 @@ fn opened(page: Public) -> (Reader, Queue<PublicRead>) {
 fn projects() -> Box<[u8]> {
     let record = jig::PublicProjects { projects: List::with_capacity(0), max_age: 8 };
     let mut writer = Writer::new(
-        usize::try_from(record.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
+        usize::try_from(record.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
             .expect("small record"),
     );
-    record.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("record encodes");
+    record.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("record encodes");
     writer.finish()
 }
 fn answer(reader: &mut Reader, out: &mut Queue<PublicRead>, seconds: u64, doc: Doc, heard: Heard) {
@@ -61,7 +61,11 @@ fn each_page_reads_its_documents() {
                 Some(PublicRead {
                     doc,
                     owner,
-                    version: if owner == 2 { forge::PUBLIC_VERSION } else { jig_client_protocol_wire::PUBLIC_VERSION },
+                    layout: if owner == 2 {
+                        temper_client_protocol_wire::PUBLIC_LAYOUT
+                    } else {
+                        jig_client_protocol_wire::PUBLIC_LAYOUT
+                    },
                     kind,
                     ids
                 })
@@ -168,10 +172,10 @@ fn board() -> Box<[u8]> {
         ended: List::with_capacity(0),
     };
     let mut writer = Writer::new(
-        usize::try_from(record.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
+        usize::try_from(record.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
             .expect("small record"),
     );
-    record.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("record");
+    record.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("record");
     writer.finish()
 }
 fn landings() -> Box<[u8]> {

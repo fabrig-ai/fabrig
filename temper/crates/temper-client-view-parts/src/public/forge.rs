@@ -1,7 +1,7 @@
 //! Public forge mechanics and commits (temper/docs/design/client/forge/README.md, 9.1 and 9.3).
 use super::Draw;
 use crate::words::{TimeForm, Word};
-use jig_client_protocol_wire::public_v2::PublicApplication;
+use jig_client_protocol_wire::public_v1::PublicApplication;
 use skein_lib::Wall;
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::{address::Public, forge::words::ChangeWord as W};

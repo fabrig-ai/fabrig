@@ -17,11 +17,12 @@ const STARTUP_STEPS: u64 = 10_000;
 
 // The service's first-step held uses the 2026-11-14 worker-wire v8 table in
 // temper/docs/development/playground-memory.md; its other bounds use the
-// 2026-11-14 store-shape S4 merge table. The fake disk's start bound uses the
-// 2026-11-25 "Fake disk at start after bounded waits" table. Those bounds add
-// a quarter and round up to two significant digits. The schema cache uses the
-// 2026-11-23 "Prepared schemas before start" table; the remaining bounds use
-// the 2026-11-12 figures, both plus a quarter without rounding up.
+// 2026-11-14 store-shape S4 merge table, each plus a quarter, rounded up to
+// two significant digits. The fake disk's start bound uses the 2026-11-25
+// "Stored stock charters at start" table. The bounded-waits measurement is
+// recorded separately. The schema cache bound uses the 2026-11-23
+// "Prepared schemas before start" table. The other nonservice
+// bounds keep the 2026-11-12 figures. Each uses a quarter's margin.
 // Bounds follow process names, not admission order.
 const SERVICE_FIRST_STEP_HELD: i64 = 470_000;
 const SERVICE_FIRST_STEP_PEAK: i64 = 910_000;
@@ -42,7 +43,7 @@ const VISITOR_START_PEAK: i64 = 1_068 + 1_068 / 4;
 const GIT_START_HELD: i64 = 3_450 + 3_450 / 4;
 const GIT_START_PEAK: i64 = 5_989 + 5_989 / 4;
 const DISK_FIRST_STEP_RETAINED: i64 = 9_393 + 9_393 / 4;
-const DISK_START_RETAINED: i64 = 340_000;
+const DISK_START_RETAINED: i64 = 270_963 + 270_963 / 4;
 const SHARED_FORGE_BEFORE_START_RETAINED: i64 = 7_061 + 7_061 / 4;
 const PREPARED_SCHEMAS_BEFORE_START_RETAINED: i64 = 665_749 + 665_749 / 4;
 

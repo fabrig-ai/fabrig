@@ -4,7 +4,7 @@
 that carry its order (section 9) into the design and the code, until
 its acceptance passes (section 8). It designs nothing: each phase
 executes a part of the draft and writes its own design as it goes. It
-runs beside `reference-case.execution.md`, whose milestones it names as
+runs beside `archive/reference-case.execution.md`, whose milestones it names as
 the reference's M1 to M10.
 
 ## 1. In one page
@@ -30,7 +30,7 @@ the reference's M1 to M10.
 
 ## 2. How a phase runs
 
-As a milestone of the reference runs (`reference-case.execution.md`,
+As a milestone of the reference runs (`archive/reference-case.execution.md`,
 section 2): its entry here its input, this file and `configuring.md` its
 sources; its design and its build together; landed whole; its walk,
 where there is one, a pass of QA through `temper ctl` that blocks

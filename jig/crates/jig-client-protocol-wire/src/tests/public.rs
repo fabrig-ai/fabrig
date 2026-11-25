@@ -5,7 +5,7 @@ mod fixtures;
 #[path = "public/schema.rs"]
 mod schema;
 
-use crate::{PublicIndexBounds, public_bounds, public_limits, public_v2 as w};
+use crate::{PublicIndexBounds, public_bounds, public_limits, public_v1 as w};
 use skein_lib::Reader;
 
 // Public index figures: 20 live and ended goals, 50 lines, depth 16, 64 projects.

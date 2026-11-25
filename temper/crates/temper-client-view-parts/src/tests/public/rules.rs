@@ -5,7 +5,7 @@
 use super::{DELEGATE, PROJECT, TASK, board, records, render};
 use crate::public::PublicView;
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::public_v2 as j;
+use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{List, Writer};
 use skein_ui::{Node, Role};
 use temper_client_domain::{address::Public, public::Doc};
@@ -70,10 +70,10 @@ fn empty_board() -> Box<[u8]> {
         ended: List::with_capacity(0),
     };
     let mut writer = Writer::new(
-        usize::try_from(board.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
+        usize::try_from(board.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
             .expect("board size"),
     );
-    board.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("board");
+    board.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("board");
     writer.finish()
 }
 #[test]

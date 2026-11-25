@@ -4,6 +4,8 @@ The tiers, the fakes and the budgets are `../testing/README.md`'s (`../testing/t
 ); the client's joint world is its 2.1 and 6.3. The client's
 own tests:
 
+## 1. Settings, credentials and step tests
+
 - **How work runs and a proposal of settings** (`pages/settings.md`, 2): step tests of each control's request, refusal and stale; the rail and tab bar under each value;
   the card from jig's documents; a world test that accepts a proposal of kind 7 and sees `me`'s project show it; and the gallery's and goldens' pages
   (`../testing/checks.md`, 4).
@@ -99,6 +101,9 @@ own tests:
   of the forge's family both ways, a change's panel's watch to the root
   with its scope, and its document encoded with the pull request's
   address on a GitHub forge, on a Forgejo and with no `web`.
+
+## 2. Welcome and account pages
+
 - **No welcome** (`pages/welcome.md`, 1), in the domain and the view: the
   deployment's read, its answer kept across a link's gap and a read
   that ends with no record; `Welcome` at each step moving on to the
@@ -147,6 +152,9 @@ own tests:
   before the connection under way and failed, and the terminal's line
   in that order with no bar; the navigation's
   dot in each colour and none; the banners' ways.
+
+## 3. Text and terminal tests
+
 - **Golden text:** temper's pages as skein's text shell prints them,
   kept as files beside the tests and changed only by hand: the inbox
   with entries of each kind, the chats, a chat with its conversation and
@@ -199,6 +207,9 @@ own tests:
   asking no file; the run's rows on skein's simulated machine for the
   file read, the note written and the scheme from the terminal's answer
   or its wait; each a failing test first for a refusal.
+
+## 4. Terminal in the joint world
+
 - **The TUI in the joint world** (`../testing/checks.md`, 3): its
   shipped host, its root linked, its requests carried to the engine's
   clients' component as a native shell carries them, the component
@@ -214,6 +225,9 @@ own tests:
   the file; the file's secret in no frame; and signed in, the launchpad
   drawn for the person's project, a question asked from its box, the
   Ask temper chat it starts opened and its answer drawn.
+
+## 5. Browser client stories
+
 - **`tests/client`** (`temper-client-world`), the joint world
   (`../testing/tiers.md`, 1.1, and `../testing/checks.md`, 3): temper's client root and view, with
   skein's fake person acting on the tree, joined to temper's engine
@@ -332,6 +346,9 @@ own tests:
   pending, kept work), each request made once. jig's check holds in
   every story, said in temper's phrasebook, which temper's world gives
   jig's referee (jig's `client/domain/testing.md`, 6.2).
+
+## 6. Routes and tests through the service
+
 - **The routes** (`engine.md`; `forge/served.md`, 1), in temper's clients'
   world (`../testing/tiers.md`, 1.1): requests to the service's
   routes against the fake forge's GitHub, each answer, its headers and

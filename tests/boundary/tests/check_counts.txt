@@ -13,6 +13,7 @@ hearth/tests/template/src/generate.rs
 hearth/tests/template/src/generate/template.rs
 hearth/tests/tree/src/mutate.rs
 jig/testing/jig-conformance/src/store_check.rs
+jig/tests/client-protocol/src/public_path.rs
 jig/tests/core/src/agents_tools.rs
 jig/tests/core/tests/support/amendment_funding.rs
 skein/testing/skein-json-kit/src/generate.rs
@@ -22,7 +23,6 @@ skein/tests/forge/dialect/tests/common/mod.rs
 skein/tests/forge/machine/tests/suite/fuzzy/machine/sweep.rs
 skein/tests/http/src/generate.rs
 skein/tests/http/src/requests.rs
-smith/tests/codecs/tests/suite/fuzzy/patches/sweep.rs
 smith/tests/local-process/tests/suite/fuzzy/store/sweep.rs
 temper/crates/temper-engine-service-startup/src/tests/relations/mutations.rs
 temper/tests/codecs/src/lib.rs

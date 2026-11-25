@@ -3739,7 +3739,7 @@ fn a_zero_wait_or_in_process_workers_says_no_restart() {
 }
 
 // A settled stop keeps its restart word; a committed forge effect stays
-// with the connector (jig's `domain/engine/restart.md`, 1).
+// with the connector (jig's `domain/engine/restart.md`, 5).
 #[test]
 fn a_stop_with_a_committed_forge_effect_only_commits_the_restart_word_and_makes_no_write() {
     let (mut world, assignment) = pending_issue_effect();

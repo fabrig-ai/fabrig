@@ -621,7 +621,7 @@ pub fn change_hold_event(task: u64, end: &StepEnd) -> tasks::Event {
     }
 }
 
-/// Installation is missing access, not a transient busy adoption (domain/forge/adoption.md, 3).
+/// Installation is missing access, not a transient busy adoption (domain/forge/adoption.md, 7).
 pub fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
     match error {
         skein_forge::api::Error::NotConnected

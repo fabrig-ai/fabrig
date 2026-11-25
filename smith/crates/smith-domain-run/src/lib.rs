@@ -85,7 +85,9 @@ pub use identity::Identity;
 pub use inbox::rendered_bytes;
 pub use limits::{Derivation, Field, Limits, derive, valid};
 pub use prompt::{brief_bytes, fixed_prompt, fixed_prompt_bytes, role_host_bytes, summary_bytes};
-pub use run::{Most, call_turn, offer_messages, recover_delivery, resume_answer, resume_position};
+pub use run::{
+    Most, call_turn, completion_waits_for_host, offer_messages, recover_delivery, resume_answer, resume_position,
+};
 pub use schema_costs::SchemaCosts;
 pub use workspace::{Directory, Workspace};
 

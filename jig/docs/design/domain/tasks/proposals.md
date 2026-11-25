@@ -5,6 +5,8 @@ for a holder of the authority it needs; an escalation is a held task
 waiting for a decision. ../authority.md, section 9 says what may be
 proposed, what an action needs, and what an acceptance funds.
 
+## 1. Proposing
+
 - **Proposing is asked for.** Nothing becomes a proposal on its own: a
   batch or an amendment beyond its maker's authority is refused, naming
   what it lacked and whether a proposal could be accepted (`README.md`, section 4),
@@ -44,6 +46,9 @@ proposed, what an action needs, and what an acceptance funds.
   one replaced ends as any task's withdrawn proposal does: its set goes,
   and a decision asked of it after is refused, naming nothing, and changes
   nothing. Its proposer hears no message of it, having asked.
+
+## 2. State and admission
+
 - **Their state.** A proposal: its proposer, a task or a party; the
   action, as the call, the step or the request asked for it; its reason,
   in words;
@@ -60,6 +65,9 @@ proposed, what an action needs, and what an acceptance funds.
   held task. Neither takes room in any inbox: each shows as an entry in
   the inbox of whoever it waits for, and those it passes on the way hear
   a notice, which merges.
+
+## 3. Where they wait
+
 - **Where they wait.** At the nearest task above the proposer, or the
   held task, whose authority covers the decision (../authority.md,
   section 9), skipping procedures, kept tasks and conversations: procedures
@@ -84,6 +92,9 @@ proposed, what an action needs, and what an acceptance funds.
   `propose` call is answered so; a procedure's step's proposal is
   refused in its decision. A proposal already pending waits as this
   section says.
+
+## 4. Waking
+
 - **Waking.** Its arrival wakes the task it waits for (`messages.md`, 3), is relayed
   to that task's live run as messages are, whatever the run's parts (`messages.md`, 6),
   and is in the brief of its next run (../engine/briefs.md, section 1). Left
@@ -96,6 +107,9 @@ proposed, what an action needs, and what an acceptance funds.
   about it, waking by its own kind. For a party,
   it appears in their inbox at once. Waiting for a person neither decides
   the escalation nor resets its stall time.
+
+## 5. Deciding
+
 - **Deciding.** A holder accepts, rejects with a reason, or passes it up
   to the next holder that covers it. An accepted proposal is made as the
   proposer's action, with the accepter's authority funding what it
@@ -135,6 +149,9 @@ proposed, what an action needs, and what an acceptance funds.
   taking nothing more for it (`messages.md`, 2). Only an entry offered to that
   attempt stays so: a fence naming one never offered is refused, as
   before.
+
+## 6. Stalled and withdrawn proposals
+
 - **Stalled** past its bound, undecided, a proposal or an escalation
   passes up to the next holder that covers it, and past the last, waits
   for the parties the policy names.
@@ -155,16 +172,16 @@ proposed, what an action needs, and what an acceptance funds.
   proposal a task's result made is the exception: its closing waits for
   it to be decided (`lifecycle.md`, 7), and only a cancel of the task withdraws it.
 
-## Open questions
+## 7. Open questions
 
 - **An escalation's decider on the client wire.** The chip's hold on the
   client wire carries a rejection's decider as its number alone
   (`HoldEscalationRejected.by`), the engine giving a task's or a
   person's number alike, and the client's contract and words show it so
   (`../../client/domain/contract/documents.md`, 1). Showing its kind, a
-  `Requester`'s `Task` or `Person`, moves the client wire's version
+  `Requester`'s `Task` or `Person`, changes the client wire's layout
   (`../../protocol/client/versions.md`, 1) and records again the journeys
-  that show a task's chip; whether and when is a later move of the
+  that show a task's chip; whether and when is a later change of the
   client wire's (B1's requester, 2026-11-18).
 - **A proposal waiting for a change.** An escalation waiting for a task
   makes every message wake it (`messages.md`, 3); a proposal its holder's

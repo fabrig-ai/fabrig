@@ -1,6 +1,8 @@
 //! Openings belong to the last start and are reported only by rehearsal (protocol/store/records.md, 3).
 //! The rehearsal also decodes the registry's rows (protocol/store/layouts.md, 3).
-use jig_protocol_store::{Event, OpenedTerm, OpenedWire, OwnerSet, OwnerSets, Request, WorkerOpening, Write};
+use jig_protocol_store::{
+    Event, KeptOpening, OpenedTerm, OpenedWire, OwnerSet, OwnerSets, Request, WorkerOpening, Write,
+};
 use jig_store_world::{World, root};
 use skein_lib::{Token, Wall};
 
@@ -12,8 +14,8 @@ fn opening(worker: &str, at: u64) -> WorkerOpening {
     WorkerOpening {
         worker: worker.into(),
         wires: Box::new([
-            OpenedWire { name: "channel".into(), lowest: 2, layouts: Box::new([[1; 32], [2; 32]]) },
-            OpenedWire { name: "turns".into(), lowest: 7, layouts: Box::new([[3; 32]]) },
+            OpenedWire { name: "channel".into(), layout: [2; 32], text: b"channel schema".as_slice().into() },
+            OpenedWire { name: "turns".into(), layout: [3; 32], text: b"turns schema".as_slice().into() },
         ]),
         output: 4096,
         terms: Box::new([OpenedTerm { kind: 3, largest: 81 }, OpenedTerm { kind: 9, largest: 2048 }]),
@@ -38,7 +40,7 @@ fn rehearse(world: &mut World, expected: &[WorkerOpening]) {
     let before = world.contents();
     let events = world.rehearse();
     let Some(Event::Rehearsing { openings, .. }) = events.first() else { panic!("{events:?}") };
-    assert_eq!(openings.as_ref(), expected);
+    assert_eq!(openings.as_ref(), expected.iter().cloned().map(KeptOpening::Current).collect::<Vec<_>>());
     assert!(
         matches!(events.get(1), Some(Event::Decoded { records, .. }) if *records == 1 + u64::try_from(expected.len() + metadata).expect("openings, registry and jobs count")),
         "every opening is walked by its kept text: {events:?}"

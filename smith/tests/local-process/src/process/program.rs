@@ -1,5 +1,5 @@
 //! Simulated startup for the shipped program account and its hosted children
-//! (smith/docs/design/testing.md, sections 2.1 and 4).
+//! (smith/docs/design/testing-tiers.md, section 1, and smith/docs/design/testing.md, section 4).
 use super::Proc;
 use skein_io::kernel::Spawn;
 use skein_lib::{List, Map};

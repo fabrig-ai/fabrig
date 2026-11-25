@@ -1,4 +1,4 @@
-//! Copy recovery through the service (temper/docs/design/domain/forge/adoption.md, 5).
+//! Copy recovery through the service (temper/docs/design/domain/forge/adoption.md, 9).
 use temper_one_process_world::copy;
 
 #[test]

@@ -4,6 +4,7 @@ use crate::{Path, Problem, Reason, Record, field};
 use field::Field;
 use skein_lib::{Duration, List, Reader, Secret, Writer};
 
+#[expect(dead_code, reason = "codegen checks the fixture's layout constant; field tests only use its codecs")]
 #[rustfmt::skip]
 #[path = "lean_fixture.rs"]
 mod fixture;

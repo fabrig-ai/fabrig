@@ -83,6 +83,7 @@ fn opened() -> (Fixture, Queue<Request>) {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );

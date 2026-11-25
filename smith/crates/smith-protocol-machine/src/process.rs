@@ -312,6 +312,31 @@ impl Process {
         }
     }
 
+    /// A dropped run skips signal grace and closes the child's group now.
+    pub(crate) fn abort(&mut self, below: &mut Queue<Below>) {
+        match self.response {
+            Response::Held { .. } => {
+                self.close_job(below);
+                return;
+            }
+            Response::Final | Response::Yield { .. } | Response::Read { .. } | Response::Closing => {}
+        }
+        match self.stop {
+            Stop::Closing { .. } => return,
+            Stop::Running | Stop::Terminating { .. } | Stop::Killing { .. } => {}
+        }
+        match &self.work {
+            Work::List { directory, .. } => directory.cancel(below),
+            Work::Shell | Work::Check(_) | Work::Search(_) => {}
+        }
+        self.stop = Stop::Closing { why: Why::Cancel };
+        if let Some(child) = self.child
+            && !self.child_closed
+        {
+            below.push(Below::Process(io::Request::Close { entity: child }));
+        }
+    }
+
     pub(crate) fn fire(&mut self, now: Time, grace: Duration, below: &mut Queue<Below>) {
         if self.child_closed {
             return;

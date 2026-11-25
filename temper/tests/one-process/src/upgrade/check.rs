@@ -108,16 +108,24 @@ fn drive(
                     };
                     if let Until::Workers = until {
                         let events = report.events.iter().collect::<Vec<_>>();
-                        assert!(
-                            matches!(
-                                events.as_slice(),
-                                [
-                                    jig_protocol_store::Event::Rehearsing { .. },
-                                    jig_protocol_store::Event::Closed { removed: true, .. }
-                                ]
-                            ),
-                            "{events:?}"
-                        );
+                        let [
+                            jig_protocol_store::Event::Rehearsing { openings, .. },
+                            jig_protocol_store::Event::Closed { removed: true, .. },
+                        ] = events.as_slice()
+                        else {
+                            panic!("{events:?}")
+                        };
+                        let [jig_protocol_store::KeptOpening::Current(opening)] = openings.as_ref() else {
+                            panic!("one current opening: {openings:?}")
+                        };
+                        assert_eq!(opening.worker.as_ref(), "local");
+                        let spoken = report.workers.spoken.as_slice();
+                        assert_eq!(opening.wires.len(), spoken.len());
+                        for kept in &opening.wires {
+                            let wire = spoken.iter().find(|wire| wire.name == kept.name.as_ref()).expect("worker wire");
+                            assert_eq!(kept.layout, wire.layout);
+                            assert_eq!(kept.text.as_ref(), wire.text.as_bytes());
+                        }
                     }
                     render(
                         "temper-box",
@@ -295,7 +303,7 @@ pub fn opened_worker_rehearsal() {
     eprintln!("{report}");
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
-    // fixtures::document names local; the world starts at 2026-01-01 UTC.
+    // The box defaults to local; the world starts at 2026-01-01 UTC.
     assert!(report.contains("temper-box upgrade: worker local may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");

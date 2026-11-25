@@ -1,7 +1,7 @@
 # The ledger
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 4, 7,
-8 and 9, milestones Q1, Q3 and Q4 of `../../draft/landed-qa.execution.md`.
+Provisional, 2026-11-12, from `../../draft/archive/landed-qa.md`, sections 4, 7,
+8 and 9, milestones Q1, Q3 and Q4 of `../../draft/archive/landed-qa.execution.md`.
 The one record of landed QA's state for a project: its landings, cases,
 builds, agent sessions, passes, findings, gaps, notes and lines, kept by code,
 written through its operations alone, by the loop and by the agents'
@@ -178,7 +178,7 @@ A pass's goal is its last request's.
 ### 2.9 Notes
 
 `notes`, what a pass's agent noticed off the green path
-(`../../draft/landed-qa.md`, 8). Each: `number`, `pass`, `session`,
+(`../../draft/archive/landed-qa.md`, 8). Each: `number`, `pass`, `session`,
 `time`, `words`.
 
 ### 2.10 Waits for a place
@@ -250,7 +250,7 @@ landing's new triage; the gap stays recorded after closure.
 - **Joined to a waiting pass** where 4.15 says, before any merge.
 - **Merged:** where a case in state `queued` has the same surface, page
   and kind, the new ask joins it, and the case keeps every landing that
-  asked for it (`../../draft/landed-qa.md`, 4). Otherwise it is a new
+  asked for it (`../../draft/archive/landed-qa.md`, 4). Otherwise it is a new
   case, `queued`, at the ask's time.
 - **Its answer:** the command prints `case N queued`, `case N joined:
   landings L1, L2`, the case's landings in order, or 4.15's.
@@ -275,14 +275,14 @@ What a session recorded stands, however it ended.
 ### 4.5 Triage has reached a build
 
 A kept build is reached once its `holds` is known and every landing it
-holds is triaged (`../../draft/landed-qa.md`, 4).
+holds is triaged (`../../draft/archive/landed-qa.md`, 4).
 
 ### 4.6 A build's deletion
 
 A kept build may be deleted when no pass holds it, triage has reached
 it, and either a newer build (greater `order`) that triage has reached
 is kept, or none of its held landings is a landing of a `queued` case
-(`../../draft/landed-qa.md`, 3). Nothing else deletes one. So what is
+(`../../draft/archive/landed-qa.md`, 3). Nothing else deletes one. So what is
 kept is the newest reached build while cases wait for it, the builds
 passes hold, and the builds triage has not reached.
 
@@ -309,7 +309,7 @@ surface in `surfaces` and of the place's kind:
   (`held`); every `queued` case that is the place's whose
   landings the build holds, `assigned` to the pass, in case order; and
   its first session, `running`. So no case is in two passes
-  (`../../draft/landed-qa.md`, 9).
+  (`../../draft/archive/landed-qa.md`, 9).
 - **None:** no pass starts, and nothing is written.
 
 ### 4.9 A pass session's commands
@@ -331,7 +331,7 @@ surface in `surfaces` and of the place's kind:
 - **Findings named** must each be the case's: recorded for it, by any
   session of the pass. `failed` names at least one; `passed` and
   `blocked` may name some, a finding beside the case
-  (`../../draft/landed-qa.md`, 13).
+  (`../../draft/archive/landed-qa.md`, 13).
 - **Appended** to the case's `outcomes`; the case's state changes only
   at the session's end (4.12), from the last outcome the session
   recorded for it. A `pass gap` records result `gap`, naming the gap
@@ -377,7 +377,7 @@ this order, in one write:
    - **none:** as it was before the session, so `failed` in the pass
      where it was a resumed pass's failed case and one of its findings
      is still open; otherwise `queued`, `pass` absent, uncounted
-     (`../../draft/landed-qa.md`, 9).
+     (`../../draft/archive/landed-qa.md`, 9).
 3. **Findings' rounds,** in a session that is not the pass's first, as
    4.14 has them.
 4. **The pass,** then:
@@ -418,7 +418,7 @@ held and the old one released, unless they are one; its `failed` cases
 `assigned`; every `queued` case that is the place's (4.8) whose
 landings the new build holds `assigned` to it; and a new session. A case
 queued after this write is not the pass's ("none later",
-`../../draft/landed-qa.md`, 9).
+`../../draft/archive/landed-qa.md`, 9).
 
 ### 4.14 Findings' rounds
 
@@ -431,7 +431,7 @@ At the end of a pass session that is not its first:
 - **Two rounds at most:** a finding still `open` whose `goals` hold two
   goals is `handed`, out of the pass's requests, and a line for its
   `area`: `finding N (TITLE; setup S) still holds after goals G1 and
-  G2; handed on` (`../../draft/landed-qa.md`, 9).
+  G2; handed on` (`../../draft/archive/landed-qa.md`, 9).
 
 A `linked` finding follows the one it is linked to: it is never filed,
 checked or handed on itself.
@@ -554,7 +554,7 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
 - **`temper-qa report PASS`:** the pass's report (`passes.md`, 8).
 - **`temper-qa tune`:** the figures a deployment tunes `qa.json`'s
   `bounds` and `places` from (`README.md`, 3.2;
-  `../../draft/landed-qa.execution.md`, Q4), read from the ledger and
+  `../../draft/archive/landed-qa.execution.md`, Q4), read from the ledger and
   `qa.json`, a line each:
   - `triage: N sessions; B ended by the bound of S s; time median M s,
     longest L s; tokens median T, most U`, over every ended triage

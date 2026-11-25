@@ -154,10 +154,7 @@ impl Link {
                     Ok(answer) if reader.is_empty() => match answer {
                         w::ApprovalDecided::Approved(value) => {
                             let loopback = match value.loopback {
-                                Some(value) => {
-                                    let fields = value;
-                                    Some(crate::Loopback { port: fields.port, grant: fields.grant })
-                                }
+                                Some(value) => Some(crate::generated::client::approval_loopback_to_domain(value)),
                                 None => None,
                             };
                             Decided::Approved { loopback }

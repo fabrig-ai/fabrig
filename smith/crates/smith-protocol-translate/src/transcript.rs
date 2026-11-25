@@ -7,12 +7,23 @@
 //! the history; the domain still checks call/result pairing and ownership.
 
 use alloc::boxed::Box;
+use skein_codec::{Reason, convert};
 use skein_lib::{Duration, List, Reader, Writer};
 use smith_domain_session::{llm, record};
 use smith_domain_tools as tools;
 use smith_transcript::{self as wire, Record};
 
 use crate::Endpoints;
+use crate::generated::transcript as mapped;
+
+pub(super) use crate::turn::block_to_record;
+
+/// The turn's replay dialect, piece limits and receiving hit count.
+pub(super) struct MessageContext {
+    pub dialect: u32,
+    pub limits: wire::v8::Limits,
+    pub search_hits: u32,
+}
 
 /// Decode the host's ordered saved turn bodies into the domain's concrete history.
 pub fn decode_transcript(
@@ -159,133 +170,96 @@ fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v8::Limits) -> R
 }
 
 fn translate_turn(
-    source: wire::Turn,
+    mut source: wire::Turn,
     endpoint: Option<llm::Endpoint>,
     dialect: u32,
     limits: &wire::v8::Limits,
     search_hits: u32,
     part: bool,
 ) -> Result<record::Turn, record::Refusal> {
-    let kind = decode_kind(&source, part)?;
-    let messages = decode_messages(&source, dialect, limits, search_hits)?;
+    let kind = decode_kind(&mut source, part)?;
+    let context = MessageContext { dialect, limits: *limits, search_hits };
+    let messages = decode_messages(source.messages, &context)?;
     Ok(record::Turn {
         version: record::VERSION,
         kind,
         endpoint,
-        model: Box::from(source.model.as_ref()),
-        effort: source.effort.clone(),
+        model: source.model,
+        effort: source.effort,
         dialect,
         sequence: source.place,
-        usage: llm::Usage {
-            input_tokens: source.usage.input,
-            output_tokens: source.usage.output,
-            cache_read_tokens: source.usage.cache_read,
-            cache_write_tokens: source.usage.cache_write,
-            reasoning_tokens: source.usage.reasoning,
-        },
+        usage: mapped::usage_to_domain(source.usage),
         spent: source.spent,
         jobs: source.jobs,
         messages: messages.into_boxed(),
     })
 }
 
-fn decode_block(
-    source: &wire::Block,
-    dialect: u32,
-    limits: &wire::v8::Limits,
-    search_hits: u32,
-) -> Result<llm::Block, record::Refusal> {
+pub(super) fn block_to_domain(source: wire::Block, context: &MessageContext) -> Result<llm::Block, wire::Problem> {
+    let dialect = context.dialect;
     let value = match source {
-        wire::Block::Text(text) => {
-            llm::Block::Text { text: Box::from(text.text.as_ref()), replay: replay(text.replay.as_ref(), dialect)? }
-        }
-        wire::Block::Refusal(text) => {
-            llm::Block::Refusal { text: Box::from(text.text.as_ref()), replay: replay(text.replay.as_ref(), dialect)? }
-        }
+        wire::Block::Text(text) => llm::Block::Text { text: text.text, replay: replay(text.replay, dialect)? },
+        wire::Block::Refusal(text) => llm::Block::Refusal { text: text.text, replay: replay(text.replay, dialect)? },
         wire::Block::Call(call) => llm::Block::ToolCall(llm::ToolCall {
-            id: Box::from(call.id.as_ref()),
-            name: Box::from(call.name.as_ref()),
-            input: Box::from(call.input.as_ref()),
+            id: call.id,
+            name: call.name,
+            input: call.input,
             call: llm::Decoded::Historical,
-            replay: replay(call.replay.as_ref(), dialect)?,
+            replay: replay(call.replay, dialect)?,
         }),
-        wire::Block::Result(result) => llm::Block::ToolResult {
-            id: Box::from(result.id.as_ref()),
-            result: returned(&result.returned, limits, search_hits)?,
-        },
+        wire::Block::Result(result) => {
+            llm::Block::ToolResult { id: result.id, result: returned(result.returned, context)? }
+        }
         wire::Block::Opaque(opaque) => {
             if opaque.dialect != dialect {
-                return Err(record::Refusal::Malformed);
+                return Err(wire::paths::OPAQUE_DIALECT.problem(Reason::Malformed));
             }
-            llm::Block::Opaque { bytes: Box::from(opaque.bytes.as_ref()) }
+            llm::Block::Opaque { bytes: opaque.bytes }
         }
     };
     Ok(value)
 }
 
-fn replay(source: Option<&wire::Replay>, dialect: u32) -> Result<Option<llm::Replay>, record::Refusal> {
+fn replay(source: Option<wire::Replay>, dialect: u32) -> Result<Option<llm::Replay>, wire::Problem> {
     match source {
         Some(value) => {
             if value.dialect != dialect {
-                return Err(record::Refusal::Malformed);
+                return Err(wire::paths::REPLAY_DIALECT.problem(Reason::Malformed));
             }
-            Ok(Some(llm::Replay { bytes: Box::from(value.bytes.as_ref()) }))
+            Ok(Some(llm::Replay { bytes: value.bytes }))
         }
         None => Ok(None),
     }
 }
 
-fn returned(
-    source: &wire::Returned,
-    limits: &wire::v8::Limits,
-    search_hits: u32,
-) -> Result<llm::Returned, record::Refusal> {
+fn returned(source: wire::Returned, context: &MessageContext) -> Result<llm::Returned, wire::Problem> {
     let value = match source {
-        wire::Returned::Outcome(value) => llm::Returned::Owned { outcome: outcome(&value.value, limits, search_hits)? },
-        wire::Returned::Said(value) => {
-            llm::Returned::Text { text: Box::from(value.text.as_ref()), error: value.error, replay: None }
+        wire::Returned::Outcome(value) => {
+            let outcome = match outcome(&value.value, &context.limits, context.search_hits) {
+                Ok(outcome) => outcome,
+                Err(refusal) => return Err(outcome_problem(refusal)),
+            };
+            llm::Returned::Owned { outcome }
         }
-        wire::Returned::Invalid(value) => llm::Returned::Invalid { problem: problem(&value.problem) },
-        wire::Returned::NotRun(value) => llm::Returned::NotRun { why: not_run(&value.why) },
+        wire::Returned::Said(value) => llm::Returned::Text { text: value.text, error: value.error, replay: None },
+        wire::Returned::Invalid(value) => {
+            llm::Returned::Invalid { problem: mapped::call_problem_to_domain(value.problem) }
+        }
+        wire::Returned::NotRun(value) => llm::Returned::NotRun { why: mapped::not_run_why_to_domain(value.why) },
         wire::Returned::Withdrawn => llm::Returned::Withdrawn,
     };
     Ok(value)
 }
 
-fn not_run(source: &wire::NotRunWhy) -> llm::NotRun {
-    match source {
-        wire::NotRunWhy::Stopped => llm::NotRun::Stopped,
-        wire::NotRunWhy::AfterFailedWrite(value) => llm::NotRun::AfterFailedWrite { call: value.call },
-        wire::NotRunWhy::OutsideChoice(value) => {
-            let choice = match &value.only {
-                Some(allowed) => {
-                    let mut names = List::with_capacity(allowed.names.len());
-                    for name in &allowed.names {
-                        names.push(Box::from(name.name.as_ref())).expect("bounded allowed calls");
-                    }
-                    Some(names.into_boxed())
-                }
-                None => None,
-            };
-            llm::NotRun::OutsideChoice { choice }
-        }
-    }
-}
-
-fn problem(source: &wire::CallProblem) -> llm::Problem {
-    match source {
-        wire::CallProblem::UnknownTool => llm::Problem::UnknownTool,
-        wire::CallProblem::Nesting => llm::Problem::Nesting,
-        wire::CallProblem::NotAnObject => llm::Problem::NotAnObject,
-        wire::CallProblem::Missing(field) => llm::Problem::Missing { field: Box::from(field.field.as_ref()) },
-        wire::CallProblem::WrongType(field) => llm::Problem::WrongType { field: Box::from(field.field.as_ref()) },
-        wire::CallProblem::BadValue(field) => llm::Problem::BadValue { field: Box::from(field.field.as_ref()) },
-        wire::CallProblem::JobsFull(problem) => llm::Problem::JobsFull { jobs: problem.jobs },
-        wire::CallProblem::UnknownJob(problem) => llm::Problem::UnknownJob { job: problem.job },
-        wire::CallProblem::TooLarge => llm::Problem::TooLarge,
-        wire::CallProblem::Oversize(problem) => llm::Problem::Oversize { bytes: problem.bytes, bound: problem.bound },
-        wire::CallProblem::CutOff(problem) => llm::Problem::CutOff { bytes: problem.bytes },
-    }
+// Outcome admission distinguishes a receiving limit from malformed data. Keep
+// the distinction through the generated block list to the transcript boundary.
+fn outcome_problem(refusal: record::Refusal) -> wire::Problem {
+    let reason = match refusal {
+        record::Refusal::TooLarge => Reason::Bound,
+        record::Refusal::Malformed | record::Refusal::Unresolved => Reason::Malformed,
+        record::Refusal::Version => Reason::Version,
+    };
+    wire::paths::OWNED_OUTCOME_VALUE.problem(reason)
 }
 
 fn outcome(
@@ -305,7 +279,7 @@ fn outcome(
         wire::Outcome::Written(written) => tools::Outcome::Written { created: written.created },
         wire::Outcome::Edited(edited) => tools::Outcome::Edited { replaced: edited.replaced },
         wire::Outcome::Exited(command) => tools::Outcome::Exited {
-            exit: exit(&command.exit),
+            exit: mapped::exit_to_domain(command.exit.clone()),
             head: Box::from(command.head.as_ref()),
             tail: Box::from(command.last.as_ref()),
             dropped: command.dropped,
@@ -321,44 +295,38 @@ fn outcome(
         wire::Outcome::Linked => tools::Outcome::Linked,
         wire::Outcome::Protected => tools::Outcome::Protected,
         wire::Outcome::NotDirectory(failure) => tools::Outcome::NotDirectory { path: resolved(&failure.path)? },
-        wire::Outcome::TooLarge(size) => {
-            tools::Outcome::TooLarge { what: size_part(&size.what), size: size.size, bound: size.bound }
-        }
+        wire::Outcome::TooLarge(size) => tools::Outcome::TooLarge {
+            what: mapped::size_part_to_domain(size.what.clone()),
+            size: size.size,
+            bound: size.bound,
+        },
         wire::Outcome::NotRead => tools::Outcome::NotRead,
         wire::Outcome::Stale => tools::Outcome::Stale,
         wire::Outcome::EditFailed(failed) => {
             if failed.edit == 0 {
                 return Err(record::Refusal::Malformed);
             }
-            tools::Outcome::EditFailed { edit: failed.edit, why: mismatch(&failed.why)? }
+            tools::Outcome::EditFailed { edit: failed.edit, why: mapped::mismatch_to_domain(failed.why.clone()) }
         }
         wire::Outcome::Failed(failed) => {
-            let fault = match &failed.fault {
-                wire::Fault::Denied => tools::Fault::Denied,
-                wire::Fault::NoSpace => tools::Fault::NoSpace,
-                wire::Fault::Other => tools::Fault::Other,
-            };
-            tools::Outcome::Failed { fault }
+            tools::Outcome::Failed { fault: mapped::fault_to_domain(failed.fault.clone()) }
         }
         wire::Outcome::TimedOut => tools::Outcome::TimedOut,
         wire::Outcome::Cancelled => tools::Outcome::Cancelled,
         wire::Outcome::Busy => tools::Outcome::Busy,
         wire::Outcome::NulByte => tools::Outcome::NulByte,
-        wire::Outcome::Running(command) => {
-            job_number(command.job)?;
-            tools::Outcome::Running {
-                job: tools::JobNumber(command.job),
-                head: Box::from(command.head.as_ref()),
-                tail: Box::from(command.last.as_ref()),
-                dropped: command.dropped,
-                timeout: timeout_clamp(&command.timeout)?,
-                output: byte_clamp(&command.output)?,
-                after: timeout_clamp(&command.after)?,
-            }
-        }
+        wire::Outcome::Running(command) => tools::Outcome::Running {
+            job: job_number_to_domain(command.job).or(Err(record::Refusal::Malformed))?,
+            head: Box::from(command.head.as_ref()),
+            tail: Box::from(command.last.as_ref()),
+            dropped: command.dropped,
+            timeout: timeout_clamp(&command.timeout)?,
+            output: byte_clamp(&command.output)?,
+            after: timeout_clamp(&command.after)?,
+        },
         wire::Outcome::Interrupted(command) => {
             let ran = match command.ran_ms {
-                Some(ms) => Some(Duration::from_millis(ms)),
+                Some(ms) => Some(ran_ms_to_domain(ms)),
                 None => None,
             };
             tools::Outcome::Interrupted {
@@ -368,24 +336,15 @@ fn outcome(
                 dropped: command.dropped,
             }
         }
-        wire::Outcome::Job(read) => {
-            job_number(read.job)?;
-            let end = match &read.end {
-                wire::JobEnd::Running => tools::JobEnd::Running,
-                wire::JobEnd::Ended(ended) => tools::JobEnd::Ended(exit(&ended.exit)),
-                wire::JobEnd::Stopped => tools::JobEnd::Stopped,
-                wire::JobEnd::Cancelled => tools::JobEnd::Cancelled,
-            };
-            tools::Outcome::Job {
-                job: tools::JobNumber(read.job),
-                head: Box::from(read.head.as_ref()),
-                tail: Box::from(read.last.as_ref()),
-                dropped: read.dropped,
-                output: byte_clamp(&read.output)?,
-                wait: timeout_clamp(&read.wait)?,
-                end,
-            }
-        }
+        wire::Outcome::Job(read) => tools::Outcome::Job {
+            job: job_number_to_domain(read.job).or(Err(record::Refusal::Malformed))?,
+            head: Box::from(read.head.as_ref()),
+            tail: Box::from(read.last.as_ref()),
+            dropped: read.dropped,
+            output: byte_clamp(&read.output)?,
+            wait: timeout_clamp(&read.wait)?,
+            end: mapped::job_end_to_domain(read.end.clone()),
+        },
     };
     Ok(value)
 }
@@ -433,23 +392,6 @@ fn component(name: &[u8]) -> Result<(), record::Refusal> {
         return Err(record::Refusal::Malformed);
     }
     Ok(())
-}
-
-fn mismatch(source: &wire::Mismatch) -> Result<tools::Mismatch, record::Refusal> {
-    let why = match source {
-        wire::Mismatch::NoMatch => tools::Mismatch::NoMatch,
-        wire::Mismatch::Unchanged => tools::Mismatch::Unchanged,
-        wire::Mismatch::Ambiguous(ambiguous) => {
-            let mut lines = List::with_capacity(ambiguous.lines.len());
-            for line in &ambiguous.lines {
-                if lines.push(line.number).is_err() {
-                    return Err(record::Refusal::TooLarge);
-                }
-            }
-            tools::Mismatch::Ambiguous { count: ambiguous.count, lines: lines.into_boxed() }
-        }
-    };
-    Ok(why)
 }
 
 fn byte_clamp(source: &wire::BytesClamp) -> Result<tools::BytesClamp, record::Refusal> {
@@ -506,12 +448,7 @@ fn found_piece(
         let length = hit_length(tail)?;
         let body = tail.get(..usize::try_from(length).expect("hit length")).ok_or(record::Refusal::Malformed)?;
         let hit = wire::Hit::decode(limits, &mut Reader::new(body)).or(Err(record::Refusal::Malformed))?;
-        hits.push(tools::Hit {
-            path: Box::from(hit.path.as_ref()),
-            line: hit.line,
-            text: Box::from(hit.text.as_ref()),
-        })
-        .or(Err(record::Refusal::TooLarge))?;
+        hits.push(mapped::hit_to_domain(hit)).or(Err(record::Refusal::TooLarge))?;
         offset = offset.checked_add(length).ok_or(record::Refusal::Malformed)?;
     }
     Ok(hits.into_boxed())
@@ -530,10 +467,6 @@ fn read_outcome(read: &wire::Read) -> Result<tools::Outcome, record::Refusal> {
         }
         wire::Next::End => tools::Next::End,
     };
-    let cut = match &read.cut {
-        wire::ReadCut::Whole => tools::Cut::Whole,
-        wire::ReadCut::Line => tools::Cut::Line,
-    };
     let window = byte_clamp(&read.window)?;
     Ok(tools::Outcome::Read {
         content: Box::from(read.content.as_ref()),
@@ -541,30 +474,9 @@ fn read_outcome(read: &wire::Read) -> Result<tools::Outcome, record::Refusal> {
         lines: read.lines,
         total: read.total,
         next,
-        cut,
+        cut: mapped::read_cut_to_domain(read.cut.clone()),
         window,
     })
-}
-
-fn size_part(what: &wire::SizePart) -> tools::SizePart {
-    match what {
-        wire::SizePart::File => tools::SizePart::File,
-        wire::SizePart::WriteContent => tools::SizePart::WriteContent,
-        wire::SizePart::EditOld => tools::SizePart::EditOld,
-        wire::SizePart::EditNew => tools::SizePart::EditNew,
-        wire::SizePart::EditItems => tools::SizePart::EditItems,
-        wire::SizePart::EditResult => tools::SizePart::EditResult,
-        wire::SizePart::EditReplacements => tools::SizePart::EditReplacements,
-        wire::SizePart::ListGlob => tools::SizePart::ListGlob,
-    }
-}
-
-fn exit(source: &wire::Exit) -> tools::Exit {
-    match source {
-        wire::Exit::Code(code) => tools::Exit::Code { code: code.code },
-        wire::Exit::Signal(signal) => tools::Exit::Signal { signal: signal.signal },
-        wire::Exit::TimedOut => tools::Exit::TimedOut,
-    }
 }
 
 fn timeout_clamp(source: &wire::TimeoutClamp) -> Result<tools::TimeoutClamp, record::Refusal> {
@@ -575,18 +487,30 @@ fn timeout_clamp(source: &wire::TimeoutClamp) -> Result<tools::TimeoutClamp, rec
                 return Err(record::Refusal::Malformed);
             }
             Ok(tools::TimeoutClamp::Clamped {
-                asked: Duration::from_nanos(clamp.asked_ns),
-                ceiling: Duration::from_nanos(clamp.ceiling_ns),
+                asked: convert::duration_to_domain(clamp.asked_ns),
+                ceiling: convert::duration_to_domain(clamp.ceiling_ns),
             })
         }
     }
 }
 
-fn job_number(number: u32) -> Result<(), record::Refusal> {
+pub(super) fn ran_ms_to_record(value: Duration) -> u64 {
+    value.as_millis()
+}
+
+fn ran_ms_to_domain(value: u64) -> Duration {
+    Duration::from_millis(value)
+}
+
+pub(super) fn job_number_to_record(value: tools::JobNumber) -> u32 {
+    value.0
+}
+
+fn job_number_to_domain(number: u32) -> Result<tools::JobNumber, Reason> {
     if number == 0 {
-        return Err(record::Refusal::Malformed);
+        return Err(Reason::Malformed);
     }
-    Ok(())
+    Ok(tools::JobNumber(number))
 }
 
 fn listed_outcome(listed: &wire::Listed) -> Result<tools::Outcome, record::Refusal> {
@@ -597,12 +521,7 @@ fn listed_outcome(listed: &wire::Listed) -> Result<tools::Outcome, record::Refus
             return Err(record::Refusal::Malformed);
         }
         let name = Box::from(entry.name.as_ref());
-        let kind = match &entry.kind {
-            wire::Kind::File => tools::Kind::File,
-            wire::Kind::Directory => tools::Kind::Directory,
-            wire::Kind::Link => tools::Kind::Link,
-            wire::Kind::Other => tools::Kind::Other,
-        };
+        let kind = mapped::kind_to_domain(entry.kind.clone());
         if entries.push(tools::Entry { name, kind }).is_err() {
             return Err(record::Refusal::TooLarge);
         }
@@ -643,22 +562,17 @@ mod found_tests {
     }
 }
 
-fn decode_kind(source: &wire::Turn, part: bool) -> Result<record::Kind, record::Refusal> {
-    let opening = match &source.opening {
+fn decode_kind(source: &mut wire::Turn, part: bool) -> Result<record::Kind, record::Refusal> {
+    let opening = match source.opening.take() {
         Some(value) => {
-            let affinity = llm::Affinity { key: value.affinity.key, thread: value.affinity.thread };
-            let backend = match &value.backend {
-                wire::Backend::Direct => record::Backend::Direct,
-                wire::Backend::Program(program) => record::Backend::Program { name: Box::from(program.name.as_ref()) },
-            };
-            Some((affinity, value.account, backend))
+            Some((mapped::affinity_to_domain(value.affinity), value.account, mapped::backend_to_domain(value.backend)))
         }
         None => None,
     };
     Ok(match &source.kind {
         wire::TurnKind::Ordinary => match opening {
             Some((affinity, account, backend)) if source.place == 1 => record::Kind::First(Box::new(record::Opener {
-                system: source.system.clone(),
+                system: source.system.take(),
                 affinity,
                 account,
                 backend,
@@ -668,7 +582,7 @@ fn decode_kind(source: &wire::Turn, part: bool) -> Result<record::Kind, record::
         },
         wire::TurnKind::Window => match opening {
             Some((affinity, account, backend)) => record::Kind::Window(Box::new(record::Opener {
-                system: source.system.clone(),
+                system: source.system.take(),
                 affinity,
                 account,
                 backend,
@@ -679,27 +593,26 @@ fn decode_kind(source: &wire::Turn, part: bool) -> Result<record::Kind, record::
 }
 
 fn decode_messages(
-    source: &wire::Turn,
-    dialect: u32,
-    limits: &wire::v8::Limits,
-    search_hits: u32,
+    source: List<wire::Message>,
+    context: &MessageContext,
 ) -> Result<List<llm::Message>, record::Refusal> {
-    let mut messages = List::with_capacity(source.messages.len());
-    for message in &source.messages {
-        let role = match &message.role {
-            wire::Role::User => llm::Role::User,
-            wire::Role::Assistant => llm::Role::Assistant,
+    let mut messages = List::with_capacity(source.len());
+    for message in source.into_boxed() {
+        let value = match mapped::message_to_domain(message, context) {
+            Ok(value) => value,
+            Err(problem) => return Err(message_refusal(problem)),
         };
-        let mut content = List::with_capacity(message.blocks.len());
-        for block in &message.blocks {
-            let value = decode_block(block, dialect, limits, search_hits)?;
-            if content.push(value).is_err() {
-                return Err(record::Refusal::TooLarge);
-            }
-        }
-        if messages.push(llm::Message { role, content: content.into_boxed() }).is_err() {
-            return Err(record::Refusal::TooLarge);
-        }
+        assert!(messages.push(value).is_ok(), "one output per message");
     }
     Ok(messages)
+}
+
+fn message_refusal(problem: wire::Problem) -> record::Refusal {
+    match problem.reason {
+        Reason::Bound => record::Refusal::TooLarge,
+        Reason::Version => record::Refusal::Version,
+        Reason::Short | Reason::Tag | Reason::Bool | Reason::Utf8 | Reason::Trailing | Reason::Malformed => {
+            record::Refusal::Malformed
+        }
+    }
 }

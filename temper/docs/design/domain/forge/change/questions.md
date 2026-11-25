@@ -192,7 +192,7 @@ stored setting naming it is refused, not read, naming the setting
   step merge there into one, the newest reason (jig's
   `domain/tasks/messages.md`, 2), so the record keeps that reason
   alone; the spec revision kept with it holds every amendment's words
-  (2026-11-17, `../../../draft/delegate-rulings.md`, 1).
+  (2026-11-17, `../../../draft/archive/delegate-rulings.md`, 1).
 - **Its history** keeps every question and answer: the asked tasks'
   question positions and the change's own (jig's `domain/tasks/messages.md`,
   2). A ruling that concerns many changes is design: a designer's
@@ -215,7 +215,7 @@ next step due at once (2026-11-04).
 
 A change's requester reaches the change's live producer through the
 change: by words, and by amending the change. Neither answers a
-question (2026-11-15, `../../../draft/producer-reach.md`, 2 and 3). The
+question (2026-11-15, `../../../draft/archive/producer-reach.md`, 2 and 3). The
 change's producer is its producing task (`README.md`, 2, step 1), live
 from its making until it closes: waiting, active (running, parked, or
 kept by its own question) or held (jig's `domain/tasks/lifecycle.md`).
@@ -332,7 +332,7 @@ What follows holds under either question route.
   its live repairs and resolutions too. A review, an approval or a
   check live then is not amended: a review's verdict counts only at the
   spec revision it was asked at (`gates.md`, 1, *Valid at a spec
-  revision*) (2026-11-17, `../../../draft/delegate-rulings.md`, 2).
+  revision*) (2026-11-17, `../../../draft/archive/delegate-rulings.md`, 2).
 - **An amendment never answers.** It settles and clears no question:
   the change's question stays asked of its requester, and the
   producer's stays open.
@@ -401,7 +401,7 @@ What follows holds under either question route.
   which give the pull request's title as supporting evidence
   (`gates.md`, 1). The context is fact the code carries, so it holds
   under a project's own charters too (2026-11-17,
-  `../../../draft/delegate-rulings.md`, 1).
+  `../../../draft/archive/delegate-rulings.md`, 1).
 
 ### Early starts
 
@@ -447,7 +447,7 @@ early, by these rules:
   from a sibling's save made before its question, and for an hour met
   that unfinished work's failures, asked about them and worked on a base
   that kept moving until the sibling landed
-  (`../../../draft/early-start-checked.md`). A checked push is work its
+  (`../../../draft/archive/early-start-checked.md`). A checked push is work its
   producer offered; a save is work in progress.
 - **Who pushed it.** Beside `last_checked` the change keeps the delegate
   task whose report set it, `last_checked_by`: every checked push a
@@ -464,7 +464,7 @@ early, by these rules:
   outlives its hold*). Any other task's assignment names none: a repair's
   first run starts on its producer's checked head, which is no delivery
   of its own, and a clean finish there is still nothing
-  (`../../../draft/delivered-across-runs.md`, 2).
+  (`../../../draft/archive/delivered-across-runs.md`, 2).
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those last checked heads merged into it, one by one
   in the order of the change's dependencies (`../../worker/checkouts.md`).
@@ -543,7 +543,7 @@ early, by these rules:
   as before. The answer decides nothing and keeps nothing. Why: on
   2026-11-15 an early producer's dependency landed squashed while it
   ran, and from then on it could neither deliver nor save, its work held
-  only in its checkout (`../../../draft/early-start-squash.md`). Only
+  only in its checkout (`../../../draft/archive/early-start-squash.md`). Only
   the checkout holds that work, so the catch-up is the run's hold's own;
   only the engine knows whether the dependency landed, since a squashed
   landing and a cancelled change's deleted branch look alike on the

@@ -1,4 +1,4 @@
-//! Adoption refusal words (temper/docs/design/domain/forge/adoption.md, 5).
+//! Adoption refusal words (temper/docs/design/domain/forge/adoption.md, 9).
 use alloc::boxed::Box;
 use jig_domain_people as people;
 

@@ -1,4 +1,4 @@
-//! Places bound storage, not the request rate (domain/forge/adoption.md, 9).
+//! Places bound storage, not the request rate (domain/forge/adoption.md, 13).
 use super::*;
 use jig_domain_people as people;
 

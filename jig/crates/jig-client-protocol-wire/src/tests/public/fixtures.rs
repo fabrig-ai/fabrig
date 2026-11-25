@@ -1,5 +1,5 @@
 //! Largest public answers under index limits (client/domain/contract/README.md, section 10).
-use crate::public_v2 as w;
+use crate::public_v1 as w;
 use alloc::boxed::Box;
 use skein_lib::List;
 

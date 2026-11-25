@@ -1,6 +1,7 @@
 //! Playground lifecycle (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7).
 use super::{Limits, Request, Side, family, wire_limits};
 pub use super::{Playground, PlaygroundState};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, Token};
@@ -351,12 +352,7 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         w::Outcome::StartRefused(value) => match value.why {
             w::StartRefusal::NotOffered => StartAnswer::NotOffered,
         },
-        w::Outcome::StartFailed(value) => StartAnswer::Failed(match value.why {
-            w::StartFailure::Group(value) => StartFailure::Group(value.why),
-            w::StartFailure::Account => StartFailure::Account,
-            w::StartFailure::Adoption => StartFailure::Adoption,
-            w::StartFailure::NotConnected => StartFailure::NotConnected,
-        }),
+        w::Outcome::StartFailed(value) => StartAnswer::Failed(maps::start_failure_to_domain(value.why)),
         w::Outcome::Removed
         | w::Outcome::Looked
         | w::Outcome::Dismissed

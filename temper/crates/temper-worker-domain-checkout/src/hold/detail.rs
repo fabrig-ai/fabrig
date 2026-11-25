@@ -1,4 +1,4 @@
-//! Failed prepare evidence (domain/worker/checkouts.md, 1.1 and 1.2).
+//! Failed prepare evidence (domain/worker/checkouts-prepare.md, 12.1 and 12.2).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Time, Writer};
@@ -7,7 +7,7 @@ use super::{Holding, PrepareStep, Timing, candidate, hex_length, nth, put_hex};
 use crate::boundary::Start;
 use crate::git::Done;
 
-// domain/worker/checkouts.md, 1.2: fields keep their room; words take the rest.
+// domain/worker/checkouts-prepare.md, 12.2: fields keep their room; words take the rest.
 const DETAIL_BYTES: usize = 2048;
 const NAME_BYTES: usize = 256;
 

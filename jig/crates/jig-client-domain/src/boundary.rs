@@ -6,6 +6,7 @@ use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token}
 pub struct Spoken {
     pub family: u16,
     pub version: u32,
+    pub layout: [u8; 32],
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Family {
@@ -103,7 +104,7 @@ pub enum Up {
     Unreadable,
     NotKept { key: RequestKey },
     Served { served: bool, versions: Option<contract::VersionRange> },
-    FamilyServed { family: u16, versions: Option<contract::VersionRange> },
+    FamilyServed { family: u16, versions: Option<contract::VersionRange>, served: bool },
     Answer { attempt: Token, envelope: RequestEnvelope, answer: Option<Answered>, why: Option<Retry> },
     Watched { watch: Token, event: contract::WatchEvent },
     FamilyDelivered { watch: Token, record: Family },

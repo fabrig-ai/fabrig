@@ -8,6 +8,10 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 1;
+pub const LAYOUT: [u8; 32] = [
+    0x3b, 0xa2, 0x37, 0x6d, 0x0f, 0x35, 0x5c, 0xbe, 0x41, 0xaa, 0x07, 0xb6, 0x6a, 0x1e, 0xdf, 0x08, 0xaa, 0x82, 0x7d,
+    0x0b, 0xd9, 0xab, 0x35, 0x18, 0xf7, 0x3c, 0xd1, 0x85, 0xec, 0x9b, 0xd8, 0x0f,
+];
 
 // Limits: the owner's values, checked once against ceilings.
 #[repr(C)]
@@ -85,7 +89,7 @@ pub mod paths {
     pub const DRAFT_TOUCHED: Path = Path::new("Draft.touched");
     pub const DRAFT_TAIL: Path = Path::new("Draft (tail)");
     pub const VIEW_RECORD_TAG: Path = Path::new("ViewRecord (tag)");
-    pub const STORED_RECORD_STORE_VERSION: Path = Path::new("StoredRecord.store_version");
+    pub const STORED_RECORD_LAYOUT: Path = Path::new("StoredRecord.layout");
     pub const STORED_RECORD_RECORD: Path = Path::new("StoredRecord.record");
     pub const STORED_RECORD_VERSION: Path = Path::new("StoredRecord (version)");
     pub const STORED_RECORD_TAIL: Path = Path::new("StoredRecord (tail)");
@@ -708,20 +712,20 @@ impl Record for ViewRecord {
 // Type: StoredRecord.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StoredRecord {
-    pub store_version: u16,
+    pub layout: [u8; 32],
     pub record: Box<[u8]>,
 }
 
 // Record: StoredRecord.
 impl StoredRecord {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stored_record_record) },
         skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 8;
+    pub const ENCODED_AT_ZERO: u64 = 38;
 }
 
 impl Record for StoredRecord {
@@ -747,7 +751,7 @@ impl Record for StoredRecord {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::STORED_RECORD_VERSION)?;
-        field::write(field::U16, &self.store_version, limits, out, paths::STORED_RECORD_STORE_VERSION)?;
+        field::write(field::Fixed::<32>, &self.layout, limits, out, paths::STORED_RECORD_LAYOUT)?;
         field::write(field::Bytes { limit: limits.stored_record_record.min(CEILINGS.stored_record_record) }, &self.record, limits, out, paths::STORED_RECORD_RECORD)?;
         Ok(())
     }
@@ -755,7 +759,7 @@ impl Record for StoredRecord {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         field::version(reader, VERSION, paths::STORED_RECORD_VERSION)?;
         Ok(Self {
-            store_version: field::read(field::U16, limits, reader, paths::STORED_RECORD_STORE_VERSION)?,
+            layout: field::read(field::Fixed::<32>, limits, reader, paths::STORED_RECORD_LAYOUT)?,
             record: field::read(field::Bytes { limit: limits.stored_record_record.min(CEILINGS.stored_record_record) }, limits, reader, paths::STORED_RECORD_RECORD)?,
         })
     }

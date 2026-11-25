@@ -10,7 +10,9 @@ ones in the fuzzy suite.
   match the committed module,
   as skein's `data/codec/golden.md`, section 1 has it. No generated tests
   or records' golden bytes are kept. Step tests in `jig-protocol-worker-wire`
-  check the sizes against bodies measured by hand; patch goldens stay.
+  check the sizes against bodies measured by hand. No patch golden is
+  kept: conversion between layouts is tested from derived texts
+  (`layouts.md`, 8).
 - **A machine world per component:** the component between the hub's
   scripted vocabulary and a scripted peer of skein's channel, with every
   refusal of the opening, a worker replaced, a hello not admitted,

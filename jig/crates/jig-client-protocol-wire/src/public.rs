@@ -1,7 +1,7 @@
 //! Public answer reservations (jig/docs/design/client/domain/contract/README.md, section 10).
 
 use crate::Record;
-use crate::public_v2;
+use crate::public_v1;
 
 /// The public index's collection bounds, within the public schema's ceilings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -15,17 +15,17 @@ pub struct PublicIndexBounds {
 
 /// Fills every index-backed list limit, refusing bounds past the schema's ceilings.
 #[must_use]
-pub fn public_limits(bounds: &PublicIndexBounds) -> Option<public_v2::Limits> {
-    let limits = public_v2::Limits {
+pub fn public_limits(bounds: &PublicIndexBounds) -> Option<public_v1::Limits> {
+    let limits = public_v1::Limits {
         public_projects_projects: bounds.projects,
         public_board_live: u32::from(bounds.goals),
         public_board_ended: u32::from(bounds.ended),
         public_goal_tree: u32::from(bounds.lines),
         public_card_lineage: u32::from(bounds.depth),
         public_card_delegates: u32::from(bounds.lines),
-        ..public_v2::CEILINGS
+        ..public_v1::CEILINGS
     };
-    match public_v2::check_limits(&limits) {
+    match public_v1::check_limits(&limits) {
         Ok(()) => Some(limits),
         Err(_) => None,
     }
@@ -36,9 +36,9 @@ pub fn public_limits(bounds: &PublicIndexBounds) -> Option<public_v2::Limits> {
 pub fn public_bounds(bounds: &PublicIndexBounds) -> [u32; 3] {
     let Some(limits) = public_limits(bounds) else { return [u32::MAX; 3] };
     [
-        answer_bound(public_v2::PublicProjects::encoded_bound(&limits)),
-        answer_bound(public_v2::PublicBoard::encoded_bound(&limits)),
-        answer_bound(public_v2::PublicCard::encoded_bound(&limits)),
+        answer_bound(public_v1::PublicProjects::encoded_bound(&limits)),
+        answer_bound(public_v1::PublicBoard::encoded_bound(&limits)),
+        answer_bound(public_v1::PublicCard::encoded_bound(&limits)),
     ]
 }
 

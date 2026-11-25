@@ -1,7 +1,7 @@
 //! Each anonymous page draws its public records (temper/docs/design/client/web/public.md, 3).
 use super::{Draw, heading};
 use crate::words::Word;
-use jig_client_protocol_wire::public_v2 as j;
+use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::Duration;
 use skein_ui::{Builder, Role};
 use temper_client_domain::{address::Public, public::Shown};

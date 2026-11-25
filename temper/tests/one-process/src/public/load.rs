@@ -1,7 +1,7 @@
 //! Concurrent public admission beside signed-in work (temper/docs/design/protocol/sign-in.md, 2.5).
 use super::{
-    checks::PROXY, http::Answer, observation::Observer, proxy::Proxy, requests, service, service_checks,
-    visitor::Visitor,
+    checks::PROXY, forge_target, http::Answer, jig_target, observation::Observer, proxy::Proxy, requests, service,
+    service_checks, visitor::Visitor,
 };
 use crate::fixtures;
 use jig_client::contract as c;
@@ -69,14 +69,14 @@ impl Walk {
     }
     fn public(&mut self, visitor: &mut Visitor, address: std::net::SocketAddr, project: u64) {
         let path = if self.phase == 2 {
-            format!("/jig/v1/public/2/4/2/{project:016x}")
+            forge_target(&format!("2/{project:016x}"))
         } else if self.phase == 0 {
-            "/jig/v1/public/0/2/1".to_owned()
+            jig_target("1")
         } else {
-            format!(
-                "/jig/v1/public/0/2/2/{:016x}",
+            jig_target(&format!(
+                "2/{:016x}",
                 project.wrapping_add(u64::try_from(self.phase * 100 + self.calls.len()).expect("few reads"))
-            )
+            ))
         };
         self.calls.push(visitor.send(address, Method::Get, path.as_bytes(), &[(b"Host", b"one.example")]));
     }

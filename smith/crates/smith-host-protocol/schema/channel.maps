@@ -1,0 +1,88 @@
+records smith_channel::v14
+use c = smith_host_domain::channel
+use h = smith_host_domain
+use s = skein_codec::convert
+
+use hand = crate::channel_hand
+by hand crate::channel_hand
+refuses hand::delivered_to_record
+with context hand::delivered_to_record
+context smith_channel::Limits
+direction to domain
+
+record CallName = c::CallName to record
+record CallName = crate::component::CallKey
+record Window = c::Window to record
+record Directory by hand
+record ListRow = h::ListedModel { efforts slice }
+enum ListFailed by hand
+record ListRows stands for rows slice
+record ListFailure by hand
+enum ListAnswer = h::ListOutcome { listed tuple, failed tuple }
+enum GrantValue by hand
+record Grant by hand
+record Receipt by hand
+record Delivered by hand
+record Marker by hand
+record DeliveryRefusal by hand
+enum DeliveryReason = h::DeliveryReason to record
+record DeliveryFailure by hand
+enum Delivery = h::Delivery to record { delivered tuple, refused tuple, failed tuple }
+record HostReply { text = body }
+record DeliveryReply stands for value
+enum Reply = c::Reply to record { delivery tuple }
+enum SavedReply = c::SavedReply to record { delivery tuple boxed }
+record AnsweredCall = c::AnsweredCall to record
+record Message = c::Message to record { name via s::token }
+record LiveAsk = c::LiveAsk to record
+record Start by hand
+record HostAnswer by hand
+# The ask combines the effect and payload, then seals deliveries.
+enum MessageRefusal = h::MessageRefusal
+enum Effect = c::Effect
+record Field = smith_domain::run::outcome::Field { text = value }
+record DeliverAsk = smith_domain::run::outcome::Change { fields slice }
+enum Ask by hand
+record Turn by hand
+enum PartKind = smith_domain::session::record::PartKind both ways
+record Part by hand
+record KeptPart by hand
+enum Operation = smith_domain::Operation { check = Checks }
+enum UsageState = h::UsageState
+record UsageWindow by hand
+enum ReceivingLimit = c::ReceivingLimit
+enum Overflow = c::Overflow
+record ReceivingLimitValue stands for value
+record OverflowValue stands for value
+enum BudgetFailure = c::Exhausted { tokens tuple, overflow tuple }
+enum Cap = c::Cap
+record PathCap stands for value
+record PoolLimit
+enum CompletionLimit = c::Limit { path tuple }
+enum CompletionPhase = c::Phase
+enum CompletionFailure by hand
+record ResponseEvidence
+enum CompletionEvidence = c::CompletionEvidence
+enum ModelFault by hand
+enum TranscriptRefusal = c::TranscriptRefusal
+enum RunFailure by hand
+enum PriceRate = c::Rate
+record PriceRateValue stands for value
+enum BudgetPart = c::Part
+record BudgetPartValue stands for value
+record BudgetTurns stands for value
+record BudgetSpend stands for value
+record BudgetTime stands for value
+enum BudgetCeiling = c::Ceiling { turns tuple, spend tuple, time tuple }
+record BudgetCeilingValue stands for value
+record BudgetCompletion
+record BudgetChecks
+enum BudgetRefusal = c::BudgetRefusal { ceiling tuple, empty tuple, reserve tuple }
+record BudgetRefusalValue stands for value
+record WindowBound
+enum InvalidStart = c::RunInvalid { budget tuple, price tuple }
+record InvalidStartValue stands for value
+enum StartRefusal = c::Refusal { invalid tuple }
+enum RunResult by hand
+record Answer by hand
+enum Signal = h::parent::Signal

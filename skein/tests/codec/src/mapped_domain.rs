@@ -164,6 +164,16 @@ pub enum LongChoice {
 }
 
 #[derive(Debug)]
+pub struct SentRows {
+    pub rows: Box<[u32]>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReceivedRows {
+    pub received: Box<[u32]>,
+}
+
+#[derive(Debug)]
 pub struct Context {
     pub permitted: u32,
 }

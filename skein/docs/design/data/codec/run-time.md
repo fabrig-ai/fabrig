@@ -16,9 +16,10 @@
   line with the same message as before the parser moved; a text with
   several gives the first by pass: characters, then the grammar, then
   the layout, then Rust's names.
-- **Every version is read so.** The same parser reads a kept version's
-  text at run time (`patches.md`) and the current one in the generator,
-  so a kept text means what it meant when it was current.
+- **Every layout is read so.** The same parser reads another layout's
+  text at run time, a store's registry's or a worker's (`layouts.md`),
+  and the current one in the generator, so a text means at run time what
+  it meant to the build that generated code from it.
 
 ### 1.1 The grammar
 
@@ -42,7 +43,7 @@ held        = "holds" family word | "pieces" word   ; after a bytes or a secret 
 - **Tokens:** words of ASCII letters, digits, `_` and `-`; the marks
   `{`, `}`, `:`, `,`, `=`, `[` and `]`; a text, `"` then bytes of UTF-8
   other than `"`, `\` and control bytes, then `"`, a `#` among them one
-  of its bytes, as a patch's (`patches.md`, 1); whitespace between them.
+  of its bytes; whitespace between them.
   `#` elsewhere starts a comment that runs to the end of its line. Any
   other byte outside a comment or a text is refused, before the grammar
   is read.
@@ -96,8 +97,8 @@ Then, once every declaration is read, the names and defaults:
   there (`Former`): a declaration's among every declaration's name and
   former name, a field's among its record's, a variant's among its
   enumeration's;
-- each default a value its field's type takes (`Default`), as a
-  patch's value is checked (`patches.md`, 2): within its width or bound,
+- each default a value its field's type takes (`Default`), in the forms
+  of `README.md`, section 3: within its width or bound,
   UTF-8 for `text`, a variant without a record of a named enumeration,
   `some` only under `option`, `[]` only for `list`, `0x` alone for
   `pieces`; none for a named record, a `secret` or a `bytes` that holds
@@ -190,15 +191,14 @@ without one, and `None` for any other field without one.
 A tombstone is a field of the table outside every record's range,
 after all the records' fields, so that `field`, `default` and `was`
 answer for it as for a field, and no code that walks a record's fields
-(the generator, the fingerprints, the diff, the patch machine) meets
-it; its record names its tombstones' range. A `droppable` mark is a
+(the generator, the fingerprints) meets it; its record names its
+tombstones' range, which a layout plan reads (`layouts.md`, 2). A `droppable` mark is a
 table of its own, one entry per field.
 
 The plain types derive `Clone`, `Copy` where small, `Debug`, equality
 and `Hash`; `Schema` derives `Debug` and `Clone` alone: a copy is its
-text and tables, for a holder that keeps schemas of its own (a
-`Patcher`'s `keep_schema`, `patches.md`) from one already parsed, at a
-fraction of a parse; two schemas are told apart by their texts, not by
+text and tables, for a holder that keeps schemas of its own from one
+already parsed, at a fraction of a parse; two schemas are told apart by their texts, not by
 an equality. A refusal names its token by `at`; skein-codegen writes the
 message from it and the text. A type's fewest bytes are the generator's
 (a list's precheck, section 2.2): a scalar's width, `fixed N`'s N, 4 for
@@ -206,7 +206,7 @@ a length or a count, 1 for an `option`, a record's fields' sum (2 more
 if `versioned`), and an enumeration's 1 more than its smallest
 variant's.
 
-- **A kept version's bounds under a side's limits:**
+- **Another text's bounds under a side's limits:**
   `most_bytes_within(at, names, values)` is the most bytes `at` encodes
   to, as `most_bytes` computes it, with each bound of the text replaced
   by the value of the limit of the same name, when `names` holds it and
@@ -217,10 +217,8 @@ variant's.
   level by level. The rule lives in `skein-codec` beside the parser,
   and the generator names its limits by it, so the two never differ.
   `None` when `names` and `values` differ in length or the sum
-  overflows. So a channel that speaks an older version states and checks
-  its terms from that version's kept text with its current limits
-  (jig's `protocol/channel/wires.md`): an appended field, absent
-  there, counts nothing.
+  overflows. So a holder of another layout's text bounds that layout's
+  values by its own limits: a field the text lacks counts nothing.
 
 ## 2. Generic values
 
@@ -233,8 +231,7 @@ variant's.
 - **Encoding is the bytes.** The encoding is canonical (`README.md`, section 1), so
   a decoded value's encoding is the bytes it was decoded from, two
   values of one type are equal when their bytes are, and a subtree's
-  encoding is its range, which a patch carries by copying it (`patches.md`
-  ).
+  encoding is its range.
 - **Decoded at the schema's ceilings,** with the generated code's
   checks in its order (2.2), so a value within its room decodes
   generically exactly when its generated decoder, given the ceilings as
@@ -243,19 +240,23 @@ variant's.
   the ceilings stay the generated decoders'.
 - **Its room.** A value made with `with_room` sets an entry cap and
   grows its entry tables as they fill, reusing their storage on later
-  decodes. A patch's machine
-  grows its own entries (`patches.md`, 7). A record that needs more nodes than
+  decodes. A record that needs more nodes than
   the room is refused with `Refusal::Room`, since a node may take no
   bytes (an empty record), so the bytes alone do not bound the count.
 - **Held fields stay opaque.** A `bytes` field that holds a record or
-  pieces is read as its bytes, as the generated code reads it; a patch
-  opens it (`patches.md`).
+  pieces is read as its bytes, as the generated code reads it; a layout
+  plan opens it (`layouts.md`, 3).
 - **Printed without content.** A value's bytes are a `lib::Secret`, so
   its `Debug` shows their length and the index (types, offsets, counts,
   tags), never a byte of a field, a secret's or any other. They are
   given back as that `Secret`, moved, not copied.
-- **Built by a patch.** A new value is built only by a patch's machine
-  (`patches.md`), checked against its schema as it goes.
+- **Read, never built.** A value is only ever decoded from bytes: it
+  is an index for a reader of a layout no generated code reads, a
+  store's rehearsal decoding a stored value at its stored layout (jig's
+  `protocol/store/opening-rehearsal.md`, 1) and the tests that compare
+  it with generated decoders (2.3). A value at another layout is
+  converted by a plan over its bytes (`layouts.md`), not through a
+  value.
 
 ### 2.1 The value
 

@@ -33,9 +33,9 @@ descriptor or a kernel error. Below it is the kernel boundary
   system through a view the owner composes. A cgroup is stopped as a
   whole, and proved empty by the kernel (`processes.md`, 2 to 4).
 - **Files are replaced whole, or appended to.** A record is replaced
-  durably, privately when it is a secret (`files.md`, 2, 3); a trace or a log is
+  durably, privately when it is a secret (`files.md`, 10, 11); a trace or a log is
   a write stream on a file opened to append, with a write deadline for a
-  filesystem that stalls (`files.md`, 1).
+  filesystem that stalls (`files.md`, 9).
 - **Addresses, never host names.** io connects to an address: a socket
   address, the host's name resolved before it, or an in-process name,
   which needs no resolving (section 3).
@@ -153,7 +153,7 @@ room there. New external work waits at the root's watermark
   protocol layer, which aborts the connect. io keeps only the mechanics'
   deadlines: a graceful close's, and a retry's; and, on files, the
   deadline an owner states for an operation a stalled filesystem may hold
-  (5, `files.md`, 1).
+  (5, `files.md`, 9).
 - **What found the kernel out of buffers or descriptors is retried after
   `Limits::retry`,** not at once: a receive, a send, a half-close or an
   accept that failed for want of a buffer, an accept that failed with an

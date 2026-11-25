@@ -84,6 +84,7 @@ fn change_row() -> top::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        close_at: None,
         report: Box::new([]),
         repairs: None,
         follows: None,
@@ -133,6 +134,7 @@ fn change_step_task(
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -509,6 +511,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -562,6 +565,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::SetUp { .. }
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::CloseDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -971,6 +975,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                     no_test: false,
                     delegate_live: false,
                     review_request: None,
+                    closer_waiting: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,

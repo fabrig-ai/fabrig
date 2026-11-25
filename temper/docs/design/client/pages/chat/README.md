@@ -138,7 +138,7 @@
   chat whose host refuses its start says jig's "Cannot start yet", and
   the feedback above its composer says why (below); a line of the Chats page holds
   no run wait, so it is never refused, and says jig's word for its
-  stage (jig's `client/domain/client/helpers.md`, 1). A chat held on a
+  stage (jig's `client/domain/client/helpers.md`, 6). A chat held on a
   configured bound (jig's `Exceeded` hold) says jig's phrase for that
   hold, as its hold card does: "Held: the model's reasoning went past
   its configured allowance of 2048 bytes". A chat the person paused says

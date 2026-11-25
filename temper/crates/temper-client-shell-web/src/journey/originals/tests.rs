@@ -17,7 +17,7 @@ fn input(value: &[u8]) -> Line {
 }
 
 fn kept(record: &[u8]) -> Box<[u8]> {
-    let value = w::Kept { store_version: 1, record: record.into() };
+    let value = w::Kept { layout: w::LAYOUT, record: record.into() };
     let mut writer = Writer::new(skein_lib::length::usize_of(
         value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
     ));
@@ -46,7 +46,7 @@ fn a_stored_values_kept_record_is_the_original_and_its_head_stands() {
     let record = [b" \t".as_slice(), &fake(), b"\r\n"].concat();
     let value = kept(&record);
     let head = kept_head(&value).expect("kept head");
-    assert_eq!(head, 8);
+    assert_eq!(head, 2 + 32 + 4);
     let originals =
         crate::journey::originals(&[Line::Stored { key: b"store".as_slice().into(), value: value.clone() }], &[]);
     assert_eq!(originals.count(Kind::Stored), 1);
@@ -55,6 +55,7 @@ fn a_stored_values_kept_record_is_the_original_and_its_head_stands() {
     replaced.extend(std::iter::repeat_n(b'x', record.len()));
     let mut reader = Reader::new(&replaced);
     let decoded = w::Kept::decode(&w::CEILINGS, &mut reader).expect("head still decodes");
+    assert_eq!(decoded.layout, w::LAYOUT);
     assert_eq!(decoded.record.as_ref().len(), record.len());
     assert!(decoded.record.as_ref().iter().all(|byte| *byte == b'x'));
     assert!(reader.is_empty());

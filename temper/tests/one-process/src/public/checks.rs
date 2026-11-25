@@ -1,6 +1,7 @@
 //! Independent proxy assertions (temper/docs/design/protocol/sign-in.md, 2.4–2.5).
 use super::{
     http::{Answer, header},
+    jig_target,
     programs::{Program, Upstream},
     proxy::{PerAddress, Proxy, ProxyConfig, Upstream as Route},
     visitor::Visitor,
@@ -13,7 +14,6 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 pub(super) const PROXY: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 42000));
 const UPSTREAM: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 42001));
 const SECOND: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 42002));
-const PATH: &[u8] = b"/jig/v1/public/0/2/1";
 pub(super) fn config(address: SocketAddr) -> ProxyConfig {
     ProxyConfig {
         upstreams: vec![
@@ -123,7 +123,7 @@ impl Judge {
         match self.stage {
             0 => {
                 upstream.answer = document(200, b"public, max-age=3, must-revalidate", Some(b"1"), b"first");
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
                 self.stage = 1;
             }
             1 => {
@@ -138,7 +138,7 @@ impl Judge {
                 self.stage = 2;
             }
             2 => {
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
                 self.stage = 3;
             }
             3 => {
@@ -162,7 +162,7 @@ impl Judge {
                     self.stage = 7;
                 } else {
                     upstream.stop();
-                    self.send(visitor, b"one.example", PATH);
+                    self.send(visitor, b"one.example", jig_target("1").as_bytes());
                     self.stage = 4;
                 }
             }
@@ -178,7 +178,7 @@ impl Judge {
                 self.stage = 5;
             }
             5 => {
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
                 self.stage = 6;
             }
             6 => {
@@ -206,7 +206,7 @@ impl Judge {
                 self.stage = usize::MAX;
             }
             7 => {
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
                 self.stage = 8;
             }
             8 => {
@@ -216,7 +216,7 @@ impl Judge {
                 if visitor.answers.contains_key(self.calls.last().ok_or_else(|| String::from("refresh request"))?) {
                     return Err(String::from("no stale copy while refreshing"));
                 }
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
                 self.stage = 9;
             }
             9 => {
@@ -288,10 +288,11 @@ impl Judge {
             }
             if self.stage % 3 < 2 {
                 upstream.answer = document(200, b"public, max-age=2, must-revalidate", None, b"other route");
+                let target = jig_target("1");
                 self.calls.push(visitor.send(
                     PROXY,
                     if extra == 0 { Method::Post } else { Method::Get },
-                    if extra == 0 { PATH } else { b"/jig/v1/read" },
+                    if extra == 0 { target.as_bytes() } else { b"/jig/v1/read" },
                     &[(b"Host", b"one.example")],
                 ));
             } else {
@@ -310,7 +311,7 @@ impl Judge {
             return Ok(());
         }
         let (status, control, reached) = ROWS[row];
-        let path = format!("/jig/v1/public/0/2/{row}");
+        let path = jig_target(&row.to_string());
         match self.stage % 3 {
             0 => {
                 upstream.answer = document(
@@ -366,7 +367,7 @@ impl Judge {
             self.stage = usize::MAX;
             return Ok(());
         }
-        let path = format!("/jig/v1/public/0/2/{row}");
+        let path = jig_target(&row.to_string());
         match self.stage % 3 {
             0 => {
                 let mut headers: Vec<(&[u8], &[u8])> = vec![
@@ -439,7 +440,7 @@ impl Judge {
             self.calls.push(visitor.send(
                 PROXY,
                 if row >= 5 && row != 7 { Method::Options } else { Method::Get },
-                PATH,
+                jig_target("1").as_bytes(),
                 &[
                     (b"Host", if row == 0 { b"refused.example" } else { b"one.example" }),
                     (b"Origin", b"https://another.example"),
@@ -458,7 +459,7 @@ impl Judge {
     }
     fn keys(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) -> Result<(), String> {
         match self.stage {
-            0 => self.send(visitor, b"one.example", PATH),
+            0 => self.send(visitor, b"one.example", jig_target("1").as_bytes()),
             1 | 3 => {
                 match (&(self.last(visitor)?.body.as_ref()), &(b"first")) {
                     (left, right) if left != right => {
@@ -467,7 +468,7 @@ impl Judge {
                     }
                     _ => {}
                 }
-                self.send(visitor, b"two.example", PATH);
+                self.send(visitor, b"two.example", jig_target("1").as_bytes());
             }
             2 => {
                 match (&(self.last(visitor)?.body.as_ref()), &(b"second")) {
@@ -477,7 +478,7 @@ impl Judge {
                     }
                     _ => {}
                 }
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
             }
             4 => {
                 match (&(self.last(visitor)?.body.as_ref()), &(b"second")) {
@@ -501,7 +502,7 @@ impl Judge {
                     }
                     _ => {}
                 }
-                self.send(visitor, b"alias.example", PATH);
+                self.send(visitor, b"alias.example", jig_target("1").as_bytes());
             }
             5 => match (&(proxy.counts.upstream_public), &(3)) {
                 (left, right) if left != right => {
@@ -514,10 +515,11 @@ impl Judge {
                 visitor,
                 b"one.example",
                 match self.stage {
-                    6 => b"/jig/v1/public/0/2/%31",
-                    7 => b"/jig/v1/public/0/2/./1",
-                    _ => b"/jig/v1/public/0/2%2F1",
-                },
+                    6 => jig_target("%31"),
+                    7 => jig_target("./1"),
+                    _ => format!("{}%2F1", jig_target("").trim_end_matches('/')),
+                }
+                .as_bytes(),
             ),
             9 => {
                 match (&(proxy.counts.upstream_public), &(6)) {
@@ -530,7 +532,7 @@ impl Judge {
                 }
                 proxy.config.upstreams[0].names.retain(|name| name.as_ref() != b"one.example");
                 proxy.config.upstreams[1].names.push(b"one.example".as_slice().into());
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
             }
             10 => {
                 match (&(self.last(visitor)?.body.as_ref()), &(b"second")) {
@@ -560,7 +562,7 @@ impl Judge {
     }
     fn host(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) -> Result<(), String> {
         match self.stage {
-            0 => self.send(visitor, b"one.example", PATH),
+            0 => self.send(visitor, b"one.example", jig_target("1").as_bytes()),
             1 => {
                 match (&(self.last(visitor)?.status), &(200)) {
                     (left, right) if left != right => {
@@ -570,7 +572,7 @@ impl Judge {
                     _ => {}
                 }
                 proxy.config.upstreams[0].names.retain(|name| name.as_ref() != b"one.example");
-                self.send(visitor, b"one.example", PATH);
+                self.send(visitor, b"one.example", jig_target("1").as_bytes());
             }
             2 => {
                 match (&(self.last(visitor)?.status), &(421)) {

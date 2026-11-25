@@ -1,12 +1,13 @@
 //! Identifier-only records (jig/docs/design/protocol/client/public-reads.md).
 use super::{Names, PublicKind};
+use crate::generated::public as map;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::{self as wire, public_v2 as w};
+use jig_client_protocol_wire::{self as wire, public_v1 as w};
 use jig_domain_core_vocabulary as c;
 use skein_lib::{List, Writer};
 
-pub(super) fn encode(
+pub(crate) fn encode(
     document: &c::PublicDocument,
     names: &Names,
     limits: &w::Limits,
@@ -58,7 +59,7 @@ pub(super) fn encode(
                 lineage.push(names.task(*item)).ok()?;
             }
             let record = w::PublicCard {
-                line: line(&value.line, names, limits)?,
+                line: public_line_to_record(&value.line, &(names, limits.public_line_title)).ok()?,
                 lineage,
                 delegates: lines(&value.delegates, names, limits, limits.public_card_delegates)?,
                 folded: value.folded,
@@ -95,33 +96,34 @@ fn writer(measure: u32, bound: u32) -> Option<Writer> {
 }
 fn goals(values: &[c::PublicGoal], names: &Names, limits: &w::Limits, bound: u32) -> Option<List<w::PublicGoal>> {
     let mut goals = List::with_capacity(count(values.len(), bound)?);
+    let context = (names, limits.public_line_title);
     for value in values {
-        goals
-            .push(w::PublicGoal {
-                line: line(&value.line, names, limits)?,
-                tree: lines(&value.tree, names, limits, limits.public_goal_tree)?,
-                folded: value.folded,
-            })
-            .ok()?;
+        // Check the configured count before translation allocates the tree.
+        count(value.tree.len(), limits.public_goal_tree)?;
+        goals.push(map::public_goal_to_record(value, &context).ok()?).ok()?;
     }
     Some(goals)
 }
 fn lines(values: &[c::PublicLine], names: &Names, limits: &w::Limits, bound: u32) -> Option<List<w::PublicLine>> {
     let mut lines = List::with_capacity(count(values.len(), bound)?);
+    let context = (names, limits.public_line_title);
     for value in values {
-        lines.push(line(value, names, limits)?).ok()?;
+        lines.push(public_line_to_record(value, &context).ok()?).ok()?;
     }
     Some(lines)
 }
-fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::PublicLine> {
+pub(crate) fn public_line_to_record(
+    value: &c::PublicLine,
+    context: &(&Names, u32),
+) -> Result<w::PublicLine, w::Problem> {
+    let &(names, title_limit) = context;
     if !skein_lib::bytes::is_utf8(&value.title.bytes) {
-        return None;
+        return Err(w::paths::PUBLIC_LINE_TITLE.problem(skein_codec::Reason::Utf8));
     }
-    let title =
-        skein_lib::bytes::utf8_prefix(&value.title.bytes, skein_lib::length::usize_of(limits.public_line_title));
+    let title = skein_lib::bytes::utf8_prefix(&value.title.bytes, skein_lib::length::usize_of(title_limit));
     let title_cut = value.title.cut || title.len() < value.title.bytes.len();
     let title = skein_lib::bytes::copy_of(title);
-    Some(w::PublicLine {
+    Ok(w::PublicLine {
         task: names.task(value.task),
         title,
         title_cut,
@@ -131,10 +133,10 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
         },
         goal: value.goal,
         priority: value.priority,
-        executor: executor(value.executor),
-        phase: phase(value.phase),
+        executor: map::public_executor_to_record(&value.executor),
+        phase: map::public_phase_to_record(&value.phase),
         hold: match value.hold {
-            Some(hold) => Some(hold_kind(hold)),
+            Some(hold) => Some(map::public_hold_to_record(&hold)),
             None => None,
         },
         made: value.made,
@@ -142,60 +144,6 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
         active: value.active,
         ended: value.ended,
         spent: value.spent,
-        delegates: w::PublicCounts {
-            working: value.delegates.working,
-            waiting: value.delegates.waiting,
-            held: value.delegates.held,
-            closing: value.delegates.closing,
-            ended: value.delegates.ended,
-        },
+        delegates: map::public_counts_to_record(&value.delegates),
     })
-}
-fn executor(value: c::PublicExecutor) -> w::PublicExecutor {
-    match value {
-        c::PublicExecutor::Agent => w::PublicExecutor::Agent,
-        c::PublicExecutor::Procedure => w::PublicExecutor::Procedure,
-        c::PublicExecutor::Person => w::PublicExecutor::Person,
-        c::PublicExecutor::Job => w::PublicExecutor::Job,
-    }
-}
-fn phase(value: c::PublicPhase) -> w::PublicPhase {
-    match value {
-        c::PublicPhase::Waiting => w::PublicPhase::Waiting,
-        c::PublicPhase::Idle => w::PublicPhase::Idle,
-        c::PublicPhase::Due => w::PublicPhase::Due,
-        c::PublicPhase::Preparing => w::PublicPhase::Preparing,
-        c::PublicPhase::Claimed => w::PublicPhase::Claimed,
-        c::PublicPhase::Running => w::PublicPhase::Running,
-        c::PublicPhase::BackingOff => w::PublicPhase::BackingOff,
-        c::PublicPhase::Active => w::PublicPhase::Active,
-        c::PublicPhase::Closing => w::PublicPhase::Closing,
-        c::PublicPhase::Held => w::PublicPhase::Held,
-        c::PublicPhase::Done => w::PublicPhase::Done,
-        c::PublicPhase::Failed => w::PublicPhase::Failed,
-        c::PublicPhase::Cancelled => w::PublicPhase::Cancelled,
-    }
-}
-fn hold_kind(value: c::PublicHold) -> w::PublicHold {
-    match value {
-        c::PublicHold::Exceeded => w::PublicHold::Exceeded,
-        c::PublicHold::Failures => w::PublicHold::Failures,
-        c::PublicHold::Stalled => w::PublicHold::Stalled,
-        c::PublicHold::Dependency => w::PublicHold::Dependency,
-        c::PublicHold::Stopped => w::PublicHold::Stopped,
-        c::PublicHold::Placed => w::PublicHold::Placed,
-        c::PublicHold::Drift => w::PublicHold::Drift,
-        c::PublicHold::Effects => w::PublicHold::Effects,
-        c::PublicHold::EffectFailed => w::PublicHold::EffectFailed,
-        c::PublicHold::Uncertain => w::PublicHold::Uncertain,
-        c::PublicHold::Budget => w::PublicHold::Budget,
-        c::PublicHold::Deadline => w::PublicHold::Deadline,
-        c::PublicHold::HoldsWaited => w::PublicHold::HoldsWaited,
-        c::PublicHold::Circle => w::PublicHold::Circle,
-        c::PublicHold::Waited => w::PublicHold::Waited,
-        c::PublicHold::ResourceUnavailable => w::PublicHold::ResourceUnavailable,
-        c::PublicHold::ResourceAccess => w::PublicHold::ResourceAccess,
-        c::PublicHold::PoolLost => w::PublicHold::PoolLost,
-        c::PublicHold::Procedure => w::PublicHold::Procedure,
-    }
 }

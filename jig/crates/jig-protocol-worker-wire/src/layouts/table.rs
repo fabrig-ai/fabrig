@@ -1,6 +1,6 @@
 //! Kind numbers and bounds from the worker's text (jig/docs/design/protocol/channel/wires.md, 4).
 use super::{plans::other_root, words};
-use crate::{KINDS, VERSION, sizes, v22, wire};
+use crate::{VERSION, kinds, v22, wire};
 use alloc::boxed::Box;
 use skein_channel::{Direction, Kind, Version};
 use skein_codec::{
@@ -28,14 +28,10 @@ pub(super) fn number(base: u16, tag: u8) -> u16 {
 }
 
 pub(super) fn current(limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
-    let mut kinds = List::with_capacity(u32::try_from(KINDS.len()).expect("the current kinds fit"));
-    for rule in KINDS {
-        let Some(largest) = sizes::body(limits, rule.body) else {
-            return Err(words::wire(wire::FAMILY, &[b": the engine's kind bounds do not fit"]));
-        };
-        kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("one row per kind");
+    match kinds::current(limits) {
+        Ok(table) => Ok(table),
+        Err(crate::Overflow::Body) => Err(words::wire(wire::FAMILY, &[b": the engine's kind bounds do not fit"])),
     }
-    Ok(Version { version: VERSION, kinds })
 }
 
 #[derive(Clone, Debug)]

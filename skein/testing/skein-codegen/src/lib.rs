@@ -9,7 +9,6 @@ mod analysis;
 mod bounds_text;
 mod check;
 mod constructs;
-pub mod diff;
 mod emit_limits;
 mod emit_types;
 mod fixed_values;
@@ -17,7 +16,6 @@ mod largest;
 mod lean;
 mod maps;
 mod parse;
-pub mod patch;
 mod values;
 
 pub use bounds_text::bounds_text;
@@ -34,6 +32,8 @@ pub struct Schema {
     pub family: String,
     pub version: u16,
     pub declarations: Vec<Declaration>,
+    /// The family fingerprint of the parsed schema, whose tables retain the held types.
+    pub layout: [u8; 32],
 }
 
 /// A record or enumeration in declaration order.

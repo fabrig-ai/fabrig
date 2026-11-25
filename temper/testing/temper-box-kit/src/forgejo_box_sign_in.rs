@@ -36,7 +36,7 @@ fn story(root: &Path) -> io::Result<()> {
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
     let initialized = super::story_command::standalone(
-        Command::new(skein_scratch::paths::binary("temper-box"))
+        Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .args(["init", "--box"])
             .args(configuration::flags(root))
             .current_dir(root),
@@ -54,7 +54,7 @@ fn story(root: &Path) -> io::Result<()> {
     let mut kept_setup = None;
     for round in ["first", "second"] {
         let mut running = Serve {
-            child: Command::new(skein_scratch::paths::binary("temper-box"))
+            child: Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
                 .args(["--echo", "steps"])
                 .args(configuration::flags(root))
                 .current_dir(root)
@@ -69,7 +69,7 @@ fn story(root: &Path) -> io::Result<()> {
         let stdout = running.child.stdout.take().expect("printed link pipe");
         let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
         let signed = super::story_command::output(
-            Command::new(skein_scratch::paths::binary("temper-box"))
+            Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
                 .arg("ctl")
                 .arg(root.join("ctl"))
                 .args(["sign-in", "-"])
@@ -145,7 +145,7 @@ fn story(root: &Path) -> io::Result<()> {
 
 fn ctl_command(root: &Path, args: &[&str]) -> std::process::Output {
     super::story_command::output(
-        Command::new(skein_scratch::paths::binary("temper-box"))
+        Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .arg("ctl")
             .arg(root.join("ctl"))
             .args(args)

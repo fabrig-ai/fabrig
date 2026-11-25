@@ -7,7 +7,7 @@ Rust test `tests/boundary/tests/outward.rs` (package `fabrig-boundary`,
 in the focused suite), which the gate and every delivery that builds
 run, and the text check `tools/outward/outward.py`, which builds nothing,
 for a prose-only delivery (`tools/pre-pr/design.md`, 3 and 4). Written
-from `temper/docs/design/draft/small-fixes-1116.md`, 3.
+from `temper/docs/design/draft/archive/small-fixes-1116.md`, 3.
 
 This document spells no name: the list is the only place that does,
 beside the Rust test's own cases.

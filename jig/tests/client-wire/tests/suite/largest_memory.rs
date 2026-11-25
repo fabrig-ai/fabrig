@@ -10,7 +10,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::CLIENT_SCHEMA,
-        jig_client_protocol_wire::v45,
+        jig_client_protocol_wire::v44,
         roots [
             Keyed,
             KeyedAnswer,
@@ -98,7 +98,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::PUBLIC_SCHEMA,
-        jig_client_protocol_wire::public_v2,
+        jig_client_protocol_wire::public_v1,
         roots [
             PublicProjects,
             PublicBoard,

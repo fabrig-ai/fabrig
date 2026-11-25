@@ -1,5 +1,5 @@
 //! Cross-domain checks of kind 12 (temper/docs/design/domain/forge/follows.md, 2).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::Domain;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List};

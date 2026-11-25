@@ -81,6 +81,8 @@ fn facts() -> Facts {
         catch_up: None,
         follows: false,
         close: false,
+        close_tips: None,
+        close_at: None,
         contains_catch_up: Status::Pending,
         updates: true,
         mergeable: Status::Passed,
@@ -103,6 +105,7 @@ fn facts() -> Facts {
 fn heard() -> Heard {
     Heard {
         review_request: None,
+        closer_waiting: false,
         start_conflict: None,
         lacking: None,
         spend: None,

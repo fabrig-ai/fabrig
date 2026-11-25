@@ -94,7 +94,7 @@ relies on.
   fetched once, then found with no request; a wrong digest refused and nothing left; a file
   of another size refused and left. Two commands at once making one
   request stay on the TLS file server. No test reaches `downloads.claude.ai` (`README.md`, section 9).
-- **Claude Code's offer and launcher** (`owned.md`, 6, `init.md`, 2, 3), on the shipped
+- **Claude Code's offer and launcher** (`owned.md`, 6, `init.md`, 5, 6), on the shipped
   binary with an empty environment, in `bin/temper-box/tests/suite/startup.rs`:
   a fresh box's Model step reads ChatGPT's and Claude's cards, its
   program's path `"fetched"`; `temper-box program-login` and the launcher's
@@ -318,7 +318,7 @@ it checks of this document:
   processes and their deaths; 1 holds the stop decisions below them.
 - **Its directories:** every command a test runs is given the three
   directories' flags, each a scratch directory of the test's own; the
-  owned example is copied as a configuration directory (`init.md`, 1). No test
+  owned example is copied as a configuration directory (`init.md`, 4). No test
   resolves a default under `$HOME`.
 - **Owned in place of the test's support:** the test runs `temper-box forge
   prepare`, `run forgejo` and `run runner` itself, with no group's file
@@ -350,7 +350,7 @@ it checks of this document:
   serving; a stop leaving no process it started.
 - **A first run, into the playground and out,** a test of its own:
   `temper box` on three empty scratch directories writes the
-  configuration (`init.md`, 2), says so in its own log (init's line for no browser
+  configuration (`init.md`, 5), says so in its own log (init's line for no browser
   among its lines only from a binary built without one: the test checks the build
   it runs in, `../../client/web/bundle.md`, 1), and prints one sign-in link,
   which signs the owner in, with no forge kept and every group dormant.
@@ -372,7 +372,7 @@ it checks of this document:
 - **Two first runs, one after the other,** a test of its own: a first
   run's box, signed in, then a second box on three other empty scratch
   directories while the first runs. The second's init finds the first's
-  ports held and writes the ports the kernel assigns (`init.md`, 2), and the
+  ports held and writes the ports the kernel assigns (`init.md`, 5), and the
   second signs in, starts its playground and answers a suggested request
   on its own fakes while the first, which starts none, holds the
   defaults. No first-run story takes a lock

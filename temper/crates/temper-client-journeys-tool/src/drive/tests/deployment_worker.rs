@@ -5,9 +5,6 @@ fn worker() -> crate::drive::deployment::Worker {
     crate::drive::deployment::Worker::read(b"engine = \"127.0.0.1:4102\"\nname = \"worker\"\n", &[b'a'; 64])
         .expect("worker")
 }
-fn listed(bytes: &[u8]) -> Event {
-    Event::Exited { process: Process::Ctl, code: 0, stdout: bytes.into(), stderr: Box::new([]) }
-}
 fn listing() -> Machine {
     let mut machine = at_engine();
     engine_ready(&mut machine);
@@ -38,7 +35,7 @@ fn worker_is_admitted_from_its_rendered_files_between_sign_in_and_start() {
     let actions = step(&mut machine, Event::DeploymentWorker(io::deployment::worker(&plan)));
     let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "worker", "list", "--json"]);
-    let actions = step(&mut machine, listed(br#"[{"name":"sidecar-extra"}]"#));
+    let actions = step(&mut machine, listed(br#"{"rows":[{"name":"sidecar-extra"}],"digest":"05c95bac254368a3"}"#));
     let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(
         program.args,
@@ -71,7 +68,8 @@ fn worker_is_admitted_from_its_rendered_files_between_sign_in_and_start() {
 #[test]
 fn a_held_worker_starts_without_another_add() {
     let mut machine = listing();
-    let actions = step(&mut machine, listed(br#"[{"name":"other"},{"name":"worker"}]"#));
+    let actions =
+        step(&mut machine, listed(br#"{"rows":[{"name":"other"},{"name":"worker"}],"digest":"2263d48f34a19cff"}"#));
     assert_start(&actions, Process::Worker);
     assert_eq!(actions.len(), 1, "no add or answer escapes the admission step");
     assert!(!machine.ready());
@@ -80,12 +78,33 @@ fn a_held_worker_starts_without_another_add() {
 }
 
 #[test]
+fn malformed_worker_list_fails_admission_without_add_or_start() {
+    for (bytes, why) in [
+        (br#"[{"name":"worker"}]"#.as_slice(), "expected an object"),
+        (br#"{"digest":"1633902c6cbba5e7"}"#.as_slice(), "expected a rows array"),
+        (br#"{"rows":{},"digest":"1633902c6cbba5e7"}"#.as_slice(), "expected a rows array"),
+    ] {
+        let mut machine = listing();
+        let actions = step(&mut machine, listed(bytes));
+        assert!(
+            !actions.iter().any(|action| matches!(action, Action::Start { .. })),
+            "malformed worker list must not add or start a worker: {actions:?}"
+        );
+        stopped(&mut machine);
+        let actions = step(&mut machine, Event::DeploymentLogs(vec![]));
+        let exit = finish(&actions);
+        assert_eq!(exit.status, 4);
+        assert_eq!(exit.shown, [format!("deployment failed: worker list: {why}")]);
+    }
+}
+
+#[test]
 fn a_worker_admission_refusal_or_deadline_fails_the_deployment() {
     for adding in [false, true] {
         for late in [false, true] {
             let mut machine = listing();
             if adding {
-                step(&mut machine, listed(b"[]"));
+                step(&mut machine, listed(EMPTY_WORKER_LIST));
             }
             let actions = if late {
                 let at = machine.next_deadline().expect("admission bound");

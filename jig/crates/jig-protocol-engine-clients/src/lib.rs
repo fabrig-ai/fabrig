@@ -13,6 +13,7 @@ pub use jig_protocol_transcript::Private;
 pub mod boundary;
 mod component;
 mod exchange;
+mod generated;
 pub mod host;
 pub mod limits;
 pub mod public;

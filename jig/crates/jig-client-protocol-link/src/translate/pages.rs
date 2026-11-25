@@ -1,9 +1,9 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::classify;
 use super::documents::{
-    authority_document_fields, authority_fields, chip_ending_fields, chip_fields, cursor_fields, ending_fields,
-    object_key_fields, offered_piece, proposed_task_piece, result_fields, specification_document_fields,
-    task_contract_document_fields, task_fields, task_link_fields,
+    authority_document_fields, authority_fields, chip_fields, cursor_fields, ending_fields, offered_piece,
+    proposed_task_piece, result_fields, specification_document_fields, task_contract_document_fields, task_from_record,
+    task_link_fields,
 };
 use super::{Undecodable, too_large};
 use crate::Limits;

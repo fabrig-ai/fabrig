@@ -817,6 +817,7 @@ fn target_role(target: &Target) -> Option<Role> {
         Target::Role { role, .. } | Target::ExactRole { role, .. } => Some(*role),
         Target::TextBox { .. } => Some(Role::TextField),
         Target::Text { .. } => None,
+        Target::ParagraphText { .. } => Some(Role::Paragraph),
     }
 }
 fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
@@ -825,6 +826,7 @@ fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
         Target::ExactRole { role, name } => (accessible(*role), name, Match::Exact),
         Target::TextBox { name } => (accessible(Role::TextField), name, Match::Exact),
         Target::Text { text } => (&[b"StaticText"], text, Match::Words),
+        Target::ParagraphText { text } => (accessible(Role::Paragraph), text, Match::ParagraphText),
     }
 }
 

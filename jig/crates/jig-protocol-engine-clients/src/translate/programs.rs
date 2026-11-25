@@ -1,47 +1,13 @@
 //! Secret-free program facts (domain/accounts-sources.md, 1; client/domain/contract/documents.md, 1).
 use super::{pieces, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_link::{LoginState, SignOutResult, SourceFailure};
 use skein_lib::{List, Writer};
-fn failure(value: SourceFailure) -> w::ProgramFailure {
-    match value {
-        SourceFailure::Missing => w::ProgramFailure::Missing,
-        SourceFailure::Deadline => w::ProgramFailure::Deadline,
-        SourceFailure::Unreadable => w::ProgramFailure::Unreadable,
-        SourceFailure::Exited => w::ProgramFailure::Exited,
-        SourceFailure::Unconfigured => w::ProgramFailure::Unconfigured,
-        SourceFailure::Unknown => w::ProgramFailure::Unknown,
-        SourceFailure::Closed => w::ProgramFailure::Closed,
-    }
-}
-fn state(value: &LoginState) -> w::ProgramState {
-    match value {
-        LoginState::Usable => w::ProgramState::Usable,
-        LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
-        LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise {
-            method: skein_lib::bytes::copy_of(method.as_bytes()),
-        }),
-        LoginState::Failed { reason, detail } => {
-            w::ProgramState::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() })
-        }
-    }
-}
 #[must_use]
 pub fn login(value: &d::ProgramLogin) -> w::ProgramLogin {
-    let state = match &value.state {
-        Some(value) => Some(state(value)),
-        None => None,
-    };
-    let sign_out = match &value.sign_out {
-        Some(SignOutResult::SignedOut) => Some(w::ProgramSignOut::SignedOut),
-        Some(SignOutResult::Failed { reason, detail }) => {
-            Some(w::ProgramSignOut::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() }))
-        }
-        None => None,
-    };
-    w::ProgramLogin { name: value.name.clone(), state, sign_out, cleanup: value.cleanup, cut: value.cut }
+    mapped::program_login_to_record(value)
 }
 pub fn logins(
     value: &List<d::ProgramLogin>,

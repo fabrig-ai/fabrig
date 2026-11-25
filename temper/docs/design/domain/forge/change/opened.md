@@ -4,8 +4,8 @@ A person pushes a branch and opens a change from it with one act, and
 temper lands it as it lands a change an agent produced, under the same
 rules: the act's request, the root's expansion of it into the person's
 own change task, the change's first state, taking, and what the change
-keeps and serves. Written from `../../../draft/mechanical-changes.md`,
-sections 1 to 10; what that draft leaves for later is section 8's.
+keeps and serves. Written from `../../../draft/archive/mechanical-changes.md`, sections 1 to 10
+; what that draft leaves for later is `opened.md`, section 8's.
 
 ## 1. In one page
 
@@ -39,7 +39,7 @@ are `../../../client/forge/records.md`'s:
   person means, as 40 or 64 lowercase hexadecimal digits, none for its
   head when the change takes it;
 - `into`, the landing branch, none for the repository's landing branch
-  (`../adoption.md`, 8);
+  (`../adoption.md`, 12);
 - `title`; `body`, none or more words;
 - `budget`: an amount, or as allowed.
 
@@ -53,7 +53,7 @@ The root resolves it before anything is made. Each refusal is
   at all, refused (`no_repository`, a case the draft leaves unsaid); a
   named one not among them, refused (`not_a_repository`).
 - **The landing branch:** `into`, or the repository's landing branch,
-  the one its adoption names (`../adoption.md`, 8). A
+  the one its adoption names (`../adoption.md`, 12). A
   branch under the repository's prefix, temper's own (`../branches.md`),
   is refused naming the repository and the prefix (`under_prefix`): a
   goal's branch as the target is section 8's. A branch the repository
@@ -68,11 +68,11 @@ Its outcomes: `opened`, the change's task; `open_refused`, one of the
 above; the family's `core_refused`, jig's refusal facts whole (3); or
 unknown, no longer held. A replay under the same key answers the first,
 as every keyed request is answered (jig's `domain/people/acts.md`, 1),
-while the forge keeps it (`../adoption.md`, 9).
+while the forge keeps it (`../adoption.md`, 13).
 
 - **Never refused for the answers kept:** an open takes a place in the
   forge's table of kept answers, where the oldest answered makes room
-  for it (`../adoption.md`, 9), so any number of opens within a day are
+  for it (`../adoption.md`, 13), so any number of opens within a day are
   decided. It is answered busy only while `forge.adoptions` requests
   are pending, which passes as they are answered.
 - **Sent again once its answer made room:** jig's people child keeps the
@@ -248,16 +248,16 @@ A change with parameter 19 has no producing task. Its own branch is
   `taking` while it takes, and its source, the branch, the `at` named
   and the kept head, while it takes and after; none for a change with
   no source.
-- **The client's wire** moves its version for the new request and the
-  panel's source and step, with no bridge
-  (`../../../draft/redeploys.md`, section 8): a client of the new
-  version meeting an engine of the previous one is refused, `version not
-  served`, before any task is made. Engine and workers: nothing moves,
+- **The client's wire** changes its layout for the new request and the
+  panel's source and step, its version frozen
+  (`../../../protocol/wires.md`, section 9): a client of the new
+  layout meeting an engine of the previous one is refused by name at
+  the hello, before any task is made. Engine and workers: nothing moves,
   no job runs and no worker is asked.
 
 ## 7. Testing
 
-Focused and fuzzy suites alone (`../../../draft/mechanical-changes.md`,
+Focused and fuzzy suites alone (`../../../draft/archive/mechanical-changes.md`,
 section 10, whose items are the stories):
 
 - **The connector's world** (`temper/tests/engine/forge`), with a change
@@ -282,7 +282,7 @@ section 10, whose items are the stories):
 ## 8. Open questions
 
 The draft's later steps, each drafted with the user
-(`../../../draft/mechanical-changes.md`, section 11): trouble back to
+(`../../../draft/archive/mechanical-changes.md`, section 11): trouble back to
 the opener rather than to a resolution or a repair; what may be opened,
 by path set and role; a goal's branch as the target; out-of-band fixes
 through the act; opening from the web's Changes page; and moving an

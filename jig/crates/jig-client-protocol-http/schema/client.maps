@@ -1,0 +1,7 @@
+# The HTTP end of the client wire (skein/docs/design/data/codec/maps.md, 9).
+records jig_client_protocol_wire::v44
+use l = jig_client_protocol_link
+direction to domain
+
+enum StreamBound = l::StreamBound
+record StreamsFull = l::StreamsFull

@@ -21,12 +21,16 @@
 | `jig-protocol-transcript` | client | turns' bytes, decoded below `jig-client` |
 | `jig-client-shell-native` | client | `temper-box open`'s and `temper ctl`'s transport: HTTP on io, the credential `jig-client` holds sent as a bearer, the small store's file in its directory |
 
+## 1. jig crates temper does not use
+
 temper does not use `jig-protocol-charter` or `jig-protocol-tools`: its
 root takes its own `Tool` vocabulary, translated by `temper-engine-smith`
 (llm.md, sections 4 and 5). Nor does it use jig's reference UI
 (`jig-client-view`, `jig-client-test-shell-web`, nor the look of
 `jig-client-shell-web`): temper's pages are its own,
 on skein's UI kit (`../client/view.md`).
+
+## 2. smith crates
 
 **smith's:** `smith-host-domain`, the worker root's agent child;
 `smith-host-protocol`, smith's host half, one channel per agent process
@@ -39,6 +43,8 @@ document and programs' directories read without smith's agent, for the
 launcher's links (setup/owned.md, 6) and for the worker's half of a start,
 which reads the agent's host limits from its profile at start, as jig's
 reference binary does.
+
+## 3. skein crates
 
 **skein's:** `skein-lib` and `skein-io` everywhere, lib's HMAC-SHA256
 checking the deliveries' signatures (skein's `runtime/lib-bytes.md`, 1.2), io's
@@ -57,6 +63,8 @@ crate; `skein-kv`, under jig's store and temper's key encoders;
 jig's accounts; `skein-ui`, under temper's view, and
 `skein-ui-text`, the terminal's text shell. In the worlds: skein's
 simulator, fake machine, fake LLM peer, fake issuer and fake person.
+
+## 4. temper production crates
 
 **temper's own,** each step code under the subset but the binaries,
 `temper-shell`, the terminal's host, `temper ctl`'s host,
@@ -87,7 +95,7 @@ fake git program's core:
 | `crates/temper-box-machine` | machine, host | the box's machine, step code, and its host, ordinary Rust, on skein-io's processes; nothing of the setup but its steps (setup/box.md, 3) | setup/crate-layout.md, section 1 |
 | `crates/temper-fake-git` | program | the fake git program's core, ordinary Rust, which the binary runs as `temper-box fake git`: its checks, answers, step core, replay and two remotes (`../testing/fakes.md`, 3) | setup/crate-layout.md, section 1 |
 | `crates/temper-fake` | step code | the fake backends' documents and seeds, for `temper-box fake forge`, `temper-box fake llm` and the box's fake backends (setup/box-backends.md, 1 and setup/playground.md; configuration/directories.md, 1); no io | skein's fake forge and fake LLM, `skein-forge-setup`, `temper-forge-setup`, `temper-protocol-store`, `temper-engine-domain-forge-vocabulary` |
-| `crates/temper-init` | step code | the files `temper-box init` writes, the default document among them (setup/init.md, 2 and 3) | `skein-lib`, `skein-json`, `skein-forge-setup` |
+| `crates/temper-init` | step code | the files `temper-box init` writes, the default document among them (setup/init.md, 5 and 6) | `skein-lib`, `skein-json`, `skein-forge-setup` |
 | `crates/temper-worker-protocol-git` | component | the git component: each `git::Op` of `temper-worker-domain-checkout` as a fixed sequence of git invocations, their arguments, environment, output and failures; the operations in flight, their processes, pipes and deadlines; `Make` as file operations (git.md) | `skein-lib`, `skein-io`, the checkout's vocabulary |
 | `crates/temper-protocol-worker-wire` | codecs | temper's parts on jig's channel, and a git identity's value, from a schema; `PAYLOAD_VERSION` (channel.md) | `skein-lib`, `skein-codec` |
 | `crates/temper-protocol-store` | codecs, keys | temper's families: key encoders, the current schema, owner set, jobs and codec drift tests, the translations to and from `temper-protocol-store-codec`'s records, `STORE_VERSION`, the restart's interval (store.md) | `skein-lib`, `skein-codec`, `skein-kv`, `jig-protocol-store`, `temper-protocol-store-codec`, the forge's records |
@@ -123,12 +131,16 @@ fake git program's core:
 | `crates/temper-version` | data | `VERSION` and `COMMIT` (`../release.md`, section 3): its build script reads git, its library holds both and `line`; linked by the binaries' packages alone, each handing them to its crate (`../cli/README.md`, 2) | nothing; its script, `std` alone |
 | `crates/temper-protocol-brief` | translation | a charter's brief fitted to the room its run leaves, cut from its last section with each cut's line (`../domain/agent/room.md`, 2), for the engine's translation and the worker's service alike | `smith-domain-run`, `skein-lib` |
 
+## 5. Test crates and worlds
+
 **temper's test crates, worlds and tiers** are `../testing/README.md`'s
 (`../testing/tiers.md`, section 1 and `../testing/fakes.md` and `../testing/README.md`, section 5): the fake git program, the worlds below the
 domain, the process and live tiers, and the tool that records git's
 transcripts (git.md, section 9). The fake forge's protocol layer, the
 throwaway Forgejo and the tool that records Forgejo's transcripts are
 skein's (`testing/fakes/forgejo.md`, section 1, and `testing/fakes/throwaway.md`, sections 1 and 2).
+
+## 6. Rules shared by components
 
 **What temper's components share** is what every component of jig's
 does (jig's `protocol/README.md`, section 1; skein/docs/foundation/programming-model.md,

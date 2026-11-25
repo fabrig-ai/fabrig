@@ -1,7 +1,7 @@
 use super::*;
-fn restored(expected: &Saved) -> fixtures::Harness {
+fn restored(record: Record) -> fixtures::Harness {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
-    harness.start_store(fixtures::one_store_read(fixtures::store_read(expected.clone())));
+    harness.start_store(fixtures::one_store_read(record));
     harness
 }
 fn pending_write(record: Saved) -> fixtures::Harness {
@@ -13,18 +13,20 @@ fn pending_write(record: Saved) -> fixtures::Harness {
 #[test]
 fn a_table_entry_restores_its_key_and_ask() {
     for ask in fixtures::store_asks().into_boxed() {
-        let expected = fixtures::saved_table(ask);
-        assert!(restored(&expected).restored(&expected));
+        let expected = fixtures::table_record(ask);
+        let record = fixtures::store_read(expected.clone());
+        assert_eq!(fixtures::table_from_store(&record).layout, w::LAYOUT);
+        assert!(restored(record).restored(&expected));
     }
 }
 #[test]
-fn a_record_of_another_store_version_is_dropped_and_told() {
-    let mut harness = fixtures::Harness::new(&fixtures::limits());
-    harness.start_store(fixtures::one_store_read(fixtures::other_store_version(fixtures::store_read(
-        fixtures::saved_table(fixtures::message()),
-    ))));
-    assert!(harness.has(&Request::Dropped));
-    assert_eq!(harness.out.len(), 1);
+fn a_record_of_another_store_layout_is_dropped_and_told() {
+    for record in [fixtures::store_read(fixtures::table_record(fixtures::message())), fixtures::kept_stream()] {
+        let harness = restored(fixtures::other_store_layout(record));
+        assert!(harness.has(&Request::Dropped));
+        assert_eq!(harness.out.len(), 1);
+        assert_eq!(harness.link.predecessor, None);
+    }
 }
 #[test]
 fn a_request_past_64_kib_is_saved_before_it_is_sent() {
@@ -37,8 +39,8 @@ fn a_request_past_64_kib_is_saved_before_it_is_sent() {
         scope: jig_client_domain::contract::Scope::Project(1),
         record: Family { family: 19, version: 23, bytes: skein_lib::bytes::zeroed(REQUEST_BYTES) },
     };
-    let mut saved = fixtures::saved_table(fixtures::message());
-    saved.record.request.request = ask.clone();
+    let mut saved = fixtures::table_record(fixtures::message());
+    saved.request.request = ask.clone();
     harness.save(saved);
     harness.link.step(
         Time::ZERO,
@@ -57,7 +59,7 @@ fn a_request_past_64_kib_is_saved_before_it_is_sent() {
 
 #[test]
 fn a_step_s_writes_leave_before_its_exchanges() {
-    let mut harness = pending_write(fixtures::saved_table(fixtures::message()));
+    let mut harness = pending_write(fixtures::table_record(fixtures::message()));
     assert_eq!(harness.exchanges(), 0);
     harness.written();
     let Some(Request::Save { .. }) = harness.out.iter().next() else { panic!("write leaves first") };
@@ -67,7 +69,7 @@ fn a_step_s_writes_leave_before_its_exchanges() {
 fn a_write_gathers_exchanges_already_in_the_step_s_output_queue() {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.send_kept(fixtures::ATTEMPT);
-    harness.save(fixtures::saved_table(fixtures::message()));
+    harness.save(fixtures::table_record(fixtures::message()));
     assert_eq!(harness.exchanges(), 0);
     harness.written();
     let Some(Request::Save { .. }) = harness.out.iter().next() else { panic!("write leaves first") };
@@ -75,7 +77,7 @@ fn a_write_gathers_exchanges_already_in_the_step_s_output_queue() {
 }
 #[test]
 fn a_failed_write_withholds_the_step_s_exchanges() {
-    let mut harness = pending_write(fixtures::saved_table(fixtures::message()));
+    let mut harness = pending_write(fixtures::table_record(fixtures::message()));
     harness.write_failed();
     harness.written();
     assert_eq!(harness.exchanges(), 0);
@@ -84,7 +86,7 @@ fn a_failed_write_withholds_the_step_s_exchanges() {
 }
 #[test]
 fn an_unwritable_record_retires_only_its_key_and_preserves_the_pending_write() {
-    let first = fixtures::saved_table(fixtures::message());
+    let first = fixtures::table_record(fixtures::message());
     let base = fixtures::limits();
     let client = jig_client_domain::Limits {
         document_bytes: u64::try_from(fixtures::store_read(first.clone()).bytes.len()).unwrap(),
@@ -101,8 +103,8 @@ fn an_unwritable_record_retires_only_its_key_and_preserves_the_pending_write() {
         task: 8,
         words: c::Text::new(Box::from(b"longer than hello".as_slice()), 32).unwrap(),
     };
-    let mut second = fixtures::saved_table(ask.clone());
-    second.record.key = [8; 16];
+    let mut second = fixtures::table_record(ask.clone());
+    second.key = [8; 16];
     harness.save(second);
     assert!(!harness.has(&Request::NotKept { attempt: fixtures::ATTEMPT }), "the encoded request stays held");
     assert!(!harness.has(&Request::Fact { fact: Fact::UndecodableStore }));
@@ -130,24 +132,44 @@ fn an_unwritable_record_retires_only_its_key_and_preserves_the_pending_write() {
     harness.written();
     assert_eq!(harness.out.len(), 0, "nothing leaves twice");
 }
-#[test]
-fn a_table_entry_restores_family_bytes_and_their_wire_version() {
-    let expected = Saved {
-        version: fixtures::TABLE_VERSION,
-        record: skein_lib::RequestRecord {
-            key: fixtures::KEY,
-            scope: u64::MAX,
-            first_sent: None,
-            request: jig_client_domain::Held {
-                key: fixtures::APPLICATION_KEY,
-                request: Ask::Family {
-                    scope: jig_client_domain::contract::Scope::Project(1),
-                    record: fixtures::family_read(),
-                },
+fn family_record() -> Saved {
+    skein_lib::RequestRecord {
+        key: fixtures::KEY,
+        scope: u64::MAX,
+        first_sent: None,
+        request: jig_client_domain::Held {
+            key: fixtures::APPLICATION_KEY,
+            request: Ask::Family {
+                scope: jig_client_domain::contract::Scope::Project(1),
+                record: fixtures::family_read(),
             },
         },
-    };
-    assert!(restored(&expected).restored(&expected));
+    }
+}
+#[test]
+fn a_table_entry_restores_family_bytes_at_the_declared_version_and_layout() {
+    let expected = family_record();
+    let record = fixtures::store_read(expected.clone());
+    let limits = fixtures::limits();
+    let owner = &limits.client().owners[0];
+    let table = fixtures::table_from_store(&record);
+    assert_eq!(table.owner, w::Owner::Family(w::Family { number: owner.family }));
+    assert_eq!(table.version, owner.version);
+    assert_eq!(table.layout, owner.layout);
+    assert!(restored(record).restored(&expected));
+}
+#[test]
+fn a_table_entry_at_another_owner_layout_is_dropped() {
+    let expected = family_record();
+    let mut record = fixtures::store_read(expected.clone());
+    let mut table = fixtures::table_from_store(&record);
+    table.layout[0] ^= 1;
+    let limits = fixtures::limits();
+    let record_bytes = table.encode(limits.wire()).unwrap();
+    record.bytes = w::Kept { layout: w::LAYOUT, record: record_bytes }.encode(limits.wire()).unwrap();
+    let harness = restored(record);
+    assert!(harness.has(&Request::Dropped));
+    assert!(!harness.restored(&expected));
 }
 #[test]
 fn an_erased_key_waits_for_durability_before_the_step_s_exchange() {
@@ -162,7 +184,7 @@ fn an_erased_key_waits_for_durability_before_the_step_s_exchange() {
 }
 #[test]
 fn malformed_kept_bytes_drop_the_owner_and_are_reported() {
-    let mut entry = fixtures::store_read(fixtures::saved_table(fixtures::message()));
+    let mut entry = fixtures::store_read(fixtures::table_record(fixtures::message()));
     entry.bytes = Box::from([255]);
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.start_store(fixtures::one_store_read(entry));
@@ -172,7 +194,7 @@ fn malformed_kept_bytes_drop_the_owner_and_are_reported() {
 }
 #[test]
 fn a_mismatched_table_storage_key_drops_its_record() {
-    let mut entry = fixtures::store_read(fixtures::saved_table(fixtures::message()));
+    let mut entry = fixtures::store_read(fixtures::table_record(fixtures::message()));
     let length = entry.key.len();
     *entry.key.get_mut(length - 1).unwrap() = 0;
     let mut harness = fixtures::Harness::new(&fixtures::limits());
@@ -187,7 +209,7 @@ fn a_cancelled_opening_already_in_the_step_queue_is_never_sent_after_writing() {
     harness.clear();
     harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
     harness.link.settle(&mut harness.out);
-    harness.save(fixtures::saved_table(fixtures::message()));
+    harness.save(fixtures::table_record(fixtures::message()));
     harness.written();
     assert_eq!(harness.exchanges(), 0, "no stream gone is sent");
     harness.assert_no_watch_exchange();
@@ -202,8 +224,8 @@ fn a_full_table_and_the_stream_s_name_start() {
     let mut kept = skein_lib::List::with_capacity(KEPT_RECORDS);
     assert_eq!(fixtures::limits().client().requests.requests, TABLE_RECORDS);
     for number in 0..TABLE_RECORDS {
-        let mut record = fixtures::saved_table(fixtures::message());
-        record.record.key = [u8::try_from(number).unwrap(); 16];
+        let mut record = fixtures::table_record(fixtures::message());
+        record.key = [u8::try_from(number).unwrap(); 16];
         kept.push(fixtures::store_read(record)).unwrap();
     }
     kept.push(fixtures::kept_stream()).unwrap();
@@ -234,7 +256,7 @@ fn construction_refuses_unrepresentable_record_limits() {
 #[test]
 fn held_exchanges_leave_in_order_after_the_write() {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
-    harness.save(fixtures::saved_table(fixtures::message()));
+    harness.save(fixtures::table_record(fixtures::message()));
     for number in [1, 2, 3] {
         harness.link.step(
             Time::ZERO,

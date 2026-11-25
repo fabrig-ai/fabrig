@@ -3,6 +3,7 @@ pub const KEY: [u8; 32] = [23; 32];
 // Two simultaneous answers of at most 8 KiB each, enough for the tiny index below.
 pub const BOUND: u32 = 8192;
 pub const BURST: u64 = 16384;
+pub const APP_LAYOUT: [u8; 32] = [0x42; 32];
 pub const INDEX: wire::PublicIndexBounds =
     wire::PublicIndexBounds { goals: 2, ended: 2, lines: 2, depth: 2, projects: 2 };
 pub const PROJECT: u32 = 0xfedc_ba98;
@@ -29,7 +30,7 @@ pub fn settings() -> Settings {
     }
     settings
         .public
-        .push(crate::PublicKind { owner: 10, kind: 1, first: 2, last: 3, task: true, bound: BOUND })
+        .push(crate::PublicKind { owner: 10, kind: 1, version: 2, layout: APP_LAYOUT, task: true, bound: BOUND })
         .unwrap();
     settings
 }
@@ -43,7 +44,7 @@ pub fn kept() -> Kept {
     Kept { digest: key(), expires: Wall::from_nanos(u64::MAX) }
 }
 pub fn read(kind: u16, ids: &[u64]) -> PublicRead {
-    PublicRead { owner: 0, version: wire::PUBLIC_VERSION, kind, ids: Box::from(ids) }
+    PublicRead { owner: 0, layout: Some(wire::PUBLIC_LAYOUT), kind, ids: Box::from(ids) }
 }
 pub struct Step {
     pub component: Component,

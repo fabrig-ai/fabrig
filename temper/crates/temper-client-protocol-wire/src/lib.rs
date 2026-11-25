@@ -59,6 +59,8 @@ pub use public::{public_bounds, public_limits};
 
 /// The visitor records' version (temper/docs/design/client/forge/README.md, 9.4).
 pub const PUBLIC_VERSION: u16 = public_v1::VERSION;
+/// The public wire's family fingerprint.
+pub use public_v1::LAYOUT as PUBLIC_LAYOUT;
 /// A public change (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_CHANGE: u16 = 1;
 /// A project's public landings (temper/docs/design/client/forge/README.md, 9.1).
@@ -118,6 +120,8 @@ pub const CLIENT_VERSION: u32 = {
     let [high, low] = v1::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
+/// The client wire's family fingerprint.
+pub use v1::LAYOUT as CLIENT_LAYOUT;
 
 /// One page of limit rows (configuration/limit-settings.md, 7).
 #[must_use]

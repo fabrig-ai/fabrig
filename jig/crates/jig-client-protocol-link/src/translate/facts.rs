@@ -19,13 +19,11 @@ use chips::{
 };
 #[expect(unused_imports, reason = "The facts root keeps its translation names reachable.")]
 pub(crate) use chips::{chip_phase, closing_stage};
-pub(crate) use holds::{chip_hold, failure_class, hold_category, hold_failure, retry_notice};
+pub(crate) use holds::{chip_hold, failure_class, retry_notice, retry_notice_to_domain};
 use holds::{held_runtime_fields, hold_reason_fields};
-pub(crate) use parties::{escalation_holder, party, person_address, person_wait, recipient, requester};
-pub(crate) use parts::{
-    budget, dependencies, document_text, executor, funder, numbers, part, proposal_key, resource_line,
-};
-pub(crate) use runs::{active_run, call_identity, run_stage};
+pub(crate) use parties::{party, person_address, person_wait, recipient, requester};
+pub(crate) use parts::{budget, dependencies, document_text, executor, funder, numbers, part, proposal_key};
+pub(crate) use runs::{active_run, call_identity, run_work_to_domain};
 pub(crate) use wake::wake_policy;
 
 #[derive(Debug)]
@@ -278,4 +276,3 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
 
 pub(crate) use chips::prior_phase;
 pub(crate) use chips::result_field;
-pub(crate) use holds::failure_tries;

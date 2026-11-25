@@ -1,5 +1,8 @@
 //! A hosted ctl and a recording provider on a disk that can be reopened after drain
 //! (temper/docs/design/testing/tiers.md, 1.5).
+mod drain;
+pub use drain::receipts_across_drained_services;
+
 use crate::{
     ctl::{self, Caller, Command},
     fixtures,

@@ -28,7 +28,7 @@ This document holds the forge's request records, split from [`records.md`](recor
   - *adopted,* with the repository as the forge connector recorded it:
     its forge's number, its kind and its id; its owner and name; its role;
     its landing branch, `landing`, at most 1,024 bytes, empty for an
-    outcome kept before it (`../../domain/forge/adoption.md`, 8);
+    outcome kept before it (`../../domain/forge/adoption.md`, 12);
     whether it is the project's home; what temper may do there (the
     forge's `Kinds`: read, push, open, land, review, status, comment,
     issue, branch); whether branch protection was read (unknown,
@@ -92,7 +92,7 @@ This document holds the forge's request records, split from [`records.md`](recor
   forge's number (u16), the org and the name, bounded as `MakeRepository`'s,
   and `project`, none or a u32, the failed row's `into` as the client reads
   it on the `forges` watch. It erases a failed row (`../../domain/forge/adoption.md`,
-  5), freeing its place in `forge.makings`, and is answered *kept*; with no
+  9), freeing its place in `forge.makings`, and is answered *kept*; with no
   row at the name, so that a request sent again joins, *kept* too; with a row
   whose `into` is not the project it names, refused as `not_owner`; with a
   row that is not failed, refused as `not_failed`.
@@ -105,7 +105,7 @@ This document holds the forge's request records, split from [`records.md`](recor
   the project (u32) and `home` (bool). Its outcome, `Answer`'s, kept as an
   adoption's is (`../engine.md`): *kept*, the row written; *make refused*,
   `MakeRefusal`: no such forge, not offered, not owner, invalid, home
-  held or full (`../../domain/forge/adoption.md`, 5); or *unknown*, as `SetUp`'s.
+  held or full (`../../domain/forge/adoption.md`, 9); or *unknown*, as `SetUp`'s.
   A refusal at admission is jig's answer, as for `Adopt`. The course of
   what it asked is the forge's row's, never the answer's.
 - **`StartPlayground`:** of the deployment's scope (`../engine.md`), with
@@ -246,7 +246,7 @@ This document holds the forge's request records, split from [`records.md`](recor
   only repository; `branch`, 1 to 1024 bytes; `at`, an option of 40 or
   64 bytes, lowercase hexadecimal digits; `into`, an option of 1 to 1024
   bytes, none for the repository's landing branch
-  (`../../domain/forge/adoption.md`, 8); `title`, 1 to 256
+  (`../../domain/forge/adoption.md`, 12); `title`, 1 to 256
   bytes; `body`, an option of 1 to 16,384 bytes; and `budget`,
   `OpenBudget`: `amount`, u64, or `as_allowed`, no fields. Its outcomes,
   appended after the family's last: *opened*, `opened`, `Opened`, its

@@ -11,7 +11,7 @@ use jig_domain_core::{StepAmendment, StepMessage};
 /// A proposed step's relay is saved only after jig admits the whole step.
 #[derive(Hash, Debug)]
 pub(crate) struct ChangeStep {
-    pub(crate) delegate: Option<change::Delegate>,
+    pub(crate) delegate: Option<(change::Delegate, Option<change::CloseAt>)>,
     pub(crate) relayed: Option<change::Relayed>,
     pub(crate) refusal: Option<Box<[u8]>>,
     pub(crate) released: bool,

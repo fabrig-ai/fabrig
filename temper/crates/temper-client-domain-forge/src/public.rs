@@ -1,7 +1,7 @@
 //! Anonymous page reading and freshness (temper/docs/design/client/web/public.md, 2).
 use crate::address::Public;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::public_v2 as jig;
+use jig_client_protocol_wire::public_v1 as jig;
 use skein_lib::{Duration, Queue, Time};
 use temper_client_protocol_wire::public_v1 as forge;
 
@@ -42,7 +42,7 @@ pub enum PublicEvent {
 pub struct PublicRead {
     pub doc: Doc,
     pub owner: u16,
-    pub version: u16,
+    pub layout: [u8; 32],
     pub kind: u16,
     pub ids: [Option<u64>; 2],
 }
@@ -243,17 +243,17 @@ impl Doc {
             Public::Board { project } | Public::Landings { project } => [Some(project), None],
             Public::Task { project, task } | Public::Landing { project, task } => [Some(project), Some(task)],
         };
-        let (owner, version, kind) = match self {
+        let (owner, layout, kind) = match self {
             Self::JigProjects => {
-                (0, jig_client_protocol_wire::PUBLIC_VERSION, jig_client_protocol_wire::PUBLIC_PROJECTS)
+                (0, jig_client_protocol_wire::PUBLIC_LAYOUT, jig_client_protocol_wire::PUBLIC_PROJECTS)
             }
-            Self::JigBoard => (0, jig_client_protocol_wire::PUBLIC_VERSION, jig_client_protocol_wire::PUBLIC_BOARD),
-            Self::JigCard => (0, jig_client_protocol_wire::PUBLIC_VERSION, jig_client_protocol_wire::PUBLIC_CARD),
-            Self::ForgeChange => (forge_owner(), forge::PUBLIC_VERSION, forge::PUBLIC_CHANGE),
-            Self::ForgeLandings => (forge_owner(), forge::PUBLIC_VERSION, forge::PUBLIC_LANDINGS),
-            Self::ForgeLanding => (forge_owner(), forge::PUBLIC_VERSION, forge::PUBLIC_LANDING),
+            Self::JigBoard => (0, jig_client_protocol_wire::PUBLIC_LAYOUT, jig_client_protocol_wire::PUBLIC_BOARD),
+            Self::JigCard => (0, jig_client_protocol_wire::PUBLIC_LAYOUT, jig_client_protocol_wire::PUBLIC_CARD),
+            Self::ForgeChange => (forge_owner(), temper_client_protocol_wire::PUBLIC_LAYOUT, forge::PUBLIC_CHANGE),
+            Self::ForgeLandings => (forge_owner(), temper_client_protocol_wire::PUBLIC_LAYOUT, forge::PUBLIC_LANDINGS),
+            Self::ForgeLanding => (forge_owner(), temper_client_protocol_wire::PUBLIC_LAYOUT, forge::PUBLIC_LANDING),
         };
-        PublicRead { doc: self, owner, version, kind, ids }
+        PublicRead { doc: self, owner, layout, kind, ids }
     }
 }
 fn forge_owner() -> u16 {

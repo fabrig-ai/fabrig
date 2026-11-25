@@ -1,4 +1,4 @@
-family jig-public-wire 2
+family jig-public-wire 1
 # Public documents: jig/docs/design/client/domain/contract/README.md, section 10.
 # Identifiers are public u64 values; times are u64 seconds since the epoch.
 # Unit variants carry kinds alone, never identities or reasons.

@@ -1,8 +1,11 @@
 //! A public goal read at both owners (temper/docs/design/client/web/public.md, 4).
-use super::{checks::PROXY, deployment, http::Answer, proxy::Proxy, service, service_checks, visitor::Visitor};
+use super::{
+    checks::PROXY, deployment, forge_target, http::Answer, jig_target, proxy::Proxy, service, service_checks, target,
+    visitor::Visitor,
+};
 use crate::{ctl::Caller, fixtures, referee::Store};
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::public_v2 as p;
+use jig_client_protocol_wire::public_v1 as p;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
 use std::{
@@ -292,7 +295,7 @@ impl Walk {
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
                     Method::Get,
-                    format!("/jig/v1/public/0/2/2/{project:016x}").as_bytes(),
+                    jig_target(&format!("2/{project:016x}")).as_bytes(),
                     &[(b"Host", b"one.example")],
                 ));
                 self.stage = 3;
@@ -381,16 +384,16 @@ impl Walk {
                 let row = (self.stage - 4) / 2;
                 let task = self.task.ok_or_else(|| String::from("public change"))?;
                 let paths = [
-                    "/jig/v1/public/0/2/1".to_owned(),
-                    format!("/jig/v1/public/0/2/2/{project:016x}"),
-                    format!("/jig/v1/public/0/2/3/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/2/4/1/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/2/4/2/{project:016x}"),
-                    format!("/jig/v1/public/2/4/3/{project:016x}/{task:016x}"),
-                    "/jig/v1/public/0/1/1".to_owned(),
-                    format!("/jig/v1/public/2/1/2/{project:016x}"),
-                    "/jig/v1/public/0/2/65535".to_owned(),
-                    format!("/jig/v1/public/65535/1/2/{project:016x}"),
+                    jig_target("1"),
+                    jig_target(&format!("2/{project:016x}")),
+                    jig_target(&format!("3/{project:016x}/{task:016x}")),
+                    forge_target(&format!("1/{project:016x}/{task:016x}")),
+                    forge_target(&format!("2/{project:016x}")),
+                    forge_target(&format!("3/{project:016x}/{task:016x}")),
+                    target(0, temper_client_protocol_wire::PUBLIC_LAYOUT, "1"),
+                    target(2, jig_client_protocol_wire::PUBLIC_LAYOUT, &format!("2/{project:016x}")),
+                    jig_target("65535"),
+                    target(u16::MAX, jig_client_protocol_wire::PUBLIC_LAYOUT, &format!("2/{project:016x}")),
                 ];
                 if row == paths.len() {
                     self.stage = 200;
@@ -407,7 +410,7 @@ impl Walk {
                     let answer = self.last(visitor)?;
                     match (&(answer.status), &(if row < 8 { 200 } else { 404 })) {
                         (left, right) if left != right => {
-                            let finding = format!("owner/version/kind row {row}: {}", paths[row]);
+                            let finding = format!("owner/layout/kind row {row}: {}", paths[row]);
                             return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                         }
                         _ => {}
@@ -499,8 +502,8 @@ impl Walk {
         const CHANGE: usize = 3;
         let task = self.task.ok_or_else(|| String::from("public task"))?;
         let paths = [
-            format!("/jig/v1/public/0/2/3/{project:016x}/{task:016x}"),
-            format!("/jig/v1/public/2/4/1/{project:016x}/{task:016x}"),
+            jig_target(&format!("3/{project:016x}/{task:016x}")),
+            forge_target(&format!("1/{project:016x}/{task:016x}")),
         ];
         match self.stage {
             100 | 103 => {
@@ -606,7 +609,7 @@ impl Walk {
                 self.calls.push(visitor.send(
                     crate::fixtures::CLIENTS,
                     Method::Get,
-                    b"/jig/v1/public/0/2/1",
+                    jig_target("1").as_bytes(),
                     &[(b"Host", b"one.example")],
                 ));
             }
@@ -639,7 +642,7 @@ impl Walk {
                     self.calls.push(visitor.send(
                         address,
                         Method::Get,
-                        format!("/jig/v1/public/0/2/3/{other:016x}/{task:016x}").as_bytes(),
+                        jig_target(&format!("3/{other:016x}/{task:016x}")).as_bytes(),
                         &[(b"Host", b"one.example")],
                     ));
                 }
@@ -782,7 +785,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
                 _ => {}
             }
             let version = versions.served.iter().next().ok_or_else(|| String::from("served version"))?;
-            match (&(version.first, version.last), &(if row == 6 { (2, 2) } else { (4, 4) })) {
+            match (&(version.first, version.last), &(if row == 6 { (1, 1) } else { (4, 4) })) {
                 (left, right) if left != right => {
                     let finding = String::from("assertion `left == right` failed");
                     return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));

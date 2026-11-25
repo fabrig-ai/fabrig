@@ -16,17 +16,19 @@ pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
 #[rustfmt::skip]
 #[path = "generated/client.rs"]
-pub mod v45;
-pub use v45::*;
+pub mod v44;
+pub use v44::*;
 
 #[rustfmt::skip]
 #[path = "generated/public.rs"]
-pub mod public_v2;
+pub mod public_v1;
 mod public;
 pub use public::{PublicIndexBounds, public_bounds, public_limits};
 
 /// The independently versioned public wire (client/domain/contract/README.md, section 10).
-pub const PUBLIC_VERSION: u16 = public_v2::VERSION;
+pub const PUBLIC_VERSION: u16 = public_v1::VERSION;
+/// The public wire's family fingerprint.
+pub use public_v1::LAYOUT as PUBLIC_LAYOUT;
 /// The public projects answer kind.
 pub const PUBLIC_PROJECTS: u16 = 1;
 /// The public board answer kind.
@@ -36,9 +38,11 @@ pub const PUBLIC_CARD: u16 = 3;
 
 /// The client wire version this release reads and writes.
 pub const VERSION: u32 = {
-    let [high, low] = v45::VERSION.to_be_bytes();
+    let [high, low] = v44::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
+/// The client wire's family fingerprint.
+pub use v44::LAYOUT;
 
 #[cfg(test)]
 mod tests;

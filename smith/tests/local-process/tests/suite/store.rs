@@ -1,5 +1,5 @@
 //! Compatibility and recovery boundaries of the real Store and FileIo over a fake disk.
-//! smith/docs/design/testing.md, 2.5.
+//! smith/docs/design/testing-tiers.md, 5.
 
 mod fixture;
 

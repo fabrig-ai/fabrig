@@ -21,7 +21,7 @@ use std::{
 };
 
 pub fn command(root: &Path, action: &str) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     if !action.is_empty() {
         command.arg(action);
     }
@@ -41,7 +41,7 @@ fn isolate(command: &mut Command, root: &Path) {
         .find(|(name, _)| *name == "PATH")
         .and_then(|(_, value)| value.map(ToOwned::to_owned))
         .unwrap_or_else(|| temper_test_env::value(&temper_shell::environment::PATH).unwrap_or_default());
-    let binary = skein_scratch::paths::binary("temper-box");
+    let binary = skein_scratch::paths::built("temper-box", "temper-box");
     let paths =
         std::iter::once(binary.parent().expect("binary directory").to_path_buf()).chain(std::env::split_paths(&path));
     command.env("PATH", std::env::join_paths(paths).expect("fixture PATH"));
@@ -72,7 +72,7 @@ pub struct Boxed {
 }
 impl Boxed {
     pub fn start(case: &str, path: Option<&str>) -> Self {
-        let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+        let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
         if let Some(path) = path {
             command.env("PATH", path);
         }

@@ -12,6 +12,15 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod client_wire;
+}
 use alloc::boxed::Box;
 
 /// The requester's preferences section title (domain/agent/ask-temper.md, 4).

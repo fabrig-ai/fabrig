@@ -1,4 +1,5 @@
 //! The stock and checked field overrides (protocol/configuration/limits.md).
+//! Journal row admission follows `temper/docs/design/domain/root.md`, section 9.
 #[cfg(test)]
 mod development;
 mod names;
@@ -443,7 +444,18 @@ pub fn base(
         path: jig_protocol_config::Path::root().member(b"limits"),
         what: jig_protocol_config::What::Bound,
     })?;
-    Ok((jig, own))
+    // A smaller agent turn does not shrink the largest wrapped child row.
+    if let Some(row) = engine::row_bound(&engine_candidate(&jig, &own))
+        && let Ok(row) = u32::try_from(row)
+    {
+        own.root.journal.transcript_bytes = own.root.journal.transcript_bytes.max(row);
+        Ok((jig, own))
+    } else {
+        Err(jig_protocol_config::Problem {
+            path: jig_protocol_config::Path::root().member(b"root.journal.transcript_bytes"),
+            what: jig_protocol_config::What::Bound,
+        })
+    }
 }
 /// Apply temper's carriers before the document's overrides (configuration/derived.md, 5.1).
 pub fn derive(limits: &mut Limits, sources: temper_service_core::derived::Sources) -> Option<()> {

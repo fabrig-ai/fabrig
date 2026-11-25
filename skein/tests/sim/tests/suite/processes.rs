@@ -114,6 +114,23 @@ fn a_killed_childs_unread_output_is_settled() {
 }
 
 #[test]
+fn abandoning_a_named_output_allows_its_unread_bytes_at_a_childs_own_exit() {
+    let mut child = hosted_output();
+    child.world.sim.abandon_hosted_output(child.parent, child.pidfd, 1);
+    assert_eq!(
+        child
+            .world
+            .call(child.service, Op::PipeWrite { fd: child.writer, bytes: Box::from(b"unread".as_slice()), from: 0 })
+            .result,
+        Err(skein_io::kernel::Error::BrokenPipe),
+    );
+    child.world.close(child.service, child.writer);
+    child.world.sim.finish_service(child.service, Exit::Code(0));
+    settle_output_child(&mut child, Exit::Code(0));
+    child.world.sim.assert_hosted_settled(child.parent);
+}
+
+#[test]
 fn a_childs_own_exit_with_unread_output_is_caught() {
     let mut child = hosted_output();
     child.world.close(child.service, child.writer);

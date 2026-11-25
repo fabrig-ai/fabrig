@@ -2,16 +2,18 @@
 
 The messages of public reading (`../../domain/people/public-reading.md`):
 
-- **`PublicRead { owner, version, kind, ids }`,** an exchange with no
+- **`PublicRead { owner, layout, kind, ids }`,** an exchange with no
   credential and no stream: an owner, jig or an application's family;
-  the version of the owner's public records, which are versioned apart
-  (`../../client/domain/contract/README.md`, section 10); a kind of that owner's
+  the reader's layout of the owner's public records, a family apart
+  (`../../client/domain/contract/README.md`, section 10), whose version is frozen
+  (`versions.md`, section 1); a kind of that owner's
   public documents; and at most two public identifiers, which the kind
   names. jig's kinds: *projects*, with none; *board*, a project; *card*,
   a project and a task. An application's kinds take a project, then at
   most a task: never a number of the application's own.
 - **Answered once:** the document, as the owner's record at that
-  version; unknown; busy; or the version not served. Nothing else, and
+  layout; unknown; busy; or the version not served, for a layout the
+  engine does not serve, before admission. Nothing else, and
   never why: a private project, one never made, a task that is not
   public, an identifier that names nothing, a kind no owner declared, a
   connector's failure and a fault decoding or encoding are all unknown,
@@ -32,7 +34,7 @@ The messages of public reading (`../../domain/people/public-reading.md`):
   hands the engine's root what it admits as the public party's read,
   and a read the root refuses is answered busy, never offered again.
 - **An application declares its public kinds** to the component at
-  start: owner, kind, the versions it serves, whether it takes a task,
+  start: owner, kind, the version it serves and its layout, whether it takes a task,
   and its answer's bound in bytes, within the deployment's answer
   ceiling; a kind past it refuses the start. A kind no owner declared
   is unknown before the engine.

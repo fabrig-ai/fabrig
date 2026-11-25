@@ -1,4 +1,5 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
+use crate::generated::client;
 use crate::translate::too_large;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
@@ -6,7 +7,7 @@ use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Writer, bytes};
 pub(crate) fn wire_revision(value: c::Revision) -> w::Revision {
-    w::Revision { value: value.value }
+    client::revision_to_record(&value)
 }
 
 pub(crate) fn wire_person_answer(value: &c::PersonAnswer) -> w::PersonAnswer {
@@ -30,15 +31,9 @@ pub(crate) fn wire_person_answer(value: &c::PersonAnswer) -> w::PersonAnswer {
     }
 }
 
-pub(crate) fn wire_proposer(value: &c::Proposer) -> w::Proposer {
-    match value {
-        c::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value: *value }),
-        c::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value: *value }),
-    }
-}
-
+#[cfg(test)]
 pub(crate) fn wire_proposal_key(value: &c::ProposalKey) -> w::ProposalKey {
-    w::ProposalKey { proposer: wire_proposer(&value.proposer), number: value.number }
+    client::proposal_key_to_record(value)
 }
 
 pub(crate) fn wire_decision(value: &c::Decision) -> w::Decision {
@@ -61,15 +56,8 @@ pub(crate) fn wire_decision(value: &c::Decision) -> w::Decision {
     }
 }
 
-pub(crate) fn wire_person_address(value: &c::PersonAddress) -> w::PersonAddress {
-    match value {
-        c::PersonAddress::Party(value) => w::PersonAddress::Party(w::PersonAddressParty { value: *value }),
-        c::PersonAddress::Role(value) => w::PersonAddress::Role(w::PersonAddressRole { value: *value }),
-    }
-}
-
 pub(crate) fn wire_address_change(value: &c::AddressChange) -> w::AddressChange {
-    w::AddressChange { revision: wire_revision(value.revision), address: wire_person_address(&value.address) }
+    client::address_change_to_record(value)
 }
 
 pub(crate) fn wire_parameter(value: &c::Parameter) -> w::Parameter {
@@ -96,52 +84,16 @@ pub(crate) fn wire_specification(value: &c::Specification) -> w::Specification {
     w::Specification { asks: value.asks, words: bytes::copy_of(value.words.bytes()), parameters: list0, inputs: list1 }
 }
 
-pub(crate) fn wire_wake_rule(value: &c::WakeRule) -> w::WakeRule {
-    match value {
-        c::WakeRule::Never => w::WakeRule::Never,
-        c::WakeRule::Immediate => w::WakeRule::Immediate,
-        c::WakeRule::Batch { count, age } => w::WakeRule::Batch(w::WakeRuleBatch { count: *count, age: *age }),
-        c::WakeRule::Paced { span } => w::WakeRule::Paced(w::WakeRulePaced { span: *span }),
-    }
-}
-
-pub(crate) fn wire_results_wake(value: c::ResultsWake) -> w::ResultsWake {
-    match value {
-        c::ResultsWake::Never => w::ResultsWake::Never,
-        c::ResultsWake::Each => w::ResultsWake::Each,
-        c::ResultsWake::LastOrFailure => w::ResultsWake::LastOrFailure,
-    }
-}
-
 pub(crate) fn wire_owner_wake_policy(value: &c::WakePolicy) -> w::WakePolicy {
-    w::WakePolicy {
-        words: wire_wake_rule(&value.words),
-        notices: wire_wake_rule(&value.notices),
-        news: wire_wake_rule(&value.news),
-        results: wire_results_wake(value.results),
-        questions: value.questions,
-        answers: value.answers,
-        timers: value.timers,
-    }
-}
-
-pub(crate) fn wire_owner_pattern_end(value: &c::PatternEnd) -> w::PatternEnd {
-    match value {
-        c::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact { value: bytes::copy_of(value) }),
-        c::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen { value: bytes::copy_of(value) }),
-    }
+    client::wake_policy_to_record(value)
 }
 
 pub(crate) fn wire_owner_pattern(value: &c::Pattern) -> w::Pattern {
-    let mut list0 = List::with_capacity(value.segments.len());
-    for item in &value.segments {
-        list0.push(bytes::copy_of(item)).expect("reserved supplied list");
-    }
-    w::Pattern { segments: list0, last: wire_owner_pattern_end(&value.last) }
+    client::pattern_to_record(value)
 }
 
 pub(crate) fn wire_owner_grant(value: &c::Grant) -> w::Grant {
-    w::Grant { connector: value.connector, kind: value.kind, pattern: wire_owner_pattern(&value.pattern) }
+    client::grant_to_record(value)
 }
 
 pub(super) fn wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -163,27 +115,12 @@ pub(super) fn wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Limits) 
     Ok(writer.finish())
 }
 
-pub(crate) fn wire_owner_authority_executor(value: c::AuthorityExecutor) -> w::AuthorityExecutor {
-    match value {
-        c::AuthorityExecutor::Job(value) => w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value }),
-        c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter { value }),
-        c::AuthorityExecutor::Procedure(value) => {
-            w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value })
-        }
-        c::AuthorityExecutor::Role(value) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value }),
-    }
-}
-
 pub(crate) fn wire_owner_delegation(value: &c::Delegation) -> w::Delegation {
-    let mut list0 = List::with_capacity(value.kinds.len());
-    for item in &value.kinds {
-        list0.push(wire_owner_authority_executor(*item)).expect("reserved supplied list");
-    }
-    w::Delegation { kinds: list0, tasks: value.tasks, depth: value.depth }
+    client::delegation_to_record(value)
 }
 
 pub(crate) fn wire_owner_resource_scope(value: &c::ResourceScope) -> w::ResourceScope {
-    w::ResourceScope { connector: value.connector, pattern: wire_owner_pattern(&value.pattern) }
+    client::resource_scope_to_record(value)
 }
 
 fn wire_owner_resource_scope_piece(rows: &List<w::ResourceScope>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -277,12 +214,7 @@ pub(crate) fn wire_amendment(value: &c::Amendment, limits: &w::Limits) -> Result
 }
 
 pub(crate) fn wire_seen(value: &c::SeenThrough) -> w::SeenThrough {
-    match value {
-        c::SeenThrough::Results { through } => w::SeenThrough::Results(w::SeenResults { through: *through }),
-        c::SeenThrough::Conversation { task: chat, through } => {
-            w::SeenThrough::Conversation(w::SeenConversation { task: *chat, through: *through })
-        }
-    }
+    client::seen_through_to_record(value)
 }
 
 fn writable_note_scope(value: &c::NoteScope, path: w::Path) -> Result<w::NoteScope, w::Problem> {
@@ -326,28 +258,8 @@ pub(crate) fn wire_policy_edit_role(
     })
 }
 
-pub(crate) fn wire_policy_judge(value: c::PolicyJudge) -> w::PolicyJudge {
-    w::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters }
-}
-
-pub(crate) fn wire_policy_guard(value: &c::PolicyGuard) -> w::PolicyGuard {
-    match value {
-        c::PolicyGuard::Guarded => w::PolicyGuard::Guarded,
-        c::PolicyGuard::Observed { freshness } => {
-            w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness: *freshness })
-        }
-    }
-}
-
 pub(crate) fn wire_policy_requirement(value: &c::PolicyRequirement) -> w::PolicyRequirement {
-    w::PolicyRequirement {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: wire_owner_pattern(&value.pattern),
-        judge: wire_policy_judge(value.judge),
-        guard: wire_policy_guard(&value.guard),
-        must_be_guarded: value.must_be_guarded,
-    }
+    client::policy_requirement_to_record(value)
 }
 
 fn wire_policy_requirement_piece(
@@ -373,7 +285,7 @@ fn wire_policy_requirement_piece(
 }
 
 pub(crate) fn wire_policy_permission(value: c::PolicyPermission) -> w::PolicyPermission {
-    w::PolicyPermission { connector: value.connector, permission: value.permission, role: value.role }
+    client::policy_permission_to_record(&value)
 }
 
 pub(crate) fn wire_policy_edit(value: &c::PolicyEdit, limits: &w::Limits) -> Result<w::PolicyEdit, w::Problem> {
@@ -415,33 +327,22 @@ pub(crate) fn wire_policy_edit(value: &c::PolicyEdit, limits: &w::Limits) -> Res
 }
 
 pub(crate) fn wire_held_role(value: c::HeldRole) -> w::HeldRole {
-    match value {
-        c::HeldRole::Owner => w::HeldRole::Owner,
-        c::HeldRole::Maintainer => w::HeldRole::Maintainer,
-        c::HeldRole::Member => w::HeldRole::Member,
-        c::HeldRole::Observer => w::HeldRole::Observer,
-        c::HeldRole::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
-    }
+    client::held_role_to_record(&value)
 }
 
 pub(crate) fn wire_holding(value: &c::Holding) -> w::Holding {
-    w::Holding { party: value.party, role: wire_held_role(value.role) }
+    client::holding_to_record(value)
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive field translation arm per client ask")]
 pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     Ok(match value {
-        c::Ask::PauseWorker { worker, mode } => w::Ask::PauseWorker(w::PauseWorker {
-            worker: *worker,
-            mode: match mode {
-                c::WorkerPauseMode::Resume => w::WorkerPauseMode::Resume,
-                c::WorkerPauseMode::Pause => w::WorkerPauseMode::Pause,
-                c::WorkerPauseMode::Drain => w::WorkerPauseMode::Drain,
-            },
-        }),
+        c::Ask::PauseWorker { worker, mode } => {
+            w::Ask::PauseWorker(w::PauseWorker { worker: *worker, mode: client::worker_pause_mode_to_record(mode) })
+        }
         c::Ask::ReadLists { provider } => w::Ask::ReadLists(w::ReadLists { provider: *provider }),
         c::Ask::Restore { revision, reason } => w::Ask::Restore(wire_ask_restore(*revision, reason)),
-        c::Ask::MoveToNewest(value) => w::Ask::MoveToNewest(w::MoveToNewest { revision: value.revision }),
+        c::Ask::MoveToNewest(value) => w::Ask::MoveToNewest(client::move_to_newest_to_record(value)),
         c::Ask::ChangeModel(value) => w::Ask::ChangeModel(super::settings::wire_change_model(value)),
         c::Ask::ChangeSettings(value) => w::Ask::ChangeSettings(super::settings::wire_change_settings(value, limits)?),
         c::Ask::Propose { project, action, reason } => super::operations::propose(*project, action, reason, limits)?,
@@ -571,112 +472,43 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
 }
 
 fn account_holder(value: c::AskAccountHolder) -> w::AskAccountHolder {
-    match value {
-        c::AskAccountHolder::Own => w::AskAccountHolder::Own,
-        c::AskAccountHolder::Deployment => w::AskAccountHolder::Deployment,
-    }
+    client::ask_account_holder_to_record(&value)
 }
 
-fn login_exit(value: c::LoginExit) -> w::LoginExit {
-    match value {
-        c::LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited { code }),
-        c::LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled { signal }),
-        c::LoginExit::NotStarted => w::LoginExit::NotStarted,
-    }
-}
 fn account_change(value: &c::AccountChange, limits: &w::Limits) -> Result<w::AccountChange, w::Problem> {
-    Ok(match value {
-        c::AccountChange::LoginProgram { provider, name } => {
+    match value {
+        c::AccountChange::DeclareProgram { name, .. } | c::AccountChange::LoginProgram { name, .. } => {
             if !c::valid_program_name(name) {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
             }
-            w::AccountChange::LoginProgram(w::AccountChangeLoginProgram { provider: *provider, name: name.clone() })
         }
-        c::AccountChange::CancelLogin { number } => {
-            w::AccountChange::CancelLogin(w::AccountChangeCancelLogin { number: *number })
-        }
-        c::AccountChange::LoginEnded { number, exit } => {
-            w::AccountChange::LoginEnded(w::AccountChangeLoginEnded { number: *number, exit: login_exit(*exit) })
-        }
-        c::AccountChange::MoveOut { account } => {
-            w::AccountChange::MoveOut(w::AccountChangeMoveOut { account: *account })
-        }
-        c::AccountChange::Written { number } => w::AccountChange::Written(w::AccountChangeWritten { number: *number }),
-        c::AccountChange::FinishSignIn { source, digest } => {
-            w::AccountChange::FinishSignIn(w::AccountChangeFinishSignIn { source: *source, digest: *digest })
-        }
-        c::AccountChange::MoveIn { digest } => w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest: *digest }),
-        c::AccountChange::DeclareProgram { provider, join, name } => {
-            if !c::valid_program_name(name) {
-                return Err(super::piece_problem(skein_codec::Reason::Malformed));
-            }
-            w::AccountChange::DeclareProgram(w::AccountChangeDeclareProgram {
-                provider: *provider,
-                join: *join,
-                name: name.clone(),
-            })
-        }
-        c::AccountChange::CheckProgram { source } => {
-            w::AccountChange::CheckProgram(w::AccountChangeCheckProgram { source: *source })
-        }
-        c::AccountChange::AddKey { provider, join, digest } => {
-            w::AccountChange::AddKey(w::AccountChangeAddKey { provider: *provider, join: *join, digest: *digest })
-        }
-        c::AccountChange::ReplaceKey { source, digest } => {
-            w::AccountChange::ReplaceKey(w::AccountChangeReplaceKey { source: *source, digest: *digest })
-        }
-        c::AccountChange::RemoveKey { source } => {
-            w::AccountChange::RemoveKey(w::AccountChangeRemoveKey { source: *source })
-        }
-        c::AccountChange::Resume { source } => w::AccountChange::Resume(w::AccountChangeResume { source: *source }),
-        c::AccountChange::Remove { account } => w::AccountChange::Remove(w::AccountChangeRemove { account: *account }),
-        c::AccountChange::MoveAccount { account, place } => {
-            w::AccountChange::MoveAccount(w::AccountChangeMoveAccount { account: *account, place: *place })
-        }
-        c::AccountChange::MoveSource { account, source, place } => {
-            w::AccountChange::MoveSource(w::AccountChangeMoveSource {
-                account: *account,
-                source: *source,
-                place: *place,
-            })
-        }
-        c::AccountChange::SetUses { account, uses } => account_set_uses(*account, uses.as_deref(), limits)?,
-    })
-}
-
-fn account_set_uses(
-    account: u32,
-    uses: Option<&[c::AccountUse]>,
-    limits: &w::Limits,
-) -> Result<w::AccountChange, w::Problem> {
-    Ok(w::AccountChange::SetUses(w::AccountChangeSetUses {
-        account,
-        uses: match uses {
-            None => None,
-            Some(uses) => {
-                if uses.len()
+        c::AccountChange::SetUses { uses, .. } => {
+            if let Some(uses) = uses
+                && uses.len()
                     > skein_lib::length::usize_of(limits.account_change_set_uses_uses_some.min(c::ACCOUNT_USES))
-                {
-                    return Err(w::Problem {
-                        path: w::paths::ACCOUNT_CHANGE_SET_USES_USES,
-                        reason: skein_codec::Reason::Bound,
-                    });
-                }
-                let mut rows =
-                    List::with_capacity(u32::try_from(uses.len()).expect("account uses bounded by the wire"));
-                for use_ in uses {
-                    rows.push(match use_ {
-                        c::AccountUse::Party(value) => w::AccountUse::Party(w::AccountUseParty { party: *value }),
-                        c::AccountUse::Project(value) => {
-                            w::AccountUse::Project(w::AccountUseProject { project: *value })
-                        }
-                    })
-                    .expect("reserved uses");
-                }
-                Some(rows)
+            {
+                return Err(w::Problem {
+                    path: w::paths::ACCOUNT_CHANGE_SET_USES_USES,
+                    reason: skein_codec::Reason::Bound,
+                });
             }
-        },
-    }))
+        }
+        c::AccountChange::AddKey { .. }
+        | c::AccountChange::ReplaceKey { .. }
+        | c::AccountChange::RemoveKey { .. }
+        | c::AccountChange::Resume { .. }
+        | c::AccountChange::Remove { .. }
+        | c::AccountChange::MoveAccount { .. }
+        | c::AccountChange::MoveSource { .. }
+        | c::AccountChange::CheckProgram { .. }
+        | c::AccountChange::MoveOut { .. }
+        | c::AccountChange::Written { .. }
+        | c::AccountChange::MoveIn { .. }
+        | c::AccountChange::FinishSignIn { .. }
+        | c::AccountChange::CancelLogin { .. }
+        | c::AccountChange::LoginEnded { .. } => {}
+    }
+    client::account_change_to_record(value)
 }
 
 #[must_use]

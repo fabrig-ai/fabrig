@@ -1787,6 +1787,7 @@ fn landed_waiting_for_restart_reads() -> (forge::Domain, skein_lib::Env<forge::L
             entry: 900_003,
             heard: temper_engine_domain_forge_change::Heard {
                 review_request: None,
+                closer_waiting: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,

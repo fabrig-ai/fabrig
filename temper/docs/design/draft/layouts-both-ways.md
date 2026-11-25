@@ -1,8 +1,8 @@
 # layouts-both-ways: one conversion, either way, for the store and every wire
 
-Draft, 2026-11-17, from a session with the user. They asked for "some elegant way to extend what we're doing to new->old flows and not only to old->new flow", since the store's problem and the wires' "are really the same one". This draft is the data's half: how a value or a message written at one layout is read or written at another. [codec-shape.md](codec-shape.md) is the code's half. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
+Draft, 2026-11-17, from a session with the user. They asked for "some elegant way to extend what we're doing to new->old flows and not only to old->new flow", since the store's problem and the wires' "are really the same one". This draft is the data's half: how a value or a message written at one layout is read or written at another. [archive/codec-shape.md](archive/codec-shape.md) is the code's half. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
-Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening-rehearsal.md`, 1) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/redeploys.md`, 3 and 4). That holds until its goals fold it into them.
+Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening-rehearsal.md`, 1) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/archive/redeploys.md`, 3 and 4). That holds until its goals fold it into them.
 
 ## 1. In one page
 
@@ -47,8 +47,8 @@ Where they differ, this draft wins over skein's codec versions, patches and brid
 | jig's client and public wires | 30, 1 | 0, 0 | no: a client reloads |
 | temper's client and public wires | 34, 3 | 0, 0 | no: a client reloads |
 
-- **The opening** (`temper/docs/design/draft/redeploys.md`, 3.2): each side states its versions and their fingerprints, the highest version in common is agreed, and a fingerprint mismatch at a common version is refused. A client of another version is refused and reloads (`temper/docs/design/draft/redeploys.md`, 8).
-- **The bridges** (`skein/docs/design/data/codec/bridges.md`). The newer side translates (`temper/docs/design/draft/redeploys.md`, 4.1). Up chains each patch forward. Down chains their reverses and checks the round trip. Both run over generic values. A new field goes down at the value the older version assumed, and a new variant is refused.
+- **The opening** (`temper/docs/design/draft/archive/redeploys.md`, 3.2): each side states its versions and their fingerprints, the highest version in common is agreed, and a fingerprint mismatch at a common version is refused. A client of another version is refused and reloads (`temper/docs/design/draft/archive/redeploys.md`, 8).
+- **The bridges** (`skein/docs/design/data/codec/bridges.md`). The newer side translates (`temper/docs/design/draft/archive/redeploys.md`, 4.1). Up chains each patch forward. Down chains their reverses and checks the round trip. Both run over generic values. A new field goes down at the value the older version assumed, and a new variant is refused.
 - **The plans' derivation** (`skein/docs/design/data/codec/layouts.md`, 2):
   - **derived:** added fields with defaults, dropped and moved fields, variants added, widened integers and bounds, options wrapped, versioned heads, held records and pieces;
   - **not derived:** a retype, a reshape, a variant the root's reach drops, a payload changed, a held family on one side only.
@@ -112,7 +112,7 @@ A plan converts bytes at a source layout into bytes at a target layout. It is de
 ### 4.5 Tests
 
 - **A round trip for every pair:** a value converted from source to target in Keep mode, then back in Read mode, is the value itself.
-- **Generated over `every`'s texts** ([codec-shape.md](codec-shape.md), 5), and over pairs the fuzzy suite derives from them by the change kinds of 4.2.
+- **Generated over `every`'s texts** ([archive/codec-shape.md](archive/codec-shape.md), 5), and over pairs the fuzzy suite derives from them by the change kinds of 4.2.
 - **Each refusal and each "no plan"** has a case of its own.
 
 ### 4.6 Where it lives
@@ -140,18 +140,18 @@ A plan converts bytes at a source layout into bytes at a target layout. It is de
 
 - **What the engine receives** from a worker runs through a Read plan, from the worker's layout to its own, then through its own decoder.
 - **What it sends** is encoded at its own layout, then runs through a Keep plan to the worker's.
-- **The worker, and the agent its build pins** (`temper/docs/design/draft/redeploys.md`, 4.4), speak their own layouts alone, and know nothing of other builds.
-- **Why the engine:** it is the one side that holds every connection, and a redeploy restarts it first (`temper/docs/design/draft/redeploys.md`, 7.1). The plans need no age, so a worker newer than the engine converts the same way. A redeploy's order costs refusals, never correctness.
+- **The worker, and the agent its build pins** (`temper/docs/design/draft/archive/redeploys.md`, 4.4), speak their own layouts alone, and know nothing of other builds.
+- **Why the engine:** it is the one side that holds every connection, and a redeploy restarts it first (`temper/docs/design/draft/archive/redeploys.md`, 7.1). The plans need no age, so a worker newer than the engine converts the same way. A redeploy's order costs refusals, never correctness.
 
 ### 6.2 A refused value
 
 - **A typed answer to the domain that sent it,** before anything is written to the channel: the message is refused for that worker, naming the declaration and the field.
-- **The domain decides.** An assignment waits for a worker that can hold it, as an assignment that can't go down waits today (`temper/docs/design/draft/redeploys.md`, 4.3). The other messages' answers are designed by their wires' owners, in the goal that moves their wire.
+- **The domain decides.** An assignment waits for a worker that can hold it, as an assignment that can't go down waits today (`temper/docs/design/draft/archive/redeploys.md`, 4.3). The other messages' answers are designed by their wires' owners, in the goal that moves their wire.
 
 ### 6.3 At the opening
 
 - **Plans are derived for every value type the wire carries,** both ways, and cached by the pair of fingerprints, so a fleet on one build derives once.
-- **A value type with no plan, and no written converter (7.3),** refuses the opening, naming the wire, the value type and the change. The worker is drained and restarted on the new build (`temper/docs/design/draft/redeploys.md`, 6.1).
+- **A value type with no plan, and no written converter (7.3),** refuses the opening, naming the wire, the value type and the change. The worker is drained and restarted on the new build (`temper/docs/design/draft/archive/redeploys.md`, 6.1).
 
 ## 7. What no plan derives, and the floor
 
@@ -171,8 +171,8 @@ The store's written jobs convert at open what no plan derives (`jig/docs/design/
 
 ### 7.4 The floor
 
-- **fabrig keeps no code for a layout older than what dev.fabrig.ai runs,** as store-floor holds for the store (`temper/docs/design/draft/store-floor.md`, 6). A written job, a written converter or a tombstone goes once dev.fabrig.ai's store and every part it runs are at or past the layout that made it needed.
-- **Removing one is the floor's move:** a worker still at that layout gets no plan and is refused at the opening by name (6.3), as a store below the floor is refused today (`temper/docs/design/draft/store-floor.md`, 3).
+- **fabrig keeps no code for a layout older than what dev.fabrig.ai runs,** as store-floor holds for the store (`temper/docs/design/draft/archive/store-floor.md`, 6). A written job, a written converter or a tombstone goes once dev.fabrig.ai's store and every part it runs are at or past the layout that made it needed.
+- **Removing one is the floor's move:** a worker still at that layout gets no plan and is refused at the opening by name (6.3), as a store below the floor is refused today (`temper/docs/design/draft/archive/store-floor.md`, 3).
 - **No version list, no release record:** what dev.fabrig.ai runs is the record. The store keeps its floor row.
 
 ## 8. The store, both ways
@@ -199,7 +199,7 @@ A frame names its layout as a registered value does, with its texts in the regis
 
 ## 9. What goes
 
-- **Version moves:** every family's version is frozen (3). The gate's check that a changed layout moved its version (`temper/docs/design/draft/redeploys.md`, 3.1) goes with them.
+- **Version moves:** every family's version is frozen (3). The gate's check that a changed layout moved its version (`temper/docs/design/draft/archive/redeploys.md`, 3.1) goes with them.
 - **Kept texts:** the 43 files under `schema/kept/`.
 - **Patches,** 23, and their golden directories (survey, 1):
   - jig's worker channel: 5,000 files;
@@ -211,8 +211,8 @@ A frame names its layout as a registered value does, with its texts in the regis
   - `skein-codec`'s `patch` and `bridge` modules;
   - the command's patch writing and renumbering (`skein/docs/design/data/codec/command.md`, 2 and 6);
   - their designs (`skein/docs/design/data/codec/patches.md`, `skein/docs/design/data/codec/bridges.md`).
-- **`.layouts` lists and version ranges:** the `.layouts` lists, the ranges and floors in each `schema/wires`, and the opening's agreement on a highest common version (`temper/docs/design/draft/redeploys.md`, 3.2).
-- **The store's committed fingerprints** ([codec-shape.md](codec-shape.md), 6.1).
+- **`.layouts` lists and version ranges:** the `.layouts` lists, the ranges and floors in each `schema/wires`, and the opening's agreement on a highest common version (`temper/docs/design/draft/archive/redeploys.md`, 3.2).
+- **The store's committed fingerprints** ([archive/codec-shape.md](archive/codec-shape.md), 6.1).
 
 ## 10. Later and open questions
 

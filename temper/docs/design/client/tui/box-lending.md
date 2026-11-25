@@ -4,7 +4,7 @@ Lending the box front's terminal is split from [the TUI in front of a box](box.m
 
 ## 1. Lending its terminal
 
-**Lending its terminal**, illustrative (`../../draft/claude-sign-in.md`,
+**Lending its terminal**, illustrative (`../../draft/archive/claude-sign-in.md`,
 3: t2, the terminal while lent, and t3, back; `claude-sign-in/`):
 
 ```
@@ -39,7 +39,7 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   host's seed, and the root keeps the watch `terminal{n}` of that number
   open for as long as the TUI runs (jig's `domain/terminal-login.md`,
   2). Out of front the TUI offers none: bare `temper` lends nothing
-  (`../../draft/claude-sign-in.md`, 7, *Which TUI can lend*).
+  (`../../draft/archive/claude-sign-in.md`, 7, *Which TUI can lend*).
 - **Asked:** after each report, while the TUI lends nothing, a login
   the root's terminal document names, not cancelled, of a number the TUI
   has not taken before, is the duty `lend`: its number, its NAME, and
@@ -107,7 +107,7 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
 - **`program-login` refusing** (no program configured, a directory not
   the person's): its one line shows in the terminal under the TUI's, and
   its exit 1 ends the login as any non-zero exit
-  (`../../draft/claude-sign-in.md`, 7).
+  (`../../draft/archive/claude-sign-in.md`, 7).
 - **The seam** (`host.md`, 1) gains, for this alone:
 
   ```rust

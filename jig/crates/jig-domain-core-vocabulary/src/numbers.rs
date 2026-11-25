@@ -39,7 +39,7 @@ pub struct Deployment {
     pub commits: u64,
     /// Largest seeded or allocated project number.
     pub projects: u64,
-    /// The longest restart wait still kept (domain/engine/restart.md, 1).
+    /// The longest restart wait still kept (domain/engine/restart.md, 5).
     pub restart_wait_ms: Option<u64>,
     /// Each recorded wait kind's first observation.
     pub wait_floors: Option<WaitFloors>,

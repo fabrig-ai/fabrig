@@ -3048,6 +3048,7 @@ fn a_closer_row_round_trips() {
             closer: Closer::new(),
             making: None,
             close_changes: Box::new([]),
+            superseded: Box::new([]),
             landing_changes: Box::new([]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
@@ -3060,11 +3061,11 @@ fn a_closer_row_round_trips() {
                 running: Some(Running { step: Step::Close, change: 20 }),
                 landing: None,
                 hold: Some(Hold::ClosingStep { step: Step::Close, change: 20 }),
-                retry: None,
-                selections: Box::new([]),
+                ..Closer::new()
             },
             making: Some(Step::Close),
             close_changes: Box::new([20]),
+            superseded: Box::new([]),
             landing_changes: Box::new([]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
@@ -3078,10 +3079,11 @@ fn a_closer_row_round_trips() {
                 landing: Some(21),
                 hold: Some(Hold::ClosingStep { step: Step::Land, change: 21 }),
                 retry: Some(Step::Land),
-                selections: Box::new([]),
+                ..Closer::new()
             },
             making: Some(Step::Land),
             close_changes: Box::new([20, 22]),
+            superseded: Box::new([20]),
             landing_changes: Box::new([21, 23]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: true,
@@ -3096,10 +3098,11 @@ fn a_closer_row_round_trips() {
             landing: None,
             hold: None,
             retry: Some(Step::Close),
-            selections: Box::new([]),
+            ..Closer::new()
         },
         making: None,
         close_changes: Box::new([20]),
+        superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: temper_engine_domain_forge_closer::relay::Relay::new(),
         done: false,
@@ -3118,6 +3121,23 @@ fn a_closer_row_round_trips() {
     }
 }
 
+#[test]
+fn a_closers_report_check_and_its_last_line_round_trip() {
+    use temper_engine_domain_forge_closer::{ReportCheck, relay::Relay};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for check in [ReportCheck::Unread, ReportCheck::Held, ReportCheck::Released] {
+        let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
+        row.closer.report_check = check;
+        row.closer.goal_left = Some(b"the switch, not yet cut.".as_slice().into());
+        let stored = forge::Stored::Closer(row);
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = stored.clone();
+        assert_eq!(forge::stored_bytes(&cloned), Some(meter.end().held()));
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+    }
+}
+
 fn closer_relay_row(relay: temper_engine_domain_forge_closer::relay::Relay) -> forge::Stored {
     const CLOSER: u64 = 8;
     forge::Stored::Closer(forge::CloserRow {
@@ -3126,6 +3146,7 @@ fn closer_relay_row(relay: temper_engine_domain_forge_closer::relay::Relay) -> f
         closer: temper_engine_domain_forge_closer::Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        superseded: Box::new([]),
         landing_changes: Box::new([]),
         done: false,
         relay,
@@ -3214,6 +3235,19 @@ fn an_older_closer_defaults_its_waiting_questions_to_empty() {
 }
 
 #[test]
+fn an_older_closer_defaults_superseded_changes_to_empty() {
+    use super::dev_layouts::Dev;
+    use temper_engine_domain_forge_closer::relay::Relay;
+    let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
+    row.close_changes = Box::new([CLOSER_SETTLEMENT]);
+    let expected = forge::Stored::Closer(row.clone());
+    row.superseded = Box::new([CLOSER_SETTLEMENT]);
+    let mut dev = Dev::new();
+    let stored = dev.row(&forge::Stored::Closer(row), "closer");
+    assert_eq!(dev.read(&stored, "closer"), expected);
+}
+
+#[test]
 fn a_closers_waiting_questions_alone_keep_the_relay_present() {
     use temper_engine_domain_forge_closer::relay::Relay;
     const WAITING_BOUND: u32 = 2; // One slot per possible open step.
@@ -3239,11 +3273,13 @@ fn a_closers_third_waiting_question_is_refused_by_the_decoder() {
 
 #[test]
 fn a_closer_with_a_truncated_relay_is_malformed() {
+    const EMPTY_SUPERSEDED: [u8; 4] = 0_u32.to_be_bytes();
     let row = closer_relay_row(temper_engine_domain_forge_closer::relay::Relay::new());
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     let bytes = records::encode(&row);
-    assert_eq!(bytes.last(), Some(&0));
-    let legacy = &bytes[..bytes.len() - 1]; // The current version requires the optional member's presence tag.
+    // The absent relay's tag precedes the empty superseded list's u32 count.
+    let without_list = bytes.strip_suffix(EMPTY_SUPERSEDED.as_slice()).expect("empty superseded list");
+    let legacy = without_list.strip_suffix(&[0]).expect("absent relay tag");
     assert_eq!(records::decode(legacy, &bounds), Err(crate::Undecodable::Malformed));
     assert_eq!(records::decode(&legacy[..legacy.len() - 1], &bounds), Err(crate::Undecodable::Malformed));
     let mut truncated = skein_lib::Writer::new(legacy.len() + 1);
@@ -3278,6 +3314,7 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
         closer,
         making: None,
         close_changes: Box::new([]),
+        superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: temper_engine_domain_forge_closer::relay::Relay::new(),
         done: false,
@@ -3947,6 +3984,19 @@ fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
         let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
         assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
     }
+}
+
+#[test]
+fn a_changes_measured_tips_round_trip_in_its_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let mut row = fixtures::change_row(State::Producing { requested: true });
+    row.close_at = Some(CloseAt { branch: [3; 32], landing: [4; 32] });
+    let (cold, hot) = row.clone().split();
+    let stored = forge::Stored::ChangeHot(Box::new(hot));
+    let decoded = records::decode(&records::encode(&stored), &bounds).expect("current change record");
+    let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+    assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
 }
 
 #[test]

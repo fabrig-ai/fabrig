@@ -1,6 +1,7 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
 use super::owner;
 use super::{pieces, problem, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -8,15 +9,7 @@ use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
 #[must_use]
 pub fn class(value: t::Class) -> w::HoldFailure {
-    match value {
-        t::Class::Transient => w::HoldFailure::Transient,
-        t::Class::Permanent => w::HoldFailure::Permanent,
-        t::Class::Run => w::HoldFailure::Run,
-        t::Class::Agent => w::HoldFailure::Agent,
-        t::Class::Lost => w::HoldFailure::Lost,
-        t::Class::Invalid => w::HoldFailure::Invalid,
-        t::Class::Infrastructure => w::HoldFailure::Infrastructure,
-    }
+    mapped::hold_failure_to_record(&value)
 }
 #[must_use]
 pub fn retry(value: &t::RetryNotice) -> w::RetryNotice {
@@ -36,110 +29,31 @@ pub fn retry(value: &t::RetryNotice) -> w::RetryNotice {
 }
 #[must_use]
 pub fn hold(value: t::Hold) -> w::HoldCategory {
-    match value {
-        t::Hold::Exceeded(value) => w::HoldCategory::Exceeded(w::Exceeded {
-            bound: match value.bound {
-                t::Bound::Reasoning => w::Bound::Reasoning,
-                t::Bound::Metadata => w::Bound::Metadata,
-                t::Bound::Items => w::Bound::Items,
-                t::Bound::Answer => w::Bound::Answer,
-                t::Bound::Tools => w::Bound::Tools,
-                t::Bound::HistoryItems => w::Bound::HistoryItems,
-                t::Bound::History => w::Bound::History,
-                t::Bound::Window => w::Bound::Window,
-                t::Bound::Output => w::Bound::Output,
-            },
-            value: value.value,
-        }),
-        t::Hold::Failures(value) => w::HoldCategory::Failures(w::HoldCategoryFailures { class: class(value) }),
-        t::Hold::Dependency(task) => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
-        t::Hold::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold }),
-        t::Hold::Uncertain { entry } => w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry }),
-        t::Hold::PoolLost { pool } => w::HoldCategory::PoolLost(w::HoldCategoryPoolLost { pool }),
-        t::Hold::Stalled => w::HoldCategory::Stalled,
-        t::Hold::Stopped => w::HoldCategory::Stopped,
-        t::Hold::Drift => w::HoldCategory::Drift,
-        t::Hold::Effects => w::HoldCategory::Effects,
-        t::Hold::EffectFailed => w::HoldCategory::EffectFailed,
-        t::Hold::Budget => w::HoldCategory::Budget,
-        t::Hold::Deadline => w::HoldCategory::Deadline,
-        t::Hold::HoldsWaited => w::HoldCategory::HoldsWaited,
-        t::Hold::ResourceUnavailable => w::HoldCategory::ResourceUnavailable,
-        t::Hold::ResourceAccess => w::HoldCategory::ResourceAccess,
-        t::Hold::Procedure => w::HoldCategory::Procedure,
-        t::Hold::Circle => w::HoldCategory::Circle,
-        t::Hold::Waited => w::HoldCategory::Waited,
-    }
+    mapped::hold_category_to_record(&value)
 }
 #[must_use]
 pub fn active(value: t::Active) -> w::RunStage {
-    match value {
-        t::Active::Idle => w::RunStage::Idle,
-        t::Active::Due => w::RunStage::Due,
-        t::Active::Preparing => w::RunStage::Preparing,
-        t::Active::Claimed { attempt } => w::RunStage::Claimed(w::RunStageClaimed { attempt }),
-        t::Active::Running { attempt } => w::RunStage::Running(w::RunStageRunning { attempt }),
-        t::Active::BackingOff { until } => w::RunStage::BackingOff(w::RunStageBackingOff { until: until.as_nanos() }),
-    }
+    mapped::run_stage_to_record(&value)
 }
 #[must_use]
 pub fn stage(value: t::Stage) -> w::ClosingStage {
-    match value {
-        t::Stage::Run { attempt } => w::ClosingStage::Run(w::ClosingStageRun { attempt }),
-        t::Stage::Delegates => w::ClosingStage::Delegates,
-        t::Stage::Effects => w::ClosingStage::Effects,
-        t::Stage::Releases => w::ClosingStage::Releases,
-        t::Stage::Settled => w::ClosingStage::Settled,
-    }
+    mapped::closing_stage_to_record(&value)
 }
 #[must_use]
 pub fn address(value: t::PersonAddress) -> w::PersonAddress {
-    match value {
-        t::PersonAddress::Person(number) => w::PersonAddress::Party(w::PersonAddressParty { value: number }),
-        t::PersonAddress::Role(number) => w::PersonAddress::Role(w::PersonAddressRole { value: number }),
-    }
+    mapped::person_address_to_record(&value)
 }
 #[must_use]
 pub fn phase(value: &d::PhaseLine) -> w::ChipPhase {
-    match value {
-        d::PhaseLine::Waiting { dependencies, more, holds } => w::ChipPhase::Waiting(w::ChipPhaseWaiting {
-            dependencies: dependencies.clone(),
-            more: *more,
-            holds: *holds,
-        }),
-        d::PhaseLine::Active(value) => w::ChipPhase::Active(w::ChipPhaseActive { value: active(*value) }),
-        d::PhaseLine::Person { address: value, taken_by, since } => w::ChipPhase::Person(w::ChipPhasePerson {
-            address: address(*value),
-            taken_by: *taken_by,
-            since: match *since {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-        }),
-        d::PhaseLine::Closing(value) => w::ChipPhase::Closing(w::ChipPhaseClosing { value: stage(*value) }),
-        d::PhaseLine::Held { reason, revision } => {
-            w::ChipPhase::Held(w::ChipPhaseHeld { reason: hold(*reason), revision: *revision })
-        }
-        d::PhaseLine::Ended => w::ChipPhase::Ended,
-    }
+    mapped::chip_phase_to_record(value)
 }
 #[must_use]
 pub fn prior(value: d::PriorPhase) -> w::PriorPhase {
-    match value {
-        d::PriorPhase::Waiting => w::PriorPhase::Waiting,
-        d::PriorPhase::Active(value) => w::PriorPhase::Active(w::PriorPhaseActive { value: active(value) }),
-        d::PriorPhase::Closing(value) => w::PriorPhase::Closing(w::PriorPhaseClosing { value: stage(value) }),
-    }
+    mapped::prior_phase_to_record(&value)
 }
 #[must_use]
 pub fn holder(value: t::EscalationHolder) -> w::EscalationHolder {
-    match value {
-        t::EscalationHolder::Task(number) => w::EscalationHolder::Task(w::EscalationHolderTask { value: number }),
-        t::EscalationHolder::Person(number) => w::EscalationHolder::Person(w::EscalationHolderPerson { value: number }),
-        t::EscalationHolder::Role { project, role } => {
-            w::EscalationHolder::Role(w::EscalationHolderRole { project, role })
-        }
-    }
+    mapped::escalation_holder_to_record(&value)
 }
 #[expect(clippy::match_same_arms, reason = "the interim wire projects each decider kind to its number")]
 #[must_use]
@@ -150,7 +64,7 @@ pub fn escalation(value: &d::EscalationState) -> w::HoldEscalation {
             w::HoldEscalation::Waiting(w::HoldEscalationWaiting {
                 holder: holder(*value),
                 entry: *entry,
-                since: since.as_nanos(),
+                since: skein_codec::convert::wall_to_record(since),
             })
         }
         d::EscalationState::Rejected { by, reason } => w::HoldEscalation::Rejected(w::HoldEscalationRejected {
@@ -164,89 +78,19 @@ pub fn escalation(value: &d::EscalationState) -> w::HoldEscalation {
 }
 #[must_use]
 pub fn tries(value: t::Tries) -> w::FailureTries {
-    w::FailureTries {
-        transient: value.transient,
-        permanent: value.permanent,
-        run: value.run,
-        agent: value.agent,
-        lost: value.lost,
-        invalid: value.invalid,
-        infrastructure: value.infrastructure,
-    }
+    mapped::failure_tries_to_record(&value)
 }
 #[must_use]
 pub fn held(value: &d::HoldPhaseLine) -> w::ChipHold {
-    w::ChipHold {
-        words: match &value.words {
-            Some(text) => Some(owner::text(text)),
-            None => None,
-        },
-        placed: match &value.placed {
-            Some(value) => Some(placed(value)),
-            None => None,
-        },
-        circle: circle(value.circle.as_ref()),
-        account: match &value.account {
-            Some(item) => Some(owner::part(item)),
-            None => None,
-        },
-        source: match &value.source {
-            Some(item) => Some(owner::part(item)),
-            None => None,
-        },
-        reason: hold(value.reason),
-        revision: value.revision,
-        before: prior(value.before),
-        escalation: match &value.escalation {
-            Some(item) => Some(escalation(item)),
-            None => None,
-        },
-        tries: tries(value.tries),
-        hold_wait_since: match value.hold_wait_since {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    }
-}
-fn placed(value: &d::PlacedLine) -> w::PlacedLine {
-    w::PlacedLine {
-        number: value.number,
-        owner: super::refusals::hold_owner(value.owner),
-        mode: match value.mode {
-            t::Mode::Stop => w::HoldMode::Stop,
-            t::Mode::Drain => w::HoldMode::Drain,
-        },
-        scope: match value.scope {
-            t::Scope::Subtree { task } => w::HoldScope::Subtree(w::HoldScopeSubtree { task }),
-            t::Scope::Project => w::HoldScope::Project,
-        },
-        reason: value.reason.clone(),
-        placed_at: value.placed_at.as_nanos(),
-        revision: value.revision,
-        lifted: value.lifted,
-        may_lift: value.may_lift,
-    }
+    mapped::chip_hold_to_record(value)
 }
 #[must_use]
 pub fn writer(value: t::Writer) -> w::ResourceWriter {
-    match value {
-        t::Writer::Run { task, attempt } => w::ResourceWriter::Run(w::ResourceWriterRun { task, attempt }),
-        t::Writer::Effect { entry } => w::ResourceWriter::Effect(w::ResourceWriterEffect { entry }),
-    }
+    mapped::resource_writer_to_record(&value)
 }
 #[must_use]
 pub fn resource(value: &d::ResourceLine) -> w::ResourceLine {
-    w::ResourceLine {
-        part: owner::part(&value.part),
-        kind: value.kind,
-        taken: value.taken,
-        holder: value.holder,
-        writer: match value.writer {
-            Some(item) => Some(writer(item)),
-            None => None,
-        },
-        writer_lost: value.writer_lost,
-    }
+    mapped::resource_line_to_record(value)
 }
 pub fn resources_pieces(
     rows: &List<w::ResourceLine>,
@@ -267,37 +111,19 @@ pub fn resources_pieces(
 }
 #[must_use]
 pub fn work(value: &d::ChipWork) -> w::ChipWork {
-    match value {
-        d::ChipWork::Preparing => w::ChipWork::Preparing,
-        d::ChipWork::Starting => w::ChipWork::Starting,
-        d::ChipWork::Active => w::ChipWork::Active,
-        d::ChipWork::Writing => w::ChipWork::Writing,
-        d::ChipWork::Waiting => w::ChipWork::Waiting,
-        d::ChipWork::Ending => w::ChipWork::Ending,
-        d::ChipWork::Tool { call, tool } => {
-            w::ChipWork::Tool(w::ChipWorkTool { call: bytes::copy_of(call), tool: bytes::copy_of(tool) })
-        }
-    }
+    mapped::chip_work_to_record(value)
 }
 #[must_use]
 pub fn observation(value: &d::ChipObservation) -> w::ChipObservation {
-    w::ChipObservation {
-        channel: value.channel.raw(),
-        work: work(&value.work),
-        since: value.since.as_nanos(),
-        reported_at: value.reported_at.as_nanos(),
-        started: match value.started {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    }
+    mapped::chip_observation_to_record(value)
 }
 #[must_use]
 pub fn person_notice(value: t::PersonStallNotice) -> w::PersonStallNotice {
-    w::PersonStallNotice { message: value.message, at: value.at.as_nanos(), activity: value.activity }
+    mapped::person_stall_notice_to_record(&value)
 }
 #[must_use]
 pub fn person_wait(value: t::PersonWait) -> w::PersonWait {
+    // The current offer is owner state; the client receives the waiting interval.
     w::PersonWait {
         since: value.since.as_nanos(),
         stall: value.stall,
@@ -406,9 +232,9 @@ fn details_fields(
         dependencies: dependencies(&value.dependencies),
         project: value.project,
         executor: owner::executor(value.executor),
-        phase_since: value.phase_since.as_nanos(),
+        phase_since: skein_codec::convert::wall_to_record(&value.phase_since),
         run_since: match value.run_since {
-            Some(item) => Some(item.as_nanos()),
+            Some(item) => Some(skein_codec::convert::wall_to_record(&item)),
             None => None,
         },
         attempt: value.attempt,
@@ -443,7 +269,7 @@ fn details_fields(
         closing_connectors: value.closing_connectors.clone(),
         ending,
         ended_at: match value.ended_at {
-            Some(item) => Some(item.as_nanos()),
+            Some(item) => Some(skein_codec::convert::wall_to_record(&item)),
             None => None,
         },
         observation: match &value.observation {
@@ -485,7 +311,7 @@ pub(super) fn append_ending(
                     None => None,
                 },
                 by: owner::requester(*by),
-                at: at.as_nanos(),
+                at: skein_codec::convert::wall_to_record(at),
             })
         }
     };
@@ -525,9 +351,7 @@ pub(super) fn result_fields(value: &d::ResultValue) -> Result<w::ResultValueFiel
         d::ResultValue::Verdict { code, fields, words } => {
             let mut copied = List::with_capacity(super::count(fields.len())?);
             for item in fields {
-                copied
-                    .push(w::ResultField { name: bytes::copy_of(&item.name), value: bytes::copy_of(&item.value) })
-                    .expect("supplied result fields");
+                copied.push(mapped::result_field_to_record(item)).expect("supplied result fields");
             }
             w::ResultValueFields::OwnerVerdict(w::ResultValueOwnerVerdictFields {
                 verdict: *code,
@@ -556,39 +380,10 @@ pub fn fact_pieces(
     pieces(&encoded, bound, path)
 }
 
-fn circle(value: Option<&t::Circle>) -> Option<w::Circle> {
-    let value = value?;
-    let mut tasks = List::with_capacity(u32::try_from(value.tasks.len()).expect("bounded circle"));
-    for task in &value.tasks {
-        tasks.push(*task).expect("same circle");
-    }
-    Some(w::Circle { tasks, cut: value.cut })
-}
-fn status(value: t::Status) -> w::TaskStatus {
-    match value {
-        t::Status::Done => w::TaskStatus::Done,
-        t::Status::Failed => w::TaskStatus::Failed,
-        t::Status::Cancelled => w::TaskStatus::Cancelled,
-    }
-}
 pub(crate) fn dependencies(values: &List<d::Dependency>) -> List<w::Dependency> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        let added = match &value.added {
-            Some(added) => Some(w::DependencyAdded { at: added.at.as_nanos(), by: owner::requester(added.by) }),
-            None => None,
-        };
-        rows.push(w::Dependency {
-            number: value.number,
-            pending: value.pending,
-            added,
-            keeps: value.keeps,
-            status: match value.status {
-                Some(value) => Some(status(value)),
-                None => None,
-            },
-        })
-        .expect("same dependency count");
+        rows.push(mapped::dependency_to_record(value)).expect("same dependency count");
     }
     rows
 }

@@ -1,8 +1,8 @@
 # Codecs from schemas
 
-Provisional, 2026-10-06, revised 2026-10-26. How an application protocol
-built on skein encodes its records, and how its kept records follow its
-schemas from one version to the next. A schema says each record's fields
+Provisional, 2026-10-06, revised 2026-11-25. How an application protocol
+built on skein encodes its records, and how a value written at one
+layout of its schema is read at another. A schema says each record's fields
 and their bounds. skein's generator turns it into plain Rust codecs,
 limits and bounds, and `skein-codec` holds the little
 the generated code shares, and reads schemas and their records at run
@@ -12,6 +12,9 @@ records kept in files or stores.
 - [`golden.md`](golden.md): golden bytes and tests.
 - [`run-time.md`](run-time.md): run-time schemas and generic values.
 - [`fingerprints.md`](fingerprints.md): family and value-type fingerprints.
+- [`layouts.md`](layouts.md): plans between two layouts, either way, in Read or Keep mode.
+- [`command.md`](command.md): an owner's files and the command.
+- [`maps.md`](maps.md): translation from maps files.
 
 ## 1. In one page
 
@@ -43,14 +46,13 @@ records kept in files or stores.
   never recurses on a peer's choice.
 - **Canonical.** One value has one encoding, and decoding refuses any
   other, so what decodes encodes back to the same bytes.
-- **Versioned.** A schema is one version of a family, and a family has
-  one current version. Generated code reads the current version and
-  refuses another. Wires keep texts and patches for translation between
-  versions (`patches.md`, `bridges.md`). A registered family's version
-  stays where it is: its store names each value's layout and converts
-  it at read through the texts its registry holds (section 5,
-  `layouts.md`). Formats outside the registry are fixed at their
-  versions; a change to one brings its own route for the deployed store.
+- **Versions frozen, layouts by fingerprint** (section 5). A schema is
+  one version of a family, and a family has one current version, its
+  header's, which no change of layout moves. A layout is named by its
+  fingerprint (`fingerprints.md`, section 1). Generated code reads and
+  writes the current text's layout and refuses another version. Formats
+  outside the store's registry are fixed at their versions; a change to
+  one brings its own route for the deployed store.
 - **Defaults and former names in the schema** (section 3): a field may
   give the value an older layout without it takes, and a declaration,
   field or variant the names it had, so that a layout converts to the
@@ -60,14 +62,15 @@ records kept in files or stores.
   generic value, an index over those bytes, with the generated code's
   checks (`run-time.md`, section 2). The generator reads schemas through the same
   parser, so there is one language.
-- **Upgrades by patches, or by plans at read.** A layout's fingerprint
-  (`fingerprints.md`, section 1), a diff of two versions into the kinds of change
-  (`diff.md`), patches over generic values, run at run time without
-  generated code for old versions (`patches.md`), and the command that
-  writes them, whose check a gate calls (`command.md`); for a registered
-  family, a value type's layout fingerprint (`fingerprints.md`, 1.4) and a derived plan from
-  one layout to another, a pass over a value's bytes run as it is read
-  (`layouts.md`).
+- **One conversion, either way: plans.** A value type's layout
+  fingerprint (`fingerprints.md`, 1.4), and a plan derived from two
+  layouts' texts, in Read or Keep mode, with no notion of older or
+  newer: a pass over a value's bytes that gives the other layout's bytes
+  or refuses that value (`layouts.md`). A store runs one on each value
+  it reads at another layout than its binary's, and an engine on each
+  message to or from a worker at another (section 5). No generated code
+  is kept for another layout, and no repository keeps another layout's
+  text.
 
 ## 2. In skein
 
@@ -86,14 +89,14 @@ records kept in files or stores.
   And, as step code, what reads schemas and records at run time:
   - `schema`: the parser and the layout checks (`run-time.md`, section 1);
   - `value`: generic values (`run-time.md`, section 2);
-  - `patch`: patches and the machine that runs them (`patches.md`);
   - `layout`: derived plans from one layout of a value type to another,
-    and their pass over a value's bytes (`layouts.md`);
-  - `bridge`: a wire's reverses, its floor, and the bridge that
-    translates a record between the versions it speaks (`bridges.md`).
-- **`skein-codegen`** is the generator, and the tooling of upgrades: the
-  diff (`diff.md`), the command (`command.md`) and the translation from
-  maps files (`maps.md`). Ordinary Rust, not
+    and their pass over a value's bytes (`layouts.md`).
+
+  And `convert`, the scalar conversions a family's generated translation
+  calls (`maps.md`, 5).
+- **`skein-codegen`** is the generator: the command and an owner's files
+  (`command.md`), and the translation from maps files (`maps.md`).
+  Ordinary Rust, not
   step code. It reads schemas through `skein-codec`'s parser and adds
   the checks only Rust needs (`run-time.md`, section 1). A consumer depends on it in its
   tests and tools only.
@@ -101,13 +104,12 @@ records kept in files or stores.
   `src/generated/<stem>.rs` (section 4), and depends
   on lib and `skein-codec` alone; its dev-dependencies are free,
   `skein-codegen` among them. The family's **owner**, the crate that
-  keeps it, holds the rest: its schemas, kept texts and patches where
-  the family uses them (`command.md`, 1), its generated glue, its drift
-  test (`golden.md`, section 1), and the translation between its records and a
-  domain, with the domain's crates as its dependencies. So the generated
+  keeps it, holds the rest: its schema texts and maps file
+  (`command.md`, 1), its drift test (`golden.md`, section 1), and the
+  translation between its records and a domain, with the domain's crates
+  as its dependencies. So the generated
   code compiles beside the domains rather than after them, and only a
-  change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
-  An owner's patches may name its domain's types, so they stay with it.
+  change of schema recompiles it (temper's `draft/archive/crate-graph.md`, 4.1).
 - **A codec crate is named for its owner,** `<owner>-codec`, in a
   directory beside the owner's that takes the owner's directory name
   with `-codec` (`skein/crates/skein-oauth-codec`,
@@ -185,11 +187,12 @@ enum Form {
 - **A default is the value another layout's records take** for a field
   their layout lacks (`layouts.md`, 2), written after the type:
   `infrastructure: u32 = 0`. An `option` without one defaults to none.
-  Its forms are a patch's values (`patches.md`, 2), each checked against
+  Its forms, each checked against
   the field's type and encoded once, as the text is read (`run-time.md`, 1.3): a
   decimal word for an integer or a duration's nanoseconds, `true` or
-  `false`, `0x` and hex for `fixed` and `bytes`, a quoted text, `[]`,
-  `none` or `some` and a value, a variant without a record by its name.
+  `false`, `0x` and lower-case hex for `fixed` and `bytes`, a quoted
+  text, `[]`, `none` or `some` and a value, a variant without a record
+  by its name.
   A record, a variant with one, a `secret` and a `bytes` that holds a
   record take none: a field of those an older layout lacks is a written
   change (`layouts.md`, 2). A default changes neither the bytes, the
@@ -198,8 +201,8 @@ enum Form {
 - **Former names:** a declaration, a field or a variant may name what it
   was called, `was` and one or more names after its own:
   `record Task was Job {`, `assignee was owner: u32`, `paused was
-  suspended`. A plan between two layouts takes them as renames
-  confirmed (`layouts.md`, 2; `diff.md`, 1), so a text renames a part
+  suspended`. A plan between two layouts matches parts by them
+  (`layouts.md`, 2), so a text renames a part
   and changes another in the same landing with nothing beside it. A
   former name is none of its scope's current names (the declarations',
   a record's fields', an enumeration's variants') and none of its other
@@ -262,12 +265,11 @@ enum Form {
   are a type of this schema, declared before. The words change neither
   the bytes nor the Rust: the generated code reads the field as any
   `bytes N`, and its owner decodes what it holds as before. They let a
-  patch of the held type reach the field wherever it is kept (`patches.md`),
-  and a layout plan convert it with its holder (`layouts.md`, 2). A field
-  of a stored family whose bytes are a record or pieces says so. A
-  `secret N` may say so too, `secret N holds skein-oauth SavedToken`,
+  layout plan convert it with its holder (`layouts.md`, 2). A field
+  of a stored family or a wire whose bytes are a record or pieces says
+  so. A `secret N` may say so too, `secret N holds skein-oauth SavedToken`,
   and stays a secret: never
-  printed, its bytes reaching a patch as a held field's do.
+  printed, its bytes converted by a plan as a held field's are.
 - **A record marked `versioned`** starts with its family's version, a
   `u16`. A reader of bytes kept elsewhere learns from it which code reads
   them.
@@ -298,10 +300,17 @@ For each family:
 - **Its version.** `pub const VERSION: u16`, the schema's version, which
   its versioned records' encoding and decoding name; a hand-written
   constant that restates it is defined by it.
+- **Its layout.** `pub const LAYOUT: [u8; 32]`, the family's fingerprint
+  (`fingerprints.md`, section 1) of the text it was generated from, so that
+  a build names its own layout of the family without parsing its text,
+  and a peer or a kept record is judged by it (jig's
+  `protocol/client/versions.md`, section 1). A hand-written constant that
+  restates it is defined by it.
 - **Its limits by name.** `LIMIT_NAMES: &[&str]`, each limit's field
   name in the struct's order, and `Limits::values(&self)`, their values
-  in the same order, read as a `&[u32]`, so that a kept version's bounds can be
-  computed at run time with these limits (`run-time.md`, 1.3, `most_bytes_within`). A
+  in the same order, read as a `&[u32]`, so that the bounds of a text
+  read at run time, another layout's among them, can be
+  computed with these limits (`run-time.md`, 1.3, `most_bytes_within`). A
   limit's name is the rule's `schema::limit_name` gives (`run-time.md`, 1.3), the one
   the generator names the field by.
 - **Its paths, by name.** A path is a part of a declaration (a
@@ -433,15 +442,10 @@ text uses, is `golden.md`, section 1's.
   skein's codec fixtures outside `src/generated/` (`skein/tests/codec/src/every/`,
   `lints/`, `scalars/`, `secrets/`) hold several versions of one family
   side by side, and keep their versions in their names (`command.md`, 1).
-- **The command:** `skein-codegen <schema>... <out-dir>` reads the
-  schemas' texts, concatenated in the order given with nothing between
-  them, as one schema, and writes its records' module to
-  `<out-dir>/<stem>.rs`, the first schema's stem, making `<out-dir>`
-  where absent, and nothing else. A schema that does not read or parse
-  exits nonzero, saying why on stderr, and writes nothing. Its module
-  is the one the family's drift test writes; the merge job runs it
-  (`temper/docs/design/protocol/tooling.md`, 4.1). `patch` as the first
-  argument is the patch command (`command.md`, 8).
+- **The command** (`command.md`, 8) writes this module to
+  `<out-dir>/<stem>.rs`, the first schema's stem. Its module is the one
+  the family's drift test writes; the merge job runs it
+  (`temper/docs/design/protocol/tooling.md`, 4.1).
 
 ```rust
 pub struct Output {
@@ -454,62 +458,60 @@ pub fn generate(schema: &Schema) -> Output;
 
 ## 5. Versions
 
-- **Three rules:** wires keep versioned texts and patches; registered
-  store families keep their version and convert by layout; formats
-  outside the registry are fixed at their versions. A store below its
-  floor is refused, not walked through patches (jig's
-  `protocol/store/opening.md`, 1.7 and 1.8).
-- **A patched family's baseline is its owner's first kept text,** made
-  by `--baseline` (`command.md`, 1). Before it, no version moves and
-  nothing is translated. The command knows the crate's files, not a
-  deployment or a release.
-- **A wire's family moves with its layout.** A family that crosses
-  between two builds of its owner's (a channel's bodies, what one side
-  writes and the other reads) is marked a wire in its crate
-  (`command.md`, 1). From its baseline, its owner's first `--baseline`
-  run, its version moves whenever its layout does, an old value
-  surviving or not, so that two builds that name one version lay it out
-  alike and a peer can be judged by its version and its fingerprint
-  (`fingerprints.md`, section 1) before anything else crosses (`command.md`, 2, the wire
-  rule).
-- **A patch moves its family's version:** a new schema, whose generated
-  code replaces the old (`command.md`, 2). There is one generated
-  version at a time. This is not the rule for registered families.
-- **A reader reads one version.** It reads a versioned record's version
-  first, with `skein-codec`, and refuses another with the problem
-  *another version*. Its generated code reads the current version only.
-- **A patched family keeps its versions, from the baseline on.** Its
-  owner keeps each version's schema as text, and a kept record
-  of an older version is read as a generic value (`run-time.md`, section 2) and patched
-  to the current version (`patches.md`) before the generated code reads
-  it. A version then names one layout. Until the baseline, nothing is
-  translated. What a channel's sides speak across two builds is agreed
-  at its opening (../../net/channel.md, 5.2), each side judging the
-  other's wires by their versions and fingerprints; translating between
-  them is its owner's.
-- **A registered family's version stays.** A stored family its owner
-  marks registered (`command.md`, 1) is kept by a store that names each
-  value's layout and converts it as it is read (jig's
-  `protocol/store/layouts.md`): its crate keeps no texts or patches for
-  older layouts. A change of its layout is a new layout of each value
-  type it reaches (`fingerprints.md`, 1.4), derived by a plan (`layouts.md`) or converted
-  by its owner's written job. The registry holds the layouts and texts
-  values may still use. Its generated code reads and writes its version
-  at a value's head, as any family's; the store maps that head to and
-  from the value's layout id.
+- **Every family's version is frozen** at its header's: a change of
+  layout is made in the family's current text alone and moves no
+  version, whether it is stored, sent or both (temper's
+  `draft/layouts-both-ways.md`, 3). The store's registered families
+  (jig's `protocol/store/layouts.md`, 1), the worker wires (temper's
+  `protocol/wires.md`, 3.1) and the client wires (jig's
+  `protocol/client/versions.md`, 1) each say their numbers. So two
+  goals that change one family's layout never collide on its version.
+- **A layout is its fingerprint** (`fingerprints.md`, section 1): a
+  family's names a build's layout of it, and a value type's a value's
+  (`fingerprints.md`, 1.4). Two builds whose fingerprints are equal lay
+  the family out alike, and nothing converts between them.
+- **A reader reads one layout,** its current text's, with its generated
+  code; a versioned record's head holds the header's version, which the
+  reader reads first, with `skein-codec`, refusing another with the
+  problem *another version*. A writer writes its current layout only.
+  A value at another layout reaches generated code only once a plan has
+  converted it (`layouts.md`).
+- **The other layout's text travels with the data or with the peer,**
+  never in the repository:
+  - **a store's registry** holds the text of every layout a value is
+    at, its transcripts' frames among them, and converts each value as
+    it is read; its generated code reads and writes the version at a
+    value's head, which the store maps to and from the value's layout id
+    (jig's `protocol/store/layouts.md`);
+  - **a worker** sends its wires' texts at its opening, and the engine
+    converts each message both ways (jig's `protocol/channel/layouts.md`);
+  - **a client** whose layouts differ from the engine's is refused by
+    name at its hello and reloads; nothing converts for it (jig's
+    `protocol/client/versions.md`, 1).
+
+  A crate keeps its families' current texts alone (`command.md`, 1).
+  The one older text kept is `smith-transcript`'s version 7, the
+  store's seed for frames written before its registry, read by the
+  store alone (temper's `protocol/wires.md`, 3.1).
+- **What no plan derives** is its owner's: a store's written job (jig's
+  `protocol/store/jobs.md`, 4), or a wire's written converter (jig's
+  `protocol/channel/layouts.md`, 6). A dropped field keeps a tombstone
+  (section 3). Each is kept only while something dev.fabrig.ai runs is
+  at the layout that needs it (temper's `draft/layouts-both-ways.md`,
+  7.4).
 - **Formats outside the registry are fixed:** the component's own rows
   and the secrets' store. A change designs and brings, in its own
   landing, how the deployed store gets there (temper's
-  `draft/store-floor.md`, section 5). The transcripts' frames register
-  their layouts: a frame at another layout than the binary's is
-  converted as it is read (jig's `protocol/store/transcripts.md`, 6).
-- **A writer writes its current version only.**
-- **On a channel,** the agreed version picks the code for its bodies
-  (../../net/channel.md, section 5.2). Bodies carry no version of their own.
-- **No family keeps golden files** but the `every` fixture (`golden.md`, section 1).
-  A patched family's kept versions are represented by its texts and
-  patch goldens (`command.md`, 3), and a test of an older version builds
-  that version's values from its kept text.
+  `draft/archive/store-floor.md`, section 5). A store below its floor is
+  refused (jig's `protocol/store/opening.md`, 1.7 and 1.8).
+- **On a channel,** the framing's version is agreed at its opening
+  (../../net/channel.md, section 5.2), and the bodies carry no version of
+  their own: their layouts are their owner's to judge and convert, as
+  jig's engine does with a worker's (jig's `protocol/channel/wires.md`,
+  2 and 4).
+- **No family keeps golden files** but the `every` fixture (`golden.md`,
+  section 1). A test of another layout builds that layout's values from
+  its text.
 
 ## 6. Golden bytes and tests
 
@@ -529,47 +531,14 @@ Moved to [`fingerprints.md`](fingerprints.md), section 1.
 
 ## 10. Open questions
 
-- **Shrinking:** a patcher keeps the largest allocation it reached, so
-  one large record keeps it at that size until the patcher goes.
-
-- **Upstreams' levels:** the command writes a patch's `after` as its
-  author gives it (`command.md`, 3); it does not discover upstreams'
-  levels for the author.
-- **Proposals to a fixpoint:** the command runs the diff in rounds to
-  propose renames a level of references down (`command.md`, 2); the diff itself
-  could take candidate pairs as matched until none fails, and propose
-  them all in one pass.
-- **A rename to its own name:** a plan refuses `rename D D` (`Mismatch`,
-  `patches.md`, 3), and the diff takes it, pairing the two and writing no line
-  (`diff.md`, 1). Default: each stays as it is, since the diff never spells that
-  line.
 - **A piece's whole loop:** `piece::split_within` (3) holds the split, the
   charge and the bound; each owner loops and decodes each item. Whether a
   helper over `Record` should own that loop and report both framing failures
   and the item's `Problem` remains open.
-- **Pieces whose items stop:** pieces whose items' conversion reaches a
-  site or a held field, or an identity plan whose pieces reach a held
-  field, are refused when planned (`patches.md`, 3); pieces whose items
-  convert without stopping are opened by the walk (`patches.md`, 4).
-  Stopping inside a piece would lift it: the stop's `at` a node of the
-  decoded piece, the piece's length written once its value is whole.
-- **Carried parts that stop:** a written function's `carry` converts in
-  place, so a part with a site or a held field in reach is refused
-  (`patches.md`, 5). Drafts would lift it behind the same calls: the function
-  writes into a draft, a stack of them in one arena, and a carried
-  part is a slot the machine fills as it emits the draft, stopping at
-  each site and held field in its turn.
-- **Richer builders:** carrying a record's fields up to one, or to its
-  end, should written functions that build records by hand be common.
-- **Richer values:** a record's value, or a list's with items, in a
-  patch's text, should authors write the same function often (`patches.md`, 2).
-- **A held type renamed in its own family** is a `retype` in its
-  holder's diff, written: the holder's diff reads its own family's two
-  texts alone, so it cannot see the held family's renames. A caller
-  could give the diff those renames.
-- **Composing patches:** a record k versions behind is patched in k
-  passes; plans may compose later, behind the same interface, and so
-  remove the box each pass after the first allocates (`patches.md`, 7).
+- **A held type renamed in its own family** has no plan in its holder:
+  the holder's `holds` clause is compared as it is spelled
+  (`layouts.md`, 2), not through the held family's former names. A plan
+  could match it through the held texts it is given.
 - **Maps and sets:** sorted lists whose keys are checked unique, when a
   record needs one.
 - **Smaller integers:** variable-width encodings, if a payload shows that

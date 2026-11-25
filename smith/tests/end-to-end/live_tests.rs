@@ -1,4 +1,4 @@
-//! Offline product check of live configuration (smith/docs/design/testing.md, 2.3).
+//! Offline product check of live configuration (smith/docs/design/testing-tiers.md, 3).
 use smith_real_world::Scratch;
 use std::path::{Path, PathBuf};
 

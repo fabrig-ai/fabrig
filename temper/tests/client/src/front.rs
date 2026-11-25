@@ -1794,6 +1794,7 @@ impl Joint {
                 event: jig_client::Event::Up {
                     up: jig_client::Up::FamilyServed {
                         family: fixtures::FORGE,
+                        served: true,
                         versions: Some(jig_client::contract::VersionRange {
                             first: temper_client_protocol_wire::CLIENT_VERSION,
                             last: temper_client_protocol_wire::CLIENT_VERSION,

@@ -465,7 +465,7 @@ Moved to [`isolation.md`](isolation.md), section 1.
   reproduced in the lowest tier that shows it (skein/docs/foundation/testing-strategy.md,
   section 9) and fixed there with that test; the probe stays as evidence
   of the effect. Benchmarks never stand in for a world's story.
-- **To the live tier** (../testing.md, section 2.3). The live tier checks
+- **To the live tier** (../testing-tiers.md, section 3). The live tier checks
   once, by outcome, that each wire, issuer refresh and push is right.
   Benchmarks repeat, measure and compare. Both read smith through
   `smith-events`, take logins of their own, signed in once, under one

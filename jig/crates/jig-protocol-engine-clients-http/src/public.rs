@@ -7,7 +7,7 @@ use skein_lib::{Decimal, List, Time, Writer, bytes};
 #[must_use]
 pub fn public_path(path: &[u8]) -> Option<kit::PublicRead> {
     let path = path.strip_prefix(b"/v1/public/")?;
-    let mut read = kit::PublicRead { owner: 0, version: 0, kind: 0, ids: Box::new([]) };
+    let mut read = kit::PublicRead { owner: 0, layout: None, kind: 0, ids: Box::new([]) };
     let mut ids = List::with_capacity(2);
     let mut field = 0_u32;
     let mut start = 0;
@@ -18,7 +18,14 @@ pub fn public_path(path: &[u8]) -> Option<kit::PublicRead> {
         let segment = path.get(start..end)?;
         match field {
             0 => read.owner = decimal(segment)?,
-            1 => read.version = decimal(segment)?,
+            1 => {
+                if segment.len() == 64 {
+                    read.layout = Some(layout(segment)?);
+                } else {
+                    // A canonical decimal u16 version names no layout.
+                    decimal(segment)?;
+                }
+            }
             2 => read.kind = decimal(segment)?,
             _ => {
                 if segment.len() != 16 {
@@ -26,12 +33,7 @@ pub fn public_path(path: &[u8]) -> Option<kit::PublicRead> {
                 }
                 let mut id = 0_u64;
                 for byte in segment {
-                    let digit = match byte {
-                        b'0'..=b'9' => byte.checked_sub(b'0')?,
-                        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10)?,
-                        _ => return None,
-                    };
-                    id = id.checked_mul(16)?.checked_add(u64::from(digit))?;
+                    id = id.checked_mul(16)?.checked_add(u64::from(nibble(*byte)?))?;
                 }
                 ids.push(id).ok()?;
             }
@@ -44,6 +46,21 @@ pub fn public_path(path: &[u8]) -> Option<kit::PublicRead> {
     }
     read.ids = ids.into_boxed();
     Some(read)
+}
+
+fn layout(segment: &[u8]) -> Option<[u8; 32]> {
+    let mut layout = [0; 32];
+    for (byte, [hi, lo]) in layout.iter_mut().zip(segment.as_chunks::<2>().0) {
+        *byte = (nibble(*hi)? << 4_u32) | nibble(*lo)?;
+    }
+    Some(layout)
+}
+
+fn nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' | b'a'..=b'f' => bytes::hex_value(byte),
+        _ => None,
+    }
 }
 
 fn decimal(segment: &[u8]) -> Option<u16> {

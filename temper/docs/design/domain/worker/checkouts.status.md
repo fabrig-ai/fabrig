@@ -28,37 +28,8 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
-- **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
-  asks the engine nothing and answers its checkout not landed [in
-  flight: change 6018].
-- **Not yet:** the whole document: a missing base branch fails the
-  preparation; the checkout creates it from the default branch for a
-  repository that may be written
-  (`temper-worker-domain-checkout/src/hold.rs`, `PrepareStep::Create`).
 - **Not yet:** the whole document and `README.md`, 8: git's invocations in contained process trees;
   `temper-worker-protocol-git` runs them as plain child processes.
-- **Not yet:** the whole document: a base with heads merged in has no real run on record: `temper-fake-git`
-  holds a two-head start's commands and the `merge-in-progress` transcript git's
-  refusal of a second merge, and the request `parallel-faults` of 2026-11-06 has
-  its proof in a rerun of its replay, which no record shows. It asks whether this
-  is the fault of the early start in the request `landing-fixes` of 2026-11-06,
-  item 3, an uncommitted merge at `7913a87678`. Both deployments ran before
-  `f6b4c408a7` had each merge it commits checked out, so it may be, by reading
-  alone: neither was reproduced on a real run, and `landing-fixes` has its proof in
-  the next landing plan on a real deployment, which no record shows either.
-- **Not yet:** *A merge in progress*: a producer's start that finds its base contained stands
-  on `temper-fake-git` alone (`a_resumed_producer_holding_the_tip_pushes_no_merge`,
-  `temper/tests/worker/checkout/tests/fakes/merges.rs`), with that same proof.
-- **Not yet:** the whole document and `README.md`, 9: a parked producer's delivered and saved edits survive a moved landing
-  tip, repeated questions and a save refused for markers in the composed system
-  world's two `parked` stories. Those use fake git and a fake disk, and their
-  first committed edit is a delivery, not a run's own `git commit`. The
-  `resume-told` request asks for proof in a real checkout; none is on record,
-  nor its next deployment replay. The clean-merge preparation and the conflict
-  advice, including the help page and stock charters, have scripted coverage
-  alone; whether real producers and their answerers now read the tree rightly
-  awaits that replay, as the request's `walk = false` leaves it.
-
 - **Departs:** the whole document and `README.md`, 8: with `TEMPER_INTERNAL_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,
@@ -109,4 +80,3 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   says; what a command writes in the worker's directory, a filter driver or a URL
   rewrite, they do not (`../../protocol/git-later.md`, 1). That is acceptable only for one
   trusted person.
-

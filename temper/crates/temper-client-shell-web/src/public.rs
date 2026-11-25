@@ -54,7 +54,7 @@ impl PublicHost {
             .expect("public words fit");
         Self {
             reader: Reader::new(&PublicLimits {
-                jig: jig_client_protocol_wire::public_v2::CEILINGS,
+                jig: jig_client_protocol_wire::public_v1::CEILINGS,
                 forge: temper_client_protocol_wire::public_v1::CEILINGS,
             }),
             view: PublicView::new(&bounds, words, ways),
@@ -120,7 +120,7 @@ impl PublicHost {
                 id: self.next,
                 call: http::public(
                     &self.mapping,
-                    &http::PublicPath { owner: read.owner, version: read.version, kind: read.kind, ids },
+                    &http::PublicPath { owner: read.owner, layout: read.layout, kind: read.kind, ids },
                 ),
                 bound: limits::BODY_BYTES,
                 pieces: None,
@@ -189,7 +189,7 @@ impl PublicHost {
     }
 }
 fn bounds() -> skein_ui::Limits {
-    let jig = jig_client_protocol_wire::public_v2::CEILINGS;
+    let jig = jig_client_protocol_wire::public_v1::CEILINGS;
     // Every live and ended goal can carry its own maximum tree. A line draws
     // at most sixteen nodes and 1024 bytes; queue and landing rows fit that
     // allowance too. Projects and forge rows add at most 16384 rows.

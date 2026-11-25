@@ -1,5 +1,5 @@
 //! An abandoned answer refunds its reservation (jig/docs/design/protocol/client/public-reads.md).
-use super::{checks::PROXY, proxy::Proxy, service_checks, visitor::Visitor};
+use super::{checks::PROXY, forge_target, proxy::Proxy, service_checks, visitor::Visitor};
 use crate::fixtures;
 use skein_http::Method;
 use skein_lib::Time;
@@ -21,7 +21,7 @@ impl Walk {
             return Ok(false);
         }
         self.wake = None;
-        let path = format!("/jig/v1/public/2/4/2/{project:016x}");
+        let path = forge_target(&format!("2/{project:016x}"));
         match self.stage {
             0 => {
                 // Each landings read reserves 198,733 bytes, two within the 512 KiB burst.

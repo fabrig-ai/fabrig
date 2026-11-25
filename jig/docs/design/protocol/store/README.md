@@ -145,7 +145,7 @@ skein-io                        files: the ring, or the simulator's disk
   (`manifest.skein-<16 hex>`), is a first start a cut stopped before `active`
   named it (the stores' first open, which makes their files,
   comes after `active`): it is removed, with any temporary io's durable replace
-  left beside `active` (`active.skein-<16 hex>`; skein's `runtime/io/files.md`, 2).
+  left beside `active` (`active.skein-<16 hex>`; skein's `runtime/io/files.md`, 10).
   A `generations/` that holds anything else, with no `active`, is
   refused, `Generations::Unnamed`, and left as it is: a generation
   whose `active` was lost, which the operator names again from a

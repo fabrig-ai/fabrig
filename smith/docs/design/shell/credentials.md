@@ -77,7 +77,7 @@ whatever its source (../domain/host.md, section 7).
   settings, hooks and plugins for a program never load into a run
   (../protocol/programs.md, 4.2).
 - **Each file private,** read and written as skein's private files are,
-  each replaced whole by durable replace (skein's `runtime/io/files.md`, 2 and 3).
+  each replaced whole by durable replace (skein's `runtime/io/files.md`, 10 and 11).
   The programs directory is private; `smith login` makes each
   configuration directory in it, private, and only the program writes
   there.
@@ -160,5 +160,5 @@ whether the settings are admitted.
 - **Refresh tokens are never copied.** An issuer rotates them, and a
   copied one is spent by whichever copy refreshes first. Live tests and
   benchmarks sign in smith's own accounts once, in a credentials
-  directory of their own (../testing.md, section 2.3; ../benchmarks/agents.md,
+  directory of their own (../testing-tiers.md, section 3; ../benchmarks/agents.md,
   section 1), and never copy a login.

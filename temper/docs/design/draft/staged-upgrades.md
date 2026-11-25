@@ -1,6 +1,6 @@
 # staged-upgrades: dev.fabrig.ai moves to a new temper through staging.fabrig.ai, its store kept
 
-Draft, 2026-11-11. How temper's own two deployments take a new build while dev.fabrig.ai keeps its store: dev.fabrig.ai, where temper's development runs (`first-release.md`, section 5), and staging.fabrig.ai, a deployment of its own for checks before production. The mechanism is `upgrades.md`'s, bounded by the floor (`store-floor.md`, section 3). This draft says how each upgrade is proved before it reaches dev.fabrig.ai and how every later one runs. It comes from a session with the user on 2026-11-11, who asked for staging at dev.fabrig.ai's build to test the path.
+Draft, 2026-11-11. How temper's own two deployments take a new build while dev.fabrig.ai keeps its store: dev.fabrig.ai, where temper's development runs (`first-release.md`, section 5), and staging.fabrig.ai, a deployment of its own for checks before production. The mechanism is `upgrades.md`'s, bounded by the floor (`archive/store-floor.md`, section 3). This draft says how each upgrade is proved before it reaches dev.fabrig.ai and how every later one runs. It comes from a session with the user on 2026-11-11, who asked for staging at dev.fabrig.ai's build to test the path.
 
 ## 1. In one page
 
@@ -14,16 +14,16 @@ Draft, 2026-11-11. How temper's own two deployments take a new build while dev.f
 
 ## 2. Where the two deployments stand
 
-- **dev.fabrig.ai's store is settled at the floor:** store-floor's F0 brings every registered value to its build's layout, retires the other layouts and writes the floor (`store-floor.md`, sections 2 and 3, with its status's departures). The build opens that store and newer ones, not a chain of older stores.
+- **dev.fabrig.ai's store is settled at the floor:** store-floor's F0 brings every registered value to its build's layout, retires the other layouts and writes the floor (`archive/store-floor.md`, sections 2 and 3, with its status's departures). The build opens that store and newer ones, not a chain of older stores.
 - **An older store is refused by name.** A missing or lower floor, a store behind the binary's levels or values without a registry name bridge build `3d1c717d379e` to open through first. Forms that the bridge also refuses are named without that promise (jig's `protocol/store/opening.md`, 1.8). Nothing upgrades the refused store.
-- **What else it carries across:** the configuration (`upgrades.md`, section 10), the forge's setup and its Forgejo's pins (`upgrades.md`, section 11), smith's turns, so agents resume (`upgrades.md`, 7.2), and temper's secrets at their current version. A change of a format outside the registry brings how dev's store gets there in its landing (`store-floor.md`, 5).
+- **What else it carries across:** the configuration (`upgrades.md`, section 10), the forge's setup and its Forgejo's pins (`upgrades.md`, section 11), smith's turns, so agents resume (`upgrades.md`, 7.2), and temper's secrets at their current version. A change of a format outside the registry brings how dev's store gets there in its landing (`archive/store-floor.md`, 5).
 - **staging.fabrig.ai is made again at dev.fabrig.ai's build for each drill** (section 6). It is not an older deployment to keep upgrading through floors.
 
 ## 3. Registry changes and jobs
 
 - **Derived changes** use the store's texts: an added field takes its default (`= value`), and a renamed declaration or field names its former name (`was`). The registered family's version and the owner's level stay. The open registers the binary's layout and derives plans; values convert as read, not by a catch-up walk (jig's `protocol/store/layouts.md`, 4 and 5).
 - **A change no plan derives** brings its owner's written job, as do changes of keys or meaning (`upgrades.md`, 4.3; jig's `protocol/store/jobs.md`, 4). A written conversion reads its values as stored, by the texts the registry holds, and puts them at the binary's layout, in the copy before the switch. Each job's done row keeps it from running twice.
-- **After dev.fabrig.ai runs a job,** a small landing removes its code. Its name stays used and its done row stays inert (`store-floor.md`, section 6). No store patch, old registered text or old generated codec is kept for an older deployment.
+- **After dev.fabrig.ai runs a job,** a small landing removes its code. Its name stays used and its done row stays inert (`archive/store-floor.md`, section 6). No store patch, old registered text or old generated codec is kept for an older deployment.
 - **Every landing passes the gate** (`upgrades.md`, section 12): defaults, former names or jobs for registered families; the wires keep their patches and bridges, and formats outside the registry stay fixed at their versions.
 
 ## 4. dev.fabrig.ai holds at its build
@@ -40,7 +40,7 @@ Draft, 2026-11-11. How temper's own two deployments take a new build while dev.f
 
 ## 6. The drill on staging.fabrig.ai
 
-- **Made again at dev.fabrig.ai's build for each drill,** on a fresh store, with its own sign-ins (`store-floor.md`, section 6). No staging store is kept through a floor move.
+- **Made again at dev.fabrig.ai's build for each drill,** on a fresh store, with its own sign-ins (`archive/store-floor.md`, section 6). No staging store is kept through a floor move.
 - **A workload of its own,** given before the drill and kept: a scratch repository on git.fabrig.ai under staging's own deployment id, one worker, one LLM account on the cheapest stock model, a goal through a landing, a chat that replied and waits, and a coding task mid-run. The user agreed to its worker and account on 2026-11-11.
 - **Never dev.fabrig.ai's store:** a copy carries dev.fabrig.ai's deployment id, so its branches and markers on the forge, and its secrets; started, it would act as dev.fabrig.ai. dev.fabrig.ai's data goes only to the rehearsal (section 5).
 - **The drill,** one script, run once per new build:
@@ -54,16 +54,16 @@ Draft, 2026-11-11. How temper's own two deployments take a new build while dev.f
 
 1. The rehearsal (section 5) and the drill (section 6) pass on the build to deploy.
 2. A backup, taken with the engine stopped.
-3. The settled stop, the new build swapped in for the engine, and the start, which registers the layouts and runs the jobs as the rehearsal did. The workers stay or follow as `redeploys.md`, section 7 says.
+3. The settled stop, the new build swapped in for the engine, and the start, which registers the layouts and runs the jobs as the rehearsal did. The workers stay or follow as `archive/redeploys.md`, section 7 says.
 4. The referee's checks that need no workload of their own: ids, sign-ins, accounts, projects, the start's job lines and counts, goals going on.
 5. **Going back:** before the new generation's first commit, `temper upgrade --back` and the previous build; after it, the backup restored with the previous build, as staging rehearsed (`upgrades.md`, 3.2).
 
 ## 8. Every later upgrade
 
 - **Staging runs one step ahead:** dev.fabrig.ai's build until a new build is chosen, then that build through the drill, then dev.fabrig.ai follows.
-- **dev.fabrig.ai's store is kept; staging is made again for each drill.** It starts at dev's build, never below the floor (`store-floor.md`, section 6). A drill keeps its workload through the candidate's upgrade and its restore, not through later drills.
+- **dev.fabrig.ai's store is kept; staging is made again for each drill.** It starts at dev's build, never below the floor (`archive/store-floor.md`, section 6). A drill keeps its workload through the candidate's upgrade and its restore, not through later drills.
 - **Each build to deploy** is rehearsed on a fresh backup of dev.fabrig.ai (section 5), then drilled (section 6).
-- **After dev runs the jobs,** their code goes in a small landing. Dropping a whole older form moves the floor and its named bridge together (`store-floor.md`, section 6); another store left behind goes through that bridge or starts afresh, by the operator's choice.
+- **After dev runs the jobs,** their code goes in a small landing. Dropping a whole older form moves the floor and its named bridge together (`archive/store-floor.md`, section 6); another store left behind goes through that bridge or starts afresh, by the operator's choice.
 
 ## 9. Who carries what
 

@@ -1,4 +1,6 @@
 //! Harness parsers, configuration naming and embedded bundle values.
+mod bootstrap;
+
 use crate::support;
 use std::{fmt::Write, path::Path};
 use support::bundle_fixture::{BUNDLE_BYTES, BUNDLE_COUNT, BUNDLE_FILES, BUNDLE_LIMITS, PAGE, PATH_STEM_BOUND};
@@ -352,6 +354,35 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
         Ok(Some(profile.agents)),
     );
     assert!(result.is_ok(), "B0's real configuration admits before any live account: {:?}", result.err());
+}
+
+#[test]
+fn rung_b0s_donor_store_opens_with_its_agent_figures() {
+    use temper_service::startup;
+    use temper_service_core::derived::Sources;
+
+    let paths = ["config", "data", "cache"].map(|name| Path::new("/fixture/rung-b0-donor").join(name));
+    let profile = support::forge_land::rung::deployment_profile(&paths);
+    let directories = temper_service_shell::jig_directories(&profile.directories);
+    let given = temper_service::stock::Given::Stock;
+    let agents = temper_box_shell::testing::serve::agents_setting_over(Ok(Some(profile.agents)), &mut Vec::new())
+        .expect("donor's agent figures");
+    let part = startup::box_worker(&profile.document, &directories, &given, &agents, 4, &[])
+        .expect("donor's worker is configured before reading settings")
+        .expect("local worker");
+    let bytes = temper_worker_shell::agent::figures::configuration(
+        part.figures.as_ref().expect("worker's composed figures"),
+        None,
+        &paths[1],
+        &part.environment,
+    )
+    .expect("donor's agent configuration");
+    let agent = support::prepare_agent(bytes).agent.declaration();
+    startup::box_worker_with_agent(&profile.document, &directories, &given, &agents, 4, &[], &agent)
+        .unwrap_or_else(|why| panic!("donor's agent admission: {}", problems_text(&why)))
+        .expect("local worker");
+    temper_engine_service::startup::deployment_store(None, Sources::agent(&agent))
+        .unwrap_or_else(|why| panic!("donor's store admission: {}", problems_text(&why)));
 }
 
 #[test]
@@ -831,25 +862,12 @@ fn the_live_github_configuration_passes_startup_admission() {
     use temper_playground::documents::Configuration;
     use temper_worker_service::{figures, startup};
 
-    let root = Path::new("/fixture/live-github");
-    let templates = skein_scratch::paths::package().join("tests/fixtures/github");
-    let api = "127.0.0.1:31001".parse().expect("synthetic API address");
-    let git = "127.0.0.1:31002".parse().expect("synthetic git address");
-    let workers = "127.0.0.1:31003".parse().expect("synthetic worker address");
-    let mut cluster = support::cluster::Cluster::description_from(root, &templates);
-    for (name, value) in [
-        ("proc.forge.ready.address", "127.0.0.1:31002"),
-        ("proc.llm.ready.address", "127.0.0.1:31004"),
-        ("proc.engine.ready.workers", "127.0.0.1:31003"),
-        ("story.clients", "127.0.0.1:31005"),
-    ] {
-        cluster.bind(name, value);
-    }
+    let cluster = live_github_cluster(Path::new("/fixture/live-github"));
     let rendered = cluster.render_files("engine");
     let mut engine = Configuration::from_jig(
         serde_json::from_slice(&rendered.start.expect("engine start").document).expect("engine JSON"),
     );
-    support::live_github::configure_engine(&mut engine, "fabrig-ai", api, git, workers);
+    configure_live_github(&mut engine);
     let providers = rendered
         .files
         .iter()
@@ -888,6 +906,27 @@ fn the_live_github_configuration_passes_startup_admission() {
     let service = startup::worker::worker_alone(part, &files, &agent, support::admission::worker_runtime(), 7)
         .expect("live GitHub w1 admission");
     assert!(service.operations() > 0);
+}
+
+fn live_github_cluster(root: &Path) -> support::cluster::Cluster {
+    let templates = skein_scratch::paths::package().join("tests/fixtures/github");
+    let mut cluster = support::cluster::Cluster::description_from(root, &templates);
+    for (name, value) in [
+        ("proc.forge.ready.address", "127.0.0.1:31002"),
+        ("proc.llm.ready.address", "127.0.0.1:31004"),
+        ("proc.engine.ready.workers", "127.0.0.1:31003"),
+        ("story.clients", "127.0.0.1:31005"),
+    ] {
+        cluster.bind(name, value);
+    }
+    cluster
+}
+
+fn configure_live_github(engine: &mut temper_playground::documents::Configuration) {
+    let api = "127.0.0.1:31001".parse().expect("synthetic API address");
+    let git = "127.0.0.1:31002".parse().expect("synthetic git address");
+    let workers = "127.0.0.1:31003".parse().expect("synthetic worker address");
+    support::live_github::configure_engine(engine, "fabrig-ai", api, git, workers);
 }
 
 fn rendered_files(
