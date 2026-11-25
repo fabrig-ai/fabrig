@@ -114,7 +114,8 @@ fn drain_run(stand: &mut fixtures::WorkerStand, peer: &mut AgentPeer) {
 fn close_agent(worker: &mut Worker, agent: Token) {
     for _ in 0..worker.io().len() {
         let request = worker.io().pop().unwrap();
-        if let io::Request::Close { entity } | io::Request::Abort { entity } = request
+        if let io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } | io::Request::Abort { entity } =
+            request
             && [AGENT_CHILD, AGENT_INPUT, AGENT_OUTPUT, AGENT_ERROR].contains(&entity)
         {
             let owner = if entity == AGENT_CHILD {
@@ -238,7 +239,9 @@ fn the_stop_bound_aborts_a_save_push_that_never_answers_and_ends_the_worker() {
                 } if child == Token::new(901) => {
                     killed = true;
                 }
-                io::Request::Abort { entity } | io::Request::Close { entity }
+                io::Request::Abort { entity }
+                | io::Request::Close { entity }
+                | io::Request::CloseAfterFlush { entity }
                     if [Token::new(901), Token::new(902), Token::new(903)].contains(&entity) =>
                 {
                     if entity == Token::new(901) {
@@ -247,7 +250,7 @@ fn the_stop_bound_aborts_a_save_push_that_never_answers_and_ends_the_worker() {
                         stand.worker.up(at, io::Event::Closed { owner: entity });
                     }
                 }
-                io::Request::Close { .. } | io::Request::Abort { .. } => {
+                io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
                     stand.worker.up(at, io::Event::Closed { owner: link.owner });
                 }
                 io::Request::Stream { stream, .. } | io::Request::Output { stream, .. }

@@ -74,13 +74,14 @@ fn closing_the_server_closes_its_listener_then_its_connections() {
     while out.pop().is_some() {}
     server.close(&mut out);
     f::server_drain(&mut server, &mut out);
-    let mut closed = List::with_capacity(2);
-    for _ in 0..out.len() {
-        if let Some(Routed::Io(skein_io::Request::Close { entity })) = out.pop() {
-            closed.push(entity).expect("listener and socket");
-        }
-    }
-    assert_eq!(closed.as_slice(), [LISTENER, SOCKET]);
+    let Some(Routed::Io(skein_io::Request::Close { entity: listener })) = out.pop() else {
+        panic!("listener closes first")
+    };
+    let Some(Routed::Io(skein_io::Request::CloseAfterFlush { entity: socket })) = out.pop() else {
+        panic!("idle socket closes without a peer wait")
+    };
+    assert_eq!((listener, socket), (LISTENER, SOCKET));
+    assert!(out.is_empty());
 }
 #[test]
 fn a_close_waits_for_its_listener_to_open() {
@@ -111,7 +112,7 @@ fn abort_upgrades_sockets_waiting_for_their_graceful_close() {
     assert!(!server.closed(), "io has not settled its closes");
     let mut closes = 0_u32;
     for _ in 0..out.len() {
-        if let Some(Routed::Io(skein_io::Request::Close { entity })) = out.pop()
+        if let Some(Routed::Io(skein_io::Request::CloseAfterFlush { entity })) = out.pop()
             && entity == SOCKET
         {
             closes += 1;

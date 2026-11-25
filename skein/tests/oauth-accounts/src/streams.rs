@@ -136,7 +136,9 @@ pub(crate) fn drive(seed: u64, mut client: Client, mut rig: Rig) -> (Client, Tra
                     }
                     client_wire.take(down);
                 }
-                request @ (io::Request::Close { entity } | io::Request::Abort { entity }) => {
+                request @ (io::Request::Close { entity }
+                | io::Request::CloseAfterFlush { entity }
+                | io::Request::Abort { entity }) => {
                     if matches!(request, io::Request::Abort { .. }) {
                         close.aborted = Some(now);
                     }

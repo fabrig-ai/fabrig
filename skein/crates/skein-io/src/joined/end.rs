@@ -1,6 +1,6 @@
 //! One joined end: demand delivery, bounded moves, half-close and drain.
 use super::{End, EndState};
-use crate::layer::{Entity, Io, Tables, Timer};
+use crate::layer::{Close, Entity, Io, Tables, Timer};
 use crate::output::Reservation;
 use crate::stream::{self, Demand, Reader};
 use crate::{Event, Limits};
@@ -18,10 +18,11 @@ pub(super) struct Open {
     classic_grant: bool,
     independent: Reservation,
 }
-/// The peer's moves are discarded until its end, while this output flushes.
+/// While this output flushes, a draining close discards the peer's moves until its end.
 #[derive(Debug)]
 pub(super) struct Closing {
     flow: Flow,
+    drain: bool,
     wake_drain: bool,
 }
 /// The ordered output and the peer's half-close, held by either active state.
@@ -104,7 +105,7 @@ pub(crate) fn request(current: &mut End, id: Id<Entity>, down: Down, limits: &Li
     tables.ready.mark(id);
 }
 
-pub(crate) fn close(current: &mut End, id: Id<Entity>, abort: bool, env: &Env<Limits>, tables: &mut Tables) {
+pub(crate) fn close(current: &mut End, id: Id<Entity>, how: Close, env: &Env<Limits>, tables: &mut Tables) {
     if current.is_closed() {
         return;
     }
@@ -134,11 +135,12 @@ pub(crate) fn close(current: &mut End, id: Id<Entity>, abort: bool, env: &Env<Li
         | EndState::Closed => {}
     }
     current.state = match mem::replace(&mut current.state, EndState::Closed) {
-        EndState::Open(mut open) if !abort => {
+        EndState::Open(mut open) if how != Close::Abort => {
             open.flow.finishing = true;
-            EndState::Closing(Closing { flow: open.flow, wake_drain: true })
+            let drain = how == Close::Drain;
+            EndState::Closing(Closing { flow: open.flow, drain, wake_drain: drain })
         }
-        EndState::Closing(closing) if !abort => EndState::Closing(closing),
+        EndState::Closing(closing) if how != Close::Abort => EndState::Closing(closing),
         EndState::Established { open, .. } | EndState::Open(open) => {
             EndState::Terminating { waiting: None, error: None, peer: Some(open.flow.peer) }
         }
@@ -155,8 +157,8 @@ pub(crate) fn close(current: &mut End, id: Id<Entity>, abort: bool, env: &Env<Li
         state @ (EndState::Terminating { .. } | EndState::Closed) => state,
     };
     match current.state {
-        EndState::Closing(_) => {
-            if !was_closing {
+        EndState::Closing(ref closing) => {
+            if !was_closing && closing.drain {
                 tables
                     .deadlines
                     .arm((id, Timer::Close), env.now.saturating_add(env.limits.close_timeout))
@@ -287,7 +289,7 @@ pub(super) fn resume_closing(
         Reader::Full => false,
         Reader::Receiving(_) | Reader::Stalled => unreachable!("joined readers have no kernel operations"),
     };
-    if !live || (closing.flow.shut && drained) {
+    if !live || (closing.flow.shut && (!closing.drain || drained)) {
         up.push(Event::Closed { owner });
         EndState::Closed
     } else {
@@ -313,8 +315,8 @@ fn advance(io: &mut Io, id: Id<Entity>, flow: &mut Flow) -> bool {
                         .expect("move within intake room");
                     n
                 }
-                EndState::Closing(_) => u32::try_from(left.len()).expect("bounded Send"),
-                EndState::Announced { .. } => 0,
+                EndState::Closing(peer) if peer.drain => u32::try_from(left.len()).expect("bounded Send"),
+                EndState::Closing(_) | EndState::Announced { .. } => 0,
                 EndState::Broken { .. } | EndState::Terminating { .. } | EndState::Closed => {
                     return false;
                 }

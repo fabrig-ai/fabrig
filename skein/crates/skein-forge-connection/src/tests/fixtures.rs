@@ -218,6 +218,7 @@ impl ConnectionHarness {
                     | skein_io::Request::Usage { .. }
                     | skein_io::Request::Window { .. }
                     | skein_io::Request::Close { .. }
+                    | skein_io::Request::CloseAfterFlush { .. }
                     | skein_io::Request::Abort { .. } => unreachable!("one connection emits stream requests"),
                 }
             }
@@ -290,6 +291,7 @@ impl ConnectionHarness {
                 | skein_io::Request::Usage { .. }
                 | skein_io::Request::Window { .. }
                 | skein_io::Request::Close { .. }
+                | skein_io::Request::CloseAfterFlush { .. }
                 | skein_io::Request::Abort { .. } => unreachable!("one connection emits stream requests"),
             }
         }
@@ -467,7 +469,7 @@ impl HookHarness {
                         }
                         self.wire.take(down);
                     }
-                    skein_io::Request::Close { .. } => self.closed = true,
+                    skein_io::Request::Close { .. } | skein_io::Request::CloseAfterFlush { .. } => self.closed = true,
                     skein_io::Request::Listen { .. }
                     | skein_io::Request::Connect { .. }
                     | skein_io::Request::Bind { .. }

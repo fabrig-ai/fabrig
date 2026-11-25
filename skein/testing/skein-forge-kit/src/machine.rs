@@ -730,7 +730,7 @@ impl Machine {
                 self.aborts += 1;
                 self.end(entity);
             }
-            skein_io::Request::Close { entity } => self.end(entity),
+            skein_io::Request::Close { entity } | skein_io::Request::CloseAfterFlush { entity } => self.end(entity),
             other @ (skein_io::Request::Listen { .. }
             | skein_io::Request::Bind { .. }
             | skein_io::Request::Reject { .. }
