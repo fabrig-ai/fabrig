@@ -68,7 +68,7 @@ impl Scripted {
         let mut more = 0_u32;
         for (index, (role, name)) in self.shown(page).iter().flat_map(|shown| shown.nodes.iter().enumerate()) {
             let matches = match query.matching {
-                Match::Exact => *name == query.name,
+                Match::Exact | Match::ParagraphText => *name == query.name,
                 Match::Words => {
                     query.name.is_empty() || name.windows(query.name.len()).any(|words| words == query.name.as_ref())
                 }
