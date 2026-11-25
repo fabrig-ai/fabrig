@@ -100,7 +100,10 @@ fn an_accounts_watch_delivers_the_partys_completed_sign_in() {
     assert!(initial.settled);
     story.send(FIRST, ask());
     let (source, _) = started(&answered(&mut story, FIRST));
-    assert!(story.run_until(|s| accounts(s).is_some_and(|d| d.settled && d.last_end.is_some()), WAIT));
+    assert!(story.run_until(|s| accounts(s).is_some_and(|d| d.last_end.is_some()), WAIT));
+    let awaiting = accounts(&story).expect("made sign-in accounts");
+    assert!(awaiting.signing.is_empty());
+    assert!(!awaiting.settled, "the made source still awaits its grant");
     story.grant_account_sign_in(source);
     assert!(story.run_until(
         |s| accounts(s).is_some_and(|d| d.usable
