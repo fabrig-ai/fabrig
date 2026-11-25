@@ -19,7 +19,6 @@ import tomllib
 import xml.etree.ElementTree as ET
 
 
-PLANNER = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
 TIERS = Path(__file__).resolve().parents[1] / 'tiers'
 # Read-only mount supplied by the worker, outside the candidate workspace.
 WORKER_COUNTS = Path('/policy-counts.json')
@@ -30,6 +29,10 @@ CLOSE_MARGIN = 0.03
 # Main's published counts, fetched at close when the checkout lacks refs/temper/counts.
 PUBLIC_SOURCE = 'https://git.fabrig.ai/fabrig-ai/fabrig.git'
 PUBLIC_PROTOCOLS = 'https'
+
+
+def planner():
+    return runpy.run_path(str(Path(__file__).with_name('workspace.py')))
 
 
 class Tail:
@@ -62,14 +65,26 @@ class Tail:
 
 def tail(text):
     result = Tail()
-    result.add(text.encode())
+    result.add(text.encode('utf-8', errors='backslashreplace'))
     return result.text()
+
+
+def first_line(error):
+    return str(error).split('\n', 1)[0].split('\r', 1)[0]
 
 
 def error_line(error):
     """The first error line within section 4 and 6's 512-byte bound."""
-    message = str(error).split('\n', 1)[0].split('\r', 1)[0]
-    return message.encode('utf-8', errors='backslashreplace')[:512].decode('utf-8', errors='ignore')
+    return first_line(error).encode('utf-8', errors='backslashreplace')[:512].decode('utf-8', errors='ignore')
+
+
+def stderr_line(text):
+    """Bound the last line by the worker's stderr tail, including the newline."""
+    return error_line(text).encode()[:127].decode('utf-8', errors='ignore') + '\n'
+
+
+def print_broke(detail):
+    print(stderr_line(f'pre-pr: broke: {detail}'), end='', file=sys.stderr, flush=True)
 
 
 def run(arguments, cwd, env, output=None, stdout=False):
@@ -81,7 +96,7 @@ def run(arguments, cwd, env, output=None, stdout=False):
     except OSError as error:
         message = str(error) + '\n'
         print(message, end='', file=sys.stderr, flush=True)
-        return 127, tail(message)
+        return 127, first_line(error) + '\n'
     with process:
         if output is not None:
             for line in process.stdout:
@@ -121,49 +136,32 @@ class RustcDiagnostic:
             return ''
         location = f' {self.location}' if self.location else ''
         text = f'rustc {self.code}{location}: {self.message}'
-        # Jig keeps the last 128 bytes, including the newline.
-        return text.encode()[:127].decode(errors='ignore') + '\n'
+        return stderr_line(text)
 
 
-class OneProcessDiagnostic(RustcDiagnostic):
-    """Keep the first failed case and its panic alongside compiler diagnostics (section 4.1)."""
-
-    def __init__(self, directory):
-        super().__init__()
-        self.directory = directory
-
-    def reason(self):
-        try:
-            results = json.loads((self.directory / 'results.json').read_bytes())
-            test = next((test for test in results['tests'] if test['outcome'] in ('failed', 'crashed')), None)
-            if test is None:
-                return super().reason()
-            case, output = test['test_name'], test.get('output') or ''
-        except (OSError, ValueError, KeyError, TypeError):
-            return super().reason()
-        lines = iter(output.splitlines())
-        for line in lines:
-            panic = re.fullmatch(r"thread '.+' (?:\(\d+\) )?panicked at (.+:\d+:\d+):", line[:1024].strip())
-            if not panic:
-                continue
-            site = panic[1]
-            detail = next(lines, '')[:1024].strip()
-            assertion = re.fullmatch(r'assertion `left (==|!=) right` failed(?:: (.*))?', detail)
-            if assertion:
-                detail = assertion[2] or ''
-                left, right = (next(lines, '')[:1024].strip() for _ in range(2))
-                if left.startswith('left: ') and right.startswith('right: '):
-                    op = '!=' if assertion[1] == '==' else '=='
-                    values = f'{left[6:].strip()} {op} {right[7:].strip()}'
-                    detail = f'{detail}: {values}' if detail else values
-            name = case.rsplit('::', 1)[-1]
-            text = f'{name} {site}' + (f': {detail}' if detail else '')
-            if len(text.encode()) > 127:
-                text = text.replace(site, site.rsplit('/', 1)[-1], 1)
-            break
-        else:
-            text = 'failed test ' + case
-        return text.encode()[:127].decode(errors='ignore') + '\n'
+def test_diagnostic(case, output):
+    """Keep a failed case and its panic for the close hold (section 4.1)."""
+    lines = iter(output.splitlines())
+    for line in lines:
+        panic = re.fullmatch(r"thread '.+' (?:\(\d+\) )?panicked at (.+:\d+:\d+):", line[:1024].strip())
+        if not panic:
+            continue
+        site = panic[1]
+        detail = next(lines, '')[:1024].strip()
+        assertion = re.fullmatch(r'assertion `left (==|!=) right` failed(?:: (.*))?', detail)
+        if assertion:
+            detail = assertion[2] or ''
+            left, right = (next(lines, '')[:1024].strip() for _ in range(2))
+            if left.startswith('left: ') and right.startswith('right: '):
+                op = '!=' if assertion[1] == '==' else '=='
+                values = f'{left[6:].strip()} {op} {right[7:].strip()}'
+                detail = f'{detail}: {values}' if detail else values
+        name = case.rsplit('::', 1)[-1]
+        text = f'{name} {site}' + (f': {detail}' if detail else '')
+        if len(text.encode('utf-8', errors='backslashreplace')) > 127:
+            text = text.replace(site, site.rsplit('/', 1)[-1], 1)
+        return stderr_line(text)
+    return stderr_line('failed test ' + case)
 
 
 def git(arguments, cwd, env):
@@ -192,7 +190,7 @@ BASES = {'delivery': ('refs/temper/landing', 'refs/remotes/origin/main'),
 UNCHECKED_SAVE = 'Unchecked: work in progress, saved before a question'
 
 
-def change_base(root, env, scope):
+def change_base(root, env, scope, published=None):
     """The merge base of HEAD, any pending MERGE_HEAD and the scope's first base reference present.
 
     The worker's unchecked saves are stepped past along first parents, so their edits are checked.
@@ -203,7 +201,7 @@ def change_base(root, env, scope):
     for name in BASES.get(scope, ()):
         if name == 'refs/temper/counts':
             counts = runpy.run_path(str(TIERS / 'counts.py'))
-            data = published_counts(counts, root, env)
+            data = published[0] if published is not None else published_counts(counts, root, env)
             commit = counts['base'](data, root, env) if data else None
             if commit:
                 return commit, "main's newest published commit in HEAD"
@@ -222,12 +220,12 @@ def change_base(root, env, scope):
     return None, None
 
 
-def scope_base(root, env, scope, has_git):
+def scope_base(root, env, scope, has_git, published=None):
     """The base a delivery, child or close check compares with, or why there is none."""
     if not has_git:
         return None, None, 'no base: this is no git checkout, so nothing says what changed'
     try:
-        base, name = change_base(root, env, scope)
+        base, name = change_base(root, env, scope, published)
     except ValueError as error:
         return None, None, f'no base: {error_line(error)}'
     lacks = "; the worker's checkout lacks what pre-PR compares with"
@@ -310,14 +308,26 @@ def snapshot(root, work, env, source_env, index):
     return checked_git(['write-tree'], root, private).decode().strip()
 
 
+class CheckFindings(Exception):
+    """A check prevented selection, with its own findings rather than a checker exception."""
+
+    def __init__(self, errors):
+        super().__init__()
+        self.errors = errors
+
+
 def metadata(root, env):
-    result = subprocess.run(['cargo', 'metadata', '--offline', '--no-deps', '--format-version', '1'],
-                            cwd=root, env=env, stdin=subprocess.DEVNULL,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    try:
+        result = subprocess.run(['cargo', 'metadata', '--offline', '--no-deps', '--format-version', '1'],
+                                cwd=root, env=env, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    except OSError as error:
+        raise CheckFindings([broken('cargo metadata', error)]) from error
     sys.stderr.buffer.write(result.stderr)
     sys.stderr.flush()
     if result.returncode:
-        raise RuntimeError('cargo metadata: ' + result.stderr.decode(errors='replace'))
+        log = result.stderr.decode(errors='replace')
+        raise CheckFindings(command_errors('cargo metadata', result.returncode, log))
     return json.loads(result.stdout)
 
 
@@ -469,8 +479,10 @@ def baselines(name, root, env):
                                       (name, form, int(count), int(limit))))
 
     code, log = run(['python3', '-I', '-B', 'scripts/old_forms.py'], root / name, env, consume)
-    if code != 1 or not errors:
-        errors = [failure('old-forms ' + name, log)] if code else []
+    if code < 0:
+        errors += [command_break('old-forms ' + name, code, log)]
+    elif code != 1 or not errors:
+        errors = command_errors('old-forms ' + name, code, log)
     return code, errors
 
 
@@ -478,17 +490,16 @@ def citations(tree_id, root, env):
     """Check citations and design sizes in the delivery snapshot."""
     code, log = run(['python3', '-I', '-B', 'tools/citations/citations.py',
                      '--all', '--head', tree_id], root, env, stdout=True)
-    return code, [failure('citations', log)] if code else []
+    return code, command_errors('citations', code, log)
 
 
 def budget_table(root):
     """Validate this tree's figures using the budget runner's own reader."""
-    repair = None
+    cpu = runpy.run_path(str(root / 'tools/tiers/cpu.py'))
+    repair = cpu.get('REPAIR_LINE')
     try:
-        cpu = runpy.run_path(str(root / 'tools/tiers/cpu.py'))
-        repair = cpu.get('REPAIR_LINE')
         cpu['budgets'](root / 'tools/tiers/budgets.toml', layers=root / 'tools/tiers/layers.toml')
-    except (OSError, ValueError, KeyError, TypeError, OverflowError, RuntimeError) as error:
+    except (ValueError, KeyError, TypeError, OverflowError, RuntimeError) as error:
         detail = f'tools/tiers/budgets.toml: {error}'
         if repair:
             detail += '\n' + repair
@@ -499,6 +510,7 @@ def budget_table(root):
 def close_measurements(runs, partial_binaries):
     """Read the counts of whole binaries from the focused steps (section 4.1)."""
     measured = {}
+    landed = {f'fabrig-boundary::{name}' for name in planner()['LANDED_CASES']}
     for directory in runs:
         results = json.loads((directory / 'results.json').read_bytes())
         counting = results['counting']
@@ -508,7 +520,7 @@ def close_measurements(runs, partial_binaries):
         if not counting.get('counted'):
             raise ValueError(counting.get('why') or 'counting did not start')
         # The gate measures these binaries with their landed cases included.
-        partial = partial_binaries(results) | {f'fabrig-boundary::{name}' for name in PLANNER['LANDED_CASES']}
+        partial = partial_binaries(results) | landed
         for process in results['processes']:
             binary = process['binary_id']
             key = process['tree'], process['layer']
@@ -551,6 +563,28 @@ def published_counts(counts, repository, env):
     return PUBLISHED[PUBLIC_SOURCE]
 
 
+def close_counts(repository, env):
+    """Bind a close's local counts to the commit actually read, or report no local source."""
+    counts = runpy.run_path(str(TIERS / 'counts.py'))
+    local_ref = None
+
+    def read(root, read_env):
+        nonlocal local_ref
+        if root != repository:  # The private fetch is not the checkout's published ref.
+            return counts['read'](root, read_env)
+        tip = git(['rev-parse', '--verify', '--quiet', 'refs/temper/counts^{commit}'], root, read_env)
+        if tip.returncode:
+            return None
+        ref = tip.stdout.decode().strip()
+        data = counts['read'](root, read_env, ref=ref)
+        if data is not None:
+            local_ref = ref
+        return data
+
+    data = published_counts({**counts, 'read': read}, repository, env)
+    return data, local_ref
+
+
 def fetched_counts(counts):
     with tempfile.TemporaryDirectory(prefix='pre-pr-counts-') as cache:
         # Nothing of the checkout's or the worker's Git setup reaches the fetch or its reading.
@@ -569,7 +603,7 @@ def fetched_counts(counts):
         return counts['read'](Path(cache), fetch)
 
 
-def close_budgets(root, repository, env, runs):
+def close_budgets(root, repository, env, runs, published=None):
     """Judge whole binaries against the selected published budget input, profile by profile (section 4.1).
 
     runs maps each profile to its run directories; a bare list is the focused profile's.
@@ -580,7 +614,8 @@ def close_budgets(root, repository, env, runs):
         if WORKER_COUNTS.is_file():
             data = json.loads(WORKER_COUNTS.read_bytes())
         else:
-            data = budget_input(repository, env, published_counts(counts, repository, env))
+            source = published[0] if published is not None else published_counts(counts, repository, env)
+            data = budget_input(repository, env, source)
         if 'unavailable' in data:
             print(f"budgets: no verdict at close: {data['unavailable']}; the gate still judges", flush=True)
             return []
@@ -699,7 +734,7 @@ def budget_line(figure):
 def merge_tests(root, env):
     """Run check 9 for deliveries changing the merge job (tools/pre-pr/design.md, 4)."""
     code, log = run(['python3', '-I', '-B', 'tools/merge/test_merge.py'], root, env, stdout=True)
-    return code, [failure('merge', log)] if code else []
+    return code, command_errors('merge', code, log)
 
 
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
@@ -777,8 +812,11 @@ def outward(root, env, paths=None):
         code, log = run(args, root, env)
     else:
         files = [os.fsencode(p) for p in paths if os.path.lexists(root / p)]
-        result = subprocess.run([*args, '--paths0'], cwd=root, env=env, input=b'\0'.join(files),
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        try:
+            result = subprocess.run([*args, '--paths0'], cwd=root, env=env, input=b'\0'.join(files),
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except OSError as error:
+            return 127, [broken('outward', error)]
         log = result.stdout.decode(errors='replace')
         if log:
             print(log, end='', flush=True)
@@ -787,7 +825,7 @@ def outward(root, env, paths=None):
         errors = [failure('test fabrig-boundary::outward no_file_names_the_lab', log,
                           ('fabrig-boundary::outward', 'no_file_names_the_lab'))]
     else:
-        errors = [failure('check outward', log)] if code else []
+        errors = command_errors('outward', code, log, name='check outward')
     return code, errors
 
 
@@ -802,10 +840,11 @@ def format_check(args, root, env, label):
         if not location and line.startswith(b'Diff in '):
             location = line[len(b'Diff in '):].decode(errors='replace').rstrip('\r\n:')
     code, log = run(args, root, env, output=consume)
-    if code:
-        repair = f'{location}: run cargo fmt --all' if location else label + ': ' + log
-        return [failure('format', repair)]
-    return []
+    errors = command_errors('format', code, log, detail=f'{label}: {log}')
+    if location and code:
+        red = failure('format', f'{location}: run cargo fmt --all')
+        return [red, *errors] if code < 0 else [red]
+    return errors
 
 
 def format_workspace(root, env):
@@ -834,6 +873,29 @@ def format_changes(root, paths, env):
 
 def failure(name, log, key=None, package=None):
     return {'name': name, 'log': tail(log), 'key': key, 'package': package, 'inherited': False}
+
+
+def broken(what, error, log=None):
+    return dict(failure(f'check {what}', str(error) if log is None else log), broke=first_line(error))
+
+
+def command_break(what, code, log):
+    first = first_line(log)
+    if code < 0:
+        detail = f'{what}: killed by signal {-code}'
+    elif code == 127 and first:
+        return broken(what, first, log)
+    else:
+        detail = f'{what}: exit {code}'
+    return broken(what, detail + (f': {first}' if first else ''), f'{detail}\n{log}')
+
+
+def command_errors(what, code, log, *, name=None, detail=None):
+    if not code:
+        return []
+    if code < 0 or code == 127:
+        return [command_break(what, code, log)]
+    return [failure(name or what, log if detail is None else detail)]
 
 
 def package_args(packages):
@@ -871,22 +933,28 @@ def clippy(packages, data, root, env):
 
     code, log = run(['cargo', 'clippy', '--all-targets', '--message-format=json'] +
                     package_args(packages) + ['--', '-D', 'warnings'], root, env, consume)
-    if code and not errors:
-        errors.append(failure('check clippy', f'exit {code}\n' + log))
+    if not errors or code < 0 or code == 127:
+        errors += command_errors('clippy', code, log, name='check clippy', detail=f'exit {code}\n{log}')
     return code, errors
 
 
 def test_binaries(data, root):
     """Validate focused-test prerequisites before the checks (tools/tiers/design.md, 2.1)."""
     path = 'tools/tiers/packages.toml'
+    def refusal(detail):
+        return CheckFindings([failure('test-binaries inventory', f'{path}: {detail}')])
+
     with (root / path).open('rb') as source:
-        inventory = tomllib.load(source).get('test-binaries', {})
+        try:
+            inventory = tomllib.load(source).get('test-binaries', {})
+        except ValueError as error:
+            raise refusal(error) from error
     if not isinstance(inventory, dict):
-        raise ValueError(f'refused test-binaries inventory in {path} (need a table)')
+        raise refusal('test-binaries needs a table')
     workspace = members(data)
     for name, binaries in inventory.items():
         if name not in workspace:
-            raise ValueError(f'refused test-binaries key {name} in {path} (not a workspace package)')
+            raise refusal(f'test-binaries key {name} is not a workspace package')
         valid = isinstance(binaries, list)
         if valid:
             valid = all(isinstance(binary, dict) and set(binary) == {'package', 'bin'}
@@ -897,8 +965,7 @@ def test_binaries(data, root):
             valid = (keys == sorted(set(keys))
                      and len({binary['bin'] for binary in binaries}) == len(binaries))
         if not valid:
-            raise ValueError(f'refused invalid test-binaries list for {name} in {path} '
-                             '(need sorted, unique package/bin records and distinct binary names)')
+            raise refusal(f'invalid list for {name} (need sorted, unique package/bin records and distinct binary names)')
     return inventory
 
 
@@ -906,8 +973,38 @@ def build_test_binaries(binaries, root, env):
     for binary in binaries:
         code, log = run(['cargo', 'build', '-p', binary['package'], '--bin', binary['bin']], root, env)
         if code:
-            return code, [failure('build', f"{binary['package']}/{binary['bin']}: exit {code}\n" + log)]
+            return code, command_errors('build', code, log, detail=f"{binary['package']}/{binary['bin']}: exit {code}\n{log}")
     return 0, []
+
+
+def listing_failed_to_build(code, log):
+    return code == 2 and log.rstrip('\r\n').rsplit('\n', 1)[-1] == 'one-process: nextest listing exited with 101'
+
+
+def close_test_errors(directory, what, code, log, diagnostic):
+    """Take only one-process's build or test verdicts as candidate failures (section 6)."""
+    if listing_failed_to_build(code, log):
+        return [dict(failure('build' + (' fuzzy' if what == 'fuzzy tests' else ''), log), diagnostic=diagnostic)]
+    if code not in (0, 100):
+        return [command_break(what, code, log)]
+    errors = []
+    try:
+        tests = json.loads((directory / 'results.json').read_bytes())['tests']
+        if not isinstance(tests, list):
+            raise ValueError('tests must be a list')
+        for test in tests:
+            if test['outcome'] not in ('failed', 'crashed'):
+                continue
+            binary, case, output = test['binary_id'], test['test_name'], test.get('output') or ''
+            if not all(isinstance(value, str) for value in (binary, case, output)) or not binary or not case:
+                raise ValueError('failed test must have a binary id and a case name, with text output if present')
+            errors.append(dict(failure(f'test {binary} {case}', output or log, (binary, case)),
+                               diagnostic=test_diagnostic(case, output)))
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        errors.append(broken(what, f'results.json: {error}'))
+    if code == 100 and not errors:
+        errors.append(broken(what, 'one-process: exit 100 without a failed or crashed test'))
+    return errors
 
 
 def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default'):
@@ -917,13 +1014,13 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         directory = Path(directory) / ('tests' if profile == 'default' else 'fuzzy')
         arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
-        arguments += [profile] + package_args(packages) + ['--no-tests=warn'] + PLANNER['workspace_filter'](packages)
+        arguments += [profile] + package_args(packages) + ['--no-tests=warn'] + planner()['workspace_filter'](packages)
         test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
         code, log = run(arguments, root, test_env, stdout=True)
-        if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
+        if listing_failed_to_build(code, log):
             return code, [failure('build' + suffix, 'no tests ran\n' + log)], None
         if code not in (0, 100):
-            return code, [failure('check one-process' + suffix, f'exit {code}\n' + log)], None
+            return code, [command_break('one-process' + suffix, code, log)], None
         starved = None
         errors = []
         source = 'run.json'
@@ -977,10 +1074,10 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
                     package = binary.split('::', 1)[0]
                     errors.append(failure(f'test {binary} {name}', output, (binary, name), package))
         except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
-            errors.append(failure('check one-process' + suffix, f'{source}: {error}\n' + log))
+            errors.append(broken('one-process' + suffix, f'{source}: {error}'))
             return code or 1, errors, starved
         if not errors:
-            errors.append(failure('check one-process' + suffix, 'exit 100 without JUnit failures\n' + log))
+            errors.append(broken('one-process' + suffix, 'exit 100 without JUnit failures'))
         inherited(reds, errors)
         tests_again(errors, observed, rerun, directory, root, env)
         return code, errors, starved
@@ -1101,7 +1198,7 @@ def inherited(reds, errors):
 
 def check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env):
     """Report observed goal reds and flakes atomically (section 6; forge/reds.md, 5.5)."""
-    lines = ['temper-check 1', f'check {tree_id} {base_id or "-"} {"refused" if verdict else "passed"}']
+    lines = ['temper-check 1', f'check {tree_id} {base_id or "-"} {verdict}']
     failed_tests = {e['key'] for e in errors if e['name'].startswith('test ') and 'flake' not in e}
     lint_errors = [e for e in errors if e['name'].startswith('clippy ')]
     clippy_valid = not any(e['name'] == 'check clippy' for e in errors)
@@ -1124,10 +1221,8 @@ def check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root
     for error in sorted((e for e in errors if 'flake' in e), key=lambda e: e['key']):
         lines.append('flake test ' + ' '.join(error['key']))
         lines.extend('| ' + line if line else '|' for line in error['log'].splitlines())
-    path = root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/check-results'], root, env).stdout).strip()
-    with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as out:
-        out.write('\n'.join(lines) + '\n')
-    os.replace(out.name, path)
+    path = git_path(root, env, 'temper/check-results')
+    replace_file(path, ('\n'.join(lines) + '\n').encode('utf-8'))
 
 
 def settled(error):
@@ -1135,17 +1230,40 @@ def settled(error):
 
 
 def failure_groups(errors):
-    """The summary's class order; inherited takes precedence over a flake."""
-    return ([e for e in errors if not settled(e)],
-            sorted((e for e in errors if 'flake' in e and not e['inherited']), key=lambda e: e['key']),
-            [e for e in errors if e['inherited']])
+    """The record's and summary's class order; inherited takes precedence over a flake."""
+    groups = {kind: [] for kind in ('new', 'flake', 'inherited', 'broke')}
+    for error in errors:
+        kind = ('broke' if 'broke' in error else 'inherited' if error['inherited'] else
+                'flake' if 'flake' in error else 'new')
+        groups[kind].append(error)
+    groups['flake'].sort(key=lambda e: e['key'])
+    return groups
 
 
-def failure_counts(errors):
-    return dict(zip(('new', 'flake', 'inherited'), map(len, failure_groups(errors))))
+def outcome(groups):
+    if groups['new']:
+        return 'refused'
+    return 'broke' if groups['broke'] else 'passed'
 
 
-def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='full', commits=(), heads=None):
+def counts_by_class(groups):
+    return {kind: len(group) for kind, group in groups.items()}
+
+
+def replace_file(path, data):
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as out:
+            temporary = Path(out.name)
+            out.write(data)
+        os.replace(temporary, path)
+    except BaseException:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        raise
+
+
+def failure_file(tree_id, base_id, verdict, cached, groups, root, scope, commits, head):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
     relative = {'child': 'target/temper/goal-child-pre-pr.json',
                 'close': 'target/temper/goal-close-pre-pr.json',
@@ -1153,7 +1271,7 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='fu
     path = root / relative
     try:
         entries = []
-        for kind, group in zip(('new', 'flake', 'inherited'), failure_groups(errors)):
+        for kind, group in groups.items():
             for error in group:
                 key = error['key']
                 structured = None
@@ -1164,30 +1282,30 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='fu
                 elif key and len(key) == 4 and error['name'].startswith('old-forms '):
                     structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
                 entry = {'class': kind, 'name': error['name'], 'key': structured}
-                if error['name'] in ('format', 'budgets'):
+                if kind == 'broke':
+                    entry['detail'] = error['broke']
+                elif error['name'] in ('format', 'budgets'):
                     entry['detail'] = error['log'].strip()
                 if error.get('figures'):
                     entry['figures'] = error['figures']
                 entries.append(entry)
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
-                  'cached': cached, 'verdict': 'refused' if verdict else 'passed',
-                  'counts': failure_counts(errors)}
+                  'cached': cached, 'verdict': verdict,
+                  'counts': counts_by_class(groups)}
         header['comparison'] = 'tree-only' if base_id is None else 'changes'
         if scope == 'delivery':
             header.update(form='pre-pr-light-failures 1', scope='light')
         elif scope == 'child':
             header.update(form='goal-child-pre-pr 1', scope=scope,
-                          delivery_head=heads[0], destination=None, requested_destination=commits[0] if commits else None)
+                          delivery_head=head, destination=None, requested_destination=commits[0] if commits else None)
         elif scope in ('goal', 'close'):
-            header.update(scope=scope, goal_head=heads[0], destination=None, requested_destination=commits[-1] if commits else None)
+            header.update(scope=scope, goal_head=head, destination=None, requested_destination=commits[-1] if commits else None)
             if scope == 'close':
                 header['form'] = 'goal-close-pre-pr 1'
         text = json.dumps(header, ensure_ascii=False)[:-1] + ', "failures": [\n'
         text += ',\n'.join(json.dumps(entry, ensure_ascii=False) for entry in entries) + '\n]}\n'
         path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as out:
-            out.write(text.encode('utf-8', errors='backslashreplace'))
-        os.replace(out.name, path)
+        replace_file(path, text.encode('utf-8', errors='backslashreplace'))
         return f'every key in {relative}'
     except (OSError, ValueError) as error:
         return f'not written to {relative}: {error_line(error)}'
@@ -1213,20 +1331,17 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), scope='full', commits=(), base_name=None):
+def summary(base_id, lints, tests, groups, verdict, failures_tail, starved, scope, base_name):
     """Keep the first failure whole and count what the host's tail cannot hold."""
-    refused = any(not settled(e) for e in errors)
     # The whole base id: a red's base is read from this line (forge/reds.md).
     compared = 'current tree' if base_id is None else f'base {base_id}, {base_name}'
-    header = f'pre-pr: {"refused" if refused else "passed"} ({scope}, {compared})\n'
-    counts = failure_counts(errors)
+    header = f'pre-pr: {verdict} ({scope}, {compared})\n'
+    counts = counts_by_class(groups)
     header += (f'failures: {counts["new"]} new, {counts["flake"]} flakes, '
-               f'{counts["inherited"]} inherited; {failures_tail}\n')
+               f'{counts["inherited"]} inherited, {counts["broke"]} broke; {failures_tail}\n')
     sets = f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
     sets += ''.join(line + '\n' for line in starved)
-    if reason:
-        sets += tail(reason)
-    new, flakes, inherited_errors = failure_groups(errors)
+    new, flakes, inherited_errors, broke = groups.values()
     entries = [e['name'] + '\n' + e['log'] for e in new]
     entries += [f'flake: {e["name"]} (failed under load; passed when its process ran again: '
                 f'{e["flake"][0]} tests, {e["flake"][1]:.3f} s)\n' + e['log']
@@ -1234,12 +1349,14 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     entries += ['inherited: ' + e['name'] +
                 (' (red, temper/reds)' if e['name'].startswith(('test ', 'clippy ')) else '') + '\n'
                 for e in inherited_errors]
+    entries += ['broke: ' + e['name'] + '\n' + e['log'] for e in broke]
     # Keep the verdict and file pointer whole, cutting only the sets and warnings.
     room = max(0, 4096 - len(header.encode()) - 1)
     header += sets.encode()[:room].decode('utf-8', errors='ignore') + '\n'
     diagnostic = next((e['diagnostic'] for e in new if e.get('diagnostic')), '') if scope == 'close' else ''
     output = header
     for index, entry in enumerate(entries):
+        entry = entry.encode('utf-8', errors='backslashreplace').decode('utf-8')
         remaining = len(entries) - index
         marker = f'[… {remaining} more failures]\n'
         if len((output + entry).encode()) + len((marker + diagnostic).encode()) > 8192:
@@ -1247,15 +1364,16 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
             break
         output += entry
     print(output + diagnostic, end='', flush=True)
-    if refused and scope == 'close' and new:
+    if verdict == 'broke':
+        print_broke(broke[0]['broke'])
+    elif verdict == 'refused' and scope == 'close':
         # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
         first = new[0]
         # A failed case, a compiler error or a panic says most; else the log's first line, not its cut marker.
         texts = [text.strip() for text in first['log'].splitlines() if text.strip() and not text.startswith('[… ')]
         telling = [text for text in texts if text.startswith(('FAIL', 'error', 'thread ')) or 'panicked' in text]
         line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0]
-        print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
-    return int(refused)
+        print(stderr_line(line), end='', file=sys.stderr, flush=True)
 
 
 def goal_checks(root, paths, env, errors, rerun):
@@ -1282,16 +1400,64 @@ def goal_checks(root, paths, env, errors, rerun):
     return lints, tests, warnings
 
 
-def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(), tests=(), warnings=(), base_name=None):
-    refused = any(not settled(e) for e in errors)
-    location = failure_file(tree_id, base_id, refused, False, errors, root, env, scope, commits, heads)
-    if location.startswith('not written'):
-        errors.append(failure('check receipt', location))
-    return summary(base_id, lints, tests, errors, None, location, warnings, scope, commits, base_name)
+def typed_close(scope, env):
+    return scope == 'close' and env.get('TEMPER_CLOSE_REFUSAL') == '3'
+
+
+def refusal_bytes(head, tree, base, counts, failures):
+    """Bound the close result in whole names (temper/docs/design/protocol/tooling.md, 4.2)."""
+    refused = dict(head=head, tree=tree, base=base, counts=counts, failures=failures)
+
+    def encode():
+        return (json.dumps({'refused': refused}, ensure_ascii=True, separators=(',', ':')) + '\n').encode('ascii')
+
+    full = encode()
+    if len(full) <= 512:
+        return full
+    refused['failures'] = []
+    for index, name in enumerate(failures):
+        refused['failures'].append(name)
+        remaining = len(failures) - index - 1
+        if remaining:
+            refused['more'] = remaining
+        else:
+            refused.pop('more', None)
+        if len(encode()) > 512:
+            refused['failures'].pop()
+            refused['more'] = remaining + 1
+            break
+    return encode()
+
+
+def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(), tests=(), warnings=(), base_name=None,
+           *, counts_ref=None):
+    groups = failure_groups(errors)
+    verdict = outcome(groups)
+    head = heads[0] if heads else None
+    location = failure_file(tree_id, base_id, verdict, False, groups, root, scope, commits, head)
+    summary(base_id, lints, tests, groups, verdict, location, warnings, scope, base_name)
+    if verdict == 'passed':
+        return 0
+    if not typed_close(scope, env):
+        return 1
+    if verdict == 'broke':
+        return 2
+    try:
+        job = env.get('TEMPER_JOB')
+        if not job:
+            raise ValueError('TEMPER_JOB is missing')
+        if not head or not tree_id:
+            raise ValueError('the close did not identify its head and tree')
+        names = [error['name'] for error in groups['new']]
+        replace_file(Path(job) / 'result.json', refusal_bytes(head, tree_id, base_id, counts_ref, names))
+    except (OSError, ValueError) as error:
+        print_broke(f'cannot write close refusal: {error}')
+        return 2
+    return 3
 
 
 def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None,
-                     whole=True, base_id=None):
+                     whole=True, base_id=None, published=None):
     start = time.monotonic()
     if whole and any(p.endswith('.rs') for p in paths):
         errors += format_workspace(root, env)
@@ -1299,8 +1465,9 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
         errors += format_changes(root, paths, env)
     if errors:
         return []
+    plan = planner() if completed_goal else None
     if completed_goal and whole:
-        package_paths = [p for p in paths if p.endswith('.rs') or PLANNER['owns_package'](root, p)]
+        package_paths = [p for p in paths if p.endswith('.rs') or plan['owns_package'](root, p)]
     elif completed_goal:
         # Prose reaches tests only where the gate declares a reader of it.
         globs = test_input_globs(root)
@@ -1326,23 +1493,29 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
                 print(f"pre-pr: every package: {', '.join(wide)} changed", flush=True)
                 inputs = [str(Path(package['manifest_path']).relative_to(root)) for package in packages.values()]
             also = always_packages(root, inputs, packages)
-        groups = PLANNER['package_plan'](root, inputs, packages, layers, also=also)
+        groups = plan['package_plan'](root, inputs, packages, layers, also=also)
         suites = sorted(name for targets, names in groups.items() if targets for name in names)
         prerequisites = test_binaries(data, root)
     print(f'pre-pr: selection: {len(paths)} paths, {len(suites)} test packages, '
           f'{time.monotonic() - start:.3f} s', flush=True)
 
-    def command(label, args, diagnostic=None):
+    def command(label, args, *, test_run=None, build=False):
         print(f"pre-pr: {label}: {shlex.join(args)}", flush=True)
         start = time.monotonic()
+        diagnostic = RustcDiagnostic() if build or test_run is not None else None
         rc, log = run(args, root, env, output=diagnostic.consume if diagnostic else None, stdout=True)
-        print(f'pre-pr: {label}: exit {rc}, {time.monotonic() - start:.3f} s', flush=True)
-        if rc:
-            error = failure(label, log)
-            if diagnostic:
-                error['diagnostic'] = diagnostic.reason()
-            errors.append(error)
-        return rc
+        reason = diagnostic.reason() if diagnostic else ''
+        if test_run is not None:
+            found = close_test_errors(test_run, label, rc, log, reason)
+        else:
+            found = command_errors(label, rc, log)
+            if reason and rc:
+                red = dict(failure(label, log), diagnostic=reason)
+                found = [red, *found] if 'broke' in found[0] else [red]
+        errors.extend(found)
+        status = f'exit {rc}' if rc or not found else 'broke'
+        print(f'pre-pr: {label}: {status}, {time.monotonic() - start:.3f} s', flush=True)
+        return bool(found)
 
     for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
         if any((p.startswith(name + '/') and not documentation(p)) or p.startswith('tools/old_forms/') for p in paths):
@@ -1379,66 +1552,24 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
         with scratch as directory:
             runs = defaultdict(list)
             runner = str(TIERS / 'one-process')
-            for args in PLANNER['rust_commands'](groups, prerequisites, Path(directory) if suites else None, runner):
+            for args in plan['rust_commands'](groups, prerequisites, Path(directory) if suites else None, runner):
                 if args[0] == runner:
                     out = Path(args[2])
                     profile = args[args.index('--fail-fast') + 1]
                     runs[profile].append(out)
                     label = 'focused tests' if profile == 'default' else f'{profile} tests'
-                    if command(label, args, OneProcessDiagnostic(out)):
+                    if command(label, args, test_run=out):
                         break
-                elif command('build check', args, RustcDiagnostic()):
+                elif command('build check', args, build=True):
                     break
             else:
                 if runs:
                     repository, git_env = counts_source if counts_source is not None else (root, env)
-                    errors += close_budgets(root, repository, git_env, runs)
+                    errors += close_budgets(root, repository, git_env, runs, published)
     return suites
 
 
 HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
-
-
-# A close's own verdicts, which the same tree, base and main's counts give again: a retry replays them.
-HARD = ('budgets', 'format', 'citations', 'check outward', 'old-forms ',
-        'test fabrig-boundary::outward no_file_names_the_lab')
-SAVED_DAYS = 1
-
-
-def verdict_store():
-    """Outside the checkout, which each attempt gets afresh: the worker user's cache."""
-    return Path(pwd.getpwuid(os.getuid()).pw_dir) / '.cache' / 'fabrig-pre-pr' / 'close'
-
-
-def verdict_key(tree_id, base_id, counts):
-    material = json.dumps([tree_id, base_id, counts], sort_keys=True, separators=(',', ':'))
-    return hashlib.sha256(material.encode()).hexdigest()
-
-
-def saved_verdict(key):
-    path = verdict_store() / f'{key}.json'
-    try:
-        saved = json.loads(path.read_text())
-    except (OSError, ValueError):
-        return None
-    if time.time() - saved.get('at', 0) > SAVED_DAYS * 86400 or not isinstance(saved.get('errors'), list):
-        return None
-    return saved
-
-
-def save_verdict(key, errors):
-    """Keep a refusal made of hard verdicts alone; prune what has aged out."""
-    store = verdict_store()
-    try:
-        store.mkdir(parents=True, exist_ok=True)
-        for old in store.glob('*.json'):
-            if time.time() - old.stat().st_mtime > SAVED_DAYS * 86400:
-                old.unlink(missing_ok=True)
-        with tempfile.NamedTemporaryFile('w', dir=store, delete=False) as out:
-            json.dump({'at': time.time(), 'errors': errors}, out)
-        os.replace(out.name, store / f'{key}.json')
-    except OSError as error:
-        print(f'pre-pr: refusal not saved for retries: {error_line(error)}', flush=True)
 
 
 def with_rust_tools(env):
@@ -1456,16 +1587,15 @@ def with_rust_tools(env):
 
 def check(scope, commits):
     root = Path.cwd()
-    if any(not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) for commit in commits):
-        raise ValueError('expected full hexadecimal commit IDs')
     source_env = dict(os.environ, GIT_ALLOW_PROTOCOL='', GIT_NO_LAZY_FETCH='1', GIT_NO_REPLACE_OBJECTS='1')
     env = {k: v for k, v in source_env.items() if not k.startswith('GIT_')}
     env.update(CARGO_NET_OFFLINE='true', GIT_NO_LAZY_FETCH='1', GIT_NO_REPLACE_OBJECTS='1')
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
     env.pop('TIERS_LEDGER', None)
-    with_rust_tools(env)
-    has_git = (root / '.git').exists()
+    errors, outcomes, warnings, lints, tests = [], {}, [], [], []
+    tree_id = base_id = base_name = receipt_head = counts_ref = None
+    has_git = False
 
     def current_head():
         if not has_git:
@@ -1473,81 +1603,98 @@ def check(scope, commits):
         result = git(['rev-parse', '--verify', '--quiet', 'HEAD'], root, source_env)
         return result.stdout.decode().strip() if result.returncode == 0 else None
 
-    head = current_head()
-    if scope == 'goal' and commits and head and head != commits[0]:
-        raise ValueError('checkout HEAD differs from the requested goal')
-    errors, outcomes, warnings, lints, tests = [], {}, [], [], []
-    with tempfile.TemporaryDirectory(prefix='pre-pr-tree-') as directory:
-        work = Path(directory) / 'current'
-        fmt = checked_git(['rev-parse', '--show-object-format'], root, source_env).decode().strip() if has_git else 'sha1'
-        checked_git(['init', '-q', '--object-format=' + fmt, str(work)], root, env)
-        index = work / '.git/index'
-        tree_id = snapshot(root, work, env, source_env, index)
-        checked_git(['checkout-index', '-a'], work, env)
-        paths = [os.fsdecode(p) for p in checked_git(['ls-files', '-z'], work, env).split(b'\0') if p]
-        base_id = base_name = no_base = None
-        if scope in BASES:
-            base_id, base_name, no_base = scope_base(root, source_env, scope, has_git)
-            if base_id is not None:
-                paths = changed_paths(root, source_env, base_id)
-                print(f'pre-pr: base {base_id}, {base_name}: {len(paths)} changed paths', flush=True)
-        # A close builds and tests in the goal's own checkout, warm with the worker's build cache.
-        checks_root = root if scope == 'close' and has_git else work
-        receipt_head = head
-        key = saved = None
-        try:
-            if scope == 'goal' and head:
-                # Only the current commit can bind this snapshot to a goal head.
-                current = git(['rev-parse', '--verify', '--quiet', 'HEAD^{tree}'], root, source_env)
-                if current.returncode or current.stdout.decode().strip() != tree_id:
-                    receipt_head = None
-                    if commits and current.returncode == 0:
-                        raise ValueError('working tree differs from the requested goal head')
-            if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
-                raise ValueError('working tree differs from the staged close tree')
-            if scope == 'close' and base_id:
-                counts = published_counts(runpy.run_path(str(TIERS / 'counts.py')), root, source_env)
-                key = verdict_key(tree_id, base_id, counts) if counts else None
-            saved = saved_verdict(key) if key else None
-            try:
+    try:
+        if any(not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) for commit in commits):
+            raise ValueError('expected full hexadecimal commit IDs')
+        with_rust_tools(env)
+        has_git = (root / '.git').exists()
+        head = receipt_head = current_head()
+        if scope == 'goal' and commits and head and head != commits[0]:
+            raise ValueError('checkout HEAD differs from the requested goal')
+        with tempfile.TemporaryDirectory(prefix='pre-pr-tree-') as directory:
+            work = Path(directory) / 'current'
+            fmt = checked_git(['rev-parse', '--show-object-format'], root, source_env).decode().strip() if has_git else 'sha1'
+            checked_git(['init', '-q', '--object-format=' + fmt, str(work)], root, env)
+            tree_id = snapshot(root, work, env, source_env, work / '.git/index')
+            checked_git(['checkout-index', '-a'], work, env)
+            paths = [os.fsdecode(p) for p in checked_git(['ls-files', '-z'], work, env).split(b'\0') if p]
+            published = close_counts(root, source_env) if scope == 'close' and has_git else None
+            if published is not None:
+                _, counts_ref = published
+            if scope in BASES:
+                base_id, base_name, no_base = scope_base(root, source_env, scope, has_git, published)
                 if no_base:
-                    # Loud, so that a checkout the worker set up otherwise is seen and repaired (section 1).
-                    errors.append(failure('base', no_base))
-                elif saved:
-                    # Temper retries a refused close as it would a fault; the same inputs give the same verdict.
-                    stamp = time.strftime('%H:%M:%SZ', time.gmtime(saved['at']))
-                    print(f'pre-pr: the refusal of {stamp} for this tree, base and main\'s counts, again: '
-                          'a retry would measure the same (tools/pre-pr/design.md, 4.1)', flush=True)
-                    errors.extend(saved['errors'])
+                    errors.append(broken('base', no_base))
                 else:
+                    paths = changed_paths(root, source_env, base_id)
+                    print(f'pre-pr: base {base_id}, {base_name}: {len(paths)} changed paths', flush=True)
+
+            if not errors:
+                if scope == 'goal' and head:
+                    # Only the current commit can bind this snapshot to a goal head.
+                    current = git(['rev-parse', '--verify', '--quiet', 'HEAD^{tree}'], root, source_env)
+                    if current.returncode or current.stdout.decode().strip() != tree_id:
+                        receipt_head = None
+                        if commits and current.returncode == 0:
+                            raise ValueError('working tree differs from the requested goal head')
+                # Close builds in the goal's checkout, warm with the worker's build cache.
+                close = scope == 'close' and has_git
+                checks_root = root if close else work
+                if close and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
+                    raise ValueError('working tree differs from the staged close tree')
+                try:
                     tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes,
                                              completed_goal=scope == 'close', counts_source=(root, source_env),
-                                             whole=base_id is None, base_id=base_id)
-                if scope == 'goal' and not errors:
-                    lints, tests, warnings = goal_checks(work, paths, env, errors,
-                                                        rerun_bound(root, source_env) if has_git else 0)
-            finally:
+                                             whole=base_id is None, base_id=base_id, published=published)
+                    if scope == 'goal' and not errors:
+                        lints, tests, warnings = goal_checks(work, paths, env, errors,
+                                                            rerun_bound(root, source_env) if has_git else 0)
+                except CheckFindings as found:
+                    errors.extend(found.errors)
+                except Exception as error:
+                    errors.append(broken('workspace checks', error))
+
                 def check_journeys():
                     own = journey_paths(root, source_env, work, env, tree_id, paths, base_id, head)
                     return journeys(checks_root, own, base_id or 'HEAD')
 
                 errors += timed('journeys', check_journeys)
-            if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
-                raise ValueError('staged close tree changed during checks')
-            if tree_id != snapshot(root, work, env, source_env, Path(directory) / 'final-index') or head != current_head():
-                raise ValueError('the checkout changed during checks')
-        except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
-            errors.append(failure('workspace checks', str(error)))
-        verdict = finish(tree_id, base_id, errors, root, env, scope, commits, [receipt_head], lints, tests, warnings,
-                         base_name if base_id else None)
-        if scope == 'close' and verdict and key and not saved and errors and all(
-                settled(e) or e['name'].startswith(HARD) for e in errors):
-            save_verdict(key, errors)
-        if has_git and scope == 'delivery':
-            reds, _, marker = goal_reds(root, source_env)
-            if marker:
-                check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, source_env)
-        return verdict
+                if close and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
+                    raise ValueError('staged close tree changed during checks')
+                if tree_id != snapshot(root, work, env, source_env, Path(directory) / 'final-index') or head != current_head():
+                    raise ValueError('the checkout changed during checks')
+    except Exception as error:
+        errors.append(broken('workspace checks', error))
+
+    def report():
+        if tree_id is None:
+            # No snapshot to name in a receipt; leave the last completed check's file alone.
+            print_broke(errors[0]['broke'])
+            return 2 if typed_close(scope, env) else 1
+        return finish(tree_id, base_id, errors, root, env, scope, commits, [receipt_head], lints, tests, warnings,
+                      base_name, counts_ref=counts_ref)
+
+    if has_git and scope == 'delivery':
+        results = None
+        try:
+            if git_path(root, source_env, 'temper/reds-wait').is_file():
+                results = git_path(root, source_env, 'temper/check-results')
+                verdict = outcome(failure_groups(errors))
+                if verdict == 'broke':
+                    results.unlink(missing_ok=True)
+                else:
+                    reds, _, _ = goal_reds(root, source_env)
+                    status = report()
+                    check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, source_env)
+                    return status
+        except Exception as error:
+            errors.append(broken('check-results', error))
+            if results is not None:
+                try:
+                    results.unlink(missing_ok=True)
+                except OSError as error:
+                    errors.append(broken('check-results cleanup', error))
+    return report()
 
 
 def main(args):
@@ -1565,5 +1712,7 @@ def main(args):
 if __name__ == '__main__':
     try:
         sys.exit(main(sys.argv[1:]))
-    except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
-        sys.exit(f'pre-pr: refused: {error}')
+    except Exception as error:
+        print_broke(error)
+        scope = 'close' if sys.argv[1:2] == ['--close'] else None
+        sys.exit(2 if typed_close(scope, os.environ) else 1)

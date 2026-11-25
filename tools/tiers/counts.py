@@ -20,10 +20,10 @@ def git(root, env, *arguments):
     )
 
 
-def read(root, env):
-    """Return the local version 1 counts file, if available."""
+def read(root, env, *, ref='refs/temper/counts'):
+    """Return the local version 1 counts file, optionally pinned to its commit."""
     try:
-        result = git(root, env, 'cat-file', 'blob', 'refs/temper/counts:counts.json')
+        result = git(root, env, 'cat-file', 'blob', f'{ref}:counts.json')
         if result.returncode == 0:
             data = json.loads(result.stdout)
             if isinstance(data, dict) and type(data.get('version')) is int and data['version'] == 1:
