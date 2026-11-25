@@ -14,12 +14,6 @@ lookups, and the memory suite runs it under its ceilings (section 8).
 
 - **Not yet:** 9: the real-Chromium viewport story is compiled; its runtime
   check awaits the browser tier after landing.
-- **Not yet:** 6 and 7: a go takes Chromium's log entry that it blocked
-  the page's `beforeunload` prompt as its `Warned`, not as trouble.
-  [in flight: change 17461]
-- **Not yet:** 6: the fake person's repeated finds wait the poll interval
-  from an answer that came late, rather than until the step's deadline.
-  [in flight: change 17462]
 - **Design departs:** 9: the real-Chromium story's leaving document sends
   its request after the reload's document request, signalled over its
   still-open stream, in place of a `keepalive` request at `pagehide`: on
