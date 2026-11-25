@@ -1135,6 +1135,7 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
     pub report: Box<[u8]>,
     /// Its agents' questions and their relay (domain/forge/change/questions.md, 1).
@@ -1223,6 +1224,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
     pub follow_check: Option<FollowCheck>,
     pub merge_result: Option<Box<[u8]>>,
@@ -1281,6 +1283,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            close_at,
             report,
             questions,
             repairs,
@@ -1348,6 +1351,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                close_at,
                 questions,
                 follow_check,
                 merge_result,
@@ -1415,6 +1419,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            close_at,
             questions,
             follow_check,
             merge_result,
@@ -1469,6 +1474,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            close_at,
             report,
             questions,
             repairs,
@@ -2648,6 +2654,12 @@ pub enum Event {
         child: u64,
         kind: change::Delegate,
     },
+    /// Remember the two measured tips when a close job is admitted.
+    CloseDelegated {
+        task: u64,
+        child: u64,
+        at: change::CloseAt,
+    },
     /// The whole procedure batch was refused before a child number was admitted.
     DelegateAdmissionRefused {
         task: u64,
@@ -3304,6 +3316,12 @@ pub enum Request {
         decision: change::Decision,
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
+    },
+    /// A close job offer or the replay of its failure, with the tips just read.
+    CloseDecision {
+        task: u64,
+        at: change::CloseAt,
+        replay: bool,
     },
     /// Task-specific news with a connector classification.
     News {

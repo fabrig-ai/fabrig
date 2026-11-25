@@ -968,6 +968,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        close_at: None,
         report: Box::new([]),
         repairs: Some([28; 32]),
         follows: None,

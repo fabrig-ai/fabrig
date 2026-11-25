@@ -3970,6 +3970,19 @@ fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
 }
 
 #[test]
+fn a_changes_measured_tips_round_trip_in_its_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let mut row = fixtures::change_row(State::Producing { requested: true });
+    row.close_at = Some(CloseAt { branch: [3; 32], landing: [4; 32] });
+    let (cold, hot) = row.clone().split();
+    let stored = forge::Stored::ChangeHot(Box::new(hot));
+    let decoded = records::decode(&records::encode(&stored), &bounds).expect("current change record");
+    let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+    assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+}
+
+#[test]
 fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
     use temper_engine_domain_forge_change::State;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();

@@ -306,6 +306,11 @@ fn release_change(world: &mut World, goal: &engine::Assignment, task: u64) {
     assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
 }
 
+fn advance_goal_tip(world: &mut World, goal: &engine::Assignment, branch: &[u8]) -> u64 {
+    let tip = branch_tip(world, branch);
+    super::goal_delivery::deliver(world, goal, tip, b"docs/design/close.md")
+}
+
 fn assert_fresh_workspace(world: &World, task: u64, job: &host::JobAssignment, previous: &[engine::ForgeRepository]) {
     assert_eq!(job.workspace.as_ref().expect("writable workstream").workstream, task);
     let fresh = &world.job_workspaces.get(&job.run.raw()).expect("fresh workspace").repositories;
@@ -325,9 +330,10 @@ fn a_fresh_close_job_keeps_its_changes_writable_workspace() {
     let child = first.run.raw();
     let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].start, engine::ForgeStart::Branch(branch));
+    assert_eq!(items[0].start, engine::ForgeStart::Branch(branch.clone()));
     assert_eq!(items[0].push.as_deref(), Some(change_row(&world, task).branch.as_ref()));
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
+    advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
@@ -349,11 +355,12 @@ fn close_ending(world: &mut World, task: u64) -> tasks::Ending {
 
 #[test]
 fn a_fresh_close_jobs_push_opens_and_lands_its_change() {
-    let (mut world, goal, branch, tip) = goal_world(true, true);
+    let (mut world, goal, branch, _) = goal_world(true, true);
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
     let first = next_job(&mut world, task);
     let child = first.run.raw();
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
+    let tip = advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
@@ -383,6 +390,7 @@ fn a_fresh_close_job_with_nothing_to_push_ends_its_change() {
     let first = next_job(&mut world, task);
     let child = first.run.raw();
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
+    advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
@@ -404,6 +412,7 @@ fn a_fresh_close_job_that_fails_holds_its_change_with_the_new_words() {
     let child = first.run.raw();
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
     let revision = live_task(&world, task).revisions.hold;
+    advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
@@ -433,6 +442,8 @@ fn releasing_a_close_change_makes_a_fresh_job() {
         panic!("failed job: {:?}", old.phase)
     };
     assert_eq!(reason.as_ref(), b"its change holds on its failure");
+    let before = change_row(&world, task).close_at.expect("first job recorded its tips");
+    let tip = advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let fresh = next_job(&mut world, task);
     assert_ne!(fresh.run.raw(), child);
@@ -443,8 +454,32 @@ fn releasing_a_close_change_makes_a_fresh_job() {
     assert_eq!(fresh_items[0].push, items[0].push);
     assert_eq!(live_task(&world, fresh.run.raw()).authority.budget.spend, 0);
     assert_eq!(change_row(&world, task).delegate, Some((fresh.run.raw(), change::Delegate::Close)));
+    assert_eq!(
+        change_row(&world, task).close_at,
+        Some(change::CloseAt { branch: translate::commit(tip), landing: before.landing })
+    );
     finish_job(&mut world, &fresh);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
+    world.close();
+}
+
+#[test]
+fn a_move_on_main_alone_makes_a_fresh_close_job() {
+    let (mut world, goal, branch, tip) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
+    let landing = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"counts", b"updated", 1)
+        .expect("main moved");
+    release_change(&mut world, &goal, task);
+    let fresh = next_job(&mut world, task);
+    assert_ne!(fresh.run.raw(), child);
+    assert_eq!(
+        change_row(&world, task).close_at,
+        Some(change::CloseAt { branch: translate::commit(tip), landing: translate::commit(landing) })
+    );
+    finish_job(&mut world, &fresh);
     world.close();
 }
 
@@ -456,6 +491,7 @@ fn a_fresh_close_job_keeps_its_changes_writable_workspace_after_restart() {
     let child = first.run.raw();
     let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
+    advance_goal_tip(&mut world, &goal, &branch);
     world.drain_cut();
     world.restart_same();
     // The reconnecting worker advertises the same job kind as before restart.

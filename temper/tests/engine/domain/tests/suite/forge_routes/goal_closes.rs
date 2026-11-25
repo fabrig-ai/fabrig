@@ -616,6 +616,78 @@ fn a_failing_close_command_wakes_the_goal_once() {
     world.close();
 }
 
+fn goal_with_failed_close() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) = goal_world(4);
+    park_goal(&mut world, &goal);
+    let closer = closer_of(&mut world, goal.task);
+    let close = fail_close(&mut world);
+    wait_held(&mut world, close, goal.task);
+    let run = awakened(&mut world, goal.task);
+    (world, run, branch, closer, close)
+}
+
+#[test]
+fn a_released_close_waits_until_its_repair_lands() {
+    let (mut world, run, branch, closer, first) = goal_with_failed_close();
+    let (work, producer) = make_change(&mut world, &run, 93);
+    release(&mut world, &run, first, 94);
+    world.advance_ticks(100);
+    assert!(world.jobs.is_empty(), "a fresh close job was assigned while the repair runs");
+    assert_eq!(live_task(&world, first).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(row(&world, first).delegate, None);
+
+    park_goal(&mut world, &run);
+    produce(&mut world, work, &branch, &producer, b"Repair after close");
+    wait_ended(&mut world, first);
+    let (second, job) = replacement_close(&mut world, run.task, closer, first, work);
+    world.advance_ticks(100);
+    assert!(world.jobs.is_empty(), "only the new settle change assigns a close job");
+    finish_replacement_close(&mut world, run.task, &branch, closer, second, &job);
+    world.close();
+}
+
+fn replay_words(world: &mut World, close: u64, branch: &[u8]) -> String {
+    let branch = forge_top::commit_text(&translate::commit(branch_tip(world, branch)));
+    let main = forge_top::commit_text(&translate::commit(branch_tip(world, b"main")));
+    let short_branch = core::str::from_utf8(&branch[..12]).expect("goal commit prefix");
+    let short_main = core::str::from_utf8(&main[..12]).expect("main commit prefix");
+    let close = row(world, close);
+    let words =
+        core::str::from_utf8(close.producer_failure.as_deref().expect("failed job's words")).expect("UTF-8 failure");
+    format!(
+        "not measured again: the goal's branch is at {short_branch} and main at {short_main}, as when its close job failed; it closes again once either moves.\n\n{words}"
+    )
+}
+
+#[test]
+fn a_released_close_does_not_measure_unchanged_tips_again() {
+    let (mut world, run, branch, _, close) = goal_with_failed_close();
+    let words = replay_words(&mut world, close, &branch);
+    release(&mut world, &run, close, 93);
+    world.advance_ticks(100);
+    assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
+    super::goal_closer::assert_hold_words(&world, close, &words);
+    world.close();
+}
+
+#[test]
+fn a_released_close_wakes_when_its_repair_changes_nothing() {
+    let (mut world, run, branch, closer, close) = goal_with_failed_close();
+    let words = replay_words(&mut world, close, &branch);
+    let (work, producer) = make_change(&mut world, &run, 93);
+    release(&mut world, &run, close, 94);
+    world.advance_ticks(100);
+    assert_eq!(live_task(&world, close).phase, tasks::Phase::Active(tasks::Active::Idle));
+
+    finish_run(&mut world, &producer, tasks::TaskResult::NoChange { words: b"No fix needed.".as_slice().into() });
+    wait_ended(&mut world, work);
+    wait_held(&mut world, close, run.task);
+    super::goal_closer::assert_hold_words(&world, close, &words);
+    assert_eq!(closer_row(&world, closer).expect("closer row").close_changes.as_ref(), &[close]);
+    assert!(world.jobs.is_empty(), "no close job was needed before or after the wake");
+    world.close();
+}
+
 fn land_work_during_held_close(world: &mut World, goal: &engine::Assignment, branch: &[u8]) -> (u64, u64, u64) {
     park_goal(world, goal);
     let closer = closer_of(world, goal.task);
@@ -629,47 +701,61 @@ fn land_work_during_held_close(world: &mut World, goal: &engine::Assignment, bra
     (closer, first, work)
 }
 
-#[test]
-fn landed_work_supersedes_an_unreleased_held_close() {
-    let (mut world, goal, branch) = goal_world(4);
-    let (closer, first, work) = land_work_during_held_close(&mut world, &goal, &branch);
+fn replacement_close(world: &mut World, goal: u64, closer: u64, first: u64, work: u64) -> (u64, host::JobAssignment) {
     let tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) =
-        &ended(&world, first).expect("superseded close").phase
+        &ended(world, first).expect("superseded close").phase
     else {
         panic!("held close was not cancelled");
     };
     let expected = format!("superseded by the goal's new work: changes {work} landed into its branch");
     assert_eq!(reason.as_ref(), expected.as_bytes());
-    let job = close_job(&mut world);
-    let tasks::Party::Task(second) = live_task(&world, job.run.raw()).requester else { panic!("second close change") };
-    assert_eq!(closer_row(&world, closer).expect("closer row").close_changes.as_ref(), &[first, second]);
-    let expected =
-        format!("{{\"version\":1,\"goal\":{},\"changes\":[{{\"task\":{work},\"landed\":true}}]}}", goal.task);
-    assert_eq!(row(&world, second).close.as_deref(), Some(expected.as_bytes()));
-    finish_close(&mut world, second, &branch, &job);
-    wait_ended(&mut world, second);
-    let _landing = wait_landing(&mut world, closer);
-    let head = world.fake.branch(b"org/repo", &branch).expect("goal branch");
-    status(&mut world, head, raw::Check::Passed);
-    wait_ended(&mut world, closer);
-    let report = core::str::from_utf8(result_words(&world, closer)).expect("closer report UTF-8");
-    assert!(!report.contains(&format!("- T{first} ")), "{report}");
+    let job = close_job(world);
+    let tasks::Party::Task(second) = live_task(world, job.run.raw()).requester else { panic!("second close change") };
+    assert_eq!(closer_row(world, closer).expect("closer row").close_changes.as_ref(), &[first, second]);
+    let expected = format!("{{\"version\":1,\"goal\":{goal},\"changes\":[{{\"task\":{work},\"landed\":true}}]}}");
+    assert_eq!(row(world, second).close.as_deref(), Some(expected.as_bytes()));
+    (second, job)
+}
+
+fn finish_replacement_close(
+    world: &mut World,
+    goal: u64,
+    branch: &[u8],
+    closer: u64,
+    second: u64,
+    job: &host::JobAssignment,
+) {
+    finish_close(world, second, branch, job);
+    wait_ended(world, second);
+    let _landing = wait_landing(world, closer);
+    let head = world.fake.branch(b"org/repo", branch).expect("goal branch");
+    status(world, head, raw::Check::Passed);
+    wait_ended(world, closer);
     // A coordinator run still live at the report acknowledges its cancellation.
     for _ in 0..STEPS {
-        if ended(&world, goal.task).is_some() {
+        if ended(world, goal).is_some() {
             break;
         }
         if let tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { attempt }, .. }) =
-            live_task(&world, goal.task).phase
+            live_task(world, goal).phase
         {
-            let event =
-                world.protocol.answer(CHANNEL, goal.task, attempt, 0, tasks::End::Parked, engine::Parts::none());
+            let event = world.protocol.answer(CHANNEL, goal, attempt, 0, tasks::End::Parked, engine::Parts::none());
             world.send(event);
             break;
         }
         world.tick();
     }
-    wait_ended(&mut world, goal.task);
+    wait_ended(world, goal);
+}
+
+#[test]
+fn landed_work_supersedes_an_unreleased_held_close() {
+    let (mut world, goal, branch) = goal_world(4);
+    let (closer, first, work) = land_work_during_held_close(&mut world, &goal, &branch);
+    let (second, job) = replacement_close(&mut world, goal.task, closer, first, work);
+    finish_replacement_close(&mut world, goal.task, &branch, closer, second, &job);
+    let report = core::str::from_utf8(result_words(&world, closer)).expect("closer report UTF-8");
+    assert!(!report.contains(&format!("- T{first} ")), "{report}");
     world.close();
 }
 

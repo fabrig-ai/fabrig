@@ -101,6 +101,7 @@ enum StepStage {
     Taking,
     Branch,
     Base,
+    CloseLanding,
     Pull,
     Ci,
     ExecutionRun(u64),
@@ -134,6 +135,7 @@ pub(crate) struct PendingStep {
     branch_fresh: bool,
     base_tip: Option<skein_forge::api::Commit>,
     base_read: Option<skein_forge::api::Commit>,
+    close_landing: Option<skein_forge::api::Commit>,
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
@@ -2322,7 +2324,10 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             }
         }
         Event::JobSuspended { task, child, attempt } => crate::job_history::suspended(d, task, child, attempt, out),
-        Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
+        Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, None, out),
+        Event::CloseDelegated { task, child, at } => {
+            delegated(d, env, task, child, change::Delegate::Close, Some(at), out);
+        }
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
         Event::DelegateResult {
@@ -4193,6 +4198,7 @@ fn delegated(
     task: u64,
     child: u64,
     kind: change::Delegate,
+    close_at: Option<change::CloseAt>,
     out: &mut Queue<Request>,
 ) {
     let base = delegate_base(d, task, kind);
@@ -4219,6 +4225,9 @@ fn delegated(
         | change::Delegate::Gate { .. } => {}
     }
     row.delegate = Some((child, kind));
+    if let Some(at) = close_at {
+        row.close_at = Some(at);
+    }
     row.delegate_head = row.change.last_head;
     if let Some(read) = d.settling.get_mut(&task) {
         read.branch.producer = change::Status::Unknown;
@@ -5052,6 +5061,23 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     let owner = step_owner(d, task);
+    let close_unrequested = close_unrequested(row);
+    if close_unrequested && heard.closer_waiting && !heard.cancelled {
+        if let Some(owner) = owner {
+            d.steps.remove(&owner);
+        }
+        d.read_sessions.remove(&task);
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision: change::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            },
+        );
+        return;
+    }
     if gates.len() > skein_lib::usize_of(env.limits.change_policy.gates) {
         crate::refusal::resource_limit(
             out,
@@ -5072,6 +5098,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.heard.delegate = heard.delegate;
         pending.heard.delegate_running = heard.delegate_running;
         pending.heard.delegate_live = heard.delegate_live;
+        pending.heard.closer_waiting = heard.closer_waiting;
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
         pending.kept = kept;
@@ -5107,7 +5134,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     let branch =
         if selecting { row.source.as_ref().expect("taking source").branch.clone() } else { row.branch.clone() };
     let producer = if row.delegate_status == change::Status::Unknown { heard.delegate } else { row.delegate_status };
-    let read_branch = selecting || hints::has_head(d, row) || branch_is_due(d, env, task, producer);
+    let read_branch =
+        close_unrequested || selecting || hints::has_head(d, row) || branch_is_due(d, env, task, producer);
     let Some(sequence) = d.sequence.checked_add(1) else {
         emit(out, Request::Refused { task });
         return;
@@ -5129,6 +5157,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         branch_fresh: read_branch,
         base_tip: None,
         base_read: None,
+        close_landing: None,
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -5156,6 +5185,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     } else {
         step_read(d, env, owner, Err(skein_forge::api::Error::Missing), out);
     }
+}
+
+fn close_unrequested(row: &ChangeRow) -> bool {
+    row.close.is_some() && row.change.state == (change::State::Producing { requested: false })
 }
 
 fn branch_due(d: &mut Domain, task: u64) {
@@ -5257,6 +5290,7 @@ fn step_verified(
         branch_fresh: false,
         base_tip: Some(merge),
         base_read: Some(merge),
+        close_landing: None,
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -5389,6 +5423,15 @@ fn step_read(
         connection_wait::wait(d, env, pending.task, out);
         return;
     }
+    let closing = close_unrequested(row);
+    let close_without_head = closing && pending.branch.is_none();
+    if pending.stage == StepStage::CloseLanding || (close_without_head && pending.stage == StepStage::Base) {
+        let known = if let Ok(skein_forge::api::Answer::Commit(commit)) = &result { *commit != [0; 32] } else { false };
+        if !known {
+            wait_for_forge(d, env, &pending, None, out);
+            return;
+        }
+    }
     if admission::read_failed(row, &pending, &result, out) {
         d.read_sessions.remove(&pending.task);
         branch_due(d, pending.task);
@@ -5455,6 +5498,7 @@ fn step_read(
                 && !hints::has_head(d, d.changes.get(&pending.task).expect("live change"))
                 && catch_up.is_none()
                 && !early_base(&pending)
+                && !closing
             {
                 finish_step(d, env, pending, out);
                 return;
@@ -5488,11 +5532,14 @@ fn step_read(
                     unreachable!("fresh read answer checked");
                 }
             }
-            if pending.branch.is_none() && !had_head && catch_up.is_none() {
+            if close_without_head {
+                pending.stage = StepStage::CloseLanding;
+                let landing = &d.repositories.get(&repository).expect("adopted repository").landing;
+                skein_forge::api::Read::Branch { branch: landing.clone() }
+            } else if pending.branch.is_none() && !had_head && catch_up.is_none() {
                 finish_step(d, env, pending, out);
                 return;
-            }
-            if let Some(commit) = catch_up {
+            } else if let Some(commit) = catch_up {
                 pending.stage = StepStage::CatchUp;
                 skein_forge::api::Read::Commits { before: pending.base_tip.expect("base read"), after: commit, page: 1 }
             } else {
@@ -5503,6 +5550,12 @@ fn step_read(
                     None => skein_forge::api::Read::PullFor { head: branch, base },
                 }
             }
+        }
+        StepStage::CloseLanding => {
+            let Ok(skein_forge::api::Answer::Commit(commit)) = result else { unreachable!("checked close tip read") };
+            pending.close_landing = Some(commit);
+            finish_step(d, env, pending, out);
+            return;
         }
         StepStage::CatchUp => {
             pending.contains_catch_up = ancestry_status(result);
@@ -6071,6 +6124,13 @@ fn wait_for_forge(
         connection_wait::wait(d, env, row.task, out);
         return;
     }
+    // An unrequested close needs both tips. Retry the whole pair even if a
+    // base confirmation's wake was coalesced with this procedure step.
+    let retry = if close_unrequested(row) && retry.is_none() {
+        Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000)))
+    } else {
+        retry
+    };
     arm_gather(d, env, pending);
     let until = match read_session::until(d, pending.task) {
         Some(until) if env.wall >= until => {
@@ -6239,7 +6299,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         row.change.since = env.wall;
     }
     crate::readiness::way(d, &mut row);
-    // Producing without a head uses no base facts except early starts and catch-ups.
+    // Producing without a head uses no base facts except for closes, early starts and catch-ups.
     let base_tip = pending.base_tip.unwrap_or([0; 32]);
     row.pull = match &pending.pull {
         Some(pull) => Some(pull.number),
@@ -6459,6 +6519,14 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 wake_after_turn(d, &row, prior.owns_turn);
                 save_queue_change(d, env, before, row.clone(), out);
                 topics::refresh(d, env, row.task, out);
+                if let Some(at) = facts.close_tips {
+                    let replay = decision == change::Decision::Hold(change::Hold::Failed)
+                        && effect_prior.state == (change::State::Producing { requested: false });
+                    if replay || decision == change::Decision::Delegate(change::Delegate::Close) {
+                        emit(out, Request::CloseDecision { task: row.task, at, replay });
+                        return;
+                    }
+                }
                 emit(
                     out,
                     Request::ChangeDecision {
@@ -6822,6 +6890,14 @@ fn change_facts(
         catch_up: row.catch_up,
         follows: row.follows.is_some(),
         close: row.close.is_some(),
+        close_tips: if let Some(branch) = pending.base_read
+            && let Some(landing) = pending.close_landing
+        {
+            Some(change::CloseAt { branch, landing })
+        } else {
+            None
+        },
+        close_at: row.close_at,
         contains_catch_up: pending.contains_catch_up,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,
@@ -7602,7 +7678,16 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         row.regate = regate;
     }
     retire_failed_delegate(row);
-    let released = change::released(&row.change, env.wall);
+    let mut released = change::released(&row.change, env.wall);
+    if row.close.is_some()
+        && released.released == Some(change::Hold::Failed)
+        && released.state == (change::State::Producing { requested: true })
+    {
+        // A failed close is a new producing decision, not drift recovery. Put
+        // it in that phase before picking the reads (or parking for its closer).
+        released.state = change::State::Producing { requested: false };
+        released.released = None;
+    }
     let lifted = released.state != row.change.state;
     row.change = released;
     row.change.since = env.wall;
@@ -7706,7 +7791,15 @@ fn fence_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: 
 // A release cannot join an in-flight observation from before it. Hints fence
 // shared fresh reads in the client as well as advancing its watched reads.
 fn fresh_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: &mut Queue<Request>) {
-    for branch in [&row.branch, &row.base] {
+    let landing = if row.close.is_some() {
+        match d.repositories.get(&row.repository) {
+            Some(repository) if repository.landing != row.base => Some(repository.landing.clone()),
+            Some(_) | None => None,
+        }
+    } else {
+        None
+    };
+    for branch in [&row.branch, &row.base].into_iter().chain(landing.as_ref()) {
         child(
             d,
             env,

@@ -228,6 +228,7 @@ fn release_with_result_in_record(placed: bool) {
         queue_repair_active: false,
         heard: temper_engine_domain_forge_change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
