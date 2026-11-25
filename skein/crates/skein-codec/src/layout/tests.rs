@@ -119,15 +119,24 @@ fn read_skips_a_source_only_field_while_keep_compares_its_default() {
 
 #[test]
 fn tombstone_supplies_a_missing_field_unless_it_has_its_own_default() {
-    let old = "record R { a: u8 dropped b: u16 = 9 }";
-    for (new, wire) in [("record R { a: u8 b: u16 }", [1, 0, 9]), ("record R { a: u8 b: u16 = 4 }", [1, 0, 4])] {
-        check(&plan(old, new), &[1], &wire, false);
+    let scalar = "record R { a: u8 dropped b: u16 = 9 }";
+    let rows: [(&str, &str, &[u8]); 3] = [
+        (scalar, "record R { a: u8 b: u16 }", &[1, 0, 9]),
+        (scalar, "record R { a: u8 b: u16 = 4 }", &[1, 0, 4]),
+        (
+            "enum E { a b } record R { a: u8 dropped b: option E = some b }",
+            "enum E { c } record R { a: u8 b: option E = none }",
+            &[1, 0],
+        ),
+    ];
+    for (old, new, wire) in rows {
+        check(&plan(old, new), &[1], wire, false);
         for mode in [Mode::Read, Mode::Keep] {
             let forward = between(mode, old, new).expect("the missing field has a default");
-            check(&forward, &[1], &wire, false);
+            check(&forward, &[1], wire, false);
         }
         let back = between(Mode::Read, new, old).expect("Read drops the restored field");
-        check(&back, &wire, &[1], false);
+        check(&back, wire, &[1], false);
     }
 }
 
@@ -146,6 +155,83 @@ fn tombstone_supplies_the_compared_default_unless_the_field_has_its_own() {
         check(&read, &refused, &[1], false);
         let back = between(Mode::Read, new, old).expect("Read restores the compared default");
         check(&back, &[1], &accepted, false);
+    }
+}
+
+#[test]
+fn tombstone_restores_an_enum_default_at_its_target_tag() {
+    let old = "enum E { a b } record R { x: u8 dropped e: E = b }";
+    for new in ["enum E { c a b } record R { x: u8 e: E }", "enum E { c a renamed was b } record R { x: u8 e: E }"] {
+        check(&plan(old, new), &[5], &[5, 2], false);
+        for mode in [Mode::Read, Mode::Keep] {
+            check(&between(mode, old, new).expect("restored enum field"), &[5], &[5, 2], false);
+        }
+        check(&between(Mode::Read, new, old).expect("Read drops the restored field"), &[5, 2], &[5], false);
+    }
+}
+
+#[test]
+fn tombstone_compares_an_enum_default_at_its_live_tag() {
+    let old = "enum E { a b } record R { x: u8 e: E }";
+    let new = "enum E { c a b } record R { x: u8 dropped e: E = b }";
+    let keep = between(Mode::Keep, old, new).expect("compared enum default");
+    check(&keep, &[5, 1], &[5], false);
+    check_refusal(&keep, &[5, 0], &[], (Refused::Field, "R", "e"));
+    for read in [plan(old, new), between(Mode::Read, old, new).expect("Read skips the field")] {
+        for wire in [[5, 0], [5, 1]] {
+            check(&read, &wire, &[5], false);
+        }
+    }
+    check(&between(Mode::Read, new, old).expect("Read restores the compared default"), &[5], &[5, 1], false);
+}
+
+#[test]
+fn tombstone_with_an_unconvertible_default_names_the_live_field() {
+    let dead = "enum E { a b } record R { x: u8 dropped e: E = b }";
+    for live in ["enum E { a } record R { x: u8 e: E }", "record P {} enum E { a b: P } record R { x: u8 e: E }"] {
+        refused(dead, live, Why::Retyped, Some(b"e"), false);
+        for (mode, old, new, in_old) in
+            [(Mode::Read, dead, live, false), (Mode::Keep, dead, live, false), (Mode::Keep, live, dead, true)]
+        {
+            let error = between(mode, old, new).expect_err("the default's variant cannot be converted");
+            assert_eq!(error.why, Why::Retyped);
+            assert_eq!(error.old, in_old);
+            let text = schema(live, if in_old { 1 } else { 2 });
+            assert_eq!(text.spelled(error.decl), b"R");
+            assert_eq!(text.spelled(error.part.expect("live field")), b"e");
+        }
+        check(&plan(live, dead), &[5, 0], &[5], false);
+        check(&between(Mode::Read, live, dead).expect("Read does not use the default"), &[5, 0], &[5], false);
+    }
+}
+
+#[test]
+fn tombstone_default_ignores_sibling_variants() {
+    let old = "enum E { a b } record R { x: u8 dropped e: E = a }";
+    for (new, tag) in [("enum E { a } record R { x: u8 e: E }", 0), ("enum E { c a } record R { x: u8 e: E }", 1)] {
+        check(&plan(old, new), &[5], &[5, tag], false);
+        for mode in [Mode::Read, Mode::Keep] {
+            let forward = between(mode, old, new).expect("only the default's variant must convert");
+            assert!(!forward.refuses());
+            check(&forward, &[5], &[5, tag], false);
+        }
+    }
+}
+
+#[test]
+fn tombstone_converts_the_enum_default_beneath_options() {
+    let new = "enum E { c a b } record R { x: u8 e: option E }";
+    for (old, wire) in [
+        ("enum E { a b } record R { x: u8 dropped e: option E = some b }", &[5, 1, 2][..]),
+        ("enum E { only } record R { x: u8 dropped e: option E = none }", &[5, 0][..]),
+    ] {
+        check(&plan(old, new), &[5], wire, false);
+        for mode in [Mode::Read, Mode::Keep] {
+            check(&between(mode, old, new).expect("restored option field"), &[5], wire, false);
+        }
+        let keep = between(Mode::Keep, new, old).expect("compared option default");
+        check(&keep, wire, &[5], false);
+        check_refusal(&keep, &[5, 1, 0], &[], (Refused::Field, "R", "e"));
     }
 }
 
