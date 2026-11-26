@@ -4,7 +4,7 @@ The record of every write temper makes on a branch or a pull request, and how a 
 
 ## 1. The record
 
-- **One record per branch** of a repository temper writes: a change's, a goal's own, a landing branch, a landing's prefix, a saved work's branch. A pull request's entries are in the record of its head branch, each naming the pull by its number, since a pull never changes its head branch; a merge writes an entry in its base branch's record too, since it moves that branch's head. So every branch and every pull temper writes has its entries, and one figure bounds them (6).
+- **One record per branch** of a repository temper writes: a change's, a goal's own, a landing branch, a landing's prefix, a saved work's branch. A pull request's entries are in the record of its head branch, each naming the pull by its number, since a pull never changes its head branch; a merge that moves its base's head (a merge commit, a squash, a rebase or a fast-forward) writes an entry in its base branch's record too; a recorded merge (skein's `MergeHow::Recorded { commit }`, Forgejo's `manually-merged`), which marks the pull merged at a commit its base already holds, moves no branch and writes the merge entry alone. So every branch and every pull temper writes has its entries, and one figure bounds them (6).
 - **Its head** is the branch's head as temper's settled writes leave it, or absent: the commit the forge client is told to expect (`Pushed`, skein's `forge/client.md`, 4) and the one drift is judged from.
 - **An entry** is one write: its **operation**, with its **before** and **after** states; its **sender**; its **order**, a number from 1 rising on its record, given at admission; and its **state**, one of *admitted*, *sent*, *confirmed*, *refused* and *uncertain*. Admitted, sent and uncertain are **unsettled**; confirmed and refused are settled.
 
@@ -14,7 +14,7 @@ The record of every write temper makes on a branch or a pull request, and how a 
 | create | the forge client, an outbox entry (a goal's branch, a branch made again on release) | absent → its commit |
 | delete | the forge client | the head temper knew → absent |
 | update | the forge client, on the pull's head branch | the pull's head → a head holding the base it asked for, filled in at its answer (an intent) |
-| merged into | the forge client, on the base branch | the base's tip → the merge's commit, filled in at its answer (an intent); a fast-forward's after is its candidate |
+| merged into | the forge client, on the base branch, for a merge that moves it (never a recorded merge) | the base's tip → the merge's commit, filled in at its answer (an intent); a fast-forward's after is its candidate |
 | merge | the forge client, for the pull | open at its head → merged |
 | open | the forge client | no pull for its branches → open on its base at its head; its number filled in at its answer |
 | close, reopen | the forge client | open → closed; closed → open |
