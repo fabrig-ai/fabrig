@@ -3,7 +3,6 @@
 2026-11-26. Where the tree's code lags or departs from [wire.md](wire.md).
 
 - **Not yet:** 1.7: `off` refused at admission, so no request carries disabled thinking; a focused test holding each shape current Claude models refuse absent; the fake peer refusing disabled thinking and sampling settings [in flight: change 914].
-- **Not yet:** 1.8: the client compresses a body with skein-deflate's gzip member, not skein-http's [in flight: change 18870].
 
 Section 1.9 has no known implementation gap in the route-specific list
 request, bounded parsing, visibility filtering or optional figures.

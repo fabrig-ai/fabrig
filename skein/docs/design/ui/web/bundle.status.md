@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [bundle.md](bundle.md).
 
-- **Not yet:** 2: the compressed forms written with skein's gzip member at its best level, and `flate2` gone from the workspace with its development-profile overrides [in flight: change 18872].
 - **Not yet:** 3: no run on record shows skein's browser tier with the loader, which
   its stories on the example load, within `tools/tiers/budgets.toml`'s `browser-skein`, nor
   `browser_stories`'s `a_placeholder_gives_way_to_the_client` and
