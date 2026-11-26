@@ -172,8 +172,9 @@ compiled, not run.
   red whose failed tests all match open flake findings runs once more,
   green proceeds and counts them; red publishes and repairs, never a
   third run; a restart between the rerun's write and its end neither
-  repeats nor loses it; a test no finding names, a report not read and
-  a gate with no report make the failed receipt at once.
+  repeats nor loses it; a test no finding names and a gate with no
+  report make the failed receipt at once. A promised report not read is
+  no verdict, retried and then held with no receipt (`forge/judgement.md`, 2).
 - **A regate:** a member naming a failed receipt's key and run is
   dispatched afresh across a restart, green proving with no new
   commit; a spent regate fails at once.

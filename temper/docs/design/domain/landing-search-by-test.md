@@ -58,14 +58,13 @@ sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, s
   a tier's report's read is, before its failed receipt is made. A
   passed run, or a runner's fault (`landing-proof.md`, 2.4), reads none.
 - **The gate's own verdict:** a report is what the gate writes once it
-  has judged, so a failed run whose artifact the forge answers absent
-  (skein's `Error::Missing`) is one whose gate wrote no verdict, cut by
-  a signal, a runner's shutdown or a lost job: `unreported`, a runner's
-  fault (`landing-proof.md`, 2.4), retried within `gate_retries` and holding
-  past them, with no receipt, no search and no repair. That answer
-  alone: an artifact past the read's bound, one in no form its format
-  reads, or a read that failed otherwise makes the failed receipt as
-  below, its ids many or not read. Every run of the landing's gates is
+  has judged. An artifact past the read's bound reads as "many" and
+  makes the failed receipt as below. An absent artifact (skein's
+  `Error::Missing`), one in no form its format reads, or a read that
+  failed otherwise names nothing and is no verdict (see **None**): the
+  runner's when the run was interrupted, broke otherwise
+  (`forge/judgement.md`, 2), with no receipt, no search and no repair.
+  Every run of the landing's gates is
   read so: a top, a
   probe, a baseline, a flake rerun and a superseding run
   (`landing-regate.md`, 2 and 3). A gate naming no report has no
