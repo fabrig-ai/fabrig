@@ -7,7 +7,7 @@ use skein_forge_kit::joint::{self, Joint, REPO};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_forge as top;
-use temper_engine_forge_world::LIMITS;
+use temper_engine_forge_world::{LIMITS, changes::branch_name, translate::commit};
 
 /// A candidate base read (main tip or any Checks): send time, request, returned branch commit.
 pub type BaseRead = (Wall, skein_forge::api::Read, Option<skein_forge::api::Commit>);
@@ -412,6 +412,66 @@ impl Protocol {
         forge::advance(&mut self.joint.domain, &env, self.fixture.path, branch, path, content, actor)
             .expect("scripted push");
     }
+    /// A scripted worker delivers to an existing branch, leased on its current head.
+    pub fn push_attempt(&mut self, attempt: (u64, u64), branch: &[u8], path: &[u8], content: &[u8]) {
+        let head = self.branch(branch);
+        let delivery = self.delivery_commit(head, path, content);
+        self.send_attempt_push(attempt, branch, Some(head), delivery);
+    }
+
+    /// A scripted producer delivers its first commit, leased on an absent branch.
+    pub fn push_new_attempt(&mut self, attempt: (u64, u64), branch: &[u8]) {
+        let delivery = self.delivery_commit(self.branch(b"main"), b"file", b"change");
+        self.send_attempt_push(attempt, branch, None, delivery);
+    }
+
+    fn delivery_commit(&mut self, parent: u64, path: &[u8], content: &[u8]) -> u64 {
+        let mut files: Vec<_> = self
+            .joint
+            .domain
+            .object(parent)
+            .expect("delivery parent")
+            .tree
+            .iter()
+            .filter(|(key, _)| key.as_ref() != path)
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: path.into(), content: content.into() });
+        forge::commit_tree(
+            &mut self.joint.domain,
+            &self.joint.fake_env.limits,
+            parent,
+            None,
+            files.into_boxed_slice(),
+            b"delivery",
+        )
+        .expect("scripted delivery commit")
+    }
+
+    fn send_attempt_push(&mut self, (task, attempt): (u64, u64), branch: &[u8], expected: Option<u64>, delivery: u64) {
+        self.top
+            .admit_push(
+                &self.env,
+                &branch_name(branch),
+                expected.map(commit),
+                commit(delivery),
+                top::Sender::Attempt { task, attempt },
+                &mut self.top_out,
+            )
+            .expect("scripted write admitted");
+        self.take_top();
+        let (push, answer) = match expected {
+            Some(_) => (
+                raw::Git::Push { branch: branch.into(), commit: delivery, expected },
+                raw::Answer::Pushed(raw::Pushed::Pushed),
+            ),
+            None => {
+                (raw::Git::PushNew { branch: branch.into(), commit: delivery }, raw::Answer::PushNew { existing: None })
+            }
+        };
+        assert_eq!(self.external(raw::Op::Git(push), self.fixture.writer), answer);
+    }
+
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
         self.external(
             raw::Op::Write(raw::Write::Status {
@@ -442,7 +502,8 @@ impl Protocol {
     pub fn close(&mut self, number: u64) {
         self.external(raw::Op::Write(raw::Write::Close { number }), 2);
     }
-    pub fn resolve(&mut self, branch: &[u8], content: &[u8]) {
+    /// A scripted resolver delivers a two-parent merge through its attempt's lease.
+    pub fn resolve(&mut self, attempt: (u64, u64), branch: &[u8], content: &[u8]) {
         let head = self.branch(branch);
         let base = self.branch(b"main");
         let merged = forge::merge_commit(
@@ -454,13 +515,7 @@ impl Protocol {
             b"Resolve conflict",
         )
         .expect("fixture merge commit");
-        assert_eq!(
-            self.external(
-                raw::Op::Git(raw::Git::Push { branch: Box::from(branch), commit: merged, expected: Some(head) }),
-                self.fixture.writer,
-            ),
-            raw::Answer::Pushed(raw::Pushed::Pushed)
-        );
+        self.send_attempt_push(attempt, branch, Some(head), merged);
     }
     #[must_use]
     pub fn branch(&self, branch: &[u8]) -> u64 {

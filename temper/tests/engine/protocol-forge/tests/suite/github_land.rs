@@ -521,10 +521,11 @@ fn conflicting_update_requests_resolution_without_merge() {
 
 #[test]
 fn update_conflict_resolved_then_merged() {
-    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; Q3. Resolve as the fixture writer.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; Q3.
     let mut world = Protocol::github(744);
     let entry = conflicting_update(&mut world);
-    world.resolve(b"temper/51", b"resolved both edits");
+    let resolver = (52, 1);
+    world.resolve(resolver, b"temper/51", b"resolved both edits");
     assert!(!matches!(step(&mut world, entry + 1, change::Status::Passed), change::Decision::Hold(_)));
     let finishes = scheduled_landing(&mut world, entry + 2, 30);
     landed_once(&world, &finishes, 3);
