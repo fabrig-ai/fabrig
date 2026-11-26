@@ -121,17 +121,18 @@ fn maybe_watch(duties: &Duties, subject: &w::Subject) -> Option<u64> {
     if *subject == w::Subject::Me {
         return Some(0);
     }
+    watch_where(duties, |found| found == subject)
+}
+
+pub(crate) fn watch_where(duties: &Duties, named: impl Fn(&w::Subject) -> bool) -> Option<u64> {
     duties.asked.iter().rev().find_map(|request| {
         let Request::Exchange { message, .. } = request else { return None };
         openings(message).into_iter().rev().find_map(|open| {
-            if open.subject.owner == w::Owner::Jig
-                && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).expect("subject")
-                    == *subject
-            {
-                Some(open.watch)
-            } else {
-                None
+            if open.subject.owner != w::Owner::Jig {
+                return None;
             }
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(&open.subject.record)).expect("subject");
+            named(&subject).then_some(open.watch)
         })
     })
 }

@@ -2,6 +2,7 @@
 //! Library tests and the suite keep separate copies of their own types (tools/crates/design.md, 3.2).
 mod client;
 pub(super) use client::{delivery_report, terminal_document, watch};
+pub(crate) use client::{stream_bytes, watch_where};
 use jig_client::{Message, Request};
 use skein_lib::{Secret, Time, Wall};
 use skein_ui_screen::Size;
@@ -109,7 +110,7 @@ fn credential() -> Secret {
     Secret::new(bytes.into())
 }
 
-fn signed_in() -> Box<[u8]> {
+pub(crate) fn signed_in() -> Box<[u8]> {
     let credential = credential();
     let mut bytes = vec![0, 1];
     bytes.extend_from_slice(&u32::try_from(credential.len()).expect("credential size").to_be_bytes());
@@ -230,7 +231,7 @@ impl World {
     }
 }
 
-pub(super) fn printed_link() -> Box<[u8]> {
+pub(crate) fn printed_link() -> Box<[u8]> {
     format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into()
 }
 
