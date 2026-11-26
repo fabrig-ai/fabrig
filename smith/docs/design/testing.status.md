@@ -3,8 +3,6 @@
 2026-11-26. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
-  - 4: the menu's bodies carrying `job`'s number and a shell's
-    `yield_seconds`. [in flight: change 19507]
   - 6: smith's inspection adapter, `smith-inspect`, and its worlds'
     calls of the shared checks.
   - 6: job ends paired across the event stream (they are paired on the
