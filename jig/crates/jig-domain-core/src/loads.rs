@@ -1,4 +1,4 @@
-//! The core's store flights (`jig/docs/design/domain/engine/contracts.md`, 2).
+//! The core's store flights (`jig/docs/design/domain/engine/vocabulary.md`, 2.4).
 
 use crate::{Core, Held, Limits, Request, engine::store, reads, routing::Work};
 use alloc::boxed::Box;

@@ -12,7 +12,6 @@ does with all of it is ../root.md. The mechanics are those of skein's
 `../foundation/programming-model.md`. What is still open is listed in section 10.
 
 - [`vocabulary.md`](vocabulary.md): what crosses between the core and the root, and the engine a root calls.
-- [`contracts.md`](contracts.md): the shapes the changes moving the core's loads onto the store's port share, until they land.
 - [`waits.md`](waits.md): a task's waits, each a record with its kind, since and bound.
 - [`decisions.md`](decisions.md): decisions, commits and the store.
 - [`world.md`](world.md): the core's domain world and its stories.
