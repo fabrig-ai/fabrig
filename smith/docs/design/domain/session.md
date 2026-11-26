@@ -609,10 +609,22 @@ budgets.
   with its end if it had ended; a cancel `cancelled`, or with its end if
   that won the race. A held job takes no place in any batch and keeps no
   session from yielding. A session's close ends it.
-- **Its jobs are held in the session's four cells** (the tools' `jobs`
-  in the world's limits), so the tools refuse at their entrance a
-  yielding command while four jobs are held, and a `job` call naming a
-  number its session doesn't hold (section 5).
+- **Its jobs are held in the session's cells** (the tools' `jobs` in
+  the world's limits): four in the calm settings and the stories, and
+  from one to four in the noisy settings, drawn for each seed after
+  every other draw, so the earlier ones keep their sequence. So the
+  tools refuse at their entrance a yielding command while every cell is
+  held, and a `job` call naming a number its session doesn't hold
+  (section 5).
+  - **Why a drawn bound:** at the gate's 1000 seeds no noisy session
+    holds more than two jobs at once, since its sessions are short and
+    a drawn call is a yielding command at most one time in seven. So
+    four cells never fill there. A drawn bound reaches the same refusal
+    through the same code, with no seed added. It is a tiny limit for a
+    count, as the worlds keep (`smith/docs/design/testing.md`, 6).
+    Turned down: more seeds, which are a budget, and a scripted world
+    inside the sweep, which would repeat the stories' check of four
+    held jobs and a fifth, not draw it.
 - **Its referee takes a running job's answers.** A yielding command's
   `running` answer is what comes of it, naming its session's next job
   number, and a `job` call's answer names the job the call asked for.
@@ -628,7 +640,7 @@ budgets.
     its own room (section 5). The session's check at the read's result
     stops the world where it started without. Second, the `job` calls
     answered as naming an unknown job. Third, the yielding commands
-    refused because four jobs were held.
+    refused because every cell was held.
   - **Its reach check asks for all three** at the gate's seeds, beside
     the ends, stops, failures and races it already asks for.
 
