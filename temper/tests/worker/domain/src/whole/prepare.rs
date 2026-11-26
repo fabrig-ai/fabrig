@@ -130,6 +130,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             repositories: Box::new([wire::Repository {
+                admit: false,
                 tag: 0,
                 name: b"work".as_slice().into(),
                 remote: REMOTE.into(),
@@ -364,6 +365,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             repositories: Box::new([wire::Repository {
+                admit: false,
                 tag: 0,
                 name: b"work".as_slice().into(),
                 remote: REMOTE.into(),

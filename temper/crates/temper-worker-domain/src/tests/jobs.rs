@@ -473,3 +473,90 @@ fn disk_capacity_queues_before_checkout_and_preserves_operator_pause() {
     assert_eq!(answer.ending, host::Ending::Refused(host::Refusal::Busy));
     assert!(requested(&git(&mut h, admitted, false)), "the admitted job continues under disk pressure");
 }
+
+fn job_with_admission(kind: JobKind) -> Event {
+    let Event::AssignJob { mut job, items: Ok(mut items), spec } = assignment(true, true) else {
+        panic!("decoded job with items")
+    };
+    job.kind = kind;
+    items.repositories[1].admit = true;
+    Event::AssignJob { job, items: Ok(items), spec }
+}
+
+#[test]
+fn merge_and_close_jobs_wait_for_admission_before_delivering() {
+    for number in [3, 4] {
+        for admitted in [false, true] {
+            let mut h = harness(true);
+            let job_kind = JobKind(number);
+            let mut declared = kind(true);
+            declared.bound.kind = job_kind;
+            h.env.limits.host.application_ask_bytes = 16;
+            h.env.limits.host.application_answer_bytes = 16;
+            h.domain = Domain::new(&h.env.limits, Box::new([declared]));
+            h.step(Event::Ready);
+            let owner = running_assignment(&mut h, job_with_admission(job_kind));
+            let rows = result(&mut h, owner);
+            let [Request::Io { owner: hold, op: Op::Commit { .. }, .. }] = rows.as_ref() else {
+                panic!("the job commits before asking: {rows:?}")
+            };
+            let (tip, head) = (Commit::new([1; 32]), Commit::new([2; 32]));
+            let rows = h.step(Event::Done { owner: *hold, done: Done::Committed { commit: head } });
+            let [Request::Git { .. }, Request::Io { op: Op::Fetch { .. }, .. }] = rows.as_ref() else {
+                panic!("read the destination: {rows:?}")
+            };
+            let rows = h.step(Event::Done { owner: *hold, done: Done::Fetched { commit: tip } });
+            let [Request::AdmitAsk { client, cookie, ask }] = rows.as_ref() else {
+                panic!("only the admission ask: {rows:?}")
+            };
+            assert_eq!(
+                *ask,
+                wire::Ask::Admit {
+                    tag: 1,
+                    branch: b"topic".as_slice().into(),
+                    expected: Some(tip.raw()),
+                    commit: head.raw()
+                }
+            );
+            let (client, cookie) = (*client, *cookie);
+            let rows = h.step(Event::AdmitAsk { client, cookie, bytes: b"ask".as_slice().into() });
+            let [Request::Link(host::LinkUp::Ask { run, attempt, number, .. })] = rows.as_ref() else {
+                panic!("job sends an ask: {rows:?}")
+            };
+            assert_eq!((*run, *attempt), (fixtures::RUN, fixtures::ATTEMPT));
+            let rows = h.step(Event::Link(host::LinkDown::Asked {
+                run: *run,
+                attempt: *attempt,
+                number: *number,
+                answer: host::AskAnswer::Bytes(b"answer".as_slice().into()),
+            }));
+            assert_eq!(rows.as_ref(), &[Request::AdmitAnswer { client, cookie, bytes: b"answer".as_slice().into() }]);
+            let decision = if admitted {
+                wire::Answer::Admitted
+            } else {
+                wire::Answer::Unadmitted { words: b"no room".as_slice().into() }
+            };
+            let rows = h.step(Event::AdmitAnswer { client, cookie, answer: Some(decision) });
+            if admitted {
+                let [Request::Io { op: Op::Push { expected, commit, .. }, .. }] = rows.as_ref() else {
+                    panic!("only admitted delivery pushes: {rows:?}")
+                };
+                assert_eq!((*expected, *commit), (Some(tip), head));
+                git(&mut h, rows, false);
+            } else {
+                assert!(rows.is_empty(), "no push on refusal: {rows:?}");
+            }
+            let rows = job(&mut h, owner, tooling::Event::Gone { owner });
+            if admitted {
+                let host::JobEnding::Finished { work, .. } = answer(&rows) else {
+                    panic!("finished job after the push")
+                };
+                assert!(work.left.is_some());
+            } else {
+                let host::JobEnding::Failed { failure, work, .. } = answer(&rows) else { panic!("refused job failed") };
+                assert_eq!(*failure, host::JobFailure::Undelivered(host::DeliveryOutcome::Refused));
+                assert!(work.left.is_none());
+            }
+        }
+    }
+}

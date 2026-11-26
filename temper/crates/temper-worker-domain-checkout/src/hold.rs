@@ -137,6 +137,7 @@
 //! place ([`sent`]), and what the new state implies (a closed hold is
 //! retired, and its workspace idle again) in another ([`follow`]).
 
+mod admission;
 mod candidate;
 mod catch_up;
 mod design;
@@ -377,6 +378,15 @@ enum PrepareStep {
     Default {
         repository: u32,
     },
+    /// Recheck the destination after fetching the default branch.
+    ReadCreate {
+        repository: u32,
+        commit: Commit,
+    },
+    AdmitCreate {
+        repository: u32,
+        commit: Commit,
+    },
     /// The base branch, at the default branch's `commit`.
     Create {
         repository: u32,
@@ -508,6 +518,15 @@ fn unchecked_head(to: &To) -> bool {
 /// The operation or dependency answer a pushing hold waits for.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 enum PushStep {
+    ReadPush {
+        target: admission::Target,
+        commit: Commit,
+    },
+    AdmitPush {
+        target: admission::Target,
+        commit: Commit,
+        expected: Option<Commit>,
+    },
     Dependency {
         repository: u32,
         head: Commit,
@@ -762,6 +781,79 @@ pub(crate) fn dependency_landed(
     conclude(domain, env, id, was_active, out, mark);
 }
 
+pub(crate) fn push_admission(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    hold: Token,
+    answer: Result<(), Box<[u8]>>,
+    out: &mut Queue<Request>,
+) {
+    let Some(id) = addressed(&domain.holds, hold) else { return };
+    let hold = domain.holds.get_mut(id).expect("addressed hold");
+    let mark = out.len();
+    let was_active = active(&hold.state) || hold.holding.recovering;
+    hold.state = match mem::replace(&mut hold.state, State::Closed) {
+        State::Pushing { push, step: PushStep::AdmitPush { target, commit, expected }, asked } => {
+            let holding = &hold.holding;
+            let repository = target.repository();
+            let branch = target.branch(holding, &push.to);
+            match answer {
+                Ok(()) => {
+                    io(id, admission::leased_op(holding, repository, branch, commit, expected), env, out);
+                    State::Pushing { push, step: target.step(), asked }
+                }
+                Err(why) => complete_push(
+                    holding,
+                    id,
+                    push,
+                    repository,
+                    Landing::Unadmitted { words: admission::refusal(&branch, &why) },
+                    asked,
+                    env,
+                    out,
+                ),
+            }
+        }
+        State::Preparing { step: PrepareStep::AdmitCreate { repository, commit }, asked, .. } => {
+            let (next, words) = match answer {
+                Ok(()) => (Next::Step(PrepareStep::Create { repository, commit }), Box::from(b"".as_slice())),
+                Err(why) => (
+                    Next::Failed(Failure::Refused { repository }),
+                    admission::refusal(&base_branch(&hold.holding, repository), &why),
+                ),
+            };
+            prepare_next(&mut hold.holding, &mut domain.cache, id, next, words, asked, env, out)
+        }
+        other @ (State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Ready
+        | State::Reds(_)
+        | State::Unprepared
+        | State::Pushing { .. }
+        | State::Keeping { .. }
+        | State::Closed) => other,
+    };
+    saved_or_recover(hold, &mut domain.cache, id, Asked::Nothing, env, out, mark);
+    conclude(domain, env, id, was_active, out, mark);
+    admissions(domain, env, out);
+}
+
+fn waiting_for_answer(step: &PushStep) -> bool {
+    match step {
+        PushStep::Dependency { .. } | PushStep::AdmitPush { .. } => true,
+        PushStep::ReadPush { .. }
+        | PushStep::CatchUp { .. }
+        | PushStep::Prefix { .. }
+        | PushStep::VerifyPrefix { .. }
+        | PushStep::Design { .. }
+        | PushStep::CompareLanding { .. }
+        | PushStep::Commit { .. }
+        | PushStep::Push { .. }
+        | PushStep::Verify { .. } => false,
+    }
+}
+
 pub(crate) fn abort(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
     ask(domain, env, hold, Asked::Abort, out);
 }
@@ -776,7 +868,7 @@ pub(crate) fn cut(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut
     hold.cut = true;
     match &hold.state {
         State::Pushing { step, .. } => {
-            if !catch_up::waiting(step) {
+            if !waiting_for_answer(step) {
                 out.push(Request::Cancel { owner: id.token() });
             }
         }
@@ -808,6 +900,15 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
     let was_active = active(&hold.state) || hold.holding.recovering;
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
+        State::Preparing { step: PrepareStep::AdmitCreate { .. }, .. } => {
+            out.push(Request::WithdrawAdmission { client: hold.holding.client });
+            out.push(Request::Prepared { client: hold.holding.client, prepared: Prepared::Aborted });
+            match now {
+                Asked::Release => released(hold.holding.client, out),
+                Asked::Abort => State::Unprepared,
+                Asked::Nothing => unreachable!("a client asks to abort or to release"),
+            }
+        }
         State::Preparing { step, asked, timing } => {
             State::Preparing { step, asked: cancelling(id, asked, now, out), timing }
         }
@@ -824,7 +925,10 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
         }
         State::Pushing { push, step, asked } => {
             let asked = outranking(asked, now);
-            if catch_up::waiting(&step) {
+            if waiting_for_answer(&step) {
+                if let PushStep::AdmitPush { .. } = step {
+                    out.push(Request::WithdrawAdmission { client: hold.holding.client });
+                }
                 end_push(&hold.holding, push, asked, out)
             } else {
                 State::Pushing { push, step, asked }
@@ -855,6 +959,9 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
         },
         State::Keeping { .. } | State::Closed => unreachable!("an addressed hold has not been released"),
     };
+    if hold.holding.recovering {
+        saved_or_recover(hold, &mut domain.cache, id, now, env, out, mark);
+    }
     conclude(domain, env, id, was_active, out, mark);
     admissions(domain, env, out);
 }
@@ -953,6 +1060,8 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 | PrepareStep::Clone { .. }
                 | PrepareStep::Fetch { .. }
                 | PrepareStep::Default { .. }
+                | PrepareStep::ReadCreate { .. }
+                | PrepareStep::AdmitCreate { .. }
                 | PrepareStep::Create { .. }
                 | PrepareStep::Refetch { .. }
                 | PrepareStep::CheckOut { .. }
@@ -999,29 +1108,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             unreachable!("an operation ends only while its hold prepares, pushes or saves")
         }
     };
-    for request in out.iter().skip(usize::try_from(mark).expect("queue index")) {
-        if let Request::Saved { outcome, .. } = request {
-            hold.holding.saved = saved_repositories(&hold.holding, outcome);
-        }
-    }
-    if hold.holding.recovering && (matches_ready(&hold.state) || matches_closed(&hold.state)) {
-        let mut retained = Queue::uncapped();
-        let length = out.len();
-        for index in 0..length {
-            let request = out.pop().expect("produced request");
-            if index >= mark
-                && let Request::Saved { client, .. } = &request
-                && *client == hold.holding.client
-            {
-                continue;
-            }
-            retained.push(request);
-        }
-        *out = retained;
-        let next = recovered(&mut hold.holding);
-        hold.state =
-            prepare_next(&mut hold.holding, &mut domain.cache, id, next, Box::new([]), recovery_asked, env, out);
-    }
+    saved_or_recover(hold, &mut domain.cache, id, recovery_asked, env, out, mark);
     rewrite_mark(hold, previous, id, env, out);
     conclude(domain, env, id, was_active, out, mark);
     for _ in 0..waiters.len() {
@@ -1047,6 +1134,39 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         conclude(domain, env, waiter, true, out, mark);
     }
     admissions(domain, env, out);
+}
+
+fn saved_or_recover(
+    hold: &mut Hold,
+    cache: &mut Cache,
+    id: Id<Hold>,
+    recovery_asked: Asked,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+    mark: u32,
+) {
+    for request in out.iter().skip(usize::try_from(mark).expect("queue index")) {
+        if let Request::Saved { outcome, .. } = request {
+            hold.holding.saved = saved_repositories(&hold.holding, outcome);
+        }
+    }
+    if hold.holding.recovering && (matches_ready(&hold.state) || matches_closed(&hold.state)) {
+        let mut retained = Queue::uncapped();
+        let length = out.len();
+        for index in 0..length {
+            let request = out.pop().expect("produced request");
+            if index >= mark
+                && let Request::Saved { client, .. } = &request
+                && *client == hold.holding.client
+            {
+                continue;
+            }
+            retained.push(request);
+        }
+        *out = retained;
+        let next = recovered(&mut hold.holding);
+        hold.state = prepare_next(&mut hold.holding, cache, id, next, Box::new([]), recovery_asked, env, out);
+    }
 }
 
 /// The hold a client's handle names, or `None` if it has been released: the
@@ -1116,6 +1236,8 @@ fn sent(facts: &mut Facts, cache: &mut Cache, holding: &Holding, out: &Queue<Req
     for request in out.iter().skip(made) {
         let fact = match request {
             Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::Held { .. }
             | Request::Results { .. }
             | Request::ResultsEnd { .. } => continue,
@@ -1474,7 +1596,13 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             }
         },
         PrepareStep::Default { repository } => match done {
-            Done::Fetched { commit } => Next::Step(PrepareStep::Create { repository, commit }),
+            Done::Fetched { commit } => {
+                if nth(holding, repository).admit {
+                    Next::Step(PrepareStep::ReadCreate { repository, commit })
+                } else {
+                    Next::Step(PrepareStep::Create { repository, commit })
+                }
+            }
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
             | Done::Committed { .. }
@@ -1492,6 +1620,30 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 unreachable!("io ends a fetch with its own terminals")
             }
         },
+        PrepareStep::ReadCreate { repository, commit } => match done {
+            Done::Fetched { commit } => fetched_start(holding, repository, commit),
+            Done::Failed { fault: Fault::Missing { missing: Missing::Branch } }
+            | Done::FailedWithOutput { fault: Fault::Missing { missing: Missing::Branch }, .. } => {
+                Next::Step(PrepareStep::AdmitCreate { repository, commit })
+            }
+            Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
+            Done::Succeeded
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Results { .. }
+            | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
+            | Done::Looked { .. }
+            | Done::Brings { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged
+            | Done::Conflicted { .. } => {
+                unreachable!("a destination read ends as a fetch")
+            }
+        },
+        PrepareStep::AdmitCreate { .. } => unreachable!("an admission answer has no IO terminal"),
         PrepareStep::Create { repository, commit } => match done {
             Done::Succeeded => fetched_start(holding, repository, commit),
             Done::Exists => Next::Step(PrepareStep::Refetch { repository }),
@@ -1920,6 +2072,8 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
         | PrepareStep::Clone { .. }
         | PrepareStep::Fetch { .. }
         | PrepareStep::Default { .. }
+        | PrepareStep::ReadCreate { .. }
+        | PrepareStep::AdmitCreate { .. }
         | PrepareStep::Create { .. }
         | PrepareStep::Refetch { .. }
         | PrepareStep::PointLanding { .. }
@@ -1977,6 +2131,7 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
     let (repository, want) = match step {
         PrepareStep::CompareKept { repository }
         | PrepareStep::Fetch { repository }
+        | PrepareStep::ReadCreate { repository, .. }
         | PrepareStep::Refetch { repository } => (repository, start_want(&nth(holding, repository).start)),
         PrepareStep::Default { repository } => (repository, Want::Default),
         PrepareStep::FetchPush { repository, .. } => (
@@ -1995,6 +2150,7 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
         | PrepareStep::Look { .. }
         | PrepareStep::Make
         | PrepareStep::Clone { .. }
+        | PrepareStep::AdmitCreate { .. }
         | PrepareStep::Create { .. }
         | PrepareStep::CheckOut { .. }
         | PrepareStep::PinReplaced { .. }
@@ -2392,6 +2548,7 @@ fn prepare_step(
         }
         PrepareStep::CompareKept { repository }
         | PrepareStep::Fetch { repository }
+        | PrepareStep::ReadCreate { repository, .. }
         | PrepareStep::Refetch { repository } => {
             let store = borrowed(holding, repository).token;
             let repository = nth(holding, repository);
@@ -2417,23 +2574,14 @@ fn prepare_step(
                 account,
             }
         }
+        PrepareStep::AdmitCreate { repository, commit } => {
+            admission::ask(holding, id, repository, base_branch(holding, repository), None, commit, out);
+            let timing =
+                Timing { started: env.now, timeout: Duration::from_millis(u64::from(env.limits.reds_read_ms)) };
+            return State::Preparing { step, asked: Asked::Nothing, timing };
+        }
         PrepareStep::Create { repository, commit } => {
-            let repository = nth(holding, repository);
-            let branch = match &repository.start {
-                Start::Base { branch } => copy_of(branch),
-                Start::Branch { .. }
-                | Start::Prepare { .. }
-                | Start::Commit { .. }
-                | Start::Saved { .. }
-                | Start::Merge { .. }
-                | Start::Merged { .. } => {
-                    unreachable!("only a base branch is created")
-                }
-            };
-            let remote = copy_of(&repository.remote);
-            let identity = repository.identity;
-            let account = repository.account;
-            Op::Create { at: place(workspace, repository), remote, branch, commit, identity, account }
+            admission::leased_op(holding, repository, base_branch(holding, repository), commit, None)
         }
         PrepareStep::FetchLanding { repository, .. } => {
             let spec = nth(holding, repository);
@@ -2542,6 +2690,11 @@ fn prepare_step(
     let timing = Timing { started: env.now, timeout: operation_timeout(&op, &env.limits) };
     io(id, op, env, out);
     State::Preparing { step, asked: Asked::Nothing, timing }
+}
+
+fn base_branch(holding: &Holding, repository: u32) -> Box<[u8]> {
+    let Start::Base { branch } = &nth(holding, repository).start else { unreachable!("only a base branch is created") };
+    copy_of(branch)
 }
 
 fn branch_merge_title(branch: &[u8]) -> Box<[u8]> {
@@ -2657,7 +2810,12 @@ fn pushed(
     out: &mut Queue<Request>,
 ) -> State {
     let (repository, landing) = match step {
-        PushStep::Dependency { .. } => unreachable!("a dependency answer has no IO terminal"),
+        PushStep::Dependency { .. } | PushStep::AdmitPush { .. } => {
+            unreachable!("an application answer has no IO terminal")
+        }
+        PushStep::ReadPush { target, commit } => {
+            return admission::read_done(holding, id, push, target, commit, asked, done, env, out);
+        }
         PushStep::CatchUp { repository, step } => {
             return catch_up::pushed(holding, id, push, repository, step, asked, done, env, out);
         }
@@ -2894,6 +3052,9 @@ fn push_commit(
     out: &mut Queue<Request>,
 ) -> State {
     let spec = nth(holding, repository);
+    if spec.admit {
+        return admission::read(holding, id, push, admission::Target::Branch { repository }, commit, env, out);
+    }
     let branch = branch_of(spec, &push.to);
     let at = place(holding.disk, spec);
     let remote = copy_of(&spec.remote);
@@ -3154,6 +3315,7 @@ fn tally(landings: &[Landing]) -> Tally {
             | Landing::DesignUnchecked
             | Landing::Conflicted { .. }
             | Landing::Refused
+            | Landing::Unadmitted { .. }
             | Landing::Explained { fault: Fault::Refused, .. } => &mut tally.refused,
             Landing::Failed | Landing::Explained { .. } => &mut tally.failed,
             Landing::Unchanged => &mut tally.unchanged,
@@ -3406,6 +3568,7 @@ fn saved_repositories(holding: &Holding, outcome: &Outcome) -> Option<Box<[crate
             | Landing::DesignConflict { .. }
             | Landing::DesignCode { .. }
             | Landing::Explained { .. }
+            | Landing::Unadmitted { .. }
             | Landing::Failed
             | Landing::Refused
             | Landing::DesignMoving
@@ -3515,6 +3678,8 @@ fn schedule(hold: &mut Hold, id: Id<Hold>, env: &Env<Limits>, out: &mut Queue<Re
             | Request::Saved { .. }
             | Request::Cancel { .. }
             | Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::Results { .. }
             | Request::ResultsEnd { .. }) => produced.push(other),
         }

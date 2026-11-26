@@ -244,6 +244,8 @@ impl World {
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::RedsAnswer { .. }
+            | Request::AdmitAsk { .. }
+            | Request::AdmitAnswer { .. }
             | Request::SourceFault => {
                 panic!("this fixture declares no program sources: {request:?}")
             }
@@ -944,6 +946,7 @@ fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
 
 fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Event {
     let repository = wire::Repository {
+        admit: false,
         save: Some(Box::from(&b"saved"[..])),
         git: None,
         tag: 1,

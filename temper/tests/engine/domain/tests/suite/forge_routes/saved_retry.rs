@@ -187,6 +187,7 @@ impl Workspace {
         let spec = checkout::Spec {
             key: run.workstream.to_be_bytes().into(),
             repositories: Box::new([checkout::Repository {
+                admit: false,
                 name: repository.name.clone(),
                 remote: b"org/repo".as_slice().into(),
                 git: None,

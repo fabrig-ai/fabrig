@@ -309,4 +309,20 @@ fn an_admitted_landed_ask_answers_from_the_domain_without_a_commit() {
     assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
 }
 
+#[test]
+fn the_engine_does_not_admit_pushes_yet() {
+    let (mut service, run) = fixtures::claimed_chat();
+    let before = service.engine.as_ref().unwrap().domain.deployment().commits;
+    let bytes = payload::ask(&v1::Ask::Admit(v1::Admit {
+        tag: 7,
+        branch: b"change/7".as_slice().into(),
+        expected: None,
+        commit: [3; 32],
+    }));
+    let refused =
+        v1::Answer::Unadmitted(v1::Unadmitted { words: b"the engine admits no pushes yet".as_slice().into() });
+    assert_eq!(answer(&mut service, &run, &bytes, 19), host::AskAnswer::Bytes(payload::answer(&refused)));
+    assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
+}
+
 // State-only landed reads use the domain step fixture in route/forge_route/tests/reds.rs.

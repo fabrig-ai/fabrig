@@ -34,6 +34,7 @@ pub enum Verdict {
 pub enum Ask {
     Reds,
     Results(CheckResults),
+    Admit { tag: u64, branch: Box<[u8]>, expected: Option<[u8; 32]>, commit: [u8; 32] },
     Landed { head: [u8; 32] },
 }
 
@@ -42,6 +43,7 @@ pub enum Answer {
     Kept,
     Landed,
     Unlanded,
+    Unadmitted { words: Box<[u8]> },
     Reds { reds: Box<[RunRed]> },
 }
 
@@ -64,6 +66,7 @@ pub fn answer(domain: &Domain, task: u64, attempt: u64, ask: Ask) -> Answer {
     match ask {
         Ask::Reds => Answer::Reds { reds: reds_for_run(domain, task, attempt) },
         Ask::Results(_) => Answer::Kept,
+        Ask::Admit { .. } => Answer::Unadmitted { words: b"the engine admits no pushes yet".as_slice().into() },
         Ask::Landed { head } => {
             if landed_for_run(domain, task, attempt, &head) {
                 Answer::Landed

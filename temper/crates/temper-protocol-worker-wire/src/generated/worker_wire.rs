@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0xbe, 0xcb, 0xe7, 0x05, 0x43, 0xcf, 0x90, 0x65, 0xcc, 0x9f, 0x5e, 0x1d, 0x3e, 0x3f, 0x1e, 0x3d, 0xed, 0x89, 0x86,
-    0xd4, 0xf8, 0xcf, 0xbb, 0x98, 0x29, 0x42, 0x9b, 0x2d, 0xce, 0x68, 0xd3, 0x3b,
+    0x37, 0x2d, 0xcb, 0xa0, 0x03, 0x08, 0x2d, 0x40, 0x48, 0x73, 0xa1, 0xbc, 0xfa, 0x88, 0x0a, 0xeb, 0x14, 0x44, 0xcb,
+    0xff, 0x1a, 0x50, 0x4f, 0x6b, 0xdc, 0x68, 0x5b, 0x98, 0x27, 0xea, 0x14, 0x1c,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -53,9 +53,11 @@ pub struct Limits {
     pub check_results_failed: u32,
     pub check_results_failed_item: u32,
     pub check_results_flakes: u32,
+    pub admit_branch: u32,
     pub red_key: u32,
     pub red_head: u32,
     pub reds_reds: u32,
+    pub unadmitted_words: u32,
 }
 
 pub const CEILINGS: Limits = Limits {
@@ -95,9 +97,11 @@ pub const CEILINGS: Limits = Limits {
     check_results_failed: 256,
     check_results_failed_item: 512,
     check_results_flakes: 16,
+    admit_branch: 1_024,
     red_key: 512,
     red_head: 32,
     reds_reds: 256,
+    unadmitted_words: 512,
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
@@ -137,9 +141,11 @@ pub const LIMIT_NAMES: &[&str] = &[
     "check_results_failed",
     "check_results_failed_item",
     "check_results_flakes",
+    "admit_branch",
     "red_key",
     "red_head",
     "reds_reds",
+    "unadmitted_words",
 ];
 
 impl Limits {
@@ -182,9 +188,11 @@ impl Limits {
             self.check_results_failed,
             self.check_results_failed_item,
             self.check_results_flakes,
+            self.admit_branch,
             self.red_key,
             self.red_head,
             self.reds_reds,
+            self.unadmitted_words,
         ].into())
     }
 
@@ -228,9 +236,11 @@ impl Limits {
             check_results_failed: self.check_results_failed.min(most),
             check_results_failed_item: self.check_results_failed_item.min(most),
             check_results_flakes: self.check_results_flakes.min(most),
+            admit_branch: self.admit_branch.min(most),
             red_key: self.red_key.min(most),
             red_head: self.red_head.min(most),
             reds_reds: self.reds_reds.min(most),
+            unadmitted_words: self.unadmitted_words.min(most),
         }
     }
 }
@@ -272,9 +282,11 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHECK_RESULTS_FAILED,
     paths::CHECK_RESULTS_FAILED,
     paths::CHECK_RESULTS_FLAKES,
+    paths::ADMIT_BRANCH,
     paths::RED_KEY,
     paths::RED_HEAD,
     paths::REDS_REDS,
+    paths::UNADMITTED_WORDS,
 ];
 
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
@@ -318,6 +330,7 @@ pub mod paths {
     pub const REPOSITORY_IDENTITY: Path = Path::new("Repository.identity");
     pub const REPOSITORY_ACCOUNT: Path = Path::new("Repository.account");
     pub const REPOSITORY_SAVE: Path = Path::new("Repository.save");
+    pub const REPOSITORY_ADMIT: Path = Path::new("Repository.admit");
     pub const REPOSITORY_TAIL: Path = Path::new("Repository (tail)");
     pub const ITEMS_REPOSITORIES: Path = Path::new("Items.repositories");
     pub const ITEMS_VERSION: Path = Path::new("Items (version)");
@@ -388,12 +401,19 @@ pub mod paths {
     pub const CHECK_RESULTS_TAIL: Path = Path::new("CheckResults (tail)");
     pub const HEAD_HEAD: Path = Path::new("Head.head");
     pub const HEAD_TAIL: Path = Path::new("Head (tail)");
+    pub const ADMIT_TAG: Path = Path::new("Admit.tag");
+    pub const ADMIT_BRANCH: Path = Path::new("Admit.branch");
+    pub const ADMIT_EXPECTED: Path = Path::new("Admit.expected");
+    pub const ADMIT_COMMIT: Path = Path::new("Admit.commit");
+    pub const ADMIT_TAIL: Path = Path::new("Admit (tail)");
     pub const ASK_TAG: Path = Path::new("Ask (tag)");
     pub const RED_KEY: Path = Path::new("Red.key");
     pub const RED_HEAD: Path = Path::new("Red.head");
     pub const RED_TAIL: Path = Path::new("Red (tail)");
     pub const REDS_REDS: Path = Path::new("Reds.reds");
     pub const REDS_TAIL: Path = Path::new("Reds (tail)");
+    pub const UNADMITTED_WORDS: Path = Path::new("Unadmitted.words");
+    pub const UNADMITTED_TAIL: Path = Path::new("Unadmitted (tail)");
     pub const ANSWER_TAG: Path = Path::new("Answer (tag)");
 }
 
@@ -873,6 +893,7 @@ pub struct Repository {
     pub identity: u32,
     pub account: Option<u64>,
     pub save: Option<Box<[u8]>>,
+    pub admit: bool,
 }
 
 // Record: Repository.
@@ -890,11 +911,12 @@ impl Repository {
         skein_codec::bounds::Node::Option { item: 8 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, repository_save_some) },
         skein_codec::bounds::Node::Option { item: 10 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 6, 7, 9, 11] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 6, 7, 9, 11, 12] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 185;
+    pub const ENCODED_AT_ZERO: u64 = 186;
 }
 
 impl Record for Repository {
@@ -928,6 +950,7 @@ impl Record for Repository {
         field::write(field::U32, &self.identity, limits, out, paths::REPOSITORY_IDENTITY)?;
         field::write(field::Optional { item: field::U64 }, &self.account, limits, out, paths::REPOSITORY_ACCOUNT)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.repository_save_some.min(CEILINGS.repository_save_some) } }, &self.save, limits, out, paths::REPOSITORY_SAVE)?;
+        field::write(field::Boolean, &self.admit, limits, out, paths::REPOSITORY_ADMIT)?;
         Ok(())
     }
 
@@ -942,6 +965,7 @@ impl Record for Repository {
             identity: field::read(field::U32, limits, reader, paths::REPOSITORY_IDENTITY)?,
             account: field::read(field::Optional { item: field::U64 }, limits, reader, paths::REPOSITORY_ACCOUNT)?,
             save: field::read(field::Optional { item: field::Bytes { limit: limits.repository_save_some.min(CEILINGS.repository_save_some) } }, limits, reader, paths::REPOSITORY_SAVE)?,
+            admit: field::read(field::Boolean, limits, reader, paths::REPOSITORY_ADMIT)?,
         })
     }
 }
@@ -987,14 +1011,14 @@ impl Record for Items {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::ITEMS_VERSION)?;
-        field::write(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 29, item: field::Nested }, &self.repositories, limits, out, paths::ITEMS_REPOSITORIES)?;
+        field::write(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 30, item: field::Nested }, &self.repositories, limits, out, paths::ITEMS_REPOSITORIES)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         field::version(reader, VERSION, paths::ITEMS_VERSION)?;
         Ok(Self {
-            repositories: field::read(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 29, item: field::Nested }, limits, reader, paths::ITEMS_REPOSITORIES)?,
+            repositories: field::read(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 30, item: field::Nested }, limits, reader, paths::ITEMS_REPOSITORIES)?,
         })
     }
 }
@@ -2422,12 +2446,76 @@ impl Record for Head {
     }
 }
 
+// Type: Admit.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Admit {
+    pub tag: u64,
+    pub branch: Box<[u8]>,
+    pub expected: Option<[u8; 32]>,
+    pub commit: [u8; 32],
+}
+
+// Record: Admit.
+impl Admit {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, admit_branch) },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 77;
+}
+
+impl Record for Admit {
+    type Limits = Limits;
+    const TAIL: Path = paths::ADMIT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Admit")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Admit")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.tag, limits, out, paths::ADMIT_TAG)?;
+        field::write(field::Bytes { limit: limits.admit_branch.min(CEILINGS.admit_branch) }, &self.branch, limits, out, paths::ADMIT_BRANCH)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.expected, limits, out, paths::ADMIT_EXPECTED)?;
+        field::write(field::Fixed::<32>, &self.commit, limits, out, paths::ADMIT_COMMIT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            tag: field::read(field::U64, limits, reader, paths::ADMIT_TAG)?,
+            branch: field::read(field::Bytes { limit: limits.admit_branch.min(CEILINGS.admit_branch) }, limits, reader, paths::ADMIT_BRANCH)?,
+            expected: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::ADMIT_EXPECTED)?,
+            commit: field::read(field::Fixed::<32>, limits, reader, paths::ADMIT_COMMIT)?,
+        })
+    }
+}
+
 // Type: Ask.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
     Reds,
     Results(CheckResults),
     Landed(Head),
+    Admit(Admit),
 }
 
 // Record: Ask.
@@ -2436,11 +2524,12 @@ impl Ask {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("CheckResults"),
         skein_codec::bounds::Node::Named("Head"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+        skein_codec::bounds::Node::Named("Admit"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 39;
+    pub const ENCODED_AT_ZERO: u64 = 78;
 }
 
 impl Record for Ask {
@@ -2469,6 +2558,7 @@ impl Record for Ask {
             Self::Reds => field::put(out, &[0], paths::ASK_TAG),
             Self::Results(value) => { field::put(out, &[1], paths::ASK_TAG)?; value.write(limits, out) },
             Self::Landed(value) => { field::put(out, &[2], paths::ASK_TAG)?; value.write(limits, out) },
+            Self::Admit(value) => { field::put(out, &[3], paths::ASK_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -2478,7 +2568,8 @@ impl Record for Ask {
             0 => Ok(Self::Reds),
             1 => Ok(Self::Results(CheckResults::read(limits, reader)?)),
             2 => Ok(Self::Landed(Head::read(limits, reader)?)),
-            3..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
+            3 => Ok(Self::Admit(Admit::read(limits, reader)?)),
+            4..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -2588,6 +2679,56 @@ impl Record for Reds {
     }
 }
 
+// Type: Unadmitted.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Unadmitted {
+    pub words: Box<[u8]>,
+}
+
+// Record: Unadmitted.
+impl Unadmitted {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, unadmitted_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for Unadmitted {
+    type Limits = Limits;
+    const TAIL: Path = paths::UNADMITTED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Unadmitted")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Unadmitted")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.unadmitted_words.min(CEILINGS.unadmitted_words) }, &self.words, limits, out, paths::UNADMITTED_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            words: field::read(field::Bytes { limit: limits.unadmitted_words.min(CEILINGS.unadmitted_words) }, limits, reader, paths::UNADMITTED_WORDS)?,
+        })
+    }
+}
+
 // Type: Answer.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Answer {
@@ -2595,6 +2736,8 @@ pub enum Answer {
     Kept,
     Landed,
     Unlanded,
+    Admitted,
+    Unadmitted(Unadmitted),
 }
 
 // Record: Answer.
@@ -2604,7 +2747,9 @@ impl Answer {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("Unadmitted"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -2638,6 +2783,8 @@ impl Record for Answer {
             Self::Kept => field::put(out, &[1], paths::ANSWER_TAG),
             Self::Landed => field::put(out, &[2], paths::ANSWER_TAG),
             Self::Unlanded => field::put(out, &[3], paths::ANSWER_TAG),
+            Self::Admitted => field::put(out, &[4], paths::ANSWER_TAG),
+            Self::Unadmitted(value) => { field::put(out, &[5], paths::ANSWER_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -2648,7 +2795,9 @@ impl Record for Answer {
             1 => Ok(Self::Kept),
             2 => Ok(Self::Landed),
             3 => Ok(Self::Unlanded),
-            4..=u8::MAX => Err(Problem { path: paths::ANSWER_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::Admitted),
+            5 => Ok(Self::Unadmitted(Unadmitted::read(limits, reader)?)),
+            6..=u8::MAX => Err(Problem { path: paths::ANSWER_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -2656,6 +2805,7 @@ impl Record for Answer {
 // Bounds: one postordered shape per declaration, sorted by name.
 pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Access", nodes: Access::SHAPE },
+    skein_codec::bounds::Declaration { name: "Admit", nodes: Admit::SHAPE },
     skein_codec::bounds::Declaration { name: "Answer", nodes: Answer::SHAPE },
     skein_codec::bounds::Declaration { name: "Ask", nodes: Ask::SHAPE },
     skein_codec::bounds::Declaration { name: "Branch", nodes: Branch::SHAPE },
@@ -2691,6 +2841,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Start", nodes: Start::SHAPE },
     skein_codec::bounds::Declaration { name: "Tag", nodes: Tag::SHAPE },
     skein_codec::bounds::Declaration { name: "Token", nodes: Token::SHAPE },
+    skein_codec::bounds::Declaration { name: "Unadmitted", nodes: Unadmitted::SHAPE },
     skein_codec::bounds::Declaration { name: "Verdict", nodes: Verdict::SHAPE },
     skein_codec::bounds::Declaration { name: "Writable", nodes: Writable::SHAPE },
 ];
@@ -2732,9 +2883,11 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.check_results_failed,
     CEILINGS.check_results_failed_item,
     CEILINGS.check_results_flakes,
+    CEILINGS.admit_branch,
     CEILINGS.red_key,
     CEILINGS.red_head,
     CEILINGS.reds_reds,
+    CEILINGS.unadmitted_words,
 ];
 
 #[must_use]

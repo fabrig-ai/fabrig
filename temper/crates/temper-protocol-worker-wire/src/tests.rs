@@ -81,6 +81,8 @@ fn limits_take_each_bound_from_its_source_field() {
             reds_reds: 2,
             red_key: 12,
             red_head: 32,
+            admit_branch: 16,
+            unadmitted_words: 512,
         }
     );
     let bounds = crate::Bounds { repositories: 65, ..fixtures::BOUNDS };
@@ -217,6 +219,7 @@ fn largest_writable_items_count_the_own_delivery_head() {
         identity: 1,
         account: Some(2),
         save: Some(zeroed(usize::try_from(limits.repository_save_some).unwrap())),
+        admit: false,
     };
     let mut repositories = List::with_capacity(limits.items_repositories);
     for _ in 0..limits.items_repositories {

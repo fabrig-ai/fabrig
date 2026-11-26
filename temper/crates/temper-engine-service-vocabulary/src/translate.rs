@@ -58,6 +58,7 @@ pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[
         engine::wire::Answer::Kept => v1::Answer::Kept,
         engine::wire::Answer::Landed => v1::Answer::Landed,
         engine::wire::Answer::Unlanded => v1::Answer::Unlanded,
+        engine::wire::Answer::Unadmitted { words } => v1::Answer::Unadmitted(v1::Unadmitted { words }),
         engine::wire::Answer::Reds { reds } => {
             let mut rows = List::with_capacity(limits.reds_reds);
             // A row is checked before it takes room; no later row is checked once the list refuses one.
@@ -137,6 +138,7 @@ fn repository_item(
         v1::Access::Prefixes(v1::Prefixes { branches })
     };
     Ok(v1::Repository {
+        admit: false,
         save: if save { repository.save.clone() } else { None },
         tag: repository.tag,
         name: repository.name.clone(),

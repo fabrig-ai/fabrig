@@ -40,7 +40,9 @@ record CheckResults = e::wire::CheckResults to domain {
     flakes slice
 }
 record Head
+record Admit
 enum Ask = e::wire::Ask to domain { results tuple }
 record Red = e::RunRed { head via own::head }
 record Reds by hand
+record Unadmitted by hand
 enum Answer by hand

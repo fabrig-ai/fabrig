@@ -8,8 +8,8 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use temper_fake_checkout::{Checkout, git::Remote};
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Op};
 use temper_worker_domain_checkout::{
-    Conflicts, Domain, Event, Failure, Landing, Limits, Message, Outcome, Prepared, Repository, Request, Spec, Start,
-    step,
+    CandidateMember, CandidateSpec, Conflicts, Domain, Event, Failure, Landing, Limits, Message, Outcome, Prepared,
+    Repository, Request, Spec, Start, step,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -170,6 +170,8 @@ impl World {
                         assert!(pending.replace((owner, op)).is_none(), "one IO operation per hold");
                     }
                     answer @ (Request::DependencyLanded { .. }
+                    | Request::AdmitPush { .. }
+                    | Request::WithdrawAdmission { .. }
                     | Request::Prepared { .. }
                     | Request::Pushed { .. }
                     | Request::Saved { .. }
@@ -259,6 +261,8 @@ impl World {
             Request::Pushed { outcome: Outcome::Pushed { landings }, .. } if !saved => landings,
             Request::Saved { outcome: Outcome::Pushed { landings }, .. } if saved => landings,
             other @ (Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::Results { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
@@ -276,6 +280,7 @@ fn merge_spec(world: &World, case: Case) -> Spec {
     Spec {
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             prefixes: Box::new([]),
             save: Some(b"saved".as_slice().into()),
             git: None,
@@ -405,9 +410,11 @@ pub enum PinCase {
 }
 
 /// Reuse a producer's checkout, then check the replacement pin through two deliveries.
+#[expect(clippy::too_many_lines, reason = "one shared scenario checks the pin through prepare and delivery")]
 pub fn replaced_pin(case: PinCase) {
     let mut world = World::new(73, Case::Clean, 64);
     let repository = || Repository {
+        admit: false,
         prefixes: Box::new([]),
         name: b"temper".as_slice().into(),
         remote: b"forge/temper".as_slice().into(),
@@ -522,6 +529,7 @@ pub fn resolution_conflict(pushed: bool) {
     let spec = Spec {
         key: b"resolution".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             save: None,
             git: None,
             name: b"temper".as_slice().into(),
@@ -730,6 +738,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
     let spec = Spec {
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
@@ -769,6 +778,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
     let spec = |retry| Spec {
         key: b"retry".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             prefixes: Box::new([]),
             save: Some(b"saved".as_slice().into()),
             git: None,
@@ -845,6 +855,7 @@ fn heads_spec(heads: &[u64]) -> Spec {
     Spec {
         key: b"heads".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
@@ -1003,6 +1014,7 @@ pub fn goal_later_run(case: Case) {
     let spec = Spec {
         key: b"goal".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
@@ -1114,6 +1126,7 @@ fn design_spec(tip: u64) -> Spec {
     Spec {
         key: b"design".as_slice().into(),
         repositories: Box::new([Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
@@ -1589,5 +1602,109 @@ pub fn dependency_in_progress() {
     assert_eq!(world.forge.merge_parent(merge), Some(tip));
     world.push(false, false);
     assert_eq!(world.forge.branch(b"forge/temper", b"early"), Some(merge));
+    release_heads(&mut world);
+}
+
+fn push_question(world: &mut World, hold: Token) -> Request {
+    world.finish(
+        Event::Push { hold, message: Message { title: b"Checked tree".as_slice().into(), body: Box::new([]) } },
+        false,
+    )
+}
+
+pub fn design_admits_each_leased_attempt() {
+    let mut world = design_world();
+    let old = world.ours;
+    let mut spec = design_spec(old);
+    spec.repositories[0].admit = true;
+    let (hold, at) = prepare_single(&mut world, spec);
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"design\n");
+    world.push_races = 1;
+
+    let Request::AdmitPush { hold: waiting, repository: 0, branch, expected: Some(tip), commit: first, .. } =
+        push_question(&mut world, hold)
+    else {
+        panic!("the first push waits for admission")
+    };
+    assert_eq!((waiting, branch.as_ref(), translate::fake(tip)), (hold, b"g".as_slice(), old));
+    assert_eq!(world.push_attempts, 0);
+    assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(old));
+
+    let second = world.finish(Event::PushAdmission { hold, answer: Ok(()) }, false);
+    let Request::AdmitPush { hold: waiting, repository: 0, branch, expected: Some(tip), commit: second, .. } = second
+    else {
+        panic!("the lease race starts a new admission: {second:?}")
+    };
+    let moved = world.forge.branch(b"forge/temper", b"g").expect("the peer moved g");
+    assert_ne!(moved, old);
+    assert_ne!(first, second);
+    assert_eq!((waiting, branch.as_ref(), translate::fake(tip)), (hold, b"g".as_slice(), moved));
+    assert_eq!(world.forge.parent(translate::fake(second)), Some(translate::fake(first)));
+    assert_eq!(world.forge.merge_parent(translate::fake(second)), Some(moved));
+    assert_eq!(world.push_attempts, 1);
+
+    let result = world.finish(Event::PushAdmission { hold, answer: Ok(()) }, false);
+    let Request::Pushed { outcome: Outcome::Pushed { landings }, .. } = result else { panic!("delivered: {result:?}") };
+    assert_eq!(&*landings, &[Landing::DesignMerged { commit: second, tip }]);
+    assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(translate::fake(second)));
+    assert_eq!(world.push_attempts, 2);
+    release_heads(&mut world);
+}
+
+pub fn a_refused_prefix_keeps_the_prefix_before_it() {
+    const FIRST: &[u8] = b"prefix/1";
+    const NEXT: &[u8] = b"prefix/2";
+    const REMOTE: &[u8] = b"forge/temper";
+    let mut world = World::new(73, Case::Clean, 64);
+    let second = world.forge.advance(REMOTE, b"topic", b"next", b"next\n");
+    let message = || Message { title: b"Combine".as_slice().into(), body: Box::new([]) };
+    let member = |number, head| CandidateMember {
+        number,
+        head: translate::commit(head),
+        message: message(),
+        squash_message: message(),
+    };
+    let mut spec = merge_spec(&world, Case::Clean);
+    let repository = &mut spec.repositories[0];
+    repository.admit = true;
+    repository.push = None;
+    repository.save = None;
+    repository.expected = None;
+    repository.prefixes = Box::new([FIRST.into(), NEXT.into()]);
+    let base = translate::commit(world.base);
+    repository.start = Start::Prepare {
+        request: Box::new(CandidateSpec {
+            base,
+            from: base,
+            upstream: None,
+            squash: false,
+            members: Box::new([member(1, world.ours), member(2, second)]),
+        }),
+    };
+    let prepared = world.finish(Event::Prepare { client: Token::new(1), spec }, false);
+    assert!(matches!(prepared, Request::Prepared { prepared: Prepared::Candidate { .. }, .. }), "{prepared:?}");
+    let hold = world.hold.expect("prepared");
+    let question = push_question(&mut world, hold);
+    let Request::AdmitPush { repository: 0, branch, expected: None, commit: first, .. } = question else {
+        panic!("first creation waits: {question:?}")
+    };
+    assert_eq!(&*branch, FIRST);
+    assert_eq!(world.forge.branch(REMOTE, FIRST), None);
+    let question = world.finish(Event::PushAdmission { hold, answer: Ok(()) }, false);
+    let Request::AdmitPush { repository: 0, branch, expected: None, commit: next, .. } = question else {
+        panic!("next creation waits: {question:?}")
+    };
+    assert_eq!(&*branch, NEXT);
+    assert_eq!(world.forge.parent(translate::fake(next)), Some(translate::fake(first)));
+    let result = world.finish(Event::PushAdmission { hold, answer: Err(b"no room".as_slice().into()) }, false);
+    let Request::Pushed { outcome: Outcome::Pushed { landings }, .. } = result else {
+        panic!("prefix refused: {result:?}")
+    };
+    assert_eq!(
+        &*landings,
+        &[Landing::Unadmitted { words: b"temper did not admit the push to prefix/2: no room".as_slice().into() }]
+    );
+    assert_eq!(world.forge.branch(REMOTE, FIRST), Some(translate::fake(first)));
+    assert_eq!(world.forge.branch(REMOTE, NEXT), None);
     release_heads(&mut world);
 }

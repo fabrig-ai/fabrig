@@ -26,6 +26,7 @@ fn delivery_spec(remote: &[u8], push: &[u8], start: checkout::Start) -> checkout
     checkout::Spec {
         key: b"delivery".as_slice().into(),
         repositories: Box::new([checkout::Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"specimen".as_slice().into(),
             remote: remote.into(),
@@ -160,6 +161,7 @@ impl World {
         let spec = checkout::Spec {
             key: b"view".as_slice().into(),
             repositories: Box::new([checkout::Repository {
+                admit: false,
                 prefixes: Box::new([]),
                 name: b"specimen".as_slice().into(),
                 remote: remote.into(),
@@ -904,6 +906,7 @@ fn a_kept_one_directory_checkout_is_taken_on_without_running_its_filters() {
     let spec = checkout::Spec {
         key: b"kept".as_slice().into(),
         repositories: Box::new([checkout::Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"specimen".as_slice().into(),
             remote: remote.clone(),
@@ -1018,6 +1021,7 @@ fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
     let spec = checkout::Spec {
         key: b"paged-merge".as_slice().into(),
         repositories: Box::new([checkout::Repository {
+            admit: false,
             prefixes: Box::new([]),
             name: b"specimen".as_slice().into(),
             remote: remote.clone(),

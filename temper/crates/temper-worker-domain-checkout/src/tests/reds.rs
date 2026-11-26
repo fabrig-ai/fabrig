@@ -49,6 +49,8 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
             }
             other @ (Request::Results { .. }
             | Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }

@@ -1,4 +1,5 @@
 //! Check notifications, the real hub's ask and serialized checkout operations.
+mod admission;
 mod landed;
 use super::{fixtures, harness::Harness};
 use crate::{Event, Request, agent, host, wire};

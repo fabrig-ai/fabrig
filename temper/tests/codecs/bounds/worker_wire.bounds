@@ -1,4 +1,5 @@
 Access: ceilings encoded=5145 decoded=5200; at_most(3) encoded=115 decoded=57
+Admit: ceilings encoded=1101 decoded=1024; at_most(3) encoded=80 decoded=3
 Answer: ceilings encoded=141317 decoded=147456; at_most(3) encoded=47 decoded=114
 Ask: ceilings encoded=305383 decoded=311872; at_most(3) encoded=129 decoded=234
 Branch: ceilings encoded=1028 decoded=1024; at_most(3) encoded=7 decoded=3
@@ -12,7 +13,7 @@ Files: ceilings encoded=4198404 decoded=4210688; at_most(3) encoded=25 decoded=5
 Flake: ceilings encoded=2568 decoded=2560; at_most(3) encoded=14 decoded=6
 Head: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 Identity: ceilings encoded=1118993 decoded=1125120; at_most(3) encoded=92 decoded=147
-Items: ceilings encoded=987718 decoded=1006592; at_most(3) encoded=828 decoded=1368
+Items: ceilings encoded=987782 decoded=1006592; at_most(3) encoded=831 decoded=1368
 JobSpec: ceilings encoded=1052681 decoded=1052672; at_most(3) encoded=15 decoded=6
 Kind: ceilings encoded=1118213 decoded=1124352; at_most(3) encoded=71 decoded=138
 Landed: ceilings encoded=41 decoded=0; at_most(3) encoded=41 decoded=0
@@ -28,12 +29,13 @@ PushFailure: ceilings encoded=530 decoded=512; at_most(3) encoded=21 decoded=3
 PushReason: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Red: ceilings encoded=552 decoded=544; at_most(3) encoded=14 decoded=6
 Reds: ceilings encoded=141316 decoded=147456; at_most(3) encoded=46 decoded=114
-Repository: ceilings encoded=15433 decoded=15440; at_most(3) encoded=274 decoded=168
+Repository: ceilings encoded=15434 decoded=15440; at_most(3) encoded=275 decoded=168
 Saved: ceilings encoded=268698500 decoded=269487616; at_most(3) encoded=130 decoded=339
 SavedRepository: ceilings encoded=4198414 decoded=4210688; at_most(3) encoded=42 decoded=57
 Start: ceilings encoded=3081 decoded=3072; at_most(3) encoded=108 decoded=99
 Tag: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Token: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
+Unadmitted: ceilings encoded=516 decoded=512; at_most(3) encoded=7 decoded=3
 Verdict: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Writable: ceilings encoded=2156 decoded=2048; at_most(3) encoded=114 decoded=6
-family: ceilings encoded=268698500 decoded=269487616; at_most(3) encoded=828 decoded=1368
+family: ceilings encoded=268698500 decoded=269487616; at_most(3) encoded=831 decoded=1368

@@ -40,6 +40,12 @@ pub enum Verdict {
 pub enum Ask {
     Reds,
     Results(CheckResults),
+    Admit {
+        tag: u64,
+        branch: Box<[u8]>,
+        expected: Option<[u8; 32]>,
+        commit: [u8; 32],
+    },
     /// A started dependency's landing (temper/docs/design/domain/worker/checkouts.md, Its ask).
     Landed {
         head: [u8; 32],
@@ -51,6 +57,8 @@ pub enum Answer {
     Kept,
     Landed,
     Unlanded,
+    Admitted,
+    Unadmitted { words: Box<[u8]> },
     Reds { reds: Box<[Red]> },
 }
 
@@ -90,6 +98,7 @@ pub struct Workspace {
 pub struct Repository {
     /// This task's saved-work branch, under this repository's prefix.
     pub save: Option<Box<[u8]>>,
+    pub admit: bool,
     /// Deployment repository name, echoed in landed work.
     pub tag: u64,
     /// The directory it sits in, side by side with the workspace's others

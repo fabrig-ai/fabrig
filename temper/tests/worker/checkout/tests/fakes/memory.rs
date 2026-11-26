@@ -65,6 +65,7 @@ fn full_spec(limits: &Limits, n: u32) -> Spec {
     let mut repositories = Vec::new();
     for place in 0..limits.repositories {
         repositories.push(Repository {
+            admit: false,
             prefixes: Box::new([]),
             save: Some(bytes(limits.name_bytes)),
             git: None,
@@ -116,7 +117,9 @@ impl Fill {
         let mut asked = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
-                Request::DependencyLanded { .. } => panic!("this fixture starts on one branch"),
+                Request::DependencyLanded { .. } | Request::AdmitPush { .. } | Request::WithdrawAdmission { .. } => {
+                    panic!("this fixture starts on one branch")
+                }
                 Request::Results { .. } | Request::ResultsEnd { .. } => panic!("this memory scenario has no checks"),
                 Request::Held { hold, .. } => Asked::Held { hold },
                 Request::Io { op, .. } => Asked::Io { op: op.kind() },

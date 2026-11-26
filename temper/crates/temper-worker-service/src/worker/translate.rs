@@ -137,6 +137,7 @@ mod tests {
 
     fn items_with_access(access: v1::Access) -> v1::Items {
         let repository = v1::Repository {
+            admit: false,
             tag: 7,
             name: b"work".as_slice().into(),
             remote: b"org/work".as_slice().into(),

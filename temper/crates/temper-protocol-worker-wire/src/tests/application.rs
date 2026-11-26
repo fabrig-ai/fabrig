@@ -181,6 +181,58 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_ask() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the fixture derives the previous schema text")]
+fn push_admission_keeps_the_wire_version_and_defaults_old_items() {
+    use jig_protocol_worker_wire::layouts::{Cause, Nested};
+    use skein_codec::{layout::Mode, schema::parse};
+    let engine = parse(wire::TEXT.as_bytes()).unwrap();
+    let (before, field) = wire::TEXT.split_once(" admit:").expect("the appended Repository field");
+    let (_, after) = field.split_once(" }").expect("the end of Repository");
+    let text = format!("{before} }}{after}")
+        .replace("record Admit { tag: u64 branch: bytes 1024 expected: option fixed 32 commit: fixed 32 }\n", "")
+        .replace(", admit: Admit", "")
+        .replace("record Unadmitted { words: bytes 512 }\n", "")
+        .replace(", admitted, unadmitted: Unadmitted", "");
+    let worker = parse(text.as_bytes()).unwrap();
+    let mut peer = peer(&worker);
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    let root = Nested::Carried(Carried::Items);
+    let mut value = fixtures::items(1);
+    let bytes = crate::items(&value);
+    peer.down(root, &bytes, &mut out).expect("old worker keeps only the default");
+    let current = transcode(Mode::Read, &worker, &engine, "Items", out.as_slice());
+    let mut reader = skein_lib::Reader::new(&current);
+    assert_eq!(v1::Items::decode(&fixtures::limits(), &mut reader).unwrap(), value);
+    assert!(reader.is_empty());
+
+    value.repositories.get_mut(0).unwrap().admit = true;
+    let bytes = crate::items(&value);
+    assert_eq!(v1::Items::decode(&fixtures::limits(), &mut skein_lib::Reader::new(&bytes)).unwrap(), value);
+    let problem = peer.down(root, &bytes, &mut out).expect_err("old worker cannot keep requested admission");
+    assert_eq!(problem.cause, Cause::Field);
+}
+
+#[test]
+fn admission_ask_and_answers_round_trip() {
+    let limits = fixtures::limits();
+    for expected in [None, Some([2; 32])] {
+        let ask =
+            v1::Ask::Admit(v1::Admit { tag: 4, branch: b"change/7".as_slice().into(), expected, commit: [3; 32] });
+        let bytes = crate::ask(&ask);
+        let mut reader = skein_lib::Reader::new(&bytes);
+        assert_eq!(v1::Ask::decode(&limits, &mut reader).unwrap(), ask);
+        assert!(reader.is_empty());
+    }
+    for answer in [v1::Answer::Admitted, v1::Answer::Unadmitted(v1::Unadmitted { words: b"no room".as_slice().into() })]
+    {
+        let bytes = crate::answer(&answer);
+        let mut reader = skein_lib::Reader::new(&bytes);
+        assert_eq!(v1::Answer::decode(&limits, &mut reader).unwrap(), answer);
+        assert!(reader.is_empty());
+    }
+}
+
+#[test]
 fn git_identity_with_a_field_the_worker_lacks_is_refused() {
     use jig_protocol_worker_wire::layouts::{Cause, Nested};
     let text = wire::TEXT.replace("email: text 256", "worker_mark: u32 = 17");

@@ -204,6 +204,8 @@ impl World {
             | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
+            | Request::AdmitAsk { .. }
+            | Request::AdmitAnswer { .. }
             | Request::SourceFault
             | Request::Link(_)
             | Request::Answer { .. }
@@ -221,6 +223,7 @@ impl World {
             .into_iter()
             .enumerate()
             .map(|(index, name)| wire::Repository {
+                admit: false,
                 tag: u64::try_from(index).expect("repository tag"),
                 name: name.into(),
                 remote: REMOTE.into(),
