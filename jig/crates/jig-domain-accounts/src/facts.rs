@@ -190,8 +190,11 @@ pub(crate) fn report_window(
     window: &UsageWindow,
     wall: Wall,
 ) -> bool {
-    let Some(changed) = merge_window(domain, account, source, origin, window, wall) else { return false };
-    crate::rates::report(domain, account, &window.label, wall);
+    let Some((merged, changed)) = merge_window(domain, account, source, origin, window, wall) else { return false };
+    if let Some(share) = window.window.used {
+        let reading = crate::WindowReading { at: wall, share, origin, resets: window.window.resets };
+        crate::rates::report(domain, account, &window.label, reading, merged);
+    }
     changed
 }
 
@@ -202,7 +205,7 @@ fn merge_window(
     origin: u16,
     window: &UsageWindow,
     wall: Wall,
-) -> Option<bool> {
+) -> Option<(FactWindow, bool)> {
     if window.label.is_empty() || window.label.len() > skein_lib::length::usize_of(FACT_LABEL) {
         return None;
     }
@@ -234,7 +237,7 @@ fn merge_window(
                     | FactValue::Share(_) => {}
                 }
                 if fact.value == FactValue::Window(value) && fact.source == Some(source) && fact.origin == origin {
-                    return Some(false);
+                    return Some((value, false));
                 }
             }
         }
@@ -263,5 +266,5 @@ fn merge_window(
         return None;
     }
     assert!(said.insert(account, facts.into_boxed()).is_ok(), "one facts record per admitted account");
-    Some(true)
+    Some((value, true))
 }
