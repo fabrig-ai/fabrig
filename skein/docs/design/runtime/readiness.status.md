@@ -1,7 +1,8 @@
 # readiness: status
 
-2026-11-25. Where the tree's code lags or departs from [readiness.md](readiness.md).
+2026-11-26. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
+- **Not yet:** 5: `process_children` is not built; `pidfd_exited` is Linux's alone; Darwin's `open_child_pidfd` answers `ENOTSUP`, so Darwin keeps no handle of a process it did not spawn. [in flight: change 18425]
 - **Departs:**  the trust-count reporting departure remains `shell-startup.status.md`, 1.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`
