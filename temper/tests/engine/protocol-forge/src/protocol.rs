@@ -929,6 +929,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Names { task, .. } => top::Key::Names(*task),
         top::Stored::Subscription(row) => top::Key::Subscription { task: row.task, topic: row.topic.clone() },
         top::Stored::BranchHead(row) => top::Key::BranchHead(row.name.clone()),
+        top::Stored::Writes(row) => top::Key::Writes(row.name.clone()),
         top::Stored::PullState(row) => top::Key::PullState(row.name.clone()),
         top::Stored::Ci(row) => top::Key::Ci { repository: row.repository, head: row.head },
         top::Stored::Landed { commit, .. } => top::Key::Landed(*commit),
