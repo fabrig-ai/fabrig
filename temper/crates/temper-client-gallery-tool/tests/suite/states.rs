@@ -116,6 +116,7 @@ enum Part {
     Ordered { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
     Absent { role: Role, name: &'static str },
+    AbsentExact { role: Role, name: &'static str },
     NoRole { role: Role },
     Value { role: Role, name: &'static str, value: &'static str },
     Chats { live: u32, closed: u32 },
@@ -2251,10 +2252,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-list",
         heading: "Three things need you.",
         parts: &[
-            Part::Named {
-                role: Role::Heading { level: 1 },
-                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
-            },
+            Part::Named { role: Role::Heading { level: 1 }, name: "31 of 40 used." },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Text { text: "oldest first" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 3" },
@@ -2264,7 +2262,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Split it in two." },
             Part::Text { text: "Accepted it." },
             Part::Absent { role: Role::Button, name: "Later" },
-            Part::Named { role: Role::TextArea, name: "Or tell it something else" },
+            Part::Named { role: Role::Button, name: "Release" },
             Part::Absent { role: Role::Button, name: "Send" },
         ],
     },
@@ -2272,11 +2270,14 @@ static HOLDS: [Holds; samples::N] = [
         name: "needs-list-second",
         heading: "Three things need you.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 1 }, name: "31 of 40 used." },
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Text { text: "oldest first" },
             Part::Absent { role: Role::Button, name: "Later" },
-            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
         ],
     },
     Holds {
@@ -2309,14 +2310,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-needs",
         heading: "Three things need you.",
         parts: &[
-            Part::Named {
-                role: Role::Heading { level: 1 },
-                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
-            },
+            Part::Named { role: Role::Heading { level: 1 }, name: "31 of 40 used." },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Text { text: "oldest first" },
             Part::Absent { role: Role::Button, name: "Later" },
-            Part::Named { role: Role::TextArea, name: "Or tell it something else" },
+            Part::Named { role: Role::Button, name: "Release" },
         ],
     },
     Holds {
@@ -2325,7 +2323,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
             },
             Part::Absent { role: Role::Button, name: "Later" },
         ],
@@ -2338,6 +2336,7 @@ static HOLDS: [Holds; samples::N] = [
                 role: Role::Heading { level: 1 },
                 name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
             },
+            Part::Named { role: Role::Disclosure, name: "What the agent saw" },
             Part::Absent { role: Role::Button, name: "Later" },
         ],
     },
@@ -2347,7 +2346,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
             },
             Part::Absent { role: Role::Button, name: "Later" },
             Part::Named { role: Role::TextArea, name: "Or tell it something else" },
@@ -2359,11 +2358,13 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
             },
+            Part::Text { text: "2 of 3" },
             Part::Absent { role: Role::Button, name: "Later" },
             Part::Named { role: Role::Button, name: "Undo" },
-            Part::Text { text: "Answered: In jig’s store" },
+            Part::StyledText { style: temper_client_view::look::ANSWERED_LABEL, text: &["Link the GitHub page"] },
+            Part::Text { text: "Answered: Link the GitHub page" },
         ],
     },
     Holds {
@@ -2372,11 +2373,13 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Heading { level: 1 },
-                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
             },
-            Part::Absent { role: Role::Button, name: "Later" },
-            // The browser keeps this state name for opening the next closed row.
+            // The closed row says " · later"; there is no action named "Later".
+            Part::AbsentExact { role: Role::Button, name: "Later" },
             Part::Named { role: Role::TextArea, name: "Or tell it something else" },
+            Part::Text { text: " · later" },
+            Part::Text { text: "Later: it stays in Needs you, after the others." },
         ],
     },
     Holds {
@@ -2729,7 +2732,7 @@ static HOLDS: [Holds; samples::N] = [
                 text: "Monthly totals by category and dark mode are both checked by CI; nothing reaches main until you approve. The budget alerts change asks whether alerts go by email. The CSV import fix you approved this afternoon landed at 16:20.",
             },
             Part::HomeCards {
-                primary: &["Only in the app", "Review on GitHub ↗", "Review on GitHub ↗"],
+                primary: &["Review on GitHub ↗", "Review on GitHub ↗", "Only in the app"],
                 projects: &[],
             },
             Part::Text { text: "Approve Monthly totals by category on GitHub" },
@@ -4547,8 +4550,13 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-solo",
-        heading: "It changes report’s output and its tests, and lands into main: more than a chat does alone.",
-        parts: &[Part::Named { role: Role::Button, name: "Open" }, Part::Absent { role: Role::Button, name: "Answer" }],
+        heading: "The old parser accepts a trailing comma as an empty last field. RFC 4180 does not. Keep it, or drop it in 0.5?",
+        parts: &[
+            Part::Named { role: Role::TextArea, name: "Or tell it something else" },
+            Part::Absent { role: Role::Button, name: "Answer" },
+            Part::After { first: temper_client_view::look::FLOW_Q, then: temper_client_view::look::NEED_ROW },
+            Part::StyleCount { style: temper_client_view::look::NEED_ROW, count: 1 },
+        ],
     },
     Holds {
         name: "repositories",
@@ -5910,9 +5918,16 @@ fn each_state_holds_what_its_name_says() {
                         sample.name
                     );
                 }
-                Part::Absent { role, name } => {
-                    let query =
-                        if *role == Role::Menu { Find::named(*role, name.as_bytes()) } else { in_main(*role, name) };
+                Part::Absent { role, name } | Part::AbsentExact { role, name } => {
+                    let query = if matches!(part, Part::AbsentExact { .. }) {
+                        Find::exactly_named(*role, name.as_bytes()).within(Box::new([
+                            skein_fake_person::Target::Role { role: Role::Main, name: Box::new([]) },
+                        ]))
+                    } else if *role == Role::Menu {
+                        Find::named(*role, name.as_bytes())
+                    } else {
+                        in_main(*role, name)
+                    };
                     assert_eq!(main.find(&query), Found::Absent, "{}: absent {role:?} {name:?}", sample.name);
                 }
                 Part::NoRole { role } => {

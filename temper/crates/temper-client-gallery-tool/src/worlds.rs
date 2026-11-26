@@ -1182,6 +1182,31 @@ fn world_in_layout(
                             ways::follows(&mut root, watch, &mut out);
                             continue;
                         }
+                        w::Watch::Decided(subject) if w == Solo => {
+                            let bytes = wire::decisions(&w::Decisions {
+                                project: subject.project,
+                                rows: List::with_capacity(0),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            });
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::FamilyDelivered {
+                                            watch,
+                                            record: jig_client::Family {
+                                                family: wire::FORGE,
+                                                version: wire::CLIENT_VERSION,
+                                                bytes,
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
+                            continue;
+                        }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Away
                         | w::Watch::Landing(_)

@@ -221,9 +221,10 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
     to the forge's review page (`../../draft/forge-identity.md`, section 8), and
     in the terminal's inbox "Later" too, its key
     `ObjectKey::Task` of the change, so that Later works on it as on any card.
-    The open cards are the inbox's needs and these rows together: the inbox's
-    first, in its order, then the rows in theirs, and those marked later last,
-    then ordered by severity as *What the client keeps* says (1).
+    The open cards merge the inbox's needs and these rows in one order, with
+    those marked later last and the rest ordered by severity, oldest first by
+    their times within each severity, as *What the client keeps* says
+    (`needs-you-state.md`, 1, *The open cards*).
     A filter by project takes the project's rows, one by goal the rows of the
     changes under that goal, one by a milestone the rows whose goal is one of
     its goals, as its `Milestone` reads them (`milestone.md`, 1), and one by kind none, since no kind of the
