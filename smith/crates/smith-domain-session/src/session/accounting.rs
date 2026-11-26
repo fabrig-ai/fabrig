@@ -5,8 +5,8 @@ use core::mem;
 
 use super::{
     Block, Box, Call, Conversation, Decoded, Descriptor, End, Entry, Failure, Limits, Outcome, Problem, Queue, Request,
-    Returned, Slot, Spending, ToolChoice, Usage, blocks_fit, choice_bytes, chosen, compaction, receiving_reserve,
-    size_of, tools,
+    Returned, Slot, Spending, ToolChoice, Usage, blocks_fit, choice_bytes, chosen, compaction, history,
+    receiving_reserve, size_of, tools,
 };
 
 pub(super) fn reservation(
@@ -181,26 +181,32 @@ pub(super) fn provider_room(conversation: &Conversation, limits: &Limits) -> boo
 }
 
 pub(super) fn reserve_provider(conversation: &mut Conversation, limits: &Limits) -> bool {
+    assert!(conversation.provider.credit().is_none(), "a new provider attempt cannot replace a held receiving credit");
+    assert!(conversation.result_place.is_none(), "a new provider attempt cannot replace an owed result message");
     if !provider_room(conversation, limits) {
         return false;
     }
-    // A summary replaces the old window; its input is covered by staging,
-    // and no completion or result skeleton is appended to that history.
-    let credit = if conversation.compaction.asking() {
-        0
+    // A summary replaces the old window, rather than appending to it.
+    let (credit, places) = if conversation.compaction.asking() {
+        (0, None)
     } else {
-        receiving_reserve(conversation, limits).expect("checked receiving bounds")
+        let assistant =
+            history::Place::at(conversation, 0).expect("ordinary provider admission counted its assistant place");
+        let results =
+            history::Place::at(conversation, 1).expect("ordinary provider admission counted its result place");
+        (
+            receiving_reserve(conversation, limits).expect("ordinary provider admission counted its receiving credit"),
+            Some(Places { assistant, results }),
+        )
     };
-    conversation.provider = match mem::replace(&mut conversation.provider, Provider::Idle) {
-        Provider::Idle => Provider::Reserved { credit },
-        Provider::Reserved { .. } => unreachable!("one provider right at a time"),
-    };
-    follow_provider(conversation, 0);
+    conversation.provider = Provider::Reserved { credit, places };
+    conversation.reserved =
+        conversation.reserved.checked_add(credit).expect("the admitted provider credit fits the session total");
     true
 }
 
 pub(super) fn release_provider(conversation: &mut Conversation) {
-    let _released: Option<u64> = take_provider(conversation);
+    let _released = take_provider(conversation);
 }
 
 pub(super) fn receive_completion(
@@ -208,32 +214,31 @@ pub(super) fn receive_completion(
     content: &[Block],
     calls: u32,
     limits: &Limits,
-) -> bool {
-    let cost = if calls == 0 {
-        content_cost(content)
-    } else {
-        held(content, calls, &conversation.choice, conversation.choice_names.as_deref())
-    };
-    let credit = take_provider(conversation).expect("completion owns receiving credit");
-    let Some(content_bytes) = content_cost(content) else {
-        return false;
-    };
+) -> Option<history::Place> {
+    let (credit, places) = take_provider(conversation);
+    let places = places.expect("an ordinary provider attempt holds both transcript places");
+    let content_bytes = content_cost(content)?;
     if content_bytes > limits.completion_bytes || count(content.len()) > limits.completion_blocks {
-        return false;
+        return None;
     }
-    let Some(cost) = cost else {
-        return false;
+    let cost = if calls == 0 {
+        content_bytes
+    } else {
+        held(content, calls, &conversation.choice, conversation.choice_names.as_deref())?
     };
-    assert!(cost <= credit, "complete content and result skeleton obey reserved caps");
+    assert!(cost <= credit, "ordinary provider completion and its result skeleton fit its attempt's receiving credit");
     let fits = charge(conversation, Some(cost), limits);
+    assert!(fits, "the provider completion consumes only its own reserved history room");
     conversation.window.completed(
         conversation.cursor.pending.expect("ordinary completion usage retained"),
         conversation.output,
-        conversation.transcript.len().checked_add(1).expect("reserved assistant slot"),
+        conversation.transcript.len().checked_add(1).expect("the provider admission counted the assistant place"),
         compaction::prompt_bytes(conversation).unwrap_or(u64::MAX),
     );
-    assert!(fits, "valid completion consumes space reserved before provider work");
-    true
+    if calls > 0 {
+        conversation.result_place = Some(places.results);
+    }
+    Some(places.assistant)
 }
 
 pub(super) fn owned_credit(call: &Call, limits: &Limits) -> u64 {
@@ -242,14 +247,6 @@ pub(super) fn owned_credit(call: &Call, limits: &Limits) -> u64 {
 
 pub(super) fn delegated_credit(limits: &Limits) -> u64 {
     limits.delegated_result_bytes
-}
-
-pub(super) fn receive_result(conversation: &mut Conversation, credit: u64, result: &Returned, limits: &Limits) {
-    let cost = returned_cost(result).expect("bounded result cost fits");
-    assert!(cost <= credit, "lower terminal obeys its pre-effect result cap");
-    conversation.reserved = conversation.reserved.checked_sub(credit).expect("call owned result credit");
-    let fits = charge(conversation, Some(cost), limits);
-    assert!(fits, "valid result consumes reserved space through close");
 }
 
 /// What a spec costs: its names, the tools its opener serves, and its first
@@ -428,32 +425,36 @@ pub(super) fn count(items: usize) -> u32 {
 #[derive(Debug)]
 pub(super) enum Provider {
     Idle,
-    Reserved { credit: u64 },
+    Reserved { credit: u64, places: Option<Places> },
 }
 
 impl Provider {
     pub(super) const fn credit(&self) -> Option<u64> {
         match self {
             Self::Idle => None,
-            Self::Reserved { credit } => Some(*credit),
+            Self::Reserved { credit, .. } => Some(*credit),
         }
     }
 }
 
-fn take_provider(conversation: &mut Conversation) -> Option<u64> {
-    let credit = conversation.provider.credit();
-    conversation.provider = match mem::replace(&mut conversation.provider, Provider::Idle) {
-        Provider::Idle | Provider::Reserved { .. } => Provider::Idle,
-    };
-    follow_provider(conversation, credit.unwrap_or(0));
-    credit
+/// The two possible appends paid for by an ordinary provider attempt.
+#[derive(Debug)]
+pub(super) struct Places {
+    assistant: history::Place,
+    results: history::Place,
 }
 
-fn follow_provider(conversation: &mut Conversation, previous: u64) {
-    conversation.reserved = conversation
-        .reserved
-        .checked_sub(previous)
-        .expect("provider right owned credit")
-        .checked_add(conversation.provider.credit().unwrap_or(0))
-        .expect("checked receiving room");
+fn take_provider(conversation: &mut Conversation) -> (u64, Option<Places>) {
+    match mem::replace(&mut conversation.provider, Provider::Idle) {
+        Provider::Reserved { credit, places } => {
+            conversation.reserved = conversation
+                .reserved
+                .checked_sub(credit)
+                .expect("the session total includes the provider attempt's receiving credit");
+            (credit, places)
+        }
+        Provider::Idle => {
+            unreachable!("provider attempt {} has no held receiving credit", conversation.completion_attempts)
+        }
+    }
 }

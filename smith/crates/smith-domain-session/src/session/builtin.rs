@@ -72,6 +72,18 @@ impl Owed {
         true
     }
 
+    #[cfg(test)]
+    pub(super) fn credit(&self) -> u64 {
+        let mut held = 0_u64;
+        for (_, claim) in &self.entries {
+            if let Some((credit, kept_bytes)) = claim.state.receiving() {
+                let unused = credit.checked_sub(kept_bytes).expect("a program claim's unused credit");
+                held = held.checked_add(unused).expect("program claims fit history");
+            }
+        }
+        held
+    }
+
     pub(super) fn moved(&mut self, message: u32) {
         for index in 0..self.entries.len() {
             let key = self
@@ -145,8 +157,7 @@ pub(super) fn prepare(
                     input_bytes: skein_lib::len_u64(call.input.len()),
                 };
                 let position = u32::try_from(position).expect("bounded block");
-                let run =
-                    super::observed_run(calls, session, tools.slots.len(), position, By::Program, credit, metadata);
+                let run = super::observed_run(calls, session, tools.slots.len(), position, By::Program, metadata);
                 let mut metadata = calls.runs.get(run).expect("issued program observation").metadata.clone();
                 metadata.id = Box::default();
                 calls.runs.retire(run);
@@ -191,6 +202,7 @@ pub(super) fn late(
         after: super::After::Complete,
         slots: List::with_capacity(count),
         running: 0,
+        batch: None,
         next: 0,
         failed: None,
         reached: 0,
@@ -214,11 +226,11 @@ pub(super) fn forget(conversation: &mut Conversation) {
         let state = mem::replace(&mut claim.state, State::Settled { kept_bytes: 0 });
         claim.state = match state {
             State::New { credit, kept_bytes } => {
-                release(&mut conversation.reserved, credit, kept_bytes);
+                release(&mut conversation.reserved, &key, credit, kept_bytes);
                 State::Forgotten { kept_bytes }
             }
             State::Waiting { credit, kept_bytes } => {
-                release(&mut conversation.reserved, credit, kept_bytes);
+                release(&mut conversation.reserved, &key, credit, kept_bytes);
                 State::Settled { kept_bytes }
             }
             state @ (State::Forgotten { .. } | State::Settled { .. }) => state,
@@ -295,10 +307,8 @@ pub(crate) fn result(
     };
     let (credit, kept_bytes) = claim.state.receiving().expect("only an owed claim accepts a result");
     let answer = history::cut_result(Returned::Text { text, error, replay: None }, credit);
-    let bytes = super::returned_cost(&answer).expect("bounded program result");
-    conversation.bytes = conversation.bytes.checked_sub(kept_bytes).expect("stand-in was counted");
-    conversation.reserved = conversation.reserved.checked_add(kept_bytes).expect("restore full credit");
-    super::receive_result(conversation, credit, &answer, &env.limits);
+    let bytes = super::returned_cost(&answer).expect("a program result cut to its own credit fits in u64");
+    assert!(bytes <= credit, "program claim {id:?} fits its result credit");
     let block = match claim.place {
         Place::Slot { index } => {
             let tools = match &mut current.state {
@@ -325,12 +335,21 @@ pub(crate) fn result(
             .expect("owed block"),
     };
     match block {
-        Block::ToolResult { result, .. } => *result = answer,
+        Block::ToolResult { id: held, result } => {
+            assert!(*held == id, "program claim {id:?} owns its recorded result place");
+            assert!(super::returned_cost(result) == Some(kept_bytes), "program claim {id:?} owns the counted stand-in");
+            *result = answer;
+        }
         Block::ToolCall(_) | Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {
             unreachable!("owed result place")
         }
     }
     let recorded = block.clone();
+    release(&mut conversation.reserved, &id, credit, kept_bytes);
+    conversation.bytes =
+        conversation.bytes.checked_sub(kept_bytes).expect("the program claim's stand-in is counted in history");
+    let fits = super::charge(conversation, Some(bytes), &env.limits);
+    assert!(fits, "program claim {id:?} consumes only its reserved result room");
     super::tell::result(conversation, &recorded, out);
     let mut metadata = claim.metadata;
     metadata.id = id;
@@ -371,10 +390,7 @@ pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tool
         }
     }
     if !results.is_empty() {
-        conversation
-            .transcript
-            .push(crate::llm::Message { role: crate::llm::Role::User, content: results.into_boxed() })
-            .expect("reserved results message");
+        history::append_results(conversation, results.into_boxed());
     }
 }
 
@@ -384,9 +400,10 @@ pub(super) fn keep_turn(conversation: &mut Conversation, out: &mut Queue<Request
     super::tell_turn(conversation, out)
 }
 
-fn release(reserved: &mut u64, credit: u64, kept_bytes: u64) {
-    *reserved =
-        reserved.checked_sub(credit.checked_sub(kept_bytes).expect("stand-in credit")).expect("owed result reserve");
+fn release(reserved: &mut u64, id: &[u8], credit: u64, kept_bytes: u64) {
+    assert!(kept_bytes <= credit, "program claim {id:?} counts its stand-in within its result credit");
+    let held = credit.checked_sub(kept_bytes).expect("the program claim's stand-in fits its credit");
+    *reserved = reserved.checked_sub(held).expect("the session total includes each live program claim's unused credit");
 }
 
 fn started(facts: &mut Facts, opener: Token, block: u32, metadata: &ToolCall) {

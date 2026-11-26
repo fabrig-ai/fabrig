@@ -108,10 +108,20 @@ fn a_later_batch_shares_what_the_first_left() {
     const FIRST: u64 = 960;
     let (mut harness, owner, completion) = scene(CALLS, ROOM, None, reported());
     let runs = harness.batch(Event::Completed { owner, completion });
-    // Finish the first pair without consuming the next pair's requests together.
     let mut runs = runs.into_boxed().into_iter();
-    drop(harness.step(ran(runs.next().unwrap(), &[b'x'; 4096])));
-    let later = harness.batch(ran(runs.next().unwrap(), &[b'x'; 4096]));
+    assert_eq!(harness.step(ran(runs.next().expect("first batch read"), &[b'x'; 4096])), None);
+    assert_eq!(harness.step(ran(runs.next().expect("first batch read"), &[b'x'; 4096])), None);
+    assert!(!harness.domain.is_ready());
+    harness.domain.reclaim();
+    assert!(harness.domain.is_ready());
+    harness.keep_facts();
+    resume(&mut harness.domain, &harness.env, &mut harness.out);
+    let mut later = List::with_capacity(READS);
+    for _ in 0..READS {
+        let Some(Request::Io { owner, .. }) = harness.next() else { panic!("read in the next batch") };
+        later.push(owner).expect("two reads in the batch");
+    }
+    assert_eq!(harness.next(), None);
     let prompt = finish_reads(&mut harness, later);
     assert_eq!(result_caps(&prompt.messages), [FIRST, FIRST, MINIMUM, MINIMUM]);
     ordinary(&prompt);

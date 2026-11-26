@@ -204,13 +204,15 @@ pub(super) fn start(
     }
     // The instruction moves from the spec into history; its bytes were already charged.
     let cell = u64::try_from(size_of::<Block>()).expect("summary cell fits");
-    assert!(conversation.transcript.room() > 0, "history admission leaves the summary a message");
+    let Some(place) = super::history::Place::at(conversation, 0) else {
+        return Some(window_limit(conversation, evidence, attempts));
+    };
     if !super::blocks_fit(conversation, 1, limits) || !super::charge(conversation, Some(cell), limits) {
         return Some(window_limit(conversation, evidence, attempts));
     }
     let text = mem::replace(&mut conversation.summary, Box::new([]));
     let content: Box<[Block]> = Box::new([Block::Text { text, replay: None }]);
-    conversation.transcript.push(Message { role: Role::User, content }).expect("summary message slot checked");
+    place.append(conversation, Message { role: Role::User, content }, "compaction instruction admission");
     conversation.compaction = match mem::replace(&mut conversation.compaction, Compaction::Idle) {
         Compaction::Idle => Compaction::Asking { held, announced: false, next: None },
         Compaction::CarryOver { next } => Compaction::Asking { held, announced: false, next },
@@ -273,7 +275,9 @@ pub(super) fn open_window(
     conversation.compaction = Compaction::Idle;
     conversation.window_turn = true;
     conversation.transcript = List::with_capacity(limits.history_messages);
-    conversation.transcript.push(Message { role: Role::User, content }).expect("a fresh history has one slot");
+    let place =
+        super::history::Place::at(conversation, 0).expect("validated history limits admit the window opening message");
+    place.append(conversation, Message { role: Role::User, content }, "replacement window admission");
     conversation.bytes = bytes;
     conversation.window = Window::fresh(number, usage.output_tokens.unwrap_or(u64::from(conversation.output)));
     conversation.window.summary_bytes = summary_bytes;

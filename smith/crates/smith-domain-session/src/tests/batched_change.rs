@@ -199,7 +199,8 @@ fn a_call_that_is_no_failed_write_stops_nothing() {
             None if label == "withdrawn" => answer_cancelled(run),
             None => answered(run, 1, 3, label == "host error"),
         };
-        let (_, operation) = running(harness.step(event));
+        assert_eq!(harness.step(event), None);
+        let (_, operation) = running(harness.after_reclaim());
         assert_eq!(loading(&operation), place(b"first"), "{label}: later edit starts");
     }
 }

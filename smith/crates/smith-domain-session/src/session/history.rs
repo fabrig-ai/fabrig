@@ -1,14 +1,41 @@
 //! History admission and bounded result batches (smith/docs/design/domain/session-context.md, section 1.1).
-//! This retains no state: it forecasts space before provider work and shares
-//! remaining payload room before tool work. Window replacement owns held text.
+//! Provider and note admissions count transcript places. A batch holds the
+//! shares of the calls it admits, but no tool outcomes or window text.
 
-use super::{Conversation, End, Limits, Request, Session, State, compaction};
+use super::{Conversation, End, Limits, Request, Run, Session, Slot, State, compaction};
 use crate::llm::{Block, Cap, Decoded, Evidence, Failure, Limit, Message, NotRun, Returned, Role};
 use crate::window::State as WindowState;
 use alloc::boxed::Box;
 use core::mem::size_of;
-use skein_lib::{Decimal, Env, Id, List, Queue, Writer};
+use skein_lib::{Decimal, Env, Id, List, Map, Queue, Writer};
 use smith_domain_tools::{self as tools, Call};
+
+/// An admitted append position in the current transcript.
+#[derive(Debug)]
+pub(super) struct Place(u32);
+
+impl Place {
+    pub(super) fn at(conversation: &Conversation, offset: u32) -> Option<Place> {
+        if offset >= conversation.transcript.room() {
+            return None;
+        }
+        Some(Place(conversation.transcript.len().checked_add(offset).expect("admitted transcript place fits u32")))
+    }
+
+    pub(super) fn append(self, conversation: &mut Conversation, message: Message, admission: &str) {
+        assert!(
+            conversation.transcript.len() == self.0 && conversation.transcript.room() > 0,
+            "{admission} owns the next transcript place, {}",
+            self.0
+        );
+        conversation.transcript.push(message).expect("the named admission reserved this transcript place");
+    }
+}
+
+pub(super) fn append_results(conversation: &mut Conversation, content: Box<[Block]>) {
+    let place = conversation.result_place.take().expect("the assistant's admission reserved its result message");
+    place.append(conversation, Message { role: Role::User, content }, "assistant's result admission");
+}
 
 pub(super) fn limit(bound: u64) -> End {
     End::Failed {
@@ -129,10 +156,7 @@ fn owe_stopped_calls(conversation: &mut Conversation) {
             .push(Block::ToolResult { id: call.id.clone(), result: Returned::NotRun { why: NotRun::Stopped } })
             .expect("one result for each stopped call");
     }
-    conversation
-        .transcript
-        .push(Message { role: Role::User, content: results.into_boxed() })
-        .expect("provider admission reserved a result message");
+    append_results(conversation, results.into_boxed());
 }
 
 pub(super) fn minimum(limits: &Limits) -> u64 {
@@ -142,10 +166,96 @@ pub(super) fn minimum(limits: &Limits) -> u64 {
         .max(37)
 }
 
-/// The reserved batch's block range ends before the first call that did not join.
+/// The fixed membership of one batch, keyed by assistant block position.
+#[derive(Debug)]
 pub(super) struct Batch {
+    begin: u32,
     pub(super) end: u32,
     pub(super) share: u64,
+    held: Map<u32, Share>,
+}
+
+#[derive(Debug)]
+struct Share {
+    credit: u64,
+    run: Option<Id<Run>>,
+}
+
+impl Batch {
+    /// Bind a reserved share to the run before any tool effect is emitted.
+    pub(super) fn start(&mut self, block: u32, run: Id<Run>) {
+        let Some(share) = self.held.get_mut(&block) else {
+            unreachable!("call at block {block} has no share in batch {}..{}", self.begin, self.end);
+        };
+        assert!(share.run.is_none(), "call at block {block} already started in batch {}..{}", self.begin, self.end);
+        share.run = Some(run);
+    }
+
+    pub(super) fn receive(
+        &mut self,
+        conversation: &mut Conversation,
+        block: u32,
+        run: Id<Run>,
+        result: Returned,
+        limits: &Limits,
+    ) -> Returned {
+        let credit = self.give_back(conversation, block, run);
+        let result = cut_result(result, credit);
+        let cost = super::returned_cost(&result).expect("a bounded batch result costs at most u64 bytes");
+        assert!(cost <= credit, "result at block {block} exceeds its share in batch {}..{}", self.begin, self.end);
+        let fits = super::charge(conversation, Some(cost), limits);
+        assert!(fits, "result at block {block} must fit its released share in batch {}..{}", self.begin, self.end);
+        result
+    }
+
+    pub(super) fn give_back(&mut self, conversation: &mut Conversation, block: u32, run: Id<Run>) -> u64 {
+        let Some(share) = self.held.get(&block) else {
+            unreachable!("call at block {block} holds no share in batch {}..{}", self.begin, self.end);
+        };
+        assert!(
+            share.run == Some(run),
+            "terminal for block {block} does not own its share in batch {}..{}",
+            self.begin,
+            self.end
+        );
+        let share = self.held.remove(&block).expect("the call's share was checked in the current batch");
+        conversation.reserved = conversation
+            .reserved
+            .checked_sub(share.credit)
+            .expect("the session total includes the current batch's held shares");
+        share.credit
+    }
+
+    pub(super) fn assert_slot(&self, block: u32, run: Id<Run>, slot: Option<&Slot>) {
+        let owns_slot = match slot {
+            Some(Slot::Running { run: owner }) => *owner == run,
+            Some(Slot::Unstarted | Slot::Done { .. } | Slot::Withheld) | None => false,
+        };
+        assert!(
+            owns_slot,
+            "terminal for block {block} does not own its running slot in batch {}..{}",
+            self.begin, self.end
+        );
+    }
+
+    pub(super) fn finish(self, running: u32) {
+        assert!(
+            self.held.is_empty() && running == 0,
+            "batch {}..{} ended without settling all calls: {:?}",
+            self.begin,
+            self.end,
+            self.held
+        );
+    }
+
+    #[cfg(test)]
+    pub(super) fn credit(&self) -> u64 {
+        let mut credit = 0_u64;
+        for (_, share) in &self.held {
+            credit = credit.checked_add(share.credit).expect("the batch's held credit fits");
+        }
+        credit
+    }
 }
 
 /// Fix the batch before its calls run, leaving future calls their smallest answer.
@@ -182,11 +292,12 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
         }
     }
     let batch_end = u32::try_from(end).expect("bounded completion blocks");
+    let mut held = Map::with_capacity(count);
     if count == 0 {
-        return Batch { end: batch_end, share: u64::MAX };
+        return Batch { begin: next, end: batch_end, share: u64::MAX, held };
     }
-    let held = conversation.bytes.checked_add(conversation.reserved).expect("bounded retained bytes");
-    let left = limits.history_bytes.checked_sub(held).expect("retained history fits");
+    let occupied = conversation.bytes.checked_add(conversation.reserved).expect("bounded retained bytes");
+    let left = limits.history_bytes.checked_sub(occupied).expect("retained history fits");
     let future = minimum(limits).checked_mul(u64::from(following)).expect("bounded following results");
     let history_room = left
         .checked_sub(future)
@@ -206,7 +317,7 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
     assert!(share >= minimum(limits), "each scheduled result has a minimum answer");
     let mut reserved = 0_u64;
     let mut blocked = failed;
-    for block in message.content.iter().take(end).skip(start) {
+    for (index, block) in message.content.iter().enumerate().take(end).skip(start) {
         if let Some(result) = super::restore::result(conversation, block) {
             blocked |= super::batching::failed(block, &result);
             continue;
@@ -220,10 +331,14 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
             Decoded::Delegated { .. } => super::delegated_credit(limits).min(share),
             Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => continue,
         };
+        let index = u32::try_from(index).expect("bounded completion blocks");
+        let previous = held.insert(index, Share { credit, run: None }).expect("batch plan counted every reserved call");
+        assert!(previous.is_none(), "one share per call in the batch plan");
         reserved = reserved.checked_add(credit).expect("batch credit within room");
     }
-    conversation.reserved = conversation.reserved.checked_add(reserved).expect("reserved batch fits history");
-    Batch { end: batch_end, share }
+    conversation.reserved =
+        conversation.reserved.checked_add(reserved).expect("batch's new shares fit the session total");
+    Batch { begin: next, end: batch_end, share, held }
 }
 
 /// A read joins reads while there is room, and a write runs alone.
