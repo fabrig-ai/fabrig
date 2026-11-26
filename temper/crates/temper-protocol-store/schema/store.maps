@@ -579,6 +579,9 @@ record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
 record CloseAt = c::CloseAt
+enum BehindRead = d::BehindRead
+record ReadBehind = d::ReadBehind
+record BehindWait = d::BehindWait { since via s::wall, until via s::wall }
 record ChangeHot by hand
 record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
 record FindingCount stands for number

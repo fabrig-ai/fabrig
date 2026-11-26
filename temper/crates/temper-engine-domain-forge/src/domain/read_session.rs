@@ -1,9 +1,11 @@
-//! The gather's volatile clock is separate from policy wait and settling
-//! origins (temper/docs/design/domain/forge/change/repairs.md, Stalls).
+//! A gather's clock is separate from policy waits (temper/docs/design/domain/forge/change/stalls.md, 1).
+//! A caller waiting on a read behind the record keeps its bound across restart
+//! (temper/docs/design/domain/forge/writes.md, 5).
 use super::{
     Domain, Env, Limits, PendingStep, Request, change, connection_wait, outage, step_owner, wait_for_forge,
     waits_for_dependencies,
 };
+use crate::BehindWait;
 use skein_lib::{List, Queue, Wall};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -27,22 +29,49 @@ impl Session {
             started: false,
         }
     }
+
+    fn restored(wait: BehindWait) -> Self {
+        Self {
+            since: wait.since,
+            until: wait.until,
+            behind: Some(wait.evidence),
+            exempt: false,
+            ended: false,
+            started: true,
+        }
+    }
 }
 
-pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, task: u64, since: Wall) {
+fn save(d: &mut Domain, task: u64, wait: Option<BehindWait>, out: &mut Queue<Request>) {
+    if let Some(row) = d.changes.get_mut(&task)
+        && row.behind_wait != wait
+    {
+        row.behind_wait = wait;
+        let saved = row.clone();
+        super::save_change_parts(d, out, saved);
+    }
+}
+
+pub(super) fn forget(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    d.read_sessions.remove(&task);
+    save(d, task, None, out);
+}
+
+pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, task: u64, since: Wall, out: &mut Queue<Request>) {
     if d.changes.contains_key(&task) {
         let mut session = Session::new(env, since.min(env.wall));
         session.exempt = !super::fresh_reads_in(d);
         d.read_sessions.insert(task, session).expect("one clock per change");
+        save(d, task, None, out);
     }
 }
 
-pub(crate) fn ended(d: &mut Domain, env: &Env<Limits>, task: u64, at: Wall) {
+pub(crate) fn ended(d: &mut Domain, env: &Env<Limits>, task: u64, at: Wall, out: &mut Queue<Request>) {
     let (exempt, started) = match d.read_sessions.get(&task) {
         Some(session) => (session.exempt, session.started),
         None => (false, false),
     };
-    restart(d, env, task, at);
+    restart(d, env, task, at, out);
     if let Some(session) = d.read_sessions.get_mut(&task) {
         session.ended = true;
         session.exempt = exempt;
@@ -56,7 +85,7 @@ pub(crate) fn pause(d: &mut Domain, task: u64) {
     }
 }
 
-pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
+pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get(&pending.task) else { return };
     let mut exempt = !super::fresh_reads_in(d)
         || row.room.is_some()
@@ -69,17 +98,27 @@ pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) 
         exempt |= outage::reading(d, owner);
     }
     if !d.read_sessions.contains_key(&pending.task) {
-        let since = if let change::State::Taking { .. } = row.change.state { row.change.since } else { env.wall };
-        restart(d, env, pending.task, since);
+        let since =
+            if let change::State::Taking { .. } = row.change.state { row.change.since.min(env.wall) } else { env.wall };
+        let mut session = match row.behind_wait {
+            Some(wait) => Session::restored(wait),
+            None => Session::new(env, since),
+        };
+        session.exempt = !super::fresh_reads_in(d);
+        d.read_sessions.insert(pending.task, session).expect("one clock per change");
     }
     let session = d.read_sessions.get_mut(&pending.task).expect("known gather clock");
-    if session.exempt && !exempt && !session.ended {
+    let renewed = session.exempt && !exempt && !session.ended;
+    if renewed {
         *session = Session::new(env, env.wall);
     }
     session.exempt = exempt;
     session.started = true;
     if !exempt {
         session.ended = false;
+    }
+    if renewed {
+        save(d, pending.task, None, out);
     }
 }
 
@@ -96,9 +135,13 @@ pub(super) fn since(d: &Domain, task: u64) -> Option<Wall> {
     Some(d.read_sessions.get(&task)?.since)
 }
 
-pub(super) fn behind(d: &mut Domain, task: u64, read: crate::ReadBehind) {
+pub(super) fn behind(d: &mut Domain, task: u64, evidence: crate::ReadBehind, out: &mut Queue<Request>) {
     if let Some(session) = d.read_sessions.get_mut(&task) {
-        session.behind = Some(read);
+        session.behind = Some(evidence);
+        if !session.exempt {
+            let wait = BehindWait { since: session.since, until: session.until, evidence };
+            save(d, task, Some(wait), out);
+        }
     }
 }
 
@@ -175,7 +218,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             continue;
         }
         let pending = d.steps.remove(&owner).expect("due gather");
-        refresh(d, env, &pending);
+        refresh(d, env, &pending, out);
         let expired = match until(d, task) {
             Some(until) => until <= env.wall,
             None => false,
@@ -188,7 +231,8 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     }
 }
 
-/// A restart's reads spend none of a session's stall allowance (forge/catching-up.md, 4).
+/// The fresh pass arms saved read-behind bounds without moving them. Other
+/// gathers count from the fresh pass (temper/docs/design/domain/forge/catching-up.md, 4).
 pub(super) fn fresh(d: &mut Domain, env: &Env<Limits>) {
     let mut sessions = skein_lib::Map::with_capacity(d.read_sessions.capacity());
     for (task, prior) in &d.read_sessions {
@@ -196,10 +240,15 @@ pub(super) fn fresh(d: &mut Domain, env: &Env<Limits>) {
         session.started = prior.started;
         sessions.insert(*task, session).expect("existing read clocks");
     }
-    // A restored taking can get its first procedure step after the fresh pass.
-    // Its stored since predates that pass just as an already-started session's does.
+    // Some callers have not taken their first step of this start. A saved
+    // read-behind wait still owns its timer; an ordinary taking counts from here.
     for (task, row) in &d.changes {
-        if let change::State::Taking { .. } = row.change.state
+        if row.frozen() || super::matches_held(&row.change.state) {
+            continue;
+        }
+        if let Some(wait) = row.behind_wait {
+            sessions.insert(*task, Session::restored(wait)).expect("one clock per change");
+        } else if let change::State::Taking { .. } = row.change.state
             && !sessions.contains_key(task)
         {
             sessions.insert(*task, Session::new(env, env.wall)).expect("one clock per change");
@@ -208,7 +257,7 @@ pub(super) fn fresh(d: &mut Domain, env: &Env<Limits>) {
     d.read_sessions = sessions;
 }
 
-pub(super) fn connection(d: &mut Domain, env: &Env<Limits>, forge: u16, connected: bool) {
+pub(super) fn connection(d: &mut Domain, env: &Env<Limits>, forge: u16, connected: bool, out: &mut Queue<Request>) {
     let mut tasks = List::with_capacity(env.limits.changes);
     for (task, _) in &d.read_sessions {
         if let Some(row) = d.changes.get(task)
@@ -219,7 +268,14 @@ pub(super) fn connection(d: &mut Domain, env: &Env<Limits>, forge: u16, connecte
     }
     for task in tasks.into_boxed() {
         if connected {
-            ended(d, env, task, env.wall);
+            // The startup connection is not the end of a caller's exemption.
+            if let Some(row) = d.changes.get(&task)
+                && row.behind_wait.is_some()
+                && (!super::fresh_reads_in(d) || until(d, task).is_some())
+            {
+                continue;
+            }
+            ended(d, env, task, env.wall, out);
             d.read_sessions.get_mut(&task).expect("resumed clock").exempt = false;
         } else {
             pause(d, task);

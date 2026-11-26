@@ -9754,6 +9754,92 @@ pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_f
     }
 }
 
+#[must_use]
+pub fn behind_read_to_record(value: &temper_engine_domain_forge_vocabulary::BehindRead) -> crate::v25::BehindRead {
+    match value {
+        temper_engine_domain_forge_vocabulary::BehindRead::Branch => crate::v25::BehindRead::Branch,
+        temper_engine_domain_forge_vocabulary::BehindRead::Base => crate::v25::BehindRead::Base,
+        temper_engine_domain_forge_vocabulary::BehindRead::PullHead => crate::v25::BehindRead::PullHead,
+        temper_engine_domain_forge_vocabulary::BehindRead::PullBase => crate::v25::BehindRead::PullBase,
+        temper_engine_domain_forge_vocabulary::BehindRead::PullState => crate::v25::BehindRead::PullState,
+    }
+}
+
+#[must_use]
+pub fn behind_read_to_domain(record: crate::v25::BehindRead) -> temper_engine_domain_forge_vocabulary::BehindRead {
+    match record {
+        crate::v25::BehindRead::Branch => temper_engine_domain_forge_vocabulary::BehindRead::Branch,
+        crate::v25::BehindRead::Base => temper_engine_domain_forge_vocabulary::BehindRead::Base,
+        crate::v25::BehindRead::PullHead => temper_engine_domain_forge_vocabulary::BehindRead::PullHead,
+        crate::v25::BehindRead::PullBase => temper_engine_domain_forge_vocabulary::BehindRead::PullBase,
+        crate::v25::BehindRead::PullState => temper_engine_domain_forge_vocabulary::BehindRead::PullState,
+    }
+}
+
+#[must_use]
+pub fn read_behind_to_record(value: &temper_engine_domain_forge_vocabulary::ReadBehind) -> crate::v25::ReadBehind {
+    let temper_engine_domain_forge_vocabulary::ReadBehind { read: field_000000, expected: field_000001, found: field_000002 } = value;
+    crate::v25::ReadBehind {
+        read: behind_read_to_record(field_000000),
+        expected: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        found: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn read_behind_to_domain(record: crate::v25::ReadBehind) -> temper_engine_domain_forge_vocabulary::ReadBehind {
+    let crate::v25::ReadBehind { read: field_000000, expected: field_000001, found: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::ReadBehind {
+        read: behind_read_to_domain(field_000000),
+        expected: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        found: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn behind_wait_to_record(value: &temper_engine_domain_forge_vocabulary::BehindWait) -> crate::v25::BehindWait {
+    let temper_engine_domain_forge_vocabulary::BehindWait { since: field_000000, until: field_000001, evidence: field_000002 } = value;
+    crate::v25::BehindWait {
+        since: skein_codec::convert::wall_to_record(field_000000),
+        until: skein_codec::convert::wall_to_record(field_000001),
+        evidence: read_behind_to_record(field_000002)
+    }
+}
+
+#[must_use]
+pub fn behind_wait_to_domain(record: crate::v25::BehindWait) -> temper_engine_domain_forge_vocabulary::BehindWait {
+    let crate::v25::BehindWait { since: field_000000, until: field_000001, evidence: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::BehindWait {
+        since: skein_codec::convert::wall_to_domain(field_000000),
+        until: skein_codec::convert::wall_to_domain(field_000001),
+        evidence: read_behind_to_domain(field_000002)
+    }
+}
+
 pub fn subscriber_to_record(value: &temper_engine_domain_forge_vocabulary::Subscriber) -> Result<crate::v25::Subscriber, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::Subscriber { task: field_000000, number: field_000001, topic: field_000002, own_change: field_000003, goal_tasks: field_000004, paths: field_000005 } = value;
     Ok(crate::v25::Subscriber {

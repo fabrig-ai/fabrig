@@ -1096,6 +1096,7 @@ pub struct PreviousLink {
 pub struct ChangeRow {
     /// A release into the train awaits its first change decision.
     pub settling: bool,
+    pub behind_wait: Option<BehindWait>,
     pub room: Option<u64>,
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
@@ -1220,6 +1221,7 @@ pub struct ChangeCold {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
     pub settling: bool,
+    pub behind_wait: Option<BehindWait>,
     pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
@@ -1272,6 +1274,7 @@ impl ChangeRow {
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
             settling,
+            behind_wait,
             room,
             source,
             kept,
@@ -1360,6 +1363,7 @@ impl ChangeRow {
             },
             ChangeHot {
                 settling,
+                behind_wait,
                 room,
                 kept,
                 regate,
@@ -1432,6 +1436,7 @@ impl ChangeRow {
         } = cold;
         let ChangeHot {
             settling,
+            behind_wait,
             room,
             kept,
             regate,
@@ -1475,6 +1480,7 @@ impl ChangeRow {
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
             settling,
+            behind_wait,
             room,
             source,
             kept,
@@ -1874,6 +1880,14 @@ pub struct ReadBehind {
     pub read: BehindRead,
     pub expected: Option<skein_forge::api::Commit>,
     pub found: Option<skein_forge::api::Commit>,
+}
+
+/// A caller's stall on a view behind the write record (temper/docs/design/domain/forge/writes.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct BehindWait {
+    pub since: skein_lib::Wall,
+    pub until: skein_lib::Wall,
+    pub evidence: ReadBehind,
 }
 
 /// Coherent provider facts used by the root to check a change effect before

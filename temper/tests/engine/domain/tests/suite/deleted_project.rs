@@ -131,6 +131,7 @@ fn tier(repository: Repository) -> forge::Stored {
 fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
         settling: false,
+        behind_wait: None,
         source: None,
         kept: None,
         regate: None,

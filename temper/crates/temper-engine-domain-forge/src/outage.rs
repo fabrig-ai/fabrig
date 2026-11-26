@@ -250,7 +250,13 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
     }
 }
 /// An outage has no terminal at the procedure boundary. Its pending row stays put.
-pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result: &Result<Answer, Error>) -> bool {
+pub(super) fn read_ended(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    result: &Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) -> bool {
     let Some(active) = &mut d.outage else { return false };
     let Some(mut reading) = active.reads.remove(&owner) else { return false };
     let outage = match result {
@@ -303,7 +309,7 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
         && let Some(pending) = d.steps.get(&owner)
     {
         let task = pending.task;
-        super::read_session::ended(d, env, task, env.wall);
+        super::read_session::ended(d, env, task, env.wall, out);
         crate::waits::changed(d, task);
     }
     if reading.outage

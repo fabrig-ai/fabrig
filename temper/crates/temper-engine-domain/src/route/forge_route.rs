@@ -1923,6 +1923,7 @@ pub(super) fn start_recovered_change(
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 settling: false,
+                behind_wait: None,
                 room: None,
                 kept: None,
                 regate: None,

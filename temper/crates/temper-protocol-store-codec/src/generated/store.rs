@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xba, 0xfc, 0x32, 0x5f, 0x51, 0x2f, 0x4a, 0xbb, 0xcf, 0x0a, 0x51, 0x2c, 0x9f, 0xe4, 0xcc, 0x6d, 0xfe, 0xa8, 0x2b,
-    0x52, 0x18, 0x43, 0x2f, 0xe9, 0x83, 0xec, 0x7c, 0x8f, 0x82, 0x61, 0xba, 0x75,
+    0x1b, 0x89, 0x3f, 0xe8, 0x88, 0xce, 0x18, 0x00, 0x12, 0x1b, 0x95, 0x95, 0x80, 0x1a, 0x2a, 0x5b, 0x33, 0x67, 0xd3,
+    0xf4, 0xc8, 0xf6, 0xdd, 0x23, 0xe6, 0xea, 0xa8, 0x20, 0x84, 0x18, 0x6c, 0x7e,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -4188,6 +4188,16 @@ pub mod paths {
     pub const CLOSE_AT_ASKED: Path = Path::new("CloseAt.asked");
     pub const CLOSE_AT_REFUSED: Path = Path::new("CloseAt.refused");
     pub const CLOSE_AT_TAIL: Path = Path::new("CloseAt (tail)");
+    pub const BEHIND_READ_TAG: Path = Path::new("BehindRead (tag)");
+    pub const READ_BEHIND_READ: Path = Path::new("ReadBehind.read");
+    pub const READ_BEHIND_EXPECTED: Path = Path::new("ReadBehind.expected");
+    pub const READ_BEHIND_FOUND: Path = Path::new("ReadBehind.found");
+    pub const READ_BEHIND_TAIL: Path = Path::new("ReadBehind (tail)");
+    pub const BEHIND_WAIT_SINCE: Path = Path::new("BehindWait.since");
+    pub const BEHIND_WAIT_UNTIL: Path = Path::new("BehindWait.until");
+    pub const BEHIND_WAIT_EVIDENCE: Path = Path::new("BehindWait.evidence");
+    pub const BEHIND_WAIT_TAIL: Path = Path::new("BehindWait (tail)");
+    pub const CHANGE_HOT_BEHIND_WAIT: Path = Path::new("ChangeHot.behind_wait");
     pub const CHANGE_HOT_SETTLING: Path = Path::new("ChangeHot.settling");
     pub const CHANGE_HOT_CLOSE_AT: Path = Path::new("ChangeHot.close_at");
     pub const CHANGE_HOT_ROOM: Path = Path::new("ChangeHot.room");
@@ -37293,9 +37303,197 @@ impl Record for CloseAt {
     }
 }
 
+// Type: BehindRead.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum BehindRead {
+    Branch,
+    Base,
+    PullHead,
+    PullBase,
+    PullState,
+}
+
+// Record: BehindRead.
+impl BehindRead {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for BehindRead {
+    type Limits = Limits;
+    const TAIL: Path = paths::BEHIND_READ_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "BehindRead")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "BehindRead")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Branch => field::put(out, &[0], paths::BEHIND_READ_TAG),
+            Self::Base => field::put(out, &[1], paths::BEHIND_READ_TAG),
+            Self::PullHead => field::put(out, &[2], paths::BEHIND_READ_TAG),
+            Self::PullBase => field::put(out, &[3], paths::BEHIND_READ_TAG),
+            Self::PullState => field::put(out, &[4], paths::BEHIND_READ_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::BEHIND_READ_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Branch),
+            1 => Ok(Self::Base),
+            2 => Ok(Self::PullHead),
+            3 => Ok(Self::PullBase),
+            4 => Ok(Self::PullState),
+            5..=u8::MAX => Err(Problem { path: paths::BEHIND_READ_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: ReadBehind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ReadBehind {
+    pub read: BehindRead,
+    pub expected: Option<[u8; 32]>,
+    pub found: Option<[u8; 32]>,
+}
+
+// Record: ReadBehind.
+impl ReadBehind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("BehindRead"),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 67;
+}
+
+impl Record for ReadBehind {
+    type Limits = Limits;
+    const TAIL: Path = paths::READ_BEHIND_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ReadBehind")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ReadBehind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.read, limits, out, paths::READ_BEHIND_READ)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.expected, limits, out, paths::READ_BEHIND_EXPECTED)?;
+        field::write(field::Optional { item: field::Fixed::<32> }, &self.found, limits, out, paths::READ_BEHIND_FOUND)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            read: field::read(field::Nested, limits, reader, paths::READ_BEHIND_READ)?,
+            expected: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::READ_BEHIND_EXPECTED)?,
+            found: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::READ_BEHIND_FOUND)?,
+        })
+    }
+}
+
+// Type: BehindWait.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BehindWait {
+    pub since: u64,
+    pub until: u64,
+    pub evidence: ReadBehind,
+}
+
+// Record: BehindWait.
+impl BehindWait {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ReadBehind"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 83;
+}
+
+impl Record for BehindWait {
+    type Limits = Limits;
+    const TAIL: Path = paths::BEHIND_WAIT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "BehindWait")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "BehindWait")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.since, limits, out, paths::BEHIND_WAIT_SINCE)?;
+        field::write(field::U64, &self.until, limits, out, paths::BEHIND_WAIT_UNTIL)?;
+        field::write(field::Nested, &self.evidence, limits, out, paths::BEHIND_WAIT_EVIDENCE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            since: field::read(field::U64, limits, reader, paths::BEHIND_WAIT_SINCE)?,
+            until: field::read(field::U64, limits, reader, paths::BEHIND_WAIT_UNTIL)?,
+            evidence: field::read(field::Nested, limits, reader, paths::BEHIND_WAIT_EVIDENCE)?,
+        })
+    }
+}
+
 // Type: ChangeHot.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
+    pub behind_wait: Option<BehindWait>,
     pub settling: bool,
     pub close_at: Option<CloseAt>,
     pub room: Option<u64>,
@@ -37340,75 +37538,77 @@ pub struct ChangeHot {
 // Record: ChangeHot.
 impl ChangeHot {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("BehindWait"),
+        skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("CloseAt"),
-        skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 3 },
-        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 7 },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("Regate"),
-        skein_codec::bounds::Node::Option { item: 9 },
-        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 11 },
-        skein_codec::bounds::Node::Named("TaskRelease"),
+        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 13 },
-        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Named("TaskRelease"),
         skein_codec::bounds::Node::Option { item: 15 },
+        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Option { item: 17 },
         skein_codec::bounds::Node::Named("SignOff"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 17, size: size_of::<SignOff>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 19, size: size_of::<SignOff>() },
         skein_codec::bounds::Node::Named("ChangeEnding"),
-        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Option { item: 21 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 21, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 23, size: size_of::<u64>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 23, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 25, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("ChangeResult"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Change"),
         skein_codec::bounds::Node::Named("ChangeCi"),
-        skein_codec::bounds::Node::Option { item: 29 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 31 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 33 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 35 },
         skein_codec::bounds::Node::Named("EffectResult"),
         skein_codec::bounds::Node::Named("DelegateRef"),
-        skein_codec::bounds::Node::Option { item: 36 },
+        skein_codec::bounds::Node::Option { item: 38 },
         skein_codec::bounds::Node::Named("ChangeStatus"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("GateReport"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 41, size: size_of::<GateReport>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 43, size: size_of::<GateReport>() },
         skein_codec::bounds::Node::Named("GateRemark"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 43, size: size_of::<GateRemark>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 45, size: size_of::<GateRemark>() },
         skein_codec::bounds::Node::Named("ChangeHold"),
-        skein_codec::bounds::Node::Option { item: 45 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 47 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 49 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("EffectAccount"),
-        skein_codec::bounds::Node::Option { item: 50 },
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_producer_failure_some) },
         skein_codec::bounds::Node::Option { item: 52 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_producer_failure_some) },
+        skein_codec::bounds::Node::Option { item: 54 },
         skein_codec::bounds::Node::Named("Questions"),
         skein_codec::bounds::Node::Named("FollowCheckProgress"),
-        skein_codec::bounds::Node::Option { item: 55 },
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
         skein_codec::bounds::Node::Option { item: 57 },
-        skein_codec::bounds::Node::Named("ChangeHistory"),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
         skein_codec::bounds::Node::Option { item: 59 },
+        skein_codec::bounds::Node::Named("ChangeHistory"),
+        skein_codec::bounds::Node::Option { item: 61 },
         skein_codec::bounds::Node::Named("LandingHanded"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 61, size: size_of::<LandingHanded>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 63, size: size_of::<LandingHanded>() },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25, 26, 27, 28, 30, 32, 34, 35, 37, 38, 39, 40, 42, 44, 46, 48, 49, 51, 53, 54, 56, 58, 60, 62, 63] },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 27, 28, 29, 30, 32, 34, 36, 37, 39, 40, 41, 42, 44, 46, 48, 50, 51, 53, 55, 56, 58, 60, 62, 64, 65] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1529;
+    pub const ENCODED_AT_ZERO: u64 = 1613;
 }
 
 impl Record for ChangeHot {
@@ -37433,6 +37633,7 @@ impl Record for ChangeHot {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Nested }, &self.behind_wait, limits, out, paths::CHANGE_HOT_BEHIND_WAIT)?;
         field::write(field::Boolean, &self.settling, limits, out, paths::CHANGE_HOT_SETTLING)?;
         field::write(field::Optional { item: field::Nested }, &self.close_at, limits, out, paths::CHANGE_HOT_CLOSE_AT)?;
         field::write(field::Optional { item: field::U64 }, &self.room, limits, out, paths::CHANGE_HOT_ROOM)?;
@@ -37477,6 +37678,7 @@ impl Record for ChangeHot {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
+            behind_wait: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_BEHIND_WAIT)?,
             settling: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_SETTLING)?,
             close_at: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CLOSE_AT)?,
             room: field::read(field::Optional { item: field::U64 }, limits, reader, paths::CHANGE_HOT_ROOM)?,
@@ -42565,7 +42767,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1530;
+    pub const ENCODED_AT_ZERO: u64 = 1614;
 }
 
 impl Record for Value {
@@ -42720,7 +42922,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1532;
+    pub const ENCODED_AT_ZERO: u64 = 1616;
 }
 
 impl Record for Row {
@@ -42785,6 +42987,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "AuthorityLack", nodes: AuthorityLack::SHAPE },
     skein_codec::bounds::Declaration { name: "Away", nodes: Away::SHAPE },
     skein_codec::bounds::Declaration { name: "BaseMoved", nodes: BaseMoved::SHAPE },
+    skein_codec::bounds::Declaration { name: "BehindRead", nodes: BehindRead::SHAPE },
+    skein_codec::bounds::Declaration { name: "BehindWait", nodes: BehindWait::SHAPE },
     skein_codec::bounds::Declaration { name: "Binding", nodes: Binding::SHAPE },
     skein_codec::bounds::Declaration { name: "Blame", nodes: Blame::SHAPE },
     skein_codec::bounds::Declaration { name: "BlameMove", nodes: BlameMove::SHAPE },
@@ -43208,6 +43412,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ReachKindOf", nodes: ReachKindOf::SHAPE },
     skein_codec::bounds::Declaration { name: "ReachReason", nodes: ReachReason::SHAPE },
     skein_codec::bounds::Declaration { name: "ReachSet", nodes: ReachSet::SHAPE },
+    skein_codec::bounds::Declaration { name: "ReadBehind", nodes: ReadBehind::SHAPE },
     skein_codec::bounds::Declaration { name: "ReadResult", nodes: ReadResult::SHAPE },
     skein_codec::bounds::Declaration { name: "ReadyHead", nodes: ReadyHead::SHAPE },
     skein_codec::bounds::Declaration { name: "Receipt", nodes: Receipt::SHAPE },

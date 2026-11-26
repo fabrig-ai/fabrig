@@ -849,7 +849,6 @@ fn a_disputed_merge_and_later_turn_do_not_make_a_design_push_drift() {
 }
 
 #[test]
-#[ignore = "the change's read-behind clock starts again on restart (seed 33)"]
 fn restarting_a_caller_behind_does_not_renew_its_bound() {
     let seed = 33;
     let outside = Outside::Reset { hinted: false };

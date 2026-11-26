@@ -8,6 +8,7 @@ use temper_engine_domain_forge_change as change;
 pub fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,

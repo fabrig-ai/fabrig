@@ -95,6 +95,7 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
     use temper_engine_domain_forge_change as change;
     forge::ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,

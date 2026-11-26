@@ -94,6 +94,107 @@ fn opening_reports_the_in_flight_entries_stall() {
     assert_eq!(wait_report(&finished, CHANGE), Some([].as_slice()));
 }
 
+#[test]
+fn a_silent_reset_holds_at_its_original_read_bound_after_restart() {
+    const OLD: skein_forge::api::Commit = [2; 32];
+    const STALL: Duration = Duration::from_secs(20);
+    const RESTART_AFTER: Duration = Duration::from_secs(7);
+    const TICK: Duration = Duration::from_secs(1);
+    const ALMOST: Duration = Duration::from_nanos(STALL.as_nanos() - RESTART_AFTER.as_nanos() - TICK.as_nanos());
+    let mut d = fixtures::connected_domain();
+    let row = opened(State::Checking { head: HEAD });
+    let branch = row.branch.clone();
+    let name = crate::tiers::name(row.repository, &branch);
+    let (_, mut saved) = row.clone().split();
+    let head = Stored::BranchHead(BranchHead { name: name.clone(), commit: HEAD, owned: true });
+    let writes = Stored::Writes(Writes {
+        name,
+        head: Some(HEAD),
+        next: 3,
+        entries: Box::new([
+            Written {
+                order: 1,
+                operation: writes::Operation::Push { before: None, after: OLD },
+                sender: Sender::Attempt { task: CHANGE, attempt: 1 },
+                state: WriteState::Confirmed,
+            },
+            Written {
+                order: 2,
+                operation: writes::Operation::Push { before: Some(OLD), after: HEAD },
+                sender: Sender::Attempt { task: CHANGE, attempt: 2 },
+                state: WriteState::Confirmed,
+            },
+        ]),
+    });
+    d.restore_begin(env().wall);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restore { record: head.clone() });
+    outputs(&mut d, Event::Restore { record: writes.clone() });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    outputs(&mut d, Event::Change { row });
+    let mut clock = env();
+    clock.limits.change_policy.stall = STALL;
+    let ReportedBound::At { at: original_bound, .. } = at(clock.wall, clock.limits.change_policy.stall, AtBound::Hold)
+    else {
+        panic!("a read stall")
+    };
+    let waiting = reads_reset(&mut d, &clock, &branch, OLD);
+    assert_eq!(d.inspection_change_behind(CHANGE), Some(original_bound));
+    for request in waiting {
+        if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
+            saved = *row;
+        }
+    }
+    let cold = d.change_cold.get(&CHANGE).expect("saved cold change").clone();
+
+    fixtures::advance(&mut d, &mut clock, RESTART_AFTER);
+    let mut restored = fixtures::connected_domain();
+    restored.restore_begin(clock.wall);
+    for record in [
+        Stored::Repository(adopted()),
+        head,
+        writes,
+        Stored::ChangeCold(Box::new(cold)),
+        Stored::ChangeHot(Box::new(saved)),
+    ] {
+        outputs_at(&mut restored, &clock, Event::Restore { record });
+    }
+    outputs_at(&mut restored, &clock, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs_at(&mut restored, &clock, Event::CatchUp);
+    assert!(restored.fresh_reads_in());
+    reads_reset(&mut restored, &clock, &branch, OLD);
+    fixtures::advance(&mut restored, &mut clock, ALMOST);
+    assert_eq!(restored.change(CHANGE).expect("restored change").change.state, State::Checking { head: HEAD });
+
+    let expired = take(fixtures::advance(&mut restored, &mut clock, TICK));
+    assert_eq!(clock.wall, original_bound);
+    let mut behind = None;
+    for request in &expired {
+        if let Request::ChangeDecision {
+            task: CHANGE,
+            decision: Decision::Hold(Hold::Stalled),
+            entry: None,
+            evidence: Some(evidence),
+        } = request
+        {
+            behind = evidence.behind;
+        }
+    }
+    assert_eq!(
+        behind,
+        Some(ReadBehind { read: BehindRead::Branch, expected: Some(HEAD), found: Some(OLD) }),
+        "a read that may be stale or another writer's reset must hold at its original bound: {expired:?}"
+    );
+}
+
+fn reads_reset(d: &mut Domain, clock: &Env<Limits>, branch: &[u8], old: skein_forge::api::Commit) -> Box<[Request]> {
+    outputs_at(d, clock, fixtures::change_step());
+    let (call, op) = fixtures::next_at(d, clock);
+    assert_eq!(op, Op::Read(Read::Branch { branch: branch.into() }));
+    take(fixtures::answer_at(d, clock, call, Ok(Answer::Commit(old))))
+}
+
 fn answer_gather(d: &mut Domain, clock: &Env<Limits>, execution: Option<RunState>) -> Box<[Request]> {
     const GATHER_READS: u32 = 9; // branch, base, pull, checks, execution run, base CI, ancestry, paths, reviews
     let link = skein_forge::api::JobAttempt { head: HEAD, run: RUN, job: 41, attempt: 2 };

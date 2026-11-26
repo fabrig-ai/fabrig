@@ -297,16 +297,6 @@ pub(super) fn keep(
 }
 
 pub(super) fn wait(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
-    let row = d.changes.get(&pending.task).expect("live step");
-    let facts = super::change_facts(d, env, row, &pending, pending.base_tip.unwrap_or([0; 32]));
-    let heard = super::change_standing(d, row, &pending);
-    if facts.behind.is_some() {
-        let decision = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy).decision;
-        if decision == change::Decision::Hold(change::Hold::Stalled) {
-            super::hold_read_session(d, env, pending.task, Some(&pending), out);
-            return;
-        }
-    }
     // No ordinary phase progress, write or gate may use these partial facts.
     super::branch_due(d, pending.task);
     super::wait_for_forge(d, env, &pending, Some(retry(env)), out);
