@@ -396,6 +396,10 @@ credential, skip and output caps remain admission checks.
   - A slow reader stops the writer.
   - Both directions move at once.
   - A last word reaches the peer even when the writer's stream then fails.
+
+  Each test runs in one suite: its directed tests are focused, and the fuzzy
+  suite runs the seeded exchange over 64 seeds, calling it from the focused
+  tests' module rather than registering that module a second time.
 - **Memory:** each world's channels, measured with the counting allocator
   under each scenario's named ceiling with headroom.
 - **A scripted peer,** for services' worlds: it speaks the opening, then

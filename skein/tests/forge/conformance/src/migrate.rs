@@ -455,6 +455,8 @@ impl Stall {
             while !worker_stop.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((stream, _)) => {
+                        // BSD accept inherits nonblocking mode; the proxy uses blocking reads and writes.
+                        stream.set_nonblocking(false).expect("blocking proxy stream");
                         let tx = tx.clone();
                         let gate = worker_gate.clone();
                         thread::spawn(move || {

@@ -4,9 +4,6 @@ use skein_channel::{
 };
 use skein_lib::{List, Queue, Rng, stream};
 
-#[path = "../generic_protocol.rs"]
-mod protocol;
-
 fn schema() -> Schema {
     let mut kinds = List::with_capacity(1);
     kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 64 }).expect("kind");
@@ -65,6 +62,6 @@ fn fuzzy_header_opening_and_terms_on_a_machine() {
 #[test]
 fn fuzzy_two_channel_protocol_worlds() {
     for seed in 0..64_u64 {
-        protocol::seeded_protocol(seed);
+        crate::generic_protocol::seeded_protocol(seed);
     }
 }

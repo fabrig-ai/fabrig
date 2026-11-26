@@ -142,6 +142,8 @@ fn ending_a_pass_captures_its_holder_before_the_socket_can_be_reused() {
     let later = UnixListener::bind(&socket).expect("later holder");
     later.set_nonblocking(true).expect("probe later socket");
     let (mut stream, _) = old.accept().expect("loop captured the old holder before permitting reuse");
+    // BSD accept inherits nonblocking mode; reading the end request needs to wait for bytes.
+    stream.set_nonblocking(false).expect("blocking old holder stream");
     stream.set_read_timeout(Some(Duration::from_secs(2))).expect("request deadline");
     let mut request = String::new();
     BufReader::new(&mut stream).read_line(&mut request).expect("old holder gets request");
