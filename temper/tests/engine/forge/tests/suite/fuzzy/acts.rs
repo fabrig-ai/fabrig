@@ -145,6 +145,7 @@ fn fire(world: &mut World, trains: &mut Trains, held: &mut Vec<Held>, action: &A
                 questions: world.change(member).questions.clone(),
                 words: b"person holds member".as_slice().into(),
             });
+            world.wake_landing(world.landing_of(member).expect("held member's landing"));
             trains.held.push((member, b"person holds member".as_slice().into()));
             assert!(matches!(world.change(member).change.state, change::State::Held { .. }));
             assert_eq!(world.change(member).change.ready_since, ready, "held member keeps its place");
@@ -267,10 +268,12 @@ fn advance(world: &mut World, task: u64, entry: u64) {
     }
 }
 
-fn close(world: &mut World, task: u64, cancelled: bool) {
+fn close(world: &mut World, task: u64, ending: top::ReleaseEnding) {
     let row = world.landing(task).landing.clone();
-    let ending = if cancelled { top::ReleaseEnding::Cancelled } else { top::ReleaseEnding::Done };
     world.event(top::Event::SettleEffects { task, root: task, ending });
+    if ending == top::ReleaseEnding::Failed {
+        assert_eq!(world.landing(task).landing.phase, landing::Phase::Cancelled, "failure ends the row at settlement");
+    }
     world.event(top::Event::Release { task, root: task, ending, reason: None, entry: 900_000 + task * 100 });
     world.event(top::Event::Committed { entry: 900_000 + task * 100 });
     world.run_for(5);
@@ -290,7 +293,7 @@ fn close(world: &mut World, task: u64, cancelled: bool) {
         }
     }
     assert!(released, "landing {task} releases");
-    assert!(world.landing(task).entries.is_empty(), "cancelled or finished landing returns its write entries");
+    assert!(world.landing(task).entries.is_empty(), "closed landing returns its write entries");
     assert!(
         !world.stored().iter().any(|(key, record)| {
             matches!(key, top::Key::Flight { task: owner, .. } if *owner == task)
@@ -335,6 +338,9 @@ fn run(seed: u64) -> World {
     let mut moving = moving;
     let restart = rng.below(4);
     let mut settled = false;
+    // Once seed 2's drawn cancellation has fired, fail its replacement during proof.
+    let mut fail_landing = seed == 2;
+    let mut cancel_member = seed == 2;
     for step in 0..600 {
         if step == restart {
             let before: Vec<_> = (51..51 + count).map(|task| world.history(task)).collect();
@@ -357,16 +363,40 @@ fn run(seed: u64) -> World {
             })
             .collect();
         for task in cancelled {
-            close(&mut world, task, true);
+            close(&mut world, task, top::ReleaseEnding::Cancelled);
             closed.insert(task);
             pending = None;
         }
         if let Some(task) = live(&world) {
             let prior = world.landing(task).landing.clone();
+            let stopped = if cancel_member
+                && !fail_landing
+                && let Some(member) =
+                    prior.members.iter().find(|member| member.left.is_none() && member.landed.is_none())
+            {
+                // The scripted person's cancellation wakes the still-live landing, as jig's
+                // closing save does in the root. Keep it distinct from the draw at opening.
+                world.wake_landing(task);
+                cancel_change(&mut world, member.change, 800_000 + step * 100);
+                cancel_member = false;
+                Some(member.change)
+            } else {
+                None
+            };
             let before = world.branch(b"main");
             let mut news = pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b""));
             news.held = trains.held.iter().map(|(task, _)| *task).collect();
+            news.ended = prior
+                .members
+                .iter()
+                .filter_map(|member| {
+                    (world.change(member.change).ending == Some(top::Ending::Cancelled)).then_some(member.change)
+                })
+                .collect();
             let decision = landings::step_landing_heard(&mut world, task, 10_000 + step * 10, news);
+            if let Some(change) = stopped {
+                assert_eq!(world.landing_of(change), None, "the cancelled member leaves on the next step");
+            }
             checks.entry(task).or_default().step(&mut world, seed, task, &prior, before, decision);
             if matches!(decision, landing::Decision::Prepare { .. }) {
                 let row = &world.landing(task).landing;
@@ -407,8 +437,16 @@ fn run(seed: u64) -> World {
                         assert_eq!(member.left, Some(landing::Leave::Held), "held member leaves its landing");
                     }
                 }
-                close(&mut world, task, false);
+                close(&mut world, task, top::ReleaseEnding::Done);
                 closed.insert(task);
+            } else if fail_landing
+                && actions.iter().all(|action| action.fired)
+                && world.landing(task).landing.phase == landing::Phase::Proving
+            {
+                close(&mut world, task, top::ReleaseEnding::Failed);
+                closed.insert(task);
+                pending = None;
+                fail_landing = false;
             }
         }
         for &task in &members {
@@ -428,7 +466,6 @@ fn run(seed: u64) -> World {
         // Once every act has fired, only the finite forge work remains; let its timers run.
         world.run_for(if actions.iter().all(|action| action.fired) { 10 } else { 1 });
         world.check().expect("world invariants");
-        world.check_landing_members();
         settled = actions.iter().all(|action| action.fired)
             && live(&world).is_none()
             && members.iter().all(|&task| {
@@ -447,6 +484,8 @@ fn run(seed: u64) -> World {
         (51..51 + count).map(|task| (task, &world.change(task).change.state)).collect::<Vec<_>>(),
         live(&world).map(|task| &world.landing(task).landing)
     );
+    assert!(!fail_landing, "seed {seed}: a proving landing failed and closed");
+    assert!(!cancel_member, "seed {seed}: a person cancelled an active member");
     for hold in &held {
         assert!(hold.left, "held member left its landing");
     }

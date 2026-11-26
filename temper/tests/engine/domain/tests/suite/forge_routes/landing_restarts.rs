@@ -3,6 +3,9 @@
 //! temper/docs/design/domain/landing-preparing.md, 4–7).
 use super::super::{goal_branch, goal_landing};
 use super::*;
+use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_landing as landing;
+use temper_engine_domain_world::tier_runs::Tier;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const SLOTS: u32 = 9;
@@ -22,16 +25,25 @@ fn turn_world() -> World {
 }
 
 fn turn_world_with_gate_latency(landing_gate_latency: Option<Duration>) -> World {
+    turn_world_configured(Gate::default(), landing_gate_latency)
+}
+
+pub(super) fn turn_world_configured(gate: Gate, landing_gate_latency: Option<Duration>) -> World {
+    turn_world_with_settings(gate, landing_gate_latency, None)
+}
+
+fn turn_world_with_settings(gate: Gate, landing_gate_latency: Option<Duration>, tier: Option<Tier>) -> World {
     let mut world = World::configured_limits(
         true,
         true,
         false,
         1000,
-        Gate::default(),
+        gate,
         None,
         StoryLimits {
             turn: true,
             landing_gate_latency,
+            tier,
             // The provider and store admit four; the initial project's policy below admits one.
             batch: Some(4),
             landing_members: Some(4),
@@ -46,6 +58,9 @@ fn turn_world_with_gate_latency(landing_gate_latency: Option<Duration>) -> World
     )
     .with_landing_batch(1)
     .with_forge_holds(16);
+    if gate.agent {
+        world.env.limits.brief.budgets.task = 512;
+    }
     let mut client = world.env.limits.forge.client;
     client.pending = 8;
     world = world.with_forge_client(client);
@@ -165,7 +180,11 @@ fn assert_unheld(world: &World) {
     for row in landing_rows(world) {
         assert!(!matches!(row.landing.phase, forge_top::LandingPhase::Held { .. }), "{row:?}");
         for task in std::iter::once(row.landing.task).chain(row.landing.members.iter().map(|member| member.change)) {
-            let task = task_row(world, task).expect("task");
+            let kept = task_row(world, task);
+            if kept.is_none() && task == row.landing.task && row.landing.phase == landing::Phase::Cancelled {
+                continue; // A cancelled row can outlive its task.
+            }
+            let task = kept.expect("task");
             assert!(!matches!(task.phase, tasks::Phase::Held { .. }), "task {}: {:?}", task.number, task.phase);
         }
     }
@@ -623,7 +642,7 @@ fn a_prepare_answer_kept_before_restart_is_read_without_asking_again() {
     world.close();
 }
 
-fn person(world: &mut World, key: u8, ask: people::Ask) {
+pub(super) fn person(world: &mut World, key: u8, ask: people::Ask) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
@@ -773,9 +792,8 @@ enum Cut {
     Turn,
 }
 
-#[test]
-fn an_unmade_landings_members_form_again_and_land_after_restart() {
-    let mut world = turn_world();
+fn ready_unmade_pair(tier: Option<Tier>) -> (World, [forge_top::ChangeRow; 2]) {
+    let mut world = turn_world_with_settings(Gate::default(), None, tier);
     world.drain_cut();
     world.restart_with_batch(2);
     world.send(worker_hello(&world));
@@ -798,10 +816,19 @@ fn an_unmade_landings_members_form_again_and_land_after_restart() {
     world.drain_cut();
     let mut changes = [world.store.change(a).expect("first change"), world.store.change(b).expect("second change")];
     changes.sort_by_key(|row| (row.change.ready_since, row.task));
+    (world, changes)
+}
+
+fn seed_unmade(world: &mut World, unmade: Vec<forge_top::Stored>) {
+    world.store.seed(unmade.into_iter().map(|row| Record::Forge { row: Box::new(row) }).collect(), Box::new([]));
+}
+
+#[test]
+fn an_unmade_landings_members_form_again_and_land_after_restart() {
+    let (mut world, changes) = ready_unmade_pair(None);
     let queue = changes.each_ref().map(|row| row.task);
     let ready = changes.each_ref().map(|row| row.change.ready_since);
-    let unmade = crate::reconcile::unmade_landing(&changes);
-    world.store.seed(unmade.into_iter().map(|row| Record::Forge { row: Box::new(row) }).collect(), Box::new([]));
+    seed_unmade(&mut world, crate::reconcile::unmade_landing(&changes));
     world.restart_same();
     // As in restart_waiting_batch, finish both restart reads before letting the train form.
     world.root.hold_landings(true);
@@ -813,7 +840,7 @@ fn an_unmade_landings_members_form_again_and_land_after_restart() {
         }
     }
     assert!(batch_waiting(&world, &queue), "members ready after the start");
-    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Landing(crate::reconcile::UNMADE))));
+    crate::reconcile::assert_cancelled_landing(&world.store);
     for (task, first_ready) in queue.iter().zip(ready) {
         let row = world.store.change(*task).expect("member");
         assert_eq!(world.root.forge().landing_of(row.task), None);
@@ -833,6 +860,236 @@ fn an_unmade_landings_members_form_again_and_land_after_restart() {
         ));
     }
     world.close();
+}
+
+const MAIN: &[u8] = b"main";
+
+#[derive(Clone, Copy)]
+enum ReadbackTip {
+    Base,
+    Candidate,
+    Descendant,
+}
+
+fn seed_taskless_turn(world: &mut World, changes: &[forge_top::ChangeRow; 2], tip: ReadbackTip) -> [u64; 2] {
+    let mut rows = crate::reconcile::unmade_landing(changes);
+    let row = rows
+        .iter_mut()
+        .find_map(|row| match row {
+            forge_top::Stored::Landing(row) => Some(row),
+            _ => None,
+        })
+        .expect("synthetic landing row");
+    let base = world.fake.branch(b"org/repo", MAIN).expect("main");
+    let mut parent = base;
+    let mut prefixes = [0; 2];
+    row.landing.preparation = 1;
+    row.landing.phase = landing::Phase::Turn { at: world.env.wall };
+    row.landing.round.merges = 1;
+    for (index, ((member, change), prefix)) in
+        row.landing.members.iter_mut().zip(changes).zip(&mut prefixes).enumerate()
+    {
+        let head = world.fake.branch(b"org/repo", &change.branch).expect("change head");
+        let files = forge_world::landings::stack_files(&world.fake, parent, head, world.fake_env.limits.limits.commits);
+        let combine = if index == 0 { landing::Combine::Merge } else { landing::Combine::Squash };
+        let merge_parent = (combine == landing::Combine::Merge).then_some(head);
+        *prefix =
+            fake::commit_tree(&mut world.fake, &world.fake_env.limits, parent, merge_parent, files, b"Prepared prefix")
+                .expect("prepared prefix");
+        parent = *prefix;
+        member.base = Some(translate::commit(base));
+        member.head = Some(translate::commit(head));
+        member.candidate = Some(translate::commit(*prefix));
+        member.round = Some(1);
+        member.combined = Some(combine);
+    }
+    if !matches!(tip, ReadbackTip::Base) {
+        assert_eq!(
+            world.external(
+                1,
+                raw::Op::Git(raw::Git::Push { branch: MAIN.into(), commit: parent, expected: Some(base) })
+            ),
+            raw::Answer::Pushed(raw::Pushed::Pushed)
+        );
+    }
+    if matches!(tip, ReadbackTip::Descendant) {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", MAIN, b"later", b"outside the train", 1)
+            .expect("a later commit containing the top");
+    }
+    seed_unmade(world, rows);
+    prefixes
+}
+
+fn pause_taskless_turn_readback(world: &mut World, repository: skein_forge::api::Repository) {
+    world.held_reads = Some(Vec::new());
+    world.hold_reads_at_any_step = true;
+    world.restart_with_landing_held(true);
+    for _ in 0..PAIR_TICKS {
+        tick(world);
+        if world.root.ready() && world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty()) {
+            break;
+        }
+    }
+    assert!(world.root.ready(), "the deferred ending does not block the switch");
+    assert!(!world.root.forge().repository_fresh(repository), "fresh reads are still out");
+    let row = world.root.forge().landing(crate::reconcile::UNMADE).expect("kept turn");
+    assert!(matches!(row.landing.phase, landing::Phase::Turn { .. }));
+    assert_eq!(world.root.forge().train_holder(repository, MAIN), Some(crate::reconcile::UNMADE));
+    assert!(
+        !std::iter::from_fn(|| world.root.pop_fact()).any(|fact| matches!(fact, engine::Fact::LandingUnmade { .. }))
+    );
+}
+
+fn resume_taskless_turn_readback(world: &mut World) {
+    for read in world.held_reads.take().expect("fresh reads held") {
+        world.out.push(read);
+    }
+    world.collect();
+}
+
+fn taskless_warning(world: &mut World) -> engine::Fact {
+    let warnings: Vec<_> = std::iter::from_fn(|| world.root.pop_fact())
+        .filter(|fact| matches!(fact, engine::Fact::LandingUnmade { .. }))
+        .collect();
+    let [warning] = warnings.try_into().expect("one ending warning");
+    warning
+}
+
+fn expect_taskless_turn_landed(world: &mut World, changes: &[forge_top::ChangeRow; 2], prefixes: [u64; 2]) {
+    let repository = changes[0].repository;
+    for _ in 0..PAIR_TICKS {
+        tick(world);
+        if changes.iter().all(|before| {
+            world.store.change(before.task).is_some_and(|row| matches!(row.change.state, change::State::Landed { .. }))
+        }) {
+            break;
+        }
+    }
+    crate::reconcile::assert_cancelled_landing(&world.store);
+    assert!(world.root.forge().train_free(repository, MAIN));
+    for (before, prefix) in changes.iter().zip(prefixes.map(translate::commit)) {
+        let change = world.store.change(before.task).expect("landed change");
+        assert!(matches!(change.change.state, change::State::Landed { merge, .. } if merge == prefix));
+        assert_eq!(change.handed, before.handed + 1, "the turn's landed ask was handed once");
+        assert!(change.asks.is_empty(), "the change took its landed ask");
+        let landed: Vec<_> = world
+            .store
+            .rows
+            .values()
+            .filter_map(|row| match row {
+                Record::Forge { row } => match row.as_ref() {
+                    forge_top::Stored::HistoryEvent(event)
+                        if event.change == change.task && event.what == forge_top::history::What::Landed =>
+                    {
+                        Some(event.head)
+                    }
+                    _ => None,
+                },
+                Record::Core(_) => None,
+            })
+            .collect();
+        assert_eq!(landed, [Some(prefix)], "one landed event at the member's own prefix");
+        assert!(
+            matches!(world.store.rows.get(&Key::Forge(forge_top::Key::Verification { repository, commit: prefix })),
+            Some(Record::Forge { row }) if matches!(row.as_ref(), forge_top::Stored::Verification(row)
+                if row.changes.as_ref() == [change.task])),
+            "landed member goes on to verify"
+        );
+    }
+    assert_eq!(
+        taskless_warning(world),
+        engine::Fact::LandingUnmade {
+            task: crate::reconcile::UNMADE,
+            repository,
+            branch: MAIN.into(),
+            changes: Box::new([]),
+            readback: true,
+            landed: Box::new([changes[0].task, changes[1].task]),
+            unrecorded: Box::new([changes[1].task]),
+        }
+    );
+    assert!(
+        !world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })),
+        "the gone task makes neither a merge nor a squash record"
+    );
+}
+
+// A live verifying change may step at an ordinary restart. Compare the
+// ending itself and its asks, rather than unrelated procedure counters.
+fn close_taskless_turn_story(world: &mut World, changes: &[forge_top::ChangeRow; 2]) {
+    world.oracle_settle();
+    let handed = changes.each_ref().map(|row| world.store.change(row.task).expect("member").handed);
+    world.restart_same();
+    world.oracle_settle();
+    crate::reconcile::assert_cancelled_landing(&world.store);
+    assert!(
+        !std::iter::from_fn(|| world.root.pop_fact()).any(|fact| matches!(fact, engine::Fact::LandingUnmade { .. }))
+    );
+    assert_eq!(changes.each_ref().map(|row| world.store.change(row.task).expect("member").handed), handed);
+    world.ends.close(world.env.now, &world.store).expect("world ends cleanly");
+}
+
+#[test]
+fn a_taskless_turn_reads_the_candidate_and_hands_each_prefix() {
+    let (mut world, changes) = ready_unmade_pair(Some(Tier::default()));
+    let prefixes = seed_taskless_turn(&mut world, &changes, ReadbackTip::Candidate);
+    pause_taskless_turn_readback(&mut world, changes[0].repository);
+    let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::inspect(&world.root, &mut inspection);
+    let moment = skein_world::inspect::Moment { seed: 71, at: world.env.now, iteration: 0 };
+    assert_eq!(inspection.check_violation(moment), Ok(()), "the deferred taskless turn is still owed readback");
+    resume_taskless_turn_readback(&mut world);
+    expect_taskless_turn_landed(&mut world, &changes, prefixes);
+    close_taskless_turn_story(&mut world, &changes);
+}
+
+#[test]
+fn a_restart_repeats_a_taskless_turns_unfinished_readback() {
+    let (mut world, changes) = ready_unmade_pair(Some(Tier::default()));
+    let prefixes = seed_taskless_turn(&mut world, &changes, ReadbackTip::Descendant);
+    pause_taskless_turn_readback(&mut world, changes[0].repository);
+    // Discard the first process's held calls, not its durable store.
+    pause_taskless_turn_readback(&mut world, changes[0].repository);
+    resume_taskless_turn_readback(&mut world);
+    expect_taskless_turn_landed(&mut world, &changes, prefixes);
+    close_taskless_turn_story(&mut world, &changes);
+}
+
+#[test]
+fn a_taskless_turn_reading_its_base_ends_without_landing() {
+    let (mut world, changes) = ready_unmade_pair(None);
+    seed_taskless_turn(&mut world, &changes, ReadbackTip::Base);
+    let repository = changes[0].repository;
+    pause_taskless_turn_readback(&mut world, repository);
+    resume_taskless_turn_readback(&mut world);
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+        if crate::reconcile::cancelled_landing(&world.store) {
+            break;
+        }
+    }
+    crate::reconcile::assert_cancelled_landing(&world.store);
+    assert!(world.root.forge().train_free(repository, MAIN));
+    let row = world.root.forge().landing(crate::reconcile::UNMADE).expect("ended row");
+    assert!(row.landing.members.iter().all(|member| member.landed.is_none()));
+    for before in &changes {
+        let after = world.store.change(before.task).expect("ready change");
+        assert_eq!(after.change.state, before.change.state);
+        assert_eq!(after.handed, before.handed);
+    }
+    assert_eq!(
+        taskless_warning(&mut world),
+        engine::Fact::LandingUnmade {
+            task: crate::reconcile::UNMADE,
+            repository,
+            branch: MAIN.into(),
+            changes: Box::new(changes.each_ref().map(|row| row.task)),
+            readback: false,
+            landed: Box::new([]),
+            unrecorded: Box::new([]),
+        }
+    );
+    close_taskless_turn_story(&mut world, &changes);
 }
 
 #[test]

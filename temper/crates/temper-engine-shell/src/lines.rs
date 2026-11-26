@@ -555,14 +555,38 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 "{binary} serve: warning: change {change}: its {kind} of landing {landing} dropped as its asks were converted: its queue is full\n"
             )
         }
-        temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
-            let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
-            format!(
-                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended; its changes {changes} wait again\n",
+        temper_engine_service::Note::LandingUnmade {
+            task,
+            repository,
+            branch,
+            changes,
+            readback,
+            landed,
+            unrecorded,
+        } => {
+            use std::fmt::Write as _;
+            let numbers = |changes: &[u64]| changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+            let mut line = format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended",
                 String::from_utf8_lossy(&branch),
                 repository.forge,
                 repository.repository
-            )
+            );
+            if readback {
+                line.push_str(" after reading back its merge");
+                if !landed.is_empty() {
+                    write!(line, "; changes {} landed", numbers(&landed)).expect("write to string");
+                }
+            }
+            if !changes.is_empty() {
+                write!(line, "; its changes {} wait again", numbers(&changes)).expect("write to string");
+            }
+            if !unrecorded.is_empty() {
+                write!(line, "; the pull requests of changes {} are not recorded merged", numbers(&unrecorded))
+                    .expect("write to string");
+            }
+            line.push('\n');
+            line
         }
         temper_engine_service::Note::HoldDropped { name, task } => {
             let branch = match name.what {

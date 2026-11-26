@@ -65,6 +65,9 @@ pub(crate) fn waiting_on_cohort_member() -> (World, u64, u64) {
                 .forge()
                 .landing(blocking)
                 .is_none_or(|row| matches!(row.landing.phase, forge_top::LandingPhase::Landed))
+            // The landing's finish also wakes waiting changes on its train.
+            // Let the ready change finish that step without answering the cohort's read.
+            && world.root.tasks().procedure_due(ready).is_none()
             && world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty())
             && world.pending.is_empty()
             && world.events.is_empty()

@@ -1237,6 +1237,8 @@ pub(crate) mod wait_drill;
 
 #[path = "landing_restarts.rs"]
 pub(crate) mod restarts;
+#[path = "landing_wakes.rs"]
+pub(crate) mod wakes;
 
 #[path = "landing_two_goals.rs"]
 mod two_goals;
@@ -1521,6 +1523,9 @@ fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
         assert!(words.contains(expected), "{words}");
     }
 }
+
+#[path = "landing_failed.rs"]
+mod landing_failed;
 
 #[path = "landing_delivery_restart.rs"]
 mod delivery_restart;

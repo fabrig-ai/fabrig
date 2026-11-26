@@ -7,7 +7,7 @@ use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{
     REPO, World, changes,
-    landings::{self, CHANGE, LANDING, PROJECT},
+    landings::{self, CHANGE, LANDING, PROJECT, Trains},
     translate,
 };
 const MEMBER: &[u8] = b"temper/51";
@@ -132,6 +132,7 @@ fn a_held_member_leaves_and_keeps_its_place_ahead_of_a_later_waiter() {
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([CHANGE]),
+            ended: Box::new([]),
             failure: Box::new([]),
             preparation: Some(landing::Preparation::Idle),
             kept: Box::new([]),
@@ -357,6 +358,7 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
                     outcomes: Box::new([]),
                     dependencies: Box::new([]),
                     held: Box::new([]),
+                    ended: Box::new([]),
                     failure: Box::new([]),
                     preparation: Some(landing::Preparation::Idle),
                     kept: Box::new([]),
@@ -401,6 +403,7 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
+                ended: Box::new([]),
                 failure: Box::new([]),
                 preparation: Some(landing::Preparation::Idle),
                 kept: Box::new([]),
@@ -435,4 +438,78 @@ fn cancelling_the_landing_returns_its_member_ready_and_frees_the_train() {
     row.landing.members[0].branch.clone_from(&row.landing.round.branch);
     world.event(top::Event::Landing { row });
     assert_eq!(world.landing_of(CHANGE), Some(62));
+}
+
+const NEXT_MEMBER: u64 = CHANGE + 1;
+const NEXT_LANDING: u64 = LANDING + 1;
+
+fn partially_recorded_landing() -> (World, Trains, api::Commit, change::State) {
+    const MEMBERS: u64 = 2;
+    let (mut world, trains) = super::landing_batches::batch_root(MEMBERS);
+    proving(&mut world);
+    let mut row = world.landing(LANDING).clone();
+    let [landed, waiting] = row.landing.members.as_mut() else { panic!("two members") };
+    let prefix = landed.candidate.expect("prepared prefix");
+    landed.landed = Some(prefix);
+    landed.recorded = true;
+    let round = row.landing.preparation;
+    let mut second = world.change(NEXT_MEMBER).clone();
+    let ready = second.change.state.clone();
+    let change::State::Ready { head, ready_since } = ready else { panic!("member was ready") };
+    let target = change::Judgement {
+        landing: LANDING,
+        round,
+        pull: waiting.pull,
+        branch: waiting.branch.clone(),
+        base: row.landing.branch.clone(),
+        prefix: waiting.candidate.expect("prepared prefix"),
+    };
+    second.change.state = change::State::Judging { head, ready_since, target: target.clone(), asked: Box::new([]) };
+    let prepare = change::Ask::Prepare { head, main: waiting.base.expect("round base") };
+    second.asks = [prepare, change::Ask::Judge(target)]
+        .into_iter()
+        .enumerate()
+        .map(|(at, ask)| change::Handed {
+            number: u32::try_from(at + 1).expect("ask number"),
+            landing: LANDING,
+            round,
+            ask,
+        })
+        .collect();
+    second.handed = u32::try_from(second.asks.len()).expect("two asks");
+    for record in [top::Stored::Landing(row), top::Stored::Change(Box::new(second))] {
+        world.event(top::Event::Restore { record });
+    }
+    world.take_seen();
+    (world, trains, prefix, ready)
+}
+
+#[test]
+fn failed_landing_tells_landed_members_and_frees_its_train() {
+    // A repeat of the closing request owes no more news.
+    const ATTEMPTS: u32 = 2;
+    let (mut world, mut trains, prefix, ready) = partially_recorded_landing();
+    for _ in 0..ATTEMPTS {
+        world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Failed });
+    }
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Cancelled);
+    assert!(matches!(world.change(CHANGE).change.state, change::State::Landed { merge, .. } if merge == prefix));
+    assert_eq!(
+        world
+            .take_seen()
+            .iter()
+            .filter(|request| matches!(
+                request,
+                top::Request::LandingNews { task: LANDING, member: 0, step: top::LandingNews::Landed }
+            ))
+            .count(),
+        1,
+    );
+    assert_eq!(world.change(NEXT_MEMBER).change.state, ready);
+    for member in [CHANGE, NEXT_MEMBER] {
+        assert_eq!(world.landing_of(member), None);
+        assert!(world.change(member).asks.is_empty());
+    }
+    trains.judge(&mut world);
+    assert_eq!(world.landing_of(NEXT_MEMBER), Some(NEXT_LANDING));
 }

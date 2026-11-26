@@ -140,6 +140,9 @@ fn run_injected(
 struct Driver {
     world: World,
     workload: Workload,
+    // A train drawn with one dependency common to all members uses that change's ending,
+    // rather than the person's latch, to release the members together.
+    cohort: Option<(String, String)>,
     names: Names,
     sessions: BTreeMap<Party, u64>,
     goals: BTreeMap<String, Goal>,
@@ -259,6 +262,7 @@ impl Driver {
             .map(|action| (action.target.clone(), action.act))
             .collect();
         let mut driver = Self {
+            cohort: drawn_cohort(&workload),
             world,
             workload,
             names: Names::new(),
@@ -405,7 +409,7 @@ impl Driver {
                     .map_err(|error| format!("{} under {parent}: {error}", goal.name))?
             };
             self.names.name(&goal.name, task)?;
-            if goal.train && !in_chain {
+            if goal.train && !in_chain && shared_dependency(&goal).is_none() {
                 self.authorize_latch(&goal, task);
             }
             self.goals.insert(goal.name, Goal::default());
@@ -644,15 +648,21 @@ impl Driver {
         let Some(goal) = self.workload.goal(name).cloned() else {
             return Ok(());
         };
+        let cohort = shared_dependency(&goal);
         if goal.train && self.goals[name].latch.is_none() {
-            let mut latch = crate::fixtures::report_delegate(b"Release the ready train", Box::new([]));
-            latch.executor = tasks::Executor::Person(tasks::PersonAddress::Person(match goal.party {
-                Party::First => 1,
-                Party::Second => 2,
-            }));
-            latch.authority.tools = tasks::Tools(0);
-            latch.authority.budget.spend = 0;
-            let latch = delegated(self.call(run, engine::Tool::Delegate { batch: Box::new([latch]) }))?;
+            let latch = if let Some(dependency) = cohort {
+                let Some(task) = self.names.task(dependency) else { return Ok(()) };
+                task
+            } else {
+                let mut latch = crate::fixtures::report_delegate(b"Release the ready train", Box::new([]));
+                latch.executor = tasks::Executor::Person(tasks::PersonAddress::Person(match goal.party {
+                    Party::First => 1,
+                    Party::Second => 2,
+                }));
+                latch.authority.tools = tasks::Tools(0);
+                latch.authority.budget.spend = 0;
+                delegated(self.call(run, engine::Tool::Delegate { batch: Box::new([latch]) }))?
+            };
             self.goals.get_mut(name).expect("train").latch = Some(latch);
         }
         let progress = &self.goals[name];
@@ -693,7 +703,11 @@ impl Driver {
                 change.questions = Some(engine::ChangeQuestions::Up);
                 let task = delegated(self.call(run, engine::Tool::Change { changes: Box::new([change]) }))?;
                 self.names.name(&next.name, task)?;
-                self.amend_after(&goal, next, task);
+                // For a cohort, latch_trains adds the shared dependency once the
+                // producers have started, so they can do their work before it lands.
+                if cohort.is_none() {
+                    self.amend_after(&goal, next, task);
+                }
                 let progress = self.goals.get_mut(name).expect("goal");
                 progress.changes += 1;
                 if goal.train {
@@ -972,6 +986,12 @@ impl Driver {
                 })
             });
             if ready {
+                if shared_dependency(goal).is_some() {
+                    // Every member is gating behind the named change. Let its
+                    // producer finish; only that change's landing releases them.
+                    self.goals.get_mut(&goal.name).expect("cohort").released = true;
+                    continue;
+                }
                 let revision = task(&self.world, latch).expect("latch").revisions.spec;
                 let name = goal.name.clone();
                 let party = goal.party;
@@ -993,6 +1013,11 @@ impl Driver {
     fn produce(&mut self, run: &engine::Assignment) {
         let Some(row) = task(&self.world, run.task) else { return };
         let tasks::Party::Task(parent) = row.requester else { return };
+        if self.cohort.as_ref().is_some_and(|(train, dependency)| {
+            !self.goals[train].released && self.names.task(dependency) == Some(parent)
+        }) {
+            return;
+        }
         let Some(change_row) = self.world.store.change(parent) else { return };
         if let Some((delegate, temper_engine_domain_forge_change::Delegate::Gate { head, .. })) = change_row.delegate
             && delegate == run.task
@@ -1107,6 +1132,21 @@ impl Driver {
                 .collect::<Vec<_>>()
         ))
     }
+}
+
+fn drawn_cohort(workload: &Workload) -> Option<(String, String)> {
+    workload
+        .goals
+        .iter()
+        .find_map(|goal| shared_dependency(goal).map(|dependency| (goal.name.clone(), dependency.to_owned())))
+}
+
+fn shared_dependency(goal: &temper_workload::draw::Goal) -> Option<&str> {
+    if !goal.train || goal.changes.len() < 2 {
+        return None;
+    }
+    let [dependency] = goal.changes.first()?.after.as_slice() else { return None };
+    goal.changes.iter().all(|change| change.after.as_slice() == [dependency.as_str()]).then_some(dependency)
 }
 
 fn setup(streams: Streams, workload: &Workload, bounds: Option<&engine::Limits>) -> World {

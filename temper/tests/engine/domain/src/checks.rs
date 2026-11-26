@@ -58,7 +58,9 @@ impl Checks {
                 combined = [&primary[..], others].concat();
                 &combined
             };
-            check_waits(inspections, moment)
+            inspection
+                .check_violation(moment)
+                .and_then(|()| check_waits(inspections, moment))
                 .and_then(|()| check_tables(inspections, moment))
                 .and_then(|()| jig_inspect::records(core, moment, self.record_wall))
         };

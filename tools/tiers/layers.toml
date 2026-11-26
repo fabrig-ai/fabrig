@@ -202,6 +202,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-domain-ways::suite" = "step"
 "temper-engine-domain-world::suite" = "domain"
 "temper-engine-forge-world::suite" = "domain"
+"temper-engine-inspect::landing_liveness" = "domain" # Landing liveness counterexamples on the forge's domain world.
 "temper-engine-inspect::read_admission" = "domain" # A landing's read admission as a live wake, on the forge's domain world.
 "temper-engine-protocol-forge-world::suite" = "protocol"
 "temper-engine-service-component::real" = "real-loop" # Engine store directory and file modes on the real kernel.

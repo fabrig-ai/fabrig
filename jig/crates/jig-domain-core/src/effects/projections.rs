@@ -265,27 +265,28 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
             if closing && state.pending.is_empty() {
                 state.pending.clone_from(&core.connectors);
             }
-            let feed = ProjectionFeed {
-                goal: state.goal.clone(),
-                plan: state.plan.clone(),
-                milestones: state.milestones.clone(),
-                closing,
-            };
             for milestone in &state.milestones {
                 out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(milestone_key(
                     state.goal.number,
                     milestone.identity,
                 ))))));
             }
-            state.milestones = Box::new([]);
-            Some(feed)
+            let milestones = core::mem::replace(&mut state.milestones, Box::new([]));
+            if core.connectors.is_empty() {
+                None
+            } else {
+                Some(ProjectionFeed { goal: state.goal.clone(), plan: state.plan.clone(), milestones, closing })
+            }
         };
         state.changed = false;
         write(&mut out, header(state));
-        if let Some(feed) = feed {
-            for &connector in core.connectors.as_ref() {
+        if let Some(feed) = feed
+            && let Some((&last, earlier)) = core.connectors.split_last()
+        {
+            for &connector in earlier {
                 out.push(Request::Ask { connector, ask: Ask::ProjectGoal { feed: Box::new(feed.clone()) } });
             }
+            out.push(Request::Ask { connector: last, ask: Ask::ProjectGoal { feed: Box::new(feed) } });
         }
         let ended = match state.goal.phase {
             tasks::Phase::Ended(_) => true,

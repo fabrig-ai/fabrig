@@ -1,6 +1,5 @@
 //! Open problems (temper/docs/design/draft/failure-worlds.md, 6–7;
 //! temper/docs/design/testing/engine-checks.md, 5.1).
-use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_fake_forge_domain::{self as fake, api as raw};

@@ -254,6 +254,9 @@ pub enum Note {
         repository: skein_forge::api::Repository,
         branch: Box<[u8]>,
         changes: Box<[u64]>,
+        readback: bool,
+        landed: Box<[u64]>,
+        unrecorded: Box<[u64]>,
     },
     HoldDropped {
         name: temper_engine_domain_forge::Name,

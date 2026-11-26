@@ -3884,6 +3884,153 @@ pub fn landing_round_end_to_domain(record: crate::v25::LandingRoundEnd) -> tempe
 }
 
 #[must_use]
+pub fn landing_awaited_to_record(value: &temper_engine_domain_forge_landing::Awaited) -> crate::v25::LandingAwaited {
+    match value {
+        temper_engine_domain_forge_landing::Awaited::Release => crate::v25::LandingAwaited::Release,
+        temper_engine_domain_forge_landing::Awaited::Ready { member: field_000000 } => crate::v25::LandingAwaited::Ready(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Turn => crate::v25::LandingAwaited::Turn,
+        temper_engine_domain_forge_landing::Awaited::Prepare => crate::v25::LandingAwaited::Prepare,
+        temper_engine_domain_forge_landing::Awaited::Prefixes => crate::v25::LandingAwaited::Prefixes,
+        temper_engine_domain_forge_landing::Awaited::Open => crate::v25::LandingAwaited::Open,
+        temper_engine_domain_forge_landing::Awaited::Close => crate::v25::LandingAwaited::Close,
+        temper_engine_domain_forge_landing::Awaited::Delete { member: field_000000 } => crate::v25::LandingAwaited::Delete(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Post { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Post(crate::v25::LandingWaitGate {
+            member: *field_000000,
+            gate: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Awaited::Run { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Run(crate::v25::LandingWaitGate {
+            member: *field_000000,
+            gate: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Awaited::Receipt { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Receipt(crate::v25::LandingWaitGate {
+            member: *field_000000,
+            gate: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Awaited::Judgement { member: field_000000 } => crate::v25::LandingAwaited::Judgement(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Merge => crate::v25::LandingAwaited::Merge,
+        temper_engine_domain_forge_landing::Awaited::Record { member: field_000000 } => crate::v25::LandingAwaited::Record(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Ancestry { member: field_000000 } => crate::v25::LandingAwaited::Ancestry(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Read => crate::v25::LandingAwaited::Read,
+    }
+}
+
+#[must_use]
+pub fn landing_awaited_to_domain(record: crate::v25::LandingAwaited) -> temper_engine_domain_forge_landing::Awaited {
+    match record {
+        crate::v25::LandingAwaited::Release => temper_engine_domain_forge_landing::Awaited::Release,
+        crate::v25::LandingAwaited::Ready(held) => {
+            let crate::v25::LandingWaitMember { member: field_000000 } = held;
+            temper_engine_domain_forge_landing::Awaited::Ready {
+                member: field_000000
+            }
+        },
+        crate::v25::LandingAwaited::Turn => temper_engine_domain_forge_landing::Awaited::Turn,
+        crate::v25::LandingAwaited::Prepare => temper_engine_domain_forge_landing::Awaited::Prepare,
+        crate::v25::LandingAwaited::Prefixes => temper_engine_domain_forge_landing::Awaited::Prefixes,
+        crate::v25::LandingAwaited::Open => temper_engine_domain_forge_landing::Awaited::Open,
+        crate::v25::LandingAwaited::Close => temper_engine_domain_forge_landing::Awaited::Close,
+        crate::v25::LandingAwaited::Delete(held) => {
+            let crate::v25::LandingWaitMember { member: field_000000 } = held;
+            temper_engine_domain_forge_landing::Awaited::Delete {
+                member: field_000000
+            }
+        },
+        crate::v25::LandingAwaited::Post(held) => {
+            let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
+            temper_engine_domain_forge_landing::Awaited::Post {
+                member: field_000000,
+                gate: field_000001
+            }
+        },
+        crate::v25::LandingAwaited::Run(held) => {
+            let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
+            temper_engine_domain_forge_landing::Awaited::Run {
+                member: field_000000,
+                gate: field_000001
+            }
+        },
+        crate::v25::LandingAwaited::Receipt(held) => {
+            let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
+            temper_engine_domain_forge_landing::Awaited::Receipt {
+                member: field_000000,
+                gate: field_000001
+            }
+        },
+        crate::v25::LandingAwaited::Judgement(held) => {
+            let crate::v25::LandingWaitMember { member: field_000000 } = held;
+            temper_engine_domain_forge_landing::Awaited::Judgement {
+                member: field_000000
+            }
+        },
+        crate::v25::LandingAwaited::Merge => temper_engine_domain_forge_landing::Awaited::Merge,
+        crate::v25::LandingAwaited::Record(held) => {
+            let crate::v25::LandingWaitMember { member: field_000000 } = held;
+            temper_engine_domain_forge_landing::Awaited::Record {
+                member: field_000000
+            }
+        },
+        crate::v25::LandingAwaited::Ancestry(held) => {
+            let crate::v25::LandingWaitMember { member: field_000000 } = held;
+            temper_engine_domain_forge_landing::Awaited::Ancestry {
+                member: field_000000
+            }
+        },
+        crate::v25::LandingAwaited::Read => temper_engine_domain_forge_landing::Awaited::Read,
+    }
+}
+
+#[must_use]
+pub fn landing_stuck_to_record(value: &temper_engine_domain_forge_landing::Stuck) -> crate::v25::LandingStuck {
+    match value {
+        temper_engine_domain_forge_landing::Stuck::Member { change: field_000000, held: field_000001 } => crate::v25::LandingStuck::Member(crate::v25::LandingStuckMember {
+            change: *field_000000,
+            held: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Stuck::Train { landing: field_000000 } => crate::v25::LandingStuck::Train(crate::v25::LandingStuckTrain {
+            landing: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Stuck::Wake { on: field_000000 } => crate::v25::LandingStuck::Wake(crate::v25::LandingStuckWake {
+            on: landing_awaited_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn landing_stuck_to_domain(record: crate::v25::LandingStuck) -> temper_engine_domain_forge_landing::Stuck {
+    match record {
+        crate::v25::LandingStuck::Member(held) => {
+            let crate::v25::LandingStuckMember { change: field_000000, held: field_000001 } = held;
+            temper_engine_domain_forge_landing::Stuck::Member {
+                change: field_000000,
+                held: field_000001
+            }
+        },
+        crate::v25::LandingStuck::Train(held) => {
+            let crate::v25::LandingStuckTrain { landing: field_000000 } = held;
+            temper_engine_domain_forge_landing::Stuck::Train {
+                landing: field_000000
+            }
+        },
+        crate::v25::LandingStuck::Wake(held) => {
+            let crate::v25::LandingStuckWake { on: field_000000 } = held;
+            temper_engine_domain_forge_landing::Stuck::Wake {
+                on: landing_awaited_to_domain(field_000000)
+            }
+        },
+    }
+}
+
+#[must_use]
 pub fn landing_probed_to_record(value: &temper_engine_domain_forge_landing::Probed) -> crate::v25::LandingProbed {
     let temper_engine_domain_forge_landing::Probed { member: field_000000, gate: field_000001, run: field_000002, passed: field_000003 } = value;
     crate::v25::LandingProbed {
@@ -4423,112 +4570,6 @@ pub fn landing_flake_rerun_to_domain(record: crate::v25::LandingFlakeRerun) -> t
         },
         redispatch: field_000004,
         ended: field_000005
-    }
-}
-
-#[must_use]
-pub fn landing_awaited_to_record(value: &temper_engine_domain_forge_landing::Awaited) -> crate::v25::LandingAwaited {
-    match value {
-        temper_engine_domain_forge_landing::Awaited::Release => crate::v25::LandingAwaited::Release,
-        temper_engine_domain_forge_landing::Awaited::Ready { member: field_000000 } => crate::v25::LandingAwaited::Ready(crate::v25::LandingWaitMember {
-            member: *field_000000
-        }),
-        temper_engine_domain_forge_landing::Awaited::Turn => crate::v25::LandingAwaited::Turn,
-        temper_engine_domain_forge_landing::Awaited::Prepare => crate::v25::LandingAwaited::Prepare,
-        temper_engine_domain_forge_landing::Awaited::Prefixes => crate::v25::LandingAwaited::Prefixes,
-        temper_engine_domain_forge_landing::Awaited::Open => crate::v25::LandingAwaited::Open,
-        temper_engine_domain_forge_landing::Awaited::Close => crate::v25::LandingAwaited::Close,
-        temper_engine_domain_forge_landing::Awaited::Delete { member: field_000000 } => crate::v25::LandingAwaited::Delete(crate::v25::LandingWaitMember {
-            member: *field_000000
-        }),
-        temper_engine_domain_forge_landing::Awaited::Post { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Post(crate::v25::LandingWaitGate {
-            member: *field_000000,
-            gate: *field_000001
-        }),
-        temper_engine_domain_forge_landing::Awaited::Run { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Run(crate::v25::LandingWaitGate {
-            member: *field_000000,
-            gate: *field_000001
-        }),
-        temper_engine_domain_forge_landing::Awaited::Receipt { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Receipt(crate::v25::LandingWaitGate {
-            member: *field_000000,
-            gate: *field_000001
-        }),
-        temper_engine_domain_forge_landing::Awaited::Judgement { member: field_000000 } => crate::v25::LandingAwaited::Judgement(crate::v25::LandingWaitMember {
-            member: *field_000000
-        }),
-        temper_engine_domain_forge_landing::Awaited::Merge => crate::v25::LandingAwaited::Merge,
-        temper_engine_domain_forge_landing::Awaited::Record { member: field_000000 } => crate::v25::LandingAwaited::Record(crate::v25::LandingWaitMember {
-            member: *field_000000
-        }),
-        temper_engine_domain_forge_landing::Awaited::Ancestry { member: field_000000 } => crate::v25::LandingAwaited::Ancestry(crate::v25::LandingWaitMember {
-            member: *field_000000
-        }),
-        temper_engine_domain_forge_landing::Awaited::Read => crate::v25::LandingAwaited::Read,
-    }
-}
-
-#[must_use]
-pub fn landing_awaited_to_domain(record: crate::v25::LandingAwaited) -> temper_engine_domain_forge_landing::Awaited {
-    match record {
-        crate::v25::LandingAwaited::Release => temper_engine_domain_forge_landing::Awaited::Release,
-        crate::v25::LandingAwaited::Ready(held) => {
-            let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            temper_engine_domain_forge_landing::Awaited::Ready {
-                member: field_000000
-            }
-        },
-        crate::v25::LandingAwaited::Turn => temper_engine_domain_forge_landing::Awaited::Turn,
-        crate::v25::LandingAwaited::Prepare => temper_engine_domain_forge_landing::Awaited::Prepare,
-        crate::v25::LandingAwaited::Prefixes => temper_engine_domain_forge_landing::Awaited::Prefixes,
-        crate::v25::LandingAwaited::Open => temper_engine_domain_forge_landing::Awaited::Open,
-        crate::v25::LandingAwaited::Close => temper_engine_domain_forge_landing::Awaited::Close,
-        crate::v25::LandingAwaited::Delete(held) => {
-            let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            temper_engine_domain_forge_landing::Awaited::Delete {
-                member: field_000000
-            }
-        },
-        crate::v25::LandingAwaited::Post(held) => {
-            let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
-            temper_engine_domain_forge_landing::Awaited::Post {
-                member: field_000000,
-                gate: field_000001
-            }
-        },
-        crate::v25::LandingAwaited::Run(held) => {
-            let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
-            temper_engine_domain_forge_landing::Awaited::Run {
-                member: field_000000,
-                gate: field_000001
-            }
-        },
-        crate::v25::LandingAwaited::Receipt(held) => {
-            let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
-            temper_engine_domain_forge_landing::Awaited::Receipt {
-                member: field_000000,
-                gate: field_000001
-            }
-        },
-        crate::v25::LandingAwaited::Judgement(held) => {
-            let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            temper_engine_domain_forge_landing::Awaited::Judgement {
-                member: field_000000
-            }
-        },
-        crate::v25::LandingAwaited::Merge => temper_engine_domain_forge_landing::Awaited::Merge,
-        crate::v25::LandingAwaited::Record(held) => {
-            let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            temper_engine_domain_forge_landing::Awaited::Record {
-                member: field_000000
-            }
-        },
-        crate::v25::LandingAwaited::Ancestry(held) => {
-            let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            temper_engine_domain_forge_landing::Awaited::Ancestry {
-                member: field_000000
-            }
-        },
-        crate::v25::LandingAwaited::Read => temper_engine_domain_forge_landing::Awaited::Read,
     }
 }
 

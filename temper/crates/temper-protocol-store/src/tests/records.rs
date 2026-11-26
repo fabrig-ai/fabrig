@@ -1890,6 +1890,41 @@ fn landing_own_holds_keep_their_exact_reasons() {
 }
 
 #[test]
+fn each_stuck_cause_round_trips_in_an_own_hold() {
+    use temper_engine_domain_forge_landing as l;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for cause in [
+        l::Stuck::Member { change: 7, held: true },
+        l::Stuck::Train { landing: 41 },
+        l::Stuck::Wake { on: l::Awaited::Post { member: 3, gate: 5 } },
+    ] {
+        let mut row = landing_with_clock(None);
+        let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
+        landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Proving), why: l::Hold::Stuck(cause) };
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+fn before_landing_stuck(current: &str) -> Box<str> {
+    let first = current.find("record LandingStuckMember ").unwrap();
+    let past = current.find("enum LandingOwnHold ").unwrap();
+    current.replace(&current[first..past], "").replace(", stuck: LandingStuckHold", "").into_boxed_str()
+}
+
+#[test]
+fn the_previous_own_hold_layout_keeps_cleanup_holds() {
+    use temper_engine_domain_forge_landing as l;
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before = before_landing_stuck(family.current);
+    let mut row = landing_with_clock(None);
+    let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
+    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Proving), why: l::Hold::Cleanup };
+    landing.landing.round.cleanup = Some(b"could not close #9".as_slice().into());
+    assert_landing_through_layout(family.current, &before, true, row);
+}
+
+#[test]
 fn a_landing_claim_hold_round_trips() {
     use temper_engine_domain_forge_landing as l;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
@@ -1972,8 +2007,7 @@ fn a_landing_run_written_without_a_clock_decodes_with_none() {
 #[test]
 fn a_landing_written_before_read_holds_reads_as_before() {
     let family = crate::OWNER_SET.families.first().unwrap();
-    let before = family
-        .current
+    let before = before_landing_stuck(family.current)
         .replace("cleanup: option bytes 512 = none ", "")
         .replace(" read_hold: option bytes 256 = none", "")
         .replace("record LandingClaimed { change: u64 }\n", "")
@@ -1984,7 +2018,9 @@ fn a_landing_written_before_read_holds_reads_as_before() {
 #[test]
 fn a_landing_written_before_cleanup_holds_reads_as_before() {
     let family = crate::OWNER_SET.families.first().unwrap();
-    let before = family.current.replace("cleanup: option bytes 512 = none ", "").replace(", cleanup }", " }");
+    let before = before_landing_stuck(family.current)
+        .replace("cleanup: option bytes 512 = none ", "")
+        .replace(", cleanup }", " }");
     assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
 }
 
@@ -1992,8 +2028,7 @@ fn a_landing_written_before_cleanup_holds_reads_as_before() {
 fn a_landing_written_before_claim_holds_reads_as_before() {
     use temper_engine_domain_forge_landing as l;
     let family = crate::OWNER_SET.families.first().unwrap();
-    let before = family
-        .current
+    let before = before_landing_stuck(family.current)
         .replace("cleanup: option bytes 512 = none ", "")
         .replace("record LandingClaimed { change: u64 }\n", "")
         .replace(", claimed: LandingClaimed, cleanup", "");

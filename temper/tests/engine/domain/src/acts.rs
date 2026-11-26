@@ -137,9 +137,13 @@ pub(crate) fn landing(store: &Store, change: u64) -> Option<&forge::LandingRow> 
         .find_map(|(_, record)| match record {
             Record::Forge { row } => match row.as_ref() {
                 forge::Stored::Landing(row)
-                    if row.landing.members.iter().any(|member| member.change == change)
-                        && task(store, row.landing.task)
-                            .is_some_and(|row| !matches!(row.phase, tasks::Phase::Ended(_))) =>
+                    if !matches!(row.landing.phase, forge::LandingPhase::Landed | forge::LandingPhase::Cancelled)
+                        && row.landing.members.iter().any(|member| {
+                            member.change == change && member.left.is_none() && member.landed.is_none()
+                        })
+                        && task(store, row.landing.task).is_some_and(|row| {
+                            !matches!(row.phase, tasks::Phase::Closing(_) | tasks::Phase::Ended(_))
+                        }) =>
                 {
                     Some(row)
                 }

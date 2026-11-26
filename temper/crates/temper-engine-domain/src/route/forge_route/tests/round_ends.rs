@@ -426,6 +426,7 @@ impl Round {
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
+                ended: Box::new([]),
                 failure: Box::new([]),
                 preparation: Some(preparation),
                 released: self.domain.core.tasks.task(self.task).unwrap().due_reason == tasks::Why::Released,

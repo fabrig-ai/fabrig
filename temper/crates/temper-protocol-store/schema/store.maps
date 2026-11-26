@@ -321,6 +321,14 @@ record LandingMember by hand
 enum LandingRoundEnd = l::RoundEnd
 record LandingRecordHold
 record LandingClaimed
+record LandingWaitMember
+record LandingWaitGate
+enum LandingAwaited = l::Awaited
+record LandingStuckMember
+record LandingStuckTrain
+record LandingStuckWake
+enum LandingStuck = l::Stuck
+record LandingStuckHold
 enum LandingOwnHold by hand
 record FailingTest stands for test_id
 record ShownTest stands for test_id
@@ -348,9 +356,6 @@ record ReceiptName stands for name
 enum ReceiptCheck = d::Check { gate tuple, tier tuple }
 record ReceiptKey = d::ReceiptKey { check_name = check }
 record LandingFlakeRerun = d::FlakeRerun { findings slice, pending slice }
-record LandingWaitMember
-record LandingWaitGate
-enum LandingAwaited = l::Awaited
 record LandingFollow = d::LandingFollow { start via s::time, since via s::time, wall via s::wall, reruns slice }
 record LandingFollows by hand
 record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks = previous_asks slice, entries slice, flake_reruns slice, follows }

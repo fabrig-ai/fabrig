@@ -232,6 +232,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                 | Decision::Stale
                 | Decision::Finish
                 | Decision::Cancel
+                | Decision::End(_)
                 | Decision::Open
                 | Decision::Record { .. }
                 | Decision::Landed { .. }

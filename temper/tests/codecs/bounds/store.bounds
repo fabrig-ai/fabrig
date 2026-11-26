@@ -331,6 +331,11 @@ LandingSearched: ceilings encoded=581 decoded=512; at_most(3) encoded=93 decoded
 LandingSelectedGate: ceilings encoded=1052677 decoded=1064960; at_most(3) encoded=26 decoded=57
 LandingSelection: ceilings encoded=1052676 decoded=1064960; at_most(3) encoded=25 decoded=57
 LandingState: ceilings encoded=67884517 decoded=68704896; at_most(3) encoded=1577 decoded=1698
+LandingStuck: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+LandingStuckHold: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+LandingStuckMember: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
+LandingStuckTrain: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+LandingStuckWake: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 LandingTimeout: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 LandingWaitGate: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 LandingWaitMember: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0

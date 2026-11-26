@@ -13,6 +13,7 @@ mod domain;
 #[cfg(test)]
 mod fuzzy;
 mod key;
+mod liveness;
 mod single;
 #[cfg(test)]
 mod tests;
@@ -22,9 +23,9 @@ pub use boundary::{
     Awaited, CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, GateReport, Hold,
     Key, Landing, LastPrepare, Leave, Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation,
     Probed, Project, Proof, Repository, Round, RoundEnd, RoundPull, Search, SearchTests, Searched, Status, Stepped,
-    TestId, WORKFLOW_BYTES,
+    Stuck, TestId, WORKFLOW_BYTES,
 };
-pub use domain::{claim, cleanup_hold, held, join, leave, probe, step};
+pub use domain::{claim, cleanup_hold, held, join, leave, probe, step, top};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};
 pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};
 

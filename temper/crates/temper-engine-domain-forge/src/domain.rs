@@ -1305,6 +1305,7 @@ impl Domain {
                 ci_news::deadline(self),
                 crate::follows::deadline(self),
                 outage::deadline(self),
+                crate::unmade::deadline(self),
                 crate::landing::read_deadline(self),
                 retry_deadline(self),
             ] {
@@ -1860,6 +1861,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
     }
     decide(d, env, event, out);
     read_afresh_complete(d, env, out);
+    if d.restore_phase == RestorePhase::Active {
+        crate::unmade::advance(d, env, out);
+    }
     catching_up::advance(d, env, out);
     catching_up::mark(d, out);
 }
@@ -2685,6 +2689,9 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// Expire one client timer.
 pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     expire(d, env, out);
+    if d.restore_phase == RestorePhase::Active {
+        crate::unmade::advance(d, env, out);
+    }
     catching_up::advance(d, env, out);
     catching_up::mark(d, out);
 }
@@ -3038,6 +3045,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     topics::answer(d, env, owner, result, out);
                 } else if d.makings.contains_key(&owner) {
                     goal_branch::answered(d, env, owner, result, out);
+                } else if let Some(task) = crate::unmade::reader(d, owner) {
+                    crate::unmade::answered(d, env, task, result, out);
                 } else if rebase::reading(d, owner) {
                     rebase::answered(d, env, owner, result, out);
                 } else if d.steps.contains_key(&owner) {
@@ -8185,7 +8194,7 @@ fn settle_effects(
         return;
     }
     crate::room::release_started(d, task, env.wall);
-    if ending == ReleaseEnding::Cancelled || (ending == ReleaseEnding::Done && d.landing.rows.contains_key(&task)) {
+    if ending == ReleaseEnding::Cancelled || d.landing.rows.contains_key(&task) {
         withdraw_unsent(d, env, task, out);
     }
     settle_prior_effects(d, env, task, out);

@@ -378,8 +378,16 @@ impl Engine {
                 root::Fact::ConversionAskDropped { change, landing, kind } => {
                     self.notes.push(crate::Note::ConversionAskDropped { change, landing, kind });
                 }
-                root::Fact::LandingUnmade { task, repository, branch, changes } => {
-                    self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
+                root::Fact::LandingUnmade { task, repository, branch, changes, readback, landed, unrecorded } => {
+                    self.notes.push(crate::Note::LandingUnmade {
+                        task,
+                        repository,
+                        branch,
+                        changes,
+                        readback,
+                        landed,
+                        unrecorded,
+                    });
                 }
                 root::Fact::HoldDropped { name, task } => {
                     self.notes.push(crate::Note::HoldDropped { name, task });

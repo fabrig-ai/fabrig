@@ -199,12 +199,13 @@ the start's link pass refused that store, a hold linking a missing task.
   `Work::ForgeRestored`):
   - **A live landing jig holds no task for,** its phase neither landed
     nor cancelled, its outbox holding no entry, and jig's tasks holding
-    no task by its number, is ended: its row erased, as a refused make
-    leaves none (section 3), and its members' index entries with it
-    (`landing-members.md`, 3.5). Each member's change in it is left
-    as a cancelled landing leaves it (`landing.md`, 4.2): ready, in no
-    landing, keeping its place, unless it is recorded landed. Nothing is
-    written to the landing history: the landing had no step.
+    no task by its number, whether jig never made its task or its task
+    has gone, is ended as `landing-liveness.md`, 6.2 ends it: as a
+    cancelled landing ends (`landing.md`, 4.2), its row kept ended and
+    yielding its place, a merge of unknown outcome read back first. Each
+    member's change in it is ready, in no landing, keeping its place,
+    unless it is recorded landed. A landing that never stepped writes
+    nothing to the landing history.
   - **A hold whose task jig doesn't hold,** on a forge not ended, so
     that the link pass would refuse it for its holder, is dropped, its
     row erased, where no task jig holds writes under it: neither its
@@ -249,7 +250,7 @@ the start's link pass refused that store, a hold linking a missing task.
     table and both landings, one warning; once the ended row yields,
     the train forms in its place with no timer, and its refusal is
     gone;
-  - a store holding section 4's landing starts: the row erased, its
+  - a store holding section 4's landing starts: the row ended, its
     members' links cleared, its holds dropped, a warning each; its
     members then form a landing and land;
   - the same store with a hold a live task writes under still refuses,

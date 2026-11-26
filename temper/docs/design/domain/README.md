@@ -78,6 +78,10 @@ all. Then temper's:
    - `landing-members.md`: a landing's members kept once, by its row,
      a change's landing derived from the live rows, and the asks a
      landing hands a member queued on the change until it takes them.
+   - `landing-liveness.md`: the check that a live landing can move, at
+     every step and at start; one that can't ended, or held with words
+     where something landed; a member's hold or end waking its landing;
+     and the one settling every ending shares.
    - `landing-preparing.md`: a round at preparing reading at each step
      whether its prepare lives, has answered or is absent, and
      recovering across a restart, a worker's loss and a release.

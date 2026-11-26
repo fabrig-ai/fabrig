@@ -308,7 +308,15 @@ record LandingMember { round: option u16 change: u64 repository: Repository pull
 enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
 record LandingClaimed { change: u64 }
-enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn, read, claimed: LandingClaimed, cleanup }
+record LandingWaitMember { member: u16 }
+record LandingWaitGate { member: u16 gate: u16 }
+enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
+record LandingStuckMember { change: u64 held: bool }
+record LandingStuckTrain { landing: u64 }
+record LandingStuckWake { on: LandingAwaited }
+enum LandingStuck { member: LandingStuckMember, train: LandingStuckTrain, wake: LandingStuckWake }
+record LandingStuckHold { cause: LandingStuck }
+enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn, read, claimed: LandingClaimed, cleanup, stuck: LandingStuckHold }
 record FailingTest { test_id: bytes 1024 }
 record ShownTest { test_id: bytes 1024 }
 record ManyTests { tests: list 64 ShownTest more: u32 cut: bool }
@@ -335,9 +343,6 @@ record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
 record LandingFlakeRerun { key: ReceiptKey run: u64 findings: list 64 u32 pending: list 16 JobAttempt redispatch: bool ended: bool = false }
-record LandingWaitMember { member: u16 }
-record LandingWaitGate { member: u16 gate: u16 }
-enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
 record LandingFollow { entry: LandingEntry dispatch: option DispatchWrite start: option u64 since: option u64 wall: option u64 try_number: u16 failed: bool reruns: list 65536 JobAttempt }
 record LandingFollows { items: bytes 2097152 pieces LandingFollow }
 record LandingRow { read_hold: option bytes 256 = none last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] follows: option LandingFollows = none }

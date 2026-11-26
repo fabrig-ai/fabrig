@@ -1779,6 +1779,9 @@ pub struct LandingHeard {
     pub outcomes: Box<[crate::preparation::Prepared]>,
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
+    /// Members whose task is closing, ended or not among jig's live tasks
+    /// (landing-liveness.md, 4). The top reads each as `MemberFacts::cancelled`.
+    pub ended: Box<[u64]>,
     pub failure: Box<[u8]>,
     pub preparation: Option<landing::Preparation>,
     /// Live landings waiting prepared on a member of another live landing.
@@ -3445,12 +3448,15 @@ pub enum Request {
         landing: u64,
         kind: &'static str,
     },
-    /// A taskless landing ended in Link (domain/landing-forming.md, 4).
+    /// A taskless landing ended at start (temper/docs/design/domain/landing-liveness.md, 6.2).
     LandingUnmade {
         task: u64,
         repository: skein_forge::api::Repository,
         branch: Box<[u8]>,
         changes: Box<[u64]>,
+        readback: bool,
+        landed: Box<[u64]>,
+        unrecorded: Box<[u64]>,
     },
     /// A taskless hold with no live writer dropped in Link.
     HoldDropped {
@@ -3714,6 +3720,7 @@ pub enum LandingNews {
     Left,
     Held,
     WholeAgain,
+    Cancelled(landing::Stuck),
 }
 /// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

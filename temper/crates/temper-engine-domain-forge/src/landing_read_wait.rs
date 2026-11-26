@@ -558,43 +558,72 @@ pub(crate) fn gate_flight<'a>(
 }
 
 fn write_wait(d: &Domain, row: &LandingRow, on: policy::Awaited, top: u16) -> (u16, Option<Wait>) {
+    if let Some((member, words)) = wait_words(d, row, on) {
+        (member.unwrap_or(top), Some(Wait::Write(words)))
+    } else {
+        (top, Some(Wait::Poll))
+    }
+}
+
+pub(super) fn wait_words(d: &Domain, row: &LandingRow, on: policy::Awaited) -> Option<(Option<u16>, Box<[u8]>)> {
     use policy::Awaited;
     let mut words = List::uncapped();
     let (member, before, after): (Option<u16>, &[u8], &[u8]) = match on {
+        Awaited::Release => (None, b"its release", b""),
+        Awaited::Ready { member } => (Some(member), b"", b" to be ready"),
+        Awaited::Turn => {
+            append_words(&mut words, b"the turn");
+            if let Some(holder) = d.turn_holder(row.landing.project)
+                && holder != row.landing.task
+            {
+                append_words(&mut words, b", held by landing ");
+                append_words(&mut words, Decimal::of(holder).as_bytes());
+            }
+            (None, b"", b"")
+        }
+        Awaited::Prepare => (None, b"the round's prepare job", b""),
+        Awaited::Prefixes => (None, b"the prepared prefixes on the members' branches", b""),
         Awaited::Open => (None, b"the round's pull request to open", b""),
         Awaited::Close => (None, b"the round's pull request to close", b""),
         Awaited::Merge => (None, b"the turn's merge", b""),
         Awaited::Delete { member } => (Some(member), b"", b"'s branch in the landing to be deleted"),
         Awaited::Record { member } => (Some(member), b"the record of ", b"'s pull request as merged"),
-        Awaited::Post { member, gate } => {
-            let Some(m) = row.landing.members.get(usize::from(member)) else { return (top, Some(Wait::Poll)) };
+        Awaited::Judgement { member } => (Some(member), b"", b"'s judgement at its prefix"),
+        Awaited::Ancestry { member } => (Some(member), b"whether the branch holds ", b"'s head"),
+        Awaited::Read => (None, b"a fresh read of its facts from the forge", b""),
+        Awaited::Post { member, gate } | Awaited::Run { member, gate } | Awaited::Receipt { member, gate } => {
+            let m = row.landing.members.get(usize::from(member))?;
             append_words(&mut words, b"gate ");
             if let Some(gate) = d.train_gates(row, repository(m)).get(usize::from(gate)) {
                 append_words(&mut words, &gate.name);
             } else {
                 append_words(&mut words, Decimal::of(u64::from(gate)).as_bytes());
             }
-            (Some(member), b"'s status at ", b"'s prefix")
+            let before: &[u8] = if let Awaited::Run { .. } = on {
+                append_words(&mut words, b"'s run ");
+                if let Some(flight) = gate_flight(d, row, member, gate)
+                    && let Some(run) = &flight.run
+                {
+                    append_words(&mut words, Decimal::of(run.number).as_bytes());
+                    append_words(&mut words, b" ");
+                }
+                b"at "
+            } else if let Awaited::Receipt { .. } = on {
+                b"'s receipt for "
+            } else {
+                b"'s status at "
+            };
+            (Some(member), before, b"'s prefix")
         }
-        Awaited::Ready { .. }
-        | Awaited::Judgement { .. }
-        | Awaited::Release
-        | Awaited::Turn
-        | Awaited::Prepare
-        | Awaited::Read
-        | Awaited::Prefixes
-        | Awaited::Ancestry { .. }
-        | Awaited::Run { .. }
-        | Awaited::Receipt { .. } => unreachable!("write wait"),
     };
     append_words(&mut words, before);
     if let Some(member) = member {
-        let Some(m) = row.landing.members.get(usize::from(member)) else { return (top, Some(Wait::Poll)) };
+        let m = row.landing.members.get(usize::from(member))?;
         append_words(&mut words, b"change ");
         append_words(&mut words, Decimal::of(m.change).as_bytes());
     }
     append_words(&mut words, after);
-    (member.unwrap_or(top), Some(Wait::Write(words.into_boxed())))
+    Some((member, words.into_boxed()))
 }
 
 fn active(d: &Domain, row: &LandingRow) -> bool {

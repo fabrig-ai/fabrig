@@ -316,17 +316,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard {
-                job: None,
-                outcomes: Box::new([]),
-                dependencies: Box::new([]),
-                held: Box::new([]),
-                failure: Box::new([]),
-                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
-                released: false,
-                cancelled: false,
-                kept: Box::new([]),
-            },
+            heard: landing_routes::preparing_heard(Some(temper_engine_domain_forge_landing::Preparation::Idle)),
         },
     );
     assert_eq!(d.steps.len(), 1, "the change's first read is pending");

@@ -55,6 +55,7 @@ fn facts() -> Facts {
         opening: Status::Passed,
         round_pull: crate::RoundPull::Unread,
         merge_refused: false,
+        train_holder: None,
         closed: Status::Unknown,
         preparation: crate::Preparation::Idle,
         members: Box::new([MemberFacts {
@@ -332,8 +333,9 @@ fn every_blocking_gate_passed_proves_the_landing() {
     assert_eq!(next.landing.phase, Phase::Proved { at: at(10) });
 }
 #[test]
-fn a_proved_landing_takes_its_own_trains_turn() {
-    let landing = Landing { phase: Phase::Proved { at: at(4) }, ..keyed() };
+fn a_proved_single_landing_waits_for_its_project_turn_holder() {
+    let mut landing = Landing { phase: Phase::Proved { at: at(4) }, ..keyed() };
+    landing.round.branch = Box::new([]);
     for free in [false, true] {
         let mut f = facts();
         f.turn_free = free;

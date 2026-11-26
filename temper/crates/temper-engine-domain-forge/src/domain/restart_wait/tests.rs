@@ -113,6 +113,7 @@ fn setup(count: usize) -> Domain {
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
+                ended: Box::new([]),
                 failure: Box::new([]),
                 preparation: None,
                 released: false,

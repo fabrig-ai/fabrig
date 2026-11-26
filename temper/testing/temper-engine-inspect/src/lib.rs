@@ -1,4 +1,5 @@
 //! The engine's frozen waits and bounded tables (temper/docs/design/testing/engine-checks.md, 2).
+mod landings;
 mod tables;
 mod waits;
 
@@ -50,13 +51,20 @@ pub const KINDS: &[&str] = &[
 /// The root's forge waits and tables, using its task arena for ownership and prepare jobs.
 pub fn inspect(root: &Domain, into: &mut Inspection) {
     let view = View::new(root.forge(), Some(root));
+    landings::inspect(&view, into, |task| root.tasks().procedure_due(task).is_some());
     waits::inspect(&view, into);
     tables::inspect(&view, into);
 }
 
 /// The forge component alone, as driven by the forge world.
 pub fn forge(forge: &forge::Domain, into: &mut Inspection) {
+    forge_with_due(forge, into, |_| false);
+}
+
+/// Include wakes already delivered to the forge world's scripted root.
+pub fn forge_with_due(forge: &forge::Domain, into: &mut Inspection, due: impl Fn(u64) -> bool) {
     let view = View::new(forge, None);
+    landings::inspect(&view, into, due);
     waits::inspect(&view, into);
     tables::inspect(&view, into);
 }

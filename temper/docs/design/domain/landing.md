@@ -243,20 +243,25 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     (`landing-search.md`, section 8);
   - `landing L: change C landed at PREFIX`;
   - `landing L: change C left: WHY`, WHY as 4.3 names it;
-  - `landing L: held: WHY`, WHY as the hold names it.
+  - `landing L: held: WHY`, WHY as the hold names it;
+  - `landing L: cancelled: cannot move: WORDS`, as its check ends it
+    (`landing-liveness.md`, 3.2).
 - **It ends** done once no member is left to land, its result naming
   each landed member's commit and each member that left, and why. Its
   train frees at once, and each change that left, once ready again, is
   first in line by its kept time. Cancelled, by a person's act on the
   landing task, its members are left ready and in no landing, each
   unless it is recorded landed (`landing-turn.md`, section 1), and the train forms again.
-  Either way its members are in it no longer as it ends, by the index
+  Failed, its task's closing ends it as a cancelled one ends
+  (`landing-liveness.md`, 5). A landing that can't move ends so, or
+  holds, by its check (`landing-liveness.md`, 3).
+  Each way its members are in it no longer as it ends, by the index
   its row keeps (`landing-members.md`, 2.1), and the asks it owes them
   wait in their queues (`landing-members.md`, 3.5).
-  Either end wakes its own train's waiting changes, no other's, and
+  Each end wakes its own train's waiting changes, no other's, and
   its writes leave the outbox (`forge/room.md`, 2): its entries not
-  yet sent withdrawn, each in flight as it settles. Cancelled, it
-  follows its runs no further (`landing-proof.md`, 2.1).
+  yet sent withdrawn, each in flight as it settles. Cancelled or
+  failed, it follows its runs no further (`landing-proof.md`, 2.1).
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (`landing-prepare.md`, 1.2), `prepare job: WHY`;
@@ -287,7 +292,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     read #N STATE, BRANCH at TIP`;
   - a run of waits for a fresh read past the deployment's stall,
     whatever the step (`landing-waits.md`, 3), `read: READ, for change
-    C: WHY`, naming the read it last waited on and its last answer.
+    C: WHY`, naming the read it last waited on and its last answer;
+  - its check failed with a member landed (`landing-liveness.md`, 3),
+    `cannot move: WORDS`, WORDS as that section names the cause.
 
   A step a member's change makes (its judgement, its repair) is
   bounded by the change's own stall (`forge/change/stalls.md`): the
@@ -517,7 +524,10 @@ documents for another task or project remain errors.
 
 - **Restored whole** with the forge's other families (`forge/effects.md`,
   section 2). Trains are derived again from the live landings. A live
-  landing jig never made ends at the link pass (`landing-forming.md`, 4).
+  landing whose task jig doesn't hold ends at the link pass, a merge of
+  unknown outcome read back first (`landing-liveness.md`, 6.2); every
+  other is checked by its first step on fresh facts
+  (`landing-liveness.md`, 6.1).
 - **Before any landing steps,** the train's tip and each member's head
   are read afresh, and each run in flight is read (`Read::Run`); a
   dispatch whose outcome was uncertain is found by its runs, as section 11 says.

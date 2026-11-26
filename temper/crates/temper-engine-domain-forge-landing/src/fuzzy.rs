@@ -1,6 +1,6 @@
 //! Seeded snapshots of stacks and their changing rounds (domain/landing.md, 4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1).
 use crate::tests::step::{stack, stack_facts};
-use crate::{Combine, Decision, Landing, Outcome, Phase, Preparation, Proof, Status};
+use crate::{Awaited, Combine, Decision, Hold, Landing, Outcome, Phase, Preparation, Proof, RoundPull, Status, Stuck};
 use skein_lib::{Duration, List, Rng, Wall};
 
 #[test]
@@ -12,59 +12,36 @@ fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     let mut held = false;
     let mut refused_close = false;
     let mut refused_delete = false;
+    let mut liveness = 0;
     for seed in 0..256 {
         prefix_search(seed);
         let played = run(seed);
         let [whole, selected, absent, close, delete] = played.2;
+        liveness |= played.4;
         refused_close |= close;
         refused_delete |= delete;
         whole_cut |= whole;
         selected_cut |= selected;
         stale_after_cut |= played.3;
         unkept |= absent;
-        held |= played.0.phase == Phase::Held { was: Box::new(Phase::Preparing), why: crate::Hold::Prepare };
+        held |= played.0.phase == Phase::Held { was: Box::new(Phase::Preparing), why: Hold::Prepare };
         assert_eq!(played, run(seed), "replay seed {seed}");
     }
     assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
     assert!(unkept && held, "the sweep reaches a prepare with no kept answer and its hold");
     assert!(refused_close && refused_delete, "the sweep refuses both cleanup writes");
     assert!(stale_after_cut, "the sweep moves main after a cut, before the next open is answered");
+    assert_eq!(
+        liveness,
+        HELD_MEMBER | ENDED_MEMBER | COLLISION | MERGED_PULL | MERGED_TIP | CLOSED_PULL | DEFERRED,
+        "the sweep exercises each liveness fault and merge readback"
+    );
 }
 
-// Each effect takes 1–3 steps, separately from its result becoming readable.
-// The settling bound is 32 + 20 per member + 24 per drawn disturbance:
-// member steps, round cleanup, and another proof after each disturbance.
-fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool) {
-    let mut rng = Rng::new(seed);
-    let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
-    let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
-    let mut landing = stack(count);
-    let mut world = Top::new(rng, count, units, Rng::new(seed));
-    let mut disturbances = world.disturbances();
-    for (index, member) in landing.members.iter_mut().enumerate() {
-        member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
-        let fresh = &mut world.facts.members[index];
-        fresh.judgement = Status::Pending;
-        if index > 0 && world.rng.below(4) == 0 {
-            fresh.dependencies = Box::new([u16::try_from(index.checked_sub(1).unwrap()).unwrap()]);
-        }
-        if world.rng.below(4) == 0 {
-            fresh.ready = false;
-            world.later(0, 0, u16::try_from(index).unwrap(), Effect::Ready);
-            disturbances = disturbances.checked_add(1).unwrap();
-        }
-        disturbances = disturbances.checked_add(usize::from(world.conflicts[index].is_some())).unwrap();
-        disturbances = disturbances.checked_add(usize::from(world.noise[index].is_some())).unwrap();
-    }
-    let bound = u32::try_from(
-        32_usize
-            .checked_add(20_usize.checked_mul(count).unwrap())
-            .unwrap()
-            .checked_add(24_usize.checked_mul(disturbances).unwrap())
-            .unwrap(),
-    )
-    .unwrap();
+fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool, u8) {
+    let (mut landing, mut world, bound) = seeded_stack(seed);
     let mut trace = List::with_capacity(bound);
+    let mut told = [false; 6];
     let mut probes = 0_u32;
     let mut probe_bound = 0_u32;
     let mut waiting = false;
@@ -82,6 +59,7 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool) {
         }
         let next = crate::step(&landing, &world.facts, &crate::Project::DEFAULT, &LIMITS, now);
         invariants(seed, &landing, &world.facts, &next, &mut probes, &mut probe_bound);
+        world.liveness(seed, &landing, &next, &mut told);
         asked.decided(seed, &next);
         if let Decision::Wait { until, on } = next.decision {
             world.wait(seed, tick, &next.landing, until, on);
@@ -102,11 +80,17 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool) {
                     assert!(member.landed.is_some() || member.left.is_some(), "terminal seed {seed}");
                 }
                 if world.pending.is_empty() {
-                    return (next.landing, trace.into_boxed(), world.reached(), world.coverage.stale_after_cut);
+                    return (
+                        next.landing,
+                        trace.into_boxed(),
+                        world.reached(),
+                        world.coverage.stale_after_cut,
+                        world.seen,
+                    );
                 }
             }
-            Decision::Hold(_) | Decision::Cancel => {
-                return (next.landing, trace.into_boxed(), world.reached(), world.coverage.stale_after_cut);
+            Decision::Hold(_) | Decision::Cancel | Decision::End(_) => {
+                return (next.landing, trace.into_boxed(), world.reached(), world.coverage.stale_after_cut, world.seen);
             }
             Decision::None
             | Decision::Wait { .. }
@@ -131,6 +115,42 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool) {
         landing = next.landing;
     }
     panic!("did not settle seed {seed} in {bound} steps: {trace:?}, {:?}", world.pending);
+}
+
+// Each effect takes 1–3 steps, separately from its result becoming readable.
+// The settling bound is 32 + 20 per member + 24 per drawn disturbance:
+// member steps, round cleanup, and another proof after each disturbance.
+fn seeded_stack(seed: u64) -> (Landing, Top, u32) {
+    let mut rng = Rng::new(seed);
+    let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
+    let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
+    let mut landing = stack(count);
+    let mut world = Top::new(rng, count, units, Rng::new(seed), Rng::new(seed ^ 0xa61));
+    let mut disturbances = world.disturbances();
+    for (index, member) in landing.members.iter_mut().enumerate() {
+        member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
+        let fresh = &mut world.facts.members[index];
+        fresh.judgement = Status::Pending;
+        if index > 0 && world.rng.below(4) == 0 {
+            fresh.dependencies = Box::new([u16::try_from(index.checked_sub(1).unwrap()).unwrap()]);
+        }
+        if world.rng.below(4) == 0 {
+            fresh.ready = false;
+            world.later(0, 0, u16::try_from(index).unwrap(), Effect::Ready);
+            disturbances = disturbances.checked_add(1).unwrap();
+        }
+        disturbances = disturbances.checked_add(usize::from(world.conflicts[index].is_some())).unwrap();
+        disturbances = disturbances.checked_add(usize::from(world.noise[index].is_some())).unwrap();
+    }
+    let bound = u32::try_from(
+        32_usize
+            .checked_add(20_usize.checked_mul(count).unwrap())
+            .unwrap()
+            .checked_add(24_usize.checked_mul(disturbances).unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    (landing, world, bound)
 }
 
 // The same prepare, its suffix included, is asked again only after a wait with a
@@ -174,6 +194,7 @@ impl Asked {
             | Decision::Stale
             | Decision::Finish
             | Decision::Cancel
+            | Decision::End(_)
             | Decision::Hold(_)
             | Decision::Open
             | Decision::Record { .. }
@@ -256,6 +277,22 @@ fn invariants(
     }
 }
 
+const HELD_MEMBER: u8 = 1;
+const ENDED_MEMBER: u8 = 2;
+const COLLISION: u8 = 4;
+const MERGED_PULL: u8 = 8;
+const MERGED_TIP: u8 = 16;
+const CLOSED_PULL: u8 = 32;
+const DEFERRED: u8 = 64;
+const OTHER_LANDING: u64 = 41;
+
+#[derive(Clone, Copy, Debug)]
+enum Readback {
+    Tip,
+    Pull,
+    Closed,
+}
+
 #[derive(Debug)]
 struct Pending {
     due: u32,
@@ -277,7 +314,7 @@ enum Effect {
     Judge { candidate: crate::Commit },
     Ready,
     Merge { candidate: crate::Commit, base: crate::Commit },
-    Readback { candidate: crate::Commit },
+    Readback { candidate: crate::Commit, source: Readback },
     Record,
 }
 
@@ -302,6 +339,11 @@ struct Top {
     coverage: Coverage,
     /// Prepares still to end with no answer their round keeps, read as absent.
     unkept: u32,
+    /// Independent draws leave the ordinary conflicts, cuts and write faults in their own streams.
+    liveness: Rng,
+    member_event: Option<(u32, usize, bool)>,
+    other_train_at: Option<u32>,
+    seen: u8,
 }
 
 struct Coverage {
@@ -312,7 +354,7 @@ struct Coverage {
 }
 
 impl Top {
-    fn new(mut rng: Rng, count: usize, units: usize, cleanup_faults: Rng) -> Self {
+    fn new(mut rng: Rng, count: usize, units: usize, cleanup_faults: Rng, mut liveness: Rng) -> Self {
         let mut conflicts = List::with_capacity(u32::try_from(count).unwrap());
         let mut noise = List::with_capacity(u32::try_from(count).unwrap());
         for _ in 0..count {
@@ -349,6 +391,21 @@ impl Top {
             1 => 2,
             _ => 0,
         };
+        let member_event = if liveness.below(4) == 0 {
+            Some((
+                u32::try_from(liveness.below(40)).unwrap(),
+                usize::try_from(liveness.below(u64::try_from(count).unwrap())).unwrap(),
+                liveness.below(2) == 0,
+            ))
+        } else {
+            None
+        };
+        // Most collisions are injected once an in-flight merge can test its priority.
+        let other_train_at = match liveness.below(10) {
+            0 => Some(u32::try_from(liveness.below(32).checked_add(1).unwrap()).unwrap()),
+            1 | 2 => Some(0),
+            _ => None,
+        };
         let mut facts = stack_facts(count);
         facts.turn_free = true;
         facts.preparation = Preparation::Absent;
@@ -365,12 +422,20 @@ impl Top {
             cancel,
             coverage: Coverage { cuts: [false; 2], stale_after_cut: false, absent: false, refused: [false; 2] },
             unkept,
+            liveness,
+            member_event,
+            other_train_at,
+            seen: 0,
         }
     }
 
     fn disturbances(&self) -> usize {
         usize::from(self.stale.is_some())
             .checked_add(usize::from(self.cancel))
+            .unwrap()
+            .checked_add(usize::from(self.member_event.is_some()))
+            .unwrap()
+            .checked_add(usize::from(self.other_train_at.is_some()))
             .unwrap()
             .checked_add(usize::from(self.red.is_some()))
             .unwrap()
@@ -400,6 +465,27 @@ impl Top {
 
     fn disturb(&mut self, landing: &Landing, tick: u32) -> bool {
         let mut disturbed = false;
+        if let Some((at, member, held)) = self.member_event
+            && tick >= at
+        {
+            self.member_event = None;
+            if held {
+                self.facts.members[member].held = true;
+                self.seen |= HELD_MEMBER;
+            } else {
+                self.facts.members[member].cancelled = true;
+                self.seen |= ENDED_MEMBER;
+            }
+            disturbed = true;
+        }
+        if let Some(at) = self.other_train_at
+            && (if at == 0 { self.merge_pending() } else { tick >= at })
+        {
+            self.other_train_at = None;
+            self.facts.train_holder = Some(OTHER_LANDING);
+            self.seen |= COLLISION;
+            disturbed = true;
+        }
         if self.cancel && tick >= 8 {
             for fresh in &mut self.facts.members {
                 fresh.cancelled = true;
@@ -530,26 +616,116 @@ impl Top {
                     }
                 }
                 Effect::Ready => self.facts.members[index].ready = true,
-                Effect::Merge { candidate, base } => {
-                    if self.facts.members[index].main == base {
-                        self.facts.members[index].merge = Status::Passed;
-                        self.later(tick, p.round, p.member, Effect::Readback { candidate });
-                    } else {
-                        self.facts.members[index].merge = Status::Failed;
-                    }
-                }
-                Effect::Readback { candidate } => {
-                    for (fresh, member) in self.facts.members.iter_mut().zip(&landing.members) {
-                        fresh.main = candidate;
-                        if member.combined == Some(Combine::Merge) {
-                            fresh.merged = member.candidate;
-                        }
-                    }
-                }
+                Effect::Merge { candidate, base } => self.answer_merge(tick, p.round, p.member, candidate, base),
+                Effect::Readback { candidate, source } => self.readback(landing, candidate, source),
                 Effect::Record => self.facts.members[index].record = Status::Passed,
             }
         }
         answered
+    }
+
+    fn answer_merge(&mut self, tick: u32, round: u16, member: u16, candidate: crate::Commit, base: crate::Commit) {
+        let fresh = &mut self.facts.members[usize::from(member)];
+        if fresh.main != base {
+            fresh.merge = Status::Failed;
+            self.facts.merge_refused = true;
+            self.facts.round_pull = RoundPull::Open;
+            return;
+        }
+        let (source, answer) = match self.liveness.below(8) {
+            0 => (Readback::Tip, Status::Failed), // A lost answer; only the tip shows the make.
+            1 => (Readback::Pull, Status::Failed),
+            2 => (Readback::Closed, Status::Failed),
+            _ => (Readback::Tip, Status::Passed),
+        };
+        fresh.merge = answer;
+        self.later(tick, round, member, Effect::Readback { candidate, source });
+    }
+
+    fn readback(&mut self, landing: &Landing, candidate: crate::Commit, source: Readback) {
+        match source {
+            Readback::Tip => self.seen |= MERGED_TIP,
+            Readback::Pull => {
+                self.facts.round_pull = RoundPull::Merged(candidate);
+                self.seen |= MERGED_PULL;
+            }
+            Readback::Closed => {
+                self.facts.round_pull = RoundPull::Closed;
+                self.seen |= CLOSED_PULL;
+                return;
+            }
+        }
+        for (fresh, member) in self.facts.members.iter_mut().zip(&landing.members) {
+            if let Readback::Tip = source {
+                fresh.main = candidate;
+            }
+            if member.combined == Some(Combine::Merge) {
+                fresh.merged = member.candidate;
+            }
+        }
+    }
+
+    fn liveness(&mut self, seed: u64, before: &Landing, next: &crate::Stepped, told: &mut [bool; 6]) {
+        // This model names outstanding effects from its queue, not policy predicates.
+        let mut awaiting_merge = false;
+        for effect in &self.pending {
+            if let Effect::Merge { .. } | Effect::Readback { .. } = effect.effect {
+                awaiting_merge |= effect.round == before.preparation;
+            }
+        }
+        let (mut first_bad, mut recorded) = (None, false);
+        for (index, member) in next.landing.members.iter().enumerate() {
+            let old = &before.members[index];
+            if old.landed.is_some() {
+                assert_eq!(member.landed, old.landed, "recorded prefix kept seed {seed}");
+            }
+            recorded |= member.landed.is_some();
+            let fresh = &self.facts.members[index];
+            if first_bad.is_none()
+                && member.left.is_none()
+                && member.landed.is_none()
+                && (fresh.held || fresh.cancelled)
+            {
+                first_bad = Some(Stuck::Member { change: member.change, held: !fresh.cancelled });
+            }
+        }
+        if let Decision::Landed { member, prefix } = next.decision {
+            let index = usize::from(member);
+            assert!(!told[index], "member recorded twice seed {seed}");
+            told[index] = true;
+            assert_eq!(next.landing.members[index].landed, Some(prefix));
+        }
+        let decision = next.decision;
+        if let Decision::End(cause) | Decision::Hold(Hold::Stuck(cause)) = decision {
+            assert!(!awaiting_merge, "verdict before merge readback seed {seed}");
+            assert_eq!(decision == Decision::End(cause), !recorded, "verdict keeps landed work seed {seed}");
+            match cause {
+                Stuck::Train { landing } => assert_eq!(self.facts.train_holder, Some(landing), "seed {seed}"),
+                Stuck::Member { .. } => assert_eq!(Some(cause), first_bad, "seed {seed}"),
+                Stuck::Wake { on } => panic!("unexpected wait without a wake seed {seed}: {on:?}"),
+            }
+            return;
+        }
+        if let Decision::Finish | Decision::Cancel | Decision::Hold(_) = decision {
+            return;
+        }
+        if first_bad.is_none() && self.facts.train_holder.is_none() {
+            return;
+        }
+        if let Decision::Wait { on: Awaited::Merge, .. } = decision
+            && awaiting_merge
+        {
+            self.seen |= DEFERRED;
+            return;
+        }
+        if let Decision::Record { .. }
+        | Decision::Landed { .. }
+        | Decision::Wait { on: Awaited::Record { .. } | Awaited::Merge, .. } = decision
+            && recorded
+        {
+            return;
+        }
+        panic!("blocked landing advanced seed {seed}: {first_bad:?}, {decision:?}");
     }
 
     fn answer_cleanup(&mut self, landing: &Landing, tick: u32, write: Decision) {
@@ -567,9 +743,9 @@ impl Top {
         let mut facts = self.facts.clone();
         cleanup_answer(&mut facts, write, Status::Failed);
         let held = crate::step(landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
-        assert_eq!(held.decision, Decision::Hold(crate::Hold::Cleanup), "{write:?}, tick {tick}");
+        assert_eq!(held.decision, Decision::Hold(Hold::Cleanup), "{write:?}, tick {tick}");
         let waiting = crate::step(&held.landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
-        assert_eq!(waiting.decision, Decision::Wait { until: None, on: crate::Awaited::Release });
+        assert_eq!(waiting.decision, Decision::Wait { until: None, on: Awaited::Release });
         facts.released = true;
         let released = crate::step(&waiting.landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
         assert_eq!(released.decision, Decision::None);
@@ -608,6 +784,7 @@ impl Top {
             }
         }
         self.facts.closed = Status::Unknown;
+        self.facts.round_pull = RoundPull::Unread;
         self.facts.opened = None;
         self.facts.opening = Status::Unknown;
         self.facts.preparation = Preparation::Absent;
@@ -663,6 +840,8 @@ impl Top {
             Decision::Merge { member, candidate } => {
                 let base = landing.members[usize::from(member)].base.unwrap();
                 self.facts.members[usize::from(member)].merge = Status::Pending;
+                self.facts.round_pull = RoundPull::Unread;
+                self.facts.merge_refused = false;
                 self.later(tick, round, member, Effect::Merge { candidate, base });
             }
             Decision::Record { member, .. } => {
@@ -680,12 +859,12 @@ impl Top {
             | Decision::Stale
             | Decision::Finish
             | Decision::Cancel
+            | Decision::End(_)
             | Decision::Hold(_) => {}
         }
     }
 
-    fn wait(&self, seed: u64, tick: u32, landing: &Landing, until: Option<Wall>, on: crate::Awaited) {
-        use crate::Awaited;
+    fn wait(&self, seed: u64, tick: u32, landing: &Landing, until: Option<Wall>, on: Awaited) {
         assert_ne!(on, Awaited::Read, "the policy never waits on the top's read seed {seed}");
         let deadline_required = match on {
             Awaited::Prefixes | Awaited::Run { .. } | Awaited::Receipt { .. } | Awaited::Ancestry { .. } => true,
@@ -719,13 +898,13 @@ impl Top {
                 Effect::Prepare => Some(Awaited::Prepare),
                 Effect::Open => Some(Awaited::Open),
                 Effect::Close => Some(Awaited::Close),
-                Effect::Merge { .. } => Some(Awaited::Merge),
+                Effect::Merge { .. } | Effect::Readback { .. } => Some(Awaited::Merge),
                 Effect::Delete => Some(Awaited::Delete { member }),
                 Effect::Record => Some(Awaited::Record { member }),
                 Effect::Ready => Some(Awaited::Ready { member }),
                 Effect::Judge { .. } => Some(Awaited::Judgement { member }),
                 Effect::Post { .. } => Some(Awaited::Post { member, gate: 0 }),
-                Effect::Prefixes | Effect::Run { .. } | Effect::Receipt { .. } | Effect::Readback { .. } => None,
+                Effect::Prefixes | Effect::Run { .. } | Effect::Receipt { .. } => None,
             };
             wake |= awaiting == Some(on);
         }
@@ -928,6 +1107,7 @@ fn prefix_search_tests(seed: u64) {
             | Decision::Stale
             | Decision::Finish
             | Decision::Cancel
+            | Decision::End(_)
             | Decision::Hold(_)
             | Decision::Open
             | Decision::Record { .. }
