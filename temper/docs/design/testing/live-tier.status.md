@@ -103,8 +103,3 @@
   list; its fresh sitting's model item was refused out of shape, and no
   focused test builds the kit's settings files from the stock and has the
   settings admit them. [in flight: change 15450]
-- **Not yet:** 2, "Budget": the landing stories' charters 1, 2 and 4
-  keep the stock's turns, a kept store's charters too; the first sitting
-  counts and stops its box without waiting for the chat to park; and the
-  count's line goes out on a pass alone, naming no task's turns.
-  [in flight: change 19489]
