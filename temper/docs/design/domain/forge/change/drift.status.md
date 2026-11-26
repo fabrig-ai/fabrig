@@ -1,6 +1,9 @@
 # drift: status
 
-2026-11-22. Where the tree's code lags or departs from [drift.md](drift.md).
+2026-11-26. Where the tree's code lags or departs from [drift.md](drift.md).
+
+- **Not yet:** 1: a change's step judges its reads against its pinned head, with a lagging pull head's and a stale update's exceptions, holds for drift by its own comparison, and has no wait on a read behind temper's writes nor can't-tell words [in flight: change 18925].
+- **Not yet:** 1, *Its requester's own runs* and *Its own writes are its own*: the keep takes a writer's forward move as its own, and a design writer's push is recorded only through a reread at its run's answer [in flight: change 18924].
 
 - **Not yet:** 1: a goal's runs push to its run
   branch r, and a `"branch": "run"` change lands r into g; g records no

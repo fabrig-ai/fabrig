@@ -1,6 +1,8 @@
 # branches: status
 
-2026-11-25. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-26. Where the tree's code lags or departs from [branches.md](branches.md).
+
+- **Not yet:** 3, *Its pushes are admitted first* and *In the order the forge took them*: a design writer's push is taken through a reread at its run's answer, ordered against a late write by the hold's head beside [in flight: change 18924].
 
 
 

@@ -1,6 +1,8 @@
 # checkouts-push: status
 
-2026-11-24. Where the tree's code lags or departs from [checkouts-push.md](checkouts-push.md).
+2026-11-26. Where the tree's code lags or departs from [checkouts-push.md](checkouts-push.md).
+
+- **Not yet:** 1, *Admitted first*: a push asks the engine nothing first, and a producer's push with no expected head isn't leased [in flight: change 18918].
 
 - **Not yet:** 4: *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in

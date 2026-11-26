@@ -1,5 +1,7 @@
 # effects: status
 
-2026-11-22. Where the tree's code lags or departs from [effects.md](effects.md).
+2026-11-26. Where the tree's code lags or departs from [effects.md](effects.md).
+
+- **Not yet:** 1, *Recorded as temper's writes*: no outbox entry is admitted into a record of temper's writes [in flight: change 18917].
 
 - **Not yet:** 1: the restored-flight link gap remains `../root-restart.status.md`, 1.1.
