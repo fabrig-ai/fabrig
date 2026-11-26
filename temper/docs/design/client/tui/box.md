@@ -455,9 +455,14 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   the box runs and after an end, `/log` sent, the host back at the
   start's address, and the key's order against a chat's end: a chat
   read working, then its work ended, then Ctrl+C stopping the box at
-  once; a chat parked on a live delegate asking, the head naming it; and
+  once; a chat parked on a live delegate asking, the head naming it;
   the key read first, the question standing through the chat's end, its
-  head then "Stop the box?" (section 7); of the run, with fakes for its children and pipes,
+  head then "Stop the box?"; and the facts the working sitting's TUI
+  may read, a chat's start and then its wait with nothing read between:
+  an Ask temper chat waiting on its person's words, never drawn
+  "Working", Ctrl+C then stopping the box at once, and a chat started by
+  `/change` waiting on its live delegate, drawn "waiting on 1
+  delegate", each Ctrl+C read after it asking (section 7); of the run, with fakes for its children and pipes,
   for the configuration directory absent, empty and with an entry, the
   fetch's lines, `found` and its failure, the box's spawn and its
   descriptors, the link read and refused, the lines read, the life pipe
@@ -475,7 +480,11 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   question standing exactly where the chat worked by section 7's
   `work_runs` at the key's read and the box stopping at once elsewhere;
   and, its delegate never ending, every key read after the chat was
-  first read working asking. The process tier, written
+  first read working asking; and that life with each of its passing
+  facts (writing, working, a tool's call) left unread by a seeded
+  choice, as a watch delivers its latest document: the chat drawn
+  "waiting on 1 delegate" once its wait is read, whatever was left
+  unread, and every key read after that drawing asking. The process tier, written
   and compiled, run after landing: `temper box` on a pseudo-terminal
   with a `temper-box` beside it, the local link on its pipe signing the
   TUI in, Ctrl+C with "Stop the box" stopping the box and `temper`
@@ -483,18 +492,32 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   macOS by skein-world's walk, as the box is not in `temper`'s group
   (`skein/docs/design/examples.md`, 6). The working sitting, which asks
   the question, starts its box with every landing held
-  (`../../domain/landing-settings.md`, 1.3): the chat's delegated change
-  is made and checked and then waits, ready to land, so the chat works
-  by its live delegate until the box stops, and Ctrl+C, sent once the
-  chat is drawn working, meets the question on every run. Without the
-  hold, the playground's scripted model answers at once and the change
-  can land, and the chat park, before the TUI reads the key; the box
-  then stops at once, asking nothing (section 7), and the story waits
-  for a question that never comes. Turned down: taking either end
-  as a pass, which checks less; a slower model, which narrows the
-  window without closing it; a held reply, as the playground's model is
-  the box's own, with no hold a story reaches. The idle and killed
-  sittings need no hold: no work runs in them.
+  (`../../domain/landing-settings.md`, 1.3) and its chat with
+  `/change Add CSV export to widget` (`pages/README.md`, 2): the
+  project's chat template, whose charter delegates. Bare words on the
+  launchpad ask Ask temper instead, whose charter has no delegate tool:
+  the scripted model's `delegate` call is refused, no change is made,
+  and the chat waits on its person's words within milliseconds of its
+  start, so no hold keeps it working. Started by `/change`, the chat's
+  delegated change is made and checked and then waits, ready to land,
+  and the chat waits on its live delegate until the box stops. Ctrl+C is
+  sent once the chat is drawn "waiting on 1 delegate", and meets the
+  question on every run: that drawing stays while the delegate lives,
+  and `work_runs` reads the chat as working at every read from the one
+  that drew it. A story waits on a state that stays drawn, never on one
+  that passes: a watch delivers its latest document, one delivery in
+  flight, and the terminal draws its newest frame, so a chat's writing,
+  milliseconds long under the scripted model, may never be drawn
+  "Working", and a story waiting for it waits for ever. Without the
+  hold, the change can land, and the chat park with none, before the
+  TUI reads the key; the box then stops at once, asking nothing (section
+  7), and the story waits for a question that never comes. Turned down:
+  taking either end as a pass, which checks less; a slower model, which
+  narrows the window without closing it; a held reply, as the
+  playground's model is the box's own, with no hold a story reaches; the
+  TUI keeping "Working" drawn a while, a change of what a person sees
+  for a story's sake. The idle and killed sittings need no hold: no work
+  runs in them.
 - **`/web`'s tests** (*`/web`, temper in the browser*), focused: rows of
   the state for the printed link's life (a `link` line live; `linked`
   told false then true spending it; true told again spending nothing; a
