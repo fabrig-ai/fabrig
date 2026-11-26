@@ -55,7 +55,11 @@ fn site(
         for request in 0..4 {
             let socket = loop {
                 match listener.accept() {
-                    Ok((socket, _)) => break socket,
+                    Ok((socket, _)) => {
+                        // BSD accept inherits nonblocking mode; TLS response writes need to block.
+                        socket.set_nonblocking(false).expect("blocking site socket");
+                        break socket;
+                    }
                     Err(why) if why.kind() == io::ErrorKind::WouldBlock => pause(&deadline),
                     Err(why) => panic!("accept: {why}"),
                 }

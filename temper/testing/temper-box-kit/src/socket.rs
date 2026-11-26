@@ -7,6 +7,12 @@ use std::{
     net::{Shutdown, SocketAddr, TcpStream},
 };
 
+pub(crate) fn blocking(stream: TcpStream) -> TcpStream {
+    // BSD accept can inherit O_NONBLOCK from the listener; these waits need a blocking stream.
+    stream.set_nonblocking(false).expect("make the test socket blocking");
+    stream
+}
+
 /// A socket owner closes before passing; a world's callback defers to its owner.
 pub struct Socket<'a> {
     stream: Option<TcpStream>,
@@ -22,7 +28,7 @@ pub struct Socket<'a> {
 impl<'a> Socket<'a> {
     pub fn owned(socket: TcpStream, within: Duration, names: [&'static str; 2]) -> Self {
         Self {
-            stream: Some(socket),
+            stream: Some(blocking(socket)),
             within,
             names: names.map(Some),
             absolute: None,
@@ -95,7 +101,7 @@ impl<'a> Socket<'a> {
     #[must_use]
     pub fn until(socket: TcpStream, deadline: Option<Deadline>) -> Self {
         Self {
-            stream: Some(socket),
+            stream: Some(blocking(socket)),
             within: Duration::ZERO,
             names: [None; 2],
             deferred: deadline.is_none(),
@@ -207,5 +213,47 @@ impl Write for Socket<'_> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.stream.as_mut().expect("open socket").flush()
+    }
+}
+
+pub mod tests {
+    use super::Socket;
+    use rustix::fs::{OFlags, fcntl_getfl};
+    use skein_lib::Duration;
+    use std::net::{TcpListener, TcpStream};
+
+    pub(crate) fn nonblocking_stream() -> (TcpStream, TcpStream) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback listener");
+        let peer = TcpStream::connect(listener.local_addr().expect("listener address")).expect("loopback connection");
+        let (stream, _) = listener.accept().expect("accepted stream");
+        // Model BSD accept on Linux, where the stream does not inherit this flag.
+        stream.set_nonblocking(true).expect("nonblocking accepted stream");
+        assert!(fcntl_getfl(&stream).expect("accepted stream flags").contains(OFlags::NONBLOCK));
+        (stream, peer)
+    }
+
+    fn assert_blocking(socket: &Socket<'_>) {
+        let stream = socket.stream.as_ref().expect("open socket");
+        assert!(!fcntl_getfl(stream).expect("classified socket flags").contains(OFlags::NONBLOCK));
+    }
+
+    pub fn owned_socket_blocks() {
+        let (stream, _peer) = nonblocking_stream();
+        assert_blocking(&Socket::owned(stream, Duration::from_secs(1), ["read", "write"]));
+    }
+
+    pub fn deferred_socket_blocks() {
+        let (stream, _peer) = nonblocking_stream();
+        assert_blocking(&Socket::deferred(stream, Duration::from_secs(1), ["read", "write"]));
+    }
+
+    pub fn socket_with_shared_deadline_blocks() {
+        let (stream, _peer) = nonblocking_stream();
+        assert_blocking(&Socket::until(stream, None));
+    }
+
+    pub fn read_bounded_socket_blocks() {
+        let (stream, _peer) = nonblocking_stream();
+        assert_blocking(&Socket::reading(stream, Duration::from_secs(1), "read"));
     }
 }

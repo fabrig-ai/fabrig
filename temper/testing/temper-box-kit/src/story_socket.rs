@@ -1,5 +1,8 @@
 //! Story sockets and their waits (skein/docs/foundation/testing-strategy.md, 2.10).
-use super::patience::{Patience, socket_timeout};
+use super::{
+    patience::{Patience, socket_timeout},
+    socket::blocking,
+};
 use skein_lib::Duration;
 use skein_world::{Deadline, Expired, Starved};
 use std::{
@@ -105,7 +108,7 @@ pub struct Socket {
 impl Socket {
     #[must_use]
     pub fn new(stream: TcpStream, scope: Scope) -> Self {
-        Self { framed: Framed { stream: Some(stream) }, scope }
+        Self { framed: Framed { stream: Some(blocking(stream)) }, scope }
     }
 
     pub fn connect(what: &'static str, within: Duration, address: SocketAddr, scope: Scope) -> io::Result<Self> {
@@ -239,7 +242,9 @@ impl<S: Stream> Framed<S> {
 }
 
 pub mod tests {
-    use super::{Framed, Stream, Wait};
+    use super::{Framed, Scope, Socket, Stream, Wait};
+    use crate::socket::tests::nonblocking_stream;
+    use rustix::fs::{OFlags, fcntl_getfl};
     use std::{
         io::{self, Read, Write},
         time::Duration,
@@ -300,6 +305,12 @@ pub mod tests {
         fn retry(&mut self, error: io::Error, _: &mut Option<Script>) -> io::Result<()> {
             Err(error)
         }
+    }
+
+    pub fn story_socket_blocks() {
+        let (stream, _peer) = nonblocking_stream();
+        let mut socket = Socket::new(stream, Scope::Owned);
+        assert!(!fcntl_getfl(socket.stream()).expect("story socket flags").contains(OFlags::NONBLOCK));
     }
 
     pub fn bounded_reads_preserve_the_next_bytes_and_eof_is_an_error() {
