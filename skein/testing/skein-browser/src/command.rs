@@ -39,8 +39,9 @@ pub struct Variable {
 }
 
 /// Build Chromium's quiet, offline command with a fixed locale and time zone.
+/// With `file_access`, a `file://` page can read other files Chromium can read.
 #[must_use]
-pub fn command(program: &[u8], profile: &[u8]) -> Command {
+pub fn command(program: &[u8], profile: &[u8], file_access: bool) -> Command {
     assert!(!program.is_empty() && !program.contains(&0), "a program path has no NUL");
     assert!(!profile.is_empty() && !profile.contains(&0), "a profile path has no NUL");
     let mut args = List::with_capacity(16);
@@ -65,6 +66,9 @@ pub fn command(program: &[u8], profile: &[u8]) -> Command {
     profile_arg.extend_from_slice(b"--user-data-dir=");
     profile_arg.extend_from_slice(profile);
     args.push(profile_arg.into_boxed_slice()).expect("the argument list has room");
+    if file_access {
+        args.push(Box::from(b"--allow-file-access-from-files".as_slice())).expect("the argument list has room");
+    }
     args.push(Box::from(b"about:blank".as_slice())).expect("the argument list has room");
     let mut env = List::with_capacity(3);
     env.push(Variable { name: Box::from(b"LANG".as_slice()), value: Box::from(b"C.UTF-8".as_slice()) })
@@ -89,10 +93,32 @@ pub fn command(program: &[u8], profile: &[u8]) -> Command {
 mod tests {
     use super::{Direction, command};
 
+    const CHROMIUM: &[u8] = b"/usr/bin/chromium";
+    const PROFILE: &[u8] = b"/tmp/fresh-profile";
+
+    #[test]
+    fn chromium_adds_only_the_opt_in_file_access_flag() {
+        const FLAG: &[u8] = b"--allow-file-access-from-files";
+        let without = command(CHROMIUM, PROFILE, false);
+        let with = command(CHROMIUM, PROFILE, true);
+        let (page_without, args_without) =
+            without.args.as_slice().split_last().expect("initial page without file access");
+        let (page_with, args_with) = with.args.as_slice().split_last().expect("initial page with file access");
+        let (flag, args_with) = args_with.split_last().expect("file access flag before the initial page");
+
+        assert_eq!(page_without.as_ref(), b"about:blank");
+        for arg in args_without {
+            assert_ne!(arg.as_ref(), FLAG, "file access is opt-in");
+        }
+        assert_eq!((args_with, flag.as_ref(), page_with), (args_without, FLAG, page_without));
+        assert_eq!(with.env, without.env);
+        assert_eq!(with.pipes, without.pipes);
+    }
+
     #[test]
     fn chromium_keeps_wasm_in_the_baseline_tier() {
         const ONE_V8_FLAG_ARGUMENT: usize = 1;
-        let command = command(b"/usr/bin/chromium", b"/tmp/fresh-profile");
+        let command = command(CHROMIUM, PROFILE, false);
         let mut flags = 0;
         for arg in &command.args {
             if arg.starts_with(b"--js-flags=") {
@@ -105,7 +131,7 @@ mod tests {
 
     #[test]
     fn chromium_pipe_command() {
-        let command = command(b"/usr/bin/chromium", b"/tmp/fresh-profile");
+        let command = command(CHROMIUM, PROFILE, false);
         assert_eq!(command.program.as_ref(), b"/usr/bin/chromium");
         assert_eq!(command.args.last().expect("initial page").as_ref(), b"about:blank");
         let mut profile = false;
