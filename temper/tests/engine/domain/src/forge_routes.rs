@@ -4,6 +4,7 @@ use crate::forge_routes as paths;
 use crate::journal_limits as journal;
 use jig_domain_authority as authority;
 use jig_domain_core::documents;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -4445,7 +4446,7 @@ impl World {
         party: u64,
         scope: jig_domain_core::reads::Scope,
         after: Option<jig_domain_core::reads::Position>,
-    ) -> jig_domain_core::reads::Loaded {
+    ) -> engine_store::Answer {
         self.store.read(Box::new(jig_domain_core::reads::Range {
             party,
             scope,
@@ -4461,9 +4462,14 @@ impl World {
             let result = self.store.read(range);
             self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             None
-        } else if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
+        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+            load,
+            range: engine_store::Range::Read(range),
+        })) = request
+        {
             let result = self.store.read(range);
-            self.immediate.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+            self.immediate
+                .push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })));
             None
         } else {
             Some(request)

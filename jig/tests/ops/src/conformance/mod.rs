@@ -371,6 +371,7 @@ impl Application for Ops {
                 | root::Output::Load { .. }
                 | root::Output::ReadResult { .. }
                 | root::Output::CoreLoad(_)
+                | root::Output::Store(_)
                 | root::Output::Core(_)
                 | root::Output::Now(_)
                 | root::Output::Observability(_)
@@ -779,6 +780,7 @@ impl Application for Ops {
             | root::Output::Core(_)
             | root::Output::Now(_)
             | root::Output::CoreLoad(_)
+            | root::Output::Store(_)
             | root::Output::ProjectMade { .. } => Vec::new(),
             root::Output::Agent(request) => protocol::agent(peers, request),
             root::Output::Commit { .. } | root::Output::Stop => unreachable!("harness consumed commit/stop"),

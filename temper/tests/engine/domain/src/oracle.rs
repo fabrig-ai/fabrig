@@ -368,7 +368,7 @@ impl Driver {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::PartLoad { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }

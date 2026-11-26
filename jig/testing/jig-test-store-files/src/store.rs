@@ -550,10 +550,9 @@ impl Store {
     pub fn ask(&mut self, out: StoreOut) {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
-            out @ (StoreOut::Start { .. }
-            | StoreOut::ReadLoad { .. }
-            | StoreOut::NotesLoad { .. }
-            | StoreOut::Now(_)) => self.request(out),
+            out @ (StoreOut::Start { .. } | StoreOut::Engine(_) | StoreOut::NotesLoad { .. } | StoreOut::Now(_)) => {
+                self.request(out);
+            }
         }
     }
     fn request(&mut self, out: StoreOut) {

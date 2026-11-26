@@ -2,6 +2,7 @@
 #![expect(clippy::disallowed_methods, reason = "test cases use ordinary Rust collections (programming-model.md 10.2)")]
 use super::fixtures::{self, ALICE, disk::Disk};
 use crate::{Event, KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets, Request, Store, TranscriptRead, codec, keys};
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as domain, reads};
 use jig_domain_tasks as tasks;
 use jig_test_layouts::{self as fixture, frames, layouts};
@@ -174,7 +175,7 @@ fn request(kind: u8, budget: u64) -> Request {
 fn payload(events: &[Event]) -> &[u8] {
     match events {
         [Event::Turns { turns, .. }] => &turns.first().expect("one turn").transcript,
-        [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] => {
+        [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }), .. }] => {
             let row = rows.first().expect("one row");
             let record = row.related.as_ref().unwrap_or(&row.value);
             let domain::Record::Core(domain::CoreRecord::Turn(turn)) = record else { panic!("joined turn {record:?}") };
@@ -351,16 +352,25 @@ fn unread(events: &[Event]) -> bool {
     match events {
         [
             Event::Unread { .. }
-            | Event::Read { result: reads::Loaded::TurnProblem { why: reads::TurnFailure::Malformed, .. }, .. },
+            | Event::Read {
+                result:
+                    engine_store::Answer::Failed(engine_store::Failure::TurnProblem {
+                        why: reads::TurnFailure::Malformed,
+                        ..
+                    }),
+                ..
+            },
         ] => true,
-        [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] => rows.first().is_some_and(|row| {
-            row.unjoined
-                == Some(reads::UnjoinedTurn::Unread {
-                    task: frames::TASK,
-                    attempt: frames::ATTEMPT,
-                    turn: frames::TURN,
-                })
-        }),
+        [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }), .. }] => {
+            rows.first().is_some_and(|row| {
+                row.unjoined
+                    == Some(reads::UnjoinedTurn::Unread {
+                        task: frames::TASK,
+                        attempt: frames::ATTEMPT,
+                        turn: frames::TURN,
+                    })
+            })
+        }
         _ => false,
     }
 }
@@ -516,7 +526,10 @@ fn party_and_activity_bounds_charge_the_converted_frame() {
         let raw = frames::frame(5, &turn(1, REPLAY));
         let (mut disk, mut store) = scene(&raw, SETS);
         let events = disk.request(&mut store, request(kind, BUDGET));
-        let [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] = &*events else { panic!("row {events:?}") };
+        let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }), .. }] = &*events
+        else {
+            panic!("row {events:?}")
+        };
         let base = rows[0].owned_bytes().expect("row").checked_sub(PAYLOAD).expect("metadata");
         for (body, version) in [(5, 1), (6, 2)] {
             for replay in [b"r".as_slice(), &[b'r'; 64]] {
@@ -525,7 +538,12 @@ fn party_and_activity_bounds_charge_the_converted_frame() {
                     let (mut disk, mut store) = scene(&raw, SETS);
                     let events = disk.request(&mut store, request(kind, base.checked_add(frame).expect("bound")));
                     let carried = match &*events {
-                        [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] => carries_turn(&rows[0]),
+                        [
+                            Event::Read {
+                                result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }),
+                                ..
+                            },
+                        ] => carries_turn(&rows[0]),
                         _ => false,
                     };
                     assert_eq!(carried, accepted, "kind {kind}, replay {}, frame {frame}: {events:?}", replay.len());
@@ -534,11 +552,19 @@ fn party_and_activity_bounds_charge_the_converted_frame() {
                             [
                                 Event::Read {
                                     result:
-                                        reads::Loaded::TurnProblem { why: reads::TurnFailure::TooLarge { bytes }, .. },
+                                        engine_store::Answer::Failed(engine_store::Failure::TurnProblem {
+                                            why: reads::TurnFailure::TooLarge { bytes },
+                                            ..
+                                        }),
                                     ..
                                 },
                             ] => *bytes,
-                            [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] => match rows[0].unjoined {
+                            [
+                                Event::Read {
+                                    result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }),
+                                    ..
+                                },
+                            ] => match rows[0].unjoined {
                                 Some(reads::UnjoinedTurn::TooLarge { bytes, .. }) => bytes,
                                 _ => panic!("large row"),
                             },

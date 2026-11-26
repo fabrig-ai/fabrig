@@ -178,7 +178,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::PartsMarked { .. }
         | Event::Waits { .. }
         | Event::Marked { .. }
-        | Event::ReadLoaded { .. }
         | Event::Read { .. }
         | Event::PublicRead { .. }
         | Event::PublicAnswered { .. }
@@ -265,7 +264,7 @@ impl Core {
         self.fleet.reclaim();
         self.views.reclaim();
         self.view_names.reclaim();
-        self.reads.reclaim();
+        self.loads.reclaim();
     }
 
     /// Discard expendable child observations without changing a decision.
@@ -306,7 +305,7 @@ impl Core {
     #[must_use]
     pub fn quiescent(&self, journal_idle: bool) -> bool {
         self.counters.quiescent(journal_idle)
-            && self.reads.is_empty()
+            && self.loads.is_empty()
             && self.dependency_results.is_empty()
             && self.pending_calls.is_empty()
             && self.pending_note_briefs.is_empty()

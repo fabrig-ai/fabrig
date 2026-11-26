@@ -37,7 +37,8 @@ pub fn class(event: &Event) -> Class {
         | Event::ProjectionEffect { .. }
         | Event::TopicCall { .. }
         | Event::EffectCall { .. } => Class::New,
-        Event::ResultRead { .. }
+        Event::Store(_)
+        | Event::ResultRead { .. }
         | Event::Stop
         | Event::ConnectorTimer { .. }
         | Event::StartRecord(_)
@@ -134,14 +135,14 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
-        event @ (Event::StartRecord(_)
+        event @ (Event::Store(_)
+        | Event::StartRecord(_)
         | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::TranscriptLoaded { .. }
         | Event::Core(
             core::Event::PublicDurable { .. }
-            | core::Event::ReadLoaded { .. }
             | core::Event::EndedReadLoaded { .. }
             | core::Event::EndedTaskLoaded { .. }
             | core::Event::SeenConversationLoaded { .. }
@@ -255,6 +256,7 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::Timer(..)
+        | Event::Store(_)
         | Event::Core(..)
         | Event::Credential { .. }
         | Event::Connector { .. }

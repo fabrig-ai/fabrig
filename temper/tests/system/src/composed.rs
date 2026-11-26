@@ -9,6 +9,7 @@
 //! world supplies filesystem and completion IO below its domain. Each tick
 //! advances each domain once, so durable turn ACKs and relayed answers
 //! traverse both roots.
+use jig_domain_core::engine::store as engine_store;
 use std::collections::VecDeque;
 
 use jig_domain_authority as authority;
@@ -1110,9 +1111,11 @@ impl World {
                 let result = self.store.read(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             }
-            engine::StoreRequest::Read { load, range } => {
+            engine::StoreRequest::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
                 let result = self.store.read(range);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Engine(
+                    engine_store::In::Loaded { load, result },
+                )));
             }
             engine::StoreRequest::Load { owner, range, after, most, .. } => {
                 let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
@@ -1231,7 +1234,7 @@ impl World {
         let event = match request {
             // Party reads, like internal walks, use this world's store rather
             // than the engine world's scripted read terminal.
-            request @ engine::Request::Store(engine::StoreRequest::Read { .. }) => return Err(Box::new(request)),
+            request @ engine::Request::Store(engine::StoreRequest::Engine(_)) => return Err(Box::new(request)),
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => self.decode_close_call(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
@@ -1564,7 +1567,7 @@ impl World {
             | Delivery::Fleet(_)
             | Delivery::PartLoad { .. }
             | Delivery::PartBusy { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Restarting { .. }

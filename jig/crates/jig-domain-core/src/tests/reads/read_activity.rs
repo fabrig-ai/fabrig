@@ -1,4 +1,5 @@
 //! Activity pages retain the one turn supplied beside each line.
+use crate::engine::store as engine_store;
 use crate::tests::*;
 fn line() -> tasks::ActivityLine {
     tasks::ActivityLine {
@@ -41,13 +42,18 @@ fn answer(
     let mut row = stored_row(Record::Tasks(tasks::Stored::Activity(line())), Some(owner));
     row.related = related;
     row.unjoined = unjoined;
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(core, limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!("activity load")
     };
-    let answer = loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None })
-        .expect("one held terminal");
+    let answer = loaded_answer(
+        core,
+        limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+    )
+    .expect("one held terminal");
     core.reclaim();
     answer
 }
@@ -103,11 +109,11 @@ fn a_turn_of_another_line_is_unknown() {
     }
 }
 
-fn failure(owner: Box<tasks::TaskRecord>, why: crate::reads::TurnFailure) -> crate::reads::Loaded {
-    crate::reads::Loaded::TurnProblem { task: 1, attempt: 1, turn: 2, owner, why }
+fn failure(owner: Box<tasks::TaskRecord>, why: crate::reads::TurnFailure) -> engine_store::Answer {
+    engine_store::Answer::Failed(engine_store::Failure::TurnProblem { task: 1, attempt: 1, turn: 2, owner, why })
 }
 fn turn_load(core: &mut Core, limits: &Limits) -> Token {
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(core, limits, 10, crate::reads::Read::Turn { task: 1, attempt: 1, turn: 2 })
     else {
         panic!("turn load")
@@ -149,8 +155,13 @@ fn a_mismatched_turn_failure_is_unknown() {
         let (mut core, limits) = watch_core();
         let owner = Box::new(core.tasks.task(1).expect("owner").clone());
         let load = turn_load(&mut core, &limits);
-        let result =
-            crate::reads::Loaded::TurnProblem { task, attempt, turn, owner, why: crate::reads::TurnFailure::Malformed };
+        let result = engine_store::Answer::Failed(engine_store::Failure::TurnProblem {
+            task,
+            attempt,
+            turn,
+            owner,
+            why: crate::reads::TurnFailure::Malformed,
+        });
         assert_eq!(
             loaded_answer(&mut core, &limits, load, result),
             Some(crate::reads::Answer::None(crate::reads::Why::Unknown)),
@@ -176,7 +187,10 @@ fn a_visible_turn_failure_keeps_its_reason_within_its_bound() {
             Some(crate::reads::Answer::None(expected)),
             "{why:?} tiny={tiny}"
         );
-        assert_eq!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Busy), None);
+        assert_eq!(
+            loaded_answer(&mut core, &limits, load, engine_store::Answer::Failed(engine_store::Failure::Busy)),
+            None
+        );
     }
 }
 
@@ -197,15 +211,23 @@ fn earlier_beside_a_line_reads_as_a_cursor_there_does() {
     for (query, answer) in queries.into_iter().zip(&mut answers) {
         let (mut core, limits) = watch_core();
         let owner = core.tasks.task(task).unwrap().clone();
-        let Held::ReadLoad { load, range } = read_start(&mut core, &limits, 10, query) else { panic!("activity load") };
+        let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
+            read_start(&mut core, &limits, 10, query)
+        else {
+            panic!("activity load")
+        };
         assert_eq!(range.scope, Scope::Activity { task });
         assert_eq!(range.after, Some(after.clone()));
         assert!(range.backwards);
         let mut earlier = line();
         earlier.position = 2;
         let row = stored_row(Record::Tasks(tasks::Stored::Activity(earlier)), Some(owner));
-        *answer =
-            loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None });
+        *answer = loaded_answer(
+            &mut core,
+            &limits,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+        );
     }
     assert_eq!(answers.first(), answers.last());
     let Some(Some(crate::reads::Answer::Page(page))) = answers.first() else { panic!("activity page") };
@@ -218,7 +240,7 @@ fn later_beside_a_line_loads_the_forward_range() {
     let (mut core, limits) = watch_core();
     let task = 1;
     let position = 3;
-    let Held::ReadLoad { range, .. } =
+    let Held::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) =
         read_start(&mut core, &limits, 10, Read::ActivityBeside { task, position, side: Side::Later })
     else {
         panic!("activity load")

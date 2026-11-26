@@ -1,5 +1,6 @@
 //! Lines survive record erasure; point reads do not (protocol/store/retention.md, 7).
-use crate::reads::{self, Answer, EndedGroup, Loaded, Read, Why};
+use crate::engine::store as engine_store;
+use crate::reads::{self, Answer, EndedGroup, Read, Why};
 use crate::tests::*;
 
 const TASK: u64 = 90;
@@ -103,7 +104,7 @@ fn a_query_read_returns_the_summary_line_and_filters_its_kept_keys() {
         (TaskQuery { root: Some(999), ..query() }, 0),
     ] {
         core.reclaim();
-        let Held::ReadLoad { load, .. } =
+        let Held::Store(engine_store::Out::Load { load, .. }) =
             read_start(&mut core, &limits, 10, Read::Tasks { query: query.clone(), live: None, ended: None })
         else {
             panic!("ended task query loads")
@@ -112,7 +113,10 @@ fn a_query_read_returns_the_summary_line_and_filters_its_kept_keys() {
             &mut core,
             &limits,
             load,
-            Loaded::Page { rows: Box::new([summary_row(&summary)]), next: None },
+            engine_store::Answer::Rows(engine_store::Rows::Read {
+                rows: Box::new([summary_row(&summary)]),
+                next: None,
+            }),
         )
         .unwrap();
         let Answer::Tasks(page) = answer else { panic!("task groups: {answer:?}") };
@@ -131,11 +135,18 @@ fn an_ended_delegate_read_draws_its_chip_from_the_summary() {
     summary.requester = tasks::Party::Task(1);
     let mut row = summary_row(&summary);
     row.value = Record::Tasks(tasks::Stored::EndedDelegate(tasks::Edge { requester: 1, task: TASK }));
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, Read::EndedDelegates { task: 1, from: None })
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, Read::EndedDelegates { task: 1, from: None })
     else {
         panic!("ended delegates load")
     };
-    let answer = loaded_answer(&mut core, &limits, load, Loaded::Page { rows: Box::new([row]), next: None }).unwrap();
+    let answer = loaded_answer(
+        &mut core,
+        &limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+    )
+    .unwrap();
     let Answer::Page(page) = answer else { panic!("delegate page") };
     let [reads::PageRow::EndedDelegate(delegate)] = page.rows.as_slice() else { panic!("one delegate: {page:?}") };
     assert_eq!(delegate.chip, chip_from_summary(&limits, &summary));
@@ -152,7 +163,12 @@ fn a_gone_point_load_answers_gone() {
         Read::TaskText { task: TASK, field: reads::TaskTextField::Specification, from: 0 },
     ] {
         core.reclaim();
-        let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, read) else { panic!("retained load") };
-        assert_eq!(loaded_answer(&mut core, &limits, load, Loaded::Gone), Some(Answer::None(Why::Gone)));
+        let Held::Store(engine_store::Out::Load { load, .. }) = read_start(&mut core, &limits, 10, read) else {
+            panic!("retained load")
+        };
+        assert_eq!(
+            loaded_answer(&mut core, &limits, load, engine_store::Answer::Failed(engine_store::Failure::Gone)),
+            Some(Answer::None(Why::Gone))
+        );
     }
 }

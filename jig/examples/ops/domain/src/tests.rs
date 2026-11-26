@@ -286,6 +286,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -332,6 +333,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                 }
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)
@@ -402,6 +404,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
                 ),
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)
@@ -473,6 +476,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -511,6 +515,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -656,6 +661,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)

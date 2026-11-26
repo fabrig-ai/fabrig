@@ -1,4 +1,5 @@
 use core::mem::size_of;
+use jig_domain_core::engine::store as engine_store;
 use root::loads::{self, Failure, Limits, Loads, Request};
 use skein_lib::{Queue, Token, Wall};
 use temper_engine_domain::{self as root, Key, Range, Record, TurnRecord};
@@ -427,7 +428,9 @@ fn an_ended_conversation_query_joins_its_owner_and_read_position_after_restart()
         rows: 4,
         bytes: 65_536,
     }));
-    let reads::Loaded::Page { rows, next } = loaded else { panic!("ended query page") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) = loaded else {
+        panic!("ended query page")
+    };
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].value, index);
     assert_eq!(rows[0].owner.as_ref().map(|owner| owner.number), Some(TASK));

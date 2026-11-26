@@ -15,6 +15,7 @@ mod tests;
 
 use jig_conformance::referee as r;
 use jig_conformance::{Application, Clock, Input, Output};
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -465,12 +466,14 @@ impl Application for Temper {
             Delivery::Resume => return Ok(vec![Input::Event(Event::Fire)]),
         };
         let request = match request {
-            engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+            engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Read(range),
+            })) => {
                 let result = store.read(range);
-                return Ok(vec![Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::ReadLoaded {
-                    load,
-                    result,
-                })))]);
+                return Ok(vec![Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::Engine(
+                    engine_store::In::Loaded { load, result },
+                ))))]);
             }
             request => request,
         };

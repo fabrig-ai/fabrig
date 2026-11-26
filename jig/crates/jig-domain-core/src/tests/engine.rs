@@ -46,8 +46,16 @@ fn unwatch() -> Event {
 fn same_decision(core: &Core, engine: &Engine, requests: &Queue<Request>, out: &Queue<Out>) {
     let hash = BuildHasherDefault::<DefaultHasher>::default();
     assert_eq!(requests.len(), out.len(), "wrapped decision length: {out:?}");
-    for (request, Out::Core(wrapped)) in requests.iter().zip(out) {
-        assert_eq!(hash.hash_one(request), hash.hash_one(wrapped), "{wrapped:?} differs from {request:?}");
+    for (request, output) in requests.iter().zip(out) {
+        if let Request::Held(held) = request
+            && let crate::Held::Store(load) = held.as_ref()
+        {
+            let Out::Held(engine::Peer::Store(wrapped)) = output else { panic!("one held store load: {output:?}") };
+            assert_eq!(hash.hash_one(load), hash.hash_one(wrapped), "{wrapped:?} differs from {load:?}");
+        } else {
+            let Out::Core(wrapped) = output else { panic!("one core request: {output:?}") };
+            assert_eq!(hash.hash_one(request), hash.hash_one(wrapped), "{wrapped:?} differs from {request:?}");
+        }
     }
     assert_eq!(hash.hash_one(core), hash.hash_one(engine.core()), "core state after the decision");
 }
@@ -162,4 +170,130 @@ fn mutable_access_updates_the_shared_core() {
     let mut engine = fresh_engine(&limits());
     let header = engine.core_mut().counters.next_commit();
     assert_eq!(engine.core().counters.deployment(), header);
+}
+
+const READ_REPLY: ReplyTo = ReplyTo::new(Token::new(901));
+const RETAINED: u64 = 99;
+
+fn retained_fixture() -> (Engine, Env<Limits>) {
+    let (core, limits) = super::watch_core();
+    (Engine::from_core(core), Env { now: Time::ZERO, wall: Wall::EPOCH, limits })
+}
+
+fn read_input() -> In {
+    In::Core(Event::Read { reply: READ_REPLY, sign_in: 10, read: crate::reads::Read::Task { task: RETAINED } })
+}
+
+fn read_load(out: &mut Queue<Out>) -> Token {
+    let Some(Out::Held(engine::Peer::Store(engine::store::Out::Load {
+        load,
+        range: engine::store::Range::Read(range),
+    }))) = out.pop()
+    else {
+        panic!("one held store load: {out:?}")
+    };
+    assert!(out.is_empty(), "there is no duplicate core request");
+    assert_eq!(range.scope, crate::reads::Scope::Task { task: RETAINED });
+    load
+}
+
+fn store_answer(
+    engine: &mut Engine,
+    env: &Env<Limits>,
+    load: Token,
+    result: engine::store::Answer,
+    out: &mut Queue<Out>,
+) {
+    engine::step(engine, env, In::Store(engine::store::In::Loaded { load, result }), out);
+}
+
+fn read_answer(out: &mut Queue<Out>) -> crate::reads::Answer {
+    let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("one held read answer: {out:?}") };
+    let crate::Held::Read { reply, answer } = *held else { panic!("party answer: {held:?}") };
+    assert_eq!(reply, READ_REPLY);
+    assert!(out.is_empty());
+    answer
+}
+
+#[test]
+fn the_store_port_round_trips_a_retained_task_read() {
+    use jig_domain_tasks as tasks;
+    let (mut engine, env) = retained_fixture();
+    let mut out = Queue::uncapped();
+    out.push(Out::Core(Request::ProjectMade { project: 1 }));
+    engine::step(&mut engine, &env, read_input(), &mut out);
+    let Some(Out::Core(Request::ProjectMade { project: 1 })) = out.pop() else { panic!("previous output stays first") };
+    let load = read_load(&mut out);
+
+    let mut task = engine.core().tasks.task(1).expect("task fixture").clone();
+    task.number = RETAINED;
+    task.root = RETAINED;
+    task.phase = tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: Box::new([]) }));
+    let row = super::stored_row(crate::Record::Tasks(tasks::Stored::Ended(Box::new(task))), None);
+    store_answer(
+        &mut engine,
+        &env,
+        load,
+        engine::store::Answer::Rows(engine::store::Rows::Read { rows: Box::new([row]), next: None }),
+        &mut out,
+    );
+    let crate::reads::Answer::Ended(ended) = read_answer(&mut out) else { panic!("retained task document") };
+    let crate::reads::EndedValue::Task { document, .. } = ended.value else { panic!("task document") };
+    assert_eq!(document.chip.number, RETAINED);
+}
+
+#[test]
+fn a_store_terminal_without_a_live_load_changes_nothing() {
+    use engine::store::{Answer, Failure};
+    let (mut engine, mut env) = retained_fixture();
+    let mut out = Queue::uncapped();
+    engine::step(&mut engine, &env, read_input(), &mut out);
+    let old = read_load(&mut out);
+    store_answer(&mut engine, &env, old, Answer::Failed(Failure::Gone), &mut out);
+    assert_eq!(read_answer(&mut out), crate::reads::Answer::None(crate::reads::Why::Gone));
+    engine.core_mut().reclaim();
+    engine::step(&mut engine, &env, read_input(), &mut out);
+    let current = read_load(&mut out);
+    assert_ne!(old, current, "a load token is never reused");
+
+    let hash = BuildHasherDefault::<DefaultHasher>::default();
+    let before = hash.hash_one(engine.core());
+    env.now = Time::from_nanos(1);
+    for name in [old, Token::new(u64::MAX)] {
+        store_answer(&mut engine, &env, name, Answer::Failed(Failure::Busy), &mut out);
+        assert!(out.is_empty());
+        assert_eq!(hash.hash_one(engine.core()), before, "an unowned terminal does not open a decision");
+    }
+    store_answer(&mut engine, &env, current, Answer::Failed(Failure::Gone), &mut out);
+    assert_eq!(read_answer(&mut out), crate::reads::Answer::None(crate::reads::Why::Gone));
+}
+
+#[test]
+fn a_failed_or_wrong_shaped_store_answer_ends_a_read_as_busy() {
+    use engine::store::{Answer, Failure, Rows};
+    let (mut engine, env) = retained_fixture();
+    let mut out = Queue::uncapped();
+    let turn = crate::TurnRecord {
+        task: RETAINED,
+        attempt: 1,
+        turn: 1,
+        spent: 0,
+        opens_window: true,
+        read: None,
+        at: Wall::EPOCH,
+        transcript: Box::new([]),
+    };
+    for result in [
+        Answer::Failed(Failure::Failed),
+        Answer::Rows(Rows::Records { records: Box::new([]), more: false }),
+        Answer::Rows(Rows::Turns { turns: Box::new([]), more: true }),
+        Answer::Cut { turn, bytes: 1, more: true },
+        Answer::Failed(Failure::Unread),
+    ] {
+        engine::step(&mut engine, &env, read_input(), &mut out);
+        let load = read_load(&mut out);
+        store_answer(&mut engine, &env, load, result, &mut out);
+        assert_eq!(read_answer(&mut out), crate::reads::Answer::None(crate::reads::Why::Busy));
+        engine.core_mut().reclaim();
+    }
 }

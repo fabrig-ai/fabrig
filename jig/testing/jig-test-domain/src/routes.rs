@@ -5,7 +5,7 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_core::engine::Out;
+use jig_domain_core::engine::{Out, Peer};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -38,6 +38,7 @@ pub(super) fn route_engine(
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
             Out::Core(request) => route_request(domain, env, decision, request, work),
+            Out::Held(Peer::Store(load)) => hold(decision, Delivery::Store(load)),
         }
     }
 }
@@ -104,8 +105,8 @@ pub(super) fn route_request(
                 decision,
                 jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
             ),
-            other @ (core::Held::ReadLoad { .. }
-            | core::Held::Read { .. }
+            core::Held::Store(load) => hold(decision, Delivery::Store(load)),
+            other @ (core::Held::Read { .. }
             | core::Held::Delivery { .. }
             | core::Held::WatchEnded { .. }
             | core::Held::Relay { .. }

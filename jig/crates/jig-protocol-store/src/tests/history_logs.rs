@@ -7,6 +7,7 @@
 use super::fixtures::{self, ALICE, CHILD, GOAL, GRANDCHILD};
 use crate::{Event, Get, Phase, Request, Restore, Store, codec, keys, logs};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, Key, Record, reads};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Set, Token};
@@ -57,14 +58,14 @@ pub(super) fn raw_commit(store: &mut Store, ops: Box<[skein_kv::Op]>) {
     let Some(skein_kv::Event::Committed { number, .. }) = above.pop() else { panic!("move commit fits: {above:?}") };
     store.phase = Phase::Ready { next: number.checked_add(1).unwrap(), format_due: false };
 }
-pub(super) fn read(store: &mut Store, range: reads::Range) -> reads::Loaded {
+pub(super) fn read(store: &mut Store, range: reads::Range) -> engine_store::Answer {
     let events = fixtures::run(store, Request::Read { owner: Token::new(7), range });
     let mut events = events.into_iter();
     let Some(Event::Read { result, .. }) = events.next() else { panic!("one read") };
     assert!(events.next().is_none());
     result
 }
-pub(super) fn equal(before: &reads::Loaded, after: &reads::Loaded) {
+pub(super) fn equal(before: &engine_store::Answer, after: &engine_store::Answer) {
     assert!(format!("{before:?}") == format!("{after:?}"), "read answers differ");
 }
 #[test]
@@ -130,7 +131,7 @@ fn got(store: &mut Store) -> Option<Record> {
 fn an_ended_get_and_its_terminal_read_come_from_the_log() {
     let mut store = child_store();
     assert_eq!(got(&mut store), Some(fixtures::ended_of(CHILD, tasks::Party::Person(ALICE))));
-    let reads::Loaded::Page { rows, next: None } =
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) =
         read(&mut store, fixtures::read(ALICE, reads::Scope::Task { task: CHILD }))
     else {
         panic!("task page")
@@ -150,8 +151,10 @@ fn a_later_erase_hides_a_fetched_key_and_none_names_no_ended_record() {
     let key =
         keys::encode(&Key::Tasks(tasks::Key::History { task: CHILD, revision: 1 }), store.limits.store.key).unwrap();
     append(&mut store, CHILD, Box::new([(key.clone(), None)]), false);
-    let reads::Loaded::Page { rows: before, .. } = before else { panic!("page") };
-    let reads::Loaded::Page { rows: after, .. } = read(&mut store, range) else { panic!("page") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows: before, .. }) = before else { panic!("page") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows: after, .. }) = read(&mut store, range) else {
+        panic!("page")
+    };
     assert_eq!(before.len(), after.len().checked_add(1).unwrap());
     assert!(!after.iter().any(|row| keys::encode(&row.value.key(), u32::MAX).unwrap() == key));
 }
@@ -383,7 +386,8 @@ fn ended_erasure_pages_find_logged_records_by_their_summaries() {
         ]),
     );
     store.limits.joins = 0;
-    let reads::Loaded::Page { rows, next: None } = read(&mut store, fixtures::read(ALICE, reads::Scope::EndedTasks))
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) =
+        read(&mut store, fixtures::read(ALICE, reads::Scope::EndedTasks))
     else {
         panic!("ended page")
     };

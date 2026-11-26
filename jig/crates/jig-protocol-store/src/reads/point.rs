@@ -2,6 +2,7 @@
 use super::{Failure, Spent, empty, joins};
 use crate::{Below, Event, Get, Row, Store, TranscriptRead, gets, transcripts::read};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_people::Proposer;
 use jig_domain_tasks as tasks;
@@ -21,7 +22,7 @@ pub(super) fn task(
     range: &reads::Range,
     task: u64,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     if spent.rows == 0 {
         return Ok(empty());
     }
@@ -42,11 +43,13 @@ pub(super) fn task(
             let related = core::Key::Core(core::CoreKey::Terminal { task, attempt: owner.attempt });
             joins::row(store, value, Some(&owner), Some(related), spent)?
         };
-        return Ok(reads::Loaded::Page { rows: Box::new([row]), next: None });
+        return Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }));
     }
     // A summary serves lists only (protocol/store/retention.md, 7).
     match record(store, &core::Key::Tasks(tasks::Key::Summary(task)))? {
-        Some(core::Record::Tasks(tasks::Stored::Summary(_))) => Ok(reads::Loaded::Gone),
+        Some(core::Record::Tasks(tasks::Stored::Summary(_))) => {
+            Ok(engine_store::Answer::Failed(engine_store::Failure::Gone))
+        }
         Some(_) => Err(Failure::Corrupt),
         None => Ok(empty()),
     }
@@ -59,12 +62,12 @@ fn page(
     owner: Option<&tasks::TaskRecord>,
     related: Option<core::Key>,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     if !allowed(range, &value.key()) {
         return Ok(empty());
     }
     let row = joins::row(store, value, owner, related, spent)?;
-    Ok(reads::Loaded::Page { rows: Box::new([row]), next: None })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }))
 }
 
 pub(super) fn proposal(
@@ -73,7 +76,7 @@ pub(super) fn proposal(
     proposer: Proposer,
     proposal: u64,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     match proposer {
         Proposer::Party(_) => {
             for key in [tasks::Key::PersonProposal(proposal), tasks::Key::DecidedProposal(proposal)] {
@@ -89,7 +92,7 @@ pub(super) fn proposal(
                 let Some(value) = record(store, &key)? else { return Ok(empty()) };
                 return page(store, range, value, Some(&owner), None, spent);
             }
-            Ok(reads::Loaded::Gone)
+            Ok(engine_store::Answer::Failed(engine_store::Failure::Gone))
         }
     }
 }
@@ -99,7 +102,7 @@ pub(super) fn escalation(
     range: &reads::Range,
     task: u64,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     let key = core::Key::Core(core::CoreKey::EscalationDecision { task, revision: owner.escalation.revision() });
     let Some(value) = record(store, &key)? else { return Ok(empty()) };
@@ -113,7 +116,7 @@ pub(super) fn question(
     task: u64,
     message: u64,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     for kept in &owner.question_lines {
         if kept.message == message {
@@ -126,7 +129,7 @@ pub(super) fn question(
             return page(store, range, value, Some(&owner), related, spent);
         }
     }
-    Ok(reads::Loaded::Gone)
+    Ok(engine_store::Answer::Failed(engine_store::Failure::Gone))
 }
 
 pub(super) fn reply(
@@ -136,7 +139,7 @@ pub(super) fn reply(
     spent: &mut Spent,
     above: &mut Queue<Event>,
     below: &mut Below,
-) -> Result<Option<reads::Loaded>, Failure> {
+) -> Result<Option<engine_store::Answer>, Failure> {
     let reads::Scope::Reply { task, activity } = range.scope else { return Err(Failure::Corrupt) };
     let key = core::Key::Tasks(tasks::Key::Activity { task, position: activity });
     if !allowed(range, &key) {
@@ -185,7 +188,7 @@ pub(super) fn turn(
     range: &reads::Range,
     above: &mut Queue<Event>,
     below: &mut Below,
-) -> Result<Option<reads::Loaded>, Failure> {
+) -> Result<Option<engine_store::Answer>, Failure> {
     let reads::Scope::Turn { task, attempt, turn } = range.scope else { return Err(Failure::Corrupt) };
     let key = core::Key::Core(core::CoreKey::Turn { task, attempt, turn });
     if !allowed(range, &key) {
@@ -222,11 +225,11 @@ pub(crate) fn finish(
     task: u64,
     party: read::Party,
     turn: Option<core::TurnRecord>,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let mut spent = Spent { rows: 1, bytes: u64::MAX, joins: store.limits.joins };
     if let Some(cut) = party.cut {
         return match cut {
-            Failure::Cut => Ok(reads::Loaded::Busy),
+            Failure::Cut => Ok(engine_store::Answer::Failed(engine_store::Failure::Busy)),
             Failure::Joins | Failure::Corrupt => Err(cut),
         };
     }
@@ -235,7 +238,7 @@ pub(crate) fn finish(
             Ok(Some(owner)) => owner,
             Ok(None) => return Ok(empty()),
             Err(Failure::Joins) => return Err(Failure::Joins),
-            Err(Failure::Cut) => return Ok(reads::Loaded::Busy),
+            Err(Failure::Cut) => return Ok(engine_store::Answer::Failed(engine_store::Failure::Busy)),
             Err(Failure::Corrupt) => return Err(Failure::Corrupt),
         };
         return problem(task, &party, owner, why);
@@ -285,7 +288,7 @@ pub(crate) fn finish(
         }
         return Err(Failure::Cut);
     }
-    Ok(reads::Loaded::Page { rows: Box::new([row]), next: None })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }))
 }
 
 fn problem(
@@ -293,13 +296,15 @@ fn problem(
     party: &read::Party,
     owner: Box<tasks::TaskRecord>,
     why: reads::TurnFailure,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let (attempt, turn) = party.turn.ok_or(Failure::Corrupt)?;
-    let Some(bytes) = reads::TurnFailure::owned_bytes(&owner) else { return Ok(reads::Loaded::Busy) };
+    let Some(bytes) = reads::TurnFailure::owned_bytes(&owner) else {
+        return Ok(engine_store::Answer::Failed(engine_store::Failure::Busy));
+    };
     if bytes > party.bytes {
-        return Ok(reads::Loaded::Busy);
+        return Ok(engine_store::Answer::Failed(engine_store::Failure::Busy));
     }
-    Ok(reads::Loaded::TurnProblem { task, attempt, turn, owner, why })
+    Ok(engine_store::Answer::Failed(engine_store::Failure::TurnProblem { task, attempt, turn, owner, why }))
 }
 
 /// Exact history key for the newest retained occurrence of a task proposal.

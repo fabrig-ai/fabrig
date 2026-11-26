@@ -344,11 +344,8 @@ pub enum Held {
         subject: Token,
         why: views::End,
     },
-    /// Load an owner range only after every preceding commit is durable.
-    ReadLoad {
-        load: Token,
-        range: Box<crate::reads::Range>,
-    },
+    /// Load a store range only after every preceding commit is durable.
+    Store(crate::engine::store::Out),
     /// One authenticated read answer after every preceding commit is durable.
     Read {
         reply: ReplyTo,
@@ -1061,11 +1058,6 @@ pub enum Event {
         connector: u16,
         subjects: List<Token>,
     },
-    /// Exactly one terminal for a previously admitted read load.
-    ReadLoaded {
-        load: Token,
-        result: crate::reads::Loaded,
-    },
     /// An unkeyed one-shot read on the supplied live sign-in.
     Read {
         reply: ReplyTo,
@@ -1720,7 +1712,6 @@ impl Event {
             | Self::PartsMarked { .. }
             | Self::Waits { .. }
             | Self::Marked { .. }
-            | Self::ReadLoaded { .. }
             | Self::PublicAnswered { .. }
             | Self::PublicDurable { .. }
             | Self::ApplicationPart { .. }

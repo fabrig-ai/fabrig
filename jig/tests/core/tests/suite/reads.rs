@@ -7,6 +7,7 @@ use jig_core_world::reads::complete;
 use jig_core_world::reads::latest;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -726,7 +727,10 @@ fn a_turn_load_preserves_the_gone_terminal() {
     let task = chat_task(&world);
     ask(&mut world, 981, reads::Read::Turn { task, attempt: 1, turn: 1 });
     let (load, _) = world.reads.as_mut().expect("party").loads.pop().expect("one turn load");
-    world.send(root::Event::Core(core::Event::ReadLoaded { load, result: reads::Loaded::Gone }));
+    world.send(root::Event::Store(engine_store::In::Loaded {
+        load,
+        result: engine_store::Answer::Failed(engine_store::Failure::Gone),
+    }));
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::Gone));
     assert_eq!(world.reads.as_ref().expect("party").receipts.len(), 1);
 }

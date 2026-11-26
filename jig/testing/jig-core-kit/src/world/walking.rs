@@ -82,6 +82,7 @@ impl Walking {
                 }
             }
 
+            root::Delivery::Store(load) => world.store.ask(jig_test_store::StoreOut::Engine(load)),
             root::Delivery::Core(core::Held::Load(load)) => world.store.ask(jig_test_store::StoreOut::Now(*load)),
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 world.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });

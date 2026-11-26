@@ -2,6 +2,7 @@
 use super::{Failure, Spent, empty, joins, paged};
 use crate::{Cursor, Store, intervals, pages};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, documents, reads};
 use jig_domain_tasks as tasks;
 use skein_kv::Range;
@@ -333,7 +334,7 @@ fn family(
     range: &reads::Range,
     selected: &[Range],
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let after = paged::cursor(range, selected)?;
     let walked = pages::reader::walk(store, selected, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
     let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
@@ -350,19 +351,25 @@ fn family(
             }
             Err(Failure::Joins) if last.is_none() => return Err(Failure::Joins),
             Err(Failure::Joins | Failure::Cut) => {
-                return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                return Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+                    rows: found.into_boxed(),
+                    next: last,
+                }));
             }
             Err(Failure::Corrupt) => return Err(Failure::Corrupt),
         }
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+        rows: found.into_boxed(),
+        next: if walked.next.is_some() { last } else { None },
+    }))
 }
 
 pub(super) fn ended_delegates(
     store: &mut Store,
     range: &reads::Range,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let selected = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     family(store, range, &selected, spent)
 }
@@ -371,12 +378,16 @@ pub(super) fn ended_tasks(
     store: &mut Store,
     range: &reads::Range,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let selected = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     family(store, range, &selected, spent)
 }
 
-pub(super) fn inbox(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+pub(super) fn inbox(
+    store: &mut Store,
+    range: &reads::Range,
+    spent: &mut Spent,
+) -> Result<engine_store::Answer, Failure> {
     let Some(selected) = intervals::scope(range.party, &range.scope) else { return Ok(empty()) };
     family(store, range, &selected, spent)
 }
@@ -454,7 +465,7 @@ pub(super) fn subtree_history(
     store: &mut Store,
     range: &reads::Range,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let root = history_root(&range.scope).ok_or(Failure::Corrupt)?;
     let members = members(store, root)?;
     let first = resume(store, range, root, &members, spent)?;
@@ -468,7 +479,10 @@ pub(super) fn subtree_history(
             Ok(owner) => owner,
             Err(Failure::Joins) if last.is_none() => return Err(Failure::Joins),
             Err(Failure::Joins | Failure::Cut) => {
-                return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                return Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+                    rows: found.into_boxed(),
+                    next: last,
+                }));
             }
             Err(Failure::Corrupt) => return Err(Failure::Corrupt),
         };
@@ -481,7 +495,10 @@ pub(super) fn subtree_history(
                 len_u64(item.row.key.len()).checked_add(len_u64(item.row.value.len())).ok_or(Failure::Corrupt)?;
             encoded = encoded.checked_add(size).ok_or(Failure::Corrupt)?;
             if encoded > u64::from(store.limits.store.page.bytes) {
-                return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                return Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+                    rows: found.into_boxed(),
+                    next: last,
+                }));
             }
             let value = paged::decode(store, item.row)?;
             let position = reads::Position::Owner(value.key());
@@ -500,14 +517,17 @@ pub(super) fn subtree_history(
                 }
                 Err(Failure::Joins) if last.is_none() => return Err(Failure::Joins),
                 Err(Failure::Joins | Failure::Cut) => {
-                    return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                    return Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+                        rows: found.into_boxed(),
+                        next: last,
+                    }));
                 }
                 Err(Failure::Corrupt) => return Err(Failure::Corrupt),
             }
         }
         if walked.next.is_some() {
-            return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+            return Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: found.into_boxed(), next: last }));
         }
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: None })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: found.into_boxed(), next: None }))
 }

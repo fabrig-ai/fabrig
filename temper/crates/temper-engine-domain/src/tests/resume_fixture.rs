@@ -2,6 +2,7 @@
 //! with no templates. The empty startup retention pass is settled before runtime measurements;
 //! no worker or connector driver is added.
 use crate as engine;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -145,19 +146,27 @@ pub fn root() -> (engine::Domain, Env<engine::Limits>) {
 }
 
 fn settle_retention(root: &mut engine::Domain, env: &Env<engine::Limits>) {
+    use core::engine::{self as api, In, Out, Peer};
     use jig_domain_core as core;
     let env = crate::limits::environment_core(env);
-    let mut requests = core::fire(root.engine.core_mut(), &env, core::Timer::Retention);
+    let mut requests = skein_lib::Queue::uncapped();
+    api::fire(&mut root.engine, &env, core::Timer::Retention, &mut requests);
     for _ in 0..RESTORE_PASSES {
-        let Some(request) = requests.pop() else { break };
-        let core::Request::Held(held) = request else { panic!("an empty retention pass writes nothing") };
-        let core::Held::ReadLoad { load, range } = *held else { panic!("retention loads its due range") };
+        let Some(output) = requests.pop() else { break };
+        let Out::Held(Peer::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) })) = output
+        else {
+            panic!("retention loads its due range")
+        };
         let core::reads::Scope::Retention { .. } = range.scope else { panic!("the fixture has no retention owner") };
         assert!(requests.is_empty(), "one internal read at a time");
-        requests = core::step(
-            root.engine.core_mut(),
+        api::step(
+            &mut root.engine,
             &env,
-            core::Event::ReadLoaded { load, result: core::reads::Loaded::Page { rows: Box::new([]), next: None } },
+            In::Store(engine_store::In::Loaded {
+                load,
+                result: engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None }),
+            }),
+            &mut requests,
         );
         root.engine.core_mut().reclaim();
     }

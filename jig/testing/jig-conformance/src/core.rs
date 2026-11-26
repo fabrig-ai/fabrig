@@ -987,7 +987,7 @@ impl Observer {
             | core::Held::Load(_)
             | core::Held::ApplicationDelivery { .. }
             | core::Held::ApplicationWatchEnded { .. }
-            | core::Held::ReadLoad { .. }
+            | core::Held::Store(_)
             | core::Held::Read { .. }
             | core::Held::PublicRead { .. }
             | core::Held::PublicWait { .. }

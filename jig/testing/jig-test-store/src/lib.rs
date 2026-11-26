@@ -57,7 +57,7 @@ mod tests;
 pub enum StoreOut {
     Commit { number: u64, writes: Box<[jig_test_domain::Write]> },
     Start { phase: jig_domain_core::start::Phase, census: Option<jig_domain_core::Census> },
-    ReadLoad { load: skein_lib::Token, range: Box<jig_domain_core::reads::Range> },
+    Engine(jig_domain_core::engine::store::Out),
     NotesLoad { owner: skein_lib::Token, range: jig_domain_notes::Range },
     Now(jig_domain_core::Now),
 }

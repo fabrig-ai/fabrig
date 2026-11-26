@@ -1,4 +1,5 @@
 //! Inbox selection contexts preserve the source's membership and original rows.
+use crate::engine::store as engine_store;
 use crate::tests::*;
 use tasks::{Newest, Update, UpdateObject};
 
@@ -254,7 +255,7 @@ fn stored_page(
 ) -> crate::reads::Answer {
     core.reclaim();
     let filter = crate::reads::Filter { project: Some(1), goal };
-    let Held::ReadLoad { load, .. } = read_start(
+    let Held::Store(engine_store::Out::Load { load, .. }) = read_start(
         core,
         limits,
         10,
@@ -269,7 +270,8 @@ fn stored_page(
     ) else {
         panic!("original scoped Inbox load")
     };
-    loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows, next: None }).unwrap()
+    loaded_answer(core, limits, load, engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }))
+        .unwrap()
 }
 
 fn ended_row(core: &Core, number: u64, ancestors: &[u64]) -> crate::reads::Row {
@@ -713,15 +715,18 @@ fn reading_the_last_turn_preserves_kept_result_and_history() {
     };
     assert!(page.rows.is_empty());
     core.reclaim();
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, CHAT_SIGN_IN, crate::reads::Read::Task { task: CHAT })
     else {
         panic!("kept task load")
     };
     let row = stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(chat_owner(&records).clone()))), None);
-    let Some(crate::reads::Answer::Ended(history)) =
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None })
-    else {
+    let Some(crate::reads::Answer::Ended(history)) = loaded_answer(
+        &mut core,
+        &limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+    ) else {
         panic!("kept task history")
     };
     let crate::reads::EndedValue::Task { document, result } = &history.value else { panic!("whole kept task") };
@@ -732,7 +737,7 @@ fn reading_the_last_turn_preserves_kept_result_and_history() {
     let Ending::Done(ResultValue::Report(report)) = &result.ending else { panic!("kept final report") };
     assert_eq!(report.bytes.as_ref(), b"final report");
     core.reclaim();
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, CHAT_SIGN_IN, crate::reads::Read::Activity { task: CHAT, before: None })
     else {
         panic!("kept activity load")
@@ -743,9 +748,12 @@ fn reading_the_last_turn_preserves_kept_result_and_history() {
             rows.push(stored_row(record.clone(), Some(chat_owner(&records).clone()))).unwrap();
         }
     }
-    let Some(crate::reads::Answer::Page(page)) =
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: rows.into_boxed(), next: None })
-    else {
+    let Some(crate::reads::Answer::Page(page)) = loaded_answer(
+        &mut core,
+        &limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next: None }),
+    ) else {
         panic!("kept turn history")
     };
     assert_eq!(page.rows.len(), CHAT_REPLIES);

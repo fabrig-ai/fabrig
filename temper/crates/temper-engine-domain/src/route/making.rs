@@ -188,7 +188,7 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::Load(_)
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
+        | core::Held::Store(_)
         | core::Held::Read { .. }
         | core::Held::Applied { .. }
         | core::Held::CarriedUnused { .. }

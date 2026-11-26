@@ -58,6 +58,7 @@ use alloc::boxed::Box;
 pub use forge_route::adopt_repository_ask;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
+use jig_domain_core::engine::{In, Out, Peer};
 use jig_domain_core::{Delegate, ProcedureStep, StepEnd};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -324,7 +325,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             }
             domain.durable_commit = number;
             if domain.start_runtime() {
-                let _filled = crate::engine::step(&mut domain.engine, env, core::Event::Fill { bytes: fill });
+                let _filled = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Fill { bytes: fill }));
             } else {
                 domain.startup_fill = Some(fill);
             }
@@ -368,9 +369,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Store(crate::StoreInput::PartLoaded { waiter, result }) => {
             domain.work.push(Work::PartsLoaded { waiter, result });
         }
-        Event::Store(crate::StoreInput::ReadLoaded { load, result }) => {
-            domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
-        }
+        Event::Store(crate::StoreInput::Engine(answer)) => domain.work.push(Work::EngineStore(answer)),
         Event::Restart { pending } => {
             if domain.start_wall.is_some() {
                 return;
@@ -456,24 +455,43 @@ pub(crate) fn route_core_requests(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
-    requests: Queue<core::Request>,
+    mut requests: Queue<core::Request>,
 ) {
-    route_core_with_job(domain, env, decision, requests, None);
+    let mut outputs = Queue::with_capacity(requests.len());
+    for _ in 0..requests.len() {
+        outputs.push(Out::Core(requests.pop().expect("core output count")));
+    }
+    route_engine_requests(domain, env, decision, outputs);
 }
 
-fn route_core_with_job(
+pub(crate) fn route_engine_requests(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
-    requests: Queue<core::Request>,
+    outputs: Queue<Out>,
+) {
+    route_engine_with_job(domain, env, decision, outputs, None);
+}
+
+fn route_engine_with_job(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    mut outputs: Queue<Out>,
     job_answer: Option<forge_route::job_history::Answer>,
 ) {
     forge_route::limit_holds::reconcile(domain, env, decision);
-    standing::saved(domain, env, decision, &requests);
-    let note_projects = parts::note_projects(&requests);
-    let mut output = requests;
-    for _ in 0..output.len() {
-        match output.pop().expect("core output count") {
+    standing::saved(domain, env, decision, &outputs);
+    let note_projects = parts::note_projects(&outputs);
+    for _ in 0..outputs.len() {
+        let request = match outputs.pop().expect("engine output count") {
+            Out::Core(request) => request,
+            Out::Held(Peer::Store(load)) => {
+                emit(decision, &env.limits, Delivery::EngineStore(load));
+                continue;
+            }
+        };
+        match request {
             core::Request::Write(core::Write::Save(record)) => {
                 if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
                     domain.hold_bytes(skein_lib::len_u64(part.body.len()));
@@ -600,10 +618,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let period = if let core::Event::Period { project, .. } = &event { Some(*project) } else { None };
                 let job_answer = forge_route::job_history::answer(domain, &event);
                 let routed = forge_route::step_core(domain, env, event);
-                route_core_with_job(domain, env, decision, routed, job_answer);
+                route_engine_with_job(domain, env, decision, routed, job_answer);
                 if let Some(project) = period {
                     standing::move_roles(domain, project, None);
                 }
+            }
+            Work::EngineStore(answer) => {
+                let routed = forge_route::step_engine(domain, env, In::Store(answer));
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::RepairFindings { goal, writes } => {
                 assert!(domain.engine.core().tasks.task(goal).is_some(), "a preflighted repair goal was made");
@@ -613,19 +635,19 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Tasks(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Tasks(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::People(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::People(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::Fleet(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Fleet(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::Brief(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::ForgeLimitHold { row, words } => {
                 forge_route::limit_holds::apply_hold(domain, env, decision, row, words);
@@ -710,8 +732,8 @@ fn activate(
         forge_event(domain, env, decision, forge::Event::GoalReleased { task: context.task });
     }
     let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
-    let routed = crate::engine::step(&mut domain.engine, env, core::Event::Activate { context, ready, busy });
-    route_core_requests(domain, env, decision, routed);
+    let routed = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Activate { context, ready, busy }));
+    route_engine_requests(domain, env, decision, routed);
 }
 
 pub(crate) fn call_answer(domain: &Domain, key: CallKey) -> Option<CallAnswer> {
@@ -885,7 +907,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
             | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
-            | crate::StoreInput::ReadLoaded { .. }
+            | crate::StoreInput::Engine(_)
             | crate::StoreInput::PartLoaded { .. },
         )
         | Event::Account(_) => {}

@@ -61,7 +61,7 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::Load(..)
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
+        | core::Held::Store(_)
         | core::Held::Read { .. }
         | core::Held::PublicRead { .. }
         | core::Held::PublicWait { .. }

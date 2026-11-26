@@ -2,6 +2,7 @@
 use super::{
     Action, ReplyTo, Store, Token, Violation, World, chat, check, ended, finish, people, root, state, state_mut, tasks,
 };
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, documents, reads as transport};
 fn query() -> documents::TaskQuery {
     jig_test_profile::fixtures::own_tasks()
@@ -94,7 +95,9 @@ pub(super) fn action(world: &mut World, action: Action) -> Result<(), Violation>
 
 pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> {
     match output {
-        root::Output::Core(core::Held::ReadLoad { load, range }) => Some(page(store, *load, range)),
+        root::Output::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
+            Some(page(store, *load, range))
+        }
 
         root::Output::CoreLoad(core::Now::LoadEndedRead { request, task, party }) => {
             let through = store
@@ -227,8 +230,8 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
     let more = rows.len() > skein_lib::length::usize_of(range.rows);
     rows.truncate(skein_lib::length::usize_of(range.rows));
     let next = if more { rows.last().and_then(transport::row_key) } else { None };
-    root::Event::Core(core::Event::ReadLoaded {
+    root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
         load,
-        result: transport::Loaded::Page { rows: rows.into_boxed_slice(), next },
-    })
+        result: engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed_slice(), next }),
+    }))
 }

@@ -683,8 +683,8 @@ impl Application for Testing {
                 store.ask(StoreOut::NotesLoad { owner, range });
                 Vec::new()
             }
-            root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
-                store.ask(StoreOut::ReadLoad { load, range });
+            root::Delivery::Store(load) => {
+                store.ask(StoreOut::Engine(load));
                 Vec::new()
             }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {

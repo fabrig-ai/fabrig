@@ -5,6 +5,7 @@ mod grants;
 use crate::Store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::engine::{self, Admit};
 use jig_domain_fleet as fleet;
 use jig_domain_link::JobBound;
@@ -544,7 +545,7 @@ impl World {
                     if let Some(watches) = &mut self.watches {
                         watches.inbound(&event);
                     }
-                    let internal_read = if let root::Event::Core(core::Event::ReadLoaded { load, .. }) = &event {
+                    let internal_read = if let root::Event::Store(engine_store::In::Loaded { load, .. }) = &event {
                         self.internal_reads.remove(load)
                     } else {
                         false

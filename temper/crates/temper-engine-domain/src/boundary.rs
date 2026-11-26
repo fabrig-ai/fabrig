@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{Delegate, ProcedureStep, RunCharter};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
@@ -205,13 +206,10 @@ pub enum StoreInput {
     /// A joined milestone-delegates load owned by the root.
     PartLoaded {
         waiter: Token,
-        result: core::reads::Loaded,
+        result: engine_store::Answer,
     },
-    /// The one terminal of a core read load (jig's `client/domain/contract/reads.md`, 1).
-    ReadLoaded {
-        load: Token,
-        result: core::reads::Loaded,
-    },
+    /// An answer on the engine’s store port.
+    Engine(engine_store::In),
 }
 
 /// The three inputs of a worker channel, in the hub's vocabulary (jig's
@@ -850,11 +848,8 @@ pub enum StoreRequest {
         waiter: Token,
         range: Box<core::reads::Range>,
     },
-    /// One core read load after every preceding commit, answered by `ReadLoaded`.
-    Read {
-        load: Token,
-        range: Box<core::reads::Range>,
-    },
+    /// A held engine load after every preceding commit.
+    Engine(engine_store::Out),
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum WorkerRequest {
@@ -900,7 +895,7 @@ pub enum PartyRequest {
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
-    PartsLoaded { waiter: Token, result: core::reads::Loaded },
+    PartsLoaded { waiter: Token, result: engine_store::Answer },
     PartsFailed { waiter: Token },
     CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
     StartDone(jig_domain_core::start::Phase),
@@ -908,6 +903,7 @@ pub(crate) enum Work {
     Decoded { to: ReplyTo, body: Call },
     ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
+    EngineStore(engine_store::In),
     Tasks(tasks::Event),
     RepairFindings { goal: u64, writes: Box<[forge::FindingWrite]> },
     People(people::Event),
@@ -1108,7 +1104,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
         Delivery::PartLoad { waiter, range } => Request::Store(StoreRequest::PartRead { waiter, range }),
-        Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
+        Delivery::EngineStore(load) => Request::Store(StoreRequest::Engine(load)),
         Delivery::Restarting { wait } => Request::Restarting { wait },
         Delivery::LimitSettingsCommitted { revision, jig, temper } => {
             Request::LimitSettingsCommitted { revision, jig, temper }

@@ -1,4 +1,5 @@
 //! Temper's worlds over jig's real store and the service's store routing.
+use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_store_files::Files;
@@ -485,7 +486,7 @@ impl Store {
                     reply @ (engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
                     | engine::StoreInput::Switched
-                    | engine::StoreInput::ReadLoaded { .. }
+                    | engine::StoreInput::Engine(engine_store::In::Loaded { .. })
                     | engine::StoreInput::PartLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
@@ -515,12 +516,15 @@ impl Store {
     }
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
-    pub fn read(&mut self, range: Box<jig_domain_core::reads::Range>) -> jig_domain_core::reads::Loaded {
-        self.request(engine::StoreRequest::Read { load: Token::new(1), range });
+    pub fn read(&mut self, range: Box<jig_domain_core::reads::Range>) -> engine_store::Answer {
+        self.request(engine::StoreRequest::Engine(engine_store::Out::Load {
+            load: Token::new(1),
+            range: engine_store::Range::Read(range),
+        }));
         loop {
             if let Some(reply) = self.replies.pop() {
                 match reply {
-                    engine::StoreInput::ReadLoaded { result, .. } => return result,
+                    engine::StoreInput::Engine(engine_store::In::Loaded { result, .. }) => return result,
                     engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
                     // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,

@@ -199,6 +199,7 @@ impl Parties {
             | root::Event::Answer { .. }
             | root::Event::WriterRead { .. }
             | root::Event::Timer(_)
+            | root::Event::Store(_)
             | root::Event::Committed { .. }
             | root::Event::Failed { .. }
             | root::Event::Connector { .. }
@@ -379,6 +380,7 @@ impl Parties {
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }

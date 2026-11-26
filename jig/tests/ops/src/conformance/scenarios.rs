@@ -797,6 +797,7 @@ pub(super) fn delivered(peers: &mut Peers, store: &Store, output: &root::Output)
         | root::Output::Switch
         | root::Output::Load { .. }
         | root::Output::CoreLoad(_)
+        | root::Output::Store(_)
         | root::Output::Core(_)
         | root::Output::Now(_)
         | root::Output::Observability(_)

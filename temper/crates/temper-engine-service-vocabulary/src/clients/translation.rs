@@ -75,7 +75,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Application { .. }
@@ -228,7 +227,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
         | root::Delivery::PartLoad { .. }
-        | root::Delivery::ReadLoad { .. }
+        | root::Delivery::EngineStore(_)
         | root::Delivery::PublicWait { .. }
         | root::Delivery::Restarting { .. }
         | root::Delivery::LimitSettingsCommitted { .. }

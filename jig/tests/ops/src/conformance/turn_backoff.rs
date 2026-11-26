@@ -166,6 +166,7 @@ impl World {
                     | root::Output::IncidentAssociationRefused { .. }
                     | root::Output::Application { .. }
                     | root::Output::CoreLoad(_)
+                    | root::Output::Store(_)
                     | root::Output::Core(_)
                     | root::Output::Now(_)
                     | root::Output::Observability(_)

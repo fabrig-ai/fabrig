@@ -1,5 +1,6 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -390,9 +391,15 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.store.pending.push_back((number, writes));
                 }
-                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Read(range),
+                })) => {
                     let result = self.store.read(range);
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                        load,
+                        result,
+                    })));
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);

@@ -2,7 +2,9 @@
 use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::request_load;
-use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
+use crate::route::{
+    forge_route, host_route, policy_translate, route_core_requests, route_engine_requests, route_into, step_routed,
+};
 use crate::translate::{Config, RootConfig, environment_forge};
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
 use alloc::boxed::Box;
@@ -1154,7 +1156,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
                 | crate::StoreRequest::Catalogue { .. }
                 | crate::StoreRequest::Switch
                 | crate::StoreRequest::Load { .. }
-                | crate::StoreRequest::Read { .. }
+                | crate::StoreRequest::Engine(_)
                 | crate::StoreRequest::PartRead { .. },
             )
             | Request::ToChild(_)
@@ -1367,7 +1369,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     if let Some(timer) = engine::due(&domain.engine, env.now, env.wall, Admit::All) {
         let routed = crate::engine::fire(&mut domain.engine, env, timer);
-        route_core_requests(domain, env, &mut decision, routed);
+        route_engine_requests(domain, env, &mut decision, routed);
     }
     if (domain.ready() || domain.settling.active()) && !domain.engine.core().stopping() {
         let mut forge_out = Queue::uncapped();
@@ -1393,8 +1395,9 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
             route_into(domain, env, &mut decision);
         }
         if !domain.engine.core().settling() {
-            let routed = crate::engine::step(&mut domain.engine, env, jig_domain_core::Event::EffectDeadline);
-            route_core_requests(domain, env, &mut decision, routed);
+            let routed =
+                crate::engine::step(&mut domain.engine, env, engine::In::Core(jig_domain_core::Event::EffectDeadline));
+            route_engine_requests(domain, env, &mut decision, routed);
             route_into(domain, env, &mut decision);
         }
     }
@@ -1513,7 +1516,7 @@ fn released_into(
         | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::PartLoad { .. }
-        | Delivery::ReadLoad { .. }
+        | Delivery::EngineStore(_)
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
         | Delivery::Restarting { .. }

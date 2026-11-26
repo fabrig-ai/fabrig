@@ -9,6 +9,7 @@ use crate::store::Store;
 use crate::walking_referee::{FINAL_SPEND, QUESTION, REPORT, TURNS, WalkingReferee};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Hosting, Phase};
@@ -937,9 +938,15 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
-                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Read(range),
+                })) => {
                     let result = self.store.read(range);
-                    self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
+                    self.queue(
+                        engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })),
+                        0,
+                    );
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
@@ -1116,7 +1123,7 @@ impl World {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::PartLoad { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }

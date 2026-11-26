@@ -1,5 +1,6 @@
 //! Independent acceptance checks for protocol/store/transcripts.md, 6, and protocol/store/opening-owners.md, 1, and protocol/store/README.md, 8.
 use crate::frame_reads;
+use jig_domain_core::engine::store as engine_store;
 
 use jig_protocol_store::{
     self as store, Event, KeptFamily, Owner, OwnerSet, OwnerSets, Request, TranscriptRead, Write,
@@ -546,7 +547,8 @@ fn kept_turn_nodes_are_not_limited_by_encoded_byte_count() {
 fn a_party_turn_uses_converted_bytes() {
     let mut world = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"replay", 0));
     let events = world.request(party_read(patches::limits().core.load_bytes));
-    let [Event::Read { owner, result: jig_domain_core::reads::Loaded::Page { rows, next: None } }] = events.as_slice()
+    let [Event::Read { owner, result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) }] =
+        events.as_slice()
     else {
         panic!("party turn: {events:?}");
     };
@@ -641,7 +643,7 @@ fn party_turn_too_large_names_the_converted_charge() {
         let mut world = fixture(frame_reads::SETS, &transcript);
         let events = world.request(party_read(bound));
         assert!(
-            matches!(events.as_slice(), [Event::Read { owner, result: jig_domain_core::reads::Loaded::TurnProblem { why: jig_domain_core::reads::TurnFailure::TooLarge { bytes }, .. } }] if *owner == READER && *bytes == charge),
+            matches!(events.as_slice(), [Event::Read { owner, result: engine_store::Answer::Failed(engine_store::Failure::TurnProblem { why: jig_domain_core::reads::TurnFailure::TooLarge { bytes }, .. }) }] if *owner == READER && *bytes == charge),
             "{events:?}"
         );
     }

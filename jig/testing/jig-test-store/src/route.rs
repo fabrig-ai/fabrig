@@ -3,6 +3,7 @@ use crate::{StoreOut, Up, keys, live, records};
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_notes as notes;
 use jig_protocol_store::{self as store, Event, Request, Restore, Row};
 use jig_test_domain as root;
@@ -105,7 +106,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             }
             restart(routes, owner, None)?
         }
-        StoreOut::ReadLoad { load, range } => {
+        StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             let owner = routes.keep(Flight::Read(load));
             Request::Read { owner, range: *range }
         }
@@ -232,7 +233,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         }
         Event::Read { owner, result } => {
             if let Some(Flight::Read(load)) = routes.pending.remove(&owner) {
-                into.push(Up::Root(root::Event::Core(core::Event::ReadLoaded { load, result })));
+                into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
             }
         }
         Event::Loaded { owner, rows, next } => loaded(routes, owner, rows, next, into),

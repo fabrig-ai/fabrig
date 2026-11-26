@@ -2,6 +2,7 @@
 //! Parties know the last submitted commit and the real store's durable number.
 //! They never inspect the core or the journal. Their receipts survive a crash.
 use crate::{Store, world::World};
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, reads};
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
@@ -69,7 +70,7 @@ impl Parties {
                 assert!(self.awaiting.insert(reply, Fence(self.made)).is_none());
                 self.admissions.push_back(reply);
             }
-            root::Event::Core(core::Event::ReadLoaded { load, .. }) => {
+            root::Event::Store(engine_store::In::Loaded { load, .. }) => {
                 let reply = self.flights.remove(&load.raw()).expect("one terminal for the observed load");
                 self.awaiting.get_mut(&reply).expect("admitted read").0 = self.made;
                 if self.person.contains(&reply) {
@@ -161,7 +162,12 @@ impl Parties {
     pub fn complete(&mut self) -> Vec<jig_test_store::StoreOut> {
         std::mem::take(&mut self.loads)
             .into_iter()
-            .map(|(load, range)| jig_test_store::StoreOut::ReadLoad { load, range: Box::new(range) })
+            .map(|(load, range)| {
+                jig_test_store::StoreOut::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Read(Box::new(range)),
+                })
+            })
             .collect()
     }
 

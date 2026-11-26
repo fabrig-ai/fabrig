@@ -1,6 +1,7 @@
 //! Complete fixture readers (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/transcripts.md, 3, and jig/docs/design/protocol/store/testing.md, 1).
 use super::{Store, protocol, root};
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store::core_v6::Record as _;
 use protocol::{Event, Get, Request, codec, keys};
 use skein_lib::{Queue, Reader, Token};
@@ -357,7 +358,9 @@ impl Store {
                     bytes: u64::from(self.checked.limits().store.page.bytes),
                 },
             })?;
-            let Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. } = event else {
+            let Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next, .. }), .. } =
+                event
+            else {
                 return Err(ReadbackFinding::Inventory {
                     key: None,
                     reason: format!("complete history read: {event:?}"),

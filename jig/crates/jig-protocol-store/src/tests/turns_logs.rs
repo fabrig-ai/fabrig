@@ -2,6 +2,7 @@
 use super::fixtures::{self, LIVE};
 use crate::{Event, Request, Store, TranscriptRead, Write, codec, keys, logs};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{CoreRecord, Record, TurnRecord, reads};
 use skein_lib::{List, Queue, Token};
 
@@ -259,7 +260,11 @@ fn activity_and_party_turn_answers_match_files_including_oversize_evidence() {
     let mut range = fixtures::read(fixtures::ALICE, reads::Scope::Turn { task: LIVE, attempt: 1, turn: 2 });
     range.bytes = 65_536;
     let events = ask(&mut log, None, Request::Read { owner: OWNER, range });
-    let [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] = events.as_ref() else { panic!("sized turn") };
+    let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }), .. }] =
+        events.as_ref()
+    else {
+        panic!("sized turn")
+    };
     let tight = rows.first().unwrap().owned_bytes().unwrap().checked_sub(1).unwrap();
     for backwards in [false, true] {
         for bytes in [65_536, tight, 1] {
@@ -276,7 +281,9 @@ fn activity_and_party_turn_answers_match_files_including_oversize_evidence() {
                     panic!("party read answers")
                 };
                 if bytes == 65_536 {
-                    let reads::Loaded::Page { rows, .. } = expected else { panic!("complete page: {expected:?}") };
+                    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }) = expected else {
+                        panic!("complete page: {expected:?}")
+                    };
                     assert!(!rows.is_empty(), "complete turns page");
                     for row in rows {
                         let record = row.related.as_ref().unwrap_or(&row.value);

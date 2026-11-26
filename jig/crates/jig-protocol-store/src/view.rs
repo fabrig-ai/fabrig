@@ -3,6 +3,7 @@ mod fetch;
 mod rows;
 use crate::{Below, Cursor, Event, Get, Limits, Load, Phase, Restore, Store, Write};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::reads;
 pub(crate) use rows::{get, overlay, raw_get};
 use skein_kv::Range;
@@ -128,7 +129,7 @@ pub(crate) fn ask(store: &mut Store, ask: Ask, above: &mut Queue<Event>) {
     match ask {
         ask @ Ask::Get { .. } if crate::checkpoints::taking::busy(store) => store.view.gets.push(ask),
         Ask::Read { owner, .. } if count(store) >= store.limits.reads => {
-            above.push(Event::Read { owner, result: reads::Loaded::Busy });
+            above.push(Event::Read { owner, result: engine_store::Answer::Failed(engine_store::Failure::Busy) });
         }
         Ask::Read { .. } | Ask::Get { .. } | Ask::Load { .. } | Ask::Restore { .. } => {
             store.view.queue.push(Work::Read(ask));

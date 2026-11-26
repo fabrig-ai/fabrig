@@ -1,5 +1,6 @@
 //! Store requests and terminals (protocol/store/README.md, section 3 and protocol/store/loads.md and protocol/store/transcripts.md and protocol/store/secrets.md and protocol/store/opening.md).
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, RestoreRange, reads};
 use jig_domain_notes as notes;
 use skein_io::file;
@@ -796,7 +797,7 @@ pub enum Event {
     /// A read's page, busy, or gone.
     Read {
         owner: Token,
-        result: reads::Loaded,
+        result: engine_store::Answer,
     },
     Got {
         owner: Token,

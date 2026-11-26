@@ -5,6 +5,7 @@ use super::{UnreadableRow, ranges};
 use ::core::mem::size_of;
 use alloc::boxed::Box;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store as store;
 use skein_lib::{List, Map, Queue, Token};
 use temper_engine_domain as engine;
@@ -215,7 +216,7 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             routes.reads.insert(owner, (waiter, true)).ok()?;
             store::Request::Read { owner, range: *range }
         }
-        engine::StoreRequest::Read { load, range } => {
+        engine::StoreRequest::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             let owner = routes.token()?;
             routes.reads.insert(owner, (load, false)).ok()?;
             store::Request::Read { owner, range: *range }
@@ -316,7 +317,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 if parts {
                     root(into, engine::StoreInput::PartLoaded { waiter: load, result });
                 } else {
-                    root(into, engine::StoreInput::ReadLoaded { load, result });
+                    root(into, engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
                 }
             }
         }

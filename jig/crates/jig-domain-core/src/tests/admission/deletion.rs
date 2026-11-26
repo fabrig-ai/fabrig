@@ -1,4 +1,5 @@
 //! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people/acts.md, 2).
+use crate::engine::store as engine_store;
 use crate::tests::*;
 
 fn core() -> (Core, Limits) {
@@ -818,7 +819,7 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
         let mut loads = 0_u32;
         for request in collect(requests) {
             if let Request::Held(held) = request
-                && let Held::ReadLoad { range, .. } = *held
+                && let Held::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) = *held
                 && range.scope == crate::reads::Scope::TaskSummaries
             {
                 loads += 1;

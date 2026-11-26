@@ -429,7 +429,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         | root::Delivery::ReadEscalationDecision { .. }
         | root::Delivery::Fleet(_)
         | root::Delivery::PartLoad { .. }
-        | root::Delivery::ReadLoad { .. }
+        | root::Delivery::EngineStore(_)
         | root::Delivery::PublicWait { .. }
         | root::Delivery::NotesLoad { .. }
         | root::Delivery::Start(_)

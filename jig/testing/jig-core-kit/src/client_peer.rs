@@ -103,7 +103,7 @@ impl ClientPeer {
                 | core::Held::ApplicationDelivery { .. }
                 | core::Held::ApplicationWatchEnded { .. }
                 | core::Held::Applied { .. }
-                | core::Held::ReadLoad { .. }
+                | core::Held::Store(_)
                 | core::Held::PublicRead { .. }
                 | core::Held::PublicWait { .. }
                 | core::Held::MakeEffect { .. }
@@ -152,6 +152,7 @@ impl ClientPeer {
             | root::Delivery::Fleet(_)
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => false,
         }

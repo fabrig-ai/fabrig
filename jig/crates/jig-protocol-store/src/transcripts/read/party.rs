@@ -1,5 +1,6 @@
 //! Single-turn admission reads fixed metadata before allocating opaque payloads.
 use super::{Below, Event, Party, Queue, Read, Store, Token, TranscriptRead, TurnRecord, domain, fire, prepare, reads};
+use jig_domain_core_vocabulary::engine::store as engine_store;
 pub(crate) fn start(
     store: &mut Store,
     owner: Token,
@@ -7,13 +8,13 @@ pub(crate) fn start(
     party: Party,
     above: &mut Queue<Event>,
     below: &mut Below,
-) -> Result<Option<jig_domain_core_vocabulary::reads::Loaded>, reads::Failure> {
+) -> Result<Option<engine_store::Answer>, reads::Failure> {
     if crate::view::missing(store) {
         return Ok(Some(reads::empty()));
     }
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
     if store.transcripts.reads.len() == store.limits.reads {
-        return Ok(Some(jig_domain_core_vocabulary::reads::Loaded::Busy));
+        return Ok(Some(engine_store::Answer::Failed(engine_store::Failure::Busy)));
     }
     let task = match request {
         TranscriptRead::Window { task, .. } | TranscriptRead::Turn { task, .. } | TranscriptRead::Page { task, .. } => {
@@ -50,7 +51,7 @@ pub(super) fn header(store: &mut Store, read: &mut Read, turn: &TurnRecord, size
         }
         Err(reads::Failure::Corrupt) => return Err(()),
     };
-    let domain::reads::Loaded::Page { rows, .. } = result else { return Err(()) };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }) = result else { return Err(()) };
     let Some(row) = rows.first() else { return Err(()) };
     let cost = row.owned_bytes().ok_or(())?.checked_add(u64::from(size)).ok_or(())?;
     if cost > party.bytes {
@@ -61,7 +62,7 @@ pub(super) fn header(store: &mut Store, read: &mut Read, turn: &TurnRecord, size
     Ok(false)
 }
 
-pub(super) fn finish(store: &mut Store, mut read: Read, failed: bool) -> Result<domain::reads::Loaded, reads::Failure> {
+pub(super) fn finish(store: &mut Store, mut read: Read, failed: bool) -> Result<engine_store::Answer, reads::Failure> {
     let mut party = read.party.take().expect("party read");
     if failed && party.turn.is_some() {
         party.problem = Some(domain::reads::TurnFailure::Malformed);

@@ -205,11 +205,8 @@ pub enum Delivery {
         reply: ReplyTo,
         answer: crate::ForgeReadAnswer,
     },
-    /// A core read's store load, after every preceding commit.
-    ReadLoad {
-        load: Token,
-        range: Box<jig_domain_core::reads::Range>,
-    },
+    /// A held engine load, released after preceding commits.
+    EngineStore(jig_domain_core::engine::store::Out),
     /// A watched subject's whole current document.
     Document {
         watcher: Token,
@@ -626,7 +623,7 @@ impl Decision {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::PartLoad { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }

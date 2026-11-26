@@ -194,7 +194,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
+        | core::Held::Store(_)
         | core::Held::PublicRead { .. }
         | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }

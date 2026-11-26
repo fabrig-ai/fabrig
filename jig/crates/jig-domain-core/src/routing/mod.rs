@@ -349,13 +349,30 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
             _ => {}
         }
     }
+    decide(core, env, Work::Event(event))
+}
+
+/// Store completions take the same decision entrance, including during stopping.
+pub(crate) fn step_store(core: &mut Core, env: &Env<Limits>, input: crate::engine::store::In) -> Queue<Request> {
+    let crate::engine::store::In::Loaded { load, .. } = &input;
+    if !crate::loads::awaited(core, *load) {
+        return Queue::uncapped();
+    }
+    core.start_input();
+    if core.start_failure().is_some() {
+        return Queue::uncapped();
+    }
+    decide(core, env, Work::Store(input))
+}
+
+fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
     // The input takes the first route; only its continuations need queuing.
     let remaining = env.limits.routes.checked_sub(1).expect("sibling_routes_drained");
     let mut work = Queue::uncapped();
-    let mut out = step_one(core, env, event, &mut work);
+    let mut out = step_work(core, env, first, &mut work);
     out.raise(u32::MAX);
     for _ in 0..remaining {
         // A resumed preparation may be stale or need no notes operation.
@@ -476,6 +493,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
+        Work::Store(event) => crate::loads::loaded(core, env, work, event),
         Work::Resources(batch) => {
             let mut out = task::resume_resources(core, env, work, batch);
             crate::admission::deletion::advance(core, env, &mut out);
@@ -599,7 +617,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             out
         }
         Event::SignIn { until, reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held, until),
-        Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, work, load, result),
         Event::PublicRead { reply, read } => crate::public::reads::start(core, reply, read),
         Event::PublicAnswered { reply, answer } => crate::public::reads::answered(core, reply, answer),
         Event::PublicDurable { read } => crate::public::reads::durable(core, env, read),

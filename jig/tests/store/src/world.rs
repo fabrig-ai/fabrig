@@ -1,5 +1,6 @@
 //! Four file drivers over the simulated crashing machine (protocol/store/testing.md, 1).
 use crate::{model::Model, root};
+use jig_domain_core::engine::store as engine_store;
 mod checkpoint;
 mod restoring;
 use jig_domain_core as core;
@@ -481,7 +482,11 @@ impl World {
                         bytes: u64::from(self.env.limits.store.page.bytes),
                     },
                 });
-                let [Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. }] = events.as_slice()
+                let [
+                    Event::Read {
+                        result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next, .. }), ..
+                    },
+                ] = events.as_slice()
                 else {
                     panic!("history page: {events:?}")
                 };
@@ -1291,7 +1296,9 @@ impl World {
             bytes: u64::from(self.env.limits.store.page.bytes),
         };
         let events = self.request(Request::Read { owner: OWNER, range });
-        let [Event::Read { result: core::reads::Loaded::Page { rows, next: None }, .. }] = events.as_slice() else {
+        let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }), .. }] =
+            events.as_slice()
+        else {
             panic!("task read terminal: {events:?}")
         };
         rows.iter().map(|row| row.value.clone()).collect()

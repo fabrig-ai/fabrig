@@ -1,4 +1,5 @@
 //! Ops owner reads from its independent fake store.
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -207,23 +208,25 @@ fn point(store: &Store, scope: &reads::Scope) -> Option<reads::Row> {
     Some(joined_row(store, get(store, key)?, owner(store, number)?, related.and_then(|key| get(store, key)).cloned()))
 }
 
-fn single_page(store: &Store, range: &reads::Range) -> reads::Loaded {
-    let Some(row) = point(store, &range.scope) else { return reads::Loaded::Gone };
+fn single_page(store: &Store, range: &reads::Range) -> engine_store::Answer {
+    let Some(row) = point(store, &range.scope) else {
+        return engine_store::Answer::Failed(engine_store::Failure::Gone);
+    };
     let key = reads::row_key(&row).expect("single row has a key");
     if let Some(after) = &range.after
         && if range.backwards { key >= *after } else { key <= *after }
     {
-        return reads::Loaded::Page { rows: Box::new([]), next: None };
+        return engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None });
     }
     if range.rows == 0 || row.owned_bytes().expect("single row pricing") > range.bytes {
-        return reads::Loaded::Busy;
+        return engine_store::Answer::Failed(engine_store::Failure::Busy);
     }
-    reads::Loaded::Page { rows: Box::new([row]), next: None }
+    engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None })
 }
 
 /// The fake transport selects durable owner rows and echoes opaque continuations.
 #[must_use]
-pub fn page(store: &Store, range: &reads::Range, tree_tasks: u32) -> reads::Loaded {
+pub fn page(store: &Store, range: &reads::Range, tree_tasks: u32) -> engine_store::Answer {
     if matches!(
         range.scope,
         reads::Scope::Question { .. }
@@ -233,7 +236,9 @@ pub fn page(store: &Store, range: &reads::Range, tree_tasks: u32) -> reads::Load
         return single_page(store, range);
     }
     if let reads::Scope::History { task, subtree } = range.scope {
-        let Some(rows) = delegates::history(store, task, subtree, tree_tasks) else { return reads::Loaded::Busy };
+        let Some(rows) = delegates::history(store, task, subtree, tree_tasks) else {
+            return engine_store::Answer::Failed(engine_store::Failure::Busy);
+        };
         return bounded_page(range, rows);
     }
     let mut ordered = BTreeMap::new();
@@ -264,7 +269,7 @@ pub fn page(store: &Store, range: &reads::Range, tree_tasks: u32) -> reads::Load
     bounded_page(range, ordered.into_values().collect())
 }
 
-fn bounded_page(range: &reads::Range, rows: Vec<reads::Row>) -> reads::Loaded {
+fn bounded_page(range: &reads::Range, rows: Vec<reads::Row>) -> engine_store::Answer {
     let ordered: BTreeMap<_, _> = rows.into_iter().map(|row| (reads::row_key(&row).expect("row key"), row)).collect();
     let mut candidates: Vec<_> = ordered
         .into_iter()
@@ -290,7 +295,7 @@ fn bounded_page(range: &reads::Range, rows: Vec<reads::Row>) -> reads::Loaded {
         let size = row.owned_bytes().expect("owner row pricing");
         if rows.len() == range.rows as usize || size > range.bytes - bytes {
             if rows.is_empty() {
-                return reads::Loaded::Busy;
+                return engine_store::Answer::Failed(engine_store::Failure::Busy);
             }
             more = true;
             break;
@@ -299,7 +304,7 @@ fn bounded_page(range: &reads::Range, rows: Vec<reads::Row>) -> reads::Loaded {
         last = Some(key);
         rows.push(row);
     }
-    reads::Loaded::Page { rows: rows.into(), next: if more { last } else { None } }
+    engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into(), next: if more { last } else { None } })
 }
 
 fn index_bounds(range: &reads::Range) -> Option<(root::Key, root::Key)> {

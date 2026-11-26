@@ -3,6 +3,7 @@ use super::{File, Stage, frame};
 use crate::registry::{self, Frame};
 use crate::{Arrived, Below, Event, Phase, Store, TranscriptRead, keys, reads};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
 use skein_io::file;
@@ -121,7 +122,7 @@ impl Activity {
             self.index = self.index.checked_add(1).expect("bounded page index");
         }
     }
-    fn finish(self, cut: bool) -> domain::reads::Loaded {
+    fn finish(self, cut: bool) -> engine_store::Answer {
         let next = if cut && self.index > 0 {
             Some(domain::reads::Position::Owner(
                 self.rows
@@ -140,7 +141,7 @@ impl Activity {
             }
             rows.push(row).expect("accepted page prefix");
         }
-        domain::reads::Loaded::Page { rows: rows.into_boxed(), next }
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next })
     }
 }
 pub(crate) fn activity(
@@ -151,7 +152,7 @@ pub(crate) fn activity(
     range: &domain::reads::Range,
     above: &mut Queue<Event>,
     below: &mut Below,
-) -> Result<Option<domain::reads::Loaded>, reads::Failure> {
+) -> Result<Option<engine_store::Answer>, reads::Failure> {
     let mut page =
         Activity { rows, next, bytes: range.bytes, bound: range.bytes, backwards: range.backwards, index: 0 };
     let done = page.charge_words().or(Err(reads::Failure::Corrupt))?;
@@ -177,7 +178,7 @@ pub(crate) fn activity(
     }
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
     if store.transcripts.reads.len() == store.limits.reads {
-        return Ok(Some(domain::reads::Loaded::Busy));
+        return Ok(Some(engine_store::Answer::Failed(engine_store::Failure::Busy)));
     }
     let request = if range.backwards && range.after.is_none() {
         TranscriptRead::Page { task, backwards: true, after: None }

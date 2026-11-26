@@ -384,6 +384,7 @@ impl Engine {
                 | root::Delivery::Fleet(_)
                 | root::Delivery::System { .. }
                 | root::Delivery::LostRead { .. }
+                | root::Delivery::Store(_)
                 | root::Delivery::Start(_)
                 | root::Delivery::Procedure { .. } => {}
             }
@@ -443,7 +444,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::Read { .. }
         | core::Event::PublicRead { .. }
         | core::Event::PublicAnswered { .. }

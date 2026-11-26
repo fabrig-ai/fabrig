@@ -1,6 +1,7 @@
 //! Direct root fixture shared by focused routes and the ending sweep.
 
 use jig_conformance::store_check::StoreChecks;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -241,9 +242,16 @@ impl Driver {
             } else {
                 request
             };
-            let request = if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
+            let request = if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Read(range),
+            })) = request
+            {
                 let result = self.store.read(range);
-                self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+                self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                    load,
+                    result,
+                })));
                 continue;
             } else {
                 request

@@ -19,7 +19,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
+        | core::Held::Store(_)
         | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
@@ -132,6 +132,7 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Fleet(..)
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
+        | root::Delivery::Store(_)
         | root::Delivery::Start(_)
         | root::Delivery::Procedure { .. } => return None,
     };
@@ -150,7 +151,6 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::PublicRead { .. }
         | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
@@ -243,7 +243,6 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
