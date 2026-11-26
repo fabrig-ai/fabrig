@@ -91,7 +91,7 @@ fn change_reclamation_is_admitted_at_the_watermark() {
     limits.watermark = 1;
     let (mut domain, env) =
         super::resume_fixture::root_with_config_and_limits(super::resume_fixture::config(1), &limits);
-    crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
+    crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).unwrap();
     crate::try_step(&mut domain, &env, Event::Resume).unwrap();
     assert_eq!(crate::limits::backlog(&domain), u64::from(env.limits.watermark));
 

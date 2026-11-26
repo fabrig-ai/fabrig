@@ -104,7 +104,7 @@ fn short_commit(words: &mut skein_lib::List<u8>, commit: &[u8; 32]) {
 pub(super) fn retire_on_hold(domain: &mut Domain, task: u64) -> Option<jig_domain_core::StepCancel> {
     let child = failed_delegate(domain, task)?;
     domain.work.push(Work::Forge(forge::Event::RetireFailedClose { task, child }));
-    let row = domain.core.tasks.task(child)?;
+    let row = domain.engine.core().tasks.task(child)?;
     if let tasks::Phase::Held { why: tasks::Hold::Failures(_), .. } = row.phase {
         Some(jig_domain_core::StepCancel {
             task: child,
@@ -127,7 +127,7 @@ pub(super) fn cancel(domain: &mut Domain, task: u64, part: jig_domain_core::Step
 // A row saved with the old job still named retires it before the release decides.
 pub(super) fn retire_on_release(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64) {
     let Some(child) = failed_delegate(domain, task) else { return };
-    if domain.core.tasks.task(child).is_some() {
+    if domain.engine.core().tasks.task(child).is_some() {
         cancel(
             domain,
             task,
@@ -153,13 +153,13 @@ fn preparation_words(why: tasks::Hold, source: Option<&tasks::HoldSource>) -> Op
 }
 
 pub(super) fn failure_words(domain: &Domain, child: u64) -> Option<&[u8]> {
-    failed_words(&domain.core.tasks.task(child)?.phase)
+    failed_words(&domain.engine.core().tasks.task(child)?.phase)
 }
 
 // Exhausted job tries hold the producer when its escalation reaches the change
 // (temper/docs/design/domain/forge/change/repairs.md).
 pub(super) fn failure(domain: &Domain, child: u64, kind: &tasks::MessageKind) -> Option<tasks::Class> {
-    let task = domain.core.tasks.task(child)?;
+    let task = domain.engine.core().tasks.task(child)?;
     if *kind != (tasks::MessageKind::Escalation { task: child, revision: task.revisions.hold }) {
         return None;
     }

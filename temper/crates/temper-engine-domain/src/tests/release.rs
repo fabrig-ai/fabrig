@@ -28,7 +28,8 @@ fn release_answers_project_released_after_its_commit() {
         assert_eq!(owner, connector);
         assert_eq!(subjects.as_slice(), [Token::new(crate::ways::subject(1))]);
     }
-    accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true).unwrap();
+    accept_routed(&mut domain.journal, &mut domain.engine.core_mut().counters, &env.limits.journal, decision, true)
+        .unwrap();
     let Some(Output::Commit { number, writes }) = crate::decision::commit(&mut domain.journal, &env.limits.journal)
     else {
         panic!("release erasures commit");

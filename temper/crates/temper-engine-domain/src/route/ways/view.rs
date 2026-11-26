@@ -30,7 +30,7 @@ pub(crate) fn read(
     project: u32,
     line: Box<[u8]>,
 ) {
-    let party = domain.core.people.person(sign_in, env.now, env.wall).expect("authorized view reader");
+    let party = domain.engine.core().people.person(sign_in, env.now, env.wall).expect("authorized view reader");
     let view = match address::parse(&line) {
         Address::Way(name) => way(domain, project, party, &name),
         Address::Path { repository, branch, revision } => match old_revision(domain, revision) {
@@ -55,7 +55,7 @@ pub(crate) fn read(
                 return;
             }
             let requests = reads::settings::project_proposal(
-                &mut domain.core,
+                domain.engine.core_mut(),
                 &super::super::environment_core(env),
                 reply,
                 sign_in,
@@ -77,13 +77,13 @@ pub(crate) fn read(
 
 fn old_revision(domain: &Domain, revision: Option<u32>) -> Option<ways::View> {
     if let Some(revision) = revision
-        && revision != domain.core.current.newest()
+        && revision != domain.engine.core().current.newest()
     {
         return Some(not_drawn(&[
             b"revision ",
             Decimal::of(u64::from(revision)).as_bytes(),
             b" isn't drawn yet; views draw the newest settings, revision ",
-            Decimal::of(u64::from(domain.core.current.newest())).as_bytes(),
+            Decimal::of(u64::from(domain.engine.core().current.newest())).as_bytes(),
             b".",
         ]));
     }
@@ -188,7 +188,8 @@ fn proposal_view(domain: &Domain, env: &Env<Limits>, flight: &Flight, proposal: 
         };
         items.push(ways::Item { kind: key.kind, scope: key.scope, number: key.number, edit }).expect("proposal items");
     }
-    let party = domain.core.people.person(flight.sign_in, env.now, env.wall).expect("core rechecked proposal reader");
+    let party =
+        domain.engine.core().people.person(flight.sign_in, env.now, env.wall).expect("core rechecked proposal reader");
     let before = ways::derive(&super::inputs(domain, flight.project, party, &[], None, None));
     let after = ways::derive(&super::inputs(domain, flight.project, party, items.as_slice(), None, None));
     ways::View::Proposal { before, after }

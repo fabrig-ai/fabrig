@@ -20,8 +20,14 @@ fn a_held_pause_reaches_the_named_link_with_every_mode() {
             }
             let mut change = Decision::decide(&mut domain.journal, &env.limits.journal);
             crate::route::held::held(&mut domain, &env, &mut change, core::Held::PauseWorker { channel, mode });
-            decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, change, false)
-                .unwrap();
+            decision::accept_routed(
+                &mut domain.journal,
+                &mut domain.engine.core_mut().counters,
+                &env.limits.journal,
+                change,
+                false,
+            )
+            .unwrap();
             let mut out = Queue::uncapped();
             decision::resume(&mut domain.journal, &mut out);
             let Some(JournalOutput::Deliver(Delivery::Link {

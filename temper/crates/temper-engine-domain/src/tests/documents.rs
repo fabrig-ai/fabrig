@@ -187,7 +187,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
     let sections = take_plan(&mut domain);
     let mut gathering = Queue::uncapped();
     brief::gather_step(
-        &mut domain.core.brief,
+        &mut domain.engine.core_mut().brief,
         &env.with(crate::limits::brief_limits(&env.limits.brief)),
         brief::GatherEvent::Plan {
             brief: Token::new(8),
@@ -199,7 +199,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
     );
     assert_eq!(gathering.len(), 2);
     let requests = jig_domain_core::step(
-        &mut domain.core,
+        domain.engine.core_mut(),
         &crate::limits::environment_core(&env),
         jig_domain_core::Event::Brief(brief::GatherEvent::Abandon { brief: Token::new(8) }),
     );
@@ -219,7 +219,7 @@ fn releasing_a_restored_close_change_cancels_its_held_job() {
     use jig_domain_tasks as tasks;
     const FAILURE: &[u8] = b"could not prepare the close job";
     let (source, _, change_task) = super::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
-    let mut parent = source.core.tasks.task(change_task).unwrap().clone();
+    let mut parent = source.engine.core().tasks.task(change_task).unwrap().clone();
     let child_number = change_task + 1;
     parent.delegates = Box::new([child_number]);
     parent.phase = tasks::Phase::Active(tasks::Active::Due);
@@ -243,18 +243,18 @@ fn releasing_a_restored_close_change_cancels_its_held_job() {
         source: Some(Box::new(tasks::HoldSource::Preparation { words: FAILURE.into() })),
     };
     let (mut domain, env) = root();
-    domain.core.tasks = tasks::Domain::new(
+    domain.engine.core_mut().tasks = tasks::Domain::new(
         &env.limits.tasks,
         tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
         7,
-        source.core.tasks.newest(),
-        source.core.tasks.charters().into(),
+        source.engine.core().tasks.newest(),
+        source.engine.core().tasks.charters().into(),
         Box::new([0]),
     );
     let mut restored = Queue::uncapped();
     for row in [parent, child] {
         tasks::step(
-            &mut domain.core.tasks,
+            &mut domain.engine.core_mut().tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
             &mut restored,
@@ -262,7 +262,7 @@ fn releasing_a_restored_close_change_cancels_its_held_job() {
     }
     for request in &restored {
         if let tasks::Request::RestoreRefused { .. } = request {
-            panic!("fixture restored: {request:?}; {:?}", domain.core.tasks.restore_failure());
+            panic!("fixture restored: {request:?}; {:?}", domain.engine.core().tasks.restore_failure());
         }
     }
     let mut row = repair();
@@ -281,7 +281,7 @@ fn releasing_a_restored_close_change_cancels_its_held_job() {
         forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
         &mut Queue::uncapped(),
     );
-    let context = domain.core.tasks.run_context(change_task).expect("released procedure");
+    let context = domain.engine.core().tasks.run_context(change_task).expect("released procedure");
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     assert!(!crate::route::forge_route::delegate_record::start(&mut domain, &env, &mut decision, &context));
     let row = domain.forge.change(change_task).unwrap();

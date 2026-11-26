@@ -10,7 +10,7 @@ fn add(domain: &mut Domain, env: &Env<Limits>, number: u64, charter: u32, label:
     let source = source.clone();
     let mut out = Queue::uncapped();
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
             reads_project: false,
@@ -40,7 +40,7 @@ fn add(domain: &mut Domain, env: &Env<Limits>, number: u64, charter: u32, label:
         },
         &mut out,
     );
-    assert!(domain.core.tasks.task(number).is_some(), "{out:?}");
+    assert!(domain.engine.core().tasks.task(number).is_some(), "{out:?}");
 }
 fn setting(domain: &mut Domain, env: &Env<Limits>, kind: u32, value: forge::settings::Value) {
     domain.forge.keep_settings(
@@ -74,7 +74,7 @@ fn set_triager(domain: &mut Domain, env: &Env<Limits>, owner: AreaOwner) {
     setting(domain, env, 15, forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner }));
 }
 fn task_event(domain: &mut Domain, env: &Env<Limits>, event: tasks::Event) {
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+    tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "one scenario checks ownership, unchanged facts and no news in every state")]
@@ -88,8 +88,8 @@ fn blame_checks_ownership_without_news_and_repair_checks_settings_first_in_any_s
         forge::FindingState::Dropped,
     ] {
         let (mut domain, env, task) = triager();
-        domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-        domain.core.people.start_restore(env.wall);
+        domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+        domain.engine.core_mut().people.start_restore(env.wall);
         for record in [
             people::Stored::Person {
                 number: 1,
@@ -101,15 +101,15 @@ fn blame_checks_ownership_without_news_and_repair_checks_settings_first_in_any_s
             },
         ] {
             people::step(
-                &mut domain.core.people,
+                &mut domain.engine.core_mut().people,
                 &env.with(env.limits.people),
                 people::Event::Restore { record },
                 &mut Queue::uncapped(),
             );
         }
-        assert!(domain.core.people.start_link());
-        domain.core.people.start_sweep();
-        assert!(domain.core.people.start_complete(&env.with(env.limits.people)));
+        assert!(domain.engine.core_mut().people.start_link());
+        domain.engine.core_mut().people.start_sweep();
+        assert!(domain.engine.core_mut().people.start_complete(&env.with(env.limits.people)));
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         let filing = forge::VerdictFiling {
             project: 1,
@@ -165,7 +165,7 @@ fn blame_checks_ownership_without_news_and_repair_checks_settings_first_in_any_s
             ))
         );
         for by in [Filer::Task(task), Filer::Party(1)] {
-            assert_eq!(domain.core.people.role(1, 1), Some(people::Role::Owner));
+            assert_eq!(domain.engine.core().people.role(1, 1), Some(people::Role::Owner));
             let news = queued_news(&domain, task).len();
             assert_eq!(
                 triage_finding(
@@ -206,7 +206,7 @@ fn blame_checks_ownership_without_news_and_repair_checks_settings_first_in_any_s
 #[test]
 fn task_hand_news_and_charter_standing_use_the_same_decision() {
     let (source, source_env, source_task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
-    let template = source.core.tasks.task(source_task).unwrap().clone();
+    let template = source.engine.core().tasks.task(source_task).unwrap().clone();
     let mut limits = source_env.limits;
     limits.tasks.message_bytes = 128;
     limits.tasks.inbox_bytes = 512;
@@ -261,7 +261,9 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
         forge::HandFindingAnswer::Handed
     );
     let subscription = domain.forge.topic_subscriber(47, &forge::Topic::Findings { project: 1 }).unwrap();
-    assert!(domain.core.tasks.task(47).unwrap().subscriptions.iter().any(|row| row.number == subscription.number));
+    assert!(
+        domain.engine.core().tasks.task(47).unwrap().subscriptions.iter().any(|row| row.number == subscription.number)
+    );
     let news = queued_news(&domain, 47);
     let news = news.first().unwrap();
     assert_eq!(news.words.as_ref(), format!("Finding 1/1 is yours: Broken test\nqa, high, area tests\nHanded on by task {task}: your suite\nreproduction").as_bytes());
@@ -323,7 +325,7 @@ fn fill_subscriptions(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         );
     }
     assert_eq!(
-        domain.core.tasks.task(task).unwrap().subscriptions.len(),
+        domain.engine.core().tasks.task(task).unwrap().subscriptions.len(),
         skein_lib::usize_of(env.limits.tasks.subscriptions)
     );
 }
@@ -359,7 +361,7 @@ fn a_holder_with_one_subscription_slot_left_takes_the_filing_and_news() {
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
     assert_eq!(domain.forge.finding(1, 1).unwrap().state, forge::FindingState::New);
     let subscription = domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap();
-    let subscriptions = &domain.core.tasks.task(task).unwrap().subscriptions;
+    let subscriptions = &domain.engine.core().tasks.task(task).unwrap().subscriptions;
     assert_eq!(subscriptions.len(), 2);
     assert!(subscriptions.iter().any(|row| row.number == subscription.number));
     let news = queued_news(&domain, task);
@@ -379,12 +381,12 @@ fn a_forge_subscription_refusal_keeps_the_filing_and_retries_at_the_next() {
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 1 });
     assert_eq!(domain.forge.finding(1, 1).unwrap().state, forge::FindingState::New);
     assert!(domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).is_none());
-    assert!(domain.core.tasks.task(task).unwrap().subscriptions.is_empty());
+    assert!(domain.engine.core().tasks.task(task).unwrap().subscriptions.is_empty());
     assert_eq!(queued_news(&domain, task).len(), 0);
     env.limits.forge.subscriptions = room;
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 2 });
     let subscription = domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap();
-    assert_eq!(domain.core.tasks.task(task).unwrap().subscriptions.len(), 1);
+    assert_eq!(domain.engine.core().tasks.task(task).unwrap().subscriptions.len(), 1);
     assert!(subscribed(&domain, task, subscription.number));
     let news = queued_news(&domain, task);
     assert_eq!(news.len(), 1);
@@ -401,11 +403,11 @@ fn the_next_finding_restores_an_unsubscribed_holder_under_the_forge_number() {
         &env,
         tasks::Event::Unsubscribe { reply_to: ReplyTo::new(Token::new(88)), task, subscription: number },
     );
-    assert!(domain.core.tasks.task(task).unwrap().subscriptions.is_empty());
+    assert!(domain.engine.core().tasks.task(task).unwrap().subscriptions.is_empty());
     while domain.work.pop().is_some() {}
     assert_eq!(file_red(&mut domain, &env, &mut decision), forge::FileFindingAnswer::Filed { number: 2 });
     assert_eq!(domain.forge.topic_subscriber(task, &forge::Topic::Findings { project: 1 }).unwrap().number, number);
-    let subscriptions = &domain.core.tasks.task(task).unwrap().subscriptions;
+    let subscriptions = &domain.engine.core().tasks.task(task).unwrap().subscriptions;
     assert_eq!(subscriptions.len(), 1);
     assert_eq!(subscriptions[0].number, number);
     let news = queued_news(&domain, task);
@@ -418,7 +420,7 @@ fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news()
     let (mut domain, mut env, source) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
     env.limits.tasks.inbox_bytes = 512;
     env.limits.tasks.message_bytes = 128;
-    let template = domain.core.tasks.task(source).unwrap().clone();
+    let template = domain.engine.core().tasks.task(source).unwrap().clone();
     let goal = 40;
     add(&mut domain, &env, goal, 1, 2, &template);
     set_area(&mut domain, &env, AreaOwner::Task(source));
@@ -500,7 +502,7 @@ fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news()
 #[test]
 fn a_repair_deadline_sends_jigs_application_failure_and_a_closing_refusal_writes_nothing() {
     let (mut domain, env, task) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
-    let created = domain.core.tasks.task(task).unwrap().created_at;
+    let created = domain.engine.core().tasks.task(task).unwrap().created_at;
     let until = skein_lib::Wall::from_nanos(created.as_nanos().checked_add(7_200_000_000_000).unwrap());
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let mut out = Queue::uncapped();
@@ -515,7 +517,7 @@ fn a_repair_deadline_sends_jigs_application_failure_and_a_closing_refusal_writes
     let reason = operation.reason.clone();
     let mut out = Queue::uncapped();
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Fail { reply_to, by, operation },
         &mut out,
@@ -529,7 +531,7 @@ fn a_repair_deadline_sends_jigs_application_failure_and_a_closing_refusal_writes
     assert!(written > 0);
     let mut refused = Queue::uncapped();
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Fail { reply_to: ReplyTo::new(Token::new(902)), by, operation: tasks::Fail { task, reason } },
         &mut refused,
@@ -554,7 +556,7 @@ fn routing_to_a_goal_with_one_subscription_slot_left_writes_and_tells_it() {
     env.limits.tasks.subscriptions = 1;
     env.limits.tasks.inbox_bytes = 512;
     env.limits.tasks.inbox_messages = 4;
-    let template = domain.core.tasks.task(source).unwrap().clone();
+    let template = domain.engine.core().tasks.task(source).unwrap().clone();
     let goal = 40;
     add(&mut domain, &env, goal, 1, 2, &template);
     set_triager(&mut domain, &env, AreaOwner::Task(source));
@@ -575,7 +577,7 @@ fn routing_to_a_goal_with_one_subscription_slot_left_writes_and_tells_it() {
     assert_eq!(row.state, forge::FindingState::Routed);
     assert_eq!(row.goal, Some(goal));
     let number = domain.forge.topic_subscriber(goal, &forge::Topic::Findings { project: 1 }).unwrap().number;
-    assert_eq!(domain.core.tasks.task(goal).unwrap().subscriptions.len(), 2);
+    assert_eq!(domain.engine.core().tasks.task(goal).unwrap().subscriptions.len(), 2);
     assert!(subscribed(&domain, goal, number));
     let news = queued_news(&domain, goal);
     assert_eq!(news.len(), 1);

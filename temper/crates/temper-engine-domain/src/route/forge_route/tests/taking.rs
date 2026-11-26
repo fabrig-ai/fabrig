@@ -32,7 +32,7 @@ fn a_source_starts_taking_on_its_own_held_branch_at_either_commit_width() {
         assert_eq!(row.title.as_ref(), b"The title");
         assert_eq!(row.body.as_ref(), b"Make the fix");
         assert!(row.delegate.is_none());
-        let root = domain.core.tasks.root(task).unwrap();
+        let root = domain.engine.core().tasks.root(task).unwrap();
         let mut expected = skein_lib::List::uncapped();
         for bytes in [b"temper/".as_slice(), &route::decimal(root), b"/c", &route::decimal(task)] {
             route::append(&mut expected, bytes);

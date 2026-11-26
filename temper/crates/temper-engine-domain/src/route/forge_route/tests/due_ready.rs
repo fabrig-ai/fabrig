@@ -15,7 +15,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
     limits.tasks.holdings = limits.forge.landing_members;
     let (mut domain, env) = super::procedure_root_with_limits(limits);
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
-    let template = fixture.core.tasks.task(task).unwrap();
+    let template = fixture.engine.core().tasks.task(task).unwrap();
     let mut batch = List::with_capacity(8);
     for number in changes {
         batch
@@ -64,7 +64,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
     }
     let mut made = Queue::uncapped();
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
             reads_project: false,
@@ -77,7 +77,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
         &mut made,
     );
     for task in changes {
-        assert!(domain.core.tasks.task(*task).is_some(), "{made:?}");
+        assert!(domain.engine.core().tasks.task(*task).is_some(), "{made:?}");
         settle(&mut domain, &env, *task);
     }
     forge::step(
@@ -100,9 +100,9 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
 
 // As in train_root, end the completed readiness step without changing its ready row.
 pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
-    let (_, _, step) = domain.core.tasks.procedure_due(task).expect("step due before settling");
+    let (_, _, step) = domain.engine.core().tasks.procedure_due(task).expect("step due before settling");
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Procedure {
             reads_project: false,
@@ -114,19 +114,19 @@ pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         },
         &mut Queue::uncapped(),
     );
-    assert!(domain.core.tasks.procedure_due(task).is_none());
+    assert!(domain.engine.core().tasks.procedure_due(task).is_none());
     domain.forge.offered_change(task);
     domain.forge.wait_change(&crate::translate::environment_forge(env), task, None);
 }
 
 pub(super) fn wake(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::WakeProcedure { task },
         &mut Queue::uncapped(),
     );
-    assert!(domain.core.tasks.procedure_due(task).is_some());
+    assert!(domain.engine.core().tasks.procedure_due(task).is_some());
 }
 
 fn restore_change(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
@@ -141,7 +141,7 @@ fn restore_change(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow)
 fn judge_main(domain: &mut Domain, env: &Env<Limits>) {
     super::judge_trains(domain, env);
     let mut live = 0_u32;
-    for task in domain.core.tasks.view_tasks() {
+    for task in domain.engine.core().tasks.view_tasks() {
         if let Some(row) = domain.forge.landing(task.number)
             && row.landing.branch.as_ref() == b"main"
             && row.landing.phase != super::super::landing::Phase::Landed
@@ -172,7 +172,7 @@ fn a_full_batch_forms_in_queue_order_while_every_step_stays_due() {
         judge_main(&mut domain, &env);
         assert!(!domain.forge.train_free(super::adopted(1).provider, b"main"));
         for task in [10, 11, 13, 14] {
-            assert!(domain.core.tasks.procedure_due(task).is_some());
+            assert!(domain.engine.core().tasks.procedure_due(task).is_some());
             assert_eq!(domain.forge.landing_of(task), None);
         }
     }
@@ -187,7 +187,7 @@ fn a_full_batch_forms_in_queue_order_while_every_step_stays_due() {
     cancel_landing(&mut domain, first);
     judge_main(&mut domain, &env);
     for task in [10, 11, 13, 14] {
-        assert!(domain.core.tasks.procedure_due(task).is_some(), "the end wakes every waiter");
+        assert!(domain.engine.core().tasks.procedure_due(task).is_some(), "the end wakes every waiter");
     }
     let next = domain.forge.landing_of(10).expect("the next four join at once");
     assert_ne!(first, next);
@@ -232,7 +232,7 @@ fn two_landings_form_within_one_minute_without_turning_main() {
     // The real Ready decision ends a step that joined at the same head while due.
     ready_answer(&mut domain, 8);
     judge_main(&mut domain, &env);
-    assert!(domain.core.tasks.procedure_due(8).is_none());
+    assert!(domain.engine.core().tasks.procedure_due(8).is_none());
     assert_eq!(domain.forge.landing_of(8), Some(first));
     assert!(!domain.forge.train_free(repository, b"main"));
     assert_eq!(members(&domain, first).as_ref(), [7, 8, 9]);
@@ -336,7 +336,7 @@ fn a_freed_train_forms_at_once_with_due_and_quiet_waiters() {
     assert_ne!(next, first);
     assert_eq!(members(&domain, next).as_ref(), [10, 11]);
     for task in [10, 11] {
-        assert!(domain.core.tasks.procedure_due(task).is_some(), "landing end wakes every waiter");
+        assert!(domain.engine.core().tasks.procedure_due(task).is_some(), "landing end wakes every waiter");
     }
 }
 
@@ -368,7 +368,7 @@ fn queue_windows_and_landing_end_wakes_keep_forming_until_every_waiter_joins() {
         let formed = domain.forge.landing_of(batch[0]).expect("three due waiters form together");
         assert_eq!(members(&domain, formed).as_ref(), batch);
         for member in batch {
-            assert!(domain.core.tasks.procedure_due(member).is_some());
+            assert!(domain.engine.core().tasks.procedure_due(member).is_some());
             joined.push(member).unwrap();
         }
         // Finish waiting reads while the landing holds its train.
@@ -385,7 +385,10 @@ fn queue_windows_and_landing_end_wakes_keep_forming_until_every_waiter_joins() {
             if waiting <= batch[2] {
                 continue;
             }
-            assert!(domain.core.tasks.procedure_due(waiting).is_some(), "the queue window re-steps each waiter");
+            assert!(
+                domain.engine.core().tasks.procedure_due(waiting).is_some(),
+                "the queue window re-steps each waiter"
+            );
             settle(&mut domain, &env, waiting);
             super::judge_trains(&mut domain, &env);
             assert_eq!(domain.forge.landing_of(waiting), None, "the live landing holds the train");
@@ -395,7 +398,7 @@ fn queue_windows_and_landing_end_wakes_keep_forming_until_every_waiter_joins() {
             if waiting <= batch[2] {
                 continue;
             }
-            assert!(domain.core.tasks.procedure_due(waiting).is_some(), "the landing end wakes each waiter");
+            assert!(domain.engine.core().tasks.procedure_due(waiting).is_some(), "the landing end wakes each waiter");
             assert!(domain.forge.landing_of(waiting).is_some(), "the freed train forms at once");
         }
     }
@@ -417,8 +420,8 @@ fn wake_at_read_boundary(domain: &mut Domain, env: &Env<Limits>, mut out: Queue<
     let mut rest = Queue::uncapped();
     while let Some(request) = out.pop() {
         if let forge::Request::WakeProcedure { task } = request {
-            if let tasks::Phase::Active(_) = domain.core.tasks.task(task).unwrap().phase
-                && domain.core.tasks.procedure_due(task).is_none()
+            if let tasks::Phase::Active(_) = domain.engine.core().tasks.task(task).unwrap().phase
+                && domain.engine.core().tasks.procedure_due(task).is_none()
             {
                 wake(domain, env, task);
             }
@@ -432,7 +435,12 @@ fn wake_at_read_boundary(domain: &mut Domain, env: &Env<Limits>, mut out: Queue<
 
 fn end_at_read_boundary(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     for member in members(domain, task).iter().copied() {
-        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), stop_member(member), &mut Queue::uncapped());
+        tasks::step(
+            &mut domain.engine.core_mut().tasks,
+            &env.with(env.limits.tasks),
+            stop_member(member),
+            &mut Queue::uncapped(),
+        );
     }
     let mut out = Queue::uncapped();
     forge::step(
@@ -454,7 +462,7 @@ fn a_step_begun_before_readiness_does_not_hold_forming_once_ready() {
     row.settling = true;
     restore_change(&mut domain, &env, row.clone());
     wake(&mut domain, &env, 8);
-    let context = domain.core.tasks.run_context(8).unwrap();
+    let context = domain.engine.core().tasks.run_context(8).unwrap();
     assert!(super::super::start_change(&mut domain, &env, &context));
     super::judge_trains(&mut domain, &env);
     assert!(domain.forge.landing_of(7).is_none(), "change 8 is settling into the train");
@@ -467,7 +475,7 @@ fn a_step_begun_before_readiness_does_not_hold_forming_once_ready() {
     ready_answer(&mut domain, 8);
     super::judge_trains(&mut domain, &env);
     assert!(!domain.forge.change(8).unwrap().settling, "the first decision leaves the cohort");
-    assert!(domain.core.tasks.procedure_due(8).is_some(), "the readiness step has a coalesced wake");
+    assert!(domain.engine.core().tasks.procedure_due(8).is_some(), "the readiness step has a coalesced wake");
     let formed = domain.forge.landing_of(7).expect("the ready member no longer holds forming");
     assert_eq!(members(&domain, formed).as_ref(), [7, 8]);
     ready_answer(&mut domain, 8);
@@ -530,7 +538,7 @@ fn due_ready_and_gating_changes_do_not_hold_another_branchs_train() {
                 assert_ne!(own, formed);
                 assert_eq!(members(&domain, own).as_ref(), [due]);
             }
-            assert!(domain.core.tasks.procedure_due(due).is_some());
+            assert!(domain.engine.core().tasks.procedure_due(due).is_some());
         }
     }
 }

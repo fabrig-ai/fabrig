@@ -28,7 +28,7 @@ fn make_tier_run(
     let Some(adopted) = domain.forge.repository(repository) else { return false };
     let project = adopted.project;
     let Some(words) = domain.forge.tier_specification(repository, tier, number, tip) else { return false };
-    let Some(seed) = domain.core.procedure_seed(project) else { return false };
+    let Some(seed) = domain.engine.core_mut().procedure_seed(project) else { return false };
     let task = seed.number();
     domain.work.push(Work::Core(jig_domain_core::Event::ConnectorRepair {
         seed: Box::new(seed),
@@ -58,7 +58,7 @@ fn make_tier_run(
 
 pub(crate) fn start_tier_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
-    let released = match domain.core.tasks.task(task) {
+    let released = match domain.engine.core().tasks.task(task) {
         Some(row) => row.due_reason == tasks::Why::Released,
         None => false,
     };
@@ -66,7 +66,7 @@ pub(crate) fn start_tier_step(domain: &mut Domain, env: &Env<Limits>, context: &
         tier_decision(domain, env, task, forge::TierDecision::Wait { until: Some(env.wall) }, None);
         return;
     }
-    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
+    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return };
     domain.forge.offered_tier(task);
     domain.work.push(Work::Forge(forge::Event::StepTier {
         task,
@@ -82,7 +82,7 @@ pub(super) fn tier_decision(
     choice: forge::TierDecision,
     projection: Option<Box<[u8]>>,
 ) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != AFTER_LANDING_CODE {
         return;
     }
@@ -95,7 +95,7 @@ pub(super) fn tier_decision(
         forge::TierDecision::Held { words } => super::holds::decision(domain, env, task, words),
         forge::TierDecision::Done { words } => {
             let bound = if let tasks::Contract::Report { words } =
-                &domain.core.tasks.task(task).expect("due tier task").contract
+                &domain.engine.core().tasks.task(task).expect("due tier task").contract
             {
                 *words
             } else {
@@ -120,7 +120,7 @@ pub(super) fn describe_tier_effect(
 ) -> Option<EffectDescription> {
     let (provider, what, described) = domain.forge.describe_tier_effect(task, entry)?;
     let repository = domain.forge.repository(provider)?;
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     if repository.project != context.project {
         return None;
     }
@@ -153,7 +153,7 @@ pub(super) fn describe_tier_effect(
 }
 
 fn projected_words(domain: &Domain, task: u64, projection: &[u8]) -> Option<Box<[u8]>> {
-    let row = domain.core.tasks.task(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     let bound = u32::try_from(row.spec.words.len().checked_add(projection.len())?.checked_add(1)?).ok()?;
     let mut combined = List::with_capacity(bound);
     for byte in &row.spec.words {
@@ -200,7 +200,7 @@ fn has_run(words: &[u8], line: &[u8]) -> bool {
 fn projection_needed(domain: &Domain, task: u64) -> bool {
     let Some(projection) = domain.forge.tier_execution_words(task) else { return false };
     let Some(words) = projected_words(domain, task, &projection) else { return false };
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(row) => row.spec.words != words,
         None => false,
     }

@@ -28,7 +28,7 @@ pub(super) fn decision_as(
 ) -> ProcedureStep {
     let mut decision =
         ProcedureStep::new(StepEnd::HoldFrom { why, source: Box::new(source(domain, None, words.clone())) });
-    if let Some(row) = domain.core.tasks.task(task)
+    if let Some(row) = domain.engine.core().tasks.task(task)
         && let tasks::Party::Task(target) = row.requester
     {
         decision.messages = Box::new([jig_domain_core::StepMessage {
@@ -85,7 +85,7 @@ pub(super) fn effect_refusal(
 }
 
 pub(super) fn recovery(domain: &Domain, task: u64, words: &mut List<u8>) {
-    let revision = domain.core.tasks.task(task).expect("held procedure").revisions.hold.saturating_add(1);
+    let revision = domain.engine.core().tasks.task(task).expect("held procedure").revisions.hold.saturating_add(1);
     append_recovery(task, revision, words);
 }
 
@@ -96,7 +96,7 @@ pub(crate) fn refused_step(
     step: u64,
     findings_: &[authority::Finding],
 ) {
-    let Some((connector, code @ (2 | 3), current)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code @ (2 | 3), current)) = domain.engine.core().tasks.procedure_due(task) else { return };
     if current != step || connector != domain.config.forge_connector {
         return;
     }
@@ -245,7 +245,7 @@ fn resource_words(domain: &Domain, resource: &forge::Name, words: &mut List<u8>)
 }
 
 pub(crate) fn hold_as(domain: &mut Domain, task: u64, why: tasks::Hold, reason: &[u8]) {
-    if domain.core.tasks.task(task).is_none() {
+    if domain.engine.core().tasks.task(task).is_none() {
         return;
     }
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
@@ -278,7 +278,7 @@ pub(crate) fn start_refused(domain: &mut Domain, task: u64) {
             why: tasks::Hold::EffectFailed,
             source: Box::new(source(domain, Some(account.entry), account.words.clone())),
         }));
-    } else if let Some(context) = domain.core.tasks.run_context(task)
+    } else if let Some(context) = domain.engine.core().tasks.run_context(task)
         && let Some(words) = super::close::refusal(domain, &context)
     {
         hold(domain, task, words);
@@ -350,8 +350,10 @@ mod tests {
         let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
             panic!("the making failure holds its goal");
         };
-        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
-        let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+        tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        let tasks::Phase::Held { why, source: Some(source), .. } =
+            &domain.engine.core().tasks.task(task).unwrap().phase
+        else {
             panic!("the goal retains the making's failure");
         };
         assert_eq!(*why, tasks::Hold::EffectFailed);

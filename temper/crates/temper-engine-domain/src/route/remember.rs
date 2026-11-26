@@ -36,7 +36,7 @@ pub(crate) fn call(
     action: RememberAction,
 ) {
     let right = to.into_token();
-    let Some(context) = domain.core.tasks.delegation(key.task) else {
+    let Some(context) = domain.engine.core().tasks.delegation(key.task) else {
         refused(domain, right, RememberRefusal::Unread);
         return;
     };

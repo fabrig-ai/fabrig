@@ -71,7 +71,7 @@ pub(crate) use tools::relay_payload;
 /// Select by the producer's phase; jig admits the routed ask as a direct message.
 fn party_words_producer(domain: &Domain, task: u64) -> Option<u64> {
     let producer = forge_route::live_producer(domain, domain.forge.change(task)?.delegate)?;
-    let row = domain.core.tasks.task(producer)?;
+    let row = domain.engine.core().tasks.task(producer)?;
     match row.phase {
         tasks::Phase::Active(_) | tasks::Phase::Held { was: tasks::Was::Active(_), .. } => Some(producer),
         tasks::Phase::Waiting
@@ -175,8 +175,8 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::Core(core::Event::StartRecurring { project, authority, template }));
         }
         Event::Party(crate::PartyInput::Period { project, period, budget, next }) => match next {
-            None if project != 0 && period >= domain.core.period(project) => {
-                let times = match domain.core.tasks.funding(tasks::Funder::Period { project, period }) {
+            None if project != 0 && period >= domain.engine.core().period(project) => {
+                let times = match domain.engine.core().tasks.funding(tasks::Funder::Period { project, period }) {
                     Some(row) => row.period,
                     None => None,
                 };
@@ -324,7 +324,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             }
             domain.durable_commit = number;
             if domain.start_runtime() {
-                let _filled = core::step(&mut domain.core, &environment_core(env), core::Event::Fill { bytes: fill });
+                let _filled = crate::engine::step(&mut domain.engine, env, core::Event::Fill { bytes: fill });
             } else {
                 domain.startup_fill = Some(fill);
             }
@@ -354,7 +354,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Store(crate::StoreInput::MissingLink { owner, record, target }) => {
             if loads::startup_owner(&domain.loads, owner) {
-                domain.core.start_missing(record, target);
+                domain.engine.core_mut().start_missing(record, target);
             }
             return;
         }
@@ -380,7 +380,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.forge.restore_begin(env.wall);
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            let action = domain.core.start_begin(pending, env.wall);
+            let action = domain.engine.core_mut().start_begin(pending, env.wall);
             start_action(domain, env, &mut decision, action);
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
@@ -436,8 +436,8 @@ fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
 fn dependencies_met(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, record: &core::Record) {
     let core::Record::Tasks(tasks::Stored::Ended(ended)) = record else { return };
     let tasks::Phase::Ended(tasks::Ending::Done(_)) = ended.phase else { return };
-    for live in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.core.tasks.task(live.number) else { continue };
+    for live in domain.engine.core().tasks.view_tasks() {
+        let Some(row) = domain.engine.core().tasks.task(live.number) else { continue };
         if let tasks::Phase::Held { why: tasks::Hold::Dependency(_), .. } = row.phase {
             continue;
         }
@@ -548,7 +548,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         if domain.start_stop().is_some() {
             return;
         }
-        if domain.core.start_failure().is_some() {
+        if domain.engine.core().start_failure().is_some() {
             domain.stop_core();
             return;
         }
@@ -573,7 +573,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     return;
                 }
                 let mut output = Queue::uncapped();
-                let action = domain.core.start_done(&environment_core(env), phase, &mut output);
+                let action = domain.engine.core_mut().start_done(&environment_core(env), phase, &mut output);
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
@@ -606,7 +606,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 }
             }
             Work::RepairFindings { goal, writes } => {
-                assert!(domain.core.tasks.task(goal).is_some(), "a preflighted repair goal was made");
+                assert!(domain.engine.core().tasks.task(goal).is_some(), "a preflighted repair goal was made");
                 for write in writes {
                     findings::commit(domain, env, decision, write, false).expect("prepared repair finding");
                 }
@@ -636,7 +636,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 let mut output = Queue::uncapped();
-                let links = domain.forge.start_links(&domain.core.tasks, &environment_forge(env), &mut output);
+                let links = domain.forge.start_links(&domain.engine.core().tasks, &environment_forge(env), &mut output);
                 forge_route::outputs(domain, env, decision, &mut output);
                 if let Err(failure) = links {
                     let stop = match failure {
@@ -652,7 +652,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     return;
                 }
                 kinds::restored_figures(domain, env, decision);
-                let party = domain.core.people.sole_owner();
+                let party = domain.engine.core().people.sole_owner();
                 forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(
                     domain,
@@ -702,20 +702,20 @@ fn activate(
     context: Box<tasks::RunContext>,
     ready: bool,
 ) {
-    let due = match domain.core.tasks.task(context.task) {
+    let due = match domain.engine.core().tasks.task(context.task) {
         Some(task) => task.phase == tasks::Phase::Active(tasks::Active::Due),
         None => false,
     };
-    if !domain.core.settling() && ready && due && domain.forge.design_workspace_waiting(context.task) {
+    if !domain.engine.core().settling() && ready && due && domain.forge.design_workspace_waiting(context.task) {
         forge_event(domain, env, decision, forge::Event::GoalReleased { task: context.task });
     }
     let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
-    let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Activate { context, ready, busy });
+    let routed = crate::engine::step(&mut domain.engine, env, core::Event::Activate { context, ready, busy });
     route_core_requests(domain, env, decision, routed);
 }
 
 pub(crate) fn call_answer(domain: &Domain, key: CallKey) -> Option<CallAnswer> {
-    match domain.core.replay_call(key) {
+    match domain.engine.core().replay_call(key) {
         Some(core::CallReplay::Core(part)) => Some(forge_route::effect_answer(domain, key, &part)),
         Some(core::CallReplay::Connector { .. }) => connector_answer(domain, key),
         None => None,
@@ -766,7 +766,7 @@ pub(crate) fn decide_call(
         | core::CallPart::HoldOwner { .. }
         | core::CallPart::Unavailable => false,
     };
-    if !domain.core.decide_named_call(key, part) {
+    if !domain.engine.core_mut().decide_named_call(key, part) {
         relay_call(domain, limits, decision, to, answer);
         return;
     }
@@ -778,7 +778,7 @@ pub(crate) fn decide_call(
         decision,
         limits,
         Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Call(
-            domain.core.call_record(key).expect("admitted core call"),
+            domain.engine.core().call_record(key).expect("admitted core call"),
         )))),
     );
     relay_call(domain, limits, decision, to, answer);
@@ -795,7 +795,7 @@ pub(crate) fn delegate_call(
     validated: bool,
     stubs: Box<[tasks::Stub]>,
 ) {
-    if let Some(context) = domain.core.tasks.delegation(key.task)
+    if let Some(context) = domain.engine.core().tasks.delegation(key.task)
         && let Err(body) = forge_route::follow_route::check_batch(
             domain,
             env,
@@ -808,12 +808,12 @@ pub(crate) fn delegate_call(
         host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body });
         return;
     }
-    if let Err(part) = domain.core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
+    if let Err(part) = domain.engine.core().delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
         domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part: *part }));
         return;
     }
     if !validated {
-        let (project, ids) = match domain.core.delegate_inputs(&env.limits.tasks, key, &batch) {
+        let (project, ids) = match domain.engine.core().delegate_inputs(&env.limits.tasks, key, &batch) {
             Ok(value) => value,
             Err(part) => {
                 domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part: *part }));
@@ -837,7 +837,7 @@ pub(crate) fn delegate_call(
             };
             let waiter =
                 domain.archive_reads.insert(Some(Read::InputCheck(read))).expect("preflighted input read slot").token();
-            assert!(domain.core.reserve_connector_call(key), "reserved call record room");
+            assert!(domain.engine.core_mut().reserve_connector_call(key), "reserved call record room");
             emit(
                 decision,
                 &env.limits,
@@ -893,7 +893,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
 }
 
 pub(crate) fn current_proof(domain: &Domain, task: u64, attempt: u64) -> bool {
-    domain.core.current_proof(task, attempt)
+    domain.engine.core().current_proof(task, attempt)
 }
 
 pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: &mut Decision, key: CallKey) {
@@ -914,17 +914,17 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
     if let forge::Event::CatchUp = &event {
         prepare_wait_catch_up(domain);
         for task in domain.forge.change_tasks() {
-            if let Some(row) = domain.core.tasks.task(task) {
+            if let Some(row) = domain.engine.core().tasks.task(task) {
                 domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);
             }
         }
     } else if let forge::Event::StepChange { task, .. } = &event
-        && let Some(row) = domain.core.tasks.task(*task)
+        && let Some(row) = domain.engine.core().tasks.task(*task)
     {
         domain.forge.refresh_spec_revision(*task, row.revisions.spec, &mut out);
     }
     if let forge::Event::PersonOf { .. } = &event {
-        let party = domain.core.people.sole_owner();
+        let party = domain.engine.core().people.sole_owner();
         forge::step(&mut domain.forge, &environment_forge(env), forge::Event::Owner { party }, &mut out);
     }
     forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
@@ -935,12 +935,12 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
 }
 
 fn prepare_wait_catch_up(domain: &mut Domain) {
-    let rows = domain.core.tasks.view_tasks();
+    let rows = domain.engine.core().tasks.view_tasks();
     let capacity = u32::try_from(rows.len()).expect("bounded live tasks");
     let mut live = List::with_capacity(capacity);
     let mut writers = skein_lib::Set::with_capacity(capacity);
     for row in &rows {
-        let Some(task) = domain.core.tasks.task(row.number) else { continue };
+        let Some(task) = domain.engine.core().tasks.task(row.number) else { continue };
         match task.phase {
             tasks::Phase::Waiting
             | tasks::Phase::Active(_)
@@ -995,7 +995,7 @@ pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> O
             let charter = match value {
                 Value::Charter(charter) => charter,
                 Value::Overlay(overlay) => {
-                    let Some(Value::Charter(default)) = domain.core.current.default_value(item.setting) else {
+                    let Some(Value::Charter(default)) = domain.engine.core().current.default_value(item.setting) else {
                         // Jig refuses an overlay without a default as reference.
                         continue;
                     };

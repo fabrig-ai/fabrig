@@ -30,8 +30,8 @@ fn fixture(full: bool) -> (Domain, Env<Limits>, CallKey) {
 fn fixture_with_proposal(full: bool, proposal: bool) -> (Domain, Env<Limits>, CallKey) {
     use jig_domain_tasks as tasks;
     let (source, _, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
-    let mut caller = source.core.tasks.task(task).unwrap().clone();
-    let funding = *source.core.tasks.funding(caller.funder).unwrap();
+    let mut caller = source.engine.core().tasks.task(task).unwrap().clone();
+    let funding = *source.engine.core().tasks.funding(caller.funder).unwrap();
     let mut change_task = caller.clone();
     change_task.number = CHANGE;
     change_task.root = CHANGE;
@@ -184,7 +184,7 @@ fn keep(
             entry: ENTRY,
             task: key.task,
             key: jig_domain_core::EffectKey {
-                deployment: domain.core.counters.deployment().id,
+                deployment: domain.engine.core().counters.deployment().id,
                 task: key.task,
                 origin: jig_domain_core::EffectPurpose::Call {
                     attempt: key.attempt,
@@ -275,7 +275,7 @@ fn assert_wait(out: &Queue<forge::Request>) {
 }
 
 fn assert_unheld(domain: &Domain, key: CallKey) {
-    if let jig_domain_tasks::Phase::Held { .. } = domain.core.tasks.task(key.task).unwrap().phase {
+    if let jig_domain_tasks::Phase::Held { .. } = domain.engine.core().tasks.task(key.task).unwrap().phase {
         panic!("a call's lack of room never holds its task");
     }
 }
@@ -283,7 +283,7 @@ fn assert_unheld(domain: &Domain, key: CallKey) {
 fn rendered(domain: &mut Domain, env: &Env<Limits>, decision: Decision) -> CallAnswer {
     crate::decision::accept_routed(
         &mut domain.journal,
-        &mut domain.core.counters,
+        &mut domain.engine.core_mut().counters,
         &env.limits.journal,
         decision,
         false,
@@ -407,7 +407,7 @@ fn a_proposal_description_waits_for_room_and_reserves_its_acceptance() {
                 row: forge::ProposedEffect { number: 71, resource: forge::What::Issue(1), entry: entry(0, key.task) },
             },
         );
-        let owner = domain.core.effect_owner();
+        let owner = domain.engine.core_mut().effect_owner();
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         ask(&mut domain, &env, &mut decision, Ask::DescribeProposal { owner, proposal: 71 });
         if full {
@@ -438,7 +438,7 @@ fn a_proposal_description_waits_for_room_and_reserves_its_acceptance() {
             assert!(domain.forge.effect_room(&env.limits.forge), "entry consumed, not leaked, its reservation");
         }
         assert!(domain.forge.proposed_effect(71).is_some());
-        assert!(domain.core.tasks.proposal(key.task, 71).is_some());
+        assert!(domain.engine.core().tasks.proposal(key.task, 71).is_some());
         assert!(domain.work.is_empty());
         assert_unheld(&domain, key);
     }

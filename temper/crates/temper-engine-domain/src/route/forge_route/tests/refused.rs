@@ -26,7 +26,7 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
     env.limits.tasks.tasks = 2; // The two ready changes fill the live room.
     super::judge_trains(&mut domain, &env);
     assert_eq!(reasons(&mut domain).as_ref(), &[Box::from(b"Live".as_slice())]);
-    let refusal = domain.core.counters.deployment.tasks;
+    let refusal = domain.engine.core().counters.deployment.tasks;
     let until = Wall::from_nanos(
         env.wall.as_nanos().checked_add(env.limits.forge.queue_window.as_nanos()).expect("fixture queue window"),
     );
@@ -49,7 +49,7 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
     assert_eq!(domain.forge.landing(beside).unwrap().landing.branch.as_ref(), b"goal");
     assert_eq!(domain.forge.landing_of(7), None);
     assert_eq!(
-        domain.core.counters.deployment.tasks,
+        domain.engine.core().counters.deployment.tasks,
         refusal.checked_add(1).expect("one landing beside the refused train")
     );
 
@@ -57,7 +57,7 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
     super::judge_trains(&mut domain, &env);
     assert_eq!(domain.forge.landing_of(7), None);
     assert_eq!(
-        domain.core.counters.deployment.tasks,
+        domain.engine.core().counters.deployment.tasks,
         refusal.checked_add(1).expect("one landing beside the refused train"),
         "not a nanosecond early"
     );
@@ -65,7 +65,7 @@ fn a_refused_train_waits_exactly_one_window_while_another_forms() {
     super::judge_trains(&mut domain, &env);
     let formed = domain.forge.landing_of(7).expect("first judgement at expiry forms");
     assert_ne!(formed, beside);
-    assert!(domain.core.tasks.task(formed).is_some());
+    assert!(domain.engine.core().tasks.task(formed).is_some());
     assert_eq!(landing_route::refusal_deadline(&domain), None);
     assert_eq!(stored_refusal(&domain), None);
 }
@@ -93,7 +93,7 @@ fn a_refused_train_logs_only_changed_reasons_until_it_forms() {
     advance_window(&mut env);
     super::judge_trains(&mut domain, &env);
     let made = domain.forge.landing_of(7).expect("a successful forming resets the reason");
-    assert!(domain.core.tasks.task(made).is_some());
+    assert!(domain.engine.core().tasks.task(made).is_some());
     // End the train without waking its member's procedure: it remains ready for this judgement.
     forge::step(
         &mut domain.forge,
@@ -141,13 +141,13 @@ fn a_refused_train_restarts_inside_its_stored_window() {
     let saved = saved.expect("the refused episode was saved on its repository");
 
     let (mut restarted, _) = super::train_root(false);
-    restarted.core.counters.deployment.tasks = number;
+    restarted.engine.core_mut().counters.deployment.tasks = number;
     env.limits.tasks.tasks = open;
     env.limits.forge.queue_window = skein_lib::Duration::from_nanos(1);
     env.wall = Wall::from_nanos(retry.as_nanos().checked_sub(1).expect("inside queue window"));
     restarted.work.push(super::super::Work::Forge(forge::Event::Restore { record: saved }));
     super::judge_trains(&mut restarted, &env);
-    assert_eq!(restarted.core.counters.deployment.tasks, number, "no make before stored retry");
+    assert_eq!(restarted.engine.core().counters.deployment.tasks, number, "no make before stored retry");
     assert_eq!(stored_refusal(&restarted), Some(&expected));
     assert!(reasons(&mut restarted).is_empty());
     assert_eq!(landing_route::refusal_deadline(&restarted), Some(retry));

@@ -9,8 +9,8 @@ pub(super) fn apply(
     row: &mut forge::CloserRow,
     decision: &mut ProcedureStep,
 ) -> (bool, bool) {
-    let record = domain.core.tasks.task(row.task).expect("live closer");
-    let offered = domain.core.tasks.procedure_offered(row.task).unwrap_or(0);
+    let record = domain.engine.core().tasks.task(row.task).expect("live closer");
+    let offered = domain.engine.core().tasks.procedure_offered(row.task).unwrap_or(0);
     let closer = match domain.forge.closer(row.task) {
         Some(previous) => &previous.closer,
         None => &row.closer,
@@ -77,7 +77,7 @@ pub(super) fn apply(
     (relayed.asked, relayed.more)
 }
 fn ended(domain: &Domain, task: u64) -> bool {
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(row) => match row.phase {
             tasks::Phase::Closing(_)
             | tasks::Phase::Held { was: tasks::Was::Closing(_), .. }

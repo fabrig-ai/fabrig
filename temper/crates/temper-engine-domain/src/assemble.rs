@@ -333,9 +333,9 @@ fn plan_home_access(
     parent: Option<u64>,
     wanted: &mut List<brief::Planned>,
 ) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return true };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return true };
     let Some(home) = domain.forge.home(row.project) else { return true };
-    let design = match domain.core.tasks.run_context(task) {
+    let design = match domain.engine.core().tasks.run_context(task) {
         Some(context) => match crate::route::forge_route::run_workspace(domain, env, &context, 0) {
             Some(workspace) => !workspace.designs.is_empty(),
             None => false,

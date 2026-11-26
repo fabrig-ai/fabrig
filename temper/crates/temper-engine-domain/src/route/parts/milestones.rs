@@ -6,7 +6,7 @@ use super::{
 
 pub(super) fn milestone(domain: &mut Domain, env: &Env<Limits>, party: u64, row: &TaskLine) -> Making {
     let task = row.chip.number;
-    let record = domain.core.tasks.task(task);
+    let record = domain.engine.core().tasks.task(task);
     if let Some(live) = record
         && (live.project != row.project || !tasks::gathering::executor(live.executor))
     {
@@ -21,7 +21,7 @@ pub(super) fn milestone(domain: &mut Domain, env: &Env<Limits>, party: u64, row:
     let kept = match kept {
         Some(kept) if (record.is_some() || kept.totals.is_some()) && (totals.is_none() || kept.count == count) => kept,
         Some(_) | None => {
-            let Some(live) = domain.core.tasks.task(task) else {
+            let Some(live) = domain.engine.core().tasks.task(task) else {
                 return Making::Load(
                     Phase::Milestone { project: row.project, task },
                     Range::Core(CoreRange::TaskResult { task }),
@@ -50,10 +50,11 @@ pub(super) fn milestone(domain: &mut Domain, env: &Env<Limits>, party: u64, row:
     let Some(mut totals) = totals.or(kept.totals) else { return unreadable() };
     totals.reds = domain.forge.reds_owed(row.project, task);
     let mut ordered = Map::uncapped();
-    if let Some(live) = domain.core.tasks.task(task) {
+    if let Some(live) = domain.engine.core().tasks.task(task) {
         for goal in &live.delegates {
-            let goal = domain.core.tasks.task(*goal).expect("live delegate");
-            let Ok(line) = d::task_line(&domain.core, &crate::limits::environment_core(env).limits, party, goal, None)
+            let goal = domain.engine.core().tasks.task(*goal).expect("live delegate");
+            let Ok(line) =
+                d::task_line(domain.engine.core(), &crate::limits::environment_core(env).limits, party, goal, None)
             else {
                 return unreadable();
             };
@@ -93,7 +94,7 @@ pub(super) fn milestone(domain: &mut Domain, env: &Env<Limits>, party: u64, row:
         };
         goals.push((line, headline)).expect("goal prefix");
     }
-    let whole = match domain.core.tasks.task(task) {
+    let whole = match domain.engine.core().tasks.task(task) {
         Some(live) => match live.concluded {
             Some(concluded) => Some(concluded.at),
             None => None,

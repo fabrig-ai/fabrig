@@ -14,7 +14,7 @@ pub struct RunRed {
 #[must_use]
 pub fn reds_for_run(domain: &Domain, task: u64, attempt: u64) -> Box<[RunRed]> {
     let mut rows = List::with_capacity(domain.limits.forge.branch_reds);
-    if !domain.core.current_proof(task, attempt) {
+    if !domain.engine.core().current_proof(task, attempt) {
         return rows.into_boxed();
     }
     if let Some(goal) = goal_for_run(domain, task) {
@@ -29,7 +29,7 @@ pub fn reds_for_run(domain: &Domain, task: u64, attempt: u64) -> Box<[RunRed]> {
 /// (temper/docs/design/domain/forge/change/questions.md, 1, A running producer catches up).
 pub(crate) fn landed_for_run(domain: &Domain, task: u64, attempt: u64, head: &[u8; 32]) -> bool {
     use temper_engine_domain_forge_change::{Early, State};
-    if !domain.core.current_proof(task, attempt) {
+    if !domain.engine.core().current_proof(task, attempt) {
         return false;
     }
     let Some(change) = change_for_run(domain, task) else { return false };
@@ -71,7 +71,7 @@ pub(crate) fn landed_for_run(domain: &Domain, task: u64, attempt: u64, head: &[u
 }
 
 fn goal_for_run(domain: &Domain, task: u64) -> Option<u64> {
-    domain.core.tasks.task(task)?;
+    domain.engine.core().tasks.task(task)?;
     if domain.forge.holds_goal_branch(task) {
         return Some(task);
     }
@@ -89,13 +89,13 @@ fn goal_for_change(domain: &Domain, change: &forge::ChangeRow) -> Option<u64> {
 }
 
 fn change_for_run(domain: &Domain, task: u64) -> Option<&forge::ChangeRow> {
-    let mut current = domain.core.tasks.task(task)?;
+    let mut current = domain.engine.core().tasks.task(task)?;
     for _ in 0..=current.depth {
         if let Some(change) = domain.forge.change(current.number) {
             return Some(change);
         }
         let tasks::Party::Task(parent) = current.requester else { break };
-        current = domain.core.tasks.task(parent)?;
+        current = domain.engine.core().tasks.task(parent)?;
     }
     None
 }
@@ -112,7 +112,7 @@ pub(crate) fn check_results(
     if !super::super::current_proof(domain, task, attempt) {
         return;
     }
-    let Some(run) = domain.core.tasks.task(task) else { return };
+    let Some(run) = domain.engine.core().tasks.task(task) else { return };
     match run.phase {
         tasks::Phase::Waiting
         | tasks::Phase::Active(_)

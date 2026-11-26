@@ -8,6 +8,7 @@ use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::Core;
+use jig_domain_core::engine::{self, Admit, Engine};
 use jig_domain_fleet as fleet;
 use jig_domain_link::Problem;
 use jig_domain_people as people;
@@ -63,7 +64,7 @@ pub struct Domain {
     /// Step/fire scratch, empty between calls.
     scratch: Queue<Request>,
     pub(crate) config: RootConfig,
-    pub(crate) core: Core,
+    pub(crate) engine: Engine,
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
     pub(crate) trial_waits: Map<u64, Option<jig_domain_core::documents::TaskRunWait>>,
@@ -197,19 +198,19 @@ impl Domain {
     /// The phase the start is in, none before the start and once decisions open.
     #[must_use]
     pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
-        self.core.start_phase()
+        self.engine.core().start_phase()
     }
 
     /// First unmade core run-proof link before startup can open.
     #[must_use]
     pub fn core_missing_proof_link(&self) -> Option<(jig_domain_core::Key, jig_domain_core::Key)> {
-        self.core.missing_proof_link()
+        self.engine.core().missing_proof_link()
     }
 
     /// First task's charter absent from its held settings at startup.
     #[must_use]
     pub fn core_missing_charter_link(&self) -> Option<(jig_domain_core::Key, u32, u32)> {
-        self.core.missing_charter_link()
+        self.engine.core().missing_charter_link()
     }
 
     /// The start's stop, kept until the service reports it.
@@ -225,7 +226,9 @@ impl Domain {
     /// transcript pages (`StoreInput::Loaded`) never wait there.
     #[must_use]
     pub fn held_bytes(&self) -> u64 {
-        self.held_bytes.checked_add(self.core.transcript_bytes()).expect("held transcript and turn bytes fit u64")
+        self.held_bytes
+            .checked_add(self.engine.core().transcript_bytes())
+            .expect("held transcript and turn bytes fit u64")
     }
 
     pub(crate) fn hold_bytes(&mut self, bytes: u64) {
@@ -239,14 +242,14 @@ impl Domain {
     /// Deployment models in the order settings authority and model choices use.
     #[must_use]
     pub fn models(&self) -> &[jig_domain_core::Model] {
-        &self.core.settings.models
+        &self.engine.core().settings.models
     }
 
     /// The task project's readable repositories, as its inventory names them;
     /// empty for a task with no project (temper/docs/design/domain/agent/agents.md, 1, and temper/docs/design/domain/agent/ask-temper.md, 2).
     #[must_use]
     pub fn repository_identities(&self, task: u64) -> Box<[crate::RepositoryIdentity]> {
-        let Some(context) = self.core.tasks.delegation(task) else { return Box::new([]) };
+        let Some(context) = self.engine.core().tasks.delegation(task) else { return Box::new([]) };
         let repositories = self.forge.readable_repositories(context.project);
         let mut identities = List::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
         for repository in &repositories {
@@ -267,7 +270,7 @@ impl Domain {
     pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
         let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
         for number in 1..=jig_domain_tasks::MODELS {
-            if let Some(value) = self.core.current.value(jig_domain_core::settings::Setting::Model(number))
+            if let Some(value) = self.engine.core().current.value(jig_domain_core::settings::Setting::Model(number))
                 && let jig_domain_core::settings::Value::Model(model) = value
             {
                 rows.push(*model.clone()).expect("catalogue bound");
@@ -281,7 +284,11 @@ impl Domain {
     /// names, else the local agent's; `None` where neither names one.
     #[must_use]
     pub fn reply_bound(&self, key: CallKey) -> Option<u32> {
-        self.core.fleet.reply_bound(Token::new(key.task), Token::new(key.attempt)).or(self.limits.host_reply_bytes)
+        self.engine
+            .core()
+            .fleet
+            .reply_bound(Token::new(key.task), Token::new(key.attempt))
+            .or(self.limits.host_reply_bytes)
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
@@ -292,20 +299,20 @@ impl Domain {
 
     /// Jig's core, for a world to inspect between iterations.
     #[must_use]
-    pub const fn core(&self) -> &Core {
-        &self.core
+    pub fn core(&self) -> &Core {
+        self.engine.core()
     }
 
     /// The live task arena, for a world to inspect between iterations.
     #[must_use]
-    pub const fn tasks(&self) -> &tasks::Domain {
-        &self.core.tasks
+    pub fn tasks(&self) -> &tasks::Domain {
+        &self.engine.core().tasks
     }
 
     /// The run channel admitted at this worker's configured position.
     #[must_use]
     pub fn worker_channel(&self, position: u32) -> Option<Token> {
-        self.core.fleet.worker_channel(position)
+        self.engine.core().fleet.worker_channel(position)
     }
 
     /// Tasks whose prepared assignment has not yet been handed to a worker.
@@ -330,8 +337,8 @@ impl Domain {
     pub fn live_text_revision(&self, task: u64) -> Option<(u64, u64)> {
         let token = Token::new(task);
         Some((
-            jig_domain_views::retained_attempt(&self.core.views, token)?,
-            jig_domain_views::revision(&self.core.views, token)?,
+            jig_domain_views::retained_attempt(&self.engine.core().views, token)?,
+            jig_domain_views::revision(&self.engine.core().views, token)?,
         ))
     }
 
@@ -379,7 +386,7 @@ impl Domain {
     /// The restored settings head; service admission keeps this revision with its lists.
     #[must_use]
     pub fn settings_revision(&self) -> u32 {
-        self.core.current.newest()
+        self.engine.core().current.newest()
     }
 
     /// The deployment's current welcome (protocol/configuration/settings-kinds.md, 1).
@@ -581,12 +588,12 @@ impl Domain {
             tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE },
             tasks::KeptStart { connector: forge_connector, code: forge_route::GOAL_CLOSER_CODE },
         ]);
-        let mut core = Core::new(config.core, &core_limits(limits))?;
+        let mut engine = Engine::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent/agents.md, 2: the person answers in their inbox.
-        core.person_answers();
+        engine.core_mut().person_answers();
         let mut configured = Queue::uncapped();
         tasks::step(
-            &mut core.tasks,
+            &mut engine.core_mut().tasks,
             &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
             tasks::Event::Kinds {
                 connector: root_config.forge_connector,
@@ -644,7 +651,7 @@ impl Domain {
             sweep_next: None,
             core_header_loaded: false,
             restored_commits: None,
-            core,
+            engine,
             brief_connectors: Slab::with_capacity(brief_connector_capacity(limits)),
             brief_document_titles: Map::with_capacity(limits.brief.briefs),
             forge_briefs: Map::uncapped(),
@@ -731,7 +738,7 @@ impl Domain {
     /// First unmade connector link before startup reconciliation.
     #[must_use]
     pub fn forge_missing_link(&self) -> Option<forge::MissingLink> {
-        self.forge.missing_link(&self.core.tasks)
+        self.forge.missing_link(&self.engine.core().tasks)
     }
     /// Why the journal stopped, when the root stopped it or refused an answer;
     /// a failed commit is the store's own stop (domain/root.md, section 4).
@@ -765,7 +772,7 @@ impl Domain {
     /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings-store.md, 1).
     #[must_use]
     pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
-        self.core.settings_kept()
+        self.engine.core().settings_kept()
     }
 
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root-restart.md, 1.1).
@@ -777,7 +784,7 @@ impl Domain {
     /// Both halves of this connector's catching up have reported to the core.
     #[must_use]
     pub fn caught_up(&self, connector: u16) -> bool {
-        self.core.caught_up(connector)
+        self.engine.core().caught_up(connector)
     }
 
     pub(crate) fn start_runtime(&self) -> bool {
@@ -804,15 +811,15 @@ impl Domain {
     pub(crate) fn check_room(&self) -> Result<(), crate::room::Refusal> {
         use jig_domain_core::settings::{Setting, Value, overlaid};
         let host = self.host_part;
-        for setting in self.core.current.offered().into_boxed() {
+        for setting in self.engine.core().current.offered().into_boxed() {
             if let Setting::Charter(number) = setting {
-                if let Some(overlay) = self.core.current.overlay(setting) {
-                    let Some(Value::Charter(default)) = self.core.current.default_value(setting) else {
+                if let Some(overlay) = self.engine.core().current.overlay(setting) {
+                    let Some(Value::Charter(default)) = self.engine.core().current.default_value(setting) else {
                         // Jig refuses a stored overlay whose supplied default is absent.
                         continue;
                     };
                     host.check(&overlaid(default, overlay))?;
-                } else if let Some(charter) = self.core.current.charter(number) {
+                } else if let Some(charter) = self.engine.core().current.charter(number) {
                     host.check(charter)?;
                 }
             }
@@ -829,7 +836,7 @@ impl Domain {
     }
 
     pub(crate) fn stop_core(&mut self) {
-        let failure = self.core.start_failure().expect("a refused row records its start fit failure");
+        let failure = self.engine.core().start_failure().expect("a refused row records its start fit failure");
         self.stop_start(StartStop::Core { phase: self.start_phase(), failure });
     }
 
@@ -841,7 +848,8 @@ impl Domain {
     #[must_use]
     pub fn quiescent(&self) -> bool {
         self.ready()
-            && self.core.quiescent(self.journal.idle())
+            && self.journal.idle()
+            && engine::idle(&self.engine)
             && self.loads.quiescent()
             && self.work.is_empty()
             && self.openings.is_empty()
@@ -895,7 +903,7 @@ impl Domain {
     /// store durability. Exposes neither children nor owned handoff bodies and emits no effect.
     #[must_use]
     pub fn deployment(&self) -> crate::Deployment {
-        self.core.counters.deployment()
+        self.engine.core().counters.deployment()
     }
 
     /// Retired IO/body/child slots are reclaimed at iteration end, after every event and ready
@@ -905,7 +913,7 @@ impl Domain {
     pub fn reclaim(&mut self) {
         self.changed();
         self.settled = None;
-        self.core.reclaim();
+        self.engine.core_mut().reclaim();
         self.brief_connectors.reclaim();
         self.forge.reclaim();
         self.archive_reads.reclaim();
@@ -917,7 +925,7 @@ impl Domain {
     /// child's configured fact capacity. Emits no effect or terminal and changes no decision state.
     pub fn drain_facts(&mut self) {
         self.changed();
-        self.core.drain_facts(&core_limits(&self.limits));
+        self.engine.core_mut().drain_facts(&core_limits(&self.limits));
     }
 
     /// Take the oldest accepted failed answer's operator evidence, once.
@@ -999,7 +1007,7 @@ pub(crate) fn within_budget(domain: &Domain, limits: &Limits) -> bool {
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
     backlog(domain) < u64::from(limits.watermark)
-        && domain.core.counters.deployment().messages
+        && domain.engine.core().counters.deployment().messages
             <= u64::MAX.checked_sub(u64::from(limits.tasks.tasks)).expect("task count fits u64")
         && domain.work.is_empty()
 }
@@ -1022,7 +1030,7 @@ fn finish_close(
         return false;
     }
     let requests = if domain.start_runtime() {
-        jig_domain_core::finish_decision(&mut domain.core, &environment_core(env))
+        jig_domain_core::finish_decision(domain.engine.core_mut(), &environment_core(env))
     } else {
         Queue::uncapped()
     };
@@ -1034,17 +1042,17 @@ fn finish_close(
         && (domain.start_phase() != Some(jig_domain_core::start::Phase::LoadCore) || domain.startup_range.is_none());
     let empty = finished
         && decision.empty()
-        && !(persist_header && domain.core.counters.dirty())
+        && !(persist_header && domain.engine.core().counters.dirty())
         && domain.work.is_empty()
         && domain.store_answers.is_empty()
         && out.is_empty();
     if finishing_only && !decision.overrun() {
-        assert!(decision.write_free() && !domain.core.counters.dirty(), "stopping finishing makes no commit");
+        assert!(decision.write_free() && !domain.engine.core().counters.dirty(), "stopping finishing makes no commit");
     }
-    let journal_stop = decision.stop_reason(&domain.core.counters, persist_header);
+    let journal_stop = decision.stop_reason(&domain.engine.core().counters, persist_header);
     crate::decision::accept_routed(
         &mut domain.journal,
-        &mut domain.core.counters,
+        &mut domain.engine.core_mut().counters,
         &env.limits.journal,
         decision,
         persist_header,
@@ -1056,7 +1064,7 @@ fn finish_close(
         domain.sent_commit = commits;
         domain.durable_commit = commits;
     }
-    if domain.core.stopping() || domain.journal.stopped() {
+    if domain.engine.core().stopping() || domain.journal.stopped() {
         domain.ended_waiting.clear();
     }
     if domain.journal.stopped() {
@@ -1260,7 +1268,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     // Wires' continuation only enters runtime after its commit is durable.
     // One queued opening makes one decision, never joined to another opening or start.
     if domain.start_runtime()
-        && !domain.core.stopping()
+        && !domain.engine.core().stopping()
         && let Some(opening) = domain.openings.pop()
     {
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -1274,8 +1282,8 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     // From the stop on, nothing that would make a commit is taken: connector
     // work stays with the connector and no run is placed (jig's
     // `domain/engine/restart.md`, 5).
-    if domain.core.stopping() {
-        if domain.core.finish_owed() {
+    if domain.engine.core().stopping() {
+        if domain.engine.core().finish_owed() {
             domain.settled = None;
             let decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             finish_close(domain, env, decision, out, true);
@@ -1295,14 +1303,16 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         }
         if !domain.settling.active()
             && within_budget(domain, &env.limits)
-            && let Some(context) = domain.core.take_due()
+            && let Some(context) = domain.engine.core_mut().take_due()
         {
             domain.work.push(Work::Activate { context, ready: true });
             let decision = route(domain, env);
             close(domain, env, decision, out);
             return;
         }
-        if !domain.core.fleet.ready_to_resume(!domain.core.settling()) && !domain.core.finish_owed() {
+        if !domain.engine.core().fleet.ready_to_resume(!domain.engine.core().settling())
+            && !domain.engine.core().finish_owed()
+        {
             let due = match domain.next_deadline(env) {
                 Some(deadline) => deadline <= env.now,
                 None => false,
@@ -1313,7 +1323,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         }
         domain.settled = None;
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-        let routed = jig_domain_core::resume_fleet(&mut domain.core, &environment_core(env));
+        let routed = jig_domain_core::resume_fleet(domain.engine.core_mut(), &environment_core(env));
         let fleet_empty = routed.is_empty();
         route_core_requests(domain, env, &mut decision, routed);
         route_into(domain, env, &mut decision);
@@ -1355,36 +1365,35 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     }
     domain.settled = None;
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    if let Some(timer) = domain.core.due(env.now, env.wall) {
-        let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
+    if let Some(timer) = engine::due(&domain.engine, env.now, env.wall, Admit::All) {
+        let routed = crate::engine::fire(&mut domain.engine, env, timer);
         route_core_requests(domain, env, &mut decision, routed);
     }
-    if (domain.ready() || domain.settling.active()) && !domain.core.stopping() {
+    if (domain.ready() || domain.settling.active()) && !domain.engine.core().stopping() {
         let mut forge_out = Queue::uncapped();
         forge::fire(&mut domain.forge, &environment_forge(env), &mut forge_out);
         forge_route::outputs(domain, env, &mut decision, &mut forge_out);
     }
     route_into(domain, env, &mut decision);
     if domain.ready() {
-        if !domain.core.stopping()
-            && !domain.core.settling()
+        if !domain.engine.core().stopping()
+            && !domain.engine.core().settling()
             && let Some(next) = domain.trials.next_due()
             && next <= env.wall
         {
             crate::route::trials::route(domain, env, temper_engine_domain_trials::Event::Due);
             route_into(domain, env, &mut decision);
         }
-        if !domain.core.stopping()
-            && !domain.core.settling()
+        if !domain.engine.core().stopping()
+            && !domain.engine.core().settling()
             && let Some(next) = domain.calendar.next_start()
             && next <= env.wall
         {
             crate::route::calendar::route(domain, env, calendar::Event::Due, None);
             route_into(domain, env, &mut decision);
         }
-        if !domain.core.settling() {
-            let routed =
-                jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
+        if !domain.engine.core().settling() {
+            let routed = crate::engine::step(&mut domain.engine, env, jig_domain_core::Event::EffectDeadline);
             route_core_requests(domain, env, &mut decision, routed);
             route_into(domain, env, &mut decision);
         }
@@ -1411,7 +1420,7 @@ pub(crate) fn step_released(domain: &mut Domain, env: &Env<Limits>, released: Re
     // Retire the notification while stopping. The entry stays durable for
     // the next start's outbox settlement; returning it would retry forever.
     if let Delivery::ForgeCommitted { .. } = released.0
-        && (domain.core.stopping() || domain.settling.active())
+        && (domain.engine.core().stopping() || domain.settling.active())
     {
         return;
     }
@@ -1441,7 +1450,7 @@ fn released_into(
             crate::route::findings::tell_owner(domain, env, decision, project, task, words);
         }
         Delivery::ProjectMade { project } => {
-            if let Some(row) = domain.core.tasks.funding(tasks::Funder::Period { project, period: 1 })
+            if let Some(row) = domain.engine.core().tasks.funding(tasks::Funder::Period { project, period: 1 })
                 && let Some(times) = row.period
             {
                 crate::route::calendar::route(
@@ -1461,7 +1470,7 @@ fn released_into(
         }
         Delivery::Start(continuation) => {
             let mut output = Queue::uncapped();
-            let action = domain.core.start_resume(&environment_core(env), continuation, &mut output);
+            let action = domain.engine.core_mut().start_resume(&environment_core(env), continuation, &mut output);
             route_core_requests(domain, env, decision, output);
             domain.work.push(Work::Start(action));
         }

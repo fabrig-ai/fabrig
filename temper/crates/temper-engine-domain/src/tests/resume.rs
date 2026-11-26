@@ -17,7 +17,7 @@ fn released_continuations_are_taken_in_arrival_order_at_the_watermark() {
         decision.write(&env.limits.journal, super::turn(turn, 1)).unwrap();
         crate::decision::accept_routed(
             &mut domain.journal,
-            &mut domain.core.counters,
+            &mut domain.engine.core_mut().counters,
             &env.limits.journal,
             decision,
             true,
@@ -139,7 +139,7 @@ fn inputs_fire_and_reclaim_preserve_derived_quiet_readiness() {
 #[test]
 fn an_automatic_header_commit_cannot_mark_the_pass_quiet() {
     let (mut domain, env) = root();
-    crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
+    crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).unwrap();
     crate::try_step(&mut domain, &env, Event::Resume).unwrap();
     assert_eq!(domain.empty_resumes, 0);
     assert_eq!(domain.settled, None);
@@ -149,15 +149,31 @@ fn an_automatic_header_commit_cannot_mark_the_pass_quiet() {
 #[test]
 fn a_commit_completion_preserves_quiet_without_an_empty_pass() {
     let (mut domain, env) = root();
-    crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
-    resume(&mut domain, &env);
-    let mut out = Queue::uncapped();
-    crate::release(&mut domain, &env, &mut out);
-    let Some(Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else { panic!("header commit") };
+    crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).unwrap();
+    let number = release_header_commit(&mut domain, &env);
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
     resume(&mut domain, &env);
     assert_eq!(domain.empty_resumes, 0);
     assert_eq!(domain.deployment().commits, 1);
+}
+
+#[test]
+fn a_runtime_commit_updates_the_cores_store_fill() {
+    // A nonempty runtime store, in bytes.
+    const REPORTED_FILL: u64 = 23;
+    let (mut domain, env) = root();
+    crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).unwrap();
+    let number = release_header_commit(&mut domain, &env);
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: REPORTED_FILL })).unwrap();
+    assert_eq!(domain.engine.core().fill, REPORTED_FILL);
+}
+
+fn release_header_commit(domain: &mut Domain, env: &Env<Limits>) -> u64 {
+    resume(domain, env);
+    let mut out = Queue::uncapped();
+    crate::release(domain, env, &mut out);
+    let Some(Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else { panic!("header commit") };
+    number
 }
 
 #[test]
@@ -182,7 +198,7 @@ fn finishing_frees_retained_text_without_any_watcher() {
     let run = skein_lib::Token::new(1);
     let mut out = Queue::with_capacity(1);
     jig_domain_views::step(
-        &mut domain.core.views,
+        &mut domain.engine.core_mut().views,
         &env.with(crate::VIEWS),
         jig_domain_views::Event::Text {
             run,
@@ -193,9 +209,9 @@ fn finishing_frees_retained_text_without_any_watcher() {
         },
         &mut out,
     );
-    let retained = domain.core.views.retained_runs().len();
+    let retained = domain.engine.core().views.retained_runs().len();
     resume(&mut domain, &env);
-    assert_eq!((retained, domain.core.views.retained_runs().len(), domain.empty_resumes), (1, 0, 1));
+    assert_eq!((retained, domain.engine.core().views.retained_runs().len(), domain.empty_resumes), (1, 0, 1));
     assert!(out.is_empty());
 }
 
@@ -206,8 +222,8 @@ fn watched_root() -> (Domain, Env<Limits>) {
 fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>) {
     use jig_domain_people as people;
     let mut out = Queue::uncapped();
-    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.engine.core_mut().people.start_restore(env.wall);
     for record in [
         people::Stored::Person {
             number: 1,
@@ -224,16 +240,16 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
         },
     ] {
         people::step(
-            &mut domain.core.people,
+            &mut domain.engine.core_mut().people,
             &env.with(env.limits.people),
             people::Event::Restore { record },
             &mut out,
         );
     }
     let people_env = env.with(env.limits.people);
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&people_env));
     crate::try_step(
         &mut domain,
         &env,
@@ -257,9 +273,9 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
 fn a_projection_feed_then_committed_resume_delivers_the_watch() {
     use jig_domain_tasks as tasks;
     let (mut domain, env) = watched_root();
-    let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
+    let goal = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Task).unwrap();
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    let mut authority = jig_domain_core::task_authority(&domain.core.authority.policy(1).unwrap().ceiling);
+    let mut authority = jig_domain_core::task_authority(&domain.engine.core().authority.policy(1).unwrap().ceiling);
     authority.budget.spend = 100;
     for event in [
         tasks::Event::OpenPeriod {
@@ -302,7 +318,7 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
         },
     ] {
         let requests = jig_domain_core::step(
-            &mut domain.core,
+            domain.engine.core_mut(),
             &crate::limits::environment_core(&env),
             jig_domain_core::Event::Tasks(event),
         );
@@ -355,7 +371,7 @@ fn advancing_wall_time_ends_a_settled_watch() {
         })))
     );
     assert!(out.is_empty());
-    assert_eq!(domain.core.people.sign_in_person(SIGN_IN), Some(1));
+    assert_eq!(domain.engine.core().people.sign_in_person(SIGN_IN), Some(1));
     assert_eq!(domain.deployment().commits, 0);
     assert_eq!(domain.next_deadline(&env), Some(env.now));
 }
@@ -391,10 +407,10 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
     use jig_domain_core as core;
     use jig_domain_tasks as tasks;
     let (mut domain, env) = watched_root();
-    let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
+    let goal = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Task).unwrap();
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     let core_env = crate::limits::environment_core(&env);
-    let mut authority = core::task_authority(&domain.core.authority.policy(1).unwrap().ceiling);
+    let mut authority = core::task_authority(&domain.engine.core().authority.policy(1).unwrap().ceiling);
     authority.budget.spend = 100;
     for event in [
         tasks::Event::Restored,
@@ -437,16 +453,16 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
             }]),
         },
     ] {
-        let requests = core::step(&mut domain.core, &core_env, core::Event::Tasks(event));
+        let requests = core::step(domain.engine.core_mut(), &core_env, core::Event::Tasks(event));
         crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     }
-    assert!(domain.core.tasks.task(goal).is_some(), "real goal before Stop");
-    let requests = core::step(&mut domain.core, &core_env, core::Event::Stopping);
+    assert!(domain.engine.core().tasks.task(goal).is_some(), "real goal before Stop");
+    let requests = core::step(domain.engine.core_mut(), &core_env, core::Event::Stopping);
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     crate::route::route_into(&mut domain, &env, &mut decision);
     let mut out = Queue::uncapped();
     crate::domain::close(&mut domain, &env, decision, &mut out);
-    assert!(domain.core.finish_owed(), "projection defers watch finishing");
+    assert!(domain.engine.core().finish_owed(), "projection defers watch finishing");
     crate::release(&mut domain, &env, &mut out);
     let Some(Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else {
         panic!("goal and projection commit")
@@ -507,7 +523,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
     }
     assert_eq!((endings, drains), (1, 1));
     assert_eq!(domain.deployment().commits, commits, "zero new commits");
-    assert!(!domain.core.finish_owed());
+    assert!(!domain.engine.core().finish_owed());
     resume(&mut domain, &env);
     crate::release(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "repeated stopped Resume stays quiet");
@@ -529,11 +545,11 @@ fn ordinary_root_fire_expires_sign_ins_once_by_either_clock() {
         let (mut domain, mut env) = watched_root();
         env.now = Time::from_nanos(now);
         env.wall = Wall::from_nanos(wall);
-        assert_eq!(domain.core.people.sign_in_person(SIGN_IN), Some(1));
+        assert_eq!(domain.engine.core().people.sign_in_person(SIGN_IN), Some(1));
         assert_eq!(domain.next_deadline(&env), Some(env.now));
         crate::fire(&mut domain, &env);
-        assert_eq!(domain.core.people.sign_in_person(SIGN_IN), None);
-        assert_eq!(domain.core.people.next_wall_expiry(), None);
+        assert_eq!(domain.engine.core().people.sign_in_person(SIGN_IN), None);
+        assert_eq!(domain.engine.core().people.next_wall_expiry(), None);
         assert_eq!(domain.deployment().commits, 1);
         crate::fire(&mut domain, &env);
         resume(&mut domain, &env);
@@ -546,7 +562,7 @@ fn refused_people_timer_stays_due_without_child_mutation_until_room_returns() {
     let (mut domain, mut env) = watched_root();
     // Header decisions bring the backlog exactly to the watermark.
     for _ in 0..env.limits.watermark {
-        crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
+        crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).unwrap();
         crate::try_step(&mut domain, &env, Event::Resume).unwrap();
     }
     assert!(!crate::domain::admits(&domain, &env.limits));
@@ -558,7 +574,7 @@ fn refused_people_timer_stays_due_without_child_mutation_until_room_returns() {
     resume(&mut domain, &env);
     assert_eq!(domain.deployment(), before);
     assert_eq!(domain.empty_resumes, empty);
-    assert_eq!(domain.core.people.sign_in_person(SIGN_IN), Some(1));
+    assert_eq!(domain.engine.core().people.sign_in_person(SIGN_IN), Some(1));
     assert_eq!(domain.next_deadline(&env), Some(env.now));
     let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
@@ -568,8 +584,8 @@ fn refused_people_timer_stays_due_without_child_mutation_until_room_returns() {
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
     assert!(crate::domain::admits(&domain, &env.limits));
     crate::fire(&mut domain, &env);
-    assert_eq!(domain.core.people.sign_in_person(SIGN_IN), None);
-    assert_eq!(domain.core.people.next_wall_expiry(), None);
+    assert_eq!(domain.engine.core().people.sign_in_person(SIGN_IN), None);
+    assert_eq!(domain.engine.core().people.next_wall_expiry(), None);
     assert_eq!(domain.deployment().commits, before.commits + 1);
 }
 
@@ -669,7 +685,7 @@ fn a_project_live_task_and_forge_repository_open_together() {
     assert!(domain.ready());
     assert!(domain.tasks().task(goal).is_some());
     assert_eq!(domain.forge.repository(repo.provider), Some(&repo));
-    assert_eq!(domain.core.projects.as_slice(), [1]);
+    assert_eq!(domain.engine.core().projects.as_slice(), [1]);
     assert_eq!((store.switches, store.wires), (1, 2));
 }
 
@@ -754,14 +770,14 @@ fn a_crash_after_wires_commit_drops_its_delivery_and_cold_loads_the_same_state()
     store.run(&mut domain, &env, true);
     assert_eq!(domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
     assert!(!domain.ready());
-    let projects = domain.core.projects.clone();
+    let projects = domain.engine.core().projects.clone();
     let deployment = domain.deployment();
     drop(domain);
     let (mut domain, _) = cold();
     crate::step(&mut domain, &env, Event::Restart { pending: false });
     store.run(&mut domain, &env, false);
     assert!(domain.ready());
-    assert_eq!(domain.core.projects, projects);
+    assert_eq!(domain.engine.core().projects, projects);
     assert_eq!(domain.deployment().projects, deployment.projects);
     assert_eq!(domain.deployment().people, deployment.people);
     assert_eq!(domain.deployment().tasks, deployment.tasks);
@@ -790,17 +806,19 @@ pub(super) fn at_phase_with_limits(
     domain.core_header_loaded = true;
     domain.forge.restore_begin(env.wall);
     let core_env = crate::limits::environment_core(&env);
-    let mut action = domain.core.start_begin(pending, env.wall);
+    let mut action = domain.engine.core_mut().start_begin(pending, env.wall);
     for _ in 0_u32..20 {
         let mut output = Queue::uncapped();
         action = match action {
             Action::Step(phase) if phase == target => {
-                domain.core.counters = crate::Counters::new(domain.deployment());
+                domain.engine.core_mut().counters = crate::Counters::new(domain.deployment());
                 return (domain, env);
             }
-            Action::Step(Phase::Sweep) => domain.core.start_sweep(&core_env, SweepInput::Finished, &mut output),
-            Action::Step(phase) => domain.core.start_done(&core_env, phase, &mut output),
-            Action::Commit(continuation) => domain.core.start_resume(&core_env, continuation, &mut output),
+            Action::Step(Phase::Sweep) => {
+                domain.engine.core_mut().start_sweep(&core_env, SweepInput::Finished, &mut output)
+            }
+            Action::Step(phase) => domain.engine.core_mut().start_done(&core_env, phase, &mut output),
+            Action::Commit(continuation) => domain.engine.core_mut().start_resume(&core_env, continuation, &mut output),
             Action::Idle | Action::Refused(_) => panic!("fixture stopped before Switch"),
         };
     }
@@ -1083,7 +1101,7 @@ fn census_reader_rows() -> [crate::Record; 2] {
 fn deployment_census(domain: &Domain, env: &Env<Limits>) -> Option<Box<jig_domain_core::documents::StoreCensus>> {
     use jig_domain_core::documents::{Document, Subject, Window};
     let document = jig_domain_core::documents::make(
-        &domain.core,
+        domain.engine.core(),
         &crate::limits::core_limits(&env.limits),
         1,
         &Subject::Deployment,

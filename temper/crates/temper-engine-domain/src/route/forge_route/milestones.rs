@@ -16,14 +16,14 @@ fn name(words: &[u8]) -> Box<[u8]> {
 }
 
 pub(super) fn of(domain: &Domain, goal: Option<u64>) -> Option<u64> {
-    let goal = domain.core.tasks.task(goal?)?;
+    let goal = domain.engine.core().tasks.task(goal?)?;
     let tasks::Party::Task(requester) = goal.requester else { return None };
-    let parent = domain.core.tasks.task(requester)?;
+    let parent = domain.engine.core().tasks.task(requester)?;
     if tasks::gathering::executor(parent.executor) { Some(requester) } else { None }
 }
 
 pub(super) fn project(domain: &mut Domain, feed: &jig_domain_core::ProjectionFeed, decision: &super::Decision) -> bool {
-    let record = match domain.core.tasks.task(feed.goal.number) {
+    let record = match domain.engine.core().tasks.task(feed.goal.number) {
         Some(row) => Some(row),
         None => decision.ended_task(feed.goal.number),
     };

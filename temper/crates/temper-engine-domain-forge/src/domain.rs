@@ -879,6 +879,22 @@ impl Domain {
         }
     }
 
+    /// A failed making still holds its resource, and a passed-over making
+    /// keeps its outbox place (domain/forge/branches.md, 1; domain/forge/room.md, 3).
+    #[must_use]
+    pub fn making_retry_candidates(&self) -> Set<u64> {
+        let mut tasks = Set::with_capacity(self.holds.len().saturating_add(self.makings.len()));
+        for (_, hold) in &self.holds {
+            tasks.insert(hold.task).expect("one candidate per hold");
+        }
+        for (_, making) in &self.makings {
+            if making.outbox_wait.is_some() {
+                tasks.insert(making.task).expect("one candidate per making");
+            }
+        }
+        tasks
+    }
+
     /// A making keeps its place while its task is held (domain/forge/room.md, 3).
     #[must_use]
     pub fn making_waits(&self, task: u64) -> bool {

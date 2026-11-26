@@ -72,7 +72,7 @@ fn full_outbox() -> (crate::Domain, Env<crate::Limits>, u64, u64) {
     }
     let mut first = None;
     for _ in 0..env.limits.forge.entries {
-        let number = crate::fresh(&mut domain.core.counters, crate::Family::ConnectorRow).unwrap();
+        let number = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::ConnectorRow).unwrap();
         if first.is_none() {
             first = Some(number);
         }
@@ -109,12 +109,18 @@ fn full_outbox() -> (crate::Domain, Env<crate::Limits>, u64, u64) {
     assert!(!domain.forge.effect_room(&env.limits.forge));
     assert!(!domain.forge.full_outbox_met(), "restoration leaves the step unmarked");
     assert!(domain.work.is_empty(), "fixture has no unrelated root work");
-    let entry = crate::fresh(&mut domain.core.counters, crate::Family::ConnectorRow).unwrap();
+    let entry = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::ConnectorRow).unwrap();
     domain.work.push(crate::Work::Forge(forge::Event::ProjectDesired { entry, goal }));
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::route_into(&mut domain, &env, &mut decision);
-    crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
-        .expect("fixture closes its projection decision");
+    crate::decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        true,
+    )
+    .expect("fixture closes its projection decision");
     (domain, env, goal, first.expect("fixture fills the outbox"))
 }
 
@@ -130,7 +136,7 @@ fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
         let mut out = Queue::uncapped();
         forge::step(&mut domain.forge, &env.with(env.limits.forge), forge::Event::Withdraw { entry: first }, &mut out);
         out.clear();
-        let entry = crate::fresh(&mut domain.core.counters, crate::Family::ConnectorRow).unwrap();
+        let entry = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::ConnectorRow).unwrap();
         forge::step(
             &mut domain.forge,
             &env.with(env.limits.forge),

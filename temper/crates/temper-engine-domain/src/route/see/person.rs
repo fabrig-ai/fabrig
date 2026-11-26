@@ -21,7 +21,7 @@ pub(super) fn read(
     from: u32,
     address: Address,
 ) {
-    let context = domain.core.tasks.delegation(key.task).expect("authorized chat delegation");
+    let context = domain.engine.core().tasks.delegation(key.task).expect("authorized chat delegation");
     match context.requester {
         jig_domain_tasks::Party::Person(_) => {}
         jig_domain_tasks::Party::Task(_) | jig_domain_tasks::Party::Deployment { .. } => {
@@ -106,7 +106,7 @@ fn answered_part(domain: &mut Domain, to: ReplyTo, answer: Part) {
     let right = to.into_token();
     let Some(flight) = domain.call_renders.get_mut(&right) else { return };
     let key = flight.key.expect("decoded person read");
-    let context = domain.core.tasks.delegation(key.task).expect("person read chat");
+    let context = domain.engine.core().tasks.delegation(key.task).expect("person read chat");
     let project = context.project;
     let person = match context.requester {
         jig_domain_tasks::Party::Person(person) => person,
@@ -131,7 +131,14 @@ fn answered_part(domain: &mut Domain, to: ReplyTo, answer: Part) {
         Step::Deliver(Some(why)) => SeeAnswer::NotRead(why),
         Step::Deliver(None) => {
             let gathered = ::core::mem::replace(gathered, Gathered::new(domain.config.forge_connector));
-            SeeAnswer::Person(Box::new(person::answer(&domain.core, &domain.forge, address, person, project, gathered)))
+            SeeAnswer::Person(Box::new(person::answer(
+                domain.engine.core(),
+                &domain.forge,
+                address,
+                person,
+                project,
+                gathered,
+            )))
         }
     };
     let flight = domain.call_renders.get_mut(&right).expect("see person flight");

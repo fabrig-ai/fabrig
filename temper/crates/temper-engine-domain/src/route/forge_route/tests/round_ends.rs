@@ -416,7 +416,7 @@ impl Round {
         self.env.wall =
             Wall::from_nanos(self.env.wall.as_nanos().checked_add(Duration::from_secs(10).as_nanos()).unwrap());
         self.entry = self.entry.checked_add(1).unwrap();
-        let context = self.domain.core.tasks.run_context(self.task).expect("landing context");
+        let context = self.domain.engine.core().tasks.run_context(self.task).expect("landing context");
         let preparation = route::landing_route::preparation(&self.domain, &context);
         let out = self.send(forge::Event::StepLanding {
             task: self.task,
@@ -429,7 +429,7 @@ impl Round {
                 ended: Box::new([]),
                 failure: Box::new([]),
                 preparation: Some(preparation),
-                released: self.domain.core.tasks.task(self.task).unwrap().due_reason == tasks::Why::Released,
+                released: self.domain.engine.core().tasks.task(self.task).unwrap().due_reason == tasks::Why::Released,
                 cancelled: false,
                 kept: Box::new([]),
             },
@@ -469,10 +469,10 @@ impl Round {
         panic!("round decision");
     }
     fn step_core(&mut self, event: jig_domain_core::Event) {
-        drop(jig_domain_core::step(&mut self.domain.core, &crate::limits::environment_core(&self.env), event));
+        drop(jig_domain_core::step(self.domain.engine.core_mut(), &crate::limits::environment_core(&self.env), event));
     }
     fn take_step(&mut self) {
-        let (_, _, step) = self.domain.core.tasks.procedure_due(self.task).expect("due landing");
+        let (_, _, step) = self.domain.engine.core().tasks.procedure_due(self.task).expect("due landing");
         task_event(
             &mut self.domain,
             &self.env,
@@ -485,18 +485,18 @@ impl Round {
                 decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
             },
         );
-        assert!(self.domain.core.tasks.procedure_due(self.task).is_none());
+        assert!(self.domain.engine.core().tasks.procedure_due(self.task).is_none());
     }
     fn wake(&mut self) {
         task_event(&mut self.domain, &self.env, tasks::Event::WakeProcedure { task: self.task });
-        assert!(self.domain.core.tasks.procedure_due(self.task).is_some());
+        assert!(self.domain.engine.core().tasks.procedure_due(self.task).is_some());
     }
     fn route(&mut self, mut out: Queue<forge::Request>) {
         let mut decision = crate::Decision::decide(&mut self.domain.journal, &self.env.limits.journal);
         route::outputs(&mut self.domain, &self.env, &mut decision, &mut out);
         crate::decision::accept_routed(
             &mut self.domain.journal,
-            &mut self.domain.core.counters,
+            &mut self.domain.engine.core_mut().counters,
             &self.env.limits.journal,
             decision,
             true,
@@ -547,7 +547,7 @@ impl Round {
     #[expect(clippy::wildcard_enum_match_arm, reason = "a decision without effects hands over only its step")]
     fn unanswered(&mut self, job: u64) -> policy::Decision {
         use forge::history::{Job, JobOutcome, JobStep};
-        if self.domain.core.tasks.procedure_due(self.task).is_none() {
+        if self.domain.engine.core().tasks.procedure_due(self.task).is_none() {
             self.wake();
         }
         let mut out = self.decide();
@@ -881,7 +881,7 @@ fn a_refused_deletion_holds_once_and_one_release_retries_it() {
     r.refuse_deletion = true;
     r.forward(D::Delete { member: 0 });
     r.forward(D::Hold(policy::Hold::Cleanup));
-    let task = r.domain.core.tasks.task(r.task).unwrap();
+    let task = r.domain.engine.core().tasks.task(r.task).unwrap();
     let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &task.phase else {
         panic!("the round's procedure holds the task: {:?}", task.phase);
     };
