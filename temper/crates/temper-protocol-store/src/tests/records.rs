@@ -158,23 +158,22 @@ fn a_landing_past_name_bytes_fails_to_decode() {
 }
 
 #[test]
-fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
+fn a_holds_design_writers_round_trip_without_the_old_reread_flag() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let writer = forge::DesignWriter { task: 1, attempt: 2 };
+    let row = forge::Stored::Hold(forge::Hold {
+        name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([b"g1".as_slice().into()])) },
+        task: 1,
+        writer: None,
+        beside: None,
+        design_writers: Box::new([writer]),
+        drift: None,
+    });
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     for rereading in [false, true] {
-        let row = forge::Stored::Hold(forge::Hold {
-            name: forge::Name {
-                forge: 1,
-                repository: 2,
-                what: forge::What::Branch(Box::new([b"g1".as_slice().into()])),
-            },
-            task: 1,
-            writer: None,
-            beside: None,
-            design_writers: Box::new([forge::DesignWriter { task: 1, attempt: 2, rereading }]),
-            drift: None,
-        });
-        let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+        let old = v25::DesignWriter { task: 1, attempt: 2, rereading };
+        assert_eq!(records::by_hand::design_writer_to_domain(old), writer);
     }
 }
 

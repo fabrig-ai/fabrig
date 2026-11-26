@@ -1632,7 +1632,7 @@ impl World {
     fn admit_attempt(&mut self, name: &top::Name, (task, attempt): (u64, u64), expected: Option<u64>, commit: u64) {
         self.top
             .admit_push(
-                &self.env.limits,
+                &self.env,
                 name,
                 expected.map(translate::commit),
                 translate::commit(commit),

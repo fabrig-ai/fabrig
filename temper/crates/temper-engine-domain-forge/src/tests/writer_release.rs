@@ -171,7 +171,7 @@ fn retired_run_and_lost_writers_open_writerless_and_read_before_claiming() {
             }
         }
         assert!(saved, "the fresh answer saves the repaired hold");
-        assert_eq!(d.branch_head(&name), Some([2; 32]));
+        assert_eq!(d.branch_head(&name), None, "an unrecorded read does not prove a retired writer pushed");
         assert_eq!(d.missing_link(&tasks), None);
         let claimed = outputs(
             &mut d,
@@ -223,7 +223,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
                     task: HOLDER,
                     writer: if design { None } else { Some(Writer::Run { task: WRITER, attempt: ATTEMPT }) },
                     design_writers: if design {
-                        Box::new([DesignWriter { task: WRITER, attempt: ATTEMPT, rereading: false }])
+                        Box::new([DesignWriter { task: WRITER, attempt: ATTEMPT }])
                     } else {
                         Box::new([])
                     },
@@ -233,6 +233,18 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
             },
         );
         outputs(&mut d, Event::Lost { task: WRITER, attempt: ATTEMPT });
+        if design {
+            assert!(d.hold(&name).unwrap().design_writers.is_empty(), "loss releases the design claim, not its writes");
+            assert!(ready(&mut d).is_empty(), "with no admitted push there is no readback");
+            outputs(
+                &mut d,
+                Event::Release { task: WRITER, root: HOLDER, ending: ReleaseEnding::Done, reason: None, entry: 20 },
+            );
+            let released = outputs(&mut d, Event::ContinueRelease { task: WRITER, entry: 21 });
+            assert!(released.contains(&Request::Released { task: WRITER }) || !d.releases.contains_key(&WRITER));
+            assert_eq!(d.hold(&name).unwrap().task, HOLDER);
+            continue;
+        }
         let (call, op) = fixtures::next_call(&mut d);
         assert!(matches!(op, Op::Read(Read::Branch { .. })));
         let release = outputs(

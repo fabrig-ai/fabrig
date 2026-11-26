@@ -78,7 +78,7 @@ record BranchDrift
 record Retargeted
 enum DriftChange = d::DriftChange
 record Drift = d::Drift { at via s::wall }
-record DesignWriter = d::DesignWriter
+record DesignWriter by hand
 record HeadBeside = d::HeadBeside
 record Hold = d::Hold { design_writers slice }
 record Names by hand

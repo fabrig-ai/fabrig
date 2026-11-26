@@ -366,7 +366,18 @@ fn only_a_writable_current_delegate_gets_its_own_delivery() {
 fn a_lost_attempts_reread_pins_its_head_without_checking_it() {
     let mut d = producing();
     let name = claim(&mut d, 1);
+    d.admit_push(
+        &env(),
+        &name,
+        None,
+        fixtures::HEAD,
+        Sender::Attempt { task: CHILD, attempt: 1 },
+        &mut Queue::uncapped(),
+    )
+    .unwrap();
     outputs(&mut d, Event::Lost { task: CHILD, attempt: 1 });
+    fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
+    outputs(&mut d, Event::Finished { task: CHILD, attempt: 1, lost: true });
     fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
     assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
     let row = d.change(fixtures::CHANGE).unwrap();

@@ -81,7 +81,7 @@ pub(crate) fn ask(
     let answer = if let Some(name) = named(domain, &env.limits, task, attempt, tag, branch, expected.is_none()) {
         let mut out = Queue::uncapped();
         let answer = match domain.forge.admit_push(
-            &env.limits.forge,
+            &env.with(env.limits.forge),
             &name,
             expected,
             commit,

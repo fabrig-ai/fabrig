@@ -1,5 +1,7 @@
 //! Fresh, pinned reads for write intents and completed attempts (writes.md, sections 3–4 and 7).
-use super::{Domain, Name, Operation, Queue, Request, Sender, Tip, WriteState, advance, after, before, filtered, save};
+use super::{
+    Domain, Name, Operation, Queue, Request, Sender, Tip, WriteState, advance, after, before, filtered, save_changed,
+};
 use crate::Limits;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_forge_client::{Event, What};
@@ -24,7 +26,7 @@ enum Check {
 enum Then {
     Push { lost: bool },
     Writer,
-    Update { base: Commit },
+    Update { base: Commit, rewrite: bool },
     UpdateBase,
 }
 
@@ -116,11 +118,22 @@ fn entry<'a>(d: &'a Domain, name: &Name, order: u64) -> Option<&'a super::Writte
     None
 }
 
-pub(super) fn intent(d: &mut Domain, name: &Name, order: u64, observed: Commit) {
+pub(super) fn preparing_rebase(d: &Domain, name: &Name, order: u64) -> bool {
+    let Some(written) = entry(d, name, order) else { return false };
+    if let (Operation::Update { .. }, Sender::Entry { task, entry }) = (&written.operation, written.sender)
+        && let Some((pending, _, _)) = super::super::rebase::pending(d, task)
+    {
+        return entry == pending;
+    }
+    false
+}
+
+pub(super) fn intent(d: &mut Domain, name: &Name, order: u64, observed: Commit, actor: super::Actor) {
     let Some(entry) = entry(d, name, order) else { return };
     let check = match entry.operation {
         Operation::Update { before, base, .. } => {
-            Check::Contains { tip: observed, contains: before, then: Then::Update { base } }
+            let rewrite = actor == super::Actor::Writer && preparing_rebase(d, name, order);
+            Check::Contains { tip: observed, contains: before, then: Then::Update { base, rewrite } }
         }
         Operation::MergedInto { .. } => Check::Pull { observed: Some(observed) },
         Operation::Writer { before: Some(before) } => {
@@ -242,6 +255,14 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
         return;
     }
     let Some(entry) = entry(d, &key.0, key.1) else { return };
+    let lost_push = if let Sender::Attempt { task, attempt } = entry.sender
+        && let Operation::Push { after, .. } = &entry.operation
+        && is_lost_push_read(check)
+    {
+        Some((task, attempt, *after))
+    } else {
+        None
+    };
     let found = match check {
         Check::Order { head, observed } => {
             if let Ok(Answer::Compare { before, after, behind, .. }) = result
@@ -285,20 +306,60 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
                 Status::Passed => match then {
                     Then::Push { .. } => Found::Confirm { after: None, pull: None },
                     Then::Writer | Then::UpdateBase => Found::Confirm { after: Some(tip), pull: None },
-                    Then::Update { base } => {
+                    Then::Update { base, .. } => {
                         Found::Check(Check::Contains { tip, contains: base, then: Then::UpdateBase })
                     }
                 },
                 Status::Failed => match then {
                     Then::Push { lost } => branch_after_failed_push(&entry.operation, lost, Some(tip)),
-                    Then::Writer | Then::Update { .. } | Then::UpdateBase => Found::NoProof { observed: Some(tip) },
+                    Then::Update { base, rewrite: true } => {
+                        Found::Check(Check::Contains { tip, contains: base, then: Then::UpdateBase })
+                    }
+                    Then::Writer | Then::Update { rewrite: false, .. } | Then::UpdateBase => {
+                        Found::NoProof { observed: Some(tip) }
+                    }
                 },
                 Status::Unknown | Status::Pending => Found::Retry,
             }
         }
         Check::Branch { .. } | Check::Pull { .. } | Check::Contains { .. } => return,
     };
+    let name = key.0.clone();
     apply(d, env, key, check, found, out);
+    if let Found::Confirm { .. } = found
+        && let Some((task, attempt, commit)) = lost_push
+        && super::known_head(d, &name) == Some(commit)
+        && pin_lost_delegate(d, &name, task, attempt)
+    {
+        super::kept::sync_heads(d, env, out);
+        super::super::record_delegate_head(d, env, task, &name, commit, false, out);
+    }
+    if let Found::Confirm { .. } | Found::Refuse | Found::Ordered { .. } | Found::NoProof { .. } = found {
+        super::kept::rejudge(d, env, &name, out);
+    }
+}
+
+fn is_lost_push_read(check: Check) -> bool {
+    match check {
+        Check::Branch { lost } | Check::Contains { then: Then::Push { lost }, .. } => lost,
+        Check::Pull { .. }
+        | Check::Contains { then: Then::Writer | Then::Update { .. } | Then::UpdateBase, .. }
+        | Check::Order { .. } => false,
+    }
+}
+
+fn pin_lost_delegate(d: &Domain, name: &Name, task: u64, attempt: u64) -> bool {
+    use crate::Writer;
+    let Some(hold) = d.holds.get(name) else { return false };
+    if hold.drift.is_some() {
+        return false;
+    }
+    match hold.writer {
+        None => true,
+        Some(Writer::Lost { task: holder, attempt: run }) => holder == task && run == attempt,
+        Some(Writer::Run { task: holder, attempt: run }) => holder == task && run > attempt,
+        Some(Writer::Entry(_)) => false,
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -335,7 +396,11 @@ fn branch_answer(op: &Operation, lost: bool, tip: Option<Commit>) -> Found {
                 return Found::Check(Check::Contains { tip, contains: *after, then: Then::Push { lost } });
             }
             Operation::Update { before, base, .. } => {
-                return Found::Check(Check::Contains { tip, contains: *before, then: Then::Update { base: *base } });
+                return Found::Check(Check::Contains {
+                    tip,
+                    contains: *before,
+                    then: Then::Update { base: *base, rewrite: false },
+                });
             }
             Operation::Writer { before: Some(before) } => {
                 return Found::Check(Check::Contains { tip, contains: *before, then: Then::Writer });
@@ -389,7 +454,7 @@ fn apply(d: &mut Domain, env: &Env<Limits>, key: (Name, u64), check: Check, foun
                 row.head = Some(observed);
             }
             if contains || settled {
-                save(row, out);
+                save_changed(row, Some(head), &mut d.write_heads, out);
             }
             if !contains {
                 d.write_reads.checked.insert(key, Checked { head: Some(head), observed }).expect("one check per write");
@@ -417,6 +482,7 @@ pub(super) fn settle(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = d.writes.get_mut(name) else { return };
+    let previous = row.head;
     for entry in &mut row.entries {
         if entry.order != order || !entry.state.unsettled() {
             continue;
@@ -457,9 +523,9 @@ pub(super) fn settle(
     } else {
         advance(row);
     }
-    save(row, out);
+    save_changed(row, previous, &mut d.write_heads, out);
     forget(d, name, order);
-    if !d.heads.contains_key(name) {
+    if !d.heads.contains_key(name) && !d.holds.contains_key(name) {
         super::remove(d, name, out);
     }
 }

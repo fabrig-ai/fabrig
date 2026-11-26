@@ -1618,21 +1618,40 @@ fn four_writers() -> Domain {
     d
 }
 
-/// The forge's answer to client call `call`: the branch is at `commit`.
-fn branch_at(d: &mut Domain, call: u64, commit: u8) -> Box<[Request]> {
-    let result = Ok(skein_forge::api::Answer::Commit([commit; 32]));
-    let answered = outputs(
+fn press_lost_reads(d: &mut Domain) -> Token {
+    outputs(
         d,
-        Event::Client(skein_forge_client::Event::Answered {
-            free: 0,
-            rate: None,
-            call: Token::new(call),
-            cost: 1,
-            result,
+        Event::Client(skein_forge_client::Event::Read {
+            owner: Token::new(50),
+            repository: REPO,
+            read: skein_forge::api::Read::Branch { branch: b"other".as_slice().into() },
         }),
     );
-    d.reclaim();
-    answered
+    outputs(d, Event::Lost { task: 9, attempt: 1 });
+    assert_eq!(d.inspection_lost_read_waiters().as_ref(), &[9]);
+    let (first, op) = fixtures::next_call(d);
+    assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: b"other".as_slice().into() }));
+    first
+}
+
+fn admit_waiting_slot_read(d: &mut Domain, first: Token) -> Token {
+    let commit = Ok(skein_forge::api::Answer::Commit([2; 32]));
+    fixtures::answer(d, first, commit.clone());
+    for _ in 0..CLIENT.pending.saturating_mul(2) {
+        for request in ready(d) {
+            if let Request::Call { call, op, .. } = request {
+                if op
+                    == skein_forge::api::Op::Read(skein_forge::api::Read::Branch {
+                        branch: b"temper/8".as_slice().into(),
+                    })
+                {
+                    return call;
+                }
+                fixtures::answer(d, call, commit.clone());
+            }
+        }
+    }
+    panic!("the waiting slot's read must be admitted when room frees")
 }
 
 // A lost writer's slot is freed only once its branch is read afresh
@@ -1641,38 +1660,16 @@ fn branch_at(d: &mut Domain, call: u64, commit: u8) -> Box<[Request]> {
 #[test]
 fn a_lost_writers_read_refused_for_room_is_asked_again_when_room_frees() {
     let mut d = four_writers();
-    outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
-    ready(&mut d);
-    ready(&mut d);
-    // The first branch moved; its ancestry read finds the client's table full.
-    assert!(branch_at(&mut d, 1, 4).is_empty(), "nothing refused");
-    ready(&mut d);
-    ready(&mut d);
-    branch_at(&mut d, 2, 2);
-    ready(&mut d);
-    branch_at(&mut d, 3, 2);
-    assert_eq!(
-        ready(&mut d).as_ref(),
-        &[Request::Call {
-            call: Token::new(5),
-            repository: REPO,
-            op: skein_forge::api::Op::Read(skein_forge::api::Read::Commits {
-                before: [4; 32],
-                after: [2; 32],
-                page: 1
-            }),
-        }]
-    );
+    let first = press_lost_reads(&mut d);
+    admit_waiting_slot_read(&mut d, first);
+    assert!(d.inspection_lost_read_waiters().is_empty());
 }
 
 #[test]
-fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
-    use skein_forge::api::{Answer, Op, Read};
-    use temper_engine_domain_forge_change::Status;
-    for (result, mut status) in fixtures::ancestry_cases() {
-        let mut d = domain();
-        let mut env = env();
-        env.limits.client.read_attempts = 1;
+fn a_lost_writers_fresh_read_releases_the_slot_but_proves_no_unadmitted_write() {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    for result in [Ok(Answer::Commit(fixtures::HEAD)), Err(Error::Missing), Err(Error::Refused)] {
+        let mut d = active_domain();
         let name = run_branch(b"7");
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(
@@ -1681,48 +1678,36 @@ fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
                 record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::BASE, owned: true }),
             },
         );
-        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(
             &mut d,
-            Event::Claim {
-                task: 9,
-                attempt: 1,
-                writes: Box::new([name.clone()]),
-                designs: Box::new([]),
-                holders: Box::new([7]),
+            Event::Restore {
+                record: Stored::Hold(Hold {
+                    name: name.clone(),
+                    task: 7,
+                    writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    beside: None,
+                    design_writers: Box::new([]),
+                    drift: None,
+                }),
             },
         );
-        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::CatchUp);
-
         outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         let (call, op) = fixtures::next_call(&mut d);
-        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
-        let unavailable = result == Err(skein_forge::api::Error::Unavailable);
-        let mut requests = fixtures::answer_at(&mut d, &env, call, result);
-        if unavailable {
-            assert!(requests.is_empty(), "an outage produces no lost-read terminal");
-            assert_eq!(d.hold(&name).expect("hold").writer, Some(Writer::Lost { task: 9, attempt: 1 }));
-            fixtures::advance(&mut d, &mut env, CLIENT.backoff);
-            let (again, retried) = fixtures::next_at(&mut d, &env);
-            assert_eq!(retried, op, "retry the same ancestry proof");
-            requests =
-                fixtures::answer_at(&mut d, &env, again, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-            status = Status::Passed;
-        }
+        assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/7".as_slice().into() }));
+        let failed = result == Err(Error::Refused);
+        let requests = fixtures::answer(&mut d, call, result);
         let hold = d.hold(&name).expect("hold");
-        let unknown = status == Status::Unknown;
-        assert_eq!(hold.writer, if unknown { Some(Writer::Lost { task: 9, attempt: 1 }) } else { None });
-        assert_eq!(hold.drift.is_some(), status == Status::Failed);
-        let mut failed = false;
-        for request in &requests {
+        assert_eq!(hold.writer, if failed { Some(Writer::Lost { task: 9, attempt: 1 }) } else { None });
+        assert!(hold.drift.is_none());
+        assert_eq!(d.branch_head(&name), Some(fixtures::BASE));
+        let mut failure = false;
+        for request in requests {
             if let Request::LostReadFailed { task: 9, .. } = request {
-                failed = true;
+                failure = true;
             }
         }
-        assert_eq!(failed, unknown);
-        assert_eq!(d.branch_head(&name), Some(if status == Status::Passed { fixtures::HEAD } else { fixtures::BASE }));
+        assert_eq!(failure, failed);
+        assert!(ready(&mut d).is_empty(), "no follow-up forward comparison");
     }
 }
 
@@ -1962,7 +1947,7 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
 }
 
 #[test]
-fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
+fn a_superseded_lost_attempts_proved_push_pins_only_its_undrifted_delegates_head() {
     for (writer, drifted, records, comparing) in [
         (Writer::Run { task: 9, attempt: 2 }, false, true, false),
         (Writer::Run { task: 9, attempt: 2 }, false, true, true),
@@ -1990,35 +1975,49 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
                 }),
             },
         );
-        if comparing {
-            outputs(
-                &mut d,
-                Event::Restore {
-                    record: Stored::BranchHead(BranchHead { name: name.clone(), commit: [1; 32], owned: true }),
-                },
-            );
-        }
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::BranchHead(BranchHead { name: name.clone(), commit: [1; 32], owned: true }),
+            },
+        );
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);
-
+        d.admit_push(
+            &env(),
+            &name,
+            Some([1; 32]),
+            [99; 32],
+            Sender::Attempt { task: 9, attempt: 1 },
+            &mut Queue::uncapped(),
+        )
+        .unwrap();
         outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
-        let (mut call, _) = fixtures::next_call(&mut d);
-        if comparing {
-            fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commit([99; 32])));
-            (call, _) = fixtures::next_call(&mut d);
-        }
+        let (slot, _) = fixtures::next_call(&mut d);
         let hold = d.holds.get_mut(&name).expect("hold");
         hold.writer = Some(writer);
         hold.drift = drifted.then_some(Drift {
             at: env().wall,
             change: DriftChange::Branch { expected: [1; 32], observed: Some([88; 32]) },
         });
-        let result = if comparing {
-            skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }
+        let mut answered = skein_lib::List::uncapped();
+        for request in fixtures::answer(&mut d, slot, Ok(skein_forge::api::Answer::Commit([99; 32]))) {
+            answered.push(request).unwrap();
+        }
+        outputs(&mut d, Event::Finished { task: 9, attempt: 1, lost: true });
+        if comparing {
+            fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit([100; 32])));
+            for request in fixtures::answer_next(
+                &mut d,
+                Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }),
+            ) {
+                answered.push(request).unwrap();
+            }
         } else {
-            skein_forge::api::Answer::Commit([99; 32])
-        };
-        let answered = fixtures::answer(&mut d, call, Ok(result));
+            for request in fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit([99; 32]))) {
+                answered.push(request).unwrap();
+            }
+        }
         assert_eq!(
             d.change(fixtures::CHANGE).expect("change").change.last_head,
             Some(if records { [99; 32] } else { [1; 32] }),
@@ -2026,7 +2025,7 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
         );
         assert_eq!(d.hold(&name).expect("hold").writer, Some(writer));
         assert_eq!(d.hold(&name).expect("hold").drift.is_some(), drifted);
-        for request in &answered {
+        for request in answered.as_slice() {
             assert!(
                 !matches!(request, Request::Save { record: Stored::Hold(_), .. }),
                 "the later slot is neither freed nor rewritten"
@@ -2142,23 +2141,14 @@ fn another_forges_connection_does_not_ask_a_lost_writers_read_again() {
 #[test]
 fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
     let mut d = four_writers();
-    outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
-    ready(&mut d);
-    ready(&mut d);
-    // Branch temper/10 sorts first; its ancestry read waits for call room.
-    branch_at(&mut d, 1, 4);
+    let first = press_lost_reads(&mut d);
     let closing =
-        outputs(&mut d, Event::Release { task: 10, root: 10, ending: ReleaseEnding::Done, reason: None, entry: 20 });
-    assert!(!release_failed(&closing, 10));
-    ready(&mut d);
-    ready(&mut d);
-    branch_at(&mut d, 2, 2);
-    ready(&mut d);
-    branch_at(&mut d, 3, 2);
-    let (call, _) = fixtures::next_call(&mut d);
-    let answered =
-        fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }));
-    assert!(answered.contains(&Request::ContinueRelease { task: 10 }));
+        outputs(&mut d, Event::Release { task: 8, root: 8, ending: ReleaseEnding::Done, reason: None, entry: 20 });
+    assert!(!release_failed(&closing, 8));
+    assert!(!closing.contains(&Request::Released { task: 8 }));
+    let call = admit_waiting_slot_read(&mut d, first);
+    let answered = fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commit([2; 32])));
+    assert!(answered.contains(&Request::ContinueRelease { task: 8 }));
 }
 
 #[test]

@@ -7,6 +7,7 @@ use skein_forge_client::{Resource, What as ClientWhat};
 use skein_lib::List;
 use temper_engine_domain_forge_vocabulary::writes::{Full, Operation, Sender, WRITES, WriteState, Writes, Written};
 
+pub(super) mod kept;
 pub(crate) mod outbox;
 
 pub(crate) fn branch(limits: &Limits, repository: Repository, branch: &[u8]) -> Option<Name> {
@@ -25,17 +26,6 @@ pub(super) fn known_head(d: &Domain, name: &Name) -> Option<Commit> {
 
 pub(super) fn record_head(d: &Domain, name: &Name) -> Option<Commit> {
     d.writes.get(name)?.head
-}
-
-// The existing release explicitly takes the freshly observed head. Retain
-// the previous writes for judging later reads; the release itself is no write.
-pub(super) fn accept_head(d: &mut Domain, name: &Name, head: Commit, out: &mut Queue<Request>) {
-    if let Some(row) = d.writes.get_mut(name)
-        && row.head != Some(head)
-    {
-        row.head = Some(head);
-        save(row, out);
-    }
 }
 
 pub(super) fn nearest_order(d: &Domain, name: &Name) -> Option<u64> {
@@ -135,6 +125,35 @@ pub(super) fn save(row: &Writes, out: &mut Queue<Request>) {
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Writes(row.clone()) });
 }
 
+fn save_changed(row: &Writes, previous: Option<Commit>, changed: &mut skein_lib::Set<Name>, out: &mut Queue<Request>) {
+    if previous != row.head {
+        changed.insert(row.name.clone()).expect("uncapped head changes");
+    }
+    save(row, out);
+}
+
+/// An owned branch needs a record even before its first write is admitted.
+pub(super) fn seed(d: &mut Domain, name: &Name, commit: Commit, out: &mut Queue<Request>) {
+    if !d.writes.contains_key(name) {
+        accept_head(d, name, commit, out);
+    }
+}
+
+/// A person taking a head establishes the new baseline, not an inferred write.
+pub(super) fn accept_head(d: &mut Domain, name: &Name, commit: Commit, out: &mut Queue<Request>) {
+    if !d.writes.contains_key(name) {
+        d.writes
+            .insert(name.clone(), Writes { name: name.clone(), head: None, next: 1, entries: Box::new([]) })
+            .expect("uncapped branch write records");
+    }
+    let row = d.writes.get_mut(name).expect("record exists");
+    let previous = row.head;
+    if previous != Some(commit) {
+        row.head = Some(commit);
+        save_changed(row, previous, &mut d.write_heads, out);
+    }
+}
+
 pub(crate) fn remove(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
     if let Some(row) = d.writes.get(name) {
         for entry in &row.entries {
@@ -143,6 +162,8 @@ pub(crate) fn remove(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
             }
         }
         let row = d.writes.remove(name).expect("retained record");
+        d.write_heads.remove(name);
+        d.kept_moves.remove(name);
         for entry in &row.entries {
             readback::forget(d, name, entry.order);
         }
@@ -184,16 +205,20 @@ impl Domain {
     /// Admit a push to a destination already authorized by the assignment.
     pub fn admit_push(
         &mut self,
-        limits: &Limits,
+        env: &skein_lib::Env<Limits>,
         name: &Name,
         expected: Option<Commit>,
         commit: Commit,
         sender: Sender,
         out: &mut Queue<Request>,
     ) -> Result<(), Box<[u8]>> {
-        match self.admit(name, Operation::Push { before: expected, after: commit }, sender, out) {
+        let admitted = self.admit(name, Operation::Push { before: expected, after: commit }, sender, out);
+        if !self.write_heads.is_empty() {
+            super::drain(self, env, out);
+        }
+        match admitted {
             Ok(_) => Ok(()),
-            Err(_) => Err(room_account(self, limits, name)),
+            Err(_) => Err(room_account(self, &env.limits, name)),
         }
     }
 
@@ -217,6 +242,10 @@ impl Domain {
         out: &mut Queue<Request>,
     ) -> Result<u64, Full> {
         let What::Branch(_) = &name.what else { unreachable!("a write record is keyed by a branch") };
+        let previous = match self.writes.get(name) {
+            Some(row) => row.head,
+            None => None,
+        };
         let head = known_head(self, name).or(initial);
         if !self.writes.contains_key(name) {
             self.writes
@@ -251,7 +280,7 @@ impl Domain {
             Some(evict)
         } else {
             if leased.is_some() {
-                save(row, out);
+                save_changed(row, previous, &mut self.write_heads, out);
             }
             return Err(Full { name: name.clone(), senders: senders(row) });
         };
@@ -259,7 +288,7 @@ impl Domain {
         entries.push(Written { order, sender, state: WriteState::Admitted, operation }).expect("room checked");
         row.entries = entries.into_boxed();
         row.next = next;
-        save(row, out);
+        save_changed(row, previous, &mut self.write_heads, out);
         if let Some(erase) = erase {
             readback::forget(self, name, erase);
         }
@@ -374,6 +403,12 @@ pub(super) struct PullSeen {
 }
 
 impl Domain {
+    /// The last entry in the branch's write record, in admission order.
+    #[must_use]
+    pub fn nearest_write(&self, name: &Name) -> Option<&Written> {
+        self.writes.get(name)?.entries.last()
+    }
+
     /// Judge a branch observation without deciding its caller's policy.
     pub fn observe(&mut self, name: &Name, observed: Option<Commit>, actor: Actor, out: &mut Queue<Request>) -> Seen {
         use judge::Judgement;
@@ -404,8 +439,9 @@ impl Domain {
                         finished.push(entry.order).expect("one order per entry");
                     }
                 }
+                let previous = row.head;
                 row.head = observed;
-                save(row, out);
+                save_changed(row, previous, &mut self.write_heads, out);
                 for order in finished.into_boxed() {
                     readback::forget(self, name, order);
                 }
@@ -421,9 +457,13 @@ impl Domain {
             }
             Judgement::Readback { order, observed } => {
                 if readback::checked(self, name, order, row.head, observed) {
-                    judge::drift(row)
+                    if actor == Actor::Unknown && readback::preparing_rebase(self, name, order) {
+                        Seen::Owed // An unattributed rewrite needs the entry's exact outcome.
+                    } else {
+                        judge::drift(row)
+                    }
                 } else {
-                    readback::intent(self, name, order, observed);
+                    readback::intent(self, name, order, observed, actor);
                     Seen::Owed
                 }
             }

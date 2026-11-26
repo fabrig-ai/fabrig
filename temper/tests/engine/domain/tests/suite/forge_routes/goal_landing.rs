@@ -747,15 +747,12 @@ fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("drift account") };
     let before = forge_top::commit_text(&expected);
     let after = forge_top::commit_text(&translate::commit(head));
-    assert_eq!(
-        words.as_ref(),
-        format!(
-            "its branch moved: expected {}, found {}",
-            core::str::from_utf8(&before[..12]).unwrap(),
-            core::str::from_utf8(&after[..12]).unwrap()
-        )
-        .as_bytes()
+    let prefix = format!(
+        "its branch moved: expected {}, found {}; temper's last write on it: open pull of ",
+        core::str::from_utf8(&before[..12]).unwrap(),
+        core::str::from_utf8(&after[..12]).unwrap()
     );
+    assert!(words.starts_with(prefix.as_bytes()) && words.ends_with(b", confirmed"), "{words:?}");
     world.hold_write_answers = None;
     world.events.extend(world.held_write_answers.drain(..));
     world.signed_in = None;

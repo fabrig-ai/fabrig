@@ -5,6 +5,11 @@ use alloc::boxed::Box;
 use skein_lib::{List, Map, Time, Token, Wall};
 
 impl Domain {
+    #[cfg(test)]
+    pub(crate) fn test_expected(&self, resource: &skein_forge_client::Resource) -> Option<skein_forge::api::Commit> {
+        self.client.expected(resource)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn inspection_limits(&self) -> &crate::Limits {

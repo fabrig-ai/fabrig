@@ -65,7 +65,6 @@ impl Domain {
             self.reconciliation.restore(&Stored::Hold(repaired.clone())).expect("repair removes one reference");
             self.sequence = self.sequence.checked_add(1).expect("restored writer read sequence fits");
             let owner = skein_lib::Token::new(self.sequence | (1_u64 << 62));
-            let baseline = self.branch_head(&name);
             self.lost
                 .insert(
                     owner,
@@ -73,8 +72,6 @@ impl Domain {
                         task,
                         attempt,
                         name,
-                        comparison: None,
-                        baseline,
                         state: LostReadState::Restoring,
                         last_answer: None,
                         kind: LostWriterKind::Retired,

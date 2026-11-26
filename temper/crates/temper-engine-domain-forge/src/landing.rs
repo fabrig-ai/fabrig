@@ -3669,7 +3669,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 what: skein_forge_client::What::Branch(member.branch.clone()),
             };
             if let Some(name) = super::domain::from_client(&resource, &env.limits) {
-                super::domain::record_written_head(d, env, resource, name, candidate, p.task, out);
+                super::domain::record_owned_head(d, env, &name, candidate, Some(p.task), out);
             }
         }
     }

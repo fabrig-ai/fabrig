@@ -325,26 +325,6 @@ pub fn drift_to_domain(record: crate::v25::Drift) -> temper_engine_domain_forge_
 }
 
 #[must_use]
-pub fn design_writer_to_record(value: &temper_engine_domain_forge_vocabulary::DesignWriter) -> crate::v25::DesignWriter {
-    let temper_engine_domain_forge_vocabulary::DesignWriter { task: field_000000, attempt: field_000001, rereading: field_000002 } = value;
-    crate::v25::DesignWriter {
-        task: *field_000000,
-        attempt: *field_000001,
-        rereading: *field_000002
-    }
-}
-
-#[must_use]
-pub fn design_writer_to_domain(record: crate::v25::DesignWriter) -> temper_engine_domain_forge_vocabulary::DesignWriter {
-    let crate::v25::DesignWriter { task: field_000000, attempt: field_000001, rereading: field_000002 } = record;
-    temper_engine_domain_forge_vocabulary::DesignWriter {
-        task: field_000000,
-        attempt: field_000001,
-        rereading: field_000002
-    }
-}
-
-#[must_use]
 pub fn head_beside_to_record(value: &temper_engine_domain_forge_vocabulary::HeadBeside) -> crate::v25::HeadBeside {
     let temper_engine_domain_forge_vocabulary::HeadBeside { head: field_000000, waiting: field_000001 } = value;
     crate::v25::HeadBeside {
@@ -398,7 +378,7 @@ pub fn hold_to_record(value: &temper_engine_domain_forge_vocabulary::Hold) -> Re
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::HOLD_DESIGN_WRITERS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = design_writer_to_record(item);
+                let converted = crate::records::by_hand::design_writer_to_record(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
@@ -437,7 +417,7 @@ pub fn hold_to_domain(record: crate::v25::Hold, context: &crate::records::Contex
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = design_writer_to_domain(item);
+                let converted = crate::records::by_hand::design_writer_to_domain(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)

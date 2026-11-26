@@ -182,7 +182,6 @@ fn riding(d: &Domain, owner: Token) -> bool {
         || d.landing.pending.contains_key(&owner)
         || d.tier_ops.reads.contains_key(&owner)
         || d.closing.selection_reads.contains_key(&owner)
-        || d.rebase_fresh.contains_key(&owner)
         || crate::unmade::reader(d, owner).is_some()
 }
 /// Remember the exact fresh read, not a reconstruction from facts that may move.
@@ -239,7 +238,6 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
         Event::Settle
         | Event::Keep { .. }
         | Event::Hint { .. }
-        | Event::Writer { .. }
         | Event::Pushed { .. }
         | Event::Fence { .. }
         | Event::Make { .. }
@@ -289,9 +287,7 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
         state(d).reads.insert(owner, reading).expect("retains its pending read");
         return false;
     }
-    let capacity = (*result == Err(Error::Busy)
-        && (reading.outage || d.pending_ci.contains_key(&owner) || d.rebase_fresh.contains_key(&owner)))
-        || (*result == Err(Error::NotConnected) && d.rebase_fresh.contains_key(&owner));
+    let capacity = *result == Err(Error::Busy) && (reading.outage || d.pending_ci.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
         if let Some(pending) = d.steps.get(&owner) {
             let task = pending.task;

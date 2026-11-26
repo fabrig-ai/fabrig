@@ -58,10 +58,15 @@ pub(in super::super) fn account(
         head(&mut words, expected.as_ref());
         append(&mut words, b", found ");
         head(&mut words, observed.as_ref());
-        if let Some(read) = evidence
-            && let Some(order) = read.nearest_write
-            && let Some(entry) = domain.forge.write_entry(&name, order)
-        {
+        let order = match evidence {
+            Some(read) => read.nearest_write,
+            None => None,
+        };
+        let nearest = match order {
+            Some(order) => domain.forge.write_entry(&name, order),
+            None => domain.forge.nearest_write(&name),
+        };
+        if let Some(entry) = nearest {
             last_write(&mut words, entry);
         }
     } else if why == change::Hold::PullClosed {
@@ -183,7 +188,7 @@ fn behind_words(words: &mut List<u8>, behind: forge::ReadBehind) {
     append(words, b": the read may be stale or another's write");
 }
 
-fn last_write(words: &mut List<u8>, entry: &forge::Written) {
+pub(super) fn last_write(words: &mut List<u8>, entry: &forge::Written) {
     use forge::writes::{Operation, Sender, WriteState};
     use skein_lib::Decimal;
     append(words, b"; temper's last write on it: ");

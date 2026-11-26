@@ -102,14 +102,9 @@ fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
         d.changes.insert(TASK, change()).unwrap();
         watch(&mut d, &env);
         hold(&mut d, Some(Writer::Run { task: DELEGATE, attempt: 1 }));
-        child(
-            &mut d,
-            &env,
-            skein_forge_client::Event::Writer { resource: resource(BRANCH), taken: true },
-            &mut Queue::uncapped(),
-        );
         let mut out = Queue::uncapped();
         answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP, true)], &mut out);
+        explain_push(&mut d, &env, &mut out);
         refused(&out, Some(TASK), BRANCH);
         assert_eq!(d.branch_head(&name(BRANCH)), None);
         let saved = d.hold(&name(BRANCH)).unwrap();
@@ -121,6 +116,15 @@ fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
         assert_eq!(d.client.cached(&resource(BRANCH)).unwrap().tip, Some(TIP));
         assert_eq!(d.heads.len(), 2);
     }
+}
+
+fn explain_push(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    use crate::writes::{Actor, Operation, Seen, Sender};
+    let branch = name(BRANCH);
+    d.admit(&branch, Operation::Push { before: None, after: TIP }, Sender::Attempt { task: DELEGATE, attempt: 1 }, out)
+        .expect("a push can be admitted before the branch has its first head");
+    assert_eq!(d.observe(&branch, Some(TIP), Actor::Unknown, out), Seen::Explained { order: 1 });
+    drain(d, env, out);
 }
 
 #[test]
@@ -150,6 +154,7 @@ fn released_moved_branch_clears_drift_and_tells_client_at_capacity() {
     d.changes.insert(row.task, row.clone()).unwrap();
     let mut out = Queue::uncapped();
     accept_released_branch(&mut d, &env, &mut row, TIP, &mut out);
+    drain(&mut d, &env, &mut out);
     refused(&out, Some(TASK), BRANCH);
     assert_eq!(row.drift, None);
     assert_eq!(d.hold(&name(BRANCH)).unwrap().drift, None);
@@ -181,7 +186,7 @@ fn full_table_observations_name_only_the_live_own_branch_not_a_shared_base() {
 }
 
 #[test]
-fn lost_read_at_capacity_still_completes_the_report() {
+fn lost_read_at_capacity_releases_the_slot_without_claiming_the_tip() {
     let (mut d, env) = full();
     d.changes.insert(TASK, change()).unwrap();
     watch(&mut d, &env);
@@ -194,8 +199,6 @@ fn lost_read_at_capacity_still_completes_the_report() {
                 task: DELEGATE,
                 attempt: 1,
                 name: name(BRANCH),
-                comparison: None,
-                baseline: None,
                 state: LostReadState::Asked,
                 last_answer: None,
                 kind: LostWriterKind::Slot,
@@ -204,10 +207,9 @@ fn lost_read_at_capacity_still_completes_the_report() {
         .unwrap();
     let mut out = Queue::uncapped();
     lost_read(&mut d, &env, owner, Ok(skein_forge::api::Answer::Commit(TIP)), &mut out);
-    refused(&out, Some(TASK), BRANCH);
     assert_eq!(d.hold(&name(BRANCH)).unwrap().writer, None);
-    assert_eq!(d.change(TASK).unwrap().change.last_head, Some(TIP));
-    assert_eq!(d.client.cached(&resource(BRANCH)).unwrap().tip, Some(TIP));
+    assert_ne!(d.change(TASK).unwrap().change.last_head, Some(TIP));
+    assert_eq!(d.client.expected(&resource(BRANCH)), None);
     assert!(d.lost.is_empty());
     for request in &out {
         assert!(!matches!(request, Request::LostReadFailed { .. }));
@@ -222,6 +224,7 @@ fn stale_full_table_push_report_erases_old_heads_and_saves_the_new_head() {
     hold(&mut d, Some(Writer::Run { task: DELEGATE, attempt: 1 }));
     let mut out = Queue::uncapped();
     answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP, true)], &mut out);
+    explain_push(&mut d, &env, &mut out);
     assert_eq!(d.heads.len(), 1);
     assert_eq!(d.branch_head(&name(BRANCH)), Some(TIP));
     for branch in [b"main".as_slice(), b"temper/1/c1"] {
@@ -354,8 +357,6 @@ fn a_sweep_keeps_unsettled_branch_writes_and_pending_lost_reads() {
                     task: TASK,
                     attempt: 1,
                     name: name(b"temper/1/c1"),
-                    comparison: None,
-                    baseline: None,
                     state: LostReadState::Asked,
                     last_answer: None,
                     kind: LostWriterKind::Slot,

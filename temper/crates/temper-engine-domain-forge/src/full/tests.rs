@@ -518,11 +518,9 @@ fn read_admission_reports_oldest_holders_doublings_and_room_after_reclaim() {
                     repository: 2,
                     what: crate::What::Branch(Box::new([b"temper".as_slice().into(), b"42".as_slice().into()])),
                 },
-                comparison: None,
-                baseline: None,
                 state: super::super::LostReadState::Asked,
                 last_answer: None,
-                kind: super::super::LostWriterKind::Written,
+                kind: super::super::LostWriterKind::Slot,
             },
         )
         .unwrap();

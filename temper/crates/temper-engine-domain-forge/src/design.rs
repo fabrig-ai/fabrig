@@ -1,8 +1,5 @@
 //! A goal's design writers live beside its slot (domain/forge/branches.md, 3).
-use super::{
-    Domain, Env, Handoff, Hold, Limits, List, LostReadState, LostWriterKind, Name, PendingLost, Queue, Request, Token,
-    Writer, child, emit, goal_branch, lost_failed, save_hold, to_client,
-};
+use super::{Domain, Env, Limits, List, Name, Queue, Request, emit, goal_branch, save_hold};
 
 pub(super) fn design_claim_permitted(
     d: &Domain,
@@ -75,49 +72,6 @@ pub(super) fn design_claim_permitted(
     true
 }
 
-/// The keep remains written until the last slot, design writer or merge ends.
-pub(super) fn branch_written(d: &Domain, name: &Name, ending: Option<u64>) -> bool {
-    if super::retired_reading(d, name) {
-        return true;
-    }
-    if let Some(hold) = d.holds.get(name)
-        && (!hold.design_writers.is_empty() || waiting(hold))
-    {
-        return true;
-    }
-    other_written(d, name, ending)
-}
-
-pub(super) fn waiting(hold: &Hold) -> bool {
-    match hold.beside {
-        Some(beside) => beside.waiting.is_some(),
-        None => false,
-    }
-}
-
-/// Slot writers and handed merges, without design writers or waiting records.
-pub(super) fn other_written(d: &Domain, name: &Name, ending: Option<u64>) -> bool {
-    if let Some(hold) = d.holds.get(name)
-        && hold.writer.is_some()
-    {
-        return true;
-    }
-    for (number, row) in &d.entries {
-        if Some(*number) == ending || row.held || row.handoff != Handoff::Handed {
-            continue;
-        }
-        if let skein_forge_client::Condition::Merge { base } = &row.entry.effect.condition
-            && row.entry.repository.forge == name.forge
-            && row.entry.repository.repository == name.repository
-            && crate::items::branch_matches(name, base)
-        {
-            return true;
-        }
-    }
-    false
-}
-
-/// Nothing pushes a goal's run branch in its goal repository (domain/forge/keeping-up.md, 1).
 pub(super) fn goal_run(d: &Domain, name: &Name) -> bool {
     let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
     let Some(repository) = d.repositories.get(&repository) else { return false };
@@ -145,90 +99,25 @@ pub(super) fn unpublished_branch(d: &Domain, name: &Name) -> bool {
         || crate::items::change_branch(name, &repository.prefix).is_some()
 }
 
-pub(super) fn pending_writer(hold: &Hold, pending: &PendingLost) -> bool {
-    match pending.kind {
-        LostWriterKind::Retired => hold.writer.is_none(),
-        LostWriterKind::Written => match (hold.beside, pending.comparison) {
-            (Some(beside), Some((write, head))) => beside.head == head && beside.waiting == Some(write),
-            (Some(_), None) | (None, Some(_) | None) => false,
-        },
-        LostWriterKind::Slot => hold.writer == Some(Writer::Lost { task: pending.task, attempt: pending.attempt }),
-        LostWriterKind::Design => hold.design_writers.contains(&crate::DesignWriter {
-            task: pending.task,
-            attempt: pending.attempt,
-            rereading: true,
-        }),
-    }
-}
-
-pub(super) fn read_designs(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Queue<Request>) {
+/// Attempts release their design claims without reading the branch; their
+/// admitted pushes settle independently of the claim.
+pub(super) fn ended(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
     for (name, hold) in &d.holds {
-        if d.forge_ended(name.forge) {
-            continue;
-        }
-        for writer in &hold.design_writers {
-            if writer.task == task && writer.attempt == attempt {
-                names.push(name.clone()).expect("one design writer per task per hold");
-            }
+        if hold.design_writers.contains(&crate::DesignWriter { task, attempt }) {
+            names.push(name.clone()).expect("one design claim per hold");
         }
     }
     for name in &names {
-        let mut reading = false;
-        for (_, pending) in &d.lost {
-            if pending.name == *name
-                && pending.task == task
-                && pending.attempt == attempt
-                && pending.kind == LostWriterKind::Design
-            {
-                reading = true;
-            }
-        }
-        if reading {
-            continue;
-        }
         let hold = d.holds.get_mut(name).expect("collected design hold");
-        for writer in &mut hold.design_writers {
-            if writer.task == task && writer.attempt == attempt {
-                writer.rereading = true;
+        let mut writers = List::with_capacity(env.limits.holds);
+        for writer in &hold.design_writers {
+            if writer.task != task || writer.attempt != attempt {
+                writers.push(*writer).expect("bounded design claims");
             }
         }
+        hold.design_writers = writers.into_boxed();
         save_hold(out, hold.clone());
-        let Some(resource) = to_client(name, &env.limits) else { continue };
-        let read = match resource.what {
-            skein_forge_client::What::Branch(branch) => skein_forge::api::Read::Branch { branch },
-            skein_forge_client::What::Repository
-            | skein_forge_client::What::Pull(_)
-            | skein_forge_client::What::Issue(_) => {
-                unreachable!("a design writer holds a goal branch")
-            }
-        };
-        let Some(sequence) = d.sequence.checked_add(1) else {
-            lost_failed(d, task, attempt, name, b"design-writer read sequence exhausted", out);
-            return;
-        };
-        d.sequence = sequence;
-        let owner = Token::new(sequence | (1_u64 << 62));
-        let baseline = d.branch_head(name);
-        if d.lost
-            .insert(
-                owner,
-                PendingLost {
-                    task,
-                    attempt,
-                    name: name.clone(),
-                    comparison: None,
-                    baseline,
-                    state: LostReadState::Asked,
-                    last_answer: None,
-                    kind: LostWriterKind::Design,
-                },
-            )
-            .is_err()
-        {
-            lost_failed(d, task, attempt, name, b"design-writer read capacity exhausted", out);
-            return;
-        }
-        child(d, env, skein_forge_client::Event::Read { owner, repository: resource.repository, read }, out);
+        super::lost_release(d, env, name, task, out);
     }
 }

@@ -334,7 +334,7 @@ fn a_modifying_goals_first_run_waits_for_making_and_writes_design() {
     assert_eq!(forge_hold(&world, &branch).expect("confirmed goal hold").writer, None);
     assert_eq!(
         forge_hold(&world, &branch).expect("confirmed goal hold").design_writers.as_ref(),
-        &[forge_top::DesignWriter { task, attempt: goal.attempt, rereading: false }]
+        &[forge_top::DesignWriter { task, attempt: goal.attempt }]
     );
     let charter = temper_engine_smith::charter(&goal);
     assert!(charter.grants.deliver.is_some(), "the first run can deliver its first-wave design");
@@ -620,7 +620,7 @@ fn merging_siblings() -> (World, engine::Assignment, Box<[u8]>, u64) {
     (world, goal, branch, second[0].task)
 }
 
-fn hint_goal_branch(world: &mut World, branch: &[u8]) {
+pub(super) fn hint_goal_branch(world: &mut World, branch: &[u8]) {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
             repository: forge_world::REPO,
@@ -868,7 +868,7 @@ fn assert_drift_account(world: &World, goal: u64, branch: &[u8], expected: u64, 
         || "deletion".into(),
         |head| String::from_utf8(engine::commit_text(&translate::commit(head)).into()).expect("head text"),
     );
-    assert!(words.contains(&format!("observed {moved}")), "{words}");
+    assert!(words.contains(&format!("found {moved}")), "{words}");
 }
 
 #[test]
@@ -942,16 +942,15 @@ fn a_design_answer_before_a_late_merge_record_keeps_the_goals_newer_tip() {
             break;
         }
     }
-    let beside = forge_hold(&world, &branch).expect("held goal").beside.expect("design read beside the merge");
-    assert_eq!(beside.head, translate::commit(design));
-    assert_eq!(beside.waiting, None);
+    let hold = forge_hold(&world, &branch).expect("held goal");
+    assert!(hold.design_writers.is_empty());
+    assert!(hold.drift.is_none());
     world.release_write_answers();
     world.until(Until::Ready);
     observe_goal_branch(&mut world, &branch);
     assert_eq!(branch_tip(&mut world, &branch), design);
     let hold = forge_hold(&world, &branch).expect("held goal");
     assert!(hold.drift.is_none(), "{hold:?}");
-    assert_eq!(hold.beside, None);
     let name = hold.name.clone();
     assert!(world.store.rows.values().any(|row| matches!(row,
         Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::BranchHead(head)

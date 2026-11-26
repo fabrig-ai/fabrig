@@ -237,7 +237,7 @@ fn entries(
         let task = d.entries.get(&number).expect("collected entry").entry.task;
         let mut settled = Queue::uncapped();
         d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
-        super::settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
+        super::outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
         super::outage::forget_entry(d, number);
         d.entries.remove(&number);
         if d.flights.remove(&(task, number)).is_some() {
@@ -722,7 +722,6 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
         d.capabilities.remove(&key);
     }
     super::goal_branch::release_repository(d, repository);
-    super::rebase::release_repository(d, repository);
     super::outage::release_repository(d, repository);
     crate::brief::release_repository(d, repository);
     crate::brief_document::release_repository(d, repository);

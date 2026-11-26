@@ -314,9 +314,7 @@ fn read_result(
             if super::heads::record(d, env, head.clone(), concerning, out) {
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
             }
-            if let Some(resource) = to_client(&pending.name, &env.limits) {
-                child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
-            }
+            super::writes::accept_head(d, &pending.name, commit, out);
             wake(d, &pending.name, out);
             released(d, pending.task, out);
         }
@@ -696,10 +694,14 @@ fn released(d: &Domain, task: u64, out: &mut Queue<Request>) {
 
 pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, since: Wall, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
-    for (name, hold) in &d.holds {
-        // A design writer's confirmed branch keeps its drift baseline until
-        // that attempt's fresh read (domain/forge/branches.md, 3).
-        if is_goal(d, name) && hold.design_writers.is_empty() {
+    for (name, _) in &d.holds {
+        // A made branch's fresh keep judges against its restored record.
+        // Only a branch still without its first recorded head needs making.
+        let recorded = match d.writes.get(name) {
+            Some(row) => row.head.is_some(),
+            None => false,
+        };
+        if is_goal(d, name) && !recorded {
             names.push(name.clone()).expect("bounded holds");
         }
     }

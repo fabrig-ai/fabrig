@@ -29,16 +29,11 @@ pub(crate) struct Keep {
     fresh_active: bool,
 }
 #[derive(Hash, Debug)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "branch presence since start is independent of watch, writer and hint state"
-)]
 struct Live {
     record: LiveRecord,
     alarm: u64,
     active: bool,
     fresh: Fresh,
-    writer: bool,
     presence: Presence,
     branch_present: bool,
     pushed_by: Option<(Commit, u64)>,
@@ -87,7 +82,6 @@ enum Phase {
     Pull,
     Reviews(u32, u32),
     Branch,
-    BranchAncestry { before: Commit, after: Commit },
 }
 // A refusal belongs to a phase kind, not a scan page (forge/client.md, 4.2).
 #[derive(Hash, Debug)]
@@ -97,11 +91,10 @@ struct Refusals {
     pull: bool,
     reviews: bool,
     branch: bool,
-    ancestry: Option<(Commit, Commit)>,
 }
 impl Refusals {
     const fn new() -> Self {
-        Self { object: false, pull: false, reviews: false, branch: false, ancestry: None }
+        Self { object: false, pull: false, reviews: false, branch: false }
     }
     fn contains(&self, phase: Phase) -> bool {
         match phase {
@@ -109,7 +102,6 @@ impl Refusals {
             Phase::Pull => self.pull,
             Phase::Reviews(_, _) => self.reviews,
             Phase::Branch => self.branch,
-            Phase::BranchAncestry { before, after } => self.ancestry == Some((before, after)),
         }
     }
     fn set(&mut self, phase: Phase, refused: bool) {
@@ -118,9 +110,6 @@ impl Refusals {
             Phase::Pull => self.pull = refused,
             Phase::Reviews(_, _) => self.reviews = refused,
             Phase::Branch => self.branch = refused,
-            Phase::BranchAncestry { before, after } => {
-                self.ancestry = if refused { Some((before, after)) } else { None };
-            }
         }
     }
 }
@@ -243,6 +232,12 @@ impl Keep {
             Some(_) | None => None,
         }
     }
+    pub(crate) fn expected(&self, resource: &Resource) -> Option<Commit> {
+        match self.live.get(resource) {
+            Some(row) if row.active => row.record.pushed,
+            Some(_) | None => None,
+        }
+    }
     pub(crate) fn live_keys(&self) -> Box<[Resource]> {
         keys(self)
     }
@@ -267,7 +262,6 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
         alarm,
         active: true,
         fresh: Fresh::Complete,
-        writer: false,
         presence: Presence::Unknown,
         branch_present: false,
         pushed_by: None,

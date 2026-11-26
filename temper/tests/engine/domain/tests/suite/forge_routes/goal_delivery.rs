@@ -235,10 +235,7 @@ fn a_goals_design_delivery_and_a_sibling_merge_reach_g_without_a_slot() {
     assert_eq!(item.landing.as_deref(), Some(branch.as_ref()));
     assert_eq!(writer(&world, &branch), None);
     let designers = &forge_hold(&world, &branch).expect("goal hold").design_writers;
-    assert_eq!(
-        designers.as_ref(),
-        &[forge_top::DesignWriter { task: goal.task, attempt: goal.attempt, rereading: false }]
-    );
+    assert_eq!(designers.as_ref(), &[forge_top::DesignWriter { task: goal.task, attempt: goal.attempt }]);
     let home = goal
         .sections
         .iter()
@@ -280,6 +277,130 @@ fn a_goals_design_delivery_and_a_sibling_merge_reach_g_without_a_slot() {
     assert_eq!(second.workspace.repositories[0].start, engine::ForgeStart::Base(branch.clone()));
     assert_eq!(second.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
     early_start::stop(&mut world, &second);
+}
+
+#[test]
+fn a_goals_delivery_merging_its_moved_tip_is_never_drift() {
+    let (mut world, goal, branch) = running_goal();
+    let name = forge_hold(&world, &branch).expect("goal hold").name.clone();
+    let h = branch_tip(&mut world, &branch);
+    assert_record_tip(&world, &name, &branch, h);
+    let path = b"design.md";
+    let draft = world.worker_commit(h, path, b"added");
+    let m = land_into_goal(&mut world, &goal, &branch, SIBLING_CALL, b"sibling");
+    assert_ne!(h, m);
+    assert_eq!(world.merges, SIBLING_MERGES);
+    assert_record_tip(&world, &name, &branch, m);
+
+    // As the delivery does on a moved lease: merge in the draft while
+    // keeping M as the first parent and push conditionally on M.
+    let tree = &world.fake.object(m).expect("merge tree").tree;
+    let mut files = skein_lib::List::with_capacity(16);
+    for (path, content) in tree {
+        files.push(raw::File { path: path.clone(), content: content.clone() }).expect("small fixture tree");
+    }
+    files.push(raw::File { path: path.as_slice().into(), content: b"added".as_slice().into() }).unwrap();
+    let c = fake::commit_tree(
+        &mut world.fake,
+        &world.fake_env.limits,
+        m,
+        Some(draft),
+        files.into_boxed(),
+        b"Merge moved tip",
+    )
+    .expect("delivery merge");
+    // Delay the first keep call for C, not a poll after it has already
+    // settled the write. The worker admission itself must not move M.
+    world.slow_branch_latency = Duration::from_secs(240);
+    world.slow_branch = Some(branch.clone());
+    world.run_push(&goal, &branch, c, 2);
+    super::goal_branch::hint_goal_branch(&mut world, &branch);
+    let mut keep = None;
+    for _ in 0..STEPS {
+        keep = world.pending.iter().find_map(|(call, op)| match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: read }) if read == &branch => {
+                Some(*call)
+            }
+            _ => None,
+        });
+        if keep.is_some() {
+            break;
+        }
+        world.tick();
+    }
+    world.slow_branch = None;
+    let keep = keep.expect("the keep read of g is out");
+    assert!(world.pending.contains_key(&keep));
+    assert_record_tip(&world, &name, &branch, m);
+    world.advance_ticks(2400);
+    for _ in 0..STEPS {
+        if !world.pending.contains_key(&keep) {
+            break;
+        }
+        world.tick();
+    }
+    world.until(Until::Ready);
+    assert!(!world.pending.contains_key(&keep), "keep answered after four minutes");
+    let hold = forge_hold(&world, &branch).expect("goal hold");
+    assert!(hold.design_writers.contains(&forge_top::DesignWriter { task: goal.task, attempt: goal.attempt }));
+    assert!(hold.drift.is_none());
+    assert!(!matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }));
+    assert_record_tip(&world, &name, &branch, c);
+    assert_file(&mut world, &branch, b"sibling");
+    assert_file(&mut world, &branch, path);
+
+    park(&mut world, &goal);
+    super::goal_branch::observe_goal_branch(&mut world, &branch);
+    assert!(forge_hold(&world, &branch).expect("goal hold").design_writers.is_empty());
+    assert!(forge_hold(&world, &branch).expect("goal hold").drift.is_none());
+    assert_record_tip(&world, &name, &branch, c);
+
+    let other = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"moved", 3)
+        .expect("outside push onto C");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            key: None,
+            change: skein_forge::api::Change::BranchMoved {
+                branch: branch.clone(),
+                head: translate::commit(other),
+                actor: 3,
+            },
+        },
+    })));
+    super::goal_branch::observe_goal_branch(&mut world, &branch);
+    let tasks::Phase::Held { why: tasks::Hold::Drift, source: Some(source), .. } = &live_task(&world, goal.task).phase
+    else {
+        panic!("the outside push holds the goal")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("forge drift account") };
+    let c_text = engine::commit_text(&translate::commit(c));
+    let other_text = engine::commit_text(&translate::commit(other));
+    let c_text = std::str::from_utf8(&c_text).unwrap();
+    let other_text = std::str::from_utf8(&other_text).unwrap();
+    let words = std::str::from_utf8(words).unwrap();
+    assert!(words.contains(&format!("expected {c_text}, found {other_text}")), "{words}");
+    assert!(
+        words.contains(&format!(
+            "temper's last write on it: push of {} by task {} attempt {}, confirmed",
+            &c_text[..12],
+            goal.task,
+            goal.attempt
+        )),
+        "{words}"
+    );
+    assert_record_tip(&world, &name, &branch, c);
+}
+
+fn assert_record_tip(world: &World, name: &forge_top::Name, branch: &[u8], expected: u64) {
+    let commit = Some(translate::commit(expected));
+    assert_eq!(writes(world, name).head, commit);
+    assert!(
+        world.store.rows.values().any(|row| matches!(row, Record::Forge { row }
+        if matches!(row.as_ref(), forge_top::Stored::Client(skein_forge_client::Stored::Live(live))
+        if live.watch.resource.what == skein_forge_client::What::Branch(branch.into()) && live.pushed == commit))),
+        "the client's durable expectation follows the record"
+    );
 }
 
 fn read_news(world: &mut World, run: &engine::Assignment) {

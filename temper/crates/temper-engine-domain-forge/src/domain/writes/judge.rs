@@ -40,13 +40,29 @@ pub(super) fn judge(row: &Writes, observed: Option<Commit>, actor: Actor) -> Jud
         }
     }
     if let Some(observed) = observed {
+        // A delivery may already have leased a merge's new head while the
+        // merge's answer is still out. Read back that missing link, not the
+        // delivery commit, which the pull could never name as its merge.
+        let missing = missing_link(row, observed);
         for entry in &row.entries {
-            if entry.state.unsettled() && intent(&entry.operation, observed) {
-                return Judgement::Readback { order: entry.order, observed };
+            if entry.state.unsettled() && intent(&entry.operation, missing) {
+                return Judgement::Readback { order: entry.order, observed: missing };
             }
         }
     }
     Judgement::Known(drift(row))
+}
+
+fn missing_link(row: &Writes, mut observed: Commit) -> Commit {
+    for entry in row.entries.iter().rev() {
+        if let Operation::Push { before: Some(before), after } = entry.operation
+            && after == observed
+            && Some(before) != row.head
+        {
+            observed = before;
+        }
+    }
+    observed
 }
 
 fn explain(row: &Writes, observed: Option<Commit>) -> Option<Judgement> {
@@ -56,7 +72,7 @@ fn explain(row: &Writes, observed: Option<Commit>) -> Option<Judgement> {
     let mut parent = [None; WRITES];
     let mut end = None;
     for (index, entry) in row.entries.iter().enumerate() {
-        if !entry.state.unsettled() {
+        if entry.state == WriteState::Refused {
             continue;
         }
         let (Tip::Known(from), Tip::Known(to)) = (before(&entry.operation), after(&entry.operation)) else { continue };
@@ -67,7 +83,7 @@ fn explain(row: &Writes, observed: Option<Commit>) -> Option<Judgement> {
             }
         }
         *parent.get_mut(index).expect("stored bound") = link;
-        if link.is_some() && to == observed {
+        if link.is_some() && to == observed && entry.state.unsettled() {
             end = Some((index, entry.order));
         }
     }

@@ -86,7 +86,7 @@ impl Harness {
                 | Request::Erase { .. }
                 | Request::Kept { .. }
                 | Request::Changed { .. }
-                | Request::Drift { .. } => panic!("outbox tests keep no resources"),
+                | Request::Moved { .. } => panic!("outbox tests keep no resources"),
                 Request::Read { .. } => panic!("outbox tests make no parent read requests"),
                 Request::Settled { left } => {
                     assert!(self.settled.replace(left).is_none(), "settled once");
