@@ -7,6 +7,7 @@
 use crate::{
     Core, Limits,
     documents::{Count, Cursor, Missing, Proposer, TaskLine, TaskLink, Window},
+    runs::waits,
 };
 use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::documents::inbox_deployment::*;
@@ -148,12 +149,23 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
             let Proposer::Task(task) = proposer else { continue };
             let Some(row) = core.tasks.proposal(task, u64::from(number)) else { continue };
             let jig_domain_tasks::ProposalState::Pending { since, .. } = row.state else { continue };
+            let (since, bound) = waits::policy_proposal_timing(core, limits, since);
             let object = InboxObject::Proposal { proposer, number: u64::from(number) };
             let cursor = Cursor::Inbox { task: jig_domain_tasks::PROPOSAL_WITHOUT_TASK, object, at: Some(since) };
             ordered
                 .insert(
                     key(cursor)?,
-                    (jig_domain_tasks::PROPOSAL_WITHOUT_TASK, 0, object, None, since, false, cursor, false),
+                    (
+                        jig_domain_tasks::PROPOSAL_WITHOUT_TASK,
+                        0,
+                        object,
+                        None,
+                        since,
+                        Some(bound),
+                        false,
+                        cursor,
+                        false,
+                    ),
                 )
                 .expect("bounded settings needs");
         }
@@ -167,13 +179,24 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
                         | jig_domain_tasks::PersonProposalState::Rejected { .. }
                         | jig_domain_tasks::PersonProposalState::Withdrawn { .. } => continue,
                     };
+                    let (since, bound) = waits::policy_proposal_timing(core, limits, since);
                     let object = InboxObject::Proposal { proposer: Proposer::Party(row.proposer), number: row.number };
                     let cursor =
                         Cursor::Inbox { task: jig_domain_tasks::PROPOSAL_WITHOUT_TASK, object, at: Some(since) };
                     ordered
                         .insert(
                             key(cursor)?,
-                            (jig_domain_tasks::PROPOSAL_WITHOUT_TASK, 0, object, None, since, false, cursor, false),
+                            (
+                                jig_domain_tasks::PROPOSAL_WITHOUT_TASK,
+                                0,
+                                object,
+                                None,
+                                since,
+                                Some(bound),
+                                false,
+                                cursor,
+                                false,
+                            ),
                         )
                         .expect("bounded settings needs");
                 }
@@ -188,9 +211,10 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
             continue;
         }
         let value = object(entry.kind);
-        let cursor = Cursor::Inbox { task: entry.task, object: value, at: Some(entry.at) };
+        let (at, bound) = waits::inbox_timing(core, limits, *entry);
+        let cursor = Cursor::Inbox { task: entry.task, object: value, at: Some(at) };
         ordered
-            .insert(key(cursor)?, (entry.task, entry.project, value, None, entry.at, false, cursor, false))
+            .insert(key(cursor)?, (entry.task, entry.project, value, None, at, bound, false, cursor, false))
             .expect("bounded live need census");
     }
     for update in &recent {
@@ -212,7 +236,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         }
         let cursor = Cursor::Inbox { task, object: value, at: Some(at) };
         ordered
-            .insert(key(cursor)?, (task, project, value, activity, at, true, cursor, chat))
+            .insert(key(cursor)?, (task, project, value, activity, at, None, true, cursor, chat))
             .expect("bounded shared update prefix");
     }
     let after = match window.after {
@@ -225,7 +249,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
     let mut used = 0_u32;
     let mut last = None;
     let mut more = false;
-    for (position, (task, project, object, activity, at, unread, cursor, chat)) in &ordered {
+    for (position, (task, project, object, activity, at, bound, unread, cursor, chat)) in &ordered {
         if let Some(after) = after
             && *position <= after
         {
@@ -257,6 +281,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
             object: *object,
             activity: *activity,
             at: Some(*at),
+            bound: *bound,
             unread: Some(*unread),
             cursor: *cursor,
             projects: match *object {

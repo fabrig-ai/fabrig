@@ -4142,7 +4142,7 @@ pub fn inbox_cursor_to_domain(record: jig_client_protocol_wire::v44::InboxCursor
 }
 
 pub fn inbox_entry_to_domain(record: jig_client_protocol_wire::v44::InboxEntry, context: &crate::Limits) -> Result<jig_client_domain::contract::InboxEntry, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::InboxEntry { reply: field_000000, task: field_000001, project: field_000002, object: field_000003, activity: field_000004, at: field_000005, unread: field_000006, cursor: field_000007, projects: field_000008 } = record;
+    let jig_client_protocol_wire::v44::InboxEntry { reply: field_000000, task: field_000001, project: field_000002, object: field_000003, activity: field_000004, at: field_000005, unread: field_000006, cursor: field_000007, projects: field_000008, bound: field_000009 } = record;
     Ok(jig_client_domain::contract::InboxEntry {
         reply: match field_000000 {
             Some(item) => {
@@ -4182,7 +4182,14 @@ pub fn inbox_entry_to_domain(record: jig_client_protocol_wire::v44::InboxEntry, 
             None => None,
         },
         cursor: inbox_cursor_to_domain(field_000007),
-        projects: field_000008
+        projects: field_000008,
+        bound: match field_000009 {
+            Some(item) => {
+                let converted = wait_bound_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
     })
 }
 

@@ -9,6 +9,36 @@ fn codec_families_match_their_schemas() {
 }
 
 #[test]
+fn the_previous_inbox_entry_layout_defaults_the_bound_to_none() {
+    use jig_client_protocol_wire as w;
+    use skein_lib::{Buffer, Reader};
+
+    let text = w::CLIENT_SCHEMA;
+    let (before, rest) = text.split_once("\nrecord InboxEntry {").expect("inbox entry declaration");
+    let (entry, after) = rest.split_once('\n').expect("rest of the client text");
+    let (previous_fields, _) = entry.rsplit_once(" bound: ").expect("inbox entry ends with the new field");
+    let previous_text = format!("{before}\nrecord InboxEntry {{{previous_fields} }}\n{after}");
+    let previous = skein_codec::schema::parse(previous_text.as_bytes()).expect("previous client layout");
+    let current = skein_codec::schema::parse(text.as_bytes()).expect("current client layout");
+    let entry = |schema: &skein_codec::schema::Schema| schema.root(b"InboxEntry", None).expect("inbox entry root");
+    let plan = skein_codec::layout::Plan::derive(&previous, entry(&previous), &[], &current, entry(&current), &[])
+        .expect("the new field has a default");
+
+    let records = jig_client_test_records::selected_inbox_pages();
+    let mut updates = Reader::new(&records[1].rows);
+    let bytes = skein_codec::piece::split(&mut updates).unwrap().unwrap();
+    let (present, prior) = bytes.split_last().expect("entry bytes");
+    assert_eq!(*present, 0, "previous entries lack the final option byte");
+    let mut output = Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    plan.convert(prior, &mut output, &mut work).expect("convert the previous entry");
+    assert_eq!(output.as_slice(), bytes.as_ref());
+    let entry = w::InboxEntry::decode(&w::CEILINGS, &mut Reader::new(output.as_slice())).unwrap();
+    assert_eq!(entry.bound, None);
+}
+
+#[test]
 fn the_hello_alone_keeps_version_27_bytes() {
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};

@@ -120,6 +120,7 @@ fn an_inbox_longer_than_the_engine_holds_pages_from_the_store() {
             let reads::PageRow::Inbox(entry) = row else { panic!("inbox owner row") };
             assert_eq!(entry.project, Some(1));
             assert!(entry.at.is_some());
+            assert_eq!(entry.bound, None, "a result is an update, not a wait");
             let documents::TaskLink::Retained { chip, .. } = &entry.task else { panic!("kept ended identity") };
             found.push(chip.number);
         }
@@ -375,6 +376,56 @@ fn an_escalation_read_shows_its_latest_decision_and_its_hold() {
 }
 
 #[test]
+fn an_escalation_at_the_last_holder_keeps_its_overdue_bound_and_can_be_decided() {
+    use skein_lib::{Duration, Wall};
+    const SEED: u64 = 817;
+    let (configuration, mut limits) = jig_core_world::faults::plan_fixture(SEED);
+    let stall = Duration::from_secs(2);
+    limits.core.tasks.escalation_stall = stall;
+    let mut world = jig_core_world::world::World::new(Setup {
+        seed: SEED,
+        configuration: Some(configuration),
+        limits,
+        ..Setup::default()
+    });
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    let task = chat_task(&world);
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Stalled })));
+    world.end(tasks::End::Parked, 0);
+    let first = inbox_needs(&mut world, 983, reads::Group::Escalations);
+    let [first] = first.as_slice() else { panic!("one escalation") };
+    let Some(core::Bound::At { at: pass_up, then: core::AtBound::PassUp }) = first.bound else {
+        panic!("the policy covers the first holder: {first:?}")
+    };
+    let (now, wall) = world.clocks();
+    world.fire_due(now.saturating_add(Duration::from_nanos(pass_up.as_nanos() - wall.as_nanos())), pass_up);
+    let rows = inbox_needs(&mut world, 984, reads::Group::Escalations);
+    let [entry] = rows.as_slice() else { panic!("one escalation at policy: {rows:?}") };
+    let due = Wall::from_nanos(pass_up.as_nanos() + stall.as_nanos());
+    assert_eq!(entry.at, Some(pass_up));
+    assert_eq!(entry.bound, Some(core::Bound::At { at: due, then: core::AtBound::Overdue }));
+    assert_eq!(entry.cursor, documents::Cursor::Inbox { task, object: entry.object, at: Some(pass_up) });
+
+    world.advance(stall.saturating_add(Duration::from_millis(1)));
+    assert!(world.clocks().1 > due);
+    assert_eq!(inbox_needs(&mut world, 985, reads::Group::Escalations), rows);
+    world.restart_with(jig_core_world::faults::plan_fixture(SEED).0);
+    assert_eq!(inbox_needs(&mut world, 986, reads::Group::Escalations), rows);
+    let documents::InboxObject::Escalation { revision } = entry.object else { panic!("escalation object") };
+    request(
+        &mut world,
+        97,
+        people::Ask::DecideEscalation {
+            project: 1,
+            task,
+            revision,
+            decision: people::EscalationDecision::Reject { reason: b"stay stopped".as_slice().into() },
+        },
+    );
+    assert_eq!(inbox_needs(&mut world, 987, reads::Group::Escalations).as_slice(), &[]);
+}
+
+#[test]
 fn a_task_proposal_read_finds_its_history_row_by_key() {
     let mut world = world(793);
     let task = chat_task(&world);
@@ -453,7 +504,7 @@ fn question_world_with_switch(
     text: Option<u32>,
     enabled: bool,
 ) -> (jig_core_world::world::World, u64) {
-    question_world_with_obligation(seed, bound, text, enabled, false)
+    question_world_with_obligation(seed, bound, text, enabled, false, None)
 }
 
 fn question_world_with_obligation(
@@ -462,8 +513,12 @@ fn question_world_with_obligation(
     text: Option<u32>,
     enabled: bool,
     asks: bool,
+    party_wait: Option<skein_lib::Duration>,
 ) -> (jig_core_world::world::World, u64) {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    if let Some(party_wait) = party_wait {
+        limits.core.waits.party = party_wait;
+    }
     if let Some(text) = text {
         limits.core.documents.text_bytes = text;
     }
@@ -820,6 +875,85 @@ fn the_persons_answer_reaches_the_asking_task() {
 }
 
 #[test]
+fn an_inbox_reads_and_watches_the_questions_current_party_wait() {
+    const SEED: u64 = 816;
+    let figure = skein_lib::Duration::from_secs(1);
+    let (mut world, director) = question_world_with_obligation(SEED, None, None, true, false, Some(figure));
+    let asker = chat_task(&world);
+    let message = question(&mut world, director, 1);
+    let first = question_party_wait(&mut world, asker, message, 979);
+    let core::Bound::At { at: pass_up, then: core::AtBound::PassUp } = first.bound else {
+        panic!("the project's role covers this question: {first:?}")
+    };
+    assert_eq!(pass_up, skein_lib::Wall::from_nanos(first.since.as_nanos() + figure.as_nanos()));
+    let original = inbox_needs(&mut world, 980, reads::Group::Questions);
+    assert_eq!(original.len(), 1);
+    assert_inbox_wait(&original[0], &first);
+
+    let (now, wall) = world.clocks();
+    assert!(pass_up > wall);
+    let to_bound = skein_lib::Duration::from_nanos(pass_up.as_nanos() - wall.as_nanos());
+    world.fire_due(now.saturating_add(to_bound), pass_up);
+    let final_wait = question_party_wait(&mut world, asker, message, 981);
+    assert_eq!(final_wait.since, pass_up, "the offer starts a new wait at the role");
+    assert!(matches!(final_wait.bound, core::Bound::At { then: core::AtBound::Overdue, .. }));
+
+    let sign_in = world.sign_in.expect("person signed in");
+    world.watches = Some(jig_core_world::watches::Parties::new(SEED, world.store.applied, true, sign_in));
+    jig_core_world::watches::open(&mut world, 4, documents::Watched::Inbox);
+    let documents::Document::Inbox(inbox) = jig_core_world::watches::latest(&world, 4) else { panic!("inbox watch") };
+    let object = documents::InboxObject::Question { message };
+    let watched: Vec<_> = inbox.needs.as_slice().iter().filter(|row| row.object == object).cloned().collect();
+    assert_eq!(watched.len(), 2, "the person can answer through the first link or through the offer");
+    for row in &watched {
+        assert_inbox_wait(row, &final_wait);
+    }
+    assert_eq!(inbox_needs(&mut world, 982, reads::Group::Questions), watched);
+}
+
+fn assert_inbox_wait(row: &documents::InboxEntry, wait: &core::Wait) {
+    assert_eq!(row.at, Some(wait.since));
+    assert_eq!(row.bound, Some(wait.bound));
+    let documents::Cursor::Inbox { at, .. } = row.cursor else { panic!("inbox cursor") };
+    assert_eq!(at, row.at);
+}
+
+fn question_party_wait(world: &mut jig_core_world::world::World, asker: u64, message: u64, request: u64) -> core::Wait {
+    ask(world, request, reads::Read::Task { task: asker });
+    let reads::Answer::Document(task) = latest(world) else { panic!("asking task's document") };
+    let documents::Document::Task(task) = task.as_ref() else { panic!("asking task") };
+    let kind = people::EntryKind::Question { message };
+    task.waits
+        .as_slice()
+        .iter()
+        .find(|wait| matches!(wait.object, core::WaitObject::Entry { kind: entry, .. } if entry == kind))
+        .expect("one party wait for the question")
+        .clone()
+}
+
+fn inbox_needs(
+    world: &mut jig_core_world::world::World,
+    request: u64,
+    group: reads::Group,
+) -> Vec<documents::InboxEntry> {
+    ask(
+        world,
+        request,
+        reads::Read::Inbox { group, filter: reads::Filter { project: Some(1), goal: None }, from: None },
+    );
+    let reads::Answer::Page(page) = latest(world) else { panic!("needs page") };
+    assert!(page.next.is_none(), "this fixture's needs fit one page");
+    page.rows
+        .as_slice()
+        .iter()
+        .map(|row| {
+            let reads::PageRow::Inbox(row) = row else { panic!("inbox row") };
+            row.clone()
+        })
+        .collect()
+}
+
+#[test]
 fn a_question_to_a_persons_tracked_task_is_the_tasks_to_answer() {
     let seed = 815;
     let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
@@ -928,7 +1062,7 @@ fn enabling_direct_answers_accepts_an_open_relay_question_after_restart() {
 
 #[test]
 fn an_owing_delegates_early_finish_commits_the_reminder_and_resumes() {
-    let (mut world, parent) = question_world_with_obligation(809, None, None, true, true);
+    let (mut world, parent) = question_world_with_obligation(809, None, None, true, true, None);
     let delegate = chat_task(&world);
     world.turn(1, 1, None, b"prepared a plan");
     let attempt = run_key(&world, delegate, 0).attempt;

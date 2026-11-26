@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x42, 0xd2, 0x68, 0x94, 0x39, 0x09, 0x1e, 0x6c, 0x0b, 0x34, 0x14, 0x1c, 0xb9, 0xec, 0xd7, 0x42, 0x3c, 0xa7, 0x23,
-    0x68, 0xe2, 0x10, 0x2b, 0xbd, 0x9d, 0xa4, 0x15, 0x73, 0xff, 0x2f, 0xf9, 0xba,
+    0xa1, 0xd9, 0x4c, 0x24, 0x3e, 0x0f, 0x42, 0x02, 0xfc, 0x0d, 0x14, 0x19, 0x6f, 0x21, 0x95, 0xcb, 0x7f, 0x42, 0x5a,
+    0xea, 0xa1, 0x99, 0x80, 0xde, 0xa7, 0xe3, 0x6f, 0xd3, 0xaa, 0x73, 0x76, 0x18,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -4366,6 +4366,7 @@ pub mod paths {
     pub const INBOX_ENTRY_UNREAD: Path = Path::new("InboxEntry.unread");
     pub const INBOX_ENTRY_CURSOR: Path = Path::new("InboxEntry.cursor");
     pub const INBOX_ENTRY_PROJECTS: Path = Path::new("InboxEntry.projects");
+    pub const INBOX_ENTRY_BOUND: Path = Path::new("InboxEntry.bound");
     pub const INBOX_ENTRY_TAIL: Path = Path::new("InboxEntry (tail)");
     pub const INBOX_PAGE_SELECTION: Path = Path::new("InboxPage.selection");
     pub const INBOX_PAGE_CUT: Path = Path::new("InboxPage.cut");
@@ -47362,6 +47363,7 @@ pub struct InboxEntry {
     pub unread: Option<bool>,
     pub cursor: InboxCursor,
     pub projects: List<u32>,
+    pub bound: Option<WaitBound>,
 }
 
 // Record: InboxEntry.
@@ -47382,11 +47384,13 @@ impl InboxEntry {
         skein_codec::bounds::Node::Named("InboxCursor"),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, inbox_entry_projects), item: 13, size: size_of::<u32>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 5, 7, 9, 11, 12, 14] },
+        skein_codec::bounds::Node::Named("WaitBound"),
+        skein_codec::bounds::Node::Option { item: 15 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 5, 7, 9, 11, 12, 14, 16] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 410;
+    pub const ENCODED_AT_ZERO: u64 = 421;
 }
 
 impl Record for InboxEntry {
@@ -47420,6 +47424,7 @@ impl Record for InboxEntry {
         field::write(field::Optional { item: field::Boolean }, &self.unread, limits, out, paths::INBOX_ENTRY_UNREAD)?;
         field::write(field::Nested, &self.cursor, limits, out, paths::INBOX_ENTRY_CURSOR)?;
         field::write(field::Sequence { limit: limits.inbox_entry_projects.min(CEILINGS.inbox_entry_projects), minimum: 4, item: field::U32 }, &self.projects, limits, out, paths::INBOX_ENTRY_PROJECTS)?;
+        field::write(field::Optional { item: field::Nested }, &self.bound, limits, out, paths::INBOX_ENTRY_BOUND)?;
         Ok(())
     }
 
@@ -47434,6 +47439,7 @@ impl Record for InboxEntry {
             unread: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::INBOX_ENTRY_UNREAD)?,
             cursor: field::read(field::Nested, limits, reader, paths::INBOX_ENTRY_CURSOR)?,
             projects: field::read(field::Sequence { limit: limits.inbox_entry_projects.min(CEILINGS.inbox_entry_projects), minimum: 4, item: field::U32 }, limits, reader, paths::INBOX_ENTRY_PROJECTS)?,
+            bound: field::read(field::Optional { item: field::Nested }, limits, reader, paths::INBOX_ENTRY_BOUND)?,
         })
     }
 }

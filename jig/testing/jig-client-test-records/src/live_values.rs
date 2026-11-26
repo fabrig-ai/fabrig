@@ -159,6 +159,7 @@ pub fn inbox_both_groups_record() -> w::Inbox {
         object: w::InboxObject::PersonTask,
         activity: Some(17),
         at: Some(13),
+        bound: Some(w::WaitBound::At(w::WaitAtBound { at: 57, then: w::AtBound::Overdue })),
         unread: Some(true),
         cursor: live_inbox_cursor_record(),
     };
@@ -170,6 +171,7 @@ pub fn inbox_both_groups_record() -> w::Inbox {
         object: w::InboxObject::Turn(w::InboxObjectTurn { message: 11 }),
         activity: Some(17),
         at: Some(13),
+        bound: None,
         unread: Some(true),
         cursor: live_inbox_cursor_record(),
     };

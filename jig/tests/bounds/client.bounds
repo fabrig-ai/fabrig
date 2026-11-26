@@ -393,7 +393,7 @@ Inbox: ceilings encoded=50331724 decoded=50331648; at_most(3) encoded=85 decoded
 InboxCursor: ceilings encoded=36 decoded=0; at_most(3) encoded=36 decoded=0
 InboxCursorInbox: ceilings encoded=35 decoded=0; at_most(3) encoded=35 decoded=0
 InboxCursorNumber: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
-InboxEntry: ceilings encoded=102761381 decoded=102761504; at_most(3) encoded=594 decoded=366
+InboxEntry: ceilings encoded=102761392 decoded=102761504; at_most(3) encoded=605 decoded=366
 InboxGroup: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 InboxObject: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
 InboxObjectEscalation: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0

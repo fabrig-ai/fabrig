@@ -1189,6 +1189,7 @@ pub(crate) fn inbox_entry(
         object,
         activity: None,
         at: Some(at),
+        bound: None,
         unread: None,
         cursor: InboxCursor::Number { number: position },
     };

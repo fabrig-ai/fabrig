@@ -28,6 +28,8 @@ pub struct InboxEntry {
     /// Exact child activity to load, separate from a chat ordinal or notice message number.
     pub activity: Option<u64>,
     pub at: Option<Wall>,
+    /// The current party wait's bound. Updates have none.
+    pub bound: Option<crate::waits::Bound>,
     pub unread: Option<bool>,
     pub cursor: Cursor,
     pub projects: List<u32>,

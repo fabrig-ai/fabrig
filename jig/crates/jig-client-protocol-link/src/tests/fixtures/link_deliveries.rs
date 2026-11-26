@@ -117,6 +117,7 @@ pub fn inbox_row() -> w::InboxEntry {
         object: w::InboxObject::PersonTask,
         activity: Some(19),
         at: Some(u64::MAX),
+        bound: None,
         unread: Some(false),
         cursor,
     }
@@ -133,6 +134,7 @@ pub fn inbox_row_expected() -> c::InboxEntry {
         object: c::InboxObject::PersonTask,
         activity: Some(19),
         at: Some(skein_lib::Wall::from_nanos(u64::MAX)),
+        bound: None,
         unread: Some(false),
         cursor: c::InboxCursor::Number { number: u64::MAX },
     }

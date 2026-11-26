@@ -124,6 +124,7 @@ fn question_page() -> Answer {
             object,
             activity: None,
             at: Some(skein_lib::Wall::EPOCH),
+            bound: None,
             unread: None,
             cursor: d::Cursor::Inbox { task, object, at: Some(skein_lib::Wall::EPOCH) },
             projects: List::uncapped(),

@@ -2877,7 +2877,7 @@ pub fn inbox_selection_to_record(value: &jig_domain_core_vocabulary::documents::
 }
 
 pub fn inbox_entry_to_record(value: &jig_domain_core_vocabulary::documents::InboxEntry, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::InboxEntry, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::documents::InboxEntry { reply: field_000000, task: field_000001, project: field_000002, object: field_000003, activity: field_000004, at: field_000005, unread: field_000006, cursor: field_000007, projects: field_000008 } = value;
+    let jig_domain_core_vocabulary::documents::InboxEntry { reply: field_000000, task: field_000001, project: field_000002, object: field_000003, activity: field_000004, at: field_000005, unread: field_000006, cursor: field_000007, projects: field_000008, bound: field_000009 } = value;
     Ok(jig_client_protocol_wire::v44::InboxEntry {
         reply: match field_000000 {
             Some(item) => {
@@ -2917,7 +2917,14 @@ pub fn inbox_entry_to_record(value: &jig_domain_core_vocabulary::documents::Inbo
             None => None,
         },
         cursor: inbox_cursor_to_record(field_000007),
-        projects: field_000008.clone()
+        projects: field_000008.clone(),
+        bound: match field_000009 {
+            Some(item) => {
+                let converted = wait_bound_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
     })
 }
 

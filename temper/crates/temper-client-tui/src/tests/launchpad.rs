@@ -465,6 +465,7 @@ fn entries() -> List<c::InboxEntry> {
                 object,
                 activity: Some(1),
                 at: Some(Wall::EPOCH),
+                bound: None,
                 unread: None,
                 cursor: c::InboxCursor::Inbox { task: number, object, at: Some(Wall::EPOCH) },
                 projects: List::with_capacity(0),

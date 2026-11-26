@@ -2449,6 +2449,7 @@ fn goal_inbox(
             object,
             activity: Some(1),
             at,
+            bound: None,
             unread: Some(true),
             cursor,
         })
@@ -2478,6 +2479,7 @@ fn goal_inbox(
                 object,
                 activity: Some(1),
                 at: Some(offset(w, f.at)),
+                bound: None,
                 unread: Some(true),
                 cursor,
             })
@@ -2848,6 +2850,7 @@ impl GoalPage {
                         object,
                         activity: Some(1),
                         at: Some(goal_wall(w, -40)),
+                        bound: None,
                         unread: Some(true),
                         cursor,
                     })
@@ -4425,6 +4428,7 @@ fn inbox_window(w: World, window: u32) -> c::Inbox {
             object,
             activity: row.activity,
             at: row.at,
+            bound: None,
             unread: Some(true),
             cursor,
         };
