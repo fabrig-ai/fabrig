@@ -1,6 +1,6 @@
 # service: status
 
-2026-11-20. Where jig's code lags or departs from [service.md](service.md).
+2026-11-26. Where jig's code lags or departs from [service.md](service.md).
 
 
 
@@ -12,6 +12,7 @@ worker's agents before closing it; the reference-service gap below
 remains.
 
 - **Not yet:** 2, 6, 10: agents in a host's own process (`smith-inline-agent`). 10: a client the process holds, over an in-process transport. 6, 7: contained process trees, and TLS between hosts. 7: `ops`'s service and `ops` standalone: `jig/examples/ops` has no service.
+- **Not yet:** 3: a stream's `me` waiting in the test service until decisions open: `jig/testing/jig-test-service/src/clients/translation.rs`, `starting`, refuses it `Busy` like any other watch, so a stream opened while the service starts ends before its hello, a `409`. [in flight: change 19331]
 - **Not yet:** 10: the test service's workers cancelled before they are closed: `jig/testing/jig-test-service/src/lib.rs` aborts each worker once the engine has ended, killing its agent processes' groups with no cancel first. This remains outside the temper-service repair: the reference agents use skein's fake LLM, with no program of their own to leave running. Temper's service cancels and waits for its agents before closing its worker.
 
 Section 7's agent modes are present: `jig-test`'s `main` gives
