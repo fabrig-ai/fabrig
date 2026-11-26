@@ -174,7 +174,15 @@
     retaining every phase and held count;
   - *an inbox:* the party's entries, each naming its object and its
     project, in its groups, within a window, with the party's read
-    positions: one over results, one per conversation over its turns. An
+    positions: one over results, one per conversation over its turns.
+    A need's time is its `party` wait's *since*, its arrival at the
+    holder it waits at, and it carries that wait's bound, the instant
+    it passes up or is overdue, or none
+    (`../../../domain/engine/waits.md`, 3 and 5), so a client shows its
+    age and, past an *overdue* bound, that it is overdue, from one
+    record and the clock: overdue is no state of the entry's
+    (`../../../domain/tasks/proposals.md`, *Overdue at the last
+    holder*). An update carries no bound. An
     entry's `projects` is empty but on a pending proposal of settings: there, its
     proposal's `projects`, or, for one of the deployment's, each project the
     party owns, at most 32, the lowest numbers first

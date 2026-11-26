@@ -235,6 +235,10 @@ A closed set, so that every view, test and tool reads the same names.
 
 - **A task's line and its document** (`views.md`, 3), and through them the
   client contract's (`../../client/domain/contract/documents.md`, 1).
+- **A project's waits,** every live task's own, a page, nearest bound
+  first (`../../client/domain/contract/reads.md`, 1.2), and a need's
+  bound on its inbox entry (`../../client/domain/contract/documents.md`,
+  1, *an inbox*).
 - **The worlds' record check** at each driver's quiet point
   (`../testing-fakes.md`, 1.1 and 1.2).
 - **A bound's outcome:** the tasks' own design for jig's kinds (5,
