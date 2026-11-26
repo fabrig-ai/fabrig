@@ -43,6 +43,7 @@ fn a_no_change_landing_repair_regates_once() {
         flake: false,
         no_test: false,
         failed: false,
+        lost: false,
         cancelled: false,
         words: b"Nothing to change".as_slice().into(),
     });

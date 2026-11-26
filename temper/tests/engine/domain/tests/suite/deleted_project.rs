@@ -204,6 +204,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
         review_llm: None,
         effect_account: None,
         producer_failure: None,
+        runner_ci: None,
         close_at: None,
         report: Box::new([]),
         questions: change::Questions::default(),

@@ -2428,11 +2428,12 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             flake,
             no_test,
             failed,
+            lost,
             cancelled,
             words,
         } => {
             delegate_result(
-                d, env, task, child, ended_at, status, no_change, flake, no_test, failed, cancelled, &words, out,
+                d, env, task, child, ended_at, status, no_change, flake, no_test, failed, lost, cancelled, &words, out,
             );
         }
         Event::RetireFailedClose { task, child } => {
@@ -4576,6 +4577,7 @@ fn delegate_result(
     flake: bool,
     no_test: bool,
     failed: bool,
+    lost: bool,
     cancelled: bool,
     words: &[u8],
     out: &mut Queue<Request>,
@@ -4702,11 +4704,10 @@ fn delegate_result(
                     row.report = Box::from(words);
                 } else {
                     row.delegate_status = change::Status::Failed;
-                    row.producer_failure = Some(crate::close::finished_words(words));
+                    row.producer_failure = Some(crate::close::failed_words(words, false, false));
                 }
             } else if !cancelled {
-                row.producer_failure =
-                    Some(if failed { crate::close::broke_words(words) } else { crate::close::finished_words(words) });
+                row.producer_failure = Some(crate::close::failed_words(words, failed, lost));
             }
         }
         change::Delegate::Produce => producer_result(row, no_change, failed, words),
@@ -5610,7 +5611,7 @@ fn step_read(
         Some(repository) => crate::ci::required(&repository.protection),
         None => &[],
     };
-    let result_rows = result_contexts(&preparing);
+    let result_rows = result_contexts(&preparing) || row.runner_ci == Some(crate::RunnerCi::Released);
     let mut pull_ci = required.is_empty() && !result_rows;
     if let change::State::Repairing { .. } = preparing {
         pull_ci = required.is_empty();
@@ -5811,16 +5812,29 @@ fn step_read(
                 }
                 if let Some(head) = pending.branch
                     && let Some(row) = d.changes.get_mut(&pending.task)
-                    && row.result.checked(head, &rows, env.limits.client.answer_bytes)
                 {
-                    let saved = row.clone();
-                    save_change_parts(d, out, saved);
+                    let release = row.runner_ci == Some(crate::RunnerCi::Released);
+                    if release {
+                        row.runner_ci = if row.change.last_head == Some(head) {
+                            Some(crate::RunnerCi::Counting {
+                                attempts: crate::change_ci::release_baseline(&rows, head),
+                            })
+                        } else {
+                            None
+                        };
+                    }
+                    if row.result.checked(head, &rows, env.limits.client.answer_bytes) || release {
+                        let saved = row.clone();
+                        save_change_parts(d, out, saved);
+                    }
                 }
                 if execution_due(&preparing, &pending) {
                     pending.execution = Some(crate::execution::Gather::new(rows));
                 } else {
                     pending.failed = crate::change_ci::Failed::new(rows);
                 }
+            } else if row.runner_ci == Some(crate::RunnerCi::Released) {
+                pending.ci = change::Status::Unknown;
             }
             if pending.execution.is_none() && execution_due(&preparing, &pending) {
                 pending.execution = Some(crate::execution::Gather::new(Box::new([])));
@@ -6634,6 +6648,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             row.gate_revision = facts.revision;
         }
         if row.change.last_head != effect_prior.last_head {
+            if let Some(crate::RunnerCi::Counting { .. }) = &row.runner_ci {
+                row.runner_ci = None;
+            }
             row.regate = None;
             if row.delegate_flake || row.delegate_no_test {
                 row.delegate_flake = false;
@@ -6704,6 +6721,15 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
+                if decision == change::Decision::Hold(change::Hold::Runner) {
+                    let commit = pending.branch.expect("runner fault at the checked head");
+                    let words = pending.failed.hold_words(commit, crate::change_ci::baseline(&row));
+                    row.runner_ci = Some(crate::RunnerCi::Held { words });
+                } else if decision == change::Decision::EndHold
+                    && let Some(crate::RunnerCi::Held { .. }) = &row.runner_ci
+                {
+                    row.runner_ci = None;
+                }
                 row.room = None;
                 crate::room::leave(d, crate::room::Waiter::Change(row.task));
                 keep_step_progress(d, env, &mut row, &pending, &facts, out);
@@ -7057,7 +7083,11 @@ fn change_facts(
     change::Facts {
         revision: row.spec_revision,
         taken: row.kept,
-        fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
+        fault: if pending.ci == change::Status::Failed {
+            pending.failed.fault(pending.branch.unwrap_or([0; 32]), crate::change_ci::baseline(row))
+        } else {
+            change::Fault::Change
+        },
         rerun: match d.configured.get(&row.repository.forge) {
             Some(config) => {
                 config.kind == crate::Kind::Forgejo && pending.failed.job(pending.branch.unwrap_or([0; 32])).is_some()
@@ -7905,6 +7935,9 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     }
     // Reborrow after resetting the room clock.
     let row = d.changes.get_mut(&task).expect("released change");
+    if released.released == Some(change::Hold::Runner) {
+        row.runner_ci = Some(crate::RunnerCi::Released);
+    }
     row.change = released;
     row.change.since = env.wall;
     if lifted && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale) {

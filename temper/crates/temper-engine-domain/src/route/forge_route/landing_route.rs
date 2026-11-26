@@ -729,7 +729,7 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
     };
     for word in &context.inbox {
         if let tasks::Party::Task(child) = word.from {
-            if super::close::failed(domain, child, &word.kind)
+            if super::close::failure(domain, child, &word.kind).is_some()
                 || (word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
                     && forge::preparation::outcomes(&word.words, members).is_none())
             {

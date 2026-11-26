@@ -1166,6 +1166,7 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
     pub report: Box<[u8]>,
@@ -1183,6 +1184,18 @@ pub struct ChangeRow {
     pub merge_result: Option<Box<[u8]>>,
     /// Open intervals and the last event (landing-history.md, 3.2).
     pub history: Option<crate::history::ChangeHistory>,
+}
+/// A change's runner hold and its renewed allowance (domain/forge/change/README.md, 2, step 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RunnerCi {
+    Held {
+        words: Box<[u8]>,
+    },
+    /// Read the head's check attempts afresh before spending this release's allowance.
+    Released,
+    Counting {
+        attempts: Box<[skein_forge::api::JobAttempt]>,
+    },
 }
 /// A failed receipt superseded by a change's release (temper/docs/design/domain/landing-regate.md, 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1259,6 +1272,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
     pub follow_check: Option<FollowCheck>,
@@ -1322,6 +1336,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            runner_ci,
             close_at,
             report,
             questions,
@@ -1394,6 +1409,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                runner_ci,
                 close_at,
                 questions,
                 follow_check,
@@ -1466,6 +1482,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            runner_ci,
             close_at,
             questions,
             follow_check,
@@ -1525,6 +1542,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            runner_ci,
             close_at,
             report,
             questions,
@@ -2759,6 +2777,7 @@ pub enum Event {
         no_test: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
+        lost: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.
         cancelled: bool,
         words: Box<[u8]>,

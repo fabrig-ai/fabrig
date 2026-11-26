@@ -1879,7 +1879,7 @@ fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
     }]));
     assert_eq!(failed.next(HEAD), Some(Read::Run { run: 4 }));
     failed.read(4, Ok(Answer::Run(fixtures::failed_run(first, Some(0)))));
-    assert_eq!(failed.fault(HEAD), change::Fault::Runner { reruns: 0 });
+    assert_eq!(failed.fault(HEAD, &[]), change::Fault::Runner { reruns: 0 });
     assert_eq!(LIMITS.change_policy.reruns, 1);
     let second = JobAttempt { attempt: 2, ..first };
     let checks = Box::new([Status {

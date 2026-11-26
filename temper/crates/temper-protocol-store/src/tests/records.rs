@@ -811,6 +811,35 @@ fn eight_wrapping_holds_keep_their_order_at_the_schema_ceiling() {
     assert_eq!(records::decode(&bytes, &bounds), Ok(row));
 }
 #[test]
+fn a_runner_hold_round_trips_with_its_account() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_vocabulary::RunnerCi;
+    const HEAD: [u8; 32] = [1; 32];
+    let mut row =
+        fixtures::change_row(State::Held { was: Box::new(State::Checking { head: HEAD }), why: Hold::Runner });
+    row.runner_ci = Some(RunnerCi::Held { words: b"CI's runner failed: set-up failed".as_slice().into() });
+    let row = fixtures::change_hot(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn a_runner_release_round_trips_before_and_after_its_read() {
+    use temper_engine_domain_forge_change::State;
+    use temper_engine_domain_forge_vocabulary::RunnerCi;
+    const HEAD: [u8; 32] = [1; 32];
+    const ATTEMPT: skein_forge::api::JobAttempt =
+        skein_forge::api::JobAttempt { head: HEAD, run: 66, job: 67, attempt: 2 };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for runner_ci in [RunnerCi::Released, RunnerCi::Counting { attempts: Box::new([ATTEMPT]) }] {
+        let mut row = fixtures::change_row(State::Checking { head: HEAD });
+        row.runner_ci = Some(runner_ci);
+        let row = fixtures::change_hot(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn each_change_delegate_round_trips_unchanged() {
     use temper_engine_domain_forge_change::{Delegate, Repair, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

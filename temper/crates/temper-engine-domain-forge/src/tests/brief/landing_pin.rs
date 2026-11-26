@@ -164,6 +164,7 @@ fn terminal(d: &mut Domain, failed: bool, no_change: bool, flake: bool, cancelle
             flake,
             no_test: false,
             failed,
+            lost: false,
             cancelled,
             words: words.into(),
         },

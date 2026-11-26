@@ -390,7 +390,7 @@ pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
     )
 }
 
-fn run_job(job: &api::RunJob) -> policy::Job {
+pub(crate) fn run_job(job: &api::RunJob) -> policy::Job {
     policy::Job {
         conclusion: conclusion(job.conclusion),
         failed: match &job.step {

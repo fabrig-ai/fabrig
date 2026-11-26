@@ -209,7 +209,7 @@ fn the_current_layout_has_no_whole_change_value_type() {
 }
 
 #[test]
-fn a_change_layout_without_measured_tips_defaults_to_none() {
+fn an_earlier_change_defaults_measurements_and_runner_state_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let before = super::dev_layouts::DEV;
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
@@ -222,7 +222,7 @@ fn a_change_layout_without_measured_tips_defaults_to_none() {
         new.root(b"ChangeHot", None).unwrap(),
         &[],
     )
-    .expect("measured tips have a default in the registered layout");
+    .expect("measured tips and runner state have defaults in the registered layout");
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
@@ -231,6 +231,7 @@ fn a_change_layout_without_measured_tips_defaults_to_none() {
     let row =
         crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
     assert!(row.close_at.is_none());
+    assert!(row.runner_ci.is_none());
 }
 
 #[test]

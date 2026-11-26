@@ -517,6 +517,7 @@ fn a_preparations_real_conflict_reaches_the_merge_job_then_a_resolution() {
         no_test: false,
         ended_at: None,
         failed: false,
+        lost: false,
         cancelled: false,
         words: words.as_slice().into(),
     });

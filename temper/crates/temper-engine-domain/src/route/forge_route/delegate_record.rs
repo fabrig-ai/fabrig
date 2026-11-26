@@ -186,6 +186,7 @@ pub(crate) fn loaded(
             flake,
             no_test,
             failed,
+            lost: false,
             cancelled,
             words,
         },

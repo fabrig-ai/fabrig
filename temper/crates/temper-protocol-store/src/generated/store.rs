@@ -1980,6 +1980,7 @@ pub fn change_hold_to_record(value: &temper_engine_domain_forge_change::Hold) ->
         temper_engine_domain_forge_change::Hold::Questions => crate::v25::ChangeHold::Questions,
         temper_engine_domain_forge_change::Hold::Flake => crate::v25::ChangeHold::Flake,
         temper_engine_domain_forge_change::Hold::NoTest => crate::v25::ChangeHold::NoTest,
+        temper_engine_domain_forge_change::Hold::Runner => crate::v25::ChangeHold::Runner,
     }
 }
 
@@ -2000,6 +2001,7 @@ pub fn change_hold_to_domain(record: crate::v25::ChangeHold) -> temper_engine_do
         crate::v25::ChangeHold::Questions => temper_engine_domain_forge_change::Hold::Questions,
         crate::v25::ChangeHold::Flake => temper_engine_domain_forge_change::Hold::Flake,
         crate::v25::ChangeHold::NoTest => temper_engine_domain_forge_change::Hold::NoTest,
+        crate::v25::ChangeHold::Runner => temper_engine_domain_forge_change::Hold::Runner,
     }
 }
 
@@ -9818,6 +9820,55 @@ pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_f
             }
             None => None,
         }
+    }
+}
+
+pub fn runner_ci_to_record(value: &temper_engine_domain_forge_vocabulary::RunnerCi) -> Result<crate::v25::RunnerCi, crate::v25::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge_vocabulary::RunnerCi::Held { words: field_000000 } => crate::v25::RunnerCi::Held(crate::v25::RunnerHold {
+            words: field_000000.clone()
+        }),
+        temper_engine_domain_forge_vocabulary::RunnerCi::Released => crate::v25::RunnerCi::Released,
+        temper_engine_domain_forge_vocabulary::RunnerCi::Counting { attempts: field_000000 } => crate::v25::RunnerCi::Counting(crate::v25::RunnerBaseline {
+            attempts: {
+                let source = field_000000;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::RUNNER_BASELINE_ATTEMPTS.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = job_attempt_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            }
+        }),
+    })
+}
+
+#[must_use]
+pub fn runner_ci_to_domain(record: crate::v25::RunnerCi) -> temper_engine_domain_forge_vocabulary::RunnerCi {
+    match record {
+        crate::v25::RunnerCi::Held(held) => {
+            let crate::v25::RunnerHold { words: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::RunnerCi::Held {
+                words: field_000000
+            }
+        },
+        crate::v25::RunnerCi::Released => temper_engine_domain_forge_vocabulary::RunnerCi::Released,
+        crate::v25::RunnerCi::Counting(held) => {
+            let crate::v25::RunnerBaseline { attempts: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::RunnerCi::Counting {
+                attempts: {
+                    let source = field_000000;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = job_attempt_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                }
+            }
+        },
     }
 }
 

@@ -787,6 +787,7 @@ mod tests {
             questions: change::Questions::default(),
             effect_account: None,
             producer_failure: None,
+            runner_ci: None,
             close_at: None,
             report: Box::new([]),
             repairs: None,

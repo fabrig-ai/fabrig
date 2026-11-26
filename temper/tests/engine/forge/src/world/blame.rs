@@ -260,6 +260,7 @@ impl World {
                     change::Decision::Hold(hold) => {
                         let names = match hold {
                             _ if cold.base_repair => Some(Names::Base),
+                            change::Hold::Runner => Some(Names::Runner),
                             change::Hold::Stalled if checking(&row.change.state) => Some(Names::Runner),
                             change::Hold::Repairs | change::Hold::Failed | change::Hold::NoTest => Some(Names::Change),
                             _ => None,

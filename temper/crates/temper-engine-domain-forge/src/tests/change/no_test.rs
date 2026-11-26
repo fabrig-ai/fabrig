@@ -70,6 +70,7 @@ fn no_test_terminal(d: &mut Domain, child: u64, words: &[u8]) {
             flake: false,
             no_test: true,
             failed: false,
+            lost: false,
             cancelled: false,
             words: words.into(),
         },

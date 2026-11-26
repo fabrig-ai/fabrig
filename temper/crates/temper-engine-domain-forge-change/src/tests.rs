@@ -2331,65 +2331,105 @@ fn an_update_outstanding_still_waits() {
 
 mod close;
 
+fn ci_phases() -> [State; 3] {
+    [
+        State::Checking { head: HEAD },
+        State::Gating { head: HEAD, asked: Box::new([11]) },
+        State::CancellingGates { head: HEAD },
+    ]
+}
+
+fn red_ci(fault: crate::Fault) -> Facts {
+    let mut f = facts();
+    f.ci.status = Status::Failed;
+    f.fault = fault;
+    f
+}
+
 #[test]
 fn runner_faults_run_again_within_the_head_bound() {
-    use crate::Fault;
-    for (fault, bound, rerun) in [
-        (Fault::Runner { reruns: 0 }, 1, true),
-        (Fault::Runner { reruns: 1 }, 1, false),
-        (Fault::Runner { reruns: 0 }, 0, false),
-        (Fault::Change, 1, false),
-    ] {
-        for state in [
-            State::Checking { head: HEAD },
-            State::Gating { head: HEAD, asked: Box::new([11]) },
-            State::CancellingGates { head: HEAD },
-        ] {
-            for clean in [false, true] {
-                let mut c = change(state.clone());
-                c.owns_turn = true;
-                if clean {
-                    c.clean = Box::new([BASE]);
-                }
-                let mut f = facts();
-                f.ci.status = Status::Failed;
-                f.fault = fault;
-                f.gates = Box::new([GateReport { revision: 0, number: 11, head: HEAD, status: Status::Passed }]);
-                let pending = step(&c, &f, &Heard { effect: EffectResult::Pending, ..heard() }, at(5), &LIMITS);
-                assert_eq!(pending.change, c);
-                assert_eq!(pending.decision, Decision::Wait { until: Some(at(30)) });
+    let f = red_ci(crate::Fault::Runner { reruns: 0 });
+    for state in ci_phases() {
+        for clean in [false, true] {
+            let mut c = change(state.clone());
+            c.owns_turn = true;
+            if clean {
+                c.clean = Box::new([BASE]);
+            }
+            let mut f = f.clone();
+            f.gates = Box::new([GateReport { revision: 0, number: 11, head: HEAD, status: Status::Passed }]);
+            let pending = step(&c, &f, &Heard { effect: EffectResult::Pending, ..heard() }, at(5), &LIMITS);
+            assert_eq!(pending.change, c);
+            assert_eq!(pending.decision, Decision::Wait { until: Some(at(30)) });
+            let next = step(&c, &f, &heard(), at(5), &LIMITS);
+            let expected = Change { since: at(5), ..c };
+            assert_eq!(next.change, expected);
+            assert_eq!(next.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
+            f.ci.status = Status::Pending;
+            f.fault = crate::Fault::Change;
+            let waiting = step(&next.change, &f, &Heard { effect: EffectResult::Made, ..heard() }, at(6), &LIMITS);
+            assert_eq!(waiting.change, next.change);
+            assert_eq!(waiting.decision, Decision::Wait { until: Some(at(35)) });
+        }
+    }
+}
+
+#[test]
+fn runner_ci_with_a_live_gate_reruns_without_cancelling() {
+    let mut c = change(State::Gating { head: HEAD, asked: Box::new([11]) });
+    c.owns_turn = true;
+    let f = Facts { live_gate: Some(HEAD), ..red_ci(crate::Fault::Runner { reruns: 0 }) };
+    let next = decide(&c, &f, &heard());
+    assert_eq!(next.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
+    assert_eq!(next.change.state, c.state);
+    assert!(next.change.owns_turn);
+}
+
+#[test]
+fn exhausted_runner_reruns_hold_without_spending_a_repair() {
+    const SPENT_REPAIRS: u32 = 1;
+    for state in ci_phases() {
+        let c = Change { repairs: SPENT_REPAIRS, owns_turn: true, ..change(state.clone()) };
+        for bound in [0, LIMITS.reruns] {
+            for (live_gate, clean) in [(None, Box::<[[u8; 32]]>::from([])), (Some(HEAD), Box::from([BASE]))] {
+                let c = Change { clean, ..c.clone() };
+                let f = Facts { live_gate, ..red_ci(crate::Fault::Runner { reruns: bound }) };
                 let next = step(&c, &f, &heard(), at(5), &Limits { reruns: bound, ..LIMITS });
-                if rerun {
-                    let mut expected = c.clone();
-                    expected.since = at(5);
-                    assert_eq!(next.change, expected);
-                    assert_eq!(next.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
-                    let mut running = f.clone();
-                    running.ci.status = Status::Pending;
-                    running.fault = Fault::Change;
-                    let waiting =
-                        step(&next.change, &running, &Heard { effect: EffectResult::Made, ..heard() }, at(6), &LIMITS);
-                    assert_eq!(waiting.change, next.change);
-                    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(35)) });
-                } else {
-                    let why = if clean { Repair::Semantic } else { Repair::Ci };
-                    assert_eq!(next.decision, Decision::Delegate(Delegate::Repair(why)));
-                }
+                assert_eq!(next.decision, Decision::Hold(Hold::Runner), "{state:?}");
+                assert_eq!(
+                    next.change,
+                    Change {
+                        owns_turn: false,
+                        state: State::Held { was: Box::new(state.clone()), why: Hold::Runner },
+                        ..c.clone()
+                    }
+                );
+                assert_eq!(released(&next.change, at(6)).repairs, SPENT_REPAIRS);
             }
         }
-        let mut c = change(State::Gating { head: HEAD, asked: Box::new([11]) });
-        c.owns_turn = true;
-        let mut f = facts();
-        f.ci.status = Status::Failed;
-        f.fault = fault;
-        f.live_gate = Some(HEAD);
-        let next = step(&c, &f, &heard(), at(5), &Limits { reruns: bound, ..LIMITS });
-        if rerun {
-            assert_eq!(next.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
-            assert_eq!(next.change.state, c.state);
-            assert!(next.change.owns_turn);
-        } else {
-            assert_eq!(next.decision, Decision::CancelGates { head: HEAD });
+    }
+}
+
+#[test]
+fn a_workflow_ci_failure_still_asks_for_its_repair() {
+    let mut f = red_ci(crate::Fault::Change);
+    for state in ci_phases() {
+        for (clean, why) in [(Box::<[[u8; 32]]>::from([]), Repair::Ci), (Box::from([BASE]), Repair::Semantic)] {
+            let c = Change { clean, ..change(state.clone()) };
+            assert_eq!(decide(&c, &f, &heard()).decision, Decision::Delegate(Delegate::Repair(why)), "{state:?}");
         }
+    }
+    f.live_gate = Some(HEAD);
+    let gating = change(State::Gating { head: HEAD, asked: Box::new([11]) });
+    assert_eq!(decide(&gating, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
+}
+
+#[test]
+fn a_green_head_ends_the_runner_hold() {
+    for state in ci_phases() {
+        let c = change(State::Held { was: Box::new(state.clone()), why: Hold::Runner });
+        let next = decide(&c, &facts(), &heard());
+        assert_eq!(next.decision, Decision::EndHold, "{state:?}");
+        assert_eq!(next.change.state, state);
     }
 }

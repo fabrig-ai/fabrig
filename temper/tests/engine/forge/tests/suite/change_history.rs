@@ -73,6 +73,7 @@ fn result(world: &mut World, failed: bool, passed: bool) {
         child: CHILD,
         status: if passed { change::Status::Passed } else { change::Status::Failed },
         failed,
+        lost: false,
         cancelled: false,
         no_change: false,
         flake: false,
