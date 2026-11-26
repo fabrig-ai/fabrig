@@ -54,8 +54,10 @@ pub(super) fn owner(
     // join's decoded-record memory, even when neither key is found.
     for key in [tasks::Key::Live(task), tasks::Key::Ended(task)] {
         let Some(record) = point::record(store, &core::Key::Tasks(key))? else { continue };
-        let Some(task) = as_task(&record) else { return Err(Failure::Corrupt) };
-        return Ok(Some(Box::new(task.clone())));
+        let core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)) = record else {
+            return Err(Failure::Corrupt);
+        };
+        return Ok(Some(task));
     }
     Ok(None)
 }
