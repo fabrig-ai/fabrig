@@ -41,6 +41,11 @@ recovery are skein's `forge/client-effects.md`, section 1. temper's effects:
   never be sent refuses: one its repository's adoption does not take,
   an entry number in use, or one over `forge.client.op_bytes`
   (`room.md`, 6).
+- **Recorded as temper's writes:** an entry that writes a branch or a
+  pull request is admitted into that branch's record of temper's writes
+  in the decision that commits it, and settled there by its outcome
+  (`writes.md`, 2 and 3); a record with no room makes it wait in the
+  outbox's line (`room.md`, 2).
 - **Each row is a kind of its own** (jig's `domain/connectors.md`,
   3.1): a policy that grants writing issues grants each kind it means.
 - **A write in flight is a row of its own,** `Flight { task, entry }`
