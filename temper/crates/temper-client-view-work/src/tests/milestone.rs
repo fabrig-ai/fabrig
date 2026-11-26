@@ -508,6 +508,90 @@ fn ended_goals_fold_newest_first_and_live_goals_keep_their_order() {
 }
 
 #[test]
+fn live_goals_draw_their_first_wait_beneath_the_headline() {
+    use c::{EscalationHolder, WaitKind, WaitObject, waits::Bound};
+    const GOAL: u64 = 820;
+    const SUBTASK: u64 = 833;
+    const OWN: u64 = 819;
+    const UNWAITING: u64 = 821;
+    const DEPENDENCY: u64 = 812;
+    const ENDED: u64 = 813;
+    const QUESTION: u64 = 3;
+    const SINCE: Wall = Wall::from_nanos(NOW.as_nanos() - 120 * MINUTE);
+    const PASS_UP: Wall = Wall::from_nanos(NOW.as_nanos() + 20 * MINUTE);
+    const NEAREST: Wall = Wall::from_nanos(NOW.as_nanos() + 5 * MINUTE);
+    const DESCENDANT_WORDS: &str = "T833: question 3 at you · waiting 2 h · passes up in 20 min";
+    const OWN_WORDS: &str = "task 812 · waiting 2 h · no deadline";
+    let reader = EscalationHolder::Person(f::chat::PARTY);
+    let mut descendant = line(GOAL, b"S7 history in task logs");
+    descendant.wait = Some(c::Wait {
+        task: SUBTASK,
+        kind: WaitKind::Party,
+        object: WaitObject::Entry { kind: c::WaitedFor::Question, number: QUESTION, at: reader },
+        since: SINCE,
+        bound: Bound::At { at: PASS_UP, then: c::AtBound::PassUp },
+        hears: Some(reader),
+    });
+    descendant.nearest = Some(c::Nearest { kind: WaitKind::News, at: NEAREST, then: c::AtBound::Hold });
+    let mut own = line(OWN, b"S6 Wire the layout");
+    own.wait = Some(c::Wait {
+        task: OWN,
+        kind: WaitKind::Dependency,
+        object: WaitObject::Task(DEPENDENCY),
+        since: SINCE,
+        bound: Bound::None(c::Unbounded::NoDeadline),
+        hears: None,
+    });
+    let mut ended = done(ENDED, b"S1 Draft the layout", 401);
+    // Even a lingering wait on an ended row does not draw.
+    ended.wait = own.wait.clone();
+    let mut h = Harness::new(document(), vec![ended, own, descendant, line(UNWAITING, b"S8 Unwaiting")]);
+    h.settle();
+
+    assert_eq!(look::NAMES.style(look::GOAL_WAIT), Some(b"temper-goal-wait".as_slice()));
+    for words in [f::browser_words(), f::words()] {
+        let (tree, _) = draw(&h.root, &words);
+        let rows: Vec<_> =
+            tree.nodes().iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::MS_GOAL)).collect();
+        let expected = [
+            (b"S6 Wire the layout".as_slice(), Some(OWN_WORDS)),
+            (b"S7 history in task logs", Some(DESCENDANT_WORDS)),
+            (b"S8 Unwaiting", None),
+            (b"S1 Draft the layout", None),
+        ];
+        assert_eq!(rows.len(), expected.len());
+        for ((index, row), (title, expected)) in rows.into_iter().zip(expected) {
+            assert!(f::node_text(&tree, index).starts_with(title));
+            let nodes = tree.nodes().iter().enumerate().skip(index).take(usize::try_from(row.size).unwrap());
+            let waits: Vec<_> = nodes.filter(|(_, n)| n.styles.as_slice().contains(&look::GOAL_WAIT)).collect();
+            assert_eq!(waits.len(), usize::from(expected.is_some()));
+            if let Some(expected) = expected {
+                let (wait, node) = waits.first().unwrap();
+                assert_eq!(node.role, Role::Paragraph);
+                let (headline, facts) = tree
+                    .nodes()
+                    .iter()
+                    .enumerate()
+                    .skip(index)
+                    .take(wait - index)
+                    .find(|(_, node)| node.styles.as_slice().contains(&look::GOAL_FACTS))
+                    .expect("the wait follows this goal's headline");
+                assert_eq!(headline + usize::try_from(facts.size).unwrap(), *wait);
+                assert_eq!(f::node_text(&tree, *wait).as_ref(), expected.as_bytes());
+            }
+        }
+        if words.shell == Shell::Terminal {
+            let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+            skein_ui_text::render(&tree, b"temper", None, &mut print);
+            let print = String::from_utf8_lossy(print.text.as_slice());
+            for expected in [DESCENDANT_WORDS, OWN_WORDS] {
+                assert!(print.lines().any(|line| line.trim() == expected), "{print}");
+            }
+        }
+    }
+}
+
+#[test]
 fn the_side_says_what_it_is_for_and_who_made_it() {
     for (maker, expected) in [
         (c::Requester::Person(f::chat::PARTY), b"Made by you.".as_slice()),

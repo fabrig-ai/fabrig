@@ -12,6 +12,7 @@ mod unread;
 mod waits;
 mod workers;
 pub(super) use proposal::projects_text;
+pub use waits::wait_text;
 pub(super) mod question;
 pub(crate) mod settings;
 use super::{Text, acts};

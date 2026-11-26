@@ -2618,7 +2618,8 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goal-section { display: flex; flex-direction: column; gap: 6px; }
 #app:has(> .temper-rail) .temper-goal-side > .temper-goal-section:first-child { gap: 4px; }
 #app:has(> .temper-rail) .temper-goal-side > .temper-goal-section:first-child > .temper-goal-title { margin-bottom: 8px; }
-#app:has(> .temper-rail) .temper-goal-facts { font-size: 13.5px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-facts,
+#app:has(> .temper-rail) .temper-goal-wait { font-size: 13.5px; color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goal-line > .temper-goal-line-needs { color: var(--gf-signal); }
 #app:has(> .temper-rail) .temper-goal-landed-fold > summary { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; margin-top: 6px; cursor: pointer; }
 #app:has(> .temper-rail) .temper-goal-landed-fold > summary:hover { text-decoration-color: var(--gf-ink); }

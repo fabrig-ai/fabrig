@@ -289,29 +289,32 @@ fn answer(result: w::MilestoneResult) -> jig_client::Readout {
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
 fn show(json: bool, task: c::Task, result: w::MilestoneResult) -> crate::jig::Printed {
+    show_goals(
+        json,
+        task,
+        result,
+        vec![row(820, b"S7 history in task logs", c::Phase::Running)],
+        vec![row(813, b"S1 Draft the layout", c::Phase::Done), row(820, b"old duplicate", c::Phase::Done)],
+        true,
+    )
+}
+fn show_goals(
+    json: bool,
+    task: c::Task,
+    result: w::MilestoneResult,
+    live: Vec<c::TaskLine>,
+    ended: Vec<c::TaskLine>,
+    more: bool,
+) -> crate::jig::Printed {
     let mut root = f::choice_root(me());
     let call = root.submit_prepared(f::call(&["milestone", "show", "812"]), json, None);
     root.serve(call, f::task_result(task));
     let c::Read::Tasks { query, .. } = &root.reads.get(&call).unwrap().1 else { panic!("goals query") };
     assert_eq!((query.parent, query.order), (Some(812), c::QueryOrder::Number));
-    root.serve(
-        call,
-        tasks(
-            vec![row(820, b"S7 history in task logs", c::Phase::Running)],
-            vec![row(813, b"S1 Draft the layout", c::Phase::Done), row(820, b"old duplicate", c::Phase::Done)],
-            true,
-        ),
-    );
+    root.serve(call, tasks(live, ended.clone(), more));
     let c::Read::Tasks { query, .. } = &root.reads.get(&call).unwrap().1 else { panic!("ended goals query") };
     assert_eq!((query.parent, query.phase), (Some(812), Some(c::PhaseClass::Ended)));
-    root.serve(
-        call,
-        tasks(
-            vec![],
-            vec![row(813, b"S1 Draft the layout", c::Phase::Done), row(820, b"old duplicate", c::Phase::Done)],
-            true,
-        ),
-    );
+    root.serve(call, tasks(vec![], ended, more));
     let read = &root.family_reads.get(&call).unwrap().1;
     let expected = temper_client_domain_forge::forge::milestones::read(1, 812, &root.limits.domain.forge).unwrap();
     assert_eq!(*read, expected);
@@ -364,6 +367,68 @@ fn milestone_show_prints_absent_totals_open_facts_and_an_ended_outcome() {
     let printed = show(false, task, totals(true));
     assert!(has(&printed.stdout, b"ended: 1970-01-01T00:02Z, ended\n"));
     assert!(!has(&printed.stdout, b"last landing:"));
+}
+
+fn show_waits(json: bool) -> crate::jig::Printed {
+    use c::{AtBound, EscalationHolder, WaitKind, WaitObject, waits::Bound};
+    const DEPENDENCY: u64 = 812;
+    const OWN: u64 = 819;
+    const GOAL: u64 = 820;
+    const SUBTASK: u64 = 833;
+    const ENDED: u64 = 813;
+    const QUESTION: u64 = 3;
+    // 2026-11-16 10:02, 11:02 and 18:02 UTC.
+    const SINCE: Wall = Wall::from_nanos(1_794_823_320_000_000_000);
+    const NEAREST: Wall = Wall::from_nanos(1_794_826_920_000_000_000);
+    const PASS_UP: Wall = Wall::from_nanos(1_794_852_120_000_000_000);
+    let mut own = row(OWN, b"S6 Wire the layout", c::Phase::Waiting);
+    own.wait = Some(c::Wait {
+        task: OWN,
+        kind: WaitKind::Dependency,
+        object: WaitObject::Task(DEPENDENCY),
+        since: SINCE,
+        bound: Bound::None(c::Unbounded::NoDeadline),
+        hears: None,
+    });
+    let reader = EscalationHolder::Person(f::PARTY);
+    let mut descendant = row(GOAL, b"S7 history in task logs", c::Phase::Running);
+    descendant.wait = Some(c::Wait {
+        task: SUBTASK,
+        kind: WaitKind::Party,
+        object: WaitObject::Entry { kind: c::WaitedFor::Question, number: QUESTION, at: reader },
+        since: SINCE,
+        bound: Bound::At { at: PASS_UP, then: AtBound::PassUp },
+        hears: Some(reader),
+    });
+    descendant.nearest = Some(c::Nearest { kind: WaitKind::News, at: NEAREST, then: AtBound::Hold });
+    let mut result = totals(false);
+    if let w::MilestoneResult::Totals(totals) = &mut result {
+        totals.live = 2;
+    }
+    show_goals(
+        json,
+        milestone(),
+        result,
+        vec![own, descendant],
+        vec![row(ENDED, b"S1 Draft the layout", c::Phase::Done)],
+        false,
+    )
+}
+
+#[test]
+fn milestone_show_prints_each_live_goals_first_wait() {
+    let printed = show_waits(false);
+    assert_eq!(printed.status, 0);
+    f::check_golden("milestone_first_waits", &printed.stdout);
+}
+
+#[test]
+fn milestone_show_json_keeps_first_wait_and_nearest_distinct() {
+    let printed = show_waits(true);
+    assert_eq!(printed.status, 0);
+    f::unique_keys(&printed.stdout).expect("valid milestone JSON");
+    let fields = br#""wait":{"task":833,"kind":"party","object":{"entry":{"kind":"question","number":3,"at":{"person":73}}},"since":1794823320000000000,"bound":{"at":1794852120000000000,"then":"pass_up"},"hears":{"person":73}},"nearest":{"at":1794826920000000000,"then":"hold","kind":"news"}"#;
+    assert!(has(&printed.stdout, fields), "{printed:?}");
 }
 
 fn has(bytes: &[u8], text: &[u8]) -> bool {

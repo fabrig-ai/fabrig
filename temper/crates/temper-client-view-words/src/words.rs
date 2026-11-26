@@ -4,7 +4,9 @@
 pub mod accounts;
 pub mod cards;
 pub mod forge;
+mod run_wait;
 pub mod terminal;
+mod waits;
 
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -96,6 +98,29 @@ pub enum Word {
     MsMakerPerson,
     MsMakerTask,
     MsMakerDeployment,
+    WaitEntry,
+    WaitQuestionTo,
+    WaitAtRole,
+    WaitOnResource,
+    WaitResourceHeldBy,
+    WaitNewsSubscriptions,
+    WaitNewsTimer,
+    WaitNewsUnarmed,
+    WaitThingOwner,
+    WaitSince,
+    WaitPassesUpIn,
+    WaitHoldsIn,
+    WaitOverdueIn,
+    WaitGivesUpIn,
+    WaitOverdueFor,
+    WaitDueNow,
+    WaitNoDeadline,
+    WaitStanding,
+    WaitBehindTask,
+    WaitOperatorHold,
+    WaitHearer,
+    WaitYouHear,
+    WaitInDescendant,
     MsBandGoal,
 
     TellTitle,
@@ -2307,7 +2332,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2885;
+const PHRASES: u32 = 2908;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2334,10 +2359,10 @@ const PHRASES: u32 = 2885;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5384;
+const SEGMENTS: u32 = 5445;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 67604;
-const ALL: [Word; 2132] = [
+const ENGLISH_BYTES: u32 = 67859;
+const ALL: [Word; 2155] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2389,6 +2414,29 @@ const ALL: [Word; 2132] = [
     Word::MsMakerPerson,
     Word::MsMakerTask,
     Word::MsMakerDeployment,
+    Word::WaitEntry,
+    Word::WaitQuestionTo,
+    Word::WaitAtRole,
+    Word::WaitOnResource,
+    Word::WaitResourceHeldBy,
+    Word::WaitNewsSubscriptions,
+    Word::WaitNewsTimer,
+    Word::WaitNewsUnarmed,
+    Word::WaitThingOwner,
+    Word::WaitSince,
+    Word::WaitPassesUpIn,
+    Word::WaitHoldsIn,
+    Word::WaitOverdueIn,
+    Word::WaitGivesUpIn,
+    Word::WaitOverdueFor,
+    Word::WaitDueNow,
+    Word::WaitNoDeadline,
+    Word::WaitStanding,
+    Word::WaitBehindTask,
+    Word::WaitOperatorHold,
+    Word::WaitHearer,
+    Word::WaitYouHear,
+    Word::WaitInDescendant,
     Word::MsBandGoal,
     Word::TellTitle,
     Word::TellHint,
@@ -5382,6 +5430,29 @@ impl Word {
             Self::MsMakerPerson => 9815,
             Self::MsMakerTask => 9816,
             Self::MsMakerDeployment => 9817,
+            Self::WaitEntry => 10100,
+            Self::WaitQuestionTo => 10101,
+            Self::WaitAtRole => 10102,
+            Self::WaitOnResource => 10103,
+            Self::WaitResourceHeldBy => 10104,
+            Self::WaitNewsSubscriptions => 10105,
+            Self::WaitNewsTimer => 10106,
+            Self::WaitNewsUnarmed => 10107,
+            Self::WaitThingOwner => 10108,
+            Self::WaitSince => 10109,
+            Self::WaitPassesUpIn => 10110,
+            Self::WaitHoldsIn => 10111,
+            Self::WaitOverdueIn => 10112,
+            Self::WaitGivesUpIn => 10113,
+            Self::WaitOverdueFor => 10114,
+            Self::WaitDueNow => 10115,
+            Self::WaitNoDeadline => 10116,
+            Self::WaitStanding => 10117,
+            Self::WaitBehindTask => 10118,
+            Self::WaitOperatorHold => 10119,
+            Self::WaitHearer => 10120,
+            Self::WaitYouHear => 10122,
+            Self::WaitInDescendant => 10121,
             Self::MsBandGoal => 9818,
 
             Self::GoalCount => 3253,
@@ -7691,6 +7762,29 @@ const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'stati
         Word::MsMakerPerson => (&[b"person ", b""], &[Number]),
         Word::MsMakerTask => (&[b"task ", b""], &[Number]),
         Word::MsMakerDeployment => (&[b"the deployment"], &[]),
+        Word::WaitEntry => (&[b"", b" ", b" at ", b""], &[Name, Number, Name]),
+        Word::WaitQuestionTo => (&[b"question ", b" to task ", b""], &[Number, Number]),
+        Word::WaitAtRole => (&[b"role ", b""], &[Number]),
+        Word::WaitOnResource => (&[b"resource ", b""], &[Name]),
+        Word::WaitResourceHeldBy => (&[b" held by task ", b""], &[Number]),
+        Word::WaitNewsSubscriptions => (&[b"news: subscriptions "], &[]),
+        Word::WaitNewsTimer => (&[b"a timer at ", b""], &[Name]),
+        Word::WaitNewsUnarmed => (&[b"nothing armed"], &[]),
+        Word::WaitThingOwner => (&[b" of task ", b""], &[Number]),
+        Word::WaitSince => (&[b"waiting ", b""], &[Name]),
+        Word::WaitPassesUpIn => (&[b"passes up in ", b""], &[Name]),
+        Word::WaitHoldsIn => (&[b"holds in ", b""], &[Name]),
+        Word::WaitOverdueIn => (&[b"is overdue in ", b""], &[Name]),
+        Word::WaitGivesUpIn => (&[b"gives up in ", b""], &[Name]),
+        Word::WaitOverdueFor => (&[b"overdue for ", b""], &[Name]),
+        Word::WaitDueNow => (&[b"due now"], &[]),
+        Word::WaitNoDeadline => (&[b"no deadline"], &[]),
+        Word::WaitStanding => (&[b"standing"], &[]),
+        Word::WaitBehindTask => (&[b"behind task ", b""], &[Number]),
+        Word::WaitOperatorHold => (&[b"an operator's hold"], &[]),
+        Word::WaitHearer => (&[b"then ", b" hears"], &[Name]),
+        Word::WaitYouHear => (&[b"then you hear"], &[]),
+        Word::WaitInDescendant => (&[b"T", b": "], &[Number]),
         Word::MsBandGoal => (&[b"", b": "], &[Name]),
         Word::WorkMilestoneLede => (&[b"Everything on ", b", in the words of the agent doing it. A milestone opens to its goals, and a goal to its tasks and changes; a chat that started work sits with what it started; a draft waits for its goal."], &[Name]),
         Word::MsGoals => (&[b"", b" ", b""], &[Number, Name]),

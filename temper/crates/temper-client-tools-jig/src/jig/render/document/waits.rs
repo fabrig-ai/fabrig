@@ -53,13 +53,7 @@ pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn Parts, out:
     out.put(b"\n");
     for wait in &task.waits {
         out.put(b"  ");
-        object_text(wait, me, vocabulary, out);
-        since(wait.since, out);
-        out.put(b" \xc2\xb7 ");
-        match wait.bound {
-            Bound::At { at, then } => at_bound(at, then, out),
-            Bound::None(reason) => no_bound(reason, out),
-        }
+        wait_text(wait, me, vocabulary, out);
         if let Some(hears) = wait.hears {
             out.put(b" \xc2\xb7 hears ");
             holder(hears, me, out);
@@ -71,6 +65,17 @@ pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn Parts, out:
         out.put(b"  \xe2\x80\xa6 ");
         out.number(u64::from(more));
         out.put(b" more\n");
+    }
+}
+
+/// One wait with its own bound, without the document's hearer suffix.
+pub fn wait_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
+    object_text(wait, me, vocabulary, out);
+    since(wait.since, out);
+    out.put(b" \xc2\xb7 ");
+    match wait.bound {
+        Bound::At { at, then } => at_bound(at, then, out),
+        Bound::None(reason) => no_bound(reason, out),
     }
 }
 

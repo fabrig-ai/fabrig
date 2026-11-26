@@ -1,0 +1,10 @@
+milestone 812 · Store shape · whole since 1970-01-01T00:01Z
+The store's new shape
+made by person 1, Alice · 1970-01-01T00:00Z
+goals: 7 / 9 done · 0 failed · 1 closed · 2 live · 0 reds owed
+spent: 2.12 of 4.00
+last landing: 1970-01-01T00:01Z, S7 history in task logs (task 820)
+goals:
+  813  S1 Draft the layout  done
+  819  S6 Wire the layout  live · dependency task 812 · since 2026-11-16 10:02 UTC · no bound: no deadline
+  820  S7 history in task logs  live · task 833: party question 3 at you · since 2026-11-16 10:02 UTC · passes up at 2026-11-16 18:02 UTC

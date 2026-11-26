@@ -101,6 +101,8 @@ pub const GOAL_SIDE: Style = Style { owner: owner(), token: 393 };
 pub const GOAL_SECTION: Style = Style { owner: owner(), token: 394 };
 /// The goal facts (client/web/look.md).
 pub const GOAL_FACTS: Style = Style { owner: owner(), token: 395 };
+/// A live milestone goal's first wait (client/pages/milestone.md, 3).
+pub const GOAL_WAIT: Style = Style { owner: owner(), token: 860 };
 /// The goal task progress bar (client/web/look.md).
 pub const GOAL_BAR: Style = Style { owner: owner(), token: 396 };
 /// A landed goal task segment (client/web/look.md).
@@ -1656,7 +1658,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-857",
         b"temper-reserved-858",
         b"temper-reserved-859",
-        b"temper-reserved-860",
+        b"temper-goal-wait",
     ],
     regions: &[b"temper-link"],
 };

@@ -299,6 +299,29 @@ impl Shown<'_> {
                 None => goals::headline(words, line, state, None, &self.names),
             };
             goal::facts(b, &headline);
+            if let Some(wait) = &line.wait {
+                self.goal_wait(b, words, times, line.chip.task, wait);
+            }
+        }
+        b.close();
+    }
+    fn goal_wait(&self, b: &mut Builder, words: &Words, times: &mut Times, goal: u64, wait: &c::Wait) {
+        let reader = match self.root.pages().me(self.root.client()) {
+            Some(me) => Some(me.party.number),
+            None => None,
+        };
+        let on_box = match self.root.forge().deployment() {
+            Some(answer) => answer.owned,
+            None => false,
+        };
+        let text = words.wait(wait, times, reader, &[], on_box, false);
+        b.open(Role::Paragraph);
+        b.style(look::GOAL_WAIT);
+        if wait.task == goal {
+            b.text(Run::Plain, &text);
+        } else {
+            let prefix = words.say(Word::WaitInDescendant, &[Hole::Number(wait.task)]);
+            b.text(Run::Plain, &skein_lib::bytes::concat(&[&prefix, &text]));
         }
         b.close();
     }

@@ -57,12 +57,12 @@ pub(crate) fn print(
         out.finish()
     } else {
         let mut measure = Text::measure();
-        text(reading, me, &mut measure);
+        text(reading, me, parts, &mut measure);
         if skein_lib::len_u64(measure.structural()) > limits.result_bytes {
             return render::failure(b"result limit", false, 1);
         }
         let mut out = Text::writing_exact(measure);
-        text(reading, me, &mut out);
+        text(reading, me, parts, &mut out);
         out.finish()
     };
     Printed { file: crate::jig::FileEnd::Keep, status: 0, stdout, stderr: Box::default() }
@@ -189,7 +189,7 @@ fn totals(reading: &Reading) -> Option<w::MilestoneTotals> {
         w::MilestoneResult::NotMilestone => None,
     }
 }
-fn text(reading: &Reading, me: Option<&c::Me>, out: &mut Text) {
+fn text(reading: &Reading, me: Option<&c::Me>, parts: &dyn render::Parts, out: &mut Text) {
     if reading.called.call.tool == rows::MILESTONE_LIST_AT {
         let (rows, after) = selected(page(reading, 1), &reading.called.call);
         for row in rows {
@@ -207,9 +207,9 @@ fn text(reading: &Reading, me: Option<&c::Me>, out: &mut Text) {
         render::lists::next(&reading.called.call, 2, after, out);
         return;
     }
-    show_text(reading, me, out);
+    show_text(reading, me, parts, out);
 }
-fn show_text(reading: &Reading, me: Option<&c::Me>, out: &mut Text) {
+fn show_text(reading: &Reading, me: Option<&c::Me>, parts: &dyn render::Parts, out: &mut Text) {
     let (task, result) = document(reading);
     let facts = milestones::facts(task);
     out.put(b"milestone ");
@@ -243,7 +243,19 @@ fn show_text(reading: &Reading, me: Option<&c::Me>, out: &mut Text) {
         out.put(b"  ");
         out.put(row.chip.title.bytes());
         out.put(b"  ");
-        out.put(goal_state(&row.chip));
+        let state = goal_state(&row.chip);
+        out.put(state);
+        if state == b"live"
+            && let Some(wait) = &row.wait
+        {
+            out.put(b" \xc2\xb7 ");
+            if wait.task != row.chip.task {
+                out.put(b"task ");
+                out.number(wait.task);
+                out.put(b": ");
+            }
+            render::document::wait_text(wait, me, parts, out);
+        }
         out.put(b"\n");
     }
     continuations(page(reading, 2), page(reading, 6), task, out);
