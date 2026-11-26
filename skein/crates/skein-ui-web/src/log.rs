@@ -89,7 +89,7 @@ pub struct Entry {
 /// How a log ends.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum End {
-    /// The last clock the page heard, and what the world said from the last input to it.
+    /// The last clock's or kept stamp's moment, and what the world said from the last input to it.
     At { step: u64, instant: Time, said: Said },
     /// The log reached its bound; a replay runs to the last input kept.
     Cut,
@@ -161,7 +161,7 @@ impl Log {
         }
     }
     /// A world's message: a stamp keeps the oldest input sent and unstamped; a report, a line
-    /// and the stop are folded; a clock marks the end.
+    /// and the stop are folded. A clock or a kept stamp marks the end.
     pub fn heard(&mut self, message: &bridge::ToPage) {
         match message {
             bridge::ToPage::Stamp(stamp) => self.stamped(*stamp),
@@ -206,6 +206,7 @@ impl Log {
         }
         self.text.extend_from_slice(line.as_bytes());
         self.saying = Saying::new();
+        self.end = End::At { step: stamp.step, instant: stamp.instant, said: self.saying.said() };
     }
     /// The file offered: its first line, each kept input's, and its last line.
     #[must_use]

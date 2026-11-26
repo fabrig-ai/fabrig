@@ -166,6 +166,57 @@ fn what_comes_after_the_last_clock_is_not_in_the_end() {
     assert_ne!(log.text(), before);
 }
 
+fn golden_log_with_another_stamp() -> Log {
+    let mut log = golden_log();
+    log.sent(&Input::ReadOn);
+    log.heard(&stamp(4, 5));
+    log
+}
+
+#[test]
+fn a_snapshot_ends_at_its_last_kept_stamp() {
+    let expected = format!(
+        "skein-playground-log 2 build=abcd seed=7 start=9\n\
+         input step=2 instant=3 said={EMPTY} read-on\n\
+         input step=4 instant=5 said=8a894be3e2c50fe07fc8fdd08e996daff999185b1cb9fe3c75859778de61574e read-on\n\
+         end step=4 instant=5 said={EMPTY}\n"
+    );
+    assert_eq!(str::from_utf8(&golden_log_with_another_stamp().text()).expect("ASCII log"), expected);
+}
+
+#[test]
+fn a_report_waits_for_the_clock_after_a_stamp() {
+    let mut log = golden_log_with_another_stamp();
+    let before = log.text();
+    log.heard(&ToPage::Report(Report::StreamEnded));
+    assert_eq!(log.text(), before);
+    log.heard(&clock(6, 7));
+    // The fold of `ended\n`, no printed lines, and no stop.
+    let after = log.text();
+    let text = str::from_utf8(&after).expect("ASCII log");
+    assert!(
+        text.ends_with("end step=6 instant=7 said=0fd9e18c7b25fd9d125309da4311277e9febed5bbe4ea9948ff6d85d95fc48e8\n"),
+        "{text:?}"
+    );
+}
+
+#[test]
+fn two_stamps_in_one_slice_end_at_the_second() {
+    const EXCHANGE: u32 = 42;
+    let mut log = Log::new(None, &start(), u32::MAX);
+    log.sent(&Input::ReadOn);
+    log.sent(&Input::Abandon { exchange: EXCHANGE });
+    log.heard(&stamp(2, 3));
+    log.heard(&stamp(2, 3));
+    let expected = format!(
+        "skein-playground-log 2 build=- seed=7 start=9\n\
+         input step=2 instant=3 said={EMPTY} read-on\n\
+         input step=2 instant=3 said={EMPTY} abandon id={EXCHANGE}\n\
+         end step=2 instant=3 said={EMPTY}\n"
+    );
+    assert_eq!(str::from_utf8(&log.text()).expect("ASCII log"), expected);
+}
+
 #[test]
 fn a_log_past_its_bound_is_cut() {
     // The last line must still fit when both clock fields grow to u64::MAX.
