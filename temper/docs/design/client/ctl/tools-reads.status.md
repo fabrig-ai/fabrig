@@ -2,8 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [tools-reads.md](tools-reads.md).
 
-- **Not yet:** 1: no `waits` read [in flight: change 18572].
-- **Not yet:** 1: `inbox`'s needs give no since, bound or overdue mark [in flight: change 18574].
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].

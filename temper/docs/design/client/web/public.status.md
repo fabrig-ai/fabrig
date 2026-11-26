@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [public.md](public.md).
 
-- **Not yet:** 3: a public landing says nothing of its wait [in flight: change 18571].
 
 
 - **Not yet:** 4: the browser kit returns the first content quad of each text

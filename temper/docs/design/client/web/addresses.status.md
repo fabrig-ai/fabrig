@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [addresses.md](addresses.md).
 
-- **Not yet:** 1: no `Waits { project, filter }` address [in flight: change 18573].
 
 - **Departs:** 1: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`

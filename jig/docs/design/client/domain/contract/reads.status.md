@@ -31,4 +31,3 @@ times reach the accounts watch without marking an unchanged offer.
 
 - **Not yet:** 1: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it.
 
-- **Not yet:** 1.2: no read lists a project's waits; the core computes them per task alone [in flight: change 18562].
