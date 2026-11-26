@@ -965,7 +965,7 @@ pub(crate) fn check_stop(
     if !crate::hold_origin::valid(&env.limits, why, source.as_deref()) {
         return None;
     }
-    if !why.valid() {
+    if !crate::boundary::valid_hold(why) {
         return None;
     }
     if !domain.ready() {

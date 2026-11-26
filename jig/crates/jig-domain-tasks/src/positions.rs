@@ -47,7 +47,7 @@ pub struct ProposalRow {
 }
 
 pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32) {
-    match word.kind.family() {
+    match crate::message_family(&word.kind) {
         MessageFamily::Spoken(Spoken::Question) => question(task, word.number, task.activity, bound),
         MessageFamily::Spoken(Spoken::Answer { question }) => match word.from {
             Party::Person(_) => {

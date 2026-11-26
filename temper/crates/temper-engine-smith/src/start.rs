@@ -4,6 +4,7 @@
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_link::{Form, GrantTable, Scheme};
+use jig_domain_tasks as tasks;
 use skein_lib::{List, ReplyTo, Token, Writer, bytes};
 use smith_domain as smith;
 use smith_domain_run as run;
@@ -75,7 +76,7 @@ pub fn start(
                 name: Token::new(word.number),
                 label: engine::inbox_sender(word),
                 text: engine::inbox_words(assignment.task, word),
-                finish_requested: word.finish_requested(),
+                finish_requested: tasks::finish_requested(word),
             })
             .expect("bounded start messages");
     }

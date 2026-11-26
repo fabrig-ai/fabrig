@@ -171,7 +171,10 @@ pub use boundary::{
     SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy,
     Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
-pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
+pub use boundary::{
+    Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS, finish_requested, message_family, procedure_input,
+    word_payload_bytes,
+};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{

@@ -1,118 +1,11 @@
 //! Owned questions and answers (domain/authority-checks.md, section 1, and domain/authority.md, section 9).
 
 use alloc::boxed::Box;
+pub use jig_domain_contract::effects::{Answer, Effect, EffectAccess, EffectResource, Finding, Source, Verdict};
 
 use skein_lib::Wall;
 
-use crate::{Authority, Executor, Judge, Name, Numbers, ProposalKind, ResourceScope, Tools};
-
-/// Ordered from least to most strict: deciding never clears a fact failure.
-/// Terminal result of one pure check, ordered by severity; it neither executes the action nor
-/// commits a durable decision. (domain/authority-checks.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Answer {
-    /// Checks permit the action; the caller still owns execution and atomic commitment.
-    Allow,
-    /// Required facts, budget, account or writer condition are not ready; no action is authorized
-    /// yet.
-    Wait,
-    /// Task authority is insufficient but hard ceilings permit seeking an eligible accepter.
-    Propose,
-    /// A hard requirement, admission bound or permission failed.
-    Refuse,
-}
-
-/// Authority layer that supplied a ceiling or permission for a finding. (domain/authority.md, section 6, and domain/authority-checks.md, section 1
-/// ).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Source {
-    /// The acting or creating task's authority.
-    Task,
-    /// The root-verified person's project role.
-    Role,
-    /// The live project's ceiling.
-    Project,
-    /// Immutable deployment rules.
-    Deployment,
-}
-
-/// Fixed-size reason emitted by a pure check into caller-reserved bounded room; multiple
-/// independent reasons may accompany one answer. (domain/authority-checks.md, section 1, and domain/authority.md, sections 9–10).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Finding {
-    /// Input shape or payload exceeds admission limits.
-    Oversized,
-    /// No live policy exists for the named project.
-    UnknownProject,
-    /// The live policy has no named role.
-    UnknownRole,
-    /// Componentwise authority deficits against this source.
-    Authority {
-        /** Authority layer against which this condition failed. */
-        source: Source,
-        /** Independent component deficits against that source. */
-        lacks: crate::Lacks,
-    },
-    /// A child executor is not permitted by this source.
-    Executor {
-        /** Authority layer against which this condition failed. */
-        source: Source,
-    },
-    /// Aggregate lifetime task capacity does not fit this source.
-    Tasks {
-        /** Authority layer against which this condition failed. */
-        source: Source,
-    },
-    /// Aggregate reserved spend does not fit this source.
-    Spend {
-        /** Authority layer against which this condition failed. */
-        source: Source,
-    },
-    /// Required accounting or aggregate arithmetic is unrepresentable.
-    Arithmetic,
-    /// Offered run budget is not above the minimum or available funding is insufficient.
-    RunBudget,
-    /// Offered run budget exceeds deployment or task authority cap.
-    RunCap,
-    /// Task deadline is past the supplied wall time.
-    Deadline,
-    /// A required model account is unusable.
-    Account,
-    /// A written resource is held by another task or has a pending hold.
-    Writer,
-    /// Configured family is absent from an applicable authority value.
-    Tool,
-    /// This source has no grant covering the requested operation.
-    Grant {
-        /** Authority layer against which this condition failed. */
-        source: Source,
-    },
-    /// The effect's maximum price exceeds funding available at this source.
-    Price { source: Source },
-    /// The adopted resource is context only or current access forbids a write.
-    ResourceAccess,
-    /// A connector reports a resource unavailable in the project.
-    ResourceUnavailable,
-    /// The caller has no verified standing to message the task.
-    Reference,
-    /// The note scope is absent from this source.
-    Scope {
-        /** Authority layer against which this condition failed. */
-        source: Source,
-    },
-    /// A pinned required fact is missing, unknown or pending.
-    Required { judge: Judge },
-    /// A matching pinned required fact failed.
-    Failed { judge: Judge },
-    /// The effect kind cannot guard a requirement marked as requiring a guard.
-    Unguarded { judge: Judge },
-    /// The person's role does not allow this request kind.
-    Unpermitted,
-    /// The person's role may not accept this proposal kind.
-    Undecidable,
-    /// A funding request's pool budget exceeds the role's period ceiling.
-    PeriodSpend,
-}
+use crate::{Authority, Executor, Judge, Numbers, ProposalKind, ResourceScope, Tools};
 
 /// Pure check result and optional replacement funding snapshot; the root commits allowed numbers
 /// together with the action once. (domain/authority-budgets.md, section 1, and domain/authority-checks.md, section 1).
@@ -154,43 +47,6 @@ pub struct BatchAsk {
     pub tasks: Box<[Delegate]>,
 }
 
-/// A read or effect of one connector, pinned to the state it names.
-/// Root-translated connector read or effect with a literal resource and exact state pin, bounded on
-/// admission. (domain/authority-checks.md, section 1.2).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Effect {
-    pub connector: u16,
-    /// Requested exact kind; grant implications do not remove requirements on this kind.
-    pub kind: u16,
-    /// Full literal resource name, bounded by segment and byte limits.
-    pub name: Name,
-    pub state: [u8; 32],
-    /// Maximum deployment-unit charge, posted in the effect's deciding commit.
-    pub price: Option<u64>,
-    /// Connector-verified current access to the resource and object being written.
-    pub access: EffectAccess,
-    /// Other resources touched by this same effect, each with its own current access.
-    pub additional: Box<[EffectResource]>,
-    /// Judges this effect kind's condition checks when it is applied.
-    pub guards: Box<[Judge]>,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct EffectResource {
-    pub name: Name,
-    pub access: EffectAccess,
-}
-
-/// A connector's current write relationship for this exact effect. Participating writes are
-/// permitted as a participant, subject to the same grant and requirement checks.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EffectAccess {
-    Owned,
-    Participant,
-    Context,
-    Unavailable,
-}
-
 /// Root-gathered permission and authentic-fact question for one pinned effect; this value makes no
 /// connector call. (domain/authority-checks.md, section 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -204,17 +60,6 @@ pub struct EffectAsk {
     pub effect: Effect,
     /// Wall time of this decision, used for observed verdict freshness.
     pub now: Wall,
-}
-
-/// A connector's judgement for the exact state of the checked effect.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Verdict {
-    /// The requirement held when judged.
-    Met,
-    /// The judge cannot yet say whether it holds.
-    Wait,
-    /// The requirement failed.
-    Refuse,
 }
 
 /// One named judgement and the wall time at which its facts were observed.

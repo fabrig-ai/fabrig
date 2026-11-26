@@ -1945,7 +1945,7 @@ fn approval_state_and_explanation_share_the_person_answer_byte_bound() {
         .iter()
         .find(|message| message.from == tasks::Party::Task(task))
         .expect("bounded result");
-    assert_eq!(message.payload_bytes(), Some(bound));
+    assert_eq!(tasks::word_payload_bytes(message), Some(bound));
 }
 
 #[test]
@@ -1992,7 +1992,7 @@ fn a_verdicts_machine_fields_reach_its_requester_whole_after_commit_and_restart(
         .find(|message| message.from == tasks::Party::Task(child))
         .expect("durable delegate message");
     assert_eq!(message.kind, expected);
-    assert_eq!(message.payload_bytes(), Some(10));
+    assert_eq!(tasks::word_payload_bytes(message), Some(10));
     let root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) =
         &world.store.rows[&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(child)))]
     else {

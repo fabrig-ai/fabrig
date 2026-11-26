@@ -4,10 +4,12 @@
 //! never knows role membership or a worker call identity. Terminal proposals
 //! leave live memory as retained store rows.
 use crate::domain::{Domain, publish, record, refused, task_mut};
-use crate::{
-    Amendment, Authority, Change, Limits, New, Party, Phase, Refusal, Release, Request, Stored, TaskRecord, Was,
-};
+use crate::{Amendment, Change, Limits, New, Party, Phase, Refusal, Release, Request, Stored, TaskRecord, Was};
 use alloc::boxed::Box;
+pub use jig_domain_contract::ops::{
+    Proposal, ProposalAction, ProposalHolder, ProposalKind, ProposalState, Setting, SettingEdit, SettingHead,
+    SettingsOutcome,
+};
 use skein_lib::{Env, Queue, ReplyTo, Time, Wall};
 
 fn kind(action: &ProposalAction) -> ProposalKind {
@@ -77,79 +79,6 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, proposal: &Proposal, out:
     crate::wake::after_message(domain, env, task, None, word(proposal, since), out);
 }
 
-/// A task action waiting for a holder's authority and funding.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")
-)]
-pub enum ProposalAction {
-    /// Settings values stay in the core (domain/engine/settings-proposals.md, 1).
-    Settings { against: u32, items: Box<[SettingHead]>, projects: Box<[u32]> },
-    /// Whole batch with IDs allocated on proposal admission, before reservation.
-    Batch(Box<[New]>),
-    /// Connector-owned payload retained under this proposal's number. Only
-    /// the needed authority and original call purpose cross the child boundary.
-    Effect { connector: u16, authority: Authority, attempt: u64, completion: u32, position: u32, purpose: u64 },
-    /// A procedure-origin effect keeps its genuine stable purpose and step.
-    ProcedureEffect { connector: u16, authority: Authority, step: u64, purpose: u64 },
-    /// Change an existing live task after its holder accepts the needed authority.
-    Amend { task: u64, revision: u64, amendment: Amendment },
-    /// Widen a task's current authority.
-    Widen { task: u64, authority: Authority },
-    /// Release a held task whose decision needs the holder.
-    Release { task: u64 },
-    /// Release from a placed hold, naming what the proposer saw.
-    ReleasePlaced { task: u64, hold: u64, revision: u64 },
-}
-
-/// Current decision recipient, selected by root from the nearest covering holder.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ProposalHolder {
-    /// Ancestor task.
-    Task(u64),
-    /// Person requester above the root.
-    Person(u64),
-    /// People whose project role permits this kind of decision; there is no further holder.
-    Policy { project: u32, kind: ProposalKind },
-}
-
-/// Decision family used for the final policy recipient.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ProposalKind {
-    Settings,
-    Batch,
-    Effect,
-    Amend,
-    Widen,
-    Release,
-}
-
-/// One proposal's current or retained decision state.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ProposalState {
-    /// No holder has decided yet.
-    Pending { holder: ProposalHolder, since: Wall },
-    /// Accepted by a covered holder in the same commit as its action.
-    Accepted { by: Party },
-    /// Rejected with words delivered to the proposer.
-    Rejected { by: Party, reason: Box<[u8]> },
-    /// Proposer withdrew it or its live basis closed.
-    Withdrawn,
-}
-
-/// Root-numbered proposal whose action and reason remain durable.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Proposal {
-    pub number: u64,
-    pub proposer: u64,
-    pub project: u32,
-    pub action: ProposalAction,
-    pub reason: Box<[u8]>,
-    pub as_holder: bool,
-    pub state: ProposalState,
-}
-
 /// A party's explicit action request, kept separately from task-origin proposals.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PersonProposal {
@@ -196,29 +125,6 @@ pub enum PersonAction {
     Amend { task: u64, revision: u64, amendment: Box<Amendment> },
 }
 
-/// The tasks child retains only settings item heads (domain/engine/settings-proposals.md, 1).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Setting {
-    Model(u32),
-    Worker(u32),
-    Provider(u32),
-    Charter(u32),
-    Template(u32),
-    Policy(u32),
-    Rules,
-    Limits,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum SettingEdit {
-    Set,
-    Removed,
-    Reset,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct SettingHead {
-    pub setting: Setting,
-    pub edit: SettingEdit,
-}
 pub const SETTINGS_ITEMS: u32 = 128;
 
 impl PersonAction {
@@ -1083,13 +989,6 @@ pub(crate) fn proposal_scope(project: u32, proposal: &Proposal) -> bool {
     }
 }
 
-/// Settings decisions name the made revision, or the revision that made them stale.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum SettingsOutcome {
-    Accepted { revision: u32 },
-    Rejected,
-    Stale { newest: u32 },
-}
 /// Root-authenticated settings terminal; its message was reserved at proposal admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingsDecision {

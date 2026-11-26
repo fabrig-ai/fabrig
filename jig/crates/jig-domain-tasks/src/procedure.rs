@@ -338,7 +338,9 @@ fn check_shape(limits: &Limits, number: u64, decision: &ProcedureDecision) -> Re
         return Err(problem(number, Refusal::Batch));
     }
     if let ProcedureEnd::HoldFrom { why, source } = &decision.end
-        && (!why.valid() || crate::placed::is_placed(*why) || !crate::hold_origin::valid(limits, *why, Some(source)))
+        && (!crate::boundary::valid_hold(*why)
+            || crate::placed::is_placed(*why)
+            || !crate::hold_origin::valid(limits, *why, Some(source)))
     {
         return Err(problem(number, Refusal::Holds));
     }

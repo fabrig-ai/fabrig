@@ -296,7 +296,7 @@ pub(crate) const fn admission(answer: authority::Answer) -> infrastructure::Admi
 pub(crate) fn watch_inputs(inbox: Box<[tasks::Word]>) -> Box<[observability::WatchInput]> {
     let mut inputs = List::with_capacity(u32::try_from(inbox.len()).expect("offered inbox bound"));
     for word in inbox {
-        let input = match word.kind.procedure_input() {
+        let input = match tasks::procedure_input(word.kind) {
             Some(tasks::ProcedureInput::News) => Some(observability::WatchInput::News),
             Some(tasks::ProcedureInput::Result(result)) => {
                 let child = match word.from {

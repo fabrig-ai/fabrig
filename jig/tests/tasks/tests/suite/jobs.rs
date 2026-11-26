@@ -306,7 +306,7 @@ fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
     assert!(matches!(world.record(JOB).phase, Phase::Closing(tasks::Closing { stage: Stage::Run { attempt: 1 }, .. })));
     assert!(world.stops.contains(&(JOB, 1)));
     assert!(world.record(JOB).grace.is_none());
-    assert!(!world.record(JOB).inbox.iter().any(Word::finish_requested));
+    assert!(!world.record(JOB).inbox.iter().any(tasks::finish_requested));
     world.terminal(JOB, End::Failed(Class::Run));
     world.settle(JOB);
     assert!(matches!(world.results[&JOB], Ending::Cancelled { .. }));
@@ -334,7 +334,7 @@ fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
     });
     assert!(matches!(world.record(JOB).phase, Phase::Closing(_)));
     assert!(world.record(JOB).grace.is_none());
-    assert!(!world.record(JOB).inbox.iter().any(Word::finish_requested));
+    assert!(!world.record(JOB).inbox.iter().any(tasks::finish_requested));
     world.settle(JOB);
     assert!(matches!(world.results[&JOB], Ending::Cancelled { .. }));
 }

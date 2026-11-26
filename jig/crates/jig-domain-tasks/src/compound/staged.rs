@@ -83,7 +83,7 @@ impl CompoundTask<'_> {
     fn wake(&mut self, word: &crate::Word) {
         let wakes = match self.executor {
             Executor::Person(_) | Executor::Job { .. } => false,
-            Executor::Procedure { .. } | Executor::Agent { .. } => match word.kind.family() {
+            Executor::Procedure { .. } | Executor::Agent { .. } => match crate::message_family(&word.kind) {
                 MessageFamily::Spoken(Spoken::Answer { .. }) => self.wake.answers,
                 MessageFamily::Spoken(Spoken::Question) => self.wake.questions,
                 MessageFamily::Spoken(Spoken::Words)

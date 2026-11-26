@@ -1455,11 +1455,19 @@ dependencies = [
 name = "jig-domain-authority"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
 [[package]]
 name = "jig-domain-brief"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-domain-contract"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
@@ -1490,6 +1498,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
+ "jig-domain-contract",
  "jig-domain-fleet",
  "jig-domain-link",
  "jig-domain-notes",
@@ -1547,6 +1556,7 @@ dependencies = [
 name = "jig-domain-people"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "jig-domain-link",
  "skein-lib",
 ]
@@ -1555,6 +1565,7 @@ dependencies = [
 name = "jig-domain-tasks"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 

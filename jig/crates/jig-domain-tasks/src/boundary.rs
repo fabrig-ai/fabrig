@@ -4,7 +4,16 @@
 //! owns exact transport replay and commits related rows/effects atomically.
 use crate::{Authority, Class, Funder, Numbers, Tries};
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Duration, List, ReplyTo, Wall};
+pub use jig_domain_contract::ops::{
+    Active, Bound, ChangeTitle, Circle, Closing, Contract, Deadline, Ending, Exceeded, Executor, FieldRule, Hold,
+    HoldSource, JobSpec, Message, MessageKind, New, NoticeState, Parameter, Party, PersonAddress, Phase,
+    RecurringOverlap, RecurringTemplate, ResultField, ResultKind, ResultsWake, Spec, Stage, TaskResult, Verdict,
+    WakePolicy, WakeRule, Was, Word,
+};
+pub use jig_domain_contract::procedures::{ProcedureDecision, ProcedureEnd, ProcedureMessage};
+pub use jig_domain_contract::resources::{Holding, Name};
+pub use jig_domain_contract::topics::NewsClass;
+use skein_lib::{Duration, List, ReplyTo, Wall};
 
 /// A connector's procedure whose tasks, made with a pending dependency, are active and
 /// kept rather than waiting (jig/docs/design/domain/connectors-procedures.md, 1.1).
@@ -12,71 +21,6 @@ use skein_lib::{Decimal, Duration, List, ReplyTo, Wall};
 pub struct KeptStart {
     pub connector: u16,
     pub code: u32,
-}
-
-/// A closed wake rule for task words and subscription hints (domain/tasks/messages.md, section 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum WakeRule {
-    Never,
-    Immediate,
-    Batch {
-        count: u32,
-        age: Duration,
-    },
-    /// At most once in `span` from the task's last run's start (domain/tasks/messages.md, 3).
-    Paced {
-        span: Duration,
-    },
-}
-
-/// How delegate result messages wake their requester.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ResultsWake {
-    Never,
-    Each,
-    LastOrFailure,
-}
-
-/// Inert creator-selected wake policy, bounded at task admission.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct WakePolicy {
-    pub words: WakeRule,
-    pub notices: WakeRule,
-    pub news: WakeRule,
-    pub results: ResultsWake,
-    pub questions: bool,
-    pub answers: bool,
-    pub timers: bool,
-}
-
-impl WakePolicy {
-    pub const DEFAULT: Self = Self {
-        words: WakeRule::Immediate,
-        notices: WakeRule::Immediate,
-        news: WakeRule::Immediate,
-        results: ResultsWake::LastOrFailure,
-        questions: true,
-        answers: true,
-        timers: true,
-    };
-}
-
-/// Connector-classified news can be lowered by a task policy.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum NewsClass {
-    Wakes,
-    Kept,
-    Dropped,
-}
-
-/// State reported by a task watch, distinct from a terminal result.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum NoticeState {
-    Held { revision: u64 },
-    Done,
-    Failed,
-    Cancelled,
-    Unreadable,
 }
 
 /// One bounded standing task, timer or topic interest.
@@ -92,62 +36,6 @@ pub enum SubscriptionKind {
 pub struct Subscription {
     pub number: u64,
     pub kind: SubscriptionKind,
-}
-
-/// Kind of a durable task-inbox message (domain/tasks/lifecycle.md, section 7 and domain/tasks/messages.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum MessageKind {
-    /// Virtual, durable held decision entry projected from the held task.
-    Escalation { task: u64, revision: u64 },
-    /// Virtual inbox entry for a pending proposal; its reason is in `Word::words`.
-    /// The proposal owns its durable state and takes no inbox room.
-    Proposal { proposer: u64, proposal: u64, kind: crate::ProposalKind },
-    /// A person delegate passed its waiting deadline, delivered once to its requester.
-    PersonStalled { task: u64 },
-    /// Final accepted or rejected proposal, delivered to its proposer.
-    ProposalDecision { proposal: u64, accepted: bool },
-    /// A settings proposal outcome, delivered using its reserved inbox room.
-    SettingsDecision { proposal: u64, outcome: crate::SettingsOutcome },
-    /// Whole words from a person or referenced task.
-    Words,
-    /// A person settled the numbered uncertain effect as not made.
-    EffectNotMade { entry: u64 },
-    /// Latest committed amendment, always waking and merging by task.
-    Amendment { revision: u64 },
-    /// A cancel grace asks its executor to finish, in its own reserved slot.
-    FinishRequested { revision: u64 },
-    /// A bounded question for which the sender keeps answer room.
-    Question,
-    /// Answer to a named question previously asked of this sender.
-    Answer { question: u64 },
-    /// Merged task state hint for one standing interest.
-    Notice { subscription: u64, target: u64, state: NoticeState },
-    /// Merged timer fire for one standing interest.
-    Timer { subscription: u64 },
-    /// Merged connector hint routed by its topic.
-    News { subscription: u64, class: NewsClass },
-    /// A delegate's terminal result, sent with its end.
-    Result(ResultKind),
-    /// The core's notice that a kept task's last pending dependency is done,
-    /// or was removed by an amendment: always waking, one per task, merged
-    /// (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 1). `dependency` is the one whose end or
-    /// removal emptied the pending set; of several removed at once, the
-    /// first in the old list.
-    Met { dependency: u64, removed: bool },
-    /// The question ended without an answer; its asker may go on.
-    QuestionEnded { question: u64 },
-    /// Its person answered the question in their inbox; `Word::from` names its asker
-    /// (domain/people/README.md, 5; domain/tasks/lifecycle-endings.md, 1).
-    QuestionAnswered { question: u64 },
-    /// A question offered to another task. The word's number orders the offer;
-    /// the question number is the one its answer names.
-    PassedQuestion { question: u64 },
-    /// A question answered by someone other than the task it was asked of.
-    PassedAnswer { question: u64 },
-    /// Its requester is owed a question before a done finish (domain/tasks/lifecycle-endings.md, 1).
-    QuestionOwed,
-    /// Nothing remains to await after a result-ended task parks (domain/tasks/lifecycle.md, 2).
-    NothingAwaited,
 }
 
 /// The shared inbox classification (domain/tasks/messages.md, sections 1–3).
@@ -196,84 +84,6 @@ pub enum Separate {
     FinishRequested,
     Met,
     NothingAwaited,
-}
-
-/// Terminal shape carried with a delegate's bounded message words.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ResultKind {
-    Job,
-    /// Exact approved state; presence distinguishes absent from empty explanation words.
-    Approved {
-        state: Box<[u8]>,
-        words_present: bool,
-    },
-    /// Successful conclusion that the requested change does not apply.
-    NoChange,
-    Report,
-    Verdict {
-        code: u32,
-        fields: Box<[ResultField]>,
-    },
-    Change {
-        connector: u16,
-        kind: u16,
-        resource: u64,
-    },
-    Failed,
-    Cancelled,
-}
-
-/// One durable whole message in a task's bounded inbox
-/// (domain/tasks/messages.md, section 2).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Word {
-    /// Root-issued commit-order message identity.
-    pub number: u64,
-    /// Root-verified sender, checked against requester or live delegate.
-    pub from: Party,
-    /// Reason this message entered the inbox.
-    pub kind: MessageKind,
-    /// Whole bounded words, never cut while in the inbox.
-    pub words: Box<[u8]>,
-    /// Injected time of admission, for oldest-first reads.
-    pub at: Wall,
-    /// Number of hints merged into this whole inbox entry.
-    pub hits: u32,
-    /// A batching threshold already reached, retained across restart.
-    pub eligible: bool,
-}
-
-impl Word {
-    /// Whether this message asks an agent to finish (domain/hosts/README.md, section 7).
-    #[must_use]
-    pub fn finish_requested(&self) -> bool {
-        self.kind.family() == MessageFamily::Separate(Separate::FinishRequested)
-    }
-
-    /// Whole admitted payload, including the opaque state of an approval result.
-    #[must_use]
-    pub fn payload_bytes(&self) -> Option<usize> {
-        match self.kind.result() {
-            Some(ResultKind::Approved { state, words_present }) => {
-                if !words_present && !self.words.is_empty() {
-                    return None;
-                }
-                state.len().checked_add(self.words.len())
-            }
-            Some(ResultKind::Verdict { fields, .. }) => {
-                crate::verdict::fields_bytes(fields)?.checked_add(self.words.len())
-            }
-            Some(
-                ResultKind::Job
-                | ResultKind::NoChange
-                | ResultKind::Report
-                | ResultKind::Change { .. }
-                | ResultKind::Failed
-                | ResultKind::Cancelled,
-            )
-            | None => Some(self.words.len()),
-        }
-    }
 }
 
 /// A connector resource on which a run left state for its next activation.
@@ -334,80 +144,6 @@ pub struct QuestionNotice {
     pub message: u64,
 }
 
-/// Root-verified requester/creator identity; requester topology and financial source are
-/// separate values. (domain/tasks/README.md, sections 2–3).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Party {
-    /// Task requester/creator whose delegation topology this child owns.
-    Task(
-        /** Deployment task number of the creator/requester; task requesters must remain live until their delegates end. */
-         u64,
-    ),
-    /// Person requester/creator authenticated by the root.
-    Person(/** Authenticated deployment person number supplied by the root. */ u64),
-    /// Deployment-owned work for one project, authorized by the root.
-    Deployment {
-        /** Project on whose behalf deployment configuration starts the task. */
-        project: u32,
-    },
-}
-
-impl Party {
-    /// The numeric party label carried by a host message (domain/hosts/README.md, 7).
-    #[must_use]
-    pub fn sender(self) -> Box<[u8]> {
-        match self {
-            Self::Task(number) | Self::Person(number) => Box::from(Decimal::of(number).as_bytes()),
-            Self::Deployment { .. } => Box::from(b"deployment".as_slice()),
-        }
-    }
-}
-
-/// Task executor selected by the root. The procedure's owner interprets its opaque code.
-/// (domain/tasks/README.md, section 2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Executor {
-    /// Configured agent charter.
-    Agent {
-        /** Configured agent charter number, checked against `Domain`'s admitted charter table. */
-        charter: u32,
-    },
-    /// Connector or core procedure stepped by its owner through the root.
-    Procedure { connector: u16, code: u32 },
-    /// A person or any current holder of a project role answers in the people inbox.
-    Person(PersonAddress),
-    /// Application job kind (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
-    Job { kind: u32 },
-}
-
-/// Opaque person-task destination; root authenticates the identity or role membership.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum PersonAddress {
-    /// One named person may answer without a role claim.
-    Person(u64),
-    /// Any current holder of a project role may take and answer.
-    Role(u32),
-}
-
-/// What to do when a new period arrives before the preceding batch has ended.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum RecurringOverlap {
-    /// Let the due period pass without another batch.
-    Skip,
-    /// Remember the latest due period and make its batch after the old one ends.
-    Wait,
-}
-
-/// A core procedure's durable batch template, with local member numbers starting at one.
-/// The live procedure's authority is its per-period budget ceiling.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct RecurringTemplate {
-    /// Stable deployment configuration identity within a project, used to fence restarts.
-    pub key: u32,
-    pub batch: Box<[New]>,
-    pub overlap: RecurringOverlap,
-}
-
 /// The template and period cursor retained with one live recurring task.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RecurringState {
@@ -416,239 +152,6 @@ pub struct RecurringState {
     pub last_batch: Box<[u64]>,
     pub last_period: u64,
     pub pending_period: Option<u64>,
-}
-
-/// One procedure decision. Each step commits its task changes with the owner's state.
-/// (domain/tasks/lifecycle.md, section 3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProcedureDecision {
-    /// Replace this procedure task's specification words, within the specification byte bound.
-    pub words: Option<Box<[u8]>>,
-    pub batch: Box<[New]>,
-    pub amendments: Box<[crate::Amend]>,
-    pub cancels: Box<[crate::Cancel]>,
-    pub messages: Box<[ProcedureMessage]>,
-    pub proposals: Box<[crate::Proposal]>,
-    /// Dependencies the procedure's work started from (domain/connectors-procedures.md, 1.1).
-    pub started_from: Box<[u64]>,
-    pub end: ProcedureEnd,
-}
-
-/// A procedure word, optionally spending the room kept by a question it asked.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProcedureMessage {
-    pub message: Message,
-    pub notice: Option<u64>,
-}
-
-impl ProcedureMessage {
-    #[must_use]
-    pub fn ordinary(message: Message) -> Self {
-        Self { message, notice: None }
-    }
-}
-
-/// One addressed word admitted to a task inbox (jig/docs/design/domain/tasks/messages.md, 2).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Message {
-    pub task: u64,
-    pub word: Word,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ProcedureEnd {
-    Result(TaskResult),
-    Hold(Hold),
-    HoldFrom { why: Hold, source: Box<HoldSource> },
-    Wait,
-}
-
-impl ProcedureDecision {
-    #[must_use]
-    pub fn new(end: ProcedureEnd) -> Self {
-        Self {
-            words: None,
-            batch: Box::new([]),
-            amendments: Box::new([]),
-            cancels: Box::new([]),
-            messages: Box::new([]),
-            proposals: Box::new([]),
-            started_from: Box::new([]),
-            end,
-        }
-    }
-}
-
-/// Bounded semantic parameter carrier; tasks does not interpret names or resources, and the
-/// current root chat constructor supplies no parameters. (domain/tasks/README.md, section 3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Parameter {
-    /// Numeric specification carrier; current chat construction supplies no parameters.
-    Number {
-        /** Opaque semantic parameter name, carried without interpretation by tasks. */
-        name: u32,
-        /** Numeric parameter value, carried without interpretation here. */
-        value: u64,
-    },
-    /// Bounded UTF-8 text specification carrier; current chat construction supplies no parameters.
-    Bytes {
-        /** Opaque semantic parameter name, carried without interpretation by tasks. */
-        name: u32,
-        /** Owned UTF-8 text bytes; these and `Spec::words` share `Limits::spec_bytes`. */
-        value: Box<[u8]>,
-    },
-    /// Connector/resource carrier; no connector lookup or effect is performed by tasks.
-    Resource {
-        /** Opaque semantic parameter name, carried without interpretation by tasks. */
-        name: u32,
-        /** Connector identity carried without lookup or interpretation here. */
-        connector: u16,
-        /** Opaque semantic resource identifier; tasks does not load connector data. */
-        resource: u64,
-    },
-}
-
-/// Owned task description supplied by root, bounded at admission (domain/tasks/README.md, section 3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Spec {
-    /// Application bytes, present exactly for a job executor (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
-    pub job: Option<Box<JobSpec>>,
-    /// Owned UTF-8 specification words; combined with text-valued parameters, bounded by
-    /// `Limits::spec_bytes`.
-    pub words: Box<[u8]>,
-    /// Parameters bounded by `Limits::parameters`; tasks does not interpret their names, and
-    /// current root chat construction supplies an empty slice.
-    pub parameters: Box<[Parameter]>,
-    /// Retained input identities, bounded by `Limits::inputs` on creation and restore.
-    pub inputs: Box<[u64]>,
-    /// Immutable obligation to ask its requester a question (domain/tasks/lifecycle-endings.md, 1).
-    pub asks: bool,
-}
-
-/// A job task's application bytes and per-attempt deadline (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct JobSpec {
-    pub bytes: Box<[u8]>,
-    pub deadline: Duration,
-}
-
-/// One required named machine field and its value byte cap.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct FieldRule {
-    pub name: Box<[u8]>,
-    pub max: u32,
-}
-
-/// A named opaque machine value retained with a verdict.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ResultField {
-    pub name: Box<[u8]>,
-    pub value: Box<[u8]>,
-}
-
-/// One admitted result choice with a unique code and a per-choice word-byte bound.
-/// (domain/tasks/README.md, section 3, and domain/tasks/lifecycle.md, section 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Verdict {
-    /// Distinct permitted choice code within its contract.
-    pub code: u32,
-    /// Maximum word bytes for this choice, no greater than `Limits::result_bytes`.
-    pub words: u32,
-    /// Maximum whole-batch follow-up delegates this choice permits.
-    pub followups: u32,
-    /// Required closed-list machine fields, whose values remain opaque.
-    pub fields: Box<[FieldRule]>,
-}
-
-/// Root-supplied bounded result shape; tasks validates returned results against it before terminal
-/// admission. (domain/tasks/README.md, section 3, and domain/tasks/lifecycle.md, section 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Contract {
-    /// Maximum application result bytes (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
-    Job { bytes: u32 },
-    /// Approval of exact opaque connector state (domain/people/README.md, section 7).
-    Approval { state: Box<[u8]>, part: crate::Part },
-    /// Bounded report result.
-    Report {
-        /** Maximum report bytes, no greater than `Limits::result_bytes`. */
-        words: u32,
-    },
-    /// One of a nonempty admitted list of distinct verdict codes and byte caps.
-    Verdict {
-        /** Nonempty distinct-code choices, bounded by `Limits::contract_choices`, each with a result-byte bound. */
-        choices: Box<[Verdict]>,
-    },
-    /// Connector/kind-matching result with an opaque resource and bounded report.
-    Change {
-        /** Required connector identity in a successful change result. */
-        connector: u16,
-
-        kind: u16,
-        /** Maximum change-report bytes, no greater than `Limits::result_bytes`. */
-        words: u32,
-        /// Successful no-resource verdicts; distinct codes bounded as a verdict contract's choices.
-        choices: Box<[Verdict]>,
-    },
-}
-
-/// Explicit change-title bytes, boxed beside the result to keep inline carriers small.
-/// Admission bounds the words by the result contract (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangeTitle {
-    pub words: Box<[u8]>,
-}
-impl ChangeTitle {
-    /// Own a producer's title; the task entrance checks its byte bound.
-    #[must_use]
-    pub fn new(words: Box<[u8]>) -> Box<Self> {
-        Box::new(Self { words })
-    }
-}
-
-/// Owned executor outcome checked against the admitted task contract before lifecycle admission;
-/// connector interpretation and outward delivery remain with root. (domain/tasks/lifecycle.md, section 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum TaskResult {
-    /// Opaque application result (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
-    Job { bytes: Box<[u8]> },
-    /// Exact state approved by the addressed person, with optional explanation.
-    Approved { state: Box<[u8]>, words: Option<Box<[u8]>> },
-    /// Successful bounded report matching a report contract.
-    Report {
-        /** Report bytes, bounded by both the admitted contract and `Limits::result_bytes`. */
-        words: Box<[u8]>,
-    },
-    /// Successful admitted verdict code with bounded explanation.
-    Verdict {
-        code: u32,
-        /// Each required field exactly once; values are never read by tasks.
-        fields: Box<[ResultField]>,
-        /** Explanation bytes bounded by that choice's word cap and `Limits::result_bytes`. */
-        words: Box<[u8]>,
-    },
-    /// Successful matching connector/kind result; tasks performs no connector effect.
-    Change {
-        /** Connector identity that must equal the admitted change contract. */
-        connector: u16,
-        /** Connector-defined kind that must equal the admitted change contract. */
-        kind: u16,
-        /** Opaque resulting resource identifier; root/connector interpretation remains outside tasks. */
-        resource: u64,
-        /// Producer-supplied title, bounded independently by the contract and `Limits::result_bytes`.
-        title: Box<ChangeTitle>,
-        /** Change-report bytes bounded by the admitted contract and `Limits::result_bytes`. */
-        words: Box<[u8]>,
-    },
-    /// Successful no-change conclusion under a change contract; claims no resulting resource.
-    NoChange {
-        /// Explanation bounded by the admitted contract and `Limits::result_bytes`.
-        words: Box<[u8]>,
-    },
-    /// Bounded failure result allowed by every contract; produces an `Ending::Failed`.
-    Failure {
-        /** Failure-result reason, allowed by every contract and bounded by `Limits::result_bytes`. */
-        reason: Box<[u8]>,
-    },
 }
 
 /// Why an agent's proposed result failed its current admitted contract.
@@ -665,33 +168,6 @@ pub enum InvalidResult {
     Change,
     /// The verdict proposed more follow-up tasks than its contract permits.
     Followups,
-}
-
-/// Durable final outcome, or a pending closing outcome; requester notification follows
-/// settlement. (domain/tasks/lifecycle.md, sections 1 and 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Ending {
-    /// Checked successful result proposed for final ending; retained while closing and made
-    /// final only after settlement.
-    Done(/** Successful checked result retained in pending closing or in the retained end record. */ TaskResult),
-    /// Failure ending with its bounded reason, pending while closing or final in the retained
-    /// record.
-    Failed {
-        /** Owned failure reason bounded by `Limits::result_bytes`. */
-        reason: Box<[u8]>,
-    },
-    /// Cancellation of descendant work, optionally preserving an already-completed result; no
-    /// arbitrary public cancel route is exposed.
-    Cancelled {
-        /// Party whose decision cancelled this work.
-        by: Party,
-        /// Wall time when cancellation was decided.
-        at: Wall,
-        /** Owned cancellation reason bounded by `Limits::result_bytes`. */
-        reason: Box<[u8]>,
-        /** Optional already-completed result retained with cancellation, separately bounded and checked against the contract. */
-        result: Option<TaskResult>,
-    },
 }
 
 /// Content-free terminal classification used in observations and dependency readiness.
@@ -785,243 +261,8 @@ pub enum ResultFollowups {
     Proposal(Box<crate::Proposal>),
 }
 
-/// Root-reported or task-derived reason to preserve a task's prior lifecycle while stopping its
-/// live activation. (domain/tasks/lifecycle-holds.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Hold {
-    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
-    Exceeded(Exceeded),
-    /// Configured retry allowance was exhausted.
-    Failures(/** Failure class whose retry allowance was exhausted. */ Class),
-    /// Executor made no progress within its configured stall bound.
-    Stalled,
-    /// A required dependency failed or was cancelled.
-    Dependency(/** `Dependency` that ended failed or cancelled, causing this dependent to be held. */ u64),
-    /// Root reports a person's stop or another authorized stop decision.
-    Stopped,
-    /// The placed hold that holds this task, when no cause of 5.5 does.
-    Placed { hold: u64 },
-    /// Root reports resource drift requiring a decision; tasks owns no connector drift detection.
-    Drift,
-    /// Root reports a permanently failed effect requiring a decision.
-    Effects,
-    /// A connector effect failed for good.
-    EffectFailed,
-    /// An unrecoverable effect may or may not have reached its system.
-    Uncertain { entry: u64 },
-    /// Available funding is too small for another run or effect.
-    Budget,
-    /// Root reports that the permitted deadline prevents another activation.
-    Deadline,
-    /// A task waited beyond the bound for its required resource holds.
-    HoldsWaited,
-    /// A connector reports that a named resource is no longer available.
-    ResourceUnavailable,
-    /// Current adoption forbids a running workspace write.
-    ResourceAccess,
-    /// The numbered pool lost its allocation while this task held or awaited it.
-    PoolLost { pool: u64 },
-    /// A procedure asked its requester for a decision.
-    Procedure,
-    /// Joining a queue, or the waits a release gives back, would close a circle of waits; the
-    /// hold's source names the circle, and the hold lifts once it breaks (domain/tasks/holds.md, 7).
-    Circle,
-    /// A wait reached its bound.
-    Waited,
-}
-
-impl Hold {
-    /// Identity of the independently placed hold, when this is a placed reason.
-    #[must_use]
-    pub const fn placed(self) -> Option<u64> {
-        match self {
-            Self::Placed { hold } => Some(hold),
-            Self::Exceeded(_)
-            | Self::Failures(_)
-            | Self::Stalled
-            | Self::Dependency(_)
-            | Self::Stopped
-            | Self::Drift
-            | Self::Effects
-            | Self::EffectFailed
-            | Self::Uncertain { .. }
-            | Self::Budget
-            | Self::Deadline
-            | Self::HoldsWaited
-            | Self::ResourceUnavailable
-            | Self::ResourceAccess
-            | Self::PoolLost { .. }
-            | Self::Procedure
-            | Self::Circle
-            | Self::Waited => None,
-        }
-    }
-
-    pub(crate) const fn valid(self) -> bool {
-        match self {
-            Hold::Dependency(task) => task != 0,
-            Hold::Placed { hold } => hold != 0,
-            Hold::Uncertain { entry } => entry != 0,
-            Hold::PoolLost { pool } => pool != 0,
-            Hold::Exceeded(_)
-            | Hold::Failures(_)
-            | Hold::Stalled
-            | Hold::Stopped
-            | Hold::Drift
-            | Hold::ResourceUnavailable
-            | Hold::ResourceAccess
-            | Hold::Effects
-            | Hold::EffectFailed
-            | Hold::Budget
-            | Hold::Deadline
-            | Hold::HoldsWaited
-            | Hold::Procedure
-            | Hold::Circle
-            | Hold::Waited => true,
-        }
-    }
-}
-
-/// Current agent-task activation phase; task and attempt identity fence every external transition.
-/// (domain/tasks/lifecycle.md, section 2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Active {
-    /// `Activation` parked; no current wake input is exposed by this contracted child.
-    Idle,
-    /// An activation is requested and root owns preparation.
-    Due,
-    /// Root is gathering the brief/resources; a claim or preparation failure follows.
-    Preparing,
-    /// Root committed the fenced attempt before assignment/start.
-    Claimed {
-        /** Committed root-issued strictly increasing nonzero attempt identity. */
-        attempt: u64,
-    },
-    /// Root reported the exact claimed attempt started.
-    Running {
-        /** Current claimed attempt reported as started. */
-        attempt: u64,
-    },
-    /// `Retry`/refusal pause with one projected deadline.
-    BackingOff {
-        /** Saved wall-time retry threshold, projected once to a monotonic deadline and reprojected on restore. */
-        until: Wall,
-    },
-}
-
-/// Ordered closing obligation; the root confirms effect settlement before resource release.
-/// (domain/tasks/lifecycle.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Stage {
-    /// Wait for the exact live attempt's terminal.
-    Run {
-        /** `Live` attempt whose terminal must be heard before closing advances. */
-        attempt: u64,
-    },
-    /// Wait for all live delegates and incoming financial allocations to settle.
-    Delegates,
-    /// `Close` output is owed settlement of all prior effects from root.
-    Effects,
-    /// `Release` output is owed settlement of resource cleanup from root.
-    Releases,
-    /// Root closing obligations settled; final financial posting and retained ending can commit.
-    /// Unheld `Settled` is transient and refused on live restore; held prior closing may retain it.
-    Settled,
-}
-
-/// Owned pending ending and closing stage retained until every obligation and financial allocation
-/// settles. (domain/tasks/lifecycle.md, section 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Closing {
-    /// Next unsettled closing obligation.
-    pub stage: Stage,
-    /// Bounded pending final outcome, preserved through holds and cancellation.
-    pub ending: Ending,
-}
-
-/// Lifecycle preserved while held; terminal/settlement notifications can update it without lifting
-/// the hold. (domain/tasks/lifecycle.md, section 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Was {
-    /// Prior dependency-waiting phase.
-    Waiting,
-    /// Prior agent activation phase.
-    Active(/** Prior agent activation phase, including its attempt/backoff fence. */ Active),
-    /// Prior pending closing state.
-    Closing(/** Prior closing stage and owned pending ending. */ Closing),
-}
-
-/// Task's complete lifecycle value; ended values occur in retained durable rows rather than the
-/// live arena. (domain/tasks/lifecycle.md, section 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Phase {
-    /// `Some` live dependency remains; readiness becomes `Due` when `waiting_on` empties.
-    Waiting,
-    /// `Agent` activation is idle, due, preparing, claimed, running or backing off.
-    Active(Active),
-    /// Pending ending waits for ordered activation/delegate/root settlement.
-    Closing(/** Owned pending ending and next closing obligation. */ Closing),
-    /// Prior lifecycle preserved until a release or amendment lifts the hold.
-    Held {
-        /** Prior phase retained and updated while held; the hold is not lifted by a terminal. */
-        was: Was,
-
-        why: Hold,
-        /// Exact cause, retained in lifecycle milestones.
-        source: Option<Box<HoldSource>>,
-    },
-    /// Ended outcome; default restoration refuses it in the live arena.
-    Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
-}
-
-/// What explains a hold beyond its reason: a connector account, a failure cause,
-/// a circle of waits, or the waits at a bound (client/domain/objects.md, 5; domain/tasks/lifecycle-holds.md, 1, and domain/tasks/holds.md, 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum HoldSource {
-    /// Why preparation or activation failed past its allowance, only on `Hold::Failures`.
-    Preparation {
-        words: Box<[u8]>,
-    },
-    Resource(Name),
-    Effect {
-        connector: u16,
-        entry: u64,
-    },
-    Circle(Circle),
-    /// The connector's retained account, including an effect's operation, resource and outcome.
-    Account {
-        connector: u16,
-        entry: Option<u64>,
-        words: Box<[u8]>,
-    },
-    /// What the task waited for at its bound, in UTF-8.
-    Wait {
-        words: Box<[u8]>,
-    },
-}
-
 /// The most bytes a wait source can carry.
 pub const WAIT_WORDS: u32 = 512;
-
-/// A circle of waits: tasks each waiting for the next, the last for the first, so that none of
-/// them could end (domain/tasks/holds.md, 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Circle {
-    /// The circle's tasks in order, from the one whose new wait would close it, at most
-    /// `Limits::circle`.
-    pub tasks: Box<[u64]>,
-    /// The circle has more tasks than these.
-    pub cut: bool,
-}
-
-/// A connector resource name opaque to the tasks hub (domain/tasks/holds.md, 1).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Name {
-    /// Connector number assigned by the application's root.
-    pub connector: u16,
-    /// Literal path segments with no connector-specific interpretation here.
-    pub path: Box<[Box<[u8]>]>,
-}
 
 /// Whether a busy resource refuses admission or queues its next holder.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1041,15 +282,6 @@ pub enum HoldKind {
     Exclusive { taken: Taken },
     /// Up to the connector's current number of slots hold the pool.
     Pooled { taken: Taken },
-}
-
-/// One resource a task needs before it may become active.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Holding {
-    /// Exclusive write resource and its connector-defined kind.
-    Write { resource: Name, kind: u16 },
-    /// Counted pool resource and its connector-defined kind.
-    Slot { pool: Name, kind: u16 },
 }
 
 /// The one writer of an exclusively held resource (domain/tasks/holds.md, 3).
@@ -1084,57 +316,6 @@ pub struct Kind {
     pub connector: u16,
     pub kind: u16,
     pub hold: HoldKind,
-}
-
-/// The proposal deadline retained until the task-making decision.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Deadline {
-    Named,
-    Span(Duration),
-}
-
-/// Root-authorized member of an atomic creation batch; tasks preflights the whole graph, payloads,
-/// capacity and finite reservations before mutation. (domain/tasks/README.md, sections 3–4).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct New {
-    /// Opaque application label, immutable after creation.
-    pub label: u32,
-    /// Immutable engine flags.
-    pub flags: crate::Flags,
-    /// Fresh never-reused task number supplied by the root; live or within-batch duplicates refuse.
-    pub number: u64,
-    /// Policy project authenticated by root and checked against creator/project structural limits.
-    pub project: u32,
-    /// `Agent` charter executor, checked against admitted configuration.
-    pub executor: Executor,
-    /// An agent task's LLM choice, checked against the configured models, its charter and its
-    /// authority; absent for a procedure's or a person's task, and where the root resolves the
-    /// default (domain/tasks/README.md, sections 3 and 4).
-    pub llm: Option<crate::LlmChoice>,
-    /// Owned specification within configured counts/bytes, with empty retained inputs.
-    pub spec: Spec,
-    /// Admitted bounded result contract.
-    pub contract: Contract,
-    /// Complete root-approved authority carrier; tasks checks bounded shape, not policy inclusion.
-    pub authority: Authority,
-    /// Deadline selection retained in pending proposals.
-    pub deadline: Deadline,
-    /// Fresh allotment: budget equals authority spend, with all spend/reservation counters zero.
-    pub numbers: Numbers,
-    /// Finite source; task sources must be live ancestors of the task creator and external
-    /// sources must belong to this project.
-    pub funder: Funder,
-    /// Distinct immutable dependencies, at most `Limits::dependencies`: members of this batch or
-    /// the creator's current live delegates.
-    pub dependencies: Box<[u64]>,
-    /// Connector resources taken together when the task first becomes active.
-    pub holdings: Box<[Holding]>,
-    /// Creator-selected policy for wakes and batching.
-    pub wake: WakePolicy,
-    /// Present only for the core recurring procedure; template members cannot recur.
-    pub recurring: Option<Box<RecurringTemplate>>,
-    /// Goal priority when people track this task; absent for ordinary work.
-    pub tracked: Option<u32>,
 }
 
 /// Revisions of the individual things a party decides, independent of history,
@@ -2731,134 +1912,124 @@ pub enum ResourceAccess {
     Unavailable,
 }
 
-/// A configured bound a run's model call met, and that bound's configured
-/// value in its own unit: never a measured size.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Exceeded {
-    pub bound: Bound,
-    pub value: u64,
-}
-
-/// A configured bound on a model call.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Bound {
-    /// The model's reasoning, per item or in all: bytes.
-    Reasoning,
-    /// The model's other replay metadata: bytes.
-    Metadata,
-    /// The items of the model's answer: a count.
-    Items,
-    /// The model's answer: bytes.
-    Answer,
-    /// The tools offered to the model: a count.
-    Tools,
-    /// The messages and blocks one request carries: a count of both.
-    HistoryItems,
-    /// The run's retained history, which compaction could not bring under
-    /// one of its configured ceilings: on messages, on blocks or on bytes.
-    /// The value is that ceiling, and the bound doesn't name its unit.
-    History,
-    /// The model's window: tokens.
-    Window,
-    /// The model's declared output ceiling: tokens.
-    Output,
-}
-
 /// The generic inbox inputs consumed by a connector procedure (domain/tasks/messages.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ProcedureInput {
     News,
     Result(ResultKind),
 }
-impl MessageKind {
-    /// Classify the message for inbox admission, activity and batching.
-    #[must_use]
-    pub fn family(&self) -> MessageFamily {
-        match self {
-            Self::Words => MessageFamily::Spoken(Spoken::Words),
-            Self::Question => MessageFamily::Spoken(Spoken::Question),
-            Self::Answer { question } => MessageFamily::Spoken(Spoken::Answer { question: *question }),
-            Self::Notice { subscription, target, state } => {
-                MessageFamily::Hint(Hint::Notice { subscription: *subscription, target: *target, state: *state })
-            }
-            Self::Timer { subscription } => MessageFamily::Hint(Hint::Timer { subscription: *subscription }),
-            Self::News { subscription, class } => {
-                MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class })
-            }
-            Self::PersonStalled { .. } => MessageFamily::Slot(Slot::PersonStalled),
-            Self::Amendment { .. } => MessageFamily::Separate(Separate::Amendment),
-            Self::FinishRequested { .. } => MessageFamily::Separate(Separate::FinishRequested),
-            Self::Met { .. } => MessageFamily::Separate(Separate::Met),
-            Self::NothingAwaited => MessageFamily::Separate(Separate::NothingAwaited),
-            Self::Result(_) => MessageFamily::Result,
-            Self::EffectNotMade { .. } => MessageFamily::Slot(Slot::EffectNotMade),
-            Self::SettingsDecision { .. } => MessageFamily::Slot(Slot::SettingsDecision),
-            Self::ProposalDecision { .. } => MessageFamily::Slot(Slot::ProposalDecision),
-            Self::QuestionAnswered { .. } => MessageFamily::Slot(Slot::QuestionAnswered),
-            Self::QuestionOwed => MessageFamily::Slot(Slot::QuestionOwed),
-            Self::QuestionEnded { .. } => MessageFamily::Slot(Slot::QuestionEnded),
-            Self::Escalation { .. }
-            | Self::Proposal { .. }
-            | Self::PassedQuestion { .. }
-            | Self::PassedAnswer { .. } => MessageFamily::Virtual,
-        }
-    }
 
-    /// Borrow the delegate's terminal shape, when this is a result message.
-    #[must_use]
-    pub fn result(&self) -> Option<&ResultKind> {
-        match self {
-            Self::Result(result) => Some(result),
-            Self::Escalation { .. }
-            | Self::Proposal { .. }
-            | Self::PassedQuestion { .. }
-            | Self::PassedAnswer { .. }
-            | Self::PersonStalled { .. }
-            | Self::ProposalDecision { .. }
-            | Self::SettingsDecision { .. }
-            | Self::Words
-            | Self::EffectNotMade { .. }
-            | Self::Amendment { .. }
-            | Self::FinishRequested { .. }
-            | Self::Question
-            | Self::Answer { .. }
-            | Self::Notice { .. }
-            | Self::Timer { .. }
-            | Self::News { .. }
-            | Self::Met { .. }
-            | Self::QuestionEnded { .. }
-            | Self::QuestionAnswered { .. }
-            | Self::QuestionOwed
-            | Self::NothingAwaited => None,
+/// Classify the message for inbox admission, activity and batching.
+#[must_use]
+pub fn message_family(kind: &MessageKind) -> MessageFamily {
+    match kind {
+        MessageKind::Words => MessageFamily::Spoken(Spoken::Words),
+        MessageKind::Question => MessageFamily::Spoken(Spoken::Question),
+        MessageKind::Answer { question } => MessageFamily::Spoken(Spoken::Answer { question: *question }),
+        MessageKind::Notice { subscription, target, state } => {
+            MessageFamily::Hint(Hint::Notice { subscription: *subscription, target: *target, state: *state })
         }
+        MessageKind::Timer { subscription } => MessageFamily::Hint(Hint::Timer { subscription: *subscription }),
+        MessageKind::News { subscription, class } => {
+            MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class })
+        }
+        MessageKind::PersonStalled { .. } => MessageFamily::Slot(Slot::PersonStalled),
+        MessageKind::Amendment { .. } => MessageFamily::Separate(Separate::Amendment),
+        MessageKind::FinishRequested { .. } => MessageFamily::Separate(Separate::FinishRequested),
+        MessageKind::Met { .. } => MessageFamily::Separate(Separate::Met),
+        MessageKind::NothingAwaited => MessageFamily::Separate(Separate::NothingAwaited),
+        MessageKind::Result(_) => MessageFamily::Result,
+        MessageKind::EffectNotMade { .. } => MessageFamily::Slot(Slot::EffectNotMade),
+        MessageKind::SettingsDecision { .. } => MessageFamily::Slot(Slot::SettingsDecision),
+        MessageKind::ProposalDecision { .. } => MessageFamily::Slot(Slot::ProposalDecision),
+        MessageKind::QuestionAnswered { .. } => MessageFamily::Slot(Slot::QuestionAnswered),
+        MessageKind::QuestionOwed => MessageFamily::Slot(Slot::QuestionOwed),
+        MessageKind::QuestionEnded { .. } => MessageFamily::Slot(Slot::QuestionEnded),
+        MessageKind::Escalation { .. }
+        | MessageKind::Proposal { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. } => MessageFamily::Virtual,
     }
+}
 
-    /// Select connector news and delegate results from a procedure's inbox.
-    #[must_use]
-    pub fn procedure_input(self) -> Option<ProcedureInput> {
-        match self {
-            Self::News { .. } => Some(ProcedureInput::News),
-            Self::Result(result) => Some(ProcedureInput::Result(result)),
-            Self::Escalation { .. }
-            | Self::Proposal { .. }
-            | Self::PassedQuestion { .. }
-            | Self::PassedAnswer { .. }
-            | Self::SettingsDecision { .. }
-            | Self::ProposalDecision { .. }
-            | Self::EffectNotMade { .. }
-            | Self::Words
-            | Self::Met { .. }
-            | Self::FinishRequested { .. }
-            | Self::Amendment { .. }
-            | Self::Question
-            | Self::Answer { .. }
-            | Self::Notice { .. }
-            | Self::QuestionAnswered { .. }
-            | Self::QuestionOwed
-            | Self::NothingAwaited
-            | Self::QuestionEnded { .. }
-            | Self::Timer { .. }
-            | Self::PersonStalled { .. } => None,
+/// Select connector news and delegate results from a procedure's inbox.
+#[must_use]
+pub fn procedure_input(kind: MessageKind) -> Option<ProcedureInput> {
+    match kind {
+        MessageKind::News { .. } => Some(ProcedureInput::News),
+        MessageKind::Result(result) => Some(ProcedureInput::Result(result)),
+        MessageKind::Escalation { .. }
+        | MessageKind::Proposal { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
+        | MessageKind::SettingsDecision { .. }
+        | MessageKind::ProposalDecision { .. }
+        | MessageKind::EffectNotMade { .. }
+        | MessageKind::Words
+        | MessageKind::Met { .. }
+        | MessageKind::FinishRequested { .. }
+        | MessageKind::Amendment { .. }
+        | MessageKind::Question
+        | MessageKind::Answer { .. }
+        | MessageKind::Notice { .. }
+        | MessageKind::QuestionAnswered { .. }
+        | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
+        | MessageKind::QuestionEnded { .. }
+        | MessageKind::Timer { .. }
+        | MessageKind::PersonStalled { .. } => None,
+    }
+}
+
+/// Whether this message asks an agent to finish (domain/hosts/README.md, section 7).
+#[must_use]
+pub fn finish_requested(word: &Word) -> bool {
+    message_family(&word.kind) == MessageFamily::Separate(Separate::FinishRequested)
+}
+
+/// Whole admitted payload, including the opaque state of an approval result.
+#[must_use]
+pub fn word_payload_bytes(word: &Word) -> Option<usize> {
+    match word.kind.result() {
+        Some(ResultKind::Approved { state, words_present }) => {
+            if !words_present && !word.words.is_empty() {
+                return None;
+            }
+            state.len().checked_add(word.words.len())
         }
+        Some(ResultKind::Verdict { fields, .. }) => crate::verdict::fields_bytes(fields)?.checked_add(word.words.len()),
+        Some(
+            ResultKind::Job
+            | ResultKind::NoChange
+            | ResultKind::Report
+            | ResultKind::Change { .. }
+            | ResultKind::Failed
+            | ResultKind::Cancelled,
+        )
+        | None => Some(word.words.len()),
+    }
+}
+
+pub(crate) const fn valid_hold(hold: Hold) -> bool {
+    match hold {
+        Hold::Dependency(task) => task != 0,
+        Hold::Placed { hold } => hold != 0,
+        Hold::Uncertain { entry } => entry != 0,
+        Hold::PoolLost { pool } => pool != 0,
+        Hold::Exceeded(_)
+        | Hold::Failures(_)
+        | Hold::Stalled
+        | Hold::Stopped
+        | Hold::Drift
+        | Hold::ResourceUnavailable
+        | Hold::ResourceAccess
+        | Hold::Effects
+        | Hold::EffectFailed
+        | Hold::Budget
+        | Hold::Deadline
+        | Hold::HoldsWaited
+        | Hold::Procedure
+        | Hold::Circle
+        | Hold::Waited => true,
     }
 }

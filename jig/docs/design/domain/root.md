@@ -71,7 +71,10 @@ are connectors.md. What is still open is listed in section 14.
   it owns the link's values (hosts/hub.md, 1), the checked `SourceName`, `Worker`
   and the immutable configured-membership minter among them, which the fleet,
   the hub and accounts share. It knows no fleet, hub or accounts state, and
-  whoever reads its values names it: none of the three re-exports them. The core knows each connector
+  whoever reads its values names it: none of the three re-exports them.
+  `jig-domain-contract` is the other: the values the core and its
+  connectors exchange, below both and above `jig-domain-link` alone
+  (connectors.md, 2). The core knows each connector
   by a number the root gives it in configuration; each connector knows nothing
   of the core.
 - **No root above it.** In one process, an engine's root and its
