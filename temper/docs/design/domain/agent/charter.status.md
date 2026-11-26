@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [charter.md](charter.md).
 
-- **Not yet:** 3: a landing repair's `no_change` holds its change as a failed repair does, rather than being checked once more (`../forge/change/repairs.status.md`) [in flight: change 19128].
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).

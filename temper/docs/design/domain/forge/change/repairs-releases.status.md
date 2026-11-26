@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [repairs-releases.md](repairs-releases.md).
 
-- **Not yet:** 1, *A release*: no hold whose red stands after a repair that changed nothing, so none whose release asks a fresh repair for it (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`) [in flight: change 19128].
 
 
 - **Design departs:** 1, *A refusal where nothing it judged has moved*: `../../../draft/whose-red.md`, 4.2 checks a released refusal again when the goal's branch's tip, main's tip or the published counts it judged against have changed, as the request of 2026-11-24 did. The engine reads no counts, since `refs/temper/counts` reaches only a job's checkout (`../../../protocol/git-operations.md`, 1.3), so main's tip stands for its published counts, which follow its landings: counts published for main's tip after a close refused leave the release holding until the goal's branch or main moves. The refusal's counts are kept and named in its words. A close whose counts aren't there yet breaks instead (`tools/pre-pr/design.md`, 4.1). Decided by the goal's designer, 2026-11-24, and kept by the requester of whose-red's first goal, 2026-11-25, over a forge read of the ref.

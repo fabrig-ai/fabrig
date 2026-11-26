@@ -2,8 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2, step 7: a landing repair that changed nothing supplies no repair account (`temper-engine-domain-forge/src/domain.rs`, `completed_repair`) [in flight: change 19128].
-- **Not yet:** 2, step 7: a CI repair that changed nothing supplies no repair account [in flight: change 19130].
 
 
 
