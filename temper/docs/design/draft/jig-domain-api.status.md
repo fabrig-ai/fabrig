@@ -1,0 +1,9 @@
+# jig-domain-api: status
+
+2026-11-26. Where the design lags or departs from [jig-domain-api.md](jig-domain-api.md).
+
+Nothing of this draft is designed or built yet.
+
+- **Design lags:** sections 3 to 12 and 14: `jig/docs/design/domain/root.md`, `jig/docs/design/domain/engine/vocabulary.md`, `jig/docs/design/domain/engine/decisions.md`, `jig/docs/design/domain/connectors.md` with `connectors-effects.md`, `connectors-facts.md` and `connectors-procedures.md`, `jig/docs/design/domain/hosts/README.md`, `jig/docs/design/domain/hosts/hub.md` and `jig/docs/design/domain/testing.md` describe today's edge, its asks by family and the engine's own hub; `jig/docs/design/README.md`, 4 keeps the escape hatch and its section 11 has no guide for a connector's author; and `skein/docs/foundation/programming-model.md`, 4.5 has no kit's contract. Each milestone of [the execution file](jig-domain-api.execution.md) closes its part.
+- **Design departs:** none.
+- **Open:** section 18's three questions, each with its default.
