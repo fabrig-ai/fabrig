@@ -110,6 +110,7 @@ jig-domain-core             the core: routing among its children, runs, calls, t
 ├── jig-domain-notes        notes: scopes, entries, indexes
 └── jig-domain-views        parties' watches, level-triggered
 
+jig-domain-contract        the values the core and its connectors exchange, by capability, and the operations' (../connectors.md, 2)
 jig-domain-link            the link's values, shared by the fleet, the hub and accounts (../root.md, 2)
 ```
 
