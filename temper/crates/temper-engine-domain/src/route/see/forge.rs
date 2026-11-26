@@ -73,7 +73,7 @@ pub(super) fn file(
 }
 
 fn project(domain: &Domain, key: CallKey) -> u32 {
-    domain.core.tasks.delegation(key.task).expect("authorized chat delegation").project
+    domain.engine.core().tasks.delegation(key.task).expect("authorized chat delegation").project
 }
 
 fn refused_repository(domain: &Domain, project: u32, named: Box<[u8]>) -> SeeAnswer {

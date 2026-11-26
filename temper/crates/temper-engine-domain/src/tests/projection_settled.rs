@@ -22,7 +22,7 @@ pub(crate) fn make_task(
     executor: tasks::Executor,
     creator: tasks::Party,
 ) -> u64 {
-    let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
+    let goal = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Task).unwrap();
     let task_env = env.with(env.limits.tasks);
     let mut out = Queue::uncapped();
     for event in [
@@ -61,10 +61,10 @@ pub(crate) fn make_task(
             }]),
         },
     ] {
-        tasks::step(&mut domain.core.tasks, &task_env, event, &mut out);
+        tasks::step(&mut domain.engine.core_mut().tasks, &task_env, event, &mut out);
         while out.pop().is_some() {}
     }
-    assert_eq!(domain.core.tasks.task(goal).expect("live goal").tracked, tracked);
+    assert_eq!(domain.engine.core().tasks.task(goal).expect("live goal").tracked, tracked);
     goal
 }
 
@@ -73,7 +73,7 @@ fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> 
     assert_eq!(domain.forge.next_wall_deadline(), None);
     domain.forge.projection_after(goal, when);
     assert_eq!(domain.forge.next_wall_deadline(), Some(when));
-    assert!(domain.core.tasks.task(goal).is_some(), "terminal arrives while task is live");
+    assert!(domain.engine.core().tasks.task(goal).is_some(), "terminal arrives while task is live");
     let mut out = Queue::uncapped();
     out.push(forge::Request::ProjectionSettled { goal });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -95,10 +95,10 @@ fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> 
 fn a_live_tracked_goal_forwards_its_explicit_terminal_and_cancels_its_timer() {
     let (mut domain, env, goal) = live_goal(Some(1));
     let event = terminal(&mut domain, &env, goal);
-    let out = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
+    let out = core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event);
     assert!(out.is_empty());
 
-    assert!(domain.core.tasks.task(goal).is_some());
+    assert!(domain.engine.core().tasks.task(goal).is_some());
 }
 
 #[test]
@@ -111,8 +111,8 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
         words: b"live goal".as_slice().into(),
         phase: tasks::Phase::Waiting,
     };
-    let task = domain.core.tasks.task(goal).unwrap().clone();
-    let funding = *domain.core.tasks.funding(task.funder).unwrap();
+    let task = domain.engine.core().tasks.task(goal).unwrap().clone();
+    let funding = *domain.engine.core().tasks.funding(task.funder).unwrap();
     let records = [
         crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::GoalWords {
             goal,
@@ -143,7 +143,7 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     ];
     (domain, _) = super::resume_fixture::root_with_records(super::resume_fixture::config(7), &env.limits, &records);
     let event = terminal(&mut domain, &env, goal);
-    let mut out = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
+    let mut out = core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event);
     for key in [
         core::ProjectionKey::TaskWords { goal, task: goal },
         core::ProjectionKey::Task { goal, task: goal },
@@ -164,5 +164,5 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     assert_eq!(connector, domain.config.forge_connector);
     assert!(out.is_empty());
 
-    assert_eq!(domain.core.tasks.task(goal).expect("untracking keeps task live").tracked, None);
+    assert_eq!(domain.engine.core().tasks.task(goal).expect("untracking keeps task live").tracked, None);
 }

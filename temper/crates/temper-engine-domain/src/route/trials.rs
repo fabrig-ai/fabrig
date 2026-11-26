@@ -37,7 +37,7 @@ fn choice(core: &core::Core, person: u64, account: u32) -> Choice {
 }
 
 pub(crate) fn asked(domain: &mut Domain, env: &Env<Limits>, person: u64, account: u32, again: bool) -> TryAnswer {
-    let Some(row) = domain.core.accounts.account(account) else { return TryAnswer::NotTheirs };
+    let Some(row) = domain.engine.core().accounts.account(account) else { return TryAnswer::NotTheirs };
     if row.holder() != Holder::Party(person) {
         return TryAnswer::NotTheirs;
     }
@@ -52,7 +52,7 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event
     while let Some(request) = out.pop() {
         match request {
             trials::Request::Make { account, person } => {
-                let llm = match choice(&domain.core, person, account) {
+                let llm = match choice(domain.engine.core(), person, account) {
                     Choice::First => None,
                     Choice::Held(llm) => Some(llm),
                     Choice::Unserved => {
@@ -65,7 +65,7 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event
                         continue;
                     }
                 };
-                let Some(seed) = domain.core.person_seed(person) else {
+                let Some(seed) = domain.engine.core_mut().person_seed(person) else {
                     trials::step(
                         &mut domain.trials,
                         &env.with(crate::limits::trial_limits(&env.limits)),
@@ -153,9 +153,9 @@ pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>) {
     let mut waits = skein_lib::Map::with_capacity(crate::limits::trial_limits(&env.limits).rows);
     let mut changed = false;
     for task in domain.trials.running() {
-        let past_starting = domain.core.run_past_starting(task);
-        let Some(held) = domain.core.tasks.task(task) else { continue };
-        let wait = core::documents::run_wait(&domain.core, held);
+        let past_starting = domain.engine.core().run_past_starting(task);
+        let Some(held) = domain.engine.core().tasks.task(task) else { continue };
+        let wait = core::documents::run_wait(domain.engine.core(), held);
         if domain.trial_waits.get(&task).copied().flatten() != wait {
             changed = true;
         }
@@ -187,8 +187,8 @@ pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>) {
 
 pub(crate) fn restarted(domain: &mut Domain) {
     let mut tasks = Queue::uncapped();
-    for candidate in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.core.tasks.task(candidate.number) else { continue };
+    for candidate in domain.engine.core().tasks.view_tasks() {
+        let Some(row) = domain.engine.core().tasks.task(candidate.number) else { continue };
         if row.executor == (tasks::Executor::Agent { charter: TRIAL_CHARTER }) {
             tasks.push(row.number);
         }

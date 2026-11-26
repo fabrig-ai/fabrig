@@ -254,12 +254,12 @@ fn joined_line(
         Some(owner)
             if owner.project == project && owner.requester == tasks::Party::Task(task) && owner.ended_at.is_some() =>
         {
-            d::task_line(&domain.core, &limits, party, owner, row.ended_read)
+            d::task_line(domain.engine.core(), &limits, party, owner, row.ended_read)
         }
         Some(_) => Err(d::Missing::Unknown),
         None => match &row.summary {
             Some(summary) if summary.project == project && summary.requester == tasks::Party::Task(task) => {
-                d::task_line_from_summary(&domain.core, &limits, party, summary)
+                d::task_line_from_summary(domain.engine.core(), &limits, party, summary)
             }
             Some(_) | None => Err(d::Missing::Unknown),
         },

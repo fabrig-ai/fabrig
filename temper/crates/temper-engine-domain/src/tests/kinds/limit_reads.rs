@@ -37,8 +37,8 @@ fn limits_require_a_deployment_role_and_carry_the_roots_held_bytes() {
 fn limit_holds_read_returns_the_kept_revision_and_only_visible_projects() {
     use crate::route::forge_route::limit_holds;
     let (mut domain, env, task) = live_task(None, jig_domain_tasks::Executor::Procedure { connector: 0, code: 1 });
-    let (auth, _) = reader(Some(Role::Owner));
-    domain.core.people = auth.core.people;
+    let (mut auth, _) = reader(Some(Role::Owner));
+    ::core::mem::swap(&mut domain.engine.core_mut().people, &mut auth.engine.core_mut().people);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let row = forge::LimitHold {
         task,
@@ -82,8 +82,8 @@ fn limit_holds_read_returns_the_kept_revision_and_only_visible_projects() {
             answer: crate::ForgeReadAnswer::LimitHolds { rows: Box::new([]), next: None }
         }
     );
-    let (auth, _) = reader_in(Some(Role::Member), PROJECT + 1);
-    domain.core.people = auth.core.people;
+    let (mut auth, _) = reader_in(Some(Role::Member), PROJECT + 1);
+    ::core::mem::swap(&mut domain.engine.core_mut().people, &mut auth.engine.core_mut().people);
     assert_eq!(
         read_forge(
             &mut domain,

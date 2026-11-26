@@ -9,7 +9,7 @@ use temper_engine_domain_forge as forge;
 
 /// While the core drains, a forge input returns to its owner undecided.
 pub(crate) fn defer(domain: &Domain, event: Event) -> Result<Event, Box<forge::Event>> {
-    if !domain.core.stopping() {
+    if !domain.engine.core().stopping() {
         return Ok(event);
     }
     match event {

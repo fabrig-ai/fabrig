@@ -12,7 +12,7 @@ pub(crate) fn call(
     key: CallKey,
     call: FindingCall,
 ) {
-    let Some(context) = domain.core.tasks.delegation(key.task) else { return };
+    let Some(context) = domain.engine.core().tasks.delegation(key.task) else { return };
     let project = context.project;
     let by = forge::Filer::Task(key.task);
     let reply = match call {

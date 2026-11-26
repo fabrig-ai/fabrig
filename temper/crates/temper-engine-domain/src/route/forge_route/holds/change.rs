@@ -146,7 +146,7 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
             append(&mut words, b" taken");
         }
     }
-    let revision = match domain.core.tasks.task(task) {
+    let revision = match domain.engine.core().tasks.task(task) {
         Some(row) => row.revisions.hold.saturating_add(1),
         None => 1,
     };

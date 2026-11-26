@@ -15,6 +15,7 @@ mod changes_from;
 mod deadline;
 mod decision;
 mod domain;
+mod engine;
 mod journal_stop;
 pub use journal_stop::JournalStop;
 mod limits;

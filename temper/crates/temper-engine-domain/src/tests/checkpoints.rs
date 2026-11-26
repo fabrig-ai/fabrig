@@ -146,7 +146,7 @@ fn a_tasks_party_cannot_take_a_deployment_checkpoint() {
         jig_domain_tasks::Executor::Procedure { connector: 0, code: 1 },
         jig_domain_tasks::Party::Person(1),
     );
-    assert_eq!(domain.core.tasks.task(task).unwrap().requester, jig_domain_tasks::Party::Person(1));
+    assert_eq!(domain.engine.core().tasks.task(task).unwrap().requester, jig_domain_tasks::Party::Person(1));
     crate::try_step(&mut domain, &env, ask()).unwrap();
     assert_eq!(settle(&mut domain, &env).as_ref(), [answered(Err(CheckpointWhy::NotOwner))]);
 }

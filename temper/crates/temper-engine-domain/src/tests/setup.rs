@@ -32,8 +32,8 @@ fn signed_in_on(role: Option<people::Role>, kind: forge::Kind) -> (Domain, Env<L
     signed_in_root(root_with_config(config), role)
 }
 fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people::Role>) -> (Domain, Env<Limits>) {
-    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.engine.core_mut().people.start_restore(env.wall);
     let mut out = Queue::uncapped();
     for record in [
         people::Stored::Person {
@@ -54,16 +54,16 @@ fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people:
         },
     ] {
         people::step(
-            &mut domain.core.people,
+            &mut domain.engine.core_mut().people,
             &env.with(env.limits.people),
             people::Event::Restore { record },
             &mut out,
         );
     }
     let people_env = env.with(env.limits.people);
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&people_env));
     (domain, env)
 }
 
@@ -504,7 +504,7 @@ fn runtime_project_root() -> (Domain, Env<Limits>) {
     // The restart fixture checks restored children; complete the tasks child's switch
     // before testing runtime project creation and its first period.
     let _requests = jig_domain_core::step(
-        &mut domain.core,
+        domain.engine.core_mut(),
         &crate::limits::environment_core(&env),
         jig_domain_core::Event::Tasks(jig_domain_tasks::Event::Restored),
     );
@@ -524,7 +524,7 @@ fn make_project(name: &str) -> Event {
 #[test]
 fn make_project_copies_policy_one_and_the_root_hears_it_only_after_commit() {
     let (mut domain, env) = runtime_project_root();
-    let policy = domain.core.authority.policy(1).unwrap().clone();
+    let policy = domain.engine.core().authority.policy(1).unwrap().clone();
     crate::try_step(&mut domain, &env, make_project("Tally")).unwrap();
     let mut out = Queue::uncapped();
     let mut commit = None;
@@ -550,7 +550,7 @@ fn make_project_copies_policy_one_and_the_root_hears_it_only_after_commit() {
         }
     }
     assert!(saved, "the new project's policy and name are durable");
-    assert_eq!(domain.core.authority.policy(2), Some(&policy));
+    assert_eq!(domain.engine.core().authority.policy(2), Some(&policy));
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number: commit.unwrap(), fill: 0 }))
         .unwrap();
     let mut heard = false;
@@ -574,11 +574,14 @@ fn make_project_copies_policy_one_and_the_root_hears_it_only_after_commit() {
         }
     }
     assert!(heard && answered);
-    assert_eq!(domain.core.projects.as_slice(), &[1, 2]);
-    assert_eq!(domain.core.people.role(1, 2), Some(people::Role::Owner));
-    assert_eq!(domain.core.period(2), 1, "the new project's first period is open");
-    assert!(domain.core.connector_repair_authority(2).is_some(), "the first period grants repair authority");
-    assert!(domain.core.repair_seed(2).is_some(), "the new project's first period can fund deployment work");
+    assert_eq!(domain.engine.core().projects.as_slice(), &[1, 2]);
+    assert_eq!(domain.engine.core().people.role(1, 2), Some(people::Role::Owner));
+    assert_eq!(domain.engine.core().period(2), 1, "the new project's first period is open");
+    assert!(domain.engine.core().connector_repair_authority(2).is_some(), "the first period grants repair authority");
+    assert!(
+        domain.engine.core_mut().repair_seed(2).is_some(),
+        "the new project's first period can fund deployment work"
+    );
 }
 
 #[test]
@@ -593,8 +596,8 @@ fn a_taken_project_name_is_refused_without_making_a_project() {
             reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NameTaken)),
         }))]
     );
-    assert_eq!(domain.core.projects.as_slice(), &[1]);
-    assert!(domain.core.authority.policy(2).is_none());
+    assert_eq!(domain.engine.core().projects.as_slice(), &[1]);
+    assert!(domain.engine.core().authority.policy(2).is_none());
 }
 
 #[test]

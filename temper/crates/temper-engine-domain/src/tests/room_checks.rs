@@ -216,14 +216,14 @@ fn restored_overlay(host: &crate::room::HostPart, overlay: settings::Overlay) ->
     old_default.policy.instructions = Box::new([]);
     let old = settings::overlaid(&old_default, &overlay);
     assert_eq!(host.check(&old), Ok(()), "the overlay fit before the default grew");
-    let mut deployment = root.core.counters.deployment();
+    let mut deployment = root.engine.core().counters.deployment();
     deployment.commits = 1;
-    root.core.counters = crate::Counters::new(deployment);
-    for setting in root.core.current.offered().into_boxed() {
+    root.engine.core_mut().counters = crate::Counters::new(deployment);
+    for setting in root.engine.core().current.offered().into_boxed() {
         let value = if setting == Setting::Charter(CHARTER) {
             Value::Charter(Box::new(old_default.clone()))
         } else {
-            root.core.current.default_value(setting).unwrap().clone()
+            root.engine.core().current.default_value(setting).unwrap().clone()
         };
         crate::restart::restore_page_row(
             &mut root,
@@ -329,7 +329,7 @@ fn a_reset_carries_its_previously_admitted_value() {
         },
     );
     assert_eq!(reply, people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 3 }));
-    assert_eq!(root.core.current.charter(CHARTER), Some(&resume_fixture::charter()));
+    assert_eq!(root.engine.core().current.charter(CHARTER), Some(&resume_fixture::charter()));
 }
 
 const FIXED_WORDS: &[u8] = b"charter 1 on a first wake is 66,012 bytes owned before its brief, past its allowance of 65,536; trim its text, parts or tool families";
@@ -484,12 +484,12 @@ fn a_stored_charter_that_fits_both_checks_opens() {
     store.run(&mut root, &env, false);
     assert!(root.ready());
     assert_eq!(root.start_stop(), None);
-    assert_eq!(root.core.current.charter(CHARTER).unwrap().policy.instructions, super::bytes(INSTRUCTIONS));
+    assert_eq!(root.engine.core().current.charter(CHARTER).unwrap().policy.instructions, super::bytes(INSTRUCTIONS));
 }
 
 fn run_root() -> (Domain, Env<Limits>, u64) {
     let (source, _, task) = super::live_task(None, jig_domain_tasks::Executor::Agent { charter: CHARTER });
-    let mut row = source.core.tasks.task(task).unwrap().clone();
+    let mut row = source.engine.core().tasks.task(task).unwrap().clone();
     row.authority.tools = core::RunPolicy::EVERY_FAMILY;
     let mut config = resume_fixture::config(7);
     config.host_part = HOST;
@@ -500,12 +500,13 @@ fn run_root() -> (Domain, Env<Limits>, u64) {
         &resume_fixture::limits(),
         &[
             crate::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Ledger(
-                *source.core.tasks.funding(row.funder).unwrap(),
+                *source.engine.core().tasks.funding(row.funder).unwrap(),
             ))),
             crate::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row)))),
         ],
     );
-    root.core
+    root.engine
+        .core_mut()
         .proofs
         .insert(
             task,
@@ -663,8 +664,8 @@ fn run_refusal(host: &crate::room::HostPart, words: &[u8]) {
         panic!("a settled host answer");
     };
     assert_eq!(call.answer, core::SettledAnswer::Host { error: true, body: words.into() });
-    assert!(!root.core.call_parts.contains_key(&key));
-    assert_eq!(root.core.current.newest(), 1);
+    assert!(!root.engine.core().call_parts.contains_key(&key));
+    assert_eq!(root.engine.core().current.newest(), 1);
     let next = crate::CallKey { completion: 2, ..key };
     crate::route::relay_payload(
         &mut root,
@@ -675,9 +676,9 @@ fn run_refusal(host: &crate::room::HostPart, words: &[u8]) {
         crate::Call { completion: 2, position: 0, tool: crate::Tool::Unavailable },
     );
     crate::route::route_into(&mut root, &env, &mut decision);
-    assert_eq!(root.core.call_parts.get(&next), Some(&core::CallPart::Unavailable));
-    assert!(root.core.current_proof(task, 1));
-    assert!(root.core.tasks.task(task).is_some());
+    assert_eq!(root.engine.core().call_parts.get(&next), Some(&core::CallPart::Unavailable));
+    assert!(root.engine.core().current_proof(task, 1));
+    assert!(root.engine.core().tasks.task(task).is_some());
 }
 
 fn owner_root() -> (Domain, Env<Limits>) {
@@ -761,7 +762,7 @@ fn an_accepted_stored_proposal_keeps_its_admitted_charter() {
         panic!("the stored proposal is accepted: {reply:?}");
     };
     assert_eq!(
-        root.core.current.charter(CHARTER).unwrap().policy.instructions.len(),
+        root.engine.core().current.charter(CHARTER).unwrap().policy.instructions.len(),
         usize::try_from(SHORT_INSTRUCTIONS).unwrap()
     );
 }

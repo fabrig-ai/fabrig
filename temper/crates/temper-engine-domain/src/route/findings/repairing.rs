@@ -51,7 +51,7 @@ fn prepare_goal(
     writes: &[forge::FindingWrite],
     explanation: &[u8],
 ) -> Result<(u64, tasks::Event), FindingRefusal> {
-    let context = domain.core.tasks.delegation(triager).ok_or(refused(tasks::Refusal::Tree))?;
+    let context = domain.engine.core().tasks.delegation(triager).ok_or(refused(tasks::Refusal::Tree))?;
     let project = context.project;
     let left = context
         .numbers
@@ -67,14 +67,14 @@ fn prepare_goal(
             Decimal::of(repairs.goal.budget).as_bytes(),
         ]));
     }
-    let (label, flags) = repair_goal_template(&domain.core, domain.config.forge_connector)?;
+    let (label, flags) = repair_goal_template(domain.engine.core(), domain.config.forge_connector)?;
     let spec = repair_goal_spec(&domain.forge, env.limits.tasks.spec_bytes, writes, explanation, repairs.attempts)?;
-    let seed = match domain.core.repair_seed(project) {
+    let seed = match domain.engine.core_mut().repair_seed(project) {
         Some(seed) => seed,
-        None => domain.core.procedure_seed(project).ok_or(FindingRefusal::NoGoal)?,
+        None => domain.engine.core_mut().procedure_seed(project).ok_or(FindingRefusal::NoGoal)?,
     };
     let goal = seed.number();
-    let root = domain.core.tasks.root(triager).expect("live triager tree");
+    let root = domain.engine.core().tasks.root(triager).expect("live triager tree");
     let mut names = List::with_capacity(env.limits.tasks.holdings);
     let Ok(holdings) = forge_route::holdings_scope(domain, env).prepare(
         project,
@@ -109,10 +109,10 @@ fn prepare_goal(
         Err(why) => return Err(refused(why)),
     };
     report_holdings(domain, env, decision, project, &names)?;
-    if let Err(why) = domain.core.check_make(&super::super::environment_core(env).limits, &made) {
+    if let Err(why) = domain.engine.core().check_make(&super::super::environment_core(env).limits, &made) {
         return Err(refused(why));
     }
-    Ok((goal, domain.core.bind_seeded_goal(made)))
+    Ok((goal, domain.engine.core_mut().bind_seeded_goal(made)))
 }
 
 fn report_holdings(

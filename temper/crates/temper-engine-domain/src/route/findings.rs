@@ -15,14 +15,14 @@ pub(crate) fn goal_ended(
     task: u64,
     ending: forge::ReleaseEnding,
 ) {
-    let Some(row) = domain.core.tasks.task(task) else { return };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return };
     let project = row.project;
     let mut out = Queue::uncapped();
     domain.forge.judge_goal_findings(&super::environment_forge(env), project, task, ending, &mut out);
     forge_route::outputs(domain, env, decision, &mut out);
 }
 pub(crate) fn fail_repair(domain: &mut Domain, project: u32, task: u64, until: skein_lib::Wall) {
-    let Some(row) = domain.core.tasks.task(task) else { return };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return };
     let hours = until.as_nanos().saturating_sub(row.created_at.as_nanos()).div_euclid(3_600_000_000_000);
     let mut words = List::uncapped();
     for part in [b"past its repair deadline of ".as_slice(), skein_lib::Decimal::of(hours).as_bytes(), b" hours"] {
@@ -53,11 +53,11 @@ fn live(row: &tasks::TaskRecord, project: u32) -> bool {
 pub fn stands(domain: &Domain, project: u32, owner: AreaOwner) -> Option<Holder> {
     match owner {
         AreaOwner::Task(number) => {
-            let row = domain.core.tasks.task(number)?;
+            let row = domain.engine.core().tasks.task(number)?;
             if live(row, project) { Some(Holder::Task(number)) } else { None }
         }
         AreaOwner::Party(number) => {
-            if domain.core.people.role(number, project).is_some() {
+            if domain.engine.core().people.role(number, project).is_some() {
                 Some(Holder::Party(number))
             } else {
                 None
@@ -66,8 +66,8 @@ pub fn stands(domain: &Domain, project: u32, owner: AreaOwner) -> Option<Holder>
         AreaOwner::Role(number) => Some(Holder::Role(number)),
         AreaOwner::Charter(charter) => {
             let mut lowest = None;
-            for view in domain.core.tasks.view_tasks() {
-                let Some(row) = domain.core.tasks.task(view.number) else { continue };
+            for view in domain.engine.core().tasks.view_tasks() {
+                let Some(row) = domain.engine.core().tasks.task(view.number) else { continue };
                 if row.label == 3 && row.executor == (tasks::Executor::Agent { charter }) && live(row, project) {
                     lowest = Some(match lowest {
                         Some(n) => row.number.min(n),
@@ -120,7 +120,7 @@ pub fn mine(domain: &Domain, project: u32, party: u64, holder: Holder) -> bool {
     match holder {
         Holder::Task(_) => false,
         Holder::Party(number) => number == party,
-        Holder::Role(number) => match domain.core.people.role(party, project) {
+        Holder::Role(number) => match domain.engine.core().people.role(party, project) {
             Some(role) => role.number() == number,
             None => false,
         },
@@ -134,7 +134,7 @@ fn permitted(domain: &Domain, project: u32, number: u32, by: Filer) -> Result<()
             held == Holder::Task(number) && stands(domain, project, AreaOwner::Task(number)).is_some()
         }
         Filer::Party(party) => {
-            domain.core.people.role(party, project) == Some(super::people::Role::Owner)
+            domain.engine.core().people.role(party, project) == Some(super::people::Role::Owner)
                 || mine(domain, project, party, held)
         }
     };
@@ -237,7 +237,7 @@ fn prepare_triage(
     permitted(domain, call.project, call.number, by)?;
     match &call.act {
         forge::Triage::Route(goal) => {
-            let Some(row) = domain.core.tasks.task(*goal) else { return Err(FindingRefusal::NoGoal) };
+            let Some(row) = domain.engine.core().tasks.task(*goal) else { return Err(FindingRefusal::NoGoal) };
             if !live(row, call.project) || row.label != 2 || row.tracked.is_none() {
                 return Err(FindingRefusal::NoGoal);
             }
@@ -274,7 +274,7 @@ pub(crate) fn commit(
     };
     if let Some(task) = recipient
         && let Some(subscription) = subscribe(domain, env, decision, task, row.project)
-        && let Some(event) = domain.core.connector_news(
+        && let Some(event) = domain.engine.core_mut().connector_news(
             task,
             subscription,
             tasks::NewsClass::Wakes,
@@ -367,7 +367,8 @@ pub(crate) fn tell_owner(
     words: Box<[u8]>,
 ) {
     if let Some(subscription) = subscribe(domain, env, decision, task, project)
-        && let Some(event) = domain.core.connector_news(task, subscription, tasks::NewsClass::Wakes, words, env.wall)
+        && let Some(event) =
+            domain.engine.core_mut().connector_news(task, subscription, tasks::NewsClass::Wakes, words, env.wall)
     {
         domain.work.push(Work::Tasks(event));
     }
@@ -382,7 +383,7 @@ fn subscribe(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, ta
         }
         row.number
     } else {
-        crate::fresh(&mut domain.core.counters, crate::Family::Message).expect("admitted message number")
+        crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).expect("admitted message number")
     };
     let existing = existing.is_some();
     let subscriber =
@@ -412,7 +413,7 @@ fn subscribe(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, ta
     Some(number)
 }
 fn subscribed(domain: &Domain, task: u64, number: u64) -> bool {
-    if let Some(row) = domain.core.tasks.task(task) {
+    if let Some(row) = domain.engine.core().tasks.task(task) {
         for sub in &row.subscriptions {
             if sub.number == number {
                 return true;

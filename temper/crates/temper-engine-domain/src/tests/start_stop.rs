@@ -137,7 +137,7 @@ fn drain(
         drained,
         1,
         "the start drains without waiting for a read or page: {:?}",
-        (domain.start_phase(), &domain.journal, domain.core.stopping())
+        (domain.start_phase(), &domain.journal, domain.engine.core().stopping())
     );
     crate::try_step(domain, env, Event::Resume).unwrap();
     crate::release(domain, env, &mut out);
@@ -237,8 +237,8 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
         let mut owed = held;
         let steps = domain.start_phases.len();
         crate::try_step(&mut domain, &env, Event::Stop).unwrap();
-        assert!(domain.core.stopping() || domain.settling.active(), "stop heard at {phase:?}");
-        assert_eq!(domain.core.settling(), !before_mark, "settling follows only the mark at {phase:?}");
+        assert!(domain.engine.core().stopping() || domain.settling.active(), "stop heard at {phase:?}");
+        assert_eq!(domain.engine.core().settling(), !before_mark, "settling follows only the mark at {phase:?}");
         let mut out = Queue::uncapped();
         let wires = store.wires;
         for _ in 0..owed.len() {
@@ -258,7 +258,7 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
                 Request::Forge { call, op: skein_forge::api::Op::Write(_), .. } => {
                     assert_eq!(catching_up, Some(true));
                     crate::release(&mut domain, &env, &mut out);
-                    assert!(!domain.core.stopping(), "the sent write holds the settled stop");
+                    assert!(!domain.engine.core().stopping(), "the sent write holds the settled stop");
                     for request in &out {
                         if let Request::Drained = request {
                             panic!("the sent write is still owed");
@@ -274,8 +274,8 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
         assert_eq!(words, u32::from(!before_mark), "restart word at {phase:?}");
         assert_eq!(domain.start_phases.len(), steps, "no further phase at {phase:?}");
         assert_eq!(store.wires, wires.checked_add(u32::from(phase == Some(Phase::Wires))).unwrap());
-        assert_eq!(domain.core.counters.deployment().restart_wait_ms.is_some(), !before_mark);
-        assert!(domain.core.stopping());
+        assert_eq!(domain.engine.core().counters.deployment().restart_wait_ms.is_some(), !before_mark);
+        assert!(domain.engine.core().stopping());
         assert_eq!(domain.start_phase(), phase, "a stopped start is no refused start");
         assert!(domain.start_stop().is_none());
         assert!(domain.work.is_empty());

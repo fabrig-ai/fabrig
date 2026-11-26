@@ -35,7 +35,7 @@ pub(crate) fn call(
     line: Box<[u8]>,
     from: u32,
 ) {
-    let context = domain.core.tasks.delegation(key.task).expect("authorized chat delegation");
+    let context = domain.engine.core().tasks.delegation(key.task).expect("authorized chat delegation");
     let project = context.project;
     let read = match address(&line, project) {
         Address::Ways => {
@@ -118,7 +118,7 @@ pub(crate) fn call(
     };
     let mut read = read;
     if let core::SettingsRead::Setting { revision, .. } = &mut read {
-        *revision = domain.core.current.newest();
+        *revision = domain.engine.core().current.newest();
     }
     domain.work.push(Work::Core(core::Event::NamedAction {
         to: ReplyTo::new(right),

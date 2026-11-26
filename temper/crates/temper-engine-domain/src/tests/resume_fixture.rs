@@ -138,7 +138,7 @@ pub fn root() -> (engine::Domain, Env<engine::Limits>) {
     let (mut root, env) = root_with_config(config(7));
     // Settle the startup placement probe before tests measure empty runtime resumes.
     let mut out = skein_lib::Queue::uncapped();
-    fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), true, &mut out);
+    fleet::resume(&mut root.engine.core_mut().fleet, &env.with(env.limits.fleet), true, &mut out);
     assert!(out.is_empty(), "the fixture restores no claims or workers");
     settle_retention(&mut root, &env);
     (root, env)
@@ -147,7 +147,7 @@ pub fn root() -> (engine::Domain, Env<engine::Limits>) {
 fn settle_retention(root: &mut engine::Domain, env: &Env<engine::Limits>) {
     use jig_domain_core as core;
     let env = crate::limits::environment_core(env);
-    let mut requests = core::fire(&mut root.core, &env, core::Timer::Retention);
+    let mut requests = core::fire(root.engine.core_mut(), &env, core::Timer::Retention);
     for _ in 0..RESTORE_PASSES {
         let Some(request) = requests.pop() else { break };
         let core::Request::Held(held) = request else { panic!("an empty retention pass writes nothing") };
@@ -155,11 +155,11 @@ fn settle_retention(root: &mut engine::Domain, env: &Env<engine::Limits>) {
         let core::reads::Scope::Retention { .. } = range.scope else { panic!("the fixture has no retention owner") };
         assert!(requests.is_empty(), "one internal read at a time");
         requests = core::step(
-            &mut root.core,
+            root.engine.core_mut(),
             &env,
             core::Event::ReadLoaded { load, result: core::reads::Loaded::Page { rows: Box::new([]), next: None } },
         );
-        root.core.reclaim();
+        root.engine.core_mut().reclaim();
     }
     assert!(requests.is_empty(), "empty-store retention completed without a write");
 }
@@ -198,8 +198,8 @@ pub fn root_with_records(
     let mut root = engine::Domain::new(config, limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     root.start_wall = Some(env.wall);
-    let mut request = root.core.start_begin(false, env.wall);
-    let mut deployment = root.core.counters.deployment();
+    let mut request = root.engine.core_mut().start_begin(false, env.wall);
+    let mut deployment = root.engine.core().counters.deployment();
     deployment.projects = project_mark;
     for record in records {
         match record {
@@ -243,7 +243,7 @@ pub fn root_with_records(
         let mut output = skein_lib::Queue::uncapped();
         request = match request {
             jig_domain_core::start::Action::Step(phase) => match phase {
-                jig_domain_core::start::Phase::Sweep => root.core.start_sweep(
+                jig_domain_core::start::Phase::Sweep => root.engine.core_mut().start_sweep(
                     &crate::limits::environment_core(&env),
                     jig_domain_core::start::SweepInput::Finished,
                     &mut output,
@@ -256,11 +256,11 @@ pub fn root_with_records(
                 | jig_domain_core::start::Phase::Wires
                 | jig_domain_core::start::Phase::AdoptRuns
                 | jig_domain_core::start::Phase::Open) => {
-                    root.core.start_done(&crate::limits::environment_core(&env), phase, &mut output)
+                    root.engine.core_mut().start_done(&crate::limits::environment_core(&env), phase, &mut output)
                 }
             },
             jig_domain_core::start::Action::Commit(continuation) => {
-                root.core.start_resume(&crate::limits::environment_core(&env), continuation, &mut output)
+                root.engine.core_mut().start_resume(&crate::limits::environment_core(&env), continuation, &mut output)
             }
             jig_domain_core::start::Action::Idle => {
                 root.opened = true;

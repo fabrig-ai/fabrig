@@ -48,8 +48,8 @@ fn key(original: [u8; 16], purpose: &[u8]) -> [u8; 16] {
 }
 fn held_account(domain: &Domain) -> Option<u32> {
     let provider = domain.playground_provider?;
-    for fact in &domain.core.accounts.account_views() {
-        if let Some(account) = domain.core.accounts.account(fact.account)
+    for fact in &domain.engine.core().accounts.account_views() {
+        if let Some(account) = domain.engine.core().accounts.account(fact.account)
             && account.provider() == provider
             && account.holder() == jig_domain_accounts::Holder::Deployment
         {
@@ -311,7 +311,7 @@ pub(crate) fn reset(domain: &mut Domain, key: [u8; 16], act: forge::ResetAct) {
     let act = match act {
         forge::ResetAct::RemoveProject { project } => people::Act::RemoveProject {
             project,
-            grace: match domain.core.current.template(CHAT_TEMPLATE) {
+            grace: match domain.engine.core().current.template(CHAT_TEMPLATE) {
                 Some(template) => template.grace,
                 None => None,
             },

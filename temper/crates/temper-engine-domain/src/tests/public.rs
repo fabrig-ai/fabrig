@@ -71,15 +71,15 @@ fn a_forge_kind_is_asked_of_the_forge_with_its_public_tasks() {
 fn a_public_read_past_the_public_watermark_is_busy() {
     let (mut domain, env) = root();
     for _ in 0..env.limits.public_watermark {
-        crate::fresh(&mut domain.core.counters, crate::Family::Message).expect("counter");
+        crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Message).expect("counter");
         crate::try_step(&mut domain, &env, Event::Resume).expect("header");
     }
-    let before = domain.core.counters.deployment();
+    let before = domain.engine.core().counters.deployment();
     crate::try_step(&mut domain, &env, read(0)).expect("busy is consumed");
     let out = release(&mut domain, &env);
     assert_eq!(public_answer(&out, false), Some(&core::PublicAnswer::Busy), "{out:?}");
     assert_eq!(domain.public_reads, 0);
-    assert_eq!(domain.core.counters.deployment(), before);
+    assert_eq!(domain.engine.core().counters.deployment(), before);
 }
 fn public_answer(out: &Queue<Request>, admitted: bool) -> Option<&core::PublicAnswer> {
     for request in out {
@@ -130,7 +130,7 @@ fn public_reads_past_public_reads_are_busy_and_freed_on_every_answer() {
 #[test]
 fn a_public_goal_is_the_outermost_tracked_task() {
     let (domain, env, goal) = projection_settled::live_goal(Some(1));
-    let mut parent = domain.core.tasks.task(goal).expect("goal").clone();
+    let mut parent = domain.engine.core().tasks.task(goal).expect("goal").clone();
     parent.number = goal.checked_add(1).expect("fixture number");
     let mut milestone = parent.clone();
     milestone.number = parent.number.checked_add(1).unwrap();
@@ -139,11 +139,11 @@ fn a_public_goal_is_the_outermost_tracked_task() {
     milestone.depth = 0;
     parent.requester = tasks::Party::Task(milestone.number);
     parent.depth = 1;
-    let mut child = domain.core.tasks.task(goal).expect("goal").clone();
+    let mut child = domain.engine.core().tasks.task(goal).expect("goal").clone();
     child.requester = tasks::Party::Task(parent.number);
     child.depth = 2;
     child.tracked = None;
-    let funding = *domain.core.tasks.funding(parent.funder).expect("funding");
+    let funding = *domain.engine.core().tasks.funding(parent.funder).expect("funding");
     let records = [
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(funding))),
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(milestone)))),
@@ -157,7 +157,10 @@ fn a_public_goal_is_the_outermost_tracked_task() {
     limits.tasks.depth = 2;
     limits.people.inbox_tasks = 6;
     let (domain, _) = resume_fixture::root_with_records(resume_fixture::config(7), &limits, &records);
-    assert_eq!(domain.core.goal_of(domain.core.tasks.task(goal).expect("child")), Some(parent.number));
+    assert_eq!(
+        domain.engine.core().goal_of(domain.engine.core().tasks.task(goal).expect("child")),
+        Some(parent.number)
+    );
     assert_eq!(public::public_goal(&domain, goal), Some(parent.number));
     assert_eq!(public::public_goal(&domain, u64::MAX), None);
 }

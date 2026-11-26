@@ -53,7 +53,7 @@ fn first_fit_failure_prevents_translation_linking_and_repeated_journal_release()
         d.start_stop(),
         Some(crate::StartStop::ForgeFit { phase: Some(jig_domain_core::start::Phase::Link), failure })
     );
-    assert_eq!(d.core.start_failure(), None);
+    assert_eq!(d.engine.core().start_failure(), None);
     let mut out = Queue::uncapped();
     crate::release(&mut d, &env, &mut out);
     assert_eq!(out.pop(), Some(Request::Stop));
@@ -75,7 +75,7 @@ fn derived_fit_refuses_before_missing_links_at_the_restore_terminal() {
     let (mut d, env) = super::resume::at_phase_with_limits(false, jig_domain_core::start::Phase::Link, &limits);
     let (source, _, task) = super::projection_settled::live_goal(None);
     jig_domain_tasks::step(
-        &mut d.core.tasks,
+        &mut d.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         jig_domain_tasks::Event::Restore {
             record: jig_domain_tasks::Stored::Live(Box::new(source.tasks().task(task).unwrap().clone())),
@@ -135,7 +135,7 @@ fn an_unloaded_startup_page_keeps_its_load_cause_and_never_stops_the_journal() {
     assert_eq!(domain.start_stop(), expected);
     assert_eq!(domain.start_phase(), Some(jig_domain_core::start::Phase::LoadCore));
     assert!(!domain.journal.stopped());
-    assert_eq!(domain.core.start_failure(), None);
+    assert_eq!(domain.engine.core().start_failure(), None);
     let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     assert_eq!(out.pop(), Some(Request::Stop));
@@ -184,7 +184,7 @@ fn a_cut_startup_page_stops_as_load_bytes_before_restoring_its_prefix() {
             failure: crate::loads::Failure::Bytes,
         }))
     );
-    assert_eq!(domain.core.start_failure(), None);
+    assert_eq!(domain.engine.core().start_failure(), None);
     assert!(!domain.journal.stopped());
     assert!(!domain.ready());
 }
@@ -244,7 +244,7 @@ fn a_task_correlation_past_its_limit_records_the_row_entrance_fit() {
             crate::Record::Core(Record::Tasks(tasks::Stored::Live(Box::new(task.clone())))),
         );
         if number <= bound {
-            assert_eq!(domain.core.start_failure(), None);
+            assert_eq!(domain.engine.core().start_failure(), None);
         }
     }
     assert_eq!(
@@ -293,7 +293,7 @@ fn link_preserves_committed_waiting_escalations() {
             &records,
         );
         assert_eq!(restored.tasks().task(goal).unwrap().escalation, task.escalation);
-        assert_eq!(restored.core.start_failure(), None);
+        assert_eq!(restored.engine.core().start_failure(), None);
     }
 }
 

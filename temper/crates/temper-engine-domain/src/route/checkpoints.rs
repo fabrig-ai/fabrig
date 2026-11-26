@@ -22,7 +22,7 @@ impl State {
 
 pub(super) fn admitted(domain: &mut Domain, request: Token, token: Token, person: u64) {
     domain.checkpoints.pending.insert(token, request).expect("one checkpoint per admitted key");
-    if domain.core.people.role(person, people::DEPLOYMENT) != Some(people::Role::Owner) {
+    if domain.engine.core().people.role(person, people::DEPLOYMENT) != Some(people::Role::Owner) {
         terminal(domain, token, Err(CheckpointWhy::NotOwner));
         return;
     }

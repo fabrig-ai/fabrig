@@ -75,8 +75,8 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
     }
     match follow.owner {
         FollowOwner::Person(owner) => {
-            if domain.core.people.role(owner, asked.scope).is_none()
-                || domain.core.people.kind(owner) != Some(jig_domain_people::Kind::Person)
+            if domain.engine.core().people.role(owner, asked.scope).is_none()
+                || domain.engine.core().people.kind(owner) != Some(jig_domain_people::Kind::Person)
             {
                 let owner = Decimal::of(owner);
                 return Some(words(
@@ -86,7 +86,7 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
             }
         }
         FollowOwner::Task(owner) => {
-            let standing = match domain.core.tasks.task(owner) {
+            let standing = match domain.engine.core().tasks.task(owner) {
                 Some(row) => {
                     row.label == 3
                         && super::super::findings::stands(domain, asked.scope, settings::AreaOwner::Task(owner))
@@ -113,7 +113,7 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
         None => None,
     }
     .unwrap_or(domain.forge.charters().change);
-    if domain.core.charter(charter).is_none() {
+    if domain.engine.core().charter(charter).is_none() {
         let charter = Decimal::of(u64::from(charter));
         return Some(words(
             asked.number,

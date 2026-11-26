@@ -12,7 +12,7 @@ pub(crate) fn call(
     key: CallKey,
     call: FollowCall,
 ) {
-    let Some(context) = domain.core.tasks.delegation(key.task) else { return };
+    let Some(context) = domain.engine.core().tasks.delegation(key.task) else { return };
     let project = context.project;
     let (follow, act) = match call {
         FollowCall::List | FollowCall::Show { .. } => {
@@ -99,7 +99,7 @@ fn act_kept(
     follow: u32,
     act: forge::follows::FollowAct,
 ) -> Result<Option<Box<[u8]>>, ()> {
-    let number = crate::fresh(&mut domain.core.counters, jig_domain_core::Family::Application).ok_or(())?;
+    let number = crate::fresh(&mut domain.engine.core_mut().counters, jig_domain_core::Family::Application).ok_or(())?;
     let token = Token::new(number);
     let mut out = Queue::uncapped();
     // The named call owns retention; the ctl outcome is needed only for this decision.

@@ -21,20 +21,21 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
 
 fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskRecord) {
     let period = *domain
-        .core
+        .engine
+        .core()
         .tasks
-        .funding(tasks::Funder::Period { project: 1, period: domain.core.period(1) })
+        .funding(tasks::Funder::Period { project: 1, period: domain.engine.core().period(1) })
         .expect("the fixture's open period");
     let mut rows = skein_lib::List::with_capacity(env.limits.tasks.tasks);
-    for view in domain.core.tasks.view_tasks() {
+    for view in domain.engine.core().tasks.view_tasks() {
         let row = if view.number == changed.number {
             changed.clone()
         } else {
-            domain.core.tasks.task(view.number).unwrap().clone()
+            domain.engine.core().tasks.task(view.number).unwrap().clone()
         };
         rows.push(row).unwrap();
     }
-    domain.core.tasks = tasks::Domain::new(
+    domain.engine.core_mut().tasks = tasks::Domain::new(
         &env.limits.tasks,
         tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
         100,
@@ -43,21 +44,21 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
         Box::new([]),
     );
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Restore { record: tasks::Stored::Ledger(period) },
         &mut Queue::uncapped(),
     );
     for row in rows.into_boxed() {
         tasks::step(
-            &mut domain.core.tasks,
+            &mut domain.engine.core_mut().tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
             &mut Queue::uncapped(),
         );
     }
     for event in [tasks::Event::Check, tasks::Event::Restored] {
-        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
     }
 }
 
@@ -82,7 +83,7 @@ fn only_waiter_forms(domain: &mut Domain, env: &Env<Limits>) {
     let formed = domain.forge.landing_of(WAITER).expect("the settled waiter forms at this judgement");
     assert_eq!(members(domain, formed).as_ref(), [WAITER]);
     assert_eq!(domain.forge.landing_of(CANDIDATE), None);
-    assert!(domain.core.tasks.procedure_due(CANDIDATE).is_some());
+    assert!(domain.engine.core().tasks.procedure_due(CANDIDATE).is_some());
 }
 
 #[test]
@@ -112,7 +113,7 @@ fn release_gate(
     let mut row = domain.forge.change(CANDIDATE).unwrap().clone();
     row.delegate = Some((current, change::Delegate::Gate { number: 1, head }));
     restore(domain, env, row);
-    let mut ended = domain.core.tasks.task(CANDIDATE).unwrap().clone();
+    let mut ended = domain.engine.core().tasks.task(CANDIDATE).unwrap().clone();
     ended.number = sender;
     ended.requester = tasks::Party::Task(CANDIDATE);
     ended.phase = tasks::Phase::Ended(tasks::Ending::Failed { reason: b"Gate failed".as_slice().into() });
@@ -228,7 +229,7 @@ fn a_held_closing_or_ended_candidate_leaves_its_cohort() {
         tasks::Phase::Ended(ending),
     ] {
         let (mut domain, env) = gate_released_with_a_waiter();
-        let mut task = domain.core.tasks.task(CANDIDATE).unwrap().clone();
+        let mut task = domain.engine.core().tasks.task(CANDIDATE).unwrap().clone();
         task.phase = phase;
         candidate_left(&mut domain, &env, &task);
     }
@@ -237,7 +238,7 @@ fn a_held_closing_or_ended_candidate_leaves_its_cohort() {
 #[test]
 fn a_new_pending_dependency_removes_a_candidate_from_its_cohort() {
     let (mut domain, env) = gate_released_with_a_waiter();
-    let mut task = domain.core.tasks.task(CANDIDATE).unwrap().clone();
+    let mut task = domain.engine.core().tasks.task(CANDIDATE).unwrap().clone();
     task.dependencies = Box::new([DEPENDENCY]);
     task.waiting_on = Box::new([DEPENDENCY]);
     restore_task(&mut domain, &env, task.clone());

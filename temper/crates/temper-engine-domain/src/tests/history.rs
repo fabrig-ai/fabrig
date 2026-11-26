@@ -10,8 +10,14 @@ fn issue(domain: &mut Domain, env: &Env<Limits>, load: u64, most: u32, after: Op
     let mut requests = Queue::with_capacity(1);
     requests.push(forge::Request::LoadHistory { load, range: H::Change { project: 3, change: 9 }, after, most });
     crate::route::forge_route::outputs(domain, env, &mut decision, &mut requests);
-    crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
-        .unwrap();
+    crate::decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        true,
+    )
+    .unwrap();
     while let Some(output) = crate::decision::commit(&mut domain.journal, &env.limits.journal) {
         let crate::decision::JournalOutput::Commit { number, .. } = output else { panic!("commit") };
         crate::decision::committed(&mut domain.journal, number);

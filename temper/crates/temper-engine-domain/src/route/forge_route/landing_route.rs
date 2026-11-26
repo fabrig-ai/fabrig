@@ -16,13 +16,13 @@ fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
 }
 
 fn dependencies(domain: &Domain, env: &Env<Limits>, project: u32) -> Box<[forge::ChangeDependencies]> {
-    domain.forge.forming_dependencies(&domain.core.tasks, project, env.limits.forge.changes)
+    domain.forge.forming_dependencies(&domain.engine.core().tasks, project, env.limits.forge.changes)
 }
 
 /// Joined dependencies permit the forming decision to refuse the whole unit.
 /// Jig still orders successful task results (domain/landing.md, 4.1).
 pub(super) fn kept(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
     if row.waiting_on.is_empty() {
         return false;
     }
@@ -133,7 +133,7 @@ pub(super) fn release(
     out: &mut Queue<forge::Request>,
 ) {
     let Some(row) = domain.forge.change(task) else { return };
-    let Some(owner) = domain.core.tasks.task(task) else { return };
+    let Some(owner) = domain.engine.core().tasks.task(task) else { return };
     if live(owner)
         && forge::gates_settled(&domain.forge, row, gate, env.limits.forge.change_policy.gates)
         && !kept(domain, env, task)
@@ -150,13 +150,13 @@ pub(super) fn pending(
     repository: skein_forge::api::Repository,
     base: &[u8],
 ) -> Box<[forge_change::Pending]> {
-    let Some(row) = domain.core.tasks.task(task) else { return Box::new([]) };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return Box::new([]) };
     let mut pending = List::with_capacity(env.limits.tasks.dependencies);
     for dependency in &row.dependencies {
         if !row.waiting_on.contains(dependency) {
             continue;
         }
-        let Some(upstream_task) = domain.core.tasks.task(*dependency) else { continue };
+        let Some(upstream_task) = domain.engine.core().tasks.task(*dependency) else { continue };
         let kind = match domain.forge.change(*dependency) {
             Some(upstream) if upstream.repository != repository => forge_change::PendingKind::Elsewhere,
             Some(upstream) if upstream.base.as_ref() == base => forge_change::PendingKind::Change {
@@ -228,7 +228,7 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
     let project = repo.project;
     for (provider, base) in domain.forge.waiting_trains() {
         for candidate in domain.forge.waiting_changes(provider, &base) {
-            let Some(task) = domain.core.tasks.task(candidate.task) else { continue };
+            let Some(task) = domain.engine.core().tasks.task(candidate.task) else { continue };
             let held = match task.phase {
                 tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
                 tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
@@ -301,7 +301,7 @@ fn create_landing(
     let room = skein_lib::usize_of(words.capacity().saturating_sub(words.len()));
     let title = temper_engine_domain_forge_issues::text::fit(&change.title, room, "…".as_bytes());
     append(&mut words, &title);
-    let Some(seed) = domain.core.procedure_seed(project) else { return false };
+    let Some(seed) = domain.engine.core_mut().procedure_seed(project) else { return false };
     let number = seed.number();
     let provider = domain.forge.change(task).expect("member").repository;
     let Some(repository) = domain.forge.repository(provider) else { return false };
@@ -392,7 +392,7 @@ pub(crate) fn admission(
     let first = row.landing.members.first().expect("a landing has members");
     let repository =
         skein_forge::api::Repository { forge: first.repository.forge, repository: first.repository.repository };
-    if domain.core.tasks.task(number).is_some() {
+    if domain.engine.core().tasks.task(number).is_some() {
         super::super::forge_event(domain, env, decision, forge::Event::Landing { row });
         for name in names {
             super::super::forge_event(
@@ -539,7 +539,7 @@ fn refusal_words(why: Option<tasks::Refusal>) -> &'static [u8] {
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
 pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     if domain.forge.landing_held() {
-        if let Some((connector, code, step)) = domain.core.tasks.procedure_due(context.task) {
+        if let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(context.task) {
             domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
                 task: context.task,
                 connector,
@@ -559,7 +559,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
         if member.left.is_some() || member.landed.is_some() {
             continue;
         }
-        let phase = match domain.core.tasks.task(member.change) {
+        let phase = match domain.engine.core().tasks.task(member.change) {
             Some(task) => Some(&task.phase),
             None => None,
         };
@@ -572,7 +572,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
         }
     }
     let graph = dependencies(domain, env, row.landing.project);
-    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
+    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return };
     domain.forge.offered_landing(task);
     domain.work.push(Work::Forge(forge::Event::StepLanding {
         task,
@@ -600,7 +600,7 @@ pub(super) fn describe_landing_effect(
 ) -> Option<EffectDescription> {
     let (provider, what, described) = domain.forge.describe_landing_effect(task, entry)?;
     let repository = domain.forge.repository(provider)?;
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     if repository.project != context.project {
         return None;
     }
@@ -639,7 +639,7 @@ pub(super) fn landing_decision(
     choice: landing::Decision,
     head_trailers: &[HeadTrailers],
 ) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else {
+    let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
         return;
     };
@@ -760,9 +760,9 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
 }
 
 fn prepare_child(domain: &Domain, landing: u64) -> Option<&tasks::TaskRecord> {
-    let task = domain.core.tasks.task(landing)?;
+    let task = domain.engine.core().tasks.task(landing)?;
     for child in task.delegates.iter().rev() {
-        if let Some(child) = domain.core.tasks.task(*child)
+        if let Some(child) = domain.engine.core().tasks.task(*child)
             && child.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
         {
             match child.phase {
@@ -787,7 +787,7 @@ fn kept_prepare(domain: &Domain, task: u64) -> bool {
     if job.round != row.landing.preparation || job.step.job != forge::history::Job::Prepare {
         return false;
     }
-    if let Some(child) = domain.core.tasks.task(job.step.task) {
+    if let Some(child) = domain.engine.core().tasks.task(job.step.task) {
         match child.phase {
             tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
                 return false;
@@ -909,7 +909,8 @@ fn prepare_delegate(
     let bound = domain.config.prepare_kind.ok_or(b"prepare job kind 1 is not declared".as_slice())?;
     let request = prepare_request(domain, task, env.limits.forge.landing_members, head_trailers)
         .ok_or(b"landing round or repository cannot form its prepare request".as_slice())?;
-    let context = domain.core.tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
+    let context =
+        domain.engine.core().tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
     let spec = prepare::spec(&request, bound.spec)
         .ok_or(b"prepare specification exceeds its declared spec bytes".as_slice())?;
     let mut authority = context.authority;
@@ -951,7 +952,7 @@ pub(super) fn prepare_workspace(
     let member = row.landing.members.first()?;
     let provider =
         skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
-    domain.core.tasks.root(task)?;
+    domain.engine.core().tasks.root(task)?;
     let repository = domain.forge.repository(provider)?;
     if repository.name != request.repository {
         return None;
@@ -1007,7 +1008,7 @@ pub(super) fn tell_change(domain: &mut Domain, env: &Env<Limits>, change: u64, w
     let Some(row) = domain.forge.change(change) else { return };
     let Some(goal) = row.goal else { return };
     let words = forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
-    if let Some(event) = domain.core.connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
+    if let Some(event) = domain.engine.core_mut().connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
         domain.work.push(Work::Tasks(event));
     }
 }

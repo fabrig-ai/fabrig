@@ -356,15 +356,15 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
 }
 
 fn change_choice(domain: &Domain, task: u64, changes: &[crate::ChangeCall]) -> FlightRender {
-    let Some(context) = domain.core.tasks.delegation(task) else { return FlightRender::Plain };
+    let Some(context) = domain.engine.core().tasks.delegation(task) else { return FlightRender::Plain };
     let mut producers = List::with_capacity(u32::try_from(changes.len()).expect("admitted change batch"));
     for change in changes {
         let charter = change.producer.unwrap_or(domain.forge.charters().change);
         let executor = jig_domain_tasks::AuthorityExecutor::Charter(charter);
         let permission = jig_domain_authority::Executor::Charter(charter);
         let mut missing = !context.authority.delegation.kinds.contains(&executor)
-            || !domain.core.authority.rules().ceiling.delegation.kinds.contains(&permission);
-        if let Some(policy) = domain.core.authority.policy(context.project) {
+            || !domain.engine.core().authority.rules().ceiling.delegation.kinds.contains(&permission);
+        if let Some(policy) = domain.engine.core().authority.policy(context.project) {
             missing |= !policy.ceiling.delegation.kinds.contains(&permission);
         }
         let producer = if missing { Some(charter) } else { None };
@@ -381,15 +381,15 @@ fn change_choice(domain: &Domain, task: u64, changes: &[crate::ChangeCall]) -> F
 }
 
 fn person_roles(domain: &Domain, task: u64, batch: &[crate::Delegate]) -> FlightRender {
-    let Some(context) = domain.core.tasks.delegation(task) else { return FlightRender::Plain };
+    let Some(context) = domain.engine.core().tasks.delegation(task) else { return FlightRender::Plain };
     let mut roles = List::with_capacity(u32::try_from(batch.len()).expect("admitted delegate batch"));
     for member in batch {
         if let jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Role(role)) = member.executor {
             let permission = jig_domain_authority::Executor::Role(role);
             let mut missing =
                 !context.authority.delegation.kinds.contains(&jig_domain_tasks::AuthorityExecutor::Role(role))
-                    || !domain.core.authority.rules().ceiling.delegation.kinds.contains(&permission);
-            if let Some(policy) = domain.core.authority.policy(context.project) {
+                    || !domain.engine.core().authority.rules().ceiling.delegation.kinds.contains(&permission);
+            if let Some(policy) = domain.engine.core().authority.policy(context.project) {
                 missing |= !policy.ceiling.delegation.kinds.contains(&permission);
             }
             if missing {
@@ -447,9 +447,12 @@ fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> 
         Some(("call-proof", "task attempt is not current", true))
     } else if crate::translate::is_core_read(tool) {
         None
-    } else if !domain.core.call_room(key) {
-        let reason =
-            if domain.core.pending_calls.contains_key(&key) { "named call pending" } else { "call record room full" };
+    } else if !domain.engine.core().call_room(key) {
+        let reason = if domain.engine.core().pending_calls.contains_key(&key) {
+            "named call pending"
+        } else {
+            "call record room full"
+        };
         Some(("core-call-room", reason, false))
     } else if super::call_needs_input(tool) && domain.archive_reads.len() >= domain.archive_reads.capacity() {
         Some(("archive-read-room", "archive read room full", false))
@@ -493,7 +496,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
     let key = flight.key.expect("decoded typed call");
     if !flight.render.is_core_read()
         && !is_decided(&answer)
-        && let Some(call) = domain.core.call_settled.get(&key).cloned()
+        && let Some(call) = domain.engine.core().call_settled.get(&key).cloned()
     {
         drop(domain.call_renders.remove(&right));
         settled(domain, limits, decision, to, call);
@@ -584,8 +587,9 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
     let reading = flight.render.is_core_read();
     // A replayed decision is rendered from its stored part with the caller's current HOW.
-    let recorded =
-        !reading && domain.core.call_parts.contains_key(&key) && !domain.core.call_settled.contains_key(&key);
+    let recorded = !reading
+        && domain.engine.core().call_parts.contains_key(&key)
+        && !domain.engine.core().call_settled.contains_key(&key);
     let answer_bytes = if reading {
         Some(0)
     } else {
@@ -838,7 +842,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     };
     let mut application = super::tools::settings_value(domain, &answer);
     let mut answer = answer;
-    let newest = domain.core.current.newest();
+    let newest = domain.engine.core().current.newest();
     if let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
         && let Some((
             setting @ jig_domain_core::settings::Setting::Application {
@@ -851,7 +855,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
         && (revision == 0 || revision == newest)
         && match kind {
             9 | 11 => scope == 0 && number > 0 && number <= jig_domain_people::NUMBERS,
-            2 | 6 | 7 | 8 | 10 | 12 => domain.core.people.project_members(scope).is_some(),
+            2 | 6 | 7 | 8 | 10 | 12 => domain.engine.core().people.project_members(scope).is_some(),
             _ => false,
         }
         && let Some(value) = match kind {
@@ -881,17 +885,17 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let project_landing_rule = if see.is_some()
         && let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
         && let Some((jig_domain_core::settings::Setting::Application { kind: 1, scope: 0, number }, _)) = *asked
-        && let Some(context) = domain.core.tasks.delegation(flight.task)
+        && let Some(context) = domain.engine.core().tasks.delegation(flight.task)
         && domain.forge.setting(2, context.project, number).is_some()
     {
         Some(number)
     } else {
         None
     };
-    let repositories = inventory::repositories(&domain.core, &domain.forge, flight.task, &answer);
+    let repositories = inventory::repositories(domain.engine.core(), &domain.forge, flight.task, &answer);
     let people = settings_people(domain, flight, &answer);
-    let forge_people = inventory::forge_people(&domain.core, &domain.forge, flight.task, &answer);
-    let offer = inventory::offer(&domain.core, flight.task, &answer);
+    let forge_people = inventory::forge_people(domain.engine.core(), &domain.forge, flight.task, &answer);
+    let offer = inventory::offer(domain.engine.core(), flight.task, &answer);
     let delivery = match see {
         Some(see) => HostDelivery::See {
             to,
@@ -934,20 +938,20 @@ fn settings_people(domain: &Domain, flight: &Flight, answer: &jig_domain_core::S
         | SettingsAnswer::Revisions(_)
         | SettingsAnswer::Unknown => return Box::new([]),
     }
-    let Some(context) = domain.core.tasks.delegation(flight.task) else { return Box::new([]) };
-    let Some(members) = domain.core.people.project_members(context.project) else { return Box::new([]) };
-    let Some(task) = domain.core.tasks.task(flight.task) else { return Box::new([]) };
+    let Some(context) = domain.engine.core().tasks.delegation(flight.task) else { return Box::new([]) };
+    let Some(members) = domain.engine.core().people.project_members(context.project) else { return Box::new([]) };
+    let Some(task) = domain.engine.core().tasks.task(flight.task) else { return Box::new([]) };
     let requester = match task.requester {
         jig_domain_tasks::Party::Person(person) => Some(person),
         jig_domain_tasks::Party::Task(_) | jig_domain_tasks::Party::Deployment { .. } => None,
     };
     let mut people = List::with_capacity(u32::try_from(members.len()).expect("bounded project members"));
     for member in members {
-        match domain.core.people.kind(member.person) {
+        match domain.engine.core().people.kind(member.person) {
             Some(jig_domain_people::Kind::Person) => {}
             Some(jig_domain_people::Kind::Service) | None => continue,
         }
-        let Some(identity) = domain.core.people.identity(member.person) else { continue };
+        let Some(identity) = domain.engine.core().people.identity(member.person) else { continue };
         people
             .push(ProjectPerson {
                 person: member.person,
@@ -972,7 +976,8 @@ pub(crate) fn settings_note(domain: &mut Domain, env: &Env<Limits>, decision: &m
     let flight = domain.call_renders.get(&right).expect("settings note flight");
     let key = flight.key.expect("decoded settings note");
     if let Some(part) = domain
-        .core
+        .engine
+        .core()
         .authorize_tool(key, jig_domain_core::ToolKind::Recall { by: jig_domain_notes::Recall::Name { name: note } })
     {
         domain.work.push(Work::Core(jig_domain_core::Event::NamedAnswer { to: ReplyTo::new(right), key, part }));
@@ -1020,7 +1025,7 @@ pub(crate) fn settings_note_loaded(
     };
     if entry.name != note
         || !jig_domain_notes::valid_entry(&entry, &domain.limits.notes)
-        || !domain.core.note_readable(task, &entry.scope)
+        || !domain.engine.core().note_readable(task, &entry.scope)
     {
         note_refused(domain, ReplyTo::new(right), b"settings note inaccessible");
         return;

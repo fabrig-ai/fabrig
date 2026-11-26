@@ -142,7 +142,7 @@ fn dropped_and_released_assignments_release_their_turns_and_sections_once() {
                 assert_eq!(domain.held_bytes(), bytes, "a move into the decision changes nothing");
                 crate::decision::accept_routed(
                     &mut domain.journal,
-                    &mut domain.core.counters,
+                    &mut domain.engine.core_mut().counters,
                     &env.limits.journal,
                     decision,
                     false,
@@ -181,8 +181,14 @@ fn replacing_a_turn_write_releases_only_the_old_body_and_issue_releases_the_new_
     }
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     assert_eq!(domain.held_bytes(), 7);
-    crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
-        .unwrap();
+    crate::decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        true,
+    )
+    .unwrap();
     assert_eq!(domain.held_bytes(), 7, "unsent journal write keeps its body charged");
     let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
@@ -234,12 +240,13 @@ fn turn_root() -> (Domain, Env<Limits>) {
             }]),
         },
     ] {
-        tasks::step(&mut domain.core.tasks, &task_env, event, &mut out);
+        tasks::step(&mut domain.engine.core_mut().tasks, &task_env, event, &mut out);
         while out.pop().is_some() {}
     }
-    assert!(domain.core.tasks.task(1).is_some());
+    assert!(domain.engine.core().tasks.task(1).is_some());
     domain
-        .core
+        .engine
+        .core_mut()
         .proofs
         .insert(
             1,
@@ -286,7 +293,7 @@ fn accepted_new_turns_move_the_charge_to_a_write_and_already_turns_release_it() 
         assert_eq!(domain.held_bytes(), expected);
         crate::decision::accept_routed(
             &mut domain.journal,
-            &mut domain.core.counters,
+            &mut domain.engine.core_mut().counters,
             &env.limits.journal,
             decision,
             true,

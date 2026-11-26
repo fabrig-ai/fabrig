@@ -12,7 +12,7 @@ pub(super) fn saved(domain: &Domain, env: &Env<Limits>, decision: &mut Decision,
     else {
         return;
     };
-    if !domain.ready() || revision.head.number != domain.core.current.newest() {
+    if !domain.ready() || revision.head.number != domain.engine.core().current.newest() {
         return;
     }
     let mut named = false;
@@ -25,7 +25,7 @@ pub(super) fn saved(domain: &Domain, env: &Env<Limits>, decision: &mut Decision,
     if !named {
         return;
     }
-    let jig: Box<[s::Override]> = match domain.core.current.value(s::Setting::Limits) {
+    let jig: Box<[s::Override]> = match domain.engine.core().current.value(s::Setting::Limits) {
         Some(value) => Box::from(value.as_limits().expect("limits setting has its own value")),
         None => Box::new([]),
     };

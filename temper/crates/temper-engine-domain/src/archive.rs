@@ -63,7 +63,7 @@ pub(crate) fn reserve_ended(domain: &mut Domain, read: EndedRead) -> Token {
 /// The oldest waiting reads own reclaimed room before any newer read can take it.
 /// Their work emits held loads in a later decision, behind all earlier commits.
 pub(crate) fn reclaim_ended(domain: &mut Domain) {
-    if domain.core.stopping() || domain.journal.stopped() || domain.start_stop().is_some() {
+    if domain.engine.core().stopping() || domain.journal.stopped() || domain.start_stop().is_some() {
         domain.ended_waiting.clear();
         return;
     }
@@ -134,7 +134,7 @@ pub(crate) fn input_loaded(
             return;
         }
     };
-    let Some(stub) = domain.core.input_stub(creator, project, wanted, row) else {
+    let Some(stub) = domain.engine.core().input_stub(creator, project, wanted, row) else {
         input_failed(domain, waiter);
         return;
     };
@@ -342,7 +342,7 @@ pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
     let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
     // A stale read fails no current preparation.
-    if domain.core.transcripts.contains_key(&task) {
+    if domain.engine.core().transcripts.contains_key(&task) {
         domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
             task,
             load: jig_domain_core::TranscriptLoad::Failed,
@@ -354,7 +354,7 @@ pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
     let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
     // The core owns the closed/open window policy (jig's `domain/engine/executors-transcripts.md`, 1).
-    if domain.core.transcripts.contains_key(&task) {
+    if domain.engine.core().transcripts.contains_key(&task) {
         domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
             task,
             load: jig_domain_core::TranscriptLoad::Unread,
@@ -380,7 +380,7 @@ pub(crate) fn transcript_loaded(
     // A message can invalidate preparation while this store read is in
     // flight; its old answer belongs to no current preparation (jig's
     // `examples/ops/domain/src/restart.rs`).
-    if !domain.core.transcripts.contains_key(&task) {
+    if !domain.engine.core().transcripts.contains_key(&task) {
         retire_read(domain, waiter);
         return;
     }
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
         let (mut domain, env) = root();
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
+        domain.engine.core_mut().begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
         let waiter = transcript_read(&mut domain);
         let range = Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) });
         let mut issued = Queue::with_capacity(1);

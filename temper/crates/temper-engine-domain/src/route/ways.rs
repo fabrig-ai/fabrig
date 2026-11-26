@@ -42,7 +42,7 @@ pub(crate) fn inputs(
     let charters = domain.forge.charters();
     let start = if other { ways::Start::Chat } else { start(domain, project, items) };
     let mut by_number = Map::uncapped();
-    if let Some(policy) = domain.core.authority.policy(project) {
+    if let Some(policy) = domain.engine.core().authority.policy(project) {
         for role in &policy.roles {
             by_number
                 .insert(
@@ -51,10 +51,10 @@ pub(crate) fn inputs(
                         number: role.number,
                         name: role_name(role.number),
                         holders: holders(domain, project, role.number),
-                        yours: match domain.core.people.role(party, project) {
+                        yours: match domain.engine.core().people.role(party, project) {
                             Some(held) => {
                                 held.number() == role.number
-                                    && domain.core.people.kind(party) == Some(jig_domain_people::Kind::Person)
+                                    && domain.engine.core().people.kind(party) == Some(jig_domain_people::Kind::Person)
                             }
                             None => false,
                         },
@@ -101,10 +101,10 @@ pub(crate) fn inputs(
 
 fn holders(domain: &Domain, project: u32, role: u32) -> u32 {
     let mut count = 0_u32;
-    if let Some(members) = domain.core.people.project_members(project) {
+    if let Some(members) = domain.engine.core().people.project_members(project) {
         for member in members {
             if member.role.number() == role
-                && domain.core.people.kind(member.person) == Some(jig_domain_people::Kind::Person)
+                && domain.engine.core().people.kind(member.person) == Some(jig_domain_people::Kind::Person)
             {
                 count = count.saturating_add(1);
             }
@@ -231,7 +231,7 @@ fn start(domain: &Domain, project: u32, items: &[ways::Item]) -> ways::Start {
     if !value.goals {
         return ways::Start::Chat;
     }
-    let templates = domain.core.project_templates(project);
+    let templates = domain.engine.core().project_templates(project);
     let mut chosen: Option<&jig_domain_core::Template> = None;
     for template in &templates {
         if template.tracked.is_some()
@@ -314,14 +314,14 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         own,
         words: domain.forge.project_words(project).cloned(),
         rules: ways::rules_by_path(&own_inputs),
-        may_change: domain.core.people.role(party, project) == Some(jig_domain_people::Role::Owner),
+        may_change: domain.engine.core().people.role(party, project) == Some(jig_domain_people::Role::Owner),
     }
 }
 
 fn role_running(domain: &Domain, project: u32, charter: u32) -> bool {
-    for view in domain.core.tasks.view_tasks() {
+    for view in domain.engine.core().tasks.view_tasks() {
         if view.project == project
-            && let Some(task) = domain.core.tasks.task(view.number)
+            && let Some(task) = domain.engine.core().tasks.task(view.number)
             && task.label == 3
             && task.ended_at.is_none()
             && task.executor == (jig_domain_tasks::Executor::Agent { charter })
@@ -334,7 +334,7 @@ fn role_running(domain: &Domain, project: u32, charter: u32) -> bool {
 
 fn lacks_delegation(domain: &Domain, project: u32) -> bool {
     use jig_domain_authority::Executor;
-    let Some(policy) = domain.core.authority.policy(project) else { return true };
+    let Some(policy) = domain.engine.core().authority.policy(project) else { return true };
     let mut owner = None;
     for role in &policy.roles {
         if role.number == 0 {
@@ -381,7 +381,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
 }
 
 pub(crate) fn mark_all(domain: &mut Domain) {
-    let projects = domain.core.projects.clone();
+    let projects = domain.engine.core().projects.clone();
     for &project in &projects {
         mark(domain, project);
     }

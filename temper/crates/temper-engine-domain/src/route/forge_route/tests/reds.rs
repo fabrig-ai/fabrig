@@ -9,7 +9,8 @@ use temper_engine_domain_forge as forge;
 
 fn proof(domain: &mut Domain, task: u64) {
     domain
-        .core
+        .engine
+        .core_mut()
         .proofs
         .insert(
             task,
@@ -61,10 +62,10 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
     env.limits.tasks.tree_tasks = 8;
     env.limits.tasks.delegates = 8;
     env.limits.tasks.depth = 3;
-    domain.core.proofs = skein_lib::Map::with_capacity(8);
-    let template = domain.core.tasks.task(context.task).unwrap().clone();
-    let ledger = *domain.core.tasks.funding(template.funder).unwrap();
-    domain.core.tasks = tasks::Domain::new(
+    domain.engine.core_mut().proofs = skein_lib::Map::with_capacity(8);
+    let template = domain.engine.core().tasks.task(context.task).unwrap().clone();
+    let ledger = *domain.engine.core().tasks.funding(template.funder).unwrap();
+    domain.engine.core_mut().tasks = tasks::Domain::new(
         &env.limits.tasks,
         tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
         7,
@@ -90,14 +91,18 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
             row.requester = tasks::Party::Task(parent);
         }
         task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) });
-        assert!(domain.core.tasks.task(number).is_some(), "task {number}: {:?}", domain.core.tasks.restore_failure());
+        assert!(
+            domain.engine.core().tasks.task(number).is_some(),
+            "task {number}: {:?}",
+            domain.engine.core().tasks.restore_failure()
+        );
         proof(&mut domain, number);
     }
     task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
     task_event(&mut domain, &env, tasks::Event::Check);
-    assert_eq!(domain.core.tasks.restore_failure(), None);
+    assert_eq!(domain.engine.core().tasks.restore_failure(), None);
     task_event(&mut domain, &env, tasks::Event::Restored);
-    assert_eq!(domain.core.tasks.restore_failure(), None);
+    assert_eq!(domain.engine.core().tasks.restore_failure(), None);
     hold(&mut domain, &env, 7, b"temper/8/g7");
     hold(&mut domain, &env, 8, b"temper/8/g8");
     for (goal, key, byte) in [(7, b"z", 3), (8, b"a", 8), (7, b"a", 4)] {
@@ -200,7 +205,14 @@ fn tool_call(
     crate::route::route_into(domain, env, &mut decision);
     assert!(domain.start_stop().is_none(), "route start failure: {:?}", domain.start_stop());
     assert!(domain.work.is_empty(), "unrouted work: {:?}", domain.work);
-    crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false).unwrap();
+    crate::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        false,
+    )
+    .unwrap();
     let writes = if let Some(JournalOutput::Commit { number, writes }) =
         crate::commit(&mut domain.journal, &env.limits.journal)
     {
@@ -312,7 +324,7 @@ fn red_end_keeps_the_ended_snapshot_and_refuses_missing_and_nongoals_without_hol
                 }
             }));
         }
-        assert!(!held(domain.core.tasks.task(task).unwrap()));
+        assert!(!held(domain.engine.core().tasks.task(task).unwrap()));
     }
 }
 #[test]
@@ -344,7 +356,7 @@ fn a_red_past_the_bound_holds_the_goal_in_the_refusals_decision() {
     let crate::RedToolAnswer::Write(reply) = *reply else { panic!("write") };
     assert_eq!(reply.result, Err(forge::RedRefusal::Full { bound: 2 }));
     assert_eq!(domain.forge.reds(7).count(), 2);
-    let task = domain.core.tasks.task(7).unwrap();
+    let task = domain.engine.core().tasks.task(7).unwrap();
     let tasks::Phase::Held { source: Some(source), .. } = &task.phase else {
         panic!("held red goal: {:?}", task.phase)
     };
@@ -443,7 +455,14 @@ fn decide_report(
     crate::route::route_into(domain, env, &mut decision);
     assert!(domain.start_stop().is_none(), "{:?}", domain.start_stop());
     assert!(domain.work.is_empty());
-    crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false).unwrap();
+    crate::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        false,
+    )
+    .unwrap();
     if let Some(crate::JournalOutput::Commit { number, writes }) =
         crate::commit(&mut domain.journal, &env.limits.journal)
     {
@@ -616,7 +635,7 @@ fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes
         }
         if task == 23 {
             tasks::step(
-                &mut domain.core.tasks,
+                &mut domain.engine.core_mut().tasks,
                 &env.with(env.limits.tasks),
                 tasks::Event::Cancel {
                     reply_to: skein_lib::ReplyTo::new(Token::new(200)),
@@ -625,7 +644,7 @@ fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes
                 },
                 &mut Queue::uncapped(),
             );
-            assert!(match domain.core.tasks.task(task).unwrap().phase {
+            assert!(match domain.engine.core().tasks.task(task).unwrap().phase {
                 tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
                 tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => false,
             });
@@ -636,7 +655,7 @@ fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes
         if other {
             let mut repository = adopted(1);
             repository.provider.repository = 2;
-            repository.project = domain.core.tasks.task(20).unwrap().project;
+            repository.project = domain.engine.core().tasks.task(20).unwrap().project;
             restore_forge(&mut domain, &env, forge::Stored::Repository(repository));
             results.tag = forge::tag(1, 2);
         }
@@ -645,7 +664,7 @@ fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes
     }
 }
 fn triager(domain: &mut Domain, env: &Env<Limits>) {
-    let project = domain.core.tasks.task(20).unwrap().project;
+    let project = domain.engine.core().tasks.task(20).unwrap().project;
     domain.forge.keep_settings(
         &crate::route::environment_forge(env),
         1,
@@ -670,7 +689,7 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
     env.limits.tasks.message_bytes = 512;
     env.limits.tasks.inbox_bytes = 2048;
     triager(&mut domain, &env);
-    let project = domain.core.tasks.task(20).unwrap().project;
+    let project = domain.engine.core().tasks.task(20).unwrap().project;
     let mut results = report();
     results.flakes = Box::new([flake()]);
     let writes = decide_report(&mut domain, &env, 20, 1, results);
@@ -693,9 +712,12 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
     );
     let subscription =
         domain.forge.topic_subscriber(8, &forge::Topic::Findings { project }).expect("triager subscribed");
-    assert!(domain.core.tasks.task(8).unwrap().subscriptions.iter().any(|row| row.number == subscription.number));
+    assert!(
+        domain.engine.core().tasks.task(8).unwrap().subscriptions.iter().any(|row| row.number == subscription.number)
+    );
     let news = domain
-        .core
+        .engine
+        .core()
         .tasks
         .task(8)
         .unwrap()
@@ -753,7 +775,7 @@ fn report_with_two_flakes() -> crate::wire::CheckResults {
 fn a_project_without_flakes_keeps_red_bookkeeping_but_skips_findings() {
     use forge::settings::{Edit, Flakes, ProjectLanding, SettingKey, SettingRow, SettingSlot, SizedValue, Value};
     let (mut domain, env) = fixture(b"temper/8/g7");
-    let project = domain.core.tasks.task(20).unwrap().project;
+    let project = domain.engine.core().tasks.task(20).unwrap().project;
     let previous = domain
         .forge
         .prepare_check_flake(
@@ -807,7 +829,7 @@ fn a_project_without_flakes_keeps_red_bookkeeping_but_skips_findings() {
 fn a_full_findings_project_drops_only_the_refused_flake() {
     let (mut domain, mut env) = fixture(b"temper/8/g7");
     env.limits.forge.findings_per_project = 1;
-    let project = domain.core.tasks.task(20).unwrap().project;
+    let project = domain.engine.core().tasks.task(20).unwrap().project;
     let mut results = report();
     results.flakes = Box::new([flake()]);
     decide_report(&mut domain, &env, 20, 1, results);
@@ -822,7 +844,7 @@ fn a_full_findings_project_drops_only_the_refused_flake() {
 #[expect(clippy::disallowed_macros, reason = "assertions construct expected UTF-8 words")]
 fn flake_words_cut_at_character_boundaries_and_name_unnamed_repositories_by_number() {
     let (mut domain, env) = fixture(b"temper/8/g7");
-    let project = domain.core.tasks.task(20).unwrap().project;
+    let project = domain.engine.core().tasks.task(20).unwrap().project;
     let mut repository = domain.forge.repository_tag(project, forge::tag(1, 1)).unwrap();
     repository.owner = Box::new([]);
     restore_forge(&mut domain, &env, forge::Stored::Repository(repository.clone()));

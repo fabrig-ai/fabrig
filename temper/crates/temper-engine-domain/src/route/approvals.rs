@@ -131,7 +131,7 @@ fn cut(rows: Box<[ApprovalRow]>, bound: u32) -> Approvals {
     reason = "the watcher-specific approval carries both signer eligibility and forge size"
 )]
 pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Option<ApprovalRow> {
-    let role = domain.core.people.role(party, wait.project)?;
+    let role = domain.engine.core().people.role(party, wait.project)?;
     let mut chosen = None;
     for approval in &wait.short {
         if approval.role == role.number() {
@@ -235,7 +235,7 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
 }
 
 fn person(domain: &Domain, person: u64) -> ApprovalPerson {
-    let name = match domain.core.people.identity(person) {
+    let name = match domain.engine.core().people.identity(person) {
         Some(identity) => {
             let name = if identity.name.is_empty() { &identity.login } else { &identity.name };
             Box::from(skein_lib::bytes::utf8_prefix(name, 64))
@@ -268,7 +268,7 @@ pub(super) fn owned_approval(domain: &Domain, items: &[(settings::SettingKey, se
         if !rule.enforce || rule.approvals.is_empty() {
             continue;
         }
-        for &project in &domain.core.projects {
+        for &project in &domain.engine.core().projects {
             if key.scope != 0 && key.scope != project {
                 continue;
             }

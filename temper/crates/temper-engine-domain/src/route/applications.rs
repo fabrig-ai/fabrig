@@ -163,8 +163,8 @@ pub(super) fn admitted(
                     "carried value output door reserved"
                 );
             }
-            if domain.core.people.role(person, call.project) != Some(people::Role::Owner)
-                && domain.core.people.role(person, people::DEPLOYMENT) != Some(people::Role::Owner)
+            if domain.engine.core().people.role(person, call.project) != Some(people::Role::Owner)
+                && domain.engine.core().people.role(person, people::DEPLOYMENT) != Some(people::Role::Owner)
             {
                 let mut out = skein_lib::Queue::uncapped();
                 domain.forge.answer_finding(
@@ -205,7 +205,7 @@ pub(super) fn admitted(
                     forge::settings::FollowOwner::Task(_) => false,
                 },
                 None => false,
-            } || domain.core.people.role(person, project) == Some(people::Role::Owner);
+            } || domain.engine.core().people.role(person, project) == Some(people::Role::Owner);
             domain.work.push(Work::Forge(forge::Event::FollowAct {
                 request,
                 token,
@@ -254,7 +254,7 @@ pub(super) fn admitted(
         }
         Application::Forge(ask) => {
             if let forge::Ask::SetUp { forge: forge::Making::New(forge::ForgeAsk::Owned), .. } = &ask
-                && let Some(identity) = domain.core.people.identity(person)
+                && let Some(identity) = domain.engine.core().people.identity(person)
             {
                 domain.forge.setup_person(request, identity.login.clone());
             }
@@ -291,7 +291,7 @@ fn keep_trial_answer(
 }
 
 fn add_device(domain: &mut Domain, request: Token, token: Token, person: u64, call: forge::AddDevice) {
-    let person_kind = match domain.core.people.kind(person) {
+    let person_kind = match domain.engine.core().people.kind(person) {
         Some(people::Kind::Person) => true,
         Some(people::Kind::Service) | None => false,
     };

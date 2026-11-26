@@ -20,8 +20,8 @@ pub(crate) struct Reading {
 
 pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, party: u64, words: List<u8>) {
     let mut candidates = List::uncapped();
-    for candidate in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.core.tasks.task(candidate.number) else { continue };
+    for candidate in domain.engine.core().tasks.view_tasks() {
+        let Some(row) = domain.engine.core().tasks.task(candidate.number) else { continue };
         if row.project == project && row.label == 3 {
             candidates.push(row.number).expect("internal role list");
         }
@@ -123,7 +123,7 @@ fn append_role(domain: &Domain, read: &mut Reading, body: &[u8]) {
     super::super::append(&mut read.words, b"Role ");
     let role = *read.roles.get(read.at).expect("pending role");
     super::super::append(&mut read.words, Decimal::of(role).as_bytes());
-    if let Some(row) = domain.core.tasks.task(role) {
+    if let Some(row) = domain.engine.core().tasks.task(role) {
         super::append_open_questions(&mut read.words, super::open_to_a_person(domain, row));
     }
     super::super::append(&mut read.words, b":\n");
