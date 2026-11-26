@@ -558,7 +558,10 @@ pub(super) fn read(
                         }
                     }
                     crate::ForgeReadAnswer::Setting {
-                        value: domain.forge.setting(kind, scope, number).cloned(),
+                        value: match domain.forge.setting(kind, scope, number) {
+                            Some(value) => Some(Box::new(value.clone())),
+                            None => None,
+                        },
                         revision,
                     }
                 }
@@ -782,7 +785,9 @@ fn revision_value(
         if (item.kind, item.scope, item.number) == selector
             && let application::SizedEdit::Set { .. } = item.edit
         {
-            value = domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+            if let Some(kept) = domain.forge.revision_setting(item.kind, item.scope, item.number, revision) {
+                value = Some(Box::new(kept.clone()));
+            }
             break;
         }
     }

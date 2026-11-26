@@ -788,9 +788,9 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
                 &mut out,
             );
             let expected = match edit {
-                settings::Edit::Set(value) => Some(value),
+                settings::Edit::Set(value) => Some(Box::new(value)),
                 settings::Edit::Remove => None,
-                settings::Edit::Reset => Some(default.clone()),
+                settings::Edit::Reset => Some(Box::new(default.clone())),
             };
             assert_eq!(
                 read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
@@ -857,7 +857,7 @@ fn a_revision_setting_answer_names_the_revision_it_read() {
             Delivery::ForgeRead {
                 reply: READ_REPLY,
                 answer: crate::ForgeReadAnswer::Setting {
-                    value: if has_value { Some(ways(0)) } else { None },
+                    value: if has_value { Some(Box::new(ways(0))) } else { None },
                     revision: Some(revision),
                 },
             }
@@ -913,13 +913,13 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
         );
         domain.reclaim();
     };
-    read(&mut domain, Some(ways(0)), None);
+    read(&mut domain, Some(Box::new(ways(0))), None);
     let changed = settings::SizedValue {
         size: 7,
         value: settings::Value::Ways(settings::ProjectWays { drafts: false, goals: true, changes: true, way: 0 }),
     };
     for (key, kind, edit, expected, revision) in [
-        (1, 7, settings::Edit::Set(changed.clone()), Some(changed.clone()), Some(2)),
+        (1, 7, settings::Edit::Set(changed.clone()), Some(Box::new(changed.clone())), Some(2)),
         (
             2,
             6,
@@ -927,11 +927,11 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
                 size: 1,
                 value: settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
             }),
-            Some(changed),
+            Some(Box::new(changed)),
             Some(2),
         ),
         (3, 7, settings::Edit::Remove, None, Some(4)),
-        (4, 7, settings::Edit::Reset, Some(ways(0)), None),
+        (4, 7, settings::Edit::Reset, Some(Box::new(ways(0))), None),
     ] {
         let core_edit = match &edit {
             settings::Edit::Set(_) => s::Edit::Set(s::Value::Application(Box::new([]))),
@@ -1178,7 +1178,7 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         out.pop(),
         Some(crate::Request::Party(crate::PartyRequest::Deliver(Delivery::ForgeRead {
             reply: READ_REPLY,
-            answer: crate::ForgeReadAnswer::Setting { value: Some(rule(false)), revision: None },
+            answer: crate::ForgeReadAnswer::Setting { value: Some(Box::new(rule(false))), revision: None },
         })))
     );
     assert!(out.is_empty());
@@ -1309,7 +1309,7 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                 &mut Queue::uncapped(),
             );
             for (query, read_value, revision) in [
-                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value), None),
+                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(Box::new(value)), None),
                 (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None, None),
             ] {
                 let answer = read_forge(&mut domain, &env, READ_SIGN_IN, scope, query);
@@ -1773,7 +1773,10 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
                 Delivery::ForgeRead {
                     reply: READ_REPLY,
                     answer: crate::ForgeReadAnswer::Setting {
-                        value: Some(settings::SizedValue { value: settings::Value::Follow(expected.clone()), size }),
+                        value: Some(Box::new(settings::SizedValue {
+                            value: settings::Value::Follow(expected.clone()),
+                            size,
+                        })),
                         revision: None
                     }
                 }
