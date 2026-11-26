@@ -1498,6 +1498,14 @@ impl World {
         records
     }
 
+    /// A stored state that admission in the live world would not make.
+    pub fn seed_landing_at_restart(&mut self, row: top::LandingRow) {
+        let task = row.landing.task;
+        let old = self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("room for fixture");
+        assert!(old.is_none(), "one stored landing for {task}");
+        self.restart();
+    }
+
     pub fn ended_landing_fixture(&mut self, task: u64) {
         let mut row = self.landing(task).clone();
         row.landing.phase = temper_engine_domain_forge_landing::Phase::Landed;

@@ -156,7 +156,9 @@ impl Domain {
                 .expect("admitted members");
         }
         Some(LandingView {
-            read_hold: if let policy::Phase::Held { why: policy::Hold::Cleanup, .. } = row.phase {
+            read_hold: if let policy::Phase::Held { why: policy::Hold::Cleanup | policy::Hold::Stuck(_), .. } =
+                row.phase
+            {
                 self.landing_hold_reason(kept)
             } else {
                 kept.read_hold.clone()

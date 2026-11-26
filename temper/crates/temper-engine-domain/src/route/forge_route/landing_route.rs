@@ -588,11 +588,16 @@ pub(super) fn landing_decision(
             let words = domain.forge.landing_result_words(task, env.limits.tasks.result_bytes);
             (ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words })), false)
         }
-        landing::Decision::Cancel => {
+        landing::Decision::Cancel | landing::Decision::End(_) => {
+            let reason = if let landing::Decision::End(cause) = choice {
+                domain.forge.landing_stuck_words(task, cause).expect("ending landing")
+            } else {
+                Box::new([])
+            };
             domain.work.push(Work::Tasks(tasks::Event::Cancel {
                 reply_to: super::super::internal(u64::MAX),
                 by: tasks::Party::Deployment { project: domain.forge.landing(task).expect("landing").landing.project },
-                operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
+                operation: tasks::Cancel { task, reason, grace: None, message: None },
             }));
             (waiting, false)
         }
@@ -632,7 +637,7 @@ pub(super) fn landing_decision(
         | landing::Decision::Stale => (waiting, true),
     };
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
-    if choice == landing::Decision::Finish || choice == landing::Decision::Cancel {
+    if let landing::Decision::Finish | landing::Decision::Cancel | landing::Decision::End(_) = choice {
         wake_train_ready(domain, env, task);
     } else if wake {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));

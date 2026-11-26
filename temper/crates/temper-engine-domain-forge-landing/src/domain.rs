@@ -140,7 +140,7 @@ pub(crate) fn matches_turn(phase: &Phase) -> bool {
     }
 }
 
-fn top(landing: &Landing) -> Option<u16> {
+pub(crate) fn top(landing: &Landing) -> Option<u16> {
     if let Some(search) = &landing.round.search
         && probe(landing).is_none()
         && search.green != 0
@@ -261,8 +261,90 @@ fn followed_post(landing: &mut Landing, facts: &Facts) -> Option<Decision> {
 pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, now: Wall) -> Stepped {
     let mut stepped = decide(landing, facts, project, limits, now);
     remember_left(landing, &mut stepped.landing);
-    stepped
+    let cause = crate::liveness::check(&stepped, facts);
+    // A departure must not throw away the prefix of a merge that may have been made.
+    if matches_turn(&landing.phase)
+        && (cause.is_some() || crate::liveness::members_and_train(landing, facts).is_some())
+        && let Some(waiting) = unsettled_merge(landing, facts, limits, now)
+    {
+        return waiting;
+    }
+    let Some(cause) = cause else { return stepped };
+    if settling_landed(&stepped) {
+        return stepped;
+    }
+    // The superseded decision's asks and writes have not been handed out.
+    // Keep the state that can be stepped again, not their success markers.
+    let mut next = landing.clone();
+    for member in &stepped.landing.members {
+        if member.landed.is_some() {
+            let why = Hold::Stuck(cause);
+            let was = match next.phase {
+                Phase::Held { was, .. } => was,
+                phase @ (Phase::Waiting
+                | Phase::Preparing
+                | Phase::Proving
+                | Phase::Proved { .. }
+                | Phase::Turn { .. }
+                | Phase::Landed
+                | Phase::Cancelled) => Box::new(phase),
+            };
+            next.phase = Phase::Held { was, why };
+            return done(next, Decision::Hold(why));
+        }
+    }
+    done(next, Decision::End(cause))
 }
+
+fn unsettled_merge(landing: &Landing, facts: &Facts, limits: &Limits, now: Wall) -> Option<Stepped> {
+    if landing.round.ending.is_some() {
+        return None;
+    }
+    if landing.round.branch.is_empty() {
+        for (member, fresh) in landing.members.iter().zip(&facts.members) {
+            if member.landed.is_none() && member.candidate != fresh.merged {
+                return match fresh.merge {
+                    Status::Pending => Some(wait(landing.clone(), None, Awaited::Merge)),
+                    Status::Passed => Some(wait(landing.clone(), Some(poll_at(limits, now)), Awaited::Merge)),
+                    Status::Unknown | Status::Failed => None,
+                };
+            }
+        }
+        return None;
+    }
+    let top = usize::from(top(landing)?);
+    let member = landing.members.get(top).expect("top member");
+    let fresh = facts.members.get(top).expect("top facts");
+    if turn_readback(member, fresh, facts.round_pull) {
+        return Some(turn(landing.clone(), facts, limits, now));
+    }
+    match fresh.merge {
+        Status::Pending => Some(wait(landing.clone(), None, Awaited::Merge)),
+        Status::Passed if member.base == Some(fresh.main) => {
+            Some(wait(landing.clone(), Some(poll_at(limits, now)), Awaited::Merge))
+        }
+        Status::Failed if !facts.merge_refused && facts.round_pull == crate::RoundPull::Unread => {
+            Some(wait(landing.clone(), None, Awaited::Merge))
+        }
+        Status::Unknown | Status::Passed | Status::Failed => None,
+    }
+}
+
+fn settling_landed(step: &Stepped) -> bool {
+    if let Decision::Landed { .. }
+    | Decision::Record { .. }
+    | Decision::Wait { on: Awaited::Record { .. }, .. }
+    | Decision::Wait { until: Some(_), on: Awaited::Merge } = step.decision
+    {
+        for member in &step.landing.members {
+            if member.landed.is_some() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn remember_left(before: &Landing, after: &mut Landing) {
     for (index, (old, member)) in before.members.iter().zip(&after.members).enumerate() {
         if old.left.is_none() && member.left.is_some() {
@@ -408,7 +490,7 @@ pub fn held(mut landing: Landing, released: bool, now: Wall) -> Stepped {
         return Stepped { landing, decision: Decision::Wait { until: None, on: Awaited::Release } };
     }
     let Phase::Held { was, why } = landing.phase else { unreachable!("release of a held landing") };
-    if let Hold::Claimed { .. } = why {
+    if let Hold::Claimed { .. } | Hold::Stuck(_) = why {
         landing.phase = *was;
         return Stepped { landing, decision: Decision::None };
     }
@@ -848,6 +930,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                 | Decision::Stale
                 | Decision::Finish
                 | Decision::Cancel
+                | Decision::End(_)
                 | Decision::Open
                 | Decision::Close
                 | Decision::Delete { .. }

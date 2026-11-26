@@ -80,14 +80,38 @@ pub enum Phase {
 /// Why a release is needed (domain/landing-proof.md, 2.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Hold {
-    Faults { member: u16, gate: u16 },
+    Faults {
+        member: u16,
+        gate: u16,
+    },
     Prepare,
     Read,
-    Record { member: u16 },
-    Timeout { member: u16, gate: u16, run: u64 },
+    Record {
+        member: u16,
+    },
+    Timeout {
+        member: u16,
+        gate: u16,
+        run: u64,
+    },
     Turn,
-    Claimed { change: u64 },
+    Claimed {
+        change: u64,
+    },
     Cleanup,
+    /// The check failed after something landed.
+    Stuck(Stuck),
+}
+
+/// What fails a live landing's check (temper/docs/design/domain/landing-liveness.md, 2.1 and 3.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Stuck {
+    /// An active member whose task is held, or, `held` false, closing, ended or gone.
+    Member { change: u64, held: bool },
+    /// Another live landing holds its train.
+    Train { landing: u64 },
+    /// Its wait names no wake that can come.
+    Wake { on: Awaited },
 }
 
 /// One gate's proof at a member's candidate (domain/landing-proof.md, 2).
@@ -380,6 +404,8 @@ pub struct Facts {
     pub merge_refused: bool,
     pub closed: Status,
     pub preparation: Preparation,
+    /// Another live landing holding this train; none for a single landing.
+    pub train_holder: Option<u64>,
 }
 
 /// The candidate's gate status (domain/landing.md, 10).
@@ -505,6 +531,8 @@ pub enum Decision {
     Judge {
         member: u16,
     },
+    /// The check failed before anything landed; the root cancels the task with this cause.
+    End(Stuck),
 }
 
 /// State to commit atomically with the decision.

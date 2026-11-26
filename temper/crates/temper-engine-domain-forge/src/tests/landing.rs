@@ -21,6 +21,23 @@ mod unreported;
 mod wait_reports;
 
 #[test]
+fn a_stuck_landing_names_the_member_train_or_missing_wake() {
+    let mut d = domain();
+    let row = merge_landing_row(true);
+    let task = row.landing.task;
+    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    let cases: &[(policy::Stuck, &[u8])] = &[
+        (policy::Stuck::Train { landing: 41 }, b"cannot move: landing 41 holds its train"),
+        (policy::Stuck::Member { change: 7, held: true }, b"cannot move: member change 7 is held"),
+        (policy::Stuck::Member { change: 7, held: false }, b"cannot move: member change 7 has ended"),
+        (policy::Stuck::Wake { on: policy::Awaited::Turn }, b"cannot move: its wait has no wake: the turn"),
+    ];
+    for &(cause, words) in cases {
+        assert_eq!(d.landing_stuck_words(task, cause).as_deref(), Some(words));
+    }
+}
+
+#[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
     use temper_engine_domain_forge_change::Way;
     use temper_engine_domain_forge_tiers::{Format, Settings, Suspects};

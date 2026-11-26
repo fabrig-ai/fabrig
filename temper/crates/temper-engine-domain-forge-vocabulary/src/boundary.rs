@@ -3714,6 +3714,7 @@ pub enum LandingNews {
     Left,
     Held,
     WholeAgain,
+    Cancelled(landing::Stuck),
 }
 /// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -110,7 +110,7 @@ pub(super) fn hold(
             }
             forge::LandingHold::Turn => w::LandingHold::Turn,
             forge::LandingHold::Read => w::LandingHold::Read(w::HeldRead { reason: read_hold? }),
-            forge::LandingHold::Cleanup => {
+            forge::LandingHold::Cleanup | forge::LandingHold::Stuck(_) => {
                 let words = read_hold?;
                 let bound = skein_lib::usize_of(limits.held_read_reason);
                 let reason = if words.len() <= bound {

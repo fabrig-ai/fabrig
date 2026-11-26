@@ -43,7 +43,8 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
                 | d::Hold::Record { .. }
                 | d::Hold::Timeout { .. }
                 | d::Hold::Turn
-                | d::Hold::Claimed { .. },
+                | d::Hold::Claimed { .. }
+                | d::Hold::Stuck(_),
         } => (encode_place(was), None),
         d::Phase::Waiting
         | d::Phase::Preparing
@@ -452,6 +453,9 @@ pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
             d::Phase::Held { why: d::Hold::Claimed { change }, .. } => {
                 Some(w::LandingOwnHold::Claimed(w::LandingClaimed { change }))
             }
+            d::Phase::Held { why: d::Hold::Stuck(cause), .. } => Some(w::LandingOwnHold::Stuck(w::LandingStuckHold {
+                cause: crate::generated::store::landing_stuck_to_record(&cause),
+            })),
             d::Phase::Held { why: d::Hold::Faults { .. }, .. }
             | d::Phase::Waiting
             | d::Phase::Preparing
@@ -498,6 +502,10 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
             Some(w::LandingOwnHold::Claimed(value)) => {
                 d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Claimed { change: value.change } }
             }
+            Some(w::LandingOwnHold::Stuck(value)) => d::Phase::Held {
+                was: Box::new(decode_phase(phase)),
+                why: d::Hold::Stuck(crate::generated::store::landing_stuck_to_domain(value.cause)),
+            },
             Some(w::LandingOwnHold::Read) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Read },
             Some(w::LandingOwnHold::Turn) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn },
             Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {

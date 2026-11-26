@@ -294,3 +294,103 @@ fn selection_takes_whole_units_and_passes_refusals() {
     let words = world.unit_words(&[1, 2, 3, 4]);
     assert!(String::from_utf8(words.into_vec()).unwrap().contains("forge.landing_members"));
 }
+
+const NEWER: u64 = LANDING + 1;
+const NEWER_MEMBERS: [u64; 2] = [CHANGE + 1, CHANGE + 2];
+const STUCK: landing::Stuck = landing::Stuck::Train { landing: LANDING };
+
+fn starts_with_two_live_landings(recorded: bool) -> World {
+    let mut world = world();
+    let mut trains = Trains::default();
+    world.produce_file(b"temper/51", b"first", b"older");
+    trains.ready(&mut world, CHANGE, b"temper/51");
+    for change in NEWER_MEMBERS {
+        let branch = format!("temper/{change}");
+        world.produce_file(branch.as_bytes(), branch.as_bytes(), b"newer");
+        landings::ready_change(&mut world, change, branch.as_bytes());
+    }
+    // Seed the disjoint second landing in the store, not through forming:
+    // a running train would never admit it while the first holds the train.
+    let mut row = landings::landing_row(world.change(NEWER_MEMBERS[0]));
+    row.landing.task = NEWER;
+    row.landing.round = landing::Round::new(format!("temper/{NEWER}/l{NEWER}").into_bytes().into());
+    row.landing.members = NEWER_MEMBERS
+        .iter()
+        .enumerate()
+        .map(|(index, task)| {
+            let mut member = landings::landing_row(world.change(*task)).landing.members[0].clone();
+            member.unit = u16::try_from(index).expect("member");
+            member.branch = if index == 0 {
+                row.landing.round.branch.clone()
+            } else {
+                format!("temper/{NEWER}/l{NEWER}-2").into_bytes().into()
+            };
+            world.event(top::Event::Hold {
+                entry: 0,
+                task: NEWER,
+                resource: top::Name {
+                    forge: REPO.forge,
+                    repository: REPO.repository,
+                    what: top::What::Branch(member.branch.split(|byte| *byte == b'/').map(Into::into).collect()),
+                },
+                from: None,
+            });
+            member
+        })
+        .collect();
+    if recorded {
+        let mut change = world.change(NEWER_MEMBERS[0]).clone();
+        let merge = change.change.last_head.expect("existing commit");
+        change.change.state = change::State::Landed { merge, since: world.wall() };
+        world.event(top::Event::Change { row: change });
+        let member = &mut row.landing.members[0];
+        member.landed = Some(merge);
+        member.recorded = true;
+        member.told = true;
+    }
+    world.seed_landing_at_restart(row);
+    world.run_for(1);
+    assert_eq!(world.landing_of(CHANGE), Some(LANDING));
+    assert_eq!(world.landing_of(NEWER_MEMBERS[1]), Some(NEWER));
+    world
+}
+
+fn newer_first_step(world: &mut World) -> landings::LandingStep {
+    let heard = super::landing_batches::heard(landing::Preparation::Absent, b"");
+    landings::read_landing_step(world, NEWER, 710, heard)
+}
+
+#[test]
+fn a_newer_restored_landing_ends_without_moving_its_members_in_the_queue() {
+    let mut world = starts_with_two_live_landings(false);
+    let ready = NEWER_MEMBERS.map(|member| world.change(member).change.state.clone());
+    let first = newer_first_step(&mut world);
+    assert_eq!(first.decision, landing::Decision::End(STUCK));
+    assert_eq!(first.entry, None, "no write before the verdict");
+    let reason = format!("cannot move: landing {LANDING} holds its train");
+    let news = format!("landing {NEWER}: cancelled: {reason}");
+    assert_eq!(first.news, NEWER_MEMBERS.map(|member| (member, Box::from(news.as_bytes()))));
+    // The scripted root accepts End as a task cancellation, as the root route's
+    // own test shows with jig. Return its closing to the connector.
+    world.event(top::Event::SettleEffects { task: NEWER, root: NEWER, ending: top::ReleaseEnding::Cancelled });
+    assert_eq!(world.landing(NEWER).landing.phase, landing::Phase::Cancelled);
+    for (member, state) in NEWER_MEMBERS.into_iter().zip(ready) {
+        assert!(matches!(state, change::State::Ready { .. }));
+        assert_eq!(world.change(member).change.state, state, "same readiness and first-ready time");
+        assert_eq!(world.landing_of(member), None);
+    }
+    landings::drive_landing(&mut world, LANDING);
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
+}
+
+#[test]
+fn a_newer_restored_landing_with_a_landed_prefix_holds_with_read_hold_words() {
+    let mut world = starts_with_two_live_landings(true);
+    let first = newer_first_step(&mut world);
+    assert_eq!(first.decision, landing::Decision::Hold(landing::Hold::Stuck(STUCK)));
+    let reason = format!("cannot move: landing {LANDING} holds its train");
+    let news = format!("landing {NEWER}: held: {reason}");
+    assert_eq!(first.news, NEWER_MEMBERS.map(|member| (member, Box::from(news.as_bytes()))));
+    let Some(top::Document::Landing(show)) = world.document(landings::PROJECT, NEWER) else { panic!("landing show") };
+    assert_eq!(show.read_hold.as_deref(), Some(reason.as_bytes()));
+}

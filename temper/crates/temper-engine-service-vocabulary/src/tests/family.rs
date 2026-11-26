@@ -2005,15 +2005,17 @@ fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
 }
 
 #[test]
-fn read_and_cleanup_carry_their_reason_as_read_holds() {
+fn read_cleanup_and_stuck_carry_their_reason_as_read_holds() {
     // HeldRead.reason is bounded in the client schema.
     const BOUND: usize = 256;
     const PAST: usize = BOUND + 1;
     const READ: &[u8] = b"read: branch main: no answer";
     const CLEANUP: &[u8] = b"cleanup: close item: forge refused permission; resource org/repo #9";
+    const STUCK: &[u8] = b"cannot move: landing 41 holds its train";
     const CASES: &[(forge::LandingHold, &[u8], &[u8])] = &[
         (forge::LandingHold::Read, READ, READ),
         (forge::LandingHold::Cleanup, CLEANUP, CLEANUP),
+        (forge::LandingHold::Stuck(forge::LandingStuck::Train { landing: 41 }), STUCK, STUCK),
         (forge::LandingHold::Cleanup, &[b'x'; PAST], &[b'x'; BOUND]),
     ];
     for &(why, words, expected) in CASES {
