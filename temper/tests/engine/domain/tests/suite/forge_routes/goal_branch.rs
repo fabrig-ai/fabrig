@@ -334,7 +334,7 @@ fn a_modifying_goals_first_run_waits_for_making_and_writes_design() {
     assert_eq!(forge_hold(&world, &branch).expect("confirmed goal hold").writer, None);
     assert_eq!(
         forge_hold(&world, &branch).expect("confirmed goal hold").design_writers.as_ref(),
-        &[forge_top::DesignWriter { task, attempt: goal.attempt }]
+        &[forge_top::DesignWriter { task, attempt: goal.attempt, rereading: false }]
     );
     let charter = temper_engine_smith::charter(&goal);
     assert!(charter.grants.deliver.is_some(), "the first run can deliver its first-wave design");

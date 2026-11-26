@@ -235,7 +235,10 @@ fn a_goals_design_delivery_and_a_sibling_merge_reach_g_without_a_slot() {
     assert_eq!(item.landing.as_deref(), Some(branch.as_ref()));
     assert_eq!(writer(&world, &branch), None);
     let designers = &forge_hold(&world, &branch).expect("goal hold").design_writers;
-    assert_eq!(designers.as_ref(), &[forge_top::DesignWriter { task: goal.task, attempt: goal.attempt }]);
+    assert_eq!(
+        designers.as_ref(),
+        &[forge_top::DesignWriter { task: goal.task, attempt: goal.attempt, rereading: false }]
+    );
     let home = goal
         .sections
         .iter()
@@ -280,6 +283,7 @@ fn a_goals_design_delivery_and_a_sibling_merge_reach_g_without_a_slot() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one story follows the delayed delivery read through the later outside push")]
 fn a_goals_delivery_merging_its_moved_tip_is_never_drift() {
     let (mut world, goal, branch) = running_goal();
     let name = forge_hold(&world, &branch).expect("goal hold").name.clone();
@@ -342,7 +346,11 @@ fn a_goals_delivery_merging_its_moved_tip_is_never_drift() {
     world.until(Until::Ready);
     assert!(!world.pending.contains_key(&keep), "keep answered after four minutes");
     let hold = forge_hold(&world, &branch).expect("goal hold");
-    assert!(hold.design_writers.contains(&forge_top::DesignWriter { task: goal.task, attempt: goal.attempt }));
+    assert!(hold.design_writers.contains(&forge_top::DesignWriter {
+        task: goal.task,
+        attempt: goal.attempt,
+        rereading: false
+    }));
     assert!(hold.drift.is_none());
     assert!(!matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }));
     assert_record_tip(&world, &name, &branch, c);

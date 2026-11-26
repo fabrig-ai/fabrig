@@ -435,7 +435,8 @@ fn an_unmade_landings_hold_with_a_live_writer_still_refuses_the_start() {
             })
             .expect("hold");
         if design {
-            hold.design_writers = Box::new([forge::DesignWriter { task: writer.task, attempt: writer.attempt }]);
+            hold.design_writers =
+                Box::new([forge::DesignWriter { task: writer.task, attempt: writer.attempt, rereading: false }]);
         } else {
             hold.writer = Some(forge::Writer::Run { task: writer.task, attempt: writer.attempt });
         }
