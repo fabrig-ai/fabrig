@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use super::{Change, Host, Journey, Side, TUI, WEB, git_ok, text, valid_name, version_two};
+use super::{Change, Host, Journey, Side, TUI, WEB, git, git_ok, text, valid_name, version_two};
 use crate::looks::hash;
 
 pub(crate) struct Request {
@@ -24,18 +24,59 @@ pub(crate) fn read(arguments: &[Box<[u8]>], host: &mut Host) -> Result<Request, 
         .ok()
         .filter(|prefix| (7..=64).contains(&prefix.len()) && hex(prefix))
         .ok_or("C must be 7 to 64 lowercase hexadecimal digits")?;
-    fetch(host, None, &branch(name))?;
-    fetched(host, None, name, Some(prefix)).map_err(|error| match error {
+    let request = if let Some(output) = lookup_commit(host, None, prefix)? {
+        let commit = text(&output, "local commit")?.trim_end_matches('\n');
+        if !hash(commit) || !commit.starts_with(prefix) {
+            return Err(format!("cannot look up commit {prefix}: Git resolved it to {commit}"));
+        }
+        read_commit(host, None, name, commit)
+    } else {
+        let remotes = git_ok(host, None, &["remote"])?;
+        let remote = choose_remote(text(&remotes, "remote list")?)?;
+        fetch(host, None, remote, &branch(name))?;
+        fetched(host, None, name, Some(prefix))
+    };
+    request.map_err(|error| match error {
         ReadError::Invalid { why, .. } | ReadError::Failed(why) => why,
     })
+}
+
+pub(crate) fn lookup_commit(host: &mut Host, root: Option<&Path>, commit: &str) -> Result<Option<Box<[u8]>>, String> {
+    let revision = format!("{commit}^{{commit}}");
+    let ran = git(host, root, &["rev-parse", "--verify", "--quiet", &revision])?;
+    match ran.code {
+        Some(0) => Ok(Some(ran.stdout)),
+        Some(1) if ran.stderr.is_empty() => Ok(None),
+        Some(_) | None => Err(format!("cannot look up commit {commit}")),
+    }
+}
+
+fn choose_remote(list: &str) -> Result<&str, String> {
+    let remotes: Vec<_> = list.lines().collect();
+    if remotes.contains(&"forge") {
+        Ok("forge")
+    } else if remotes.contains(&"origin") {
+        Ok("origin")
+    } else {
+        match remotes.as_slice() {
+            [only] => Ok(only),
+            [] => Err("no remote chosen (remotes: none)".into()),
+            _ => Err(format!("no remote chosen (remotes: {})", remotes.join(", "))),
+        }
+    }
 }
 
 pub(crate) fn branch(name: &str) -> String {
     format!("refs/heads/docs/look/{name}")
 }
 
-pub(crate) fn fetch(host: &mut Host, root: Option<&Path>, branch: &str) -> Result<(), String> {
-    git_ok(host, root, &["fetch", "--no-tags", "--no-recurse-submodules", "--refmap=", "origin", branch])?;
+pub(crate) fn fetch(host: &mut Host, root: Option<&Path>, remote: &str, branch: &str) -> Result<(), String> {
+    let mut args = vec!["fetch", "--no-tags", "--no-recurse-submodules", "--refmap="];
+    if remote.starts_with('-') {
+        args.push("--");
+    }
+    args.extend([remote, branch]);
+    git_ok(host, root, &args)?;
     Ok(())
 }
 
@@ -55,6 +96,10 @@ pub(crate) fn fetched(
     if !hash(commit) {
         return Err(ReadError::Failed(format!("docs/look/{name} fetched an invalid commit: {commit}")));
     }
+    read_commit(host, root, name, commit)
+}
+
+fn read_commit(host: &mut Host, root: Option<&Path>, name: &str, commit: &str) -> Result<Request, ReadError> {
     let invalid = |why| ReadError::Invalid { commit: commit.into(), why };
     let result = git_ok(host, root, &["show", "-s", "--format=%P", commit]).map_err(ReadError::Failed)?;
     let parent = text(&result, "request parent").map_err(ReadError::Failed)?.trim_end_matches('\n');

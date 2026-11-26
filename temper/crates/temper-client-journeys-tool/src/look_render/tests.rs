@@ -58,8 +58,12 @@ struct Effects(Steps);
 
 impl Effects {
     fn begin(&mut self, changed: &[&str]) {
+        self.0.fetch(TIP);
+        self.request_changes(changed);
+    }
+
+    fn request_changes(&mut self, changed: &[&str]) {
         let s = &mut self.0;
-        s.fetch(TIP);
         s.git(&["show", "-s", "--format=%P", TIP], None, &format!("{PARENT}\n"));
         s.git(
             &["show", "-s", "--format=%(trailers:key=Look-request,unfold)", TIP],
@@ -301,6 +305,17 @@ fn overlay(requested: &str) -> Effects {
 }
 
 look_step_tests! {
+#[test]
+fn a_locally_held_request_is_render_checked_without_fetching() {
+    let mut steps = Effects::default();
+    steps.0.local_request();
+    steps.request_changes(&[]);
+    steps.copy_request(&[]);
+    steps.copy_print(&[]);
+    steps.start();
+    steps.stop_and_check(0, NOTHING, "");
+}
+
 #[test]
 fn equal_views_have_one_identical_line_for_the_page() {
     let mut steps = edited_button();
