@@ -206,7 +206,7 @@ fn insert(layouts: &mut Layouts, family: &str, number: u16, id: u16, value: wire
         .expect("uncapped registration");
 }
 
-fn register_type(layouts: &mut Layouts, family: &str, number: u16, value: wire::Layout) -> Option<(u32, bool)> {
+fn register_type(layouts: &mut Layouts, family: &'static str, number: u16, value: wire::Layout) -> Option<(u32, bool)> {
     let version = layouts.texts.get(&value.text)?.schema()?.version();
     let ordered = order(layouts, family, number, value.layout);
     let mut found = None;
@@ -222,7 +222,10 @@ fn register_type(layouts: &mut Layouts, family: &str, number: u16, value: wire::
         None => {
             let id = match greatest {
                 Some(id) => id.checked_add(1)?,
-                None => version,
+                None => {
+                    layouts.introduced.push((family, number)).expect("uncapped value types");
+                    version
+                }
             };
             insert(layouts, family, number, id, value);
             id

@@ -9,7 +9,7 @@ const PUSHED: Commit = [6; 32];
 const WAITING: Commit = [8; 32];
 const DESIGNER: Sender = Sender::Attempt { task: GOAL, attempt: ATTEMPT };
 
-fn link(d: &mut Domain, live: &[u64]) -> Result<Queue<Request>, StartLink> {
+fn link(d: &mut Domain, live: &[u64], convert_branch_writes: bool) -> Result<Queue<Request>, StartLink> {
     let mut world = jig_tasks_kit::World::new(71, jig_tasks_kit::LIMITS);
     let mut tasks = Vec::new();
     for task in live {
@@ -28,7 +28,7 @@ fn link(d: &mut Domain, live: &[u64]) -> Result<Queue<Request>, StartLink> {
         );
     }
     let mut out = Queue::uncapped();
-    d.start_links(&store, &env(), &mut out)?;
+    d.start_links(&store, &env(), convert_branch_writes, &mut out)?;
     Ok(out)
 }
 
@@ -66,7 +66,7 @@ fn persisted_watch() -> Stored {
 
 fn link_goal(held: Hold) -> Domain {
     let mut d = restored(G, Box::new([Stored::Hold(held), persisted_watch(), live_branch(G, fixtures::HEAD)]));
-    link(&mut d, &[GOAL]).unwrap();
+    link(&mut d, &[GOAL], true).unwrap();
     d
 }
 
@@ -80,7 +80,7 @@ fn link_converts_expected_heads_and_preserves_holds_once() {
     let fallback = BranchHead { name: name(C), commit: fixtures::HEAD, owned: true };
     let mut d =
         restored(G, Box::new([Stored::Hold(held.clone()), Stored::BranchHead(fallback), live_branch(G, PUSHED)]));
-    let first = link(&mut d, &[GOAL]).unwrap();
+    let first = link(&mut d, &[GOAL], true).unwrap();
     let cleared = Hold { beside: None, ..held };
     let record = Writes {
         name: name(G),
@@ -107,7 +107,8 @@ fn link_converts_expected_heads_and_preserves_holds_once() {
         assert!(found, "missing {saved:?}");
     }
     let mut next = restored(G, Box::new([Stored::Hold(cleared), Stored::Writes(record), Stored::Writes(base)]));
-    assert!(link(&mut next, &[GOAL]).unwrap().is_empty());
+    assert!(link(&mut next, &[GOAL], false).unwrap().is_empty());
+    assert!(link(&mut next, &[GOAL], true).unwrap().is_empty(), "conversion also skips existing records");
 }
 
 fn many_writers(count: usize) -> (Domain, Hold, Env<Limits>) {
@@ -142,7 +143,7 @@ fn a_thirty_third_writer_refuses_conversion_without_any_save() {
     let (mut d, held, env) = many_writers(WRITERS);
     let mut out = Queue::uncapped();
     let tasks = jig_tasks_kit::domain(&jig_tasks_kit::LIMITS, 71);
-    assert_eq!(d.start_links(&tasks, &env, &mut out), Err(StartLink::BranchWrites(name(G), WRITERS)));
+    assert_eq!(d.start_links(&tasks, &env, true, &mut out), Err(StartLink::BranchWrites(name(G), WRITERS)));
     assert!(out.is_empty());
     assert!(d.writes.is_empty());
     assert_eq!(d.hold(&name(G)), Some(&held));
@@ -211,7 +212,7 @@ fn a_converted_live_attempt_reads_back_at_its_answer_after_restart() {
             live_branch(G, fixtures::HEAD),
         ]),
     );
-    link(&mut restarted, &[GOAL]).unwrap();
+    link(&mut restarted, &[GOAL], false).unwrap();
     begin(&mut restarted);
     finish_reads(&mut restarted, Some(fixtures::HEAD));
     outputs(&mut restarted, Event::Finished { task: GOAL, attempt: ATTEMPT, lost: false });
@@ -248,7 +249,7 @@ fn a_changes_lost_slot_is_read_before_its_branch_is_judged() {
     let mut held = hold(C, fixtures::CHANGE);
     held.writer = Some(Writer::Lost { task: GOAL, attempt: ATTEMPT });
     let mut d = restored(C, Box::new([Stored::Hold(held), Stored::Change(Box::new(fixtures::opening_row()))]));
-    link(&mut d, &[GOAL, fixtures::CHANGE]).unwrap();
+    link(&mut d, &[GOAL, fixtures::CHANGE], true).unwrap();
     begin(&mut d);
     let mut out = Queue::uncapped();
     assert_eq!(d.observe(&name(C), Some(fixtures::HEAD), Actor::Unknown, &mut out), Seen::Owed);

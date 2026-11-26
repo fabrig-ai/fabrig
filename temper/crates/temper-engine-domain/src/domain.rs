@@ -87,6 +87,7 @@ pub struct Domain {
     pub(crate) start_stop: Option<StartStop>,
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
+    pub(crate) convert_branch_writes: bool,
     pub(crate) rehearsal: Option<bool>,
     pub(crate) startup_fill: Option<u64>,
     pub(crate) startup_census: Option<Box<jig_domain_core::documents::StoreCensus>>,
@@ -425,6 +426,12 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
+    /// This start upgrades a store from before branch write records (domain/forge/writes.md, 7).
+    pub fn convert_branch_writes_at_link(&mut self) {
+        assert!(self.start_wall.is_none(), "branch write conversion set before restart");
+        self.convert_branch_writes = true;
+    }
+
     /// Restore as at a start, ending at the opening (domain/root-restart.md, 1.1).
     pub fn rehearse(&mut self) {
         assert!(self.start_wall.is_none(), "rehearsal set before restart");
@@ -640,6 +647,7 @@ impl Domain {
             start_stop: None,
             opened: false,
             start_pending: false,
+            convert_branch_writes: false,
             startup_fill: None,
             startup_census: None,
             sweep_rows: Queue::uncapped(),

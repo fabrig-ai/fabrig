@@ -643,7 +643,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 let mut output = Queue::uncapped();
-                let links = domain.forge.start_links(&domain.core.tasks, &environment_forge(env), &mut output);
+                let convert_branch_writes = domain.convert_branch_writes;
+                domain.convert_branch_writes = false;
+                let links = domain.forge.start_links(
+                    &domain.core.tasks,
+                    &environment_forge(env),
+                    convert_branch_writes,
+                    &mut output,
+                );
                 forge_route::outputs(domain, env, decision, &mut output);
                 if let Err(failure) = links {
                     let stop = match failure {

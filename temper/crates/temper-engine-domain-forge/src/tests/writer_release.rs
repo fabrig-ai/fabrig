@@ -78,7 +78,7 @@ fn a_delegates_release_waits_for_its_writer_reread_even_after_restart() {
         linkable(&d, &[HOLDER, DELEGATE]);
         if restart {
             d = restored(d.hold(&name).unwrap().clone(), d.releases.get(&DELEGATE).cloned());
-            assert_eq!(d.start_links(&tasks(&[HOLDER, DELEGATE]), &env(), &mut Queue::uncapped()), Ok(()));
+            assert_eq!(d.start_links(&tasks(&[HOLDER, DELEGATE]), &env(), false, &mut Queue::uncapped()), Ok(()));
             outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
             outputs(&mut d, Event::CatchUp);
             linkable(&d, &[HOLDER, DELEGATE]);
@@ -117,7 +117,7 @@ fn retired_run_and_lost_writers_open_writerless_and_read_before_claiming() {
         let tasks = tasks(&[HOLDER]);
         assert!(d.missing_link(&tasks).is_some(), "the old record names a retired task");
         let mut out = Queue::uncapped();
-        assert_eq!(d.start_links(&tasks, &env(), &mut out), Ok(()));
+        assert_eq!(d.start_links(&tasks, &env(), true, &mut out), Ok(()));
         assert_eq!(d.hold(&name).unwrap().writer, None);
         assert_eq!(d.missing_link(&tasks), None);
         // Only the converted Writes row is saved; the old slot still owes
@@ -128,7 +128,7 @@ fn retired_run_and_lost_writers_open_writerless_and_read_before_claiming() {
         }
         d = restored(hold, None);
         outputs(&mut d, Event::Restore { record: Stored::Writes(writes) });
-        assert_eq!(d.start_links(&tasks, &env(), &mut out), Ok(()));
+        assert_eq!(d.start_links(&tasks, &env(), true, &mut out), Ok(()));
         assert!(out.is_empty(), "a second Link repairs the slot in memory only");
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);

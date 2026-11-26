@@ -2,6 +2,15 @@
 //! temper/docs/design/protocol/store.md, 3).
 use jig_protocol_store::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Layouts, Owner, OwnerSet, ValueType};
 
+const STORE_FAMILY: &str = "temper-store";
+const WRITES_TYPE: u16 = 52;
+
+/// A pending upgrade from before the branch write record must convert the old branch rows at Link.
+#[must_use]
+pub fn introduced_branch_writes(store: &jig_protocol_store::Store) -> bool {
+    store.introduced_value_type(STORE_FAMILY, WRITES_TYPE)
+}
+
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
     clippy::disallowed_macros,
@@ -319,7 +328,7 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                     keys: &[KeyRange { from: &[50], to: &[51] }],
                 },
                 ValueType {
-                    number: 52,
+                    number: WRITES_TYPE,
                     root: "Row",
                     variant: Some("writes"),
                     keys: &[KeyRange { from: &[crate::keys::WRITES], to: &[53] }],
@@ -355,7 +364,7 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                     keys: &[KeyRange { from: &[131], to: &[132] }],
                 },
             ],
-            name: "temper-store",
+            name: STORE_FAMILY,
             map: KeptMap::Store,
             keys: &[
                 Keys { from: &[0], to: &[1], root: "Row" },

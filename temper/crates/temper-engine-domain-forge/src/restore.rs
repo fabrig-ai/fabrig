@@ -20,12 +20,14 @@ impl Domain {
         &mut self,
         tasks: &jig_domain_tasks::Domain,
         env: &Env<Limits>,
+        convert_branch_writes: bool,
         out: &mut Queue<Request>,
     ) -> Result<(), StartLink> {
         if let Some(key) = self.unjoined_change() {
             return Err(StartLink::Row(key));
         }
-        let branches = crate::conversion::branches::prepare(self, &env.limits)?;
+        let branches =
+            if convert_branch_writes { Some(crate::conversion::branches::prepare(self, &env.limits)?) } else { None };
         self.link_names(tasks, &env.limits);
         self.link_tiers(tasks, &env.limits);
         if let Err(failure) = self.restore_memberships() {
@@ -34,7 +36,9 @@ impl Domain {
         if let Err(failure) = self.convert_previous(out) {
             return Err(StartLink::Fit(failure));
         }
-        crate::conversion::branches::write(self, branches, out);
+        if let Some(branches) = branches {
+            crate::conversion::branches::write(self, branches, out);
+        }
         self.link_landings(tasks, env, out);
         self.link_writers(tasks, env, out);
         if let Err(failure) = self.fit_restored(&env.limits) {
