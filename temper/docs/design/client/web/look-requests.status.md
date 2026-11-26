@@ -8,6 +8,3 @@
     first held request;
     `scripts/look-refresh.sh` refreshes and drops by `Look-request`
     and the print, not by holds.
-  - 4: a page drawn on a gallery state is listed as not compared, with
-    no gallery print beside it (`../journey-writer.md`, 6.2)
-    [in flight: change 18418].
