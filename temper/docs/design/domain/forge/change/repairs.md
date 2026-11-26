@@ -283,7 +283,12 @@
   `ci_recheck: option CiRecheck = none`, `record CiRecheck { job:
   JobAttempt taken: option u32 = none }`, the failed job's attempt that
   ran again and, once taken, the attempt that took it; at a landing, the
-  regate (`../../landing-regate.md`, 5). Its cause is `ChangeHold`'s
+  regate (`../../landing-regate.md`, 5). Until the step that reads the
+  head classifies the repair, its words wait beside the head it reported
+  and its verdict flags, as `delegate_words: option ResultText = none`,
+  so a restart between the repair's end and that read keeps them; that
+  step takes them into the result and clears them, whether the head
+  moved or not. Its cause is `ChangeHold`'s
   added arm `red_stands`, after `runner`. Each is a registered layout's
   added field or arm, so no store version moves
   (`../../../protocol/store-versions.md`, section 1), and neither
