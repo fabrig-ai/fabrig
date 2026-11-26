@@ -168,7 +168,7 @@ pub(crate) fn now_written(
 }
 
 pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32, out: &mut Queue<Request>) {
-    let line = match word.kind.family() {
+    let line = match crate::message_family(&word.kind) {
         MessageFamily::Spoken(_) => {
             Line::Words { message: word.number, by: word.from, kind: word.kind.clone(), words: word.words.clone() }
         }

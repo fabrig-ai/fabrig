@@ -469,7 +469,7 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
 }
 
 fn ordinary(kind: &MessageKind) -> bool {
-    match kind.family() {
+    match crate::message_family(kind) {
         MessageFamily::Separate(_) => false,
         MessageFamily::Slot(_)
         | MessageFamily::Spoken(_)
@@ -557,7 +557,7 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
             ordinary_count = ordinary_count.checked_add(1).ok_or(RestoreCause::Accounting)?;
             bytes = bytes.checked_add(size).ok_or(RestoreCause::Accounting)?;
         } else {
-            match word.kind.family() {
+            match crate::message_family(&word.kind) {
                 MessageFamily::Separate(Separate::Met | Separate::NothingAwaited) => {
                     met = met.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }

@@ -12,6 +12,7 @@
 //! (domain/engine/settings-catalogue.md, 1; `../../../docs/design/protocol/configuration-engine.md`, section 1).
 
 use alloc::boxed::Box;
+pub use jig_domain_contract::ops::{LlmChoice, LlmLater, ModelEffort};
 
 use skein_lib::List;
 
@@ -21,46 +22,6 @@ use crate::{Authority, Executor, Models, Refusal};
 /// Most catalogue rows, the bits of `Models` (`../../../docs/design/protocol/configuration-engine.md`, section 1). A
 /// choice's sub-agents name at most this many.
 pub const MODELS: u32 = 64;
-
-/// One model and its effort (domain/tasks/README.md, section 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct ModelEffort {
-    /// The catalogue number's position, starting at zero.
-    pub model: u8,
-    /// One of the efforts the model declares, in its order; `None` is the LLM provider's default,
-    /// the only effort of a model that declares none.
-    pub effort: Option<u8>,
-}
-
-impl ModelEffort {
-    /// The index of a kept choice whose model, or the effort it named, left the catalogue:
-    /// no configured model has it (jig/docs/design/protocol/store/records.md, 1).
-    pub const GONE: u8 = u8::MAX;
-}
-
-/// What an agent task's runs' LLMs are, including its creator's optional account preference
-/// (domain/tasks/README.md, section 3; domain/accounts-uses.md, section 1.3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct LlmChoice {
-    /// Creator preference, distinct from the task's successfully claimed account.
-    pub account: Option<u32>,
-    /// The model its runs use, and their check holds its most costly completion (domain/authority-checks.md,
-    /// section 1.3).
-    pub main: ModelEffort,
-    /// The models its runs' sub-agents may use, each named once, at most `MODELS`, among which
-    /// smith chooses within a run.
-    pub subagents: Box<[ModelEffort]>,
-    pub later: Option<LlmLater>,
-}
-
-/// The choice every run whose reasons hold no `first` takes
-/// (jig/docs/design/domain/tasks/README.md, 3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct LlmLater {
-    pub main: ModelEffort,
-    /// Each named once, at most `MODELS`.
-    pub subagents: Box<[ModelEffort]>,
-}
 
 /// Why an LLM choice is refused (domain/tasks/README.md, section 4 and domain/tasks/changes.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

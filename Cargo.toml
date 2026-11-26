@@ -208,6 +208,7 @@ members = [
     "jig/crates/jig-client-view",
     "jig/crates/jig-client-view-words",
     "jig/crates/jig-client-view-codec",
+    "jig/crates/jig-domain-contract",
     "jig/crates/jig-domain-core",
     "jig/crates/jig-domain-core-vocabulary",
     "jig/crates/jig-domain-accounts",
@@ -709,6 +710,7 @@ jig-ops-domain = { path = "jig/examples/ops/domain" }
 jig-ops-domain-observability = { path = "jig/examples/ops/domain-observability" }
 jig-ops-domain-infrastructure = { path = "jig/examples/ops/domain-infrastructure" }
 jig-domain-authority = { path = "jig/crates/jig-domain-authority" }
+jig-domain-contract = { path = "jig/crates/jig-domain-contract" }
 jig-domain-core = { path = "jig/crates/jig-domain-core" }
 jig-domain-core-vocabulary = { path = "jig/crates/jig-domain-core-vocabulary" }
 jig-domain-notes = { path = "jig/crates/jig-domain-notes" }

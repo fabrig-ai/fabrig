@@ -1,5 +1,6 @@
 //! Connector effect identities and origins (jig/docs/design/domain/engine/vocabulary.md, 1.3).
 
+pub use jig_domain_contract::effects::{EffectKey, EffectPurpose};
 pub mod connector;
 pub mod projections;
 
@@ -7,32 +8,6 @@ use crate::CallKey;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Wall};
-
-/// The purpose fixes the key independently of retry or outbox numbering.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EffectPurpose {
-    Call {
-        attempt: u64,
-        completion: u32,
-        position: u32,
-    },
-    Procedure {
-        purpose: u64,
-    },
-    /// A connector's stable goal projection purpose.
-    Projection {
-        purpose: u64,
-    },
-}
-
-/// Full deployment identity and the effect's stable purpose.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct EffectKey {
-    pub deployment: [u8; 16],
-    pub task: u64,
-    pub origin: EffectPurpose,
-    pub purpose: u64,
-}
 
 /// Who requested the connector-owned effect and when a call must answer.
 #[derive(Hash, Debug)]

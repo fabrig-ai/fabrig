@@ -6,7 +6,11 @@
 use crate::settings;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_people as people;
+pub use jig_domain_contract::effects::{EffectDescription, EffectForm, EffectRefusal, OutboxOutcome, Recovery};
+pub use jig_domain_contract::lifecycle::{AdoptedParty, AdoptionRole, RestartStage};
+pub use jig_domain_contract::ops::SeededGoal;
+pub use jig_domain_contract::resources::{HoldKind, ResourceRole};
+pub use jig_domain_contract::settings::{DefaultState, DroppedDefault, Judged};
 use jig_domain_tasks as tasks;
 use skein_lib::{Token, Wall};
 
@@ -44,21 +48,6 @@ pub struct RepairSeed {
     pub opens: (Option<tasks::Event>, Option<tasks::Event>),
     pub authority: tasks::Authority,
     pub budget: u64,
-}
-
-/// Application-made agent goal delegated by a live task (jig/docs/design/domain/authority.md, 6.3).
-#[derive(Hash, Debug)]
-pub struct SeededGoal {
-    pub charter: u32,
-    pub spec: tasks::Spec,
-    pub contract: tasks::Contract,
-    pub authority: tasks::Authority,
-    pub llm: Option<tasks::LlmChoice>,
-    pub budget: u64,
-    pub tracked: Option<u32>,
-    pub label: u32,
-    pub flags: tasks::Flags,
-    pub holdings: Box<[tasks::Holding]>,
 }
 
 impl RepairSeed {
@@ -178,85 +167,6 @@ impl RepairSeed {
     }
 }
 
-/// What one adopted resource permits this project to do.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ResourceRole {
-    /// The deployment owns the resource.
-    Owned,
-    /// It writes as a participant of a shared resource.
-    Participant,
-    /// It may read, but may not write.
-    Context,
-    /// It is known but unavailable.
-    Unavailable,
-}
-
-/// How a named resource is held while a task uses it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HoldKind {
-    /// No task hold is needed.
-    Shared,
-    /// One task holds the resource at a time.
-    Exclusive { wait: bool },
-    /// At most the current number of slots may be held.
-    Pooled { slots: u32, wait: bool },
-}
-
-/// What a connector's effect does to its resource.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EffectForm {
-    Creation,
-    Transition,
-    Set,
-}
-
-/// Promise available after an effect's uncertain outcome.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Recovery {
-    Keyed,
-    Conditional,
-    Idempotent,
-    Unrecoverable,
-}
-
-/// The inspectable part of a connector-owned effect.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct EffectDescription {
-    /// Whether this kind waits while its task has pending dependencies.
-    pub waits_for_dependencies: bool,
-    /// Connector number assigned by the application root.
-    pub connector: u16,
-    /// Stable purpose within the asking task.
-    pub purpose: u64,
-    /// Authority's resource and state description.
-    pub effect: authority::Effect,
-    /// Effect's shape for outbox and recovery.
-    pub form: EffectForm,
-    /// Connector's declared recovery class.
-    pub recovery: Recovery,
-}
-
-/// Why a described effect was not admitted, including refusals before authority checked it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EffectRefusal {
-    Authority,
-    Obsolete,
-    Description,
-    Capacity,
-    Dependencies,
-    Proposal,
-    Unavailable,
-}
-
-/// A default a connector stored that the application no longer gives
-/// (jig/docs/design/domain/engine/settings-application.md, 1; jig/docs/design/domain/connectors.md, section 17).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct DroppedDefault {
-    pub kind: u32,
-    pub scope: u32,
-    pub number: u32,
-}
-
 /// A connector's answer in jig's vocabulary, after root translation.
 /// Application settings: jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17.
@@ -355,66 +265,6 @@ pub enum Event {
     RestartDone {
         stage: RestartStage,
     },
-}
-
-/// An outbox terminal or uncertain write.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum OutboxOutcome {
-    Made,
-    Failed,
-    Withdrawn,
-    /// A person settled an uncertain effect as not made.
-    NotMade,
-    Uncertain,
-    /// The connector cannot safely retry this entry; a person must resolve it.
-    Held {
-        entry: u64,
-    },
-}
-
-/// Restoration and the two halves of a connector's catching up.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum RestartStage {
-    Restored,
-    ReadAfresh,
-    Settled,
-}
-
-/// A project's durable adoption role (domain/model.md, 6.1; domain/connectors.md, 12).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AdoptionRole {
-    Owned,
-    Participant,
-    Fork,
-    Context,
-}
-
-/// One party the connector learned while adopting a resource.
-#[derive(Debug)]
-pub struct AdoptedParty {
-    pub subject: Box<[u8]>,
-    pub role: people::Role,
-}
-
-/// A connector's judgment of one item (jig/docs/design/domain/engine/settings-application.md, 1;
-/// jig/docs/design/domain/connectors.md, section 17).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Judged {
-    Accept { size: u32, charters: Box<[u32]> },
-    Same,
-    Refuse { why: Box<[u8]> },
-}
-
-/// A connector's default metadata (jig/docs/design/domain/engine/settings-application.md, 1;
-/// jig/docs/design/domain/connectors.md, section 17).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DefaultState {
-    pub kind: u32,
-    pub scope: u32,
-    pub number: u32,
-    pub size: u32,
-    pub charters: Box<[u32]>,
-    pub differs: bool,
 }
 
 /// What the core asks a numbered connector to do.

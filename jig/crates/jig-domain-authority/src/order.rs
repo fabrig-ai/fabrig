@@ -1,6 +1,7 @@
 //! Segment coverage and componentwise authority order (domain/authority.md, 4–5).
 
 use alloc::boxed::Box;
+pub use jig_domain_contract::effects::Lacks;
 
 use skein_lib::{List, Queue};
 
@@ -70,47 +71,6 @@ pub enum Lack {
     Notes,
     /// Requested models do not fit: some is not among the creator's.
     Models,
-}
-
-/// Every independent component that failed; a check can name all of them
-/// in one bounded finding without losing the stricter answer.
-/// Independent component deficits summarized in one fixed-size value; ordering is permission
-/// inclusion, not structural equality. (domain/authority.md, sections 4–5).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "these are independent component deficits, not lifecycle state")]
-pub struct Lacks {
-    pub tools: bool,
-    /// Some requested grant is not covered.
-    pub grants: bool,
-    pub executors: bool,
-    /// Requested lifetime task capacity does not fit.
-    pub tasks: bool,
-    /// Requested descendant depth does not fit.
-    pub depth: bool,
-    /// Requested spend does not fit current available funding or authority.
-    pub spend: bool,
-    /// Requested deadline is later than permitted.
-    pub deadline: bool,
-    pub notes: bool,
-    /// Some requested model is not among the other's.
-    pub models: bool,
-}
-
-impl Lacks {
-    /// Pure query returning whether this bounded value has no entries or deficits; emits no output
-    /// and allocates nothing.
-    #[must_use]
-    pub const fn is_empty(self) -> bool {
-        !(self.tools
-            || self.grants
-            || self.executors
-            || self.tasks
-            || self.depth
-            || self.spend
-            || self.deadline
-            || self.notes
-            || self.models)
-    }
 }
 
 /// On one connector, granting `kind` also grants `implies`.

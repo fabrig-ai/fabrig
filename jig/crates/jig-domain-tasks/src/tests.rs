@@ -185,11 +185,11 @@ mod wait_validity {
 fn procedure_inputs_select_news_and_results_without_text_inference() {
     use crate::{MessageKind, NewsClass, ProcedureInput, ResultKind};
     assert_eq!(
-        MessageKind::News { subscription: 7, class: NewsClass::Wakes }.procedure_input(),
+        crate::procedure_input(MessageKind::News { subscription: 7, class: NewsClass::Wakes }),
         Some(ProcedureInput::News)
     );
     assert_eq!(
-        MessageKind::Result(ResultKind::Report).procedure_input(),
+        crate::procedure_input(MessageKind::Result(ResultKind::Report)),
         Some(ProcedureInput::Result(ResultKind::Report))
     );
     for kind in [
@@ -198,7 +198,7 @@ fn procedure_inputs_select_news_and_results_without_text_inference() {
         MessageKind::Timer { subscription: 7 },
         MessageKind::FinishRequested { revision: 1 },
     ] {
-        assert_eq!(kind.procedure_input(), None);
+        assert_eq!(crate::procedure_input(kind), None);
     }
 }
 
@@ -389,7 +389,7 @@ mod classifiers {
                 F::Result => (false, false, false, false),
                 F::Virtual => (false, false, false, false),
             };
-            assert_eq!(kind.family(), family, "{kind:?}: family");
+            assert_eq!(crate::message_family(&kind), family, "{kind:?}: family");
             assert_eq!(crate::wake::category(&kind), category, "{kind:?}: wake category");
             assert_eq!(kind.result().is_some(), family == MessageFamily::Result, "{kind:?}: result");
             let word = message_word(kind);
@@ -419,7 +419,7 @@ mod classifiers {
                 "{:?}: activity",
                 word.kind
             );
-            assert_eq!(word.finish_requested(), finish, "{:?}: finish", word.kind);
+            assert_eq!(crate::finish_requested(&word), finish, "{:?}: finish", word.kind);
 
             row.inbox = Box::new([word.clone()]);
             row.subscriptions = Box::new([crate::Subscription {
@@ -473,7 +473,7 @@ mod classifiers {
             };
             let word = message_word(kind);
             assert_eq!(word.kind.result(), result.as_ref(), "{:?}: result", word.kind);
-            assert_eq!(word.payload_bytes(), payload, "{:?}: payload", word.kind);
+            assert_eq!(crate::word_payload_bytes(&word), payload, "{:?}: payload", word.kind);
             let record = Stored::Activity(crate::ActivityLine {
                 task: TASK,
                 position: 1,

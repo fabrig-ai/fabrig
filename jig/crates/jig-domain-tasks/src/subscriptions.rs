@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Set, Wall};
 
 fn hint_of(kind: &MessageKind) -> Option<u64> {
-    match kind.family() {
+    match crate::message_family(kind) {
         MessageFamily::Hint(
             Hint::Notice { subscription, .. } | Hint::Timer { subscription } | Hint::News { subscription, .. },
         ) => Some(subscription),
@@ -274,7 +274,7 @@ pub(crate) fn release_timer(domain: &mut Domain, subscription: Subscription) {
 }
 
 fn matches_kind(kind: &MessageKind, subscription: &SubscriptionKind) -> bool {
-    match kind.family() {
+    match crate::message_family(kind) {
         MessageFamily::Hint(Hint::Notice { target, .. }) => match subscription {
             SubscriptionKind::Task { target: watched, .. } => target == *watched,
             SubscriptionKind::Timer { .. } | SubscriptionKind::Topic { .. } => false,
@@ -325,7 +325,7 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
     row.record.last_message = prepared.word.number;
     row.record.inbox = prepared.inbox;
     // The final notice uses the watch's reserved slot before releasing it.
-    match prepared.word.kind.family() {
+    match crate::message_family(&prepared.word.kind) {
         MessageFamily::Hint(Hint::Notice { state: NoticeState::Unreadable, .. }) => {
             forget(&mut row.record, subscription_number);
         }
