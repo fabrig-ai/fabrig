@@ -37,9 +37,9 @@ The reasons behind [fuzzy-campaigns.md](fuzzy-campaigns.md), by the draft's sect
 - **An ordinary red finding** is filed anew each time. Only flakes are matched and counted by signature (`temper/docs/design/domain/findings.md`, 4). A runner filing each round's cases would file one fault many times.
 - **So, by hand first:** the campaign's report groups its cases by signature, and the user routes them. A finding filed from it follows findings' rules, closed once its fixing landing is cleared (`findings.md`, 7). A source of its own, with matching and closing rules, comes with the runner.
 
-## 6. Why a generated agent's case is pinned as its script
+## 6. Why a generated agent's case is pinned as its capture
 
-A seed replays to the same case only while the code that draws from it stands still. A world's draws change rarely. A generator's menu and weights change whenever the class it draws grows (`fuzzy-campaigns.md`, 8), and each change gives its pinned seeds other agents. The printed script is what the case was, and it stays a scenario whatever the generator becomes.
+A seed replays to the same case only while the code that draws from it stands still. A world's draws change rarely. A generator's menu and weights change whenever the class it draws grows (`fuzzy-campaigns.md`, 8), and each change gives its pinned seeds other agents. The capture of its answers, keyed by request rather than by draw, is what the case was, and it stays a scenario whatever the generator becomes.
 
 ## 7. 11-26's crash
 

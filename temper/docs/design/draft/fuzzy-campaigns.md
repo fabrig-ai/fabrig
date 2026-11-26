@@ -190,7 +190,7 @@ Until the user says where, a campaign runs by hand after landing.
   - the replay command;
   - what 7.3's replay saw;
   - the failure's lines, within the bound;
-  - the generated script, where its world prints one (the misbehaving agents draft).
+  - the capture of its generated answers, where its world keeps one (the misbehaving agents draft).
 - **Where it goes:** the campaign's report, for the user to route. Filed by hand as a temper finding, it follows findings' rules, closed once the landing that fixes it is cleared (`temper/docs/design/domain/findings.md`, 7).
 - **Filed by the campaign's runner** is later (section 11). It needs a source, a matching rule and a closing rule of its own. Ordinary red findings aren't matched by signature (`findings.md`, 4 there). A landing tier's red finding would be cleared by the next round, which draws other cases (`temper/docs/design/domain/red-findings.md`, 6).
 
@@ -200,7 +200,7 @@ Until the user says where, a campaign runs by hand after landing.
   - as a scenario, where it shows behaviour worth naming;
   - among its sweep's seeds at the gate only where the gate's configuration reproduces it;
   - else as a scenario running its case in the configuration it failed under.
-- **A generated agent's case is pinned as its printed script,** a fixed scenario. Once a generator's menu or weights change, its seed draws another case (notes, 6).
+- **A generated agent's case is pinned as its capture,** a fixed scenario: each answer keyed by its conversation, its turn and its request's attempt, with its finish and its tokens (the misbehaving agents draft). Its faults and timing still replay from the case's seed. Once a generator's menu or weights change, its seed draws other answers (notes, 6).
 - **A finding that can't be fixed yet** is an ignored test replaying it, its reason naming the work that fixes it (the strategy's section 8). Where its sweep must go on meanwhile, it takes the narrowest exclusion its world reads (`temper/docs/design/testing/workloads.md`, 8.3).
 
 ## 8. An escape widens its world
@@ -229,7 +229,7 @@ Until the user says where, a campaign runs by hand after landing.
   - jig's core workload sweeps, whose checks already return their findings;
   - temper's forge world's sweeps, around landings and their queue (the strongest record of findings, notes, 2);
   - temper's composed workload, once its draws are total (4.4), and then its catalogue, kind by kind (section 6);
-  - smith's session world, once the misbehaving agents draft's menu bodies have landed;
+  - smith's session world, once the misbehaving agents draft's menu bodies and its answers drawn per request have landed, since the second re-picks that world's seeds;
   - hearth's and skein's machine worlds.
 - **Hearth's render properties keep `each_seed`,** since their helper serves focused tests, which keep fixed seeds.
 
@@ -250,6 +250,7 @@ Until the user says where, a campaign runs by hand after landing.
 ## 11. Not in this draft
 
 - **What a seed can draw:** generated agents, the table of wakes against parks, conservation checks at a domain's transitions. These are the misbehaving agents draft's.
+- **A generated producer for landings and goals,** drawn from a grammar of its own: temper's workload kit already draws goals, trains and parties' acts from the seed (`temper/docs/design/testing/workloads.md`, 3), and neither this draft nor the misbehaving agents draft schedules more yet.
 - **Filing a campaign's findings into temper** by its runner, with a source, a matching rule and a closing rule of their own (7.4).
 - **Coverage-guided fuzzing of decoders** with `cargo fuzz` (the strategy's section 6), which no target does yet. A campaign's runner could host its runs later.
 - **Conversion across two releases under a crash** (`layouts-both-ways.md`), a sweep of its own.
