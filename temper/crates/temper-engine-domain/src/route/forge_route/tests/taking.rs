@@ -100,12 +100,7 @@ fn taking_accounts_reach_the_task_under_the_existing_stalled_and_effect_failed_h
         row.change.state =
             change::State::Held { was: Box::new(change::State::Taking { requested: false }), why: cause };
         row.effect_account = Some(forge::EffectAccount { entry: 0, words: words.as_slice().into() });
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut skein_lib::Queue::uncapped(),
-        );
+        super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         let decision = route::hold_change_decision(&domain, &env, task, cause, None, None);
         let route::StepEnd::HoldFrom { why, source } = decision.end else { panic!("taking hold has an account") };
         assert_eq!(why, expected);

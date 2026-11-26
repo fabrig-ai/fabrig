@@ -23,12 +23,7 @@ fn a_release_room_ask_takes_a_fresh_number_unless_cleanup_is_held() {
         };
         let mut fresh = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
         ::core::mem::swap(&mut domain.engine.core_mut().tasks, &mut fresh.engine.core_mut().tasks);
-        tasks::step(
-            &mut domain.engine.core_mut().tasks,
-            &env.with(env.limits.tasks),
-            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
-            &mut Queue::uncapped(),
-        );
+        super::task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) });
         let mut out = Queue::uncapped();
         forge::step(
             &mut domain.forge,
@@ -93,12 +88,7 @@ fn kept(count: u32) -> (crate::Domain, Env<crate::Limits>, Box<jig_domain_tasks:
     domain.forge.restore_begin(env.wall);
     let mut repository = super::adopted(1);
     repository.project = context.project;
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Repository(repository.clone()) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge(&mut domain, &env, forge::Stored::Repository(repository.clone()));
     // Reverse insertion makes the oldest choice independent of insertion order.
     for number in (FIRST..FIRST + u64::from(count)).rev() {
         keep(&mut domain, &env, number, change::State::Ended, 999);
@@ -114,12 +104,7 @@ fn keep(domain: &mut crate::Domain, env: &Env<crate::Limits>, number: u64, state
     row.change.state = state;
     row.ending = Some(forge::Ending::Cancelled);
     row.goal = Some(goal);
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge(domain, env, forge::Stored::Change(Box::new(row)));
 }
 
 fn verifying_table(settled: bool) -> (crate::Domain, Env<crate::Limits>, Box<jig_domain_tasks::RunContext>) {
@@ -144,12 +129,7 @@ fn run_start(domain: &mut crate::Domain, env: &Env<crate::Limits>, context: &jig
 }
 
 fn unname(domain: &mut crate::Domain, env: &Env<crate::Limits>, task: u64) -> Box<[Write]> {
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Names { task, resources: super::change_names(None) } },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge(domain, env, forge::Stored::Names { task, resources: super::change_names(None) });
     let connector = domain.config.forge_connector;
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::super::effect_ask(
@@ -216,32 +196,24 @@ fn unname_keeps_live_or_releasing_changes_and_only_names_an_absent_change() {
             if !ended {
                 row.ending = None;
             }
-            forge::step(
-                &mut domain.forge,
-                &env.with(env.limits.forge),
-                forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-                &mut Queue::uncapped(),
-            );
+            super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         }
         if releasing {
-            forge::step(
-                &mut domain.forge,
-                &env.with(env.limits.forge),
-                forge::Event::Restore {
-                    record: forge::Stored::Release(forge::ReleaseRow {
-                        room: None,
-                        task: 7,
-                        root: 7,
-                        ending: forge::ReleaseEnding::Done,
-                        close_pull: None,
-                        comment: None,
-                        pending: None,
-                        failed: false,
-                        effects_settled: false,
-                        releasing: false,
-                    }),
-                },
-                &mut Queue::uncapped(),
+            super::restore_forge(
+                &mut domain,
+                &env,
+                forge::Stored::Release(forge::ReleaseRow {
+                    room: None,
+                    task: 7,
+                    root: 7,
+                    ending: forge::ReleaseEnding::Done,
+                    close_pull: None,
+                    comment: None,
+                    pending: None,
+                    failed: false,
+                    effects_settled: false,
+                    releasing: false,
+                }),
             );
         }
         let row = domain.forge.change(7).cloned();
@@ -280,31 +252,16 @@ fn pin_goal(
     let mut fresh = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
     ::core::mem::swap(&mut domain.engine.core_mut().tasks, &mut fresh.engine.core_mut().tasks);
     goal.tracked = Some(1);
-    tasks::step(
-        &mut domain.engine.core_mut().tasks,
-        &env.with(env.limits.tasks),
-        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal.clone())) },
-        &mut Queue::uncapped(),
-    );
+    super::task_event(domain, env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal.clone())) });
     let mut row = domain.forge.change(number).unwrap().clone();
     row.goal = if explicit { Some(context.task) } else { None };
     if !explicit {
         goal.number = number;
         goal.tracked = None;
         goal.requester = tasks::Party::Task(context.task);
-        tasks::step(
-            &mut domain.engine.core_mut().tasks,
-            &env.with(env.limits.tasks),
-            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) },
-            &mut Queue::uncapped(),
-        );
+        super::task_event(domain, env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) });
     }
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge(domain, env, forge::Stored::Change(Box::new(row)));
 }
 
 #[test]
@@ -393,12 +350,7 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
     for number in domain.forge.change_tasks() {
         let mut row = domain.forge.change(number).unwrap().clone();
         row.goal = Some(context.task);
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     }
     run_start(&mut domain, &env, &context);
     assert!(domain.forge.change(context.task).is_none());
@@ -410,21 +362,15 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
     assert!(skein_lib::bytes::find(words, b"forge.changes is 128, and this needs 129: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.").is_some(), "{words:?}");
     let mut row = domain.forge.change(FIRST).unwrap().clone();
     row.goal = Some(999);
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
-    tasks::step(
-        &mut domain.engine.core_mut().tasks,
-        &env.with(env.limits.tasks),
+    super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    super::task_event(
+        &mut domain,
+        &env,
         tasks::Event::Release {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(999)),
             by: tasks::Party::Person(1),
             operation: tasks::Release { task: context.task, again: None, message: None },
         },
-        &mut Queue::uncapped(),
     );
     assert_eq!(domain.engine.core().tasks.task(context.task).unwrap().due_reason, tasks::Why::Released);
     run_start(&mut domain, &env, &context);
