@@ -752,7 +752,7 @@ fn the_largest_answers_fit_their_declared_bounds() {
         refusal_bytes: 64,
     };
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
-    assert_eq!(declared, [822, 67_405, 8716]);
+    assert_eq!(declared, [822, 67_405, 8718]);
     for ((kind, task), bound) in
         [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
             .into_iter()

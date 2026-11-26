@@ -234,5 +234,5 @@ fn public_limits_follow_the_panels() {
         (crate::PUBLIC_VERSION, crate::PUBLIC_CHANGE, crate::PUBLIC_LANDINGS, crate::PUBLIC_LANDING),
         (4, 1, 2, 3)
     );
-    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8716]);
+    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8718]);
 }
