@@ -110,13 +110,35 @@ fn named(
     branch: &[u8],
     create: bool,
 ) -> Option<forge::Name> {
-    let claim = domain.push_claims.get(&task)?;
-    if claim.attempt == attempt {
-        for destination in &claim.destinations {
-            if destination.tag == tag && destination.branch.as_ref() == branch && (!destination.create_only || create) {
-                let Repository { forge, repository } = destination.repository;
-                return Some(forge::Name { forge, repository, what: branch_what(branch, limits.forge.name_bytes)? });
+    if let Some(claim) = domain.push_claims.get(&task) {
+        if claim.attempt == attempt {
+            for destination in &claim.destinations {
+                if destination.tag == tag
+                    && destination.branch.as_ref() == branch
+                    && (!destination.create_only || create)
+                {
+                    let Repository { forge, repository } = destination.repository;
+                    return Some(forge::Name {
+                        forge,
+                        repository,
+                        what: branch_what(branch, limits.forge.name_bytes)?,
+                    });
+                }
             }
+        }
+        return None;
+    }
+    // A reattached attempt is not assigned again. Its durable connector hold
+    // is evidence for this exact destination, not for any other branch in the repository.
+    let (forge, repository) = forge::untag(tag)?;
+    let name = forge::Name { forge, repository, what: branch_what(branch, limits.forge.name_bytes)? };
+    let hold = domain.forge.hold(&name)?;
+    if hold.writer == Some(forge::Writer::Run { task, attempt }) {
+        return Some(name);
+    }
+    for writer in &hold.design_writers {
+        if writer.task == task && writer.attempt == attempt && !writer.rereading {
+            return Some(name);
         }
     }
     None

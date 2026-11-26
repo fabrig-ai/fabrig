@@ -114,8 +114,9 @@ fn main_producer(world: &mut World, goal: &engine::Assignment, call: u64, file: 
     };
     let producer = reviews::next_assignment(world, assigned);
     let branch = producer.workspace.repositories[0].push.clone().expect("producer branch");
-    world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, b"added", 1).expect("producer pushes");
+    let base = world.fake.branch(b"org/repo", b"main").expect("main");
+    let commit = world.worker_commit(base, file, b"added");
+    world.run_push(&producer, &branch, commit, 1);
     (made[0].task, producer)
 }
 

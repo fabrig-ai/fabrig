@@ -2256,7 +2256,11 @@ impl World {
     ) {
         let repository = skein_lib::bytes::concat(&[&item.owner, b"/", &item.name]);
         let expected = self.fake.branch(&repository, branch);
-        assert_eq!(self.ask_push(attempt, item.tag, branch, expected, commit), Some(worker_wire::Answer::Admitted));
+        assert_eq!(
+            self.ask_push(attempt, item.tag, branch, expected, commit),
+            Some(worker_wire::Answer::Admitted),
+            "push to {branch:?} for {attempt:?}"
+        );
         let op = if expected.is_some() {
             raw::Git::Push { branch: branch.into(), commit, expected }
         } else {
@@ -2616,7 +2620,7 @@ impl World {
         self.adopted.clear();
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
-        if self.oracle_peer.is_some() || !self.assigned.is_empty() {
+        if self.oracle_peer.is_some() || !self.assigned.is_empty() || !self.jobs.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
             let mut hello = protocol::hello_with(
@@ -2626,10 +2630,10 @@ impl World {
                 bounds,
                 self.assigned
                     .iter()
-                    .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
-                    .map(|assignment| {
-                        protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)
-                    })
+                    .map(|run| (run.task, run.attempt))
+                    .chain(self.jobs.iter().map(|job| (job.run.raw(), job.attempt.raw())))
+                    .filter(|&(task, attempt)| self.hosted_attempt(task, attempt))
+                    .map(|(task, attempt)| protocol::hosting(task, attempt, jig_domain_link::Phase::Active))
                     .collect(),
             );
             if let Some(worker) = &self.workload_worker
@@ -2644,6 +2648,14 @@ impl World {
             }
             self.events.push_back(hello);
         }
+    }
+
+    fn hosted_attempt(&self, task: u64, attempt: u64) -> bool {
+        matches!(
+            self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))),
+            Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))))
+                if row.phase == tasks::Phase::Active(tasks::Active::Running { attempt })
+        )
     }
 
     /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
@@ -3541,7 +3553,9 @@ impl World {
         }
         self.tick_with_reply_cut(None, true);
         self.check_ends()?;
-        if self.auto_prepare {
+        // A surviving job can use its link again only after the new engine
+        // has adopted the worker's hello, not merely opened its store.
+        if self.auto_prepare && self.root.ready() && self.root.core().fleet.channel_worker(Token::new(7)).is_some() {
             self.complete_prepare();
         }
         Ok(())

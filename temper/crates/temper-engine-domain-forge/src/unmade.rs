@@ -32,7 +32,17 @@ impl Domain {
             if let Some(top) = unknown_merge(row) {
                 self.landing.unmade.insert(task, Readback { top, stage: Stage::Fresh }).expect("one readback per row");
             } else {
-                end_unmade(self, env, task, None, false, out);
+                // Link commits the repaired rows, but cannot step jig's
+                // tasks before jig has linked its own census projections.
+                let mut ending = Queue::uncapped();
+                end_unmade(self, env, task, None, false, &mut ending);
+                while let Some(request) = ending.pop() {
+                    if let Request::WakeProcedure { task } = request {
+                        self.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                    } else {
+                        out.push(request);
+                    }
+                }
             }
         }
         let mut abandoned = List::with_capacity(self.holds.len());
@@ -81,6 +91,13 @@ impl Readback {
             Stage::Due { at, .. } => Some(at),
             Stage::Fresh | Stage::Reading { .. } => None,
         }
+    }
+}
+
+pub(crate) fn waiting_member(d: &Domain, change: u64) -> bool {
+    match d.landing_of(change) {
+        Some(task) => d.landing.unmade.contains_key(&task),
+        None => false,
     }
 }
 

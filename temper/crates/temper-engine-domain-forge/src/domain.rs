@@ -5028,6 +5028,21 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     if row.frozen() {
         return;
     }
+    // A taskless turn owns the train read until it can hand its members
+    // their prefixes or return them to the queue. Do not start a separate
+    // gather (and charge its stall) against that same unsettled train tip.
+    if !heard.cancelled && crate::unmade::waiting_member(d, task) {
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision: change::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            },
+        );
+        return;
+    }
     let owner = step_owner(d, task);
     let close_unrequested = close_unrequested(row);
     if close_unrequested && heard.closer_waiting && !heard.cancelled {

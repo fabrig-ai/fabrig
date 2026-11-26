@@ -98,18 +98,9 @@ pub(super) fn pushed_change(world: &mut World, owner: &engine::Assignment, call:
     let (change, producer) = make_change(world, owner, call, b"org/repo");
     let branch = producer.workspace.repositories[0].push.as_ref().expect("producer branch").clone();
     let base = world.fake.branch(b"org/repo", b"main").expect("main");
-    world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
     // Distinct paths stack without conflicts and keep successive landings' keys different.
-    fake::advance(
-        &mut world.fake,
-        &world.fake_env,
-        b"org/repo",
-        &branch,
-        format!("fix-{call}").as_bytes(),
-        b"fixed",
-        1,
-    )
-    .expect("distinct change");
+    let commit = world.worker_commit(base, format!("fix-{call}").as_bytes(), b"fixed");
+    world.run_push(&producer, &branch, commit, 1);
     (change, producer)
 }
 
@@ -1153,6 +1144,7 @@ fn an_engine_restarts_in_each_turn_landing_phase() {
         if matches!(cut, Cut::Preparing) {
             let job = (world.jobs[0].run, world.jobs[0].attempt);
             restart(&mut world);
+            world.until(Until::Ready);
             assert_eq!(world.jobs.len(), 1);
             assert_eq!((world.jobs[0].run, world.jobs[0].attempt), job);
             answer_prepare(&mut world);
