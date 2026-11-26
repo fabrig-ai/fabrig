@@ -78,82 +78,7 @@ impl Domain {
         let row = &kept.landing;
         let mut members = List::with_capacity(self.landing.limits.landing_members);
         for (member_index, member) in row.members.iter().enumerate() {
-            let change = self.changes.get(&member.change)?;
-            let repo = self.repositories.get(&change.repository)?;
-            let mut gates = List::with_capacity(self.landing.limits.gates);
-            for (index, saved) in member.gates.iter().enumerate() {
-                let gate = self.landing.gates(row.project, change.repository).get(index)?;
-                let key = proof_key(saved.proof);
-                let mut proof = match saved.proof {
-                    policy::Proof::Unkeyed => GateProof::Unkeyed,
-                    policy::Proof::Keyed { .. } | policy::Proof::Passed { .. } | policy::Proof::Failed { .. } => {
-                        GateProof::Keyed
-                    }
-                    policy::Proof::Dispatched { try_, .. } => GateProof::Dispatched { attempt: try_, run: None },
-                };
-                if let Some(key) = key {
-                    let key = ReceiptKey {
-                        project: row.project,
-                        repository: change.repository,
-                        check: Check::Gate(gate.name.clone()),
-                        key,
-                    };
-                    if let Some(receipt) = self.landing.receipts.get(&key) {
-                        proof = if receipt.passed {
-                            GateProof::Passed(receipt.run.clone())
-                        } else {
-                            GateProof::Failed(receipt.run.clone())
-                        };
-                    } else {
-                        let flight = match self.landing.flights.get(&key) {
-                            Some(flight) => Some(flight),
-                            None => self.landing.faults.get(&(
-                                task,
-                                u16::try_from(member_index).ok()?,
-                                u16::try_from(index).ok()?,
-                            )),
-                        };
-                        if let Some(flight) = flight {
-                            if flight.task != task {
-                                proof = GateProof::Waiting;
-                            } else if let GateProof::Dispatched { attempt, .. } = proof {
-                                let run = match &flight.run {
-                                    Some(run) => Some(run.id),
-                                    None => None,
-                                };
-                                proof = GateProof::Dispatched { attempt, run };
-                            }
-                        }
-                    }
-                }
-                gates
-                    .push(LandingGate {
-                        name: gate.name.clone(),
-                        blocking: gate.blocking,
-                        key,
-                        proof,
-                        faults: saved.faults,
-                    })
-                    .expect("admitted gates");
-            }
-            members
-                .push(LandingMember {
-                    change: member.change,
-                    forge: change.repository.forge,
-                    owner: repo.owner.clone(),
-                    name: repo.name.clone(),
-                    branch: change.branch.clone(),
-                    landing: row.branch.clone(),
-                    pull: Some(member.pull),
-                    base: member.base,
-                    candidate: member.candidate,
-                    landed: member.landed,
-                    gates: gates.into_boxed(),
-                    head: member.head,
-                    left: member.left,
-                    judgement: self.prefix_judgement(row, member),
-                })
-                .expect("admitted members");
+            members.push(self.landing_member_view(task, row, member_index, member)?).expect("admitted members");
         }
         Some(LandingView {
             read_hold: if let policy::Phase::Held { why: policy::Hold::Cleanup | policy::Hold::Stuck(_), .. } =
@@ -175,6 +100,88 @@ impl Domain {
             round: round_view(self, row)?,
             step: landing_step(self, row),
             probe: landing_probe(self, row),
+        })
+    }
+    fn landing_member_view(
+        &self,
+        task: u64,
+        row: &policy::Landing,
+        member_index: usize,
+        member: &policy::Member,
+    ) -> Option<LandingMember> {
+        let change = self.changes.get(&member.change)?;
+        let repo = self.repositories.get(&change.repository)?;
+        let mut gates = List::with_capacity(self.landing.limits.gates);
+        for (index, saved) in member.gates.iter().enumerate() {
+            let gate = self.landing.gates(row.project, change.repository).get(index)?;
+            let key = proof_key(saved.proof);
+            let mut proof = match saved.proof {
+                policy::Proof::Unkeyed => GateProof::Unkeyed,
+                policy::Proof::Keyed { .. } | policy::Proof::Passed { .. } | policy::Proof::Failed { .. } => {
+                    GateProof::Keyed
+                }
+                policy::Proof::Dispatched { try_, .. } => GateProof::Dispatched { attempt: try_, run: None },
+            };
+            if let Some(key) = key {
+                let key = ReceiptKey {
+                    project: row.project,
+                    repository: change.repository,
+                    check: Check::Gate(gate.name.clone()),
+                    key,
+                };
+                if let Some(receipt) = self.landing.receipts.get(&key) {
+                    proof = if receipt.passed {
+                        GateProof::Passed(receipt.run.clone())
+                    } else {
+                        GateProof::Failed(receipt.run.clone())
+                    };
+                } else {
+                    let flight = match self.landing.flights.get(&key) {
+                        Some(flight) => Some(flight),
+                        None => self.landing.faults.get(&(
+                            task,
+                            u16::try_from(member_index).ok()?,
+                            u16::try_from(index).ok()?,
+                        )),
+                    };
+                    if let Some(flight) = flight {
+                        if flight.task != task {
+                            proof = GateProof::Waiting;
+                        } else if let GateProof::Dispatched { attempt, .. } = proof {
+                            let run = match &flight.run {
+                                Some(run) => Some(run.id),
+                                None => None,
+                            };
+                            proof = GateProof::Dispatched { attempt, run };
+                        }
+                    }
+                }
+            }
+            gates
+                .push(LandingGate {
+                    name: gate.name.clone(),
+                    blocking: gate.blocking,
+                    key,
+                    proof,
+                    faults: saved.faults,
+                })
+                .expect("admitted gates");
+        }
+        Some(LandingMember {
+            change: member.change,
+            forge: change.repository.forge,
+            owner: repo.owner.clone(),
+            name: repo.name.clone(),
+            branch: change.branch.clone(),
+            landing: row.branch.clone(),
+            pull: Some(member.pull),
+            base: member.base,
+            candidate: member.candidate,
+            landed: member.landed,
+            gates: gates.into_boxed(),
+            head: member.head,
+            left: member.left,
+            judgement: self.prefix_judgement(row, member),
         })
     }
     fn landing_wait(&self, task: u64) -> Option<LandingWait> {

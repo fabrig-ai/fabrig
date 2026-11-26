@@ -153,6 +153,8 @@ struct ReadScript {
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
+/// Its landing checks account for the first fresh step and the root's closing
+/// (temper/docs/design/domain/landing-liveness.md, 6.1 and 3.2).
 #[expect(clippy::struct_excessive_bools, reason = "independent world faults include held history loads")]
 pub struct World {
     pub(crate) top: top::Domain,
@@ -188,6 +190,8 @@ pub struct World {
     owed: BTreeSet<u64>,
     // A wake owes a step; a scripted answer to a Wait or Prepare decision does not.
     landing_steps: BTreeSet<u64>,
+    // An End verdict owes a cancellation, not another step.
+    landing_cancels: BTreeSet<u64>,
     engine_seed: u64,
     ledger: FaultLedger,
     blame: Option<blame::Blame>,
@@ -923,6 +927,7 @@ impl World {
             finding: None,
             owed: BTreeSet::new(),
             landing_steps: BTreeSet::new(),
+            landing_cancels: BTreeSet::new(),
             engine_seed,
             ledger: FaultLedger::new(),
             blame: None,
@@ -1261,6 +1266,10 @@ impl World {
             top::Event::StepChange { task, .. } | top::Event::StepLanding { task, .. } => {
                 self.owed.remove(task);
                 self.landing_steps.remove(task);
+                self.landing_cancels.remove(task);
+            }
+            top::Event::SettleEffects { task, .. } => {
+                self.landing_cancels.remove(task);
             }
             top::Event::Change { row } => {
                 self.owed.insert(row.task);
@@ -1545,6 +1554,7 @@ impl World {
     pub fn restart(&mut self) {
         self.generation += 1;
         self.owed.extend(self.stored.iter().filter_map(|(_, record)| Self::restored_task(record)));
+        self.landing_cancels.clear();
         self.landing_steps = self
             .stored
             .iter()
@@ -1842,7 +1852,10 @@ impl World {
     #[must_use]
     pub fn inspection(&self) -> skein_world::inspect::Inspection {
         let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
-        temper_engine_inspect::forge_with_due(&self.top, &mut inspection, |task| self.landing_steps.contains(&task));
+        // A landing that decides End stays live until the root returns its closing.
+        temper_engine_inspect::forge_with_due(&self.top, &mut inspection, |task| {
+            self.landing_steps.contains(&task) || self.landing_cancels.contains(&task)
+        });
         inspection
     }
 
@@ -2164,6 +2177,9 @@ impl World {
                 }
                 other @ top::Request::LandingDecision { task, decision, entry, .. } => {
                     use temper_engine_domain_forge_landing::Decision;
+                    if matches!(decision, Decision::End(_)) {
+                        self.landing_cancels.insert(task);
+                    }
                     if entry.is_none()
                         && !matches!(
                             decision,

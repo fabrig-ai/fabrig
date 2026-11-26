@@ -38,39 +38,8 @@ fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     );
 }
 
-// Each effect takes 1–3 steps, separately from its result becoming readable.
-// The settling bound is 32 + 20 per member + 24 per drawn disturbance:
-// member steps, round cleanup, and another proof after each disturbance.
 fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool, u8) {
-    let mut rng = Rng::new(seed);
-    let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
-    let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
-    let mut landing = stack(count);
-    let mut world = Top::new(rng, count, units, Rng::new(seed), Rng::new(seed ^ 0xa61));
-    let mut disturbances = world.disturbances();
-    for (index, member) in landing.members.iter_mut().enumerate() {
-        member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
-        let fresh = &mut world.facts.members[index];
-        fresh.judgement = Status::Pending;
-        if index > 0 && world.rng.below(4) == 0 {
-            fresh.dependencies = Box::new([u16::try_from(index.checked_sub(1).unwrap()).unwrap()]);
-        }
-        if world.rng.below(4) == 0 {
-            fresh.ready = false;
-            world.later(0, 0, u16::try_from(index).unwrap(), Effect::Ready);
-            disturbances = disturbances.checked_add(1).unwrap();
-        }
-        disturbances = disturbances.checked_add(usize::from(world.conflicts[index].is_some())).unwrap();
-        disturbances = disturbances.checked_add(usize::from(world.noise[index].is_some())).unwrap();
-    }
-    let bound = u32::try_from(
-        32_usize
-            .checked_add(20_usize.checked_mul(count).unwrap())
-            .unwrap()
-            .checked_add(24_usize.checked_mul(disturbances).unwrap())
-            .unwrap(),
-    )
-    .unwrap();
+    let (mut landing, mut world, bound) = seeded_stack(seed);
     let mut trace = List::with_capacity(bound);
     let mut told = [false; 6];
     let mut probes = 0_u32;
@@ -146,6 +115,42 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool, u8) {
         landing = next.landing;
     }
     panic!("did not settle seed {seed} in {bound} steps: {trace:?}, {:?}", world.pending);
+}
+
+// Each effect takes 1–3 steps, separately from its result becoming readable.
+// The settling bound is 32 + 20 per member + 24 per drawn disturbance:
+// member steps, round cleanup, and another proof after each disturbance.
+fn seeded_stack(seed: u64) -> (Landing, Top, u32) {
+    let mut rng = Rng::new(seed);
+    let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
+    let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
+    let mut landing = stack(count);
+    let mut world = Top::new(rng, count, units, Rng::new(seed), Rng::new(seed ^ 0xa61));
+    let mut disturbances = world.disturbances();
+    for (index, member) in landing.members.iter_mut().enumerate() {
+        member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
+        let fresh = &mut world.facts.members[index];
+        fresh.judgement = Status::Pending;
+        if index > 0 && world.rng.below(4) == 0 {
+            fresh.dependencies = Box::new([u16::try_from(index.checked_sub(1).unwrap()).unwrap()]);
+        }
+        if world.rng.below(4) == 0 {
+            fresh.ready = false;
+            world.later(0, 0, u16::try_from(index).unwrap(), Effect::Ready);
+            disturbances = disturbances.checked_add(1).unwrap();
+        }
+        disturbances = disturbances.checked_add(usize::from(world.conflicts[index].is_some())).unwrap();
+        disturbances = disturbances.checked_add(usize::from(world.noise[index].is_some())).unwrap();
+    }
+    let bound = u32::try_from(
+        32_usize
+            .checked_add(20_usize.checked_mul(count).unwrap())
+            .unwrap()
+            .checked_add(24_usize.checked_mul(disturbances).unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    (landing, world, bound)
 }
 
 // The same prepare, its suffix included, is asked again only after a wait with a
