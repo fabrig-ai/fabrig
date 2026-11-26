@@ -193,6 +193,7 @@ fn chromium_keeps_home_but_not_the_session_tmpdir() {
         &[("HOME".into(), "/scratch/session/home".into()), ("TMPDIR".into(), "/scratch/session/tmp".into())],
         Fd::new(0),
         false,
+        false,
     );
 
     assert!(spawn.env.iter().all(|entry| !entry.starts_with(b"TMPDIR=")), "Chromium uses the host's temp directory");

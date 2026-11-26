@@ -93,7 +93,8 @@ pub fn chromium() -> PathBuf {
 
 fn spawn(chromium: &Path, profile: &Path) -> (Spawn, kernel::Fd) {
     let root = open_root(Path::new("/")).expect("open the child working directory root");
-    let command = browser::command::command(chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes(), false);
+    let command =
+        browser::command::command(chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes(), false, false);
     let mut env = Vec::new();
     for variable in &command.env {
         let mut entry = variable.name.to_vec();
