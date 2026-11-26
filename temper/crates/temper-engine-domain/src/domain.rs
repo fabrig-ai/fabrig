@@ -848,8 +848,8 @@ impl Domain {
     #[must_use]
     pub fn quiescent(&self) -> bool {
         self.ready()
-            && engine::idle(&self.engine)
             && self.journal.idle()
+            && engine::idle(&self.engine)
             && self.loads.quiescent()
             && self.work.is_empty()
             && self.openings.is_empty()

@@ -1559,18 +1559,19 @@ pub(crate) fn step_core(
     event: jig_domain_core::Event,
 ) -> Queue<jig_domain_core::Request> {
     let mut makings = List::with_capacity(env.limits.forge.holds);
-    for view in domain.engine.core().tasks.view_tasks() {
-        if making_held(domain, env, view.number)
-            || (domain.forge.making_waits(view.number) && making_unavailable(domain, view.number))
-        {
-            makings.push(view.number).expect("goal makings bounded by holds");
+    for task in &domain.forge.making_retry_candidates() {
+        let Some(row) = domain.engine.core().tasks.task(*task) else { continue };
+        if making_held(domain, env, row) || (domain.forge.making_waits(*task) && making_unavailable(row)) {
+            makings.push(*task).expect("goal makings bounded by holds");
         }
     }
     let requests = crate::engine::step(&mut domain.engine, env, event);
     // Released or lifted, a passed-over making is asked again in its place
     // (temper/docs/design/domain/forge/room.md, 3).
     for task in makings.into_boxed() {
-        if !making_unavailable(domain, task) {
+        if let Some(row) = domain.engine.core().tasks.task(task)
+            && !making_unavailable(row)
+        {
             domain.work.push(Work::Forge(forge::Event::RetryGoalBranch { task }));
         }
     }
@@ -1603,16 +1604,15 @@ pub(super) fn dependency_releases_change(domain: &mut Domain, env: &Env<Limits>,
     }
 }
 
-fn making_unavailable(domain: &Domain, task: u64) -> bool {
-    let Some(row) = domain.engine.core().tasks.task(task) else { return true };
+fn making_unavailable(row: &tasks::TaskRecord) -> bool {
     match row.phase {
         tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
         tasks::Phase::Waiting | tasks::Phase::Active(_) => row.placed.is_some(),
     }
 }
 
-fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
-    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
+fn making_held(domain: &Domain, env: &Env<Limits>, row: &tasks::TaskRecord) -> bool {
+    let task = row.number;
     let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } = &row.phase else {
         return false;
     };
@@ -1621,8 +1621,7 @@ fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
         return false;
     }
     let Some(home) = domain.forge.home(row.project) else { return false };
-    let Some(root) = domain.engine.core().tasks.root(task) else { return false };
-    let Some(branch) = tree_branch(home, root, b'g', task, None, env.limits.forge.name_bytes) else { return false };
+    let Some(branch) = tree_branch(home, row.root, b'g', task, None, env.limits.forge.name_bytes) else { return false };
     let Some(what) = branch_what(&branch, env.limits.forge.name_bytes) else { return false };
     let name = forge::Name { forge: home.provider.forge, repository: home.provider.repository, what };
     let Some(hold) = domain.forge.hold(&name) else { return false };
