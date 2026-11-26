@@ -15,7 +15,9 @@ pub(super) struct Failed {
 }
 impl Failed {
     pub(super) fn new(checks: Box<[api::Status]>) -> Self {
-        Self { runs: Map::with_capacity(u32::try_from(checks.len()).expect("bounded checks")), checks }
+        // At most one run per check, plus the change's pinned recheck.
+        let capacity = u32::try_from(checks.len()).expect("bounded checks").saturating_add(1);
+        Self { runs: Map::with_capacity(capacity), checks }
     }
 
     pub(super) fn next(&mut self, head: Commit) -> Option<Read> {
@@ -30,6 +32,60 @@ impl Failed {
             }
         }
         None
+    }
+
+    pub(super) fn next_recheck(&mut self, job: JobAttempt) -> Option<Read> {
+        if self.runs.contains_key(&job.run) {
+            return None;
+        }
+        self.runs.insert(job.run, None).expect("one recheck run");
+        Some(Read::Run { run: job.run })
+    }
+
+    pub(super) fn measurement(&self, recheck: crate::CiRecheck) -> Option<u32> {
+        let expected = recheck.job;
+        let run = self.runs.get(&expected.run)?.as_ref()?;
+        if run.commit != expected.head || run.id != expected.run {
+            return None;
+        }
+        for job in &run.jobs {
+            if job.id == expected.job
+                && job.attempt > expected.attempt
+                && job.attempt >= recheck.taken.unwrap_or(0)
+                && job.state == api::RunState::Completed
+            {
+                // A check that still links the old attempt is not a verdict of this run.
+                for check in &self.checks {
+                    if let Some(link) = check.job
+                        && link.head == expected.head
+                        && link.run == expected.run
+                        && link.job == expected.job
+                        && link.attempt != job.attempt
+                    {
+                        return None;
+                    }
+                }
+                return Some(job.attempt);
+            }
+        }
+        None
+    }
+
+    pub(super) fn red_stands(&self, head: Commit, repair: u64, measured: bool) -> Box<[u8]> {
+        if !measured {
+            return crate::recheck::stands_unchecked(
+                head,
+                repair,
+                b"no failed check names a job the forge can run again",
+            );
+        }
+        let mut keys = List::with_capacity(u32::try_from(self.checks.len()).expect("bounded checks"));
+        for check in &self.checks {
+            if check.check == Check::Failed {
+                keys.push(check.context.clone()).expect("at most one context per check");
+            }
+        }
+        crate::recheck::stands_again(head, repair, keys.as_slice())
     }
 
     pub(super) fn read(&mut self, id: u64, answer: Result<api::Answer, api::Error>) {
@@ -141,7 +197,7 @@ impl Failed {
         None
     }
 
-    pub(super) fn account(&self, head: Commit) -> Option<Box<[u8]>> {
+    pub(super) fn account(&self, head: Commit, for_repair: bool) -> Option<Box<[u8]>> {
         let attempt = self.job(head)?;
         let mut context = None;
         for check in &self.checks {
@@ -152,7 +208,7 @@ impl Failed {
         }
         let context = context?;
         let run = self.runs.get(&attempt.run)?.as_ref()?;
-        let reason = runner(run, attempt, head).unwrap_or(b"a repair changed nothing");
+        let reason = if for_repair { b"a repair changed nothing" } else { runner(run, attempt, head)? };
         let job = Decimal::of(attempt.job);
         let commit = crate::commit_text(&head);
         let head = commit.get(..12).expect("commit prefix");

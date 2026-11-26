@@ -3589,7 +3589,7 @@ pub(super) fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
         failures: None,
     };
     d.landing.receipts.insert(key.clone(), receipt).unwrap();
-    d.changes.get_mut(&fixtures::CHANGE).unwrap().regate = Some(Regate { receipt: key.clone(), run: 41 });
+    d.changes.get_mut(&fixtures::CHANGE).unwrap().regate = Some(Regate { receipt: key.clone(), run: 41, taken: None });
     run.id = 57;
     run.number = 58;
     run.created = env().now.saturating_add(Duration::from_secs(1));
@@ -3739,7 +3739,10 @@ fn a_regate_dispatches_at_the_same_candidate_and_replaces_the_failed_receipt_wit
     assert_eq!((receipt.run.id, receipt.candidate), (57, fixtures::HEAD));
     commit_gate_effect(&mut d, 93);
     assert_eq!(step_regate(&mut d, 61, 94, &run), policy::Decision::Proved);
-    assert_eq!(d.changes.get(&fixtures::CHANGE).unwrap().regate, Some(Regate { receipt: key, run: 41 }));
+    assert_eq!(
+        d.changes.get(&fixtures::CHANGE).unwrap().regate,
+        Some(Regate { receipt: key, run: 41, taken: Some(57) })
+    );
 }
 
 fn regate_successor(d: &mut Domain, key: &ReceiptKey, regate: Option<Regate>) {
@@ -3788,7 +3791,7 @@ fn regate_successor(d: &mut Domain, key: &ReceiptKey, regate: Option<Regate>) {
 }
 
 #[test]
-fn a_failed_regate_replaces_the_receipt_repairs_and_is_spent_in_a_later_landing() {
+fn an_owed_regate_dispatches_over_another_landings_receipt() {
     use skein_forge::api::{Conclusion, RunJob, RunState, Step};
     let (mut d, key, mut run) = regate_landing();
     run.conclusion = Some(Conclusion::Failure);
@@ -3808,9 +3811,13 @@ fn a_failed_regate_replaces_the_receipt_repairs_and_is_spent_in_a_later_landing(
     assert_eq!(d.receipt(&key).unwrap().run.id, 57);
     outputs(&mut d, Event::SettleEffects { task: 61, root: 61, ending: ReleaseEnding::Cancelled });
     // A different ready change still names the old receipt, not run 57.
-    regate_successor(&mut d, &key, Some(Regate { receipt: key.clone(), run: 41 }));
-    assert_eq!(step_regate(&mut d, 62, 94, &run), repair);
-    assert!(!d.landing.flights.contains_key(&key));
+    regate_successor(&mut d, &key, Some(Regate { receipt: key.clone(), run: 41, taken: None }));
+    assert_eq!(
+        step_regate(&mut d, 62, 94, &run),
+        policy::Decision::Dispatch { member: 0, gate: 0, key: key.key, try_: 1 }
+    );
+    assert_eq!(d.changes.get(&52).unwrap().regate.as_ref().unwrap().taken, None);
+    assert_eq!(d.receipt(&key).unwrap().run.id, 57);
 }
 
 #[test]
@@ -3847,13 +3854,13 @@ fn a_regate_in_flight_is_rebuilt_from_saved_rows_and_followed_without_another_di
 }
 
 #[test]
-fn only_a_regate_naming_the_failed_receipts_whole_key_and_run_supersedes_it() {
+fn only_an_owed_regate_matching_the_whole_key_supersedes_it() {
     for mismatch in 0..7_u32 {
         let (mut d, key, run) = regate_landing();
         let regate = d.changes.get_mut(&fixtures::CHANGE).unwrap().regate.as_mut().unwrap();
         match mismatch {
             0 => d.changes.get_mut(&fixtures::CHANGE).unwrap().regate = None,
-            1 => regate.run = 42,
+            1 => regate.taken = Some(57),
             2 => regate.receipt.key = [8; 32],
             3 => regate.receipt.project = 6,
             4 => regate.receipt.repository.repository += 1,
@@ -4009,4 +4016,17 @@ fn unknown_merge_outcomes_read_the_open_pull_ask_again_and_land() {
         );
         assert_eq!(d.landing(61).expect("landed member").landing.members[0].landed, Some(fixtures::HEAD));
     }
+}
+
+#[test]
+fn a_regate_runner_fault_retries_without_taking_the_measurement() {
+    let (mut d, key, mut run) = regate_landing();
+    run.conclusion = Some(skein_forge::api::Conclusion::Cancelled);
+    dispatch_regate(&mut d, &key, &run);
+    assert_eq!(
+        step_regate(&mut d, 61, 93, &run),
+        policy::Decision::Retry { member: 0, gate: 0, key: key.key, try_: 2 }
+    );
+    assert_eq!(d.changes.get(&fixtures::CHANGE).unwrap().regate.as_ref().unwrap().taken, None);
+    assert_eq!(d.receipt(&key).unwrap().run.id, 41);
 }

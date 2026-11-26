@@ -249,15 +249,22 @@ fn an_unpinned_landing_repair_keeps_its_existing_account_and_result_words() {
 
 #[test]
 fn a_named_base_does_not_change_no_change_flake_or_cancellation_accounts() {
-    for (no_change, flake, cancelled, expected) in [
-        (true, false, false, b"its repair, task 90, ended without making the required change: unchanged; resolve this failure, then release this change to ask for a fresh repair; or cancel it".as_slice()),
-        (false, true, false, b"its repair, task 90, found only flakes: unchanged; release this change to run its gate once more, or cancel it".as_slice()),
-        (false, false, true, b"its repair, task 90, was cancelled: unchanged".as_slice()),
+    for (no_change, flake, cancelled, pending, failure) in [
+        (true, false, false, true, None),
+        (false, true, false, true, None),
+        (false, false, true, false, Some(b"its repair, task 90, was cancelled: unchanged".as_slice())),
     ] {
         let why = reasons()[0];
         let mut d = failed_round(why);
         delegate(&mut d, change::Delegate::Repair(why));
         terminal(&mut d, false, no_change, flake, cancelled, b"unchanged");
-        assert_eq!(d.change(fixtures::CHANGE).expect("repair account").producer_failure.as_deref(), Some(expected));
+        let row = d.change(fixtures::CHANGE).expect("repair account");
+        let account = match &row.delegate_words {
+            Some(words) => Some(words.bytes.as_ref()),
+            None => None,
+        };
+        assert_eq!(account, pending.then_some(b"unchanged".as_slice()));
+        assert_eq!(row.producer_failure.as_deref(), failure);
+        assert_eq!(row.delegate_flake, flake);
     }
 }

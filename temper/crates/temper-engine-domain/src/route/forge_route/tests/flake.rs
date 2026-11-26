@@ -4,7 +4,7 @@ use super::*;
 use skein_lib::{Env, Queue, bytes::find};
 use temper_engine_domain_forge_landing as landing;
 
-const FLAKE: &[u8] = b"\nFlake: if every failed test below is a flake (an open flake finding names it, or it passes when run again at this head) and nothing needs changing, finish with verdict 1, naming each test and how you saw it pass; a person then releases the change to run its gate once more.";
+const FLAKE: &[u8] = b"\nFlake: if every failed test below is a flake (an open flake finding names it, or it passes when run again at this head) and nothing needs changing, finish with verdict 1, naming each test and how you saw it pass; its gate then runs once more at the same content.";
 
 fn contract_fixture() -> (Domain, Env<Limits>, u64, forge::ReceiptKey) {
     let (mut domain, mut env, context) = change_start_fixture();
@@ -192,7 +192,7 @@ fn an_inbox_repair_verdict_reaches_the_forge_as_a_flake_with_its_words() {
     assert_eq!(words.as_ref(), b"test a::t x passed again");
 }
 
-const NO_TEST: &[u8] = b"\nNo test: if no test failed in the run below and nothing needs changing, finish with verdict 2, saying what its jobs show; a person then releases the change to run its gate once more.";
+const NO_TEST: &[u8] = b"\nNo test: if no test failed in the run below and nothing needs changing, finish with verdict 2, saying what its jobs show; its gate then runs once more at the same content.";
 
 #[test]
 fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice() {

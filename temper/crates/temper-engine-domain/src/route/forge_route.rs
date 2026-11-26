@@ -1938,6 +1938,7 @@ pub(super) fn start_recovered_change(
                 room: None,
                 kept: None,
                 regate: None,
+                ci_recheck: None,
                 source: source.clone(),
                 task_release: None,
                 job: None,
@@ -2003,6 +2004,7 @@ pub(super) fn start_recovered_change(
                 delegate_flake: false,
                 delegate_no_test: false,
                 delegate_head: None,
+                delegate_words: None,
                 verdicts: Box::new([]),
                 goal,
                 milestone,
@@ -3608,6 +3610,7 @@ fn hold_change_decision(
         },
         forge_change::Hold::Stalled => tasks::Hold::Stalled,
         forge_change::Hold::Runner
+        | forge_change::Hold::RedStands
         | forge_change::Hold::Repairs
         | forge_change::Hold::Resolutions
         | forge_change::Hold::Updates

@@ -262,7 +262,10 @@ impl World {
                             _ if cold.base_repair => Some(Names::Base),
                             change::Hold::Runner => Some(Names::Runner),
                             change::Hold::Stalled if checking(&row.change.state) => Some(Names::Runner),
-                            change::Hold::Repairs | change::Hold::Failed | change::Hold::NoTest => Some(Names::Change),
+                            change::Hold::Repairs
+                            | change::Hold::Failed
+                            | change::Hold::NoTest
+                            | change::Hold::RedStands => Some(Names::Change),
                             _ => None,
                         };
                         names.map(|names| Reaction::Hold {

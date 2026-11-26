@@ -583,6 +583,7 @@ record CloseAt = c::CloseAt
 record RunnerHold
 record RunnerBaseline { attempts slice }
 enum RunnerCi = d::RunnerCi
+record CiRecheck = d::CiRecheck
 record ChangeHot by hand
 record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
 record FindingCount stands for number

@@ -462,6 +462,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 }
 // The wire nests the compatibility fields inside Change; the domain
 // keeps them beside its policy state (temper/docs/design/domain/landing-members.md, 5).
+#[expect(clippy::too_many_lines, reason = "one hot row lists each field of the stored form")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let mut signed = List::with_capacity(u32::try_from(value.signed.len()).expect(FITS));
     for sign in &value.signed {
@@ -480,6 +481,10 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         asks.push(map::landing_handed_to_record(ask)).expect(FITS);
     }
     w::ChangeHot {
+        ci_recheck: match value.ci_recheck.as_ref() {
+            Some(value) => Some(map::ci_recheck_to_record(value)),
+            None => None,
+        },
         runner_ci: match &value.runner_ci {
             Some(ci) => Some(map::runner_ci_to_record(ci).expect(FITS)),
             None => None,
@@ -493,6 +498,10 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         delegate_head: value.delegate_head,
         delegate_flake: value.delegate_flake,
         delegate_no_test: value.delegate_no_test,
+        delegate_words: match value.delegate_words.as_ref() {
+            Some(words) => Some(map::result_text_to_record(words)),
+            None => None,
+        },
         regate: match value.regate.as_ref() {
             Some(value) => Some(map::regate_to_record(value)),
             None => None,
@@ -567,6 +576,7 @@ fn numbers(values: &[u64]) -> List<u64> {
     numbers
 }
 
+#[expect(clippy::too_many_lines, reason = "one hot row lists each field of the domain form")]
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let (change, previous) = decode_change(value.change);
     let mut signed = List::with_capacity(value.signed.len());
@@ -586,6 +596,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         asks.push(map::landing_handed_to_domain(ask)).expect(FITS);
     }
     Ok(top::ChangeHot {
+        ci_recheck: match value.ci_recheck {
+            Some(value) => Some(map::ci_recheck_to_domain(value)),
+            None => None,
+        },
         runner_ci: match value.runner_ci {
             Some(ci) => Some(map::runner_ci_to_domain(ci)),
             None => None,
@@ -599,6 +613,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         delegate_head: value.delegate_head,
         delegate_flake: value.delegate_flake,
         delegate_no_test: value.delegate_no_test,
+        delegate_words: match value.delegate_words {
+            Some(words) => Some(map::result_text_to_domain(words)),
+            None => None,
+        },
         regate: match value.regate {
             Some(value) => Some(map::regate_to_domain(value)),
             None => None,

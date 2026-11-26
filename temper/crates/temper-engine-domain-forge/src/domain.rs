@@ -4342,6 +4342,7 @@ fn delegated(
     match kind {
         change::Delegate::Repair(why) => {
             row.regate = None;
+            row.ci_recheck = None;
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
             if let Some(base) = base {
                 row.result.judged(&base, env.limits.client.answer_bytes);
@@ -4375,6 +4376,7 @@ fn delegated(
     row.delegate_status = change::Status::Unknown;
     row.delegate_flake = false;
     row.delegate_no_test = false;
+    row.delegate_words = None;
     let mut saved = row.clone();
     crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
@@ -4428,6 +4430,7 @@ fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, ou
     row.delegate_status = change::Status::Unknown;
     row.delegate_flake = false;
     row.delegate_no_test = false;
+    row.delegate_words = None;
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
     let state = unasked(row, kind);
@@ -4627,20 +4630,8 @@ fn delegate_result(
         row.change.owns_turn = false;
         ended = true;
     }
-    let ci_repair = match kind {
-        change::Delegate::Repair(change::Repair::Ci | change::Repair::Semantic) => true,
-        change::Delegate::Repair(
-            change::Repair::Gate(_)
-            | change::Repair::Review { .. }
-            | change::Repair::Landing { .. }
-            | change::Repair::LandingAt { .. },
-        )
-        | change::Delegate::Produce
-        | change::Delegate::Close
-        | change::Delegate::Gate { .. }
-        | change::Delegate::Resolve { .. }
-        | change::Delegate::Merge { .. } => false,
-    };
+    let empty_repair =
+        if let change::Delegate::Repair(why) = kind { ci_reason(why) || crate::recheck::landing(why) } else { false };
     let agent = match kind {
         change::Delegate::Gate { .. } => false,
         change::Delegate::Produce
@@ -4674,7 +4665,7 @@ fn delegate_result(
         change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => row.delegate = None,
     }
     d.start_conflicts.remove(&task);
-    row.delegate_status = if no_change && !ci_repair { change::Status::Failed } else { status };
+    row.delegate_status = if no_change && !empty_repair { change::Status::Failed } else { status };
     row.delegate_flake = flake
         && match kind {
             change::Delegate::Repair(_) => true,
@@ -4712,6 +4703,11 @@ fn delegate_result(
         }
         change::Delegate::Produce => producer_result(row, no_change, failed, words),
         change::Delegate::Merge { .. } => completed_merge(row, status, words, d.merge_kind),
+        change::Delegate::Repair(_) if empty_repair && status == change::Status::Passed && !failed && !cancelled => {
+            let mut account = crate::ResultText::empty();
+            account.add(words, env.limits.client.answer_bytes);
+            row.delegate_words = Some(account);
+        }
         change::Delegate::Repair(_) => completed_repair(
             row,
             child,
@@ -4722,13 +4718,9 @@ fn delegate_result(
         ),
         change::Delegate::Resolve { .. } => producer_result(row, false, failed, words),
     }
-    if row.delegate_flake {
-        row.producer_failure = Some(flake_delegate_words(child, words));
-    } else if row.delegate_no_test {
-        row.producer_failure = Some(no_test_delegate_words(child, words));
-    } else if cancelled {
+    if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
-    } else if (failed || (no_change && !ci_repair))
+    } else if (failed || (no_change && !empty_repair))
         && let Some(account) = failed_delegate_words(row, kind, child, no_change, words, base)
     {
         row.producer_failure = Some(account);
@@ -4865,24 +4857,6 @@ fn failed_delegate_words(
         account.put(part).expect("measured recovery words");
     }
     Some(account.finish())
-}
-
-/// Empty repair verdicts reserve release instructions within the same account bound as failures.
-fn flake_delegate_words(child: u64, words: &[u8]) -> Box<[u8]> {
-    empty_repair_delegate_words(child, b", found only flakes: ", words)
-}
-
-fn no_test_delegate_words(child: u64, words: &[u8]) -> Box<[u8]> {
-    empty_repair_delegate_words(child, b", found no failed test: ", words)
-}
-
-fn empty_repair_delegate_words(child: u64, found: &[u8], words: &[u8]) -> Box<[u8]> {
-    let prefix =
-        skein_lib::bytes::concat(&[b"its repair, task ", skein_lib::Decimal::of(child).as_bytes(), found, words]);
-    let tail = b"; release this change to run its gate once more, or cancel it";
-    let bound = skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
-    let prefix = crate::text::fit(&prefix, bound.checked_sub(tail.len()).expect("recovery fits hold"), b"...");
-    skein_lib::bytes::concat(&[&prefix, tail])
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
@@ -5605,6 +5579,8 @@ fn step_read(
     let pull_number = row.pull;
     let catch_up = row.catch_up;
     let preparing = row.change.state.clone();
+    let ci_recheck =
+        if let change::State::Checking { .. } = preparing { ci_recheck_at(row, pending.branch) } else { None };
     let made_update = row.effect == change::EffectResult::Made && matches_updating(&preparing);
     let had_head = hints::has_head(d, row);
     let required = match d.repositories.get(&repository) {
@@ -5787,7 +5763,11 @@ fn step_read(
                     let saved = row.clone();
                     save_change_parts(d, out, saved);
                 }
-                if ci == skein_forge::api::Ci::Failed || result_rows || execution_due(&preparing, &pending) {
+                if ci == skein_forge::api::Ci::Failed
+                    || result_rows
+                    || execution_due(&preparing, &pending)
+                    || ci_recheck.is_some()
+                {
                     // Repairs retain the contexts they observed, beside the pull verdict.
                     skein_forge::api::Read::Checks { commit }
                 } else if let Some(read) = step_after_ci(d, &mut pending, out) {
@@ -5829,6 +5809,9 @@ fn step_read(
                     }
                 }
                 if execution_due(&preparing, &pending) {
+                    if ci_recheck.is_some() {
+                        pending.failed = crate::change_ci::Failed::new(rows.clone());
+                    }
                     pending.execution = Some(crate::execution::Gather::new(rows));
                 } else {
                     pending.failed = crate::change_ci::Failed::new(rows);
@@ -5841,11 +5824,7 @@ fn step_read(
             }
             if let Some(read) = next_execution(&mut pending) {
                 read
-            } else if pending.ci == change::Status::Failed
-                && let Some(read) = pending.failed.next(pending.branch.unwrap_or([0; 32]))
-            {
-                let skein_forge::api::Read::Run { run } = read else { unreachable!("failed run") };
-                pending.stage = StepStage::Run(run);
+            } else if let Some(read) = next_ci_run(&mut pending, ci_recheck) {
                 read
             } else if let Some(read) = step_after_ci(d, &mut pending, out) {
                 read
@@ -5855,8 +5834,16 @@ fn step_read(
             }
         }
         StepStage::ExecutionRun(run) => {
+            if let Some(recheck) = ci_recheck
+                && recheck.job.run == run
+                && pending.failed.next_recheck(recheck.job).is_some()
+            {
+                pending.failed.read(run, result.clone());
+            }
             pending.execution.as_mut().expect("execution gather").answered(run, result);
             if let Some(read) = next_execution(&mut pending) {
+                read
+            } else if let Some(read) = next_ci_run(&mut pending, ci_recheck) {
                 read
             } else if let Some(read) = step_after_ci(d, &mut pending, out) {
                 read
@@ -5867,9 +5854,7 @@ fn step_read(
         }
         StepStage::Run(run) => {
             pending.failed.read(run, result);
-            if let Some(read) = pending.failed.next(pending.branch.unwrap_or([0; 32])) {
-                let skein_forge::api::Read::Run { run } = read else { unreachable!("failed run") };
-                pending.stage = StepStage::Run(run);
+            if let Some(read) = next_ci_run(&mut pending, ci_recheck) {
                 read
             } else if let Some(read) = step_after_ci(d, &mut pending, out) {
                 read
@@ -5980,6 +5965,28 @@ fn step_read(
     };
     d.steps.insert(owner, pending).expect("replaces step");
     gather_read(d, env, owner, repository, next, out);
+}
+
+fn ci_recheck_at(row: &ChangeRow, branch: Option<skein_forge::api::Commit>) -> Option<crate::CiRecheck> {
+    let recheck = row.ci_recheck?;
+    if branch != Some(recheck.job.head) || branch != row.change.last_head {
+        return None;
+    }
+    Some(recheck)
+}
+
+fn next_ci_run(pending: &mut PendingStep, recheck: Option<crate::CiRecheck>) -> Option<skein_forge::api::Read> {
+    let pinned = if let Some(recheck) = recheck { pending.failed.next_recheck(recheck.job) } else { None };
+    let read = if pinned.is_some() {
+        pinned
+    } else if pending.ci == change::Status::Failed {
+        pending.failed.next(pending.branch?)
+    } else {
+        None
+    }?;
+    let skein_forge::api::Read::Run { run } = read else { unreachable!("CI run read") };
+    pending.stage = StepStage::Run(run);
+    Some(read)
 }
 
 fn execution_due(state: &change::State, pending: &PendingStep) -> bool {
@@ -6595,8 +6602,28 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         row.change.since = env.wall;
     }
     crate::close::judged(&mut row, pending.branch.is_some());
+    if let Some(recheck) = &mut row.ci_recheck {
+        if pending.branch.is_some() && pending.branch != Some(recheck.job.head) {
+            row.ci_recheck = None;
+        } else if pending.branch == Some(recheck.job.head)
+            && recheck.taken.is_none()
+            && let Some(attempt) = pending.failed.measurement(*recheck)
+        {
+            recheck.taken = Some(attempt);
+        }
+    }
     let mut facts = change_facts(d, env, &row, &pending, base_tip);
     let mut heard = change_standing(d, &row, &pending);
+    let mut regate = if let Some(why) = crate::recheck::landing_repair(&row.change.state)
+        && (heard.delegate == change::Status::Passed
+            || row.change.released == Some(change::Hold::Flake)
+            || row.change.released == Some(change::Hold::NoTest))
+    {
+        d.landing_regate(row.task, why)
+    } else {
+        None
+    };
+    facts.regate = regate.is_some();
     let live_close = match row.delegate {
         Some((_, change::Delegate::Close)) => pending.heard.delegate_live,
         Some(_) | None => false,
@@ -6639,6 +6666,15 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: head }, out);
             return;
         }
+        let measured = if stepped.decision == change::Decision::Hold(change::Hold::RedStands)
+            && !change::held_on_ci(&stepped.change.state)
+            && facts.recheck == change::Recheck::Taken
+            && let Some(ask) = &facts.ask
+        {
+            d.regate_failure(&row, ask)
+        } else {
+            None
+        };
         row.change = stepped.change;
         if let Some(took) = stepped.took {
             crate::landing::members::take(&mut row, took, out);
@@ -6652,15 +6688,35 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 row.runner_ci = None;
             }
             row.regate = None;
-            if row.delegate_flake || row.delegate_no_test {
-                row.delegate_flake = false;
-                row.delegate_no_test = false;
-                row.producer_failure = None;
-            }
+            row.ci_recheck = None;
+        }
+        take_landing_repair(
+            &mut row,
+            &mut regate,
+            &effect_prior,
+            &facts,
+            heard.delegate,
+            stepped.decision,
+            env.limits.client.answer_bytes,
+        );
+        take_ci_repair(&mut row, &effect_prior, &facts, heard.delegate, env.limits.client.answer_bytes);
+        if stepped.decision == change::Decision::Hold(change::Hold::RedStands) {
+            row.producer_failure = if change::held_on_ci(&row.change.state) {
+                match (row.change.last_head, row.repair_tasks.last()) {
+                    (Some(commit), Some(repair)) => {
+                        Some(pending.failed.red_stands(commit, *repair, facts.recheck == change::Recheck::Taken))
+                    }
+                    (None, _) | (_, None) => None,
+                }
+            } else {
+                crate::recheck::hold_words(&row, measured)
+            };
         }
         if let change::Decision::Delegate(change::Delegate::Repair(_)) = stepped.decision {
             row.regate = None;
+            row.ci_recheck = None;
         }
+        facts.recheck = step_recheck(d, &row, &pending, facts.ask.as_ref());
         pending.progress.push((effect_prior.clone(), row.change.clone())).expect("bounded policy transitions");
         let decision = stepped.decision;
         if matches_updating(&effect_prior.state) && !matches_updating(&row.change.state) && row.pending.is_none() {
@@ -6683,11 +6739,20 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             }
             change::Decision::None if advanced => {}
             change::Decision::RepairEnded { head } => {
+                if row.ci_recheck.is_some() {
+                    // An independently green head ends a CI repair, including one lifted from RedStands.
+                    facts.recheck = change::Recheck::None;
+                    if heard.effect == change::EffectResult::Failed || heard.effect == change::EffectResult::Conflict {
+                        heard.effect = change::EffectResult::None;
+                        row.effect = change::EffectResult::None;
+                    }
+                }
                 row.result.ci_passed(&head, env.limits.client.answer_bytes);
                 row.producer_failure = None;
                 row.delegate_status = change::Status::Unknown;
                 row.delegate_flake = false;
                 row.delegate_no_test = false;
+                row.delegate_words = None;
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
@@ -6725,10 +6790,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                     let commit = pending.branch.expect("runner fault at the checked head");
                     let words = pending.failed.hold_words(commit, crate::change_ci::baseline(&row));
                     row.runner_ci = Some(crate::RunnerCi::Held { words });
-                } else if decision == change::Decision::EndHold
-                    && let Some(crate::RunnerCi::Held { .. }) = &row.runner_ci
-                {
-                    row.runner_ci = None;
+                } else if decision == change::Decision::EndHold {
+                    if let Some(crate::RunnerCi::Held { .. }) = &row.runner_ci {
+                        row.runner_ci = None;
+                    }
+                    if let change::State::Held { why: change::Hold::RedStands, .. } = effect_prior.state {
+                        row.producer_failure = None;
+                    }
                 }
                 row.room = None;
                 crate::room::leave(d, crate::room::Waiter::Change(row.task));
@@ -6777,6 +6845,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                                 env,
                                 &facts,
                                 execution_due(&row.change.state, &pending),
+                                row.ci_recheck.is_some() && facts.recheck == change::Recheck::Owed,
                                 crate::settle::cap(d, env, &row, &facts, decision),
                             ),
                         ),
@@ -6871,11 +6940,17 @@ fn drive_check(
 }
 
 /// Poll both the first reading after entering checking and later readings (stalls.md, 2.1).
-fn execution_poll(env: &Env<Limits>, facts: &change::Facts, due: bool, decision: change::Decision) -> change::Decision {
-    if (facts.execution.is_some() || due)
+fn execution_poll(
+    env: &Env<Limits>,
+    facts: &change::Facts,
+    due: bool,
+    measuring: bool,
+    decision: change::Decision,
+) -> change::Decision {
+    if (facts.execution.is_some() || due || measuring)
         && let change::Decision::Wait { until } = decision
     {
-        let delay = if facts.execution.is_some() { env.limits.client.poll_max } else { Duration::ZERO };
+        let delay = if facts.execution.is_some() || measuring { env.limits.client.poll_max } else { Duration::ZERO };
         let poll = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(delay.as_nanos()));
         return change::Decision::Wait { until: Some(until.unwrap_or(poll).min(poll)) };
     }
@@ -7016,6 +7091,107 @@ fn ended_branch_writer(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> bo
     false
 }
 
+/// The finished landing repair is read once, with the head it was asked to repair.
+fn take_landing_repair(
+    row: &mut ChangeRow,
+    regate: &mut Option<crate::Regate>,
+    prior: &change::Change,
+    facts: &change::Facts,
+    status: change::Status,
+    decision: change::Decision,
+    bound: u32,
+) {
+    if crate::recheck::landing_repair(&prior.state).is_none() {
+        return;
+    }
+    let legacy = prior.released == Some(change::Hold::Flake) || prior.released == Some(change::Hold::NoTest);
+    let rereading = decision == change::Decision::None
+        && prior.state != row.change.state
+        && (legacy || status == change::Status::Passed);
+    let cannot = decision == change::Decision::Hold(change::Hold::RedStands);
+    let ended = !legacy && row.terminal() && status == change::Status::Passed && facts.branch.is_some();
+    if !(rereading || cannot || ended) {
+        return;
+    }
+    let unchanged = facts.branch.is_some() && facts.branch == facts.repair_head.or(prior.last_head);
+    if rereading && (legacy || unchanged) {
+        row.regate = regate.take();
+    }
+    if !legacy {
+        crate::recheck::completed(row, unchanged, bound);
+    }
+}
+
+fn ci_reason(why: change::Repair) -> bool {
+    match why {
+        change::Repair::Ci | change::Repair::Semantic => true,
+        change::Repair::Gate(_)
+        | change::Repair::Review { .. }
+        | change::Repair::Landing { .. }
+        | change::Repair::LandingAt { .. } => false,
+    }
+}
+
+fn ci_repair(state: &change::State) -> bool {
+    let change::State::Repairing { requested: true, why } = state else { return false };
+    ci_reason(*why)
+}
+
+fn take_ci_repair(
+    row: &mut ChangeRow,
+    prior: &change::Change,
+    facts: &change::Facts,
+    status: change::Status,
+    bound: u32,
+) {
+    if ci_repair(&prior.state)
+        && status == change::Status::Passed
+        && prior.state != row.change.state
+        && let Some(head) = facts.branch
+    {
+        crate::recheck::completed(row, Some(head) == facts.repair_head.or(prior.last_head), bound);
+    }
+}
+
+fn step_recheck(d: &Domain, row: &ChangeRow, pending: &PendingStep, ask: Option<&change::Handed>) -> change::Recheck {
+    if let change::State::Checking { .. } = row.change.state {
+        let Some(recheck) = ci_recheck_at(row, pending.branch) else { return change::Recheck::None };
+        if recheck.taken.is_some()
+            && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Conflict)
+        {
+            // The failed write is a runner rerun after the recheck, not a refusal to recheck.
+            return change::Recheck::None;
+        }
+        return if pending.failed.measurement(recheck).is_some() {
+            change::Recheck::Taken
+        } else {
+            change::Recheck::Owed
+        };
+    }
+    landing_recheck(d, row, pending.branch, ask)
+}
+
+fn landing_recheck(
+    d: &Domain,
+    row: &ChangeRow,
+    branch: Option<skein_forge::api::Commit>,
+    ask: Option<&change::Handed>,
+) -> change::Recheck {
+    if branch.is_none() || branch != row.change.last_head {
+        return change::Recheck::None;
+    }
+    let Some(handed) = ask else { return change::Recheck::None };
+    let change::Ask::Repair { .. } = handed.ask else { return change::Recheck::None };
+    let Some(regate) = &row.regate else { return change::Recheck::None };
+    if regate.taken.is_none() {
+        change::Recheck::Owed
+    } else if d.regate_failure(row, handed).is_some() {
+        change::Recheck::Taken
+    } else {
+        change::Recheck::None
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
@@ -7094,6 +7270,9 @@ fn change_facts(
             }
             None => false,
         },
+        regate: false,
+        recheck: step_recheck(d, row, pending, crate::landing::members::head(row)),
+        repair_head: row.delegate_head,
         pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,
@@ -7360,10 +7539,23 @@ fn emit_change_effect(
     row.pending = Some(pending.entry);
     row.effect = change::EffectResult::Pending;
     row.effect_account = match effect {
-        change::Effect::Rerun { head } => match pending.failed.account(head) {
-            Some(words) => Some(crate::EffectAccount { entry: pending.entry, words }),
-            None => None,
-        },
+        change::Effect::Rerun { head } => {
+            let for_repair = if let Some((before, _)) = pending.progress.as_slice().last() {
+                ci_repair(&before.state)
+            } else {
+                false
+            };
+            if for_repair {
+                let skein_forge::api::Write::Rerun { attempt } = entry.effect.write else {
+                    unreachable!("a CI rerun writes its chosen attempt")
+                };
+                row.ci_recheck = Some(crate::CiRecheck { job: attempt, taken: None });
+            }
+            match pending.failed.account(head, for_repair) {
+                Some(words) => Some(crate::EffectAccount { entry: pending.entry, words }),
+                None => None,
+            }
+        }
         change::Effect::FollowCheck { .. }
         | change::Effect::Open
         | change::Effect::CreateBranch { .. }
@@ -7887,6 +8079,7 @@ fn retire_failed_delegate(row: &mut ChangeRow) {
     row.delegate_status = change::Status::Unknown;
     row.delegate_flake = false;
     row.delegate_no_test = false;
+    row.delegate_words = None;
     row.producer_failure = None;
     row.merge_result = None;
 }
@@ -7901,21 +8094,15 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     d.change_due.remove(&task);
     read_session::restart(d, env, task, env.wall);
     branch_due(d, task);
-    let regate = if let Some(row) = d.changes.get(&task)
-        && let change::State::Held { was, why: change::Hold::Flake | change::Hold::NoTest } = &row.change.state
-        && let change::State::Repairing { why, .. } = was.as_ref()
-    {
-        Some(d.landing_regate(task, *why))
-    } else {
-        None
-    };
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
     };
     let before = crate::panel::ready(row);
-    if let Some(regate) = regate {
-        row.regate = regate;
+    if let change::State::Held { why: change::Hold::RedStands, .. } = row.change.state {
+        row.producer_failure = None;
+        row.delegate_status = change::Status::Unknown;
+        row.ci_recheck = None;
     }
     retire_failed_delegate(row);
     let mut released = change::released(&row.change, env.wall);
@@ -9530,6 +9717,12 @@ fn veto_change(
     let before = crate::panel::ready(row);
     let owned = row.change.owns_turn;
     row.change = prior;
+    if let skein_forge::api::Write::Rerun { attempt } = unsent
+        && let Some(recheck) = row.ci_recheck
+        && recheck.job == attempt
+    {
+        row.ci_recheck = None;
+    }
     crate::follow_check::veto(row, entry, &unsent);
     if leaves_queue {
         row.change.owns_turn = false;
@@ -11172,6 +11365,17 @@ pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, mut ro
     crate::waits::changed(d, row.task);
     if row.frozen() {
         d.merge_withheld.remove(&row.task);
+        row.regate = None;
+        row.delegate_words = None;
+        let current = d.changes.get_mut(&row.task).expect("saved change is retained");
+        current.regate = None;
+        current.delegate_words = None;
+    }
+    if let Some(recheck) = row.ci_recheck
+        && (row.frozen() || row.change.last_head != Some(recheck.job.head))
+    {
+        row.ci_recheck = None;
+        d.changes.get_mut(&row.task).expect("saved change is retained").ci_recheck = None;
     }
     let (cold, hot) = row.split();
     if d.change_cold.get(&cold.task) != Some(&cold) {

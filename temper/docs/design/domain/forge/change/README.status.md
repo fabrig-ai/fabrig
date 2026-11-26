@@ -5,6 +5,7 @@
 
 
 
+
 - **Not yet:** 4, *A pull request already closed counts as closed*: the
   forge's `Close` of a pull request Forgejo shows merged is refused, so
   its change is held (skein's `forge/forgejo.status.md`) [in flight:

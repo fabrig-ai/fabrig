@@ -951,6 +951,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.result.checks.bytes))?
             .checked_add(bytes(&row.result.failed.bytes))?
             .checked_add(bytes(&row.result.repairs.bytes))?
+            .checked_add(match &row.delegate_words {
+                Some(words) => bytes(&words.bytes),
+                None => 0,
+            })?
             .checked_add(bytes(&row.result.reviews.bytes))?
             .checked_add(match &row.effect_account {
                 Some(account) => bytes(&account.words),
@@ -1002,6 +1006,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.result.checks.bytes))?
             .checked_add(bytes(&row.result.failed.bytes))?
             .checked_add(bytes(&row.result.repairs.bytes))?
+            .checked_add(match &row.delegate_words {
+                Some(words) => bytes(&words.bytes),
+                None => 0,
+            })?
             .checked_add(bytes(&row.result.reviews.bytes))?
             .checked_add(match &row.effect_account {
                 Some(account) => bytes(&account.words),

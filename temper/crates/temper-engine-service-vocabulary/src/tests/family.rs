@@ -871,6 +871,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
         (Some(change::Hold::Retargeted), Some(w::Hold::Retargeted)),
         (Some(change::Hold::Failed), Some(w::Hold::Failed)),
         (Some(change::Hold::Runner), Some(w::Hold::Failed)),
+        (Some(change::Hold::RedStands), Some(w::Hold::Failed)),
         (Some(change::Hold::Rejected), Some(w::Hold::Rejected)),
     ] {
         let mut value = panel();

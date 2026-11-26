@@ -1,7 +1,7 @@
-//! Empty repairs recheck CI and still spend the repair bound (change/repairs.md).
+//! Empty repairs recheck CI without spending another repair (change/repairs.md).
 use super::questions::row;
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Repair, State};
+use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
 
 const STEPS: u32 = 300;
 const REPAIRS: u32 = 2;
@@ -74,41 +74,40 @@ fn an_empty_ci_repair_checks_its_head_again_without_a_hold() {
 }
 
 #[test]
-fn repeated_empty_ci_repairs_hold_with_the_spent_bound_account() {
-    let (mut world, mut repair, change) = repair();
-    for count in 1..=REPAIRS {
-        assert_eq!(row(&world, change).delegate, Some((repair.task, Delegate::Repair(Repair::Ci))));
-        answer(&mut world, &repair);
-        if count < REPAIRS {
-            let after = world.assigned.len();
-            for _ in 0..STEPS {
-                world.tick();
-                assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
-                if let Some(next) = world.assigned.get(after) {
-                    repair = next.clone();
-                    break;
-                }
-            }
-            assert_eq!(row(&world, change).change.repairs, count + 1);
-        }
-    }
+fn an_empty_ci_repairs_later_red_holds_without_spending_the_bound() {
+    let (mut world, repair, change) = repair();
+    let head = row(&world, change).change.last_head.expect("repaired head");
+    assert_eq!(row(&world, change).delegate, Some((repair.task, Delegate::Repair(Repair::Ci))));
+    let assigned = world.assigned.len();
+    answer(&mut world, &repair);
     for _ in 0..STEPS {
         world.tick();
         if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) {
             break;
         }
     }
-    assert!(matches!(
-        row(&world, change).change.state,
-        State::Held { why: temper_engine_domain_forge_change::Hold::Repairs, .. }
-    ));
-    assert_eq!(row(&world, change).change.repairs, REPAIRS);
+    let row = row(&world, change);
+    assert_eq!(
+        row.change.state,
+        State::Held { was: Box::new(State::Repairing { requested: false, why: Repair::Ci }), why: Hold::RedStands }
+    );
+    assert_eq!(row.change.last_head, Some(head));
+    assert_eq!((row.change.repairs, row.change.updates), (1, 0));
+    assert_eq!(world.assigned.len(), assigned, "no second repair was assigned");
+    let measured = row.ci_recheck.expect("one rerun to measure the same content");
+    assert_eq!(measured.job.head, head);
+    assert!(measured.taken.is_some_and(|taken| taken > measured.job.attempt));
     let tasks::Phase::Held { source, why: tasks::Hold::Procedure, .. } = &live_task(&world, change).phase else {
-        panic!("repair bound holds the change: {:?}", live_task(&world, change).phase)
+        panic!("red stands at the head: {:?}", live_task(&world, change).phase)
     };
-    let tasks::HoldSource::Account { words, .. } = source.as_ref().expect("bound account").as_ref() else {
-        panic!("repair bound account")
+    let tasks::HoldSource::Account { words, .. } = source.as_ref().expect("hold account").as_ref() else {
+        panic!("red stands account")
     };
-    assert_eq!(words.as_ref(), b"its repairs are spent: 2 of 2 taken");
+    let head = forge_top::commit_text(&head);
+    assert_eq!(words.as_ref(), format!(
+        "its red at {} stands: repair task {} changed nothing, and the same content failed again: build; release this change to ask a fresh repair, or cancel it",
+        std::str::from_utf8(&head[..12]).expect("hex head"),
+        repair.task,
+    ).as_bytes());
     world.close();
 }

@@ -839,7 +839,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
         change::Hold::BranchMissing => w::Hold::Missing,
         change::Hold::PullClosed => w::Hold::Closed,
         change::Hold::Retargeted => w::Hold::Retargeted,
-        change::Hold::Failed | change::Hold::Runner => w::Hold::Failed,
+        change::Hold::Failed | change::Hold::Runner | change::Hold::RedStands => w::Hold::Failed,
         change::Hold::Flake => w::Hold::Flake,
         change::Hold::NoTest => w::Hold::NoTest,
         change::Hold::Rejected => w::Hold::Rejected,
