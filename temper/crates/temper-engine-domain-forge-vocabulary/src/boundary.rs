@@ -1100,6 +1100,7 @@ pub struct ChangeRow {
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
+    pub ci_recheck: Option<CiRecheck>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1146,7 +1147,7 @@ pub struct ChangeRow {
     pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
-    /// A successful landing repair's account, awaiting classification at a fresh head.
+    /// A successful CI or landing repair's account, awaiting classification at a fresh head.
     pub delegate_words: Option<crate::ResultText>,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
@@ -1206,6 +1207,12 @@ pub struct Regate {
     pub run: u64,
     pub taken: Option<u64>,
 }
+/// The job an unchanged CI repair ran again, and its first completed measurement (temper/docs/design/domain/forge/change/repairs.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CiRecheck {
+    pub job: skein_forge::api::JobAttempt,
+    pub taken: Option<u32>,
+}
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCold {
@@ -1239,6 +1246,7 @@ pub struct ChangeHot {
     pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
+    pub ci_recheck: Option<CiRecheck>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1268,7 +1276,7 @@ pub struct ChangeHot {
     pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
-    /// A successful landing repair's account, awaiting classification at a fresh head.
+    /// A successful CI or landing repair's account, awaiting classification at a fresh head.
     pub delegate_words: Option<crate::ResultText>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
@@ -1295,6 +1303,7 @@ impl ChangeRow {
             source,
             kept,
             regate,
+            ci_recheck,
             task_release,
             job,
             signed,
@@ -1384,6 +1393,7 @@ impl ChangeRow {
                 room,
                 kept,
                 regate,
+                ci_recheck,
                 task_release,
                 job,
                 signed,
@@ -1458,6 +1468,7 @@ impl ChangeRow {
             room,
             kept,
             regate,
+            ci_recheck,
             task_release,
             job,
             signed,
@@ -1504,6 +1515,7 @@ impl ChangeRow {
             source,
             kept,
             regate,
+            ci_recheck,
             task_release,
             job,
             signed,

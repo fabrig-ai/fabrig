@@ -371,6 +371,9 @@ fn advance_phase(
         {
             waiting(next, facts, now, limits)
         }
+        State::Checking { head } if facts.recheck == Recheck::Owed && standing.effect == EffectResult::Failed => {
+            checking(next, *head, facts, standing, now, limits)
+        }
         State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
             if standing.effect == EffectResult::Failed =>
         {
@@ -435,7 +438,7 @@ fn closed_pull_holds(state: &State) -> bool {
 }
 
 /// A hold whose reason is CI failed at the head (temper/docs/design/domain/forge/change/repairs.md).
-/// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs` or `Authority`.
+/// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs`, `Authority` or `RedStands`.
 /// `was` `Checking` or `CancellingGates`: `Repairs` or `Authority`.
 /// A `Runner` hold always belongs to CI.
 #[must_use]
@@ -444,7 +447,7 @@ pub fn held_on_ci(state: &State) -> bool {
     match why {
         Hold::Runner => true,
         Hold::Repairs | Hold::Authority(_) => ci_state(was),
-        Hold::Failed | Hold::Stalled => {
+        Hold::Failed | Hold::Stalled | Hold::RedStands => {
             if let State::Repairing { why, .. } = was.as_ref() {
                 ci_reason(*why)
             } else {
@@ -459,7 +462,6 @@ pub fn held_on_ci(state: &State) -> bool {
         | Hold::Updates
         | Hold::Rejected
         | Hold::Questions
-        | Hold::RedStands
         | Hold::Flake
         | Hold::NoTest => false,
     }
@@ -1080,7 +1082,7 @@ fn checking(
     mut change: Change,
     head: [u8; 32],
     facts: &Facts,
-    _standing: &Heard,
+    standing: &Heard,
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
@@ -1094,6 +1096,22 @@ fn checking(
     if facts.ci.head != head {
         return waiting(change, facts, now, limits);
     }
+    if facts.recheck == Recheck::Owed {
+        match standing.effect {
+            EffectResult::Failed | EffectResult::Conflict if facts.ci.status == Status::Failed => {
+                return red_stands(change, Repair::Ci);
+            }
+            EffectResult::Failed | EffectResult::Conflict if facts.ci.status == Status::Passed => {
+                return repair_ended(change, head, now);
+            }
+            EffectResult::Failed
+            | EffectResult::Conflict
+            | EffectResult::None
+            | EffectResult::Stale
+            | EffectResult::Pending
+            | EffectResult::Made => return wait_for_ci(change, head, facts, now, limits),
+        }
+    }
     match facts.ci.status {
         Status::Passed => {
             change.state = State::Gating { head, asked: Box::new([]) };
@@ -1104,10 +1122,16 @@ fn checking(
             if let Some(stepped) = runner_ci(&change, head, facts, now, limits) {
                 return stepped;
             }
+            if facts.recheck == Recheck::Taken {
+                return red_stands(change, Repair::Ci);
+            }
             let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
             repair_due(change, why, facts, now, limits)
         }
         Status::Unknown | Status::Pending => {
+            if facts.recheck == Recheck::Taken {
+                return wait_for_ci(change, head, facts, now, limits);
+            }
             if behind_unchecked(&change, facts, limits) {
                 let ready_since = change.ready_since.unwrap_or(now);
                 return update_due(change, head, facts.base_tip, ready_since, now, limits);
@@ -1115,14 +1139,20 @@ fn checking(
             if has_eager_gate(&change) {
                 change.state = State::Gating { head, asked: Box::new([]) };
                 Stepped { took: None, change, decision: Decision::None }
-            } else if let Some(reading) = facts.execution {
-                let clock = crate::Clock::observe(change.clock, change.since, head, reading, now);
-                change.clock = Some(clock);
-                checking_clock(change, clock, facts, now, limits)
             } else {
-                settling(change, facts, now, limits)
+                wait_for_ci(change, head, facts, now, limits)
             }
         }
+    }
+}
+
+fn wait_for_ci(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    if let Some(reading) = facts.execution {
+        let clock = crate::Clock::observe(change.clock, change.since, head, reading, now);
+        change.clock = Some(clock);
+        checking_clock(change, clock, facts, now, limits)
+    } else {
+        settling(change, facts, now, limits)
     }
 }
 
@@ -1724,22 +1754,18 @@ fn repairing(
     if ci_reason(why)
         && standing.delegate == Status::Passed
         && let Some(head) = facts.branch
-        && Some(head) == change.last_head
+        && Some(head) == facts.repair_head.or(change.last_head)
         && facts.ci.head == head
         && facts.ci.status == Status::Failed
     {
+        let mut next = change;
+        next.last_head = Some(head);
         if facts.rerun {
-            let owned = change.owns_turn;
-            let mut next = take_pushed_head(change, head, now).change;
             next.state = State::Checking { head };
-            next.owns_turn = owned;
+            next.clock = None;
             return rerun(next, head, now);
         }
-        if facts.contains_base == Status::Failed {
-            let ready_since = change.ready_since.unwrap_or(now);
-            return update_due(change, head, facts.base_tip, ready_since, now, limits);
-        }
-        return take_pushed_head(change, head, now);
+        return red_stands(next, why);
     }
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
 }

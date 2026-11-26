@@ -4427,3 +4427,20 @@ fn a_change_row_written_before_no_test_defaults_its_verdict_to_false() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
 }
+
+#[test]
+fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let head = [3; 32];
+    let job = skein_forge::api::JobAttempt { head, run: 7, job: 41, attempt: 2 };
+    for taken in [None, Some(3)] {
+        let mut row = fixtures::change_row(State::Checking { head });
+        row.ci_recheck = Some(forge::CiRecheck { job, taken });
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+    }
+}

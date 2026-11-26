@@ -1938,6 +1938,7 @@ pub(super) fn start_recovered_change(
                 room: None,
                 kept: None,
                 regate: None,
+                ci_recheck: None,
                 source: source.clone(),
                 task_release: None,
                 job: None,

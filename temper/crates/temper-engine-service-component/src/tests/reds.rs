@@ -99,6 +99,7 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
         source: None,
         kept: None,
         regate: None,
+        ci_recheck: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

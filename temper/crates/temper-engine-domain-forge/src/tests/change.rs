@@ -1647,7 +1647,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         (52, change::Status::Passed, false, false, false, true),
         (52, change::Status::Failed, false, true, false, false),
         (52, change::Status::Failed, false, false, true, false),
-        (52, change::Status::Passed, true, false, false, false),
+        (52, change::Status::Passed, true, false, false, true),
         (52, change::Status::Passed, false, true, false, false),
         (52, change::Status::Passed, false, false, true, false),
         (53, change::Status::Passed, false, false, false, false),
@@ -1657,6 +1657,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         let mut row = fixtures::opening_row();
         row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
         row.delegate_status = change::Status::Pending;
+        row.change.state = change::State::Repairing { requested: true, why: change::Repair::Ci };
         row.result.repaired(change::Repair::Ci, Some(fixtures::HEAD), LIMITS.client.answer_bytes);
         row.report = b"exports CSV".as_slice().into();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -1686,9 +1687,15 @@ fn only_the_active_successful_repair_supplies_an_account() {
             },
         );
         let row = d.change(fixtures::CHANGE).expect("retained change");
-        let account =
-            skein_lib::bytes::find(&row.result.repairs.bytes, b"successful repair task 52: Adds changes/2.md");
-        assert_eq!(account.is_some(), retained);
+        let account = match row.delegate_words.as_ref() {
+            Some(words) => Some(words.bytes.as_ref()),
+            None => None,
+        };
+        assert_eq!(account, if retained { Some(b"Adds changes/2.md".as_slice()) } else { None });
+        assert!(
+            skein_lib::bytes::find(&row.result.repairs.bytes, b"successful repair task").is_none(),
+            "not yet classified at a fresh head"
+        );
         assert_eq!(row.title.as_ref(), b"Small fix");
         assert_eq!(row.report.as_ref(), b"exports CSV");
     }
@@ -2754,6 +2761,7 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
         if let Some(reason) = account {
             let row = d.change(fixtures::CHANGE).expect("change");
             assert_eq!(row.change.repairs, 0);
+            assert!(row.ci_recheck.is_none(), "runner reruns do not owe a repair measurement");
             assert_eq!(
                 d.entries.get(&row.pending.expect("entry")).expect("entry").entry.effect.write,
                 Write::Rerun { attempt: job }

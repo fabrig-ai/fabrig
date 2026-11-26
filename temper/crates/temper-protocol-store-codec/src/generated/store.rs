@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x06, 0x78, 0x6b, 0xab, 0x7f, 0xe3, 0x57, 0x42, 0x8d, 0xc5, 0x1c, 0xe2, 0xfd, 0xcc, 0x32, 0x38, 0x12, 0xd0, 0xbf,
-    0x8d, 0xf7, 0xd9, 0xd5, 0xa7, 0xb3, 0x33, 0xc7, 0x61, 0x76, 0x30, 0x97, 0x30,
+    0xcd, 0x58, 0x0d, 0x50, 0xbe, 0x52, 0x0e, 0xeb, 0xc3, 0x21, 0x56, 0xb0, 0xa1, 0xa0, 0xe7, 0x47, 0xb8, 0x9b, 0x2c,
+    0xdc, 0x40, 0xfb, 0xb0, 0x51, 0xcb, 0x8d, 0xa9, 0x24, 0xa3, 0x4b, 0xcb, 0xb9,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -4193,6 +4193,9 @@ pub mod paths {
     pub const RUNNER_BASELINE_ATTEMPTS: Path = Path::new("RunnerBaseline.attempts");
     pub const RUNNER_BASELINE_TAIL: Path = Path::new("RunnerBaseline (tail)");
     pub const RUNNER_CI_TAG: Path = Path::new("RunnerCi (tag)");
+    pub const CI_RECHECK_JOB: Path = Path::new("CiRecheck.job");
+    pub const CI_RECHECK_TAKEN: Path = Path::new("CiRecheck.taken");
+    pub const CI_RECHECK_TAIL: Path = Path::new("CiRecheck (tail)");
     pub const CHANGE_HOT_RUNNER_CI: Path = Path::new("ChangeHot.runner_ci");
     pub const CHANGE_HOT_SETTLING: Path = Path::new("ChangeHot.settling");
     pub const CHANGE_HOT_CLOSE_AT: Path = Path::new("ChangeHot.close_at");
@@ -4234,6 +4237,7 @@ pub mod paths {
     pub const CHANGE_HOT_HISTORY: Path = Path::new("ChangeHot.history");
     pub const CHANGE_HOT_ASKS: Path = Path::new("ChangeHot.asks");
     pub const CHANGE_HOT_HANDED: Path = Path::new("ChangeHot.handed");
+    pub const CHANGE_HOT_CI_RECHECK: Path = Path::new("ChangeHot.ci_recheck");
     pub const CHANGE_HOT_TAIL: Path = Path::new("ChangeHot (tail)");
     pub const SUBSCRIBER_TASK: Path = Path::new("Subscriber.task");
     pub const SUBSCRIBER_NUMBER: Path = Path::new("Subscriber.number");
@@ -37542,6 +37546,61 @@ impl Record for RunnerCi {
     }
 }
 
+// Type: CiRecheck.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CiRecheck {
+    pub job: JobAttempt,
+    pub taken: Option<u32>,
+}
+
+// Record: CiRecheck.
+impl CiRecheck {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("JobAttempt"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 57;
+}
+
+impl Record for CiRecheck {
+    type Limits = Limits;
+    const TAIL: Path = paths::CI_RECHECK_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CiRecheck")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CiRecheck")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.job, limits, out, paths::CI_RECHECK_JOB)?;
+        field::write(field::Optional { item: field::U32 }, &self.taken, limits, out, paths::CI_RECHECK_TAKEN)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            job: field::read(field::Nested, limits, reader, paths::CI_RECHECK_JOB)?,
+            taken: field::read(field::Optional { item: field::U32 }, limits, reader, paths::CI_RECHECK_TAKEN)?,
+        })
+    }
+}
+
 // Type: ChangeHot.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
@@ -37586,6 +37645,7 @@ pub struct ChangeHot {
     pub history: Option<ChangeHistory>,
     pub asks: List<LandingHanded>,
     pub handed: u32,
+    pub ci_recheck: Option<CiRecheck>,
 }
 
 // Record: ChangeHot.
@@ -37659,11 +37719,13 @@ impl ChangeHot {
         skein_codec::bounds::Node::Named("LandingHanded"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 65, size: size_of::<LandingHanded>() },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 29, 30, 31, 32, 34, 36, 38, 39, 41, 42, 43, 44, 46, 48, 50, 52, 53, 55, 57, 58, 60, 62, 64, 66, 67] },
+        skein_codec::bounds::Node::Named("CiRecheck"),
+        skein_codec::bounds::Node::Option { item: 68 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 29, 30, 31, 32, 34, 36, 38, 39, 41, 42, 43, 44, 46, 48, 50, 52, 53, 55, 57, 58, 60, 62, 64, 66, 67, 69] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1557;
+    pub const ENCODED_AT_ZERO: u64 = 1615;
 }
 
 impl Record for ChangeHot {
@@ -37729,6 +37791,7 @@ impl Record for ChangeHot {
         field::write(field::Optional { item: field::Nested }, &self.history, limits, out, paths::CHANGE_HOT_HISTORY)?;
         field::write(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, &self.asks, limits, out, paths::CHANGE_HOT_ASKS)?;
         field::write(field::U32, &self.handed, limits, out, paths::CHANGE_HOT_HANDED)?;
+        field::write(field::Optional { item: field::Nested }, &self.ci_recheck, limits, out, paths::CHANGE_HOT_CI_RECHECK)?;
         Ok(())
     }
 
@@ -37775,6 +37838,7 @@ impl Record for ChangeHot {
             history: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_HISTORY)?,
             asks: field::read(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, limits, reader, paths::CHANGE_HOT_ASKS)?,
             handed: field::read(field::U32, limits, reader, paths::CHANGE_HOT_HANDED)?,
+            ci_recheck: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CI_RECHECK)?,
         })
     }
 }
@@ -41811,7 +41875,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1558;
+    pub const ENCODED_AT_ZERO: u64 = 1616;
 }
 
 impl Record for Value {
@@ -41964,7 +42028,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1560;
+    pub const ENCODED_AT_ZERO: u64 = 1618;
 }
 
 impl Record for Row {
@@ -42072,6 +42136,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Check", nodes: Check::SHAPE },
     skein_codec::bounds::Declaration { name: "ChecksAnswer", nodes: ChecksAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "Ci", nodes: Ci::SHAPE },
+    skein_codec::bounds::Declaration { name: "CiRecheck", nodes: CiRecheck::SHAPE },
     skein_codec::bounds::Declaration { name: "CiState", nodes: CiState::SHAPE },
     skein_codec::bounds::Declaration { name: "CiTopic", nodes: CiTopic::SHAPE },
     skein_codec::bounds::Declaration { name: "ClassItem", nodes: ClassItem::SHAPE },

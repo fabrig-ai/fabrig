@@ -896,6 +896,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         source: None,
         kept: None,
         regate: None,
+        ci_recheck: None,
         task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7) }),
         job: None,
         signed: Box::new([]),

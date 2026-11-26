@@ -9888,6 +9888,36 @@ pub fn runner_ci_to_domain(record: crate::v25::RunnerCi) -> temper_engine_domain
     }
 }
 
+#[must_use]
+pub fn ci_recheck_to_record(value: &temper_engine_domain_forge_vocabulary::CiRecheck) -> crate::v25::CiRecheck {
+    let temper_engine_domain_forge_vocabulary::CiRecheck { job: field_000000, taken: field_000001 } = value;
+    crate::v25::CiRecheck {
+        job: job_attempt_to_record(field_000000),
+        taken: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn ci_recheck_to_domain(record: crate::v25::CiRecheck) -> temper_engine_domain_forge_vocabulary::CiRecheck {
+    let crate::v25::CiRecheck { job: field_000000, taken: field_000001 } = record;
+    temper_engine_domain_forge_vocabulary::CiRecheck {
+        job: job_attempt_to_domain(field_000000),
+        taken: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
 pub fn subscriber_to_record(value: &temper_engine_domain_forge_vocabulary::Subscriber) -> Result<crate::v25::Subscriber, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::Subscriber { task: field_000000, number: field_000001, topic: field_000002, own_change: field_000003, goal_tasks: field_000004, paths: field_000005 } = value;
     Ok(crate::v25::Subscriber {

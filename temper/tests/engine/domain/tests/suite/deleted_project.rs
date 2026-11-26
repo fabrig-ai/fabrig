@@ -134,6 +134,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
         source: None,
         kept: None,
         regate: None,
+        ci_recheck: None,
         task: CHANGE,
         repository,
         branch: b"temper/old".as_slice().into(),

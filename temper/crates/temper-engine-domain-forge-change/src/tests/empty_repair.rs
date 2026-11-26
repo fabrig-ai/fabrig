@@ -9,7 +9,7 @@ fn repairing(why: Repair) -> Change {
 }
 
 #[test]
-fn an_empty_ci_repair_runs_one_job_again_before_updating() {
+fn an_empty_ci_repair_runs_one_job_again_at_its_head_without_updating() {
     for why in [Repair::Ci, Repair::Semantic] {
         let c = repairing(why);
         let f = Facts {
@@ -26,46 +26,62 @@ fn an_empty_ci_repair_runs_one_job_again_before_updating() {
         assert!(next.change.owns_turn);
         assert_eq!((next.change.repairs, next.change.updates), (1, 0));
         assert_eq!(next.change.since, at(1));
+
+        // A push may already have updated last_head, but NEW isn't the repaired head.
+        let moved = decide(
+            &Change { last_head: Some(NEW), ..c },
+            &Facts { branch: Some(NEW), repair_head: Some(HEAD), ci: Ci { head: NEW, status: Status::Failed }, ..f },
+            &Heard { delegate: Status::Passed, ..heard() },
+        );
+        assert_eq!(moved.decision, Decision::None);
+        assert_eq!(moved.change.state, State::Checking { head: NEW });
+        assert_eq!(moved.change.repairs, 1);
     }
 }
 
 #[test]
-fn an_empty_ci_repair_without_a_job_updates_a_behind_head() {
-    let mut c = repairing(Repair::Ci);
-    c.ready_since = Some(at(0));
-    let f = Facts { ci: Ci { head: HEAD, status: Status::Failed }, contains_base: Status::Failed, ..facts() };
-    let h = Heard { delegate: Status::Passed, ..heard() };
-    let next = decide(&c, &f, &h);
-    assert_eq!(next.decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
-    assert_eq!(next.change.state, State::Updating { from: HEAD, base: BASE, ready_since: at(0) });
-    assert_eq!((next.change.repairs, next.change.updates), (1, 1));
-    let updated =
-        decide(&next.change, &Facts { branch: Some(NEW), ..f.clone() }, &Heard { effect: EffectResult::Made, ..h });
-    assert_eq!(updated.change.state, State::Checking { head: NEW });
-    assert_eq!(updated.change.last_head, Some(NEW));
-    c.updates = LIMITS.updates;
-    assert_eq!(decide(&c, &f, &h).decision, Decision::Hold(Hold::Updates));
+fn an_empty_ci_repair_without_a_job_holds_even_behind_its_base() {
+    for why in [Repair::Ci, Repair::Semantic] {
+        for updates in [0, LIMITS.updates] {
+            let c = Change { updates, ready_since: Some(at(0)), ..repairing(why) };
+            let f = Facts { ci: Ci { head: HEAD, status: Status::Failed }, contains_base: Status::Failed, ..facts() };
+            let next = decide(&c, &f, &Heard { delegate: Status::Passed, ..heard() });
+            assert_eq!(next.decision, Decision::Hold(Hold::RedStands));
+            assert_eq!(next.change.state, ci_hold(why));
+            assert_eq!(next.change.last_head, Some(HEAD));
+            assert_eq!((next.change.repairs, next.change.updates), (1, updates));
+        }
+    }
+}
+
+fn ci_hold(why: Repair) -> State {
+    State::Held { was: Box::new(State::Repairing { requested: false, why }), why: Hold::RedStands }
 }
 
 #[test]
-fn empty_ci_repairs_leave_red_standing_and_spend_the_repair_bound() {
-    let f = Facts { ci: Ci { head: HEAD, status: Status::Failed }, ..facts() };
-    let h = Heard { delegate: Status::Passed, ..heard() };
-    let mut c = repairing(Repair::Ci);
-    for count in 1..=LIMITS.repairs {
-        let checked = decide(&c, &f, &h);
-        assert_eq!(checked.change.state, State::Checking { head: HEAD });
-        assert_eq!(checked.decision, Decision::None);
-        assert_eq!(checked.change.repairs, count);
-        let next = decide(&checked.change, &f, &heard());
-        if count < LIMITS.repairs {
-            assert_eq!(next.decision, Decision::Delegate(Delegate::Repair(Repair::Ci)));
-            assert_eq!(next.change.repairs, count + 1);
-        } else {
-            assert_eq!(next.decision, Decision::Hold(Hold::Repairs));
-            assert_eq!(next.change.repairs, LIMITS.repairs);
-        }
-        c = next.change;
+fn only_the_taken_ci_measurement_judges_an_empty_repair() {
+    use crate::{Fault, Recheck};
+    let c = Change { repairs: 1, ..change(State::Checking { head: HEAD }) };
+    let red = Facts { ci: Ci { head: HEAD, status: Status::Failed }, recheck: Recheck::Owed, ..facts() };
+    let waiting = decide(&c, &red, &heard());
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(30)) });
+    assert_eq!(waiting.change, c);
+    assert_eq!(step(&c, &red, &heard(), at(30), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+    let taken = Facts { recheck: Recheck::Taken, ..red };
+    let again = decide(&c, &taken, &heard());
+    assert_eq!(again.decision, Decision::Hold(Hold::RedStands));
+    assert_eq!(again.change.state, ci_hold(Repair::Ci));
+    assert_eq!(again.change.repairs, 1);
+    let green = decide(&c, &Facts { recheck: Recheck::Taken, ..facts() }, &heard());
+    assert_eq!(green.decision, Decision::None);
+    assert_eq!(green.change.state, State::Gating { head: HEAD, asked: Box::new([]) });
+    assert_eq!(green.change.repairs, 1);
+    for (reruns, expected) in
+        [(0, Decision::Effect(Effect::Rerun { head: HEAD })), (LIMITS.reruns, Decision::Hold(Hold::Runner))]
+    {
+        let failed = decide(&c, &Facts { fault: Fault::Runner { reruns }, ..taken.clone() }, &heard());
+        assert_eq!(failed.decision, expected);
+        assert_eq!(failed.change.repairs, 1);
     }
 }
 
@@ -201,17 +217,19 @@ fn only_the_taken_measurement_holds_at_the_landing_ask() {
 
 #[test]
 fn releasing_red_stands_asks_a_fresh_repair_for_that_red() {
-    let why = LANDING_REASONS[1];
-    let was = State::Repairing { requested: false, why };
-    let mut held = change(State::Held { was: Box::new(was.clone()), why: Hold::RedStands });
-    (held.repairs, held.resolutions, held.updates) = (LIMITS.repairs, LIMITS.resolutions, LIMITS.updates);
-    let released = released(&held, at(1));
-    assert_eq!(released.state, was);
-    assert_eq!((released.repairs, released.resolutions, released.updates), (0, 0, 0));
-    let lifted = decide(&released, &facts(), &heard());
-    let repair = decide(&lifted.change, &facts(), &heard());
-    assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
-    assert_eq!(repair.change.repairs, 1);
+    for why in [LANDING_REASONS[1], Repair::Ci, Repair::Semantic] {
+        let was = State::Repairing { requested: false, why };
+        let mut held = change(State::Held { was: Box::new(was.clone()), why: Hold::RedStands });
+        (held.repairs, held.resolutions, held.updates) = (LIMITS.repairs, LIMITS.resolutions, LIMITS.updates);
+        let released = released(&held, at(1));
+        assert_eq!(released.state, was);
+        assert_eq!((released.repairs, released.resolutions, released.updates), (0, 0, 0));
+        let red = Facts { ci: Ci { head: HEAD, status: Status::Failed }, ..facts() };
+        let lifted = decide(&released, &red, &heard());
+        let repair = decide(&lifted.change, &red, &heard());
+        assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
+        assert_eq!(repair.change.repairs, 1);
+    }
 }
 
 #[test]

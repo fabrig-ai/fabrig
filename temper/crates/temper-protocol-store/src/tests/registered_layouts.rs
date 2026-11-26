@@ -875,3 +875,30 @@ fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(crate::records::decode(now.as_slice(), &bounds), Ok(fixtures::change_hot(row)));
 }
+
+#[test]
+fn a_change_hot_written_without_ci_recheck_defaults_it_to_none() {
+    use super::fixtures;
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before =
+        family.current.replace(" ci_recheck: option CiRecheck = none", "").replace(" ci_recheck: CiRecheck", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"change_hot")).unwrap();
+    let new_root = new.root(b"Row", Some(b"change_hot")).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an old change needs no recheck");
+    let row = fixtures::change_row(temper_engine_domain_forge_change::State::Checking { head: [3; 32] });
+    let stored = fixtures::change_hot(row);
+    let mut work = Workspace::new();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(stored));
+}
