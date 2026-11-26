@@ -3448,12 +3448,15 @@ pub enum Request {
         landing: u64,
         kind: &'static str,
     },
-    /// A taskless landing ended in Link (domain/landing-forming.md, 4).
+    /// A taskless landing ended at start (temper/docs/design/domain/landing-liveness.md, 6.2).
     LandingUnmade {
         task: u64,
         repository: skein_forge::api::Repository,
         branch: Box<[u8]>,
         changes: Box<[u64]>,
+        readback: bool,
+        landed: Box<[u64]>,
+        unrecorded: Box<[u64]>,
     },
     /// A taskless hold with no live writer dropped in Link.
     HoldDropped {

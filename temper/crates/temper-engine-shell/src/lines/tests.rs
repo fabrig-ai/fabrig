@@ -968,6 +968,9 @@ fn unmade_landing_and_dropped_hold_warnings_name_the_repaired_rows() {
                 repository: skein_forge::api::Repository { forge: 1, repository: 7 },
                 branch: b"main".as_slice().into(),
                 changes: Box::new([8975, 9104, 9885, 10023]),
+                readback: false,
+                landed: Box::new([]),
+                unrecorded: Box::new([]),
             }
         ),
         "temper-box serve: warning: landing 10030 into main of repository 1/7 has no task: ended; its changes 8975, 9104, 9885, 10023 wait again\n"
@@ -1822,4 +1825,44 @@ fn layout_refusal_lines_name_the_kind_worker_and_plan_problem() {
         ),
         "temper serve: cannot read turn from worker worker-a: smith-transcript TurnKind.worker_only: variant\n"
     );
+}
+
+#[test]
+fn taskless_merge_readback_only_names_changes_in_each_clause() {
+    use temper_engine_service::Note;
+    type Case = (&'static [u64], &'static [u64], &'static [u64], &'static str);
+    let prefix = "temper-box serve: warning: landing 10030 into main of repository 1/7 has no task: ended after reading back its merge";
+    let cases: &[Case] = &[
+        (
+            &[9885],
+            &[8975, 9104],
+            &[9104],
+            "; changes 8975, 9104 landed; its changes 9885 wait again; the pull requests of changes 9104 are not recorded merged",
+        ),
+        (
+            &[],
+            &[8975, 9104],
+            &[9104],
+            "; changes 8975, 9104 landed; the pull requests of changes 9104 are not recorded merged",
+        ),
+        (&[9885], &[8975, 9104], &[], "; changes 8975, 9104 landed; its changes 9885 wait again"),
+        (&[8975, 9104, 9885], &[], &[], "; its changes 8975, 9104, 9885 wait again"),
+    ];
+    for &(changes, landed, unrecorded, suffix) in cases {
+        assert_eq!(
+            note_line(
+                "temper-box",
+                Note::LandingUnmade {
+                    task: 10030,
+                    repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                    branch: b"main".as_slice().into(),
+                    changes: changes.into(),
+                    readback: true,
+                    landed: landed.into(),
+                    unrecorded: unrecorded.into(),
+                }
+            ),
+            format!("{prefix}{suffix}\n")
+        );
+    }
 }

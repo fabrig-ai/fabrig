@@ -15,7 +15,7 @@ pub use temper_engine_domain_forge_vocabulary::landing::*;
 
 #[path = "landing_read_wait.rs"]
 pub(crate) mod read_wait;
-pub(crate) use read_wait::{clear as forget_progress, unavailable as read_unavailable};
+pub(crate) use read_wait::unavailable as read_unavailable;
 
 #[path = "landing_follow.rs"]
 mod saved_follow;
@@ -37,6 +37,7 @@ type ProjectLanding = (
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
+    pub(crate) unmade: Map<u64, crate::unmade::Readback>,
     memberships: Map<u64, u64>,
     memberships_unbuilt: bool,
     claims: Map<u64, u64>,
@@ -254,6 +255,7 @@ impl State {
         let slots = slots(l).expect("landing bounds checked");
         Self {
             rows: Map::with_capacity(l.landings),
+            unmade: Map::with_capacity(l.landings),
             memberships: Map::with_capacity(l.changes),
             memberships_unbuilt: false,
             claims: Map::with_capacity(l.landings),
@@ -1037,7 +1039,7 @@ fn remap_members(d: &mut Domain, row: &mut LandingRow, prior: &LandingRow) {
     }
 }
 
-fn repository(member: &policy::Member) -> api::Repository {
+pub(crate) fn repository(member: &policy::Member) -> api::Repository {
     api::Repository { forge: member.repository.forge, repository: member.repository.repository }
 }
 fn gate_key(row: &LandingRow, member: u16, _gate: u16, name: &[u8], key: policy::Key) -> ReceiptKey {
@@ -1332,7 +1334,7 @@ pub(crate) fn step(
     mut heard: LandingHeard,
     out: &mut Queue<Request>,
 ) {
-    if d.stopping {
+    if d.stopping || d.landing.unmade.contains_key(&task) {
         return;
     }
     crate::room::stepping(d, task);
@@ -3700,14 +3702,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             committed = Some(p.entry);
         }
         policy::Decision::Landed { member, prefix } => {
-            let change = row.landing.members.get(usize::from(member)).expect("member").change;
-            let signed = match d.changes.get(&change) {
-                Some(row) => row.signed.clone(),
-                None => Box::new([]),
-            };
-            crate::landing_log::landed(d, env.wall, prefix, change, signed, out);
-            crate::verification::landed(d, prefix, change, out);
-            members::hand(d, &row, member, change::Ask::Landed { prefix }, out);
+            hand_landed(d, env.wall, &row, member, prefix, out);
         }
         policy::Decision::Resolve { member, base } => {
             members::hand(d, &row, member, change::Ask::Resolve { base }, out);
@@ -5253,7 +5248,7 @@ pub(crate) fn restoring(d: &mut Domain, env: &Env<Limits>, row: &LandingRow) {
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
     read_wait::restore_waits(d, env);
     for (task, row) in &d.landing.rows {
-        if row.room.is_some() {
+        if row.room.is_some() || d.landing.unmade.contains_key(task) {
             continue;
         }
         match row.landing.phase {
@@ -5437,7 +5432,7 @@ fn reclaimable(d: &Domain, row: &LandingRow) -> bool {
     true
 }
 
-fn matches_terminal(phase: &policy::Phase) -> bool {
+pub(crate) fn matches_terminal(phase: &policy::Phase) -> bool {
     match phase {
         policy::Phase::Landed | policy::Phase::Cancelled => true,
         policy::Phase::Waiting
@@ -6002,6 +5997,25 @@ pub(crate) fn closing(
     }
 }
 
+/// Record a member's landed prefix and hand it to the change, as in the turn.
+pub(crate) fn hand_landed(
+    d: &mut Domain,
+    wall: Wall,
+    row: &LandingRow,
+    member: u16,
+    prefix: api::Commit,
+    out: &mut Queue<Request>,
+) {
+    let change = row.landing.members.get(usize::from(member)).expect("member").change;
+    let signed = match d.changes.get(&change) {
+        Some(row) => row.signed.clone(),
+        None => Box::new([]),
+    };
+    crate::landing_log::landed(d, wall, prefix, change, signed, out);
+    crate::verification::landed(d, prefix, change, out);
+    members::hand(d, row, member, change::Ask::Landed { prefix }, out);
+}
+
 /// Ends a live landing row as its task's closing does (landing-liveness.md, 5):
 /// phase `Cancelled`, members told or left ready, index entries and own
 /// asks gone, runs no longer followed, train woken, history closed. A row
@@ -6035,7 +6049,7 @@ pub(crate) fn end_row(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Qu
             if let Some(merge) = member.landed {
                 if let Some(change::Handed { ask: change::Ask::Landed { .. }, .. }) = members::head(change) {
                     // The change's step will record the landed prefix.
-                } else {
+                } else if crate::domain::landed_commit(&prior.state).is_none() {
                     change.change.state = change::State::Landed { merge, since: env.wall };
                 }
             } else if let change::State::Judging { head, ready_since, .. } = change.change.state {

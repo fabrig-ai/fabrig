@@ -140,7 +140,9 @@ pub(crate) fn matches_turn(phase: &Phase) -> bool {
     }
 }
 
-pub(crate) fn top(landing: &Landing) -> Option<u16> {
+/// The turn’s top member, including the green prefix after a search.
+#[must_use]
+pub fn top(landing: &Landing) -> Option<u16> {
     if let Some(search) = &landing.round.search
         && probe(landing).is_none()
         && search.green != 0

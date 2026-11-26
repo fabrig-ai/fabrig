@@ -118,6 +118,7 @@ impl State {
     pub(crate) fn erase(&mut self, task: u64) -> Option<LandingRow> {
         let row = self.rows.remove(&task)?;
         self.claims.remove(&task);
+        self.unmade.remove(&task);
         self.departed(&row);
         Some(row)
     }

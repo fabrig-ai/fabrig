@@ -4116,8 +4116,11 @@ pub(crate) fn outputs(
             forge::Request::ConversionAskDropped { change, landing, kind } => {
                 super::diagnostics::emit(domain, crate::Fact::ConversionAskDropped { change, landing, kind });
             }
-            forge::Request::LandingUnmade { task, repository, branch, changes } => {
-                super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
+            forge::Request::LandingUnmade { task, repository, branch, changes, readback, landed, unrecorded } => {
+                super::diagnostics::emit(
+                    domain,
+                    crate::Fact::LandingUnmade { task, repository, branch, changes, readback, landed, unrecorded },
+                );
             }
             forge::Request::HoldDropped { name, task } => {
                 super::diagnostics::emit(domain, crate::Fact::HoldDropped { name, task });

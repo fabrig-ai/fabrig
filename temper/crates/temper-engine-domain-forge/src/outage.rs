@@ -183,6 +183,7 @@ fn riding(d: &Domain, owner: Token) -> bool {
         || d.tier_ops.reads.contains_key(&owner)
         || d.closing.selection_reads.contains_key(&owner)
         || d.rebase_fresh.contains_key(&owner)
+        || crate::unmade::reader(d, owner).is_some()
 }
 /// Remember the exact fresh read, not a reconstruction from facts that may move.
 pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {

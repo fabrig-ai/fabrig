@@ -3,6 +3,7 @@ use skein_lib::Wall;
 use temper_engine_domain::{self as engine, Record, Write};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 use temper_engine_forge_world as forge_world;
 
@@ -187,7 +188,8 @@ fn an_unmade_landing_ends_at_start_and_its_members_wait_again() {
         driver.advance(true);
     }
     assert!(driver.root.ready(), "start continues: {:?}", driver.root.start_stop());
-    assert_unmade_repaired(&mut driver);
+    assert_unmade_members_and_warnings(&mut driver);
+    assert_no_unmade_history(&driver);
     let store = driver.take_store();
     let mut again = Driver::cold(store, walking::config(91), &walking::limits());
     for _ in 0..STEPS {
@@ -205,8 +207,8 @@ fn an_unmade_landing_ends_at_start_and_its_members_wait_again() {
     );
 }
 
-fn assert_unmade_repaired(driver: &mut Driver) {
-    assert!(!driver.store.rows.contains_key(&engine::Key::Forge(forge::Key::Landing(UNMADE))));
+fn assert_unmade_members_and_warnings(driver: &mut Driver) {
+    assert_cancelled_landing(&driver.store);
     let mut facts = Vec::new();
     while let Some(fact) = driver.root.pop_fact() {
         facts.push(fact);
@@ -220,6 +222,9 @@ fn assert_unmade_repaired(driver: &mut Driver) {
             repository,
             branch: b"main".as_slice().into(),
             changes: Box::new([8975, 9104, 9885]),
+            readback: false,
+            landed: Box::new([]),
+            unrecorded: Box::new([]),
         }
     );
     for (index, task) in [8975, 9104, 9885].into_iter().enumerate() {
@@ -241,6 +246,9 @@ fn assert_unmade_repaired(driver: &mut Driver) {
         assert!(!driver.store.rows.contains_key(&engine::Key::Forge(forge::Key::Hold(name.clone()))));
         assert!(facts.contains(&engine::Fact::HoldDropped { name, task: UNMADE }));
     }
+}
+
+fn assert_no_unmade_history(driver: &Driver) {
     assert!(
         !driver.transactions.iter().flatten().any(|write| matches!(write,
             Write::Save(Record::Forge { row }) if matches!(row.as_ref(),
@@ -251,8 +259,76 @@ fn assert_unmade_repaired(driver: &mut Driver) {
     );
 }
 
+pub(super) fn cancelled_landing(store: &Store) -> bool {
+    matches!(store.rows.get(&engine::Key::Forge(forge::Key::Landing(UNMADE))),
+        Some(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Landing(row)
+            if row.landing.phase == landing::Phase::Cancelled))
+}
+
+pub(super) fn assert_cancelled_landing(store: &Store) {
+    assert!(cancelled_landing(store), "taskless row is retained cancelled");
+}
+
+fn saves_cancelled_landing(write: &Write) -> bool {
+    matches!(write, Write::Save(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Landing(row)
+        if row.landing.task == UNMADE && row.landing.phase == landing::Phase::Cancelled))
+}
+
 #[test]
-fn an_empty_unmade_landing_is_erased_without_a_warning() {
+fn a_taskless_proving_landing_closes_its_round_in_link() {
+    use forge::history::{LandingOutcome, RoundCause, What};
+    let mut rows = unmade_rows();
+    for row in &mut rows {
+        if let forge::Stored::Landing(row) = row {
+            row.landing.preparation = 1;
+            row.landing.phase = landing::Phase::Proving;
+            for member in &mut row.landing.members {
+                member.base = Some([2; 32]);
+                member.candidate = Some([3; 32]);
+                member.round = Some(1);
+            }
+        }
+    }
+    let mut driver = restart_with_rows(rows);
+    for _ in 0..STEPS {
+        driver.advance(true);
+    }
+    assert_unmade_members_and_warnings(&mut driver);
+    let link = driver
+        .transactions
+        .iter()
+        .position(|commit| commit.iter().any(saves_cancelled_landing))
+        .expect("cancelled row in Link");
+    let switch =
+        driver.transactions.iter().position(|commit| commit.contains(&Write::Wires)).expect("the start switches");
+    assert!(link < switch, "ending commits before the switch");
+    for change in [8975, 9104, 9885] {
+        let history: Vec<_> = driver.transactions[link]
+            .iter()
+            .filter_map(|write| match write {
+                Write::Save(Record::Forge { row }) => match row.as_ref() {
+                    forge::Stored::HistoryEvent(event)
+                        if event.change == change && event.landing.is_some_and(|l| l.task == UNMADE) =>
+                    {
+                        Some(event.what.clone())
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            history,
+            [
+                What::RoundEnded { cause: RoundCause::Cancelled },
+                What::LandingEnded { outcome: LandingOutcome::Cancelled }
+            ]
+        );
+    }
+}
+
+#[test]
+fn an_empty_unmade_landing_ends_without_a_warning() {
     let mut landing = unmade_rows()
         .into_vec()
         .into_iter()
@@ -268,10 +344,7 @@ fn an_empty_unmade_landing_is_erased_without_a_warning() {
         driver.advance(true);
     }
     assert!(driver.root.ready());
-    assert!(
-        !driver.store.rows.contains_key(&engine::Key::Forge(forge::Key::Landing(UNMADE))),
-        "empty unmade row erased"
-    );
+    assert_cancelled_landing(&driver.store);
     assert!(driver.root.pop_fact().is_none(), "no repository to name in a warning");
 }
 
@@ -324,8 +397,11 @@ fn unmade_members_leave_judging_and_keep_landed_records_and_other_links() {
         let ready = change::State::Ready { head: [3; 32], ready_since: Wall::from_nanos(1) };
         assert_eq!(first.change.state, ready);
         assert_eq!(first.asks.as_ref(), std::slice::from_ref(&converted));
-        let erase = Write::Erase(engine::Key::Forge(forge::Key::Landing(UNMADE)));
-        let commit = driver.transactions.iter().find(|commit| commit.contains(&erase)).expect("unmade Link commit");
+        let commit = driver
+            .transactions
+            .iter()
+            .find(|commit| commit.iter().any(saves_cancelled_landing))
+            .expect("unmade Link commit");
         assert!(commit.iter().any(|write| matches!(write,
             Write::Save(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::ChangeHot(change)
                 if change.task == FIRST_MEMBER && change.change.state == ready && change.asks.as_ref() == std::slice::from_ref(&converted))

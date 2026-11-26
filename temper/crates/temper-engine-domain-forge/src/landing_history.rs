@@ -239,6 +239,7 @@ pub(crate) fn transition(
         );
     }
     if after.landing.phase == policy::Phase::Cancelled
+        && before.landing.preparation != 0
         && before.landing.phase != policy::Phase::Cancelled
         && before.landing.phase != policy::Phase::Landed
     {
