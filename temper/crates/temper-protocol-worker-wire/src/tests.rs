@@ -179,8 +179,9 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     // Merged adds a list length and 64 full ids in place of Merge's base id.
     // Five prefix branches fit the channel's 1 MiB Items ceiling; six do not.
     let largest = v1::Items::encoded_bound(&v1::CEILINGS).expect("ceiling bound");
-    // At ceilings: 64 * 15,433-byte repositories, a four-byte list length and the two-byte version.
-    assert_eq!(largest, 987_718);
+    // At ceilings: 64 * 15,433-byte repositories, a four-byte list length, the two-byte version,
+    // and the five-byte optional rerun bound (a one-byte tag and a four-byte value).
+    assert_eq!(largest, 987_723);
     assert!(largest <= 1_048_576);
     let one_more =
         largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
