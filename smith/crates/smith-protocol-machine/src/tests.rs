@@ -701,13 +701,9 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
         &mut harness.above,
         &mut harness.below,
     );
-    assert_eq!(
-        harness.above.pop(),
-        Some(ToDomain::Checked {
-            owner,
-            ran: run::Ran { exit: run::Exit::TimedOut, output: Box::from(b"efgh".as_slice()), cut: 4 }
-        })
-    );
+    let ran =
+        run::Ran { exit: run::Exit::TimedOut, said_not_judged: false, output: Box::from(b"efgh".as_slice()), cut: 4 };
+    assert_eq!(harness.above.pop(), Some(ToDomain::Checked { owner, ran }));
 }
 
 fn directory_request(operation: u32, path: &[u8]) -> FromDomain {

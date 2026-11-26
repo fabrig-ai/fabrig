@@ -142,7 +142,15 @@ pub(crate) fn checked(
             if !passed && required {
                 let repository = copy_of(&repository(run, check).name);
                 let check = copy_of(conventions::checks(&run.charter));
-                back(owner, Returned::ChecksFailed { repository, check, given, ran }, Settled::Refused, out)
+                let result = match ran.exit {
+                    Exit::Code { .. } if !ran.said_not_judged => {
+                        Returned::ChecksFailed { repository, check, given, ran }
+                    }
+                    Exit::Code { .. } | Exit::Signalled { .. } | Exit::TimedOut | Exit::Unstarted | Exit::Cancelled => {
+                        Returned::ChecksNotJudged { repository, check, given, ran }
+                    }
+                };
+                back(owner, result, Settled::Refused, out)
             } else if env.now >= landing.deadline {
                 back(owner, Returned::TimedOut, Settled::Cancelled, out)
             } else if !may_finish {

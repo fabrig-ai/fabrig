@@ -203,7 +203,7 @@ impl World {
         let kept = written.min(u64::from(tail));
         let output =
             b"test parse_tabs ... FAILED\n".iter().copied().cycle().take(usize::try_from(kept).expect("small"));
-        let ran = run::Ran { exit, output: output.collect(), cut: written - kept };
+        let ran = run::Ran { exit, said_not_judged: false, output: output.collect(), cut: written - kept };
         let key = self.schedule(at, Delivery::Io(run::Event::Checked { owner, ran }));
         self.io.checks.insert(owner, key);
     }

@@ -63,6 +63,7 @@ pub fn feedback(returned: Returned, max_bytes: u64) -> Result<Feedback, Feedback
         | Returned::Accepted
         | Returned::Rejected { .. }
         | Returned::ChecksFailed { .. }
+        | Returned::ChecksNotJudged { .. }
         | Returned::Stale
         | Returned::DeliveryFailed { .. }
         | Returned::Cancelled
@@ -166,7 +167,14 @@ fn render(text: &mut Text, returned: &Returned) {
                 render_problem(text, problem);
             }
         }
-        Returned::ChecksFailed { repository, check, given, ran } => render_checks(text, repository, check, *given, ran),
+        Returned::ChecksFailed { repository, check, given, ran } => {
+            text.put(b"checks-failed");
+            render_checks(text, repository, check, *given, ran);
+        }
+        Returned::ChecksNotJudged { repository, check, given, ran } => {
+            text.put(b"checks-not-judged");
+            render_checks(text, repository, check, *given, ran);
+        }
         Returned::Stale => text.put(b"stale"),
         Returned::DeliveryFailed { failure } => {
             text.put(b"delivery-failed directory=");
@@ -253,7 +261,7 @@ fn render_delivery_refusal(text: &mut Text, refusal: &run::DeliveryRefusal) {
 }
 
 fn render_checks(text: &mut Text, repository: &[u8], check: &[u8], given: skein_lib::Duration, ran: &run::Ran) {
-    text.put(b"checks-failed repository=");
+    text.put(b" repository=");
     text.bytes(repository);
     text.put(b" check=");
     text.bytes(check);

@@ -1562,7 +1562,12 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
         let owner = *owner;
         let emitted = harness.step(Event::Below(crate::Below::Checked {
             owner,
-            ran: run::Ran { exit: run::Exit::Code { code: 0 }, output: bytes(b"check passed"), cut: 0 },
+            ran: run::Ran {
+                exit: run::Exit::Code { code: 0 },
+                said_not_judged: false,
+                output: bytes(b"check passed"),
+                cut: 0,
+            },
         }));
         let [Request::LongDone { host_run }, Request::Deliver { owner: delivered_owner, change: delivered_change, .. }] =
             emitted.as_ref()

@@ -510,7 +510,7 @@ pub enum Returned {
         /// Bounded validation problems explaining why the declared outcome was rejected.
         problems: Problems,
     },
-    /// The checks of the repository `repository` failed, as `ran` says.
+    /// The repository's required check judged the tree and refused it.
     ChecksFailed {
         /// First failed repository in workspace order, or none for a workspace-wide failure.
         repository: Box<[u8]>,
@@ -521,6 +521,8 @@ pub enum Returned {
         /// Checks' process terminal, including its bounded diagnostic tail.
         ran: Ran,
     },
+    /// The repository's required check reached no verdict; the same tree may be delivered again.
+    ChecksNotJudged { repository: Box<[u8]>, check: Box<[u8]>, given: Duration, ran: Ran },
     /// Delivery cannot land later because the host context moved, and
     /// the run ends.
     Stale,
@@ -587,6 +589,8 @@ pub enum AskRefusal {
 pub struct Ran {
     /// Terminal process classification; only a zero exit code passes checks.
     pub exit: Exit,
+    /// The machine saw the check's whole not-judged marker on stderr, even if cut from the tail.
+    pub said_not_judged: bool,
     /// Owned output bytes retained within the enclosing output cap.
     pub output: Box<[u8]>,
     /// Bytes omitted outside the retained output window.
