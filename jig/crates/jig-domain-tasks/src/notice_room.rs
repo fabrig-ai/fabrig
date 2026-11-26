@@ -1,6 +1,6 @@
 //! Room kept in an asked task's inbox (jig/docs/design/domain/tasks/messages.md, 2).
 use crate::domain::{Domain, record, task_mut};
-use crate::{Limits, MessageFamily, MessageKind, Party, ProcedureMessage, Spoken, TaskRecord};
+use crate::{Limits, MessageKind, Party, ProcedureMessage, TaskRecord};
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Set};
 
@@ -79,24 +79,18 @@ pub(crate) fn check_step(
     read: Option<u64>,
     messages: &[ProcedureMessage],
 ) -> Result<Box<[Release]>, u64> {
+    let Some(through) = read else { return no_answers(messages) };
     let mut answers = Map::with_capacity(limits.inbox_messages);
-    if let Some(through) = read {
-        for word in &task.inbox {
-            if word.number > through || task.refused.contains(&word.number) {
-                continue;
-            }
-            match word.kind.family() {
-                MessageFamily::Spoken(Spoken::Answer { question }) => {
-                    answers.insert(question, word.from).expect("answers bounded by the inbox");
-                }
-                MessageFamily::Spoken(Spoken::Words | Spoken::Question)
-                | MessageFamily::Hint(_)
-                | MessageFamily::Slot(_)
-                | MessageFamily::Separate(_)
-                | MessageFamily::Result
-                | MessageFamily::Virtual => {}
-            }
+    for word in &task.inbox {
+        if let MessageKind::Answer { question } = word.kind
+            && word.number <= through
+            && !task.refused.contains(&word.number)
+        {
+            answers.insert(question, word.from).expect("answers bounded by the inbox");
         }
+    }
+    if answers.is_empty() {
+        return no_answers(messages);
     }
     let mut claimed = Set::with_capacity(limits.inbox_messages);
     for part in messages {
@@ -135,6 +129,15 @@ pub(crate) fn check_step(
         }
     }
     Ok(releases.into_boxed())
+}
+
+fn no_answers(messages: &[ProcedureMessage]) -> Result<Box<[Release]>, u64> {
+    for part in messages {
+        if part.notice.is_some() {
+            return Err(part.message.task);
+        }
+    }
+    Ok(Box::new([]))
 }
 
 fn keeps(domain: &Domain, target: u64, credit: NoticeCredit) -> bool {

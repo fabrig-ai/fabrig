@@ -239,6 +239,14 @@ pub struct World {
     pub acknowledgements: Option<Vec<(u64, u64)>>,
 }
 
+/// Room for a goal, its changes and their foremen (domain/forge/change/questions.md, 1).
+#[derive(Clone, Copy)]
+pub struct GoalQuestionRoom {
+    pub tasks: u32,
+    pub inbox_bytes: u32,
+    pub dependencies: Option<u32>,
+}
+
 #[derive(Clone, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
@@ -259,6 +267,7 @@ pub struct StoryLimits {
     pub forge_tasks: Option<u32>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
+    pub goal_question_room: Option<GoalQuestionRoom>,
     /// Ceiling for a scripted change tree deeper than the default four levels.
     pub delegation_depth: Option<u32>,
     pub landing_attempts: Option<u8>,
@@ -412,6 +421,42 @@ fn configure_goal_closer(config: &mut engine::Config, limits: &mut engine::Limit
         project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
     }
     limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn configure_question_room(config: &mut engine::Config, limits: &mut engine::Limits, room: GoalQuestionRoom) {
+    let GoalQuestionRoom { tasks, inbox_bytes, dependencies } = room;
+    // Keep the question story's report room beside its live result label.
+    limits.tasks.result_bytes += RESULT_MESSAGE_BYTES;
+    limits.forge.client.op_bytes = limits.forge.client.op_bytes.max(limits.tasks.result_bytes);
+    limits.tasks.tasks = tasks;
+    limits.tasks.project_tasks = tasks;
+    limits.tasks.tree_tasks = tasks;
+    limits.tasks.inbox_bytes = inbox_bytes;
+    limits.tasks.batch = 2;
+    if let Some(dependencies) = dependencies {
+        limits.tasks.dependencies = dependencies;
+    }
+    limits.people.inbox_tasks = tasks * 2;
+    limits.forge.tasks = tasks;
+    limits.forge.client.resources = tasks * limits.forge.resources_per_task;
+    limits.brief.budgets.task = 2048;
+    // Task, Waiting, transcript tail and Home fit beside one another.
+    limits.brief.sections = 4;
+    limits.brief.brief_bytes = 4096;
+    config.core.defaults.rules.ceiling.delegation.tasks = tasks;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.tasks = tasks;
+    policy.roles[0].authority.delegation.tasks = tasks;
+}
+
+fn question_codec(limits: &engine::Limits) -> engine::Limits {
+    let mut codec = crate::store::widest();
+    codec.tasks = limits.tasks;
+    codec.forge.client.op_bytes = limits.forge.client.op_bytes;
+    codec.people.spec_bytes = limits.tasks.spec_bytes;
+    codec.authority = limits.authority;
+    codec.people.words = limits.people.words;
+    codec
 }
 
 fn configure_landing_deployment(config: &mut engine::Config, rules: &[engine::LandingRule]) {
@@ -716,7 +761,7 @@ impl World {
             ..
         } = *timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate, freshness } = gate;
-        let (bootstrap, limits) = {
+        let (mut bootstrap, mut limits) = {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
@@ -1484,6 +1529,10 @@ impl World {
         if kinds || timing.settings_owner.is_some() {
             runtime.core.kinds = temper_engine_service_stock::stock::kinds(&limits, runtime.core.connectors[0]);
         }
+        if let Some(room) = timing.goal_question_room {
+            configure_question_room(&mut runtime, &mut limits, room);
+            bootstrap = crate::oracle::config::copy(&runtime);
+        }
         if let Some(rules) = &timing.landing_deployment {
             configure_landing_deployment(&mut runtime, rules);
         }
@@ -1718,6 +1767,9 @@ impl World {
         }
         if timing.call_records.is_some() {
             store_limits.call_records = limits.call_records;
+        }
+        if timing.goal_question_room.is_some() {
+            store_limits = question_codec(&limits);
         }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
@@ -2038,50 +2090,6 @@ impl World {
         producer.policy.alternatives = Box::new([second]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid producer model configuration");
-        self
-    }
-
-    /// Size a goal's question story for its changes and their foremen before startup
-    /// (temper/docs/design/domain/forge/change/questions.md, 1, and temper/docs/design/domain/forge/branches.md, 1).
-    #[must_use]
-    pub fn with_goal_question_capacity(mut self, tasks: u32, inbox_bytes: u32) -> Self {
-        assert_eq!(self.env.now, Time::ZERO, "question capacity precedes startup");
-        assert!(!self.root.ready(), "question capacity precedes bootstrap");
-        // Keep the question story's report room beside its live result label.
-        self.env.limits.tasks.result_bytes += RESULT_MESSAGE_BYTES;
-        self.env.limits.forge.client.op_bytes =
-            self.env.limits.forge.client.op_bytes.max(self.env.limits.tasks.result_bytes);
-        self.env.limits.tasks.tasks = tasks;
-        self.env.limits.tasks.project_tasks = tasks;
-        self.env.limits.tasks.tree_tasks = tasks;
-        self.env.limits.tasks.inbox_bytes = inbox_bytes;
-        self.env.limits.tasks.batch = 2;
-        self.env.limits.people.inbox_tasks = tasks * 2;
-        self.env.limits.forge.tasks = tasks;
-        self.env.limits.forge.client.resources = tasks * self.env.limits.forge.resources_per_task;
-        self.env.limits.brief.budgets.task = 2048;
-        // Task, Waiting, transcript tail and Home fit beside one another.
-        self.env.limits.brief.sections = 4;
-        self.env.limits.brief.brief_bytes = 4096;
-        self.restart_config.core.defaults.rules.ceiling.delegation.tasks = tasks;
-        let policy = &mut self.restart_config.core.seed_projects[0].policy.policy;
-        policy.ceiling.delegation.tasks = tasks;
-        policy.roles[0].authority.delegation.tasks = tasks;
-        self.creating = jig_test_profile::fixtures::Creating::new(&self.restart_config.core, tasks);
-        let mut codec = crate::store::widest();
-        codec.tasks = self.env.limits.tasks;
-        codec.forge.client.op_bytes = self.env.limits.forge.client.op_bytes;
-        codec.people.spec_bytes = self.env.limits.tasks.spec_bytes;
-        codec.authority = self.env.limits.authority;
-        codec.people.words = self.env.limits.people.words;
-        self.store = crate::fixtures::restored_over(
-            Store::with_limits(&codec),
-            crate::oracle::config::copy(&self.restart_config),
-            &self.env.limits,
-        );
-        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
-        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
-            .expect("valid goal question capacity");
         self
     }
 
@@ -4245,15 +4253,14 @@ impl World {
         self.oracle_settle();
         self.store.crash(0);
         snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
-        let store = self.store.take_for_drop();
-        let mut fresh =
-            crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
+        let mut config = crate::oracle::config::copy(&self.restart_config);
+        for worker in &mut config.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
+        self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
         self.idle_revision = None;
-        std::mem::swap(&mut self.root, &mut fresh.root);
-        std::mem::swap(&mut self.out, &mut fresh.out);
-        std::mem::swap(&mut self.events, &mut fresh.events);
-        std::mem::swap(&mut self.store, &mut fresh.store);
-        fresh.broken("temporary driver transfers its cold root to the forge world");
+        self.out = Queue::uncapped();
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.drained = None;
         self.ends.restarted(self.env.now);
         self.period = Some(1);

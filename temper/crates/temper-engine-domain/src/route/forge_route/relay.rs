@@ -34,9 +34,20 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     let offered = domain.core.tasks.procedure_offered(task).unwrap_or(0);
     let change_row = domain.forge.change(task);
     let questions = match change_row {
-        Some(row) => row.questions.clone(),
-        None => change::Questions::default(),
+        Some(row) => &row.questions,
+        None => &change::Questions::default(),
     };
+    // With no offered words or retained relay work there is no step to
+    // propose. In particular, a held answer is still open and must be tried.
+    if offered == 0
+        && questions.open.is_empty()
+        && questions.waiting.is_empty()
+        && questions.replies.is_empty()
+        && questions.amended.len() <= change::AMENDMENTS_KEPT
+        && decision.messages.len() <= skein_lib::usize_of(env.limits.tasks.batch)
+    {
+        return decision;
+    }
     let delegate = match change_row {
         Some(row) => row.delegate,
         None => None,
@@ -46,10 +57,10 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         messages.push(message).expect("decision messages fit the step batch");
     }
     let producer = live_producer(domain, delegate);
-    let Inbox { asked, answer, amended, words, replies } = take(row, offered, &questions, delegate, producer, env);
+    let Inbox { asked, answer, amended, words, replies } = take(row, offered, questions, delegate, producer, env);
     let sent = send_replies(&replies, &mut messages, env.limits.tasks.message_bytes);
     let passed =
-        change::pass(&questions, words.as_slice(), producer, usize::try_from(messages.room()).expect("bounded batch"));
+        change::pass(questions, words.as_slice(), producer, usize::try_from(messages.room()).expect("bounded batch"));
     for act in &passed.acts {
         messages
             .push(word_message(act, row.requester, questions.route, env.limits.tasks.message_bytes))
@@ -209,7 +220,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         messages.push(notice).expect("the question's notice is counted apart from ordinary messages");
     }
     decision.messages = messages.into_boxed();
-    if relayed.questions != questions || relayed.more || !passed.acts.is_empty() {
+    if relayed.questions != *questions || relayed.more || !passed.acts.is_empty() {
         let passing = Passing { words: passed, replies };
         if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
             pending.relayed = Some(relayed);

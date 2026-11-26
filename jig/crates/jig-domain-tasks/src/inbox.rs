@@ -177,11 +177,8 @@ pub(crate) fn room_staged(
     }
     let Some(reserved) = delegates.checked_add(stall_credits) else { return false };
     let Some(reserved) = reserved.checked_add(record.questions.len()) else { return false };
-    let mut reminder = false;
-    for word in record.inbox {
-        reminder |= word.kind == MessageKind::QuestionOwed;
-    }
-    let owed_credit = record.spec.asks && !record.asked_requester && !reminder;
+    let Some(waiting) = waiting_room(record.inbox, &record.unrecorded, bytes) else { return false };
+    let owed_credit = record.spec.asks && !record.asked_requester && !waiting.reminder;
     let Some(reserved) = reserved.checked_add(usize::from(owed_credit)) else { return false };
     let Some(received) = received_credits(record.requester, &record.question_lines, &record.questions)
         .checked_add(record.notice_credits.len())
@@ -197,38 +194,11 @@ pub(crate) fn room_staged(
     let Some(total_count) = total_count.checked_add(reserved) else {
         return false;
     };
-    // Amendment, grace and Met each have a separately priced slot. A notice
-    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 2).
-    let mut extra_count = 0_usize;
-    let mut extra_bytes = 0_usize;
-    for word in record.inbox {
-        match word.kind.family() {
-            MessageFamily::Separate(_) => {
-                extra_count = extra_count.checked_add(1).expect("bounded merged slots");
-                extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
-            }
-            MessageFamily::Slot(_)
-            | MessageFamily::Spoken(_)
-            | MessageFamily::Hint(_)
-            | MessageFamily::Result
-            | MessageFamily::Virtual => {}
-        }
-    }
-    let total_count = total_count.saturating_sub(extra_count);
+    let total_count = total_count.saturating_sub(waiting.extra_count);
     let Some(total_count) = total_count.checked_add(subscription_count) else { return false };
     let Some(total_count) = total_count.checked_add(skein_lib::length::usize_of(count)) else {
         return false;
     };
-    let mut total_bytes = bytes;
-    for message in record.inbox.iter().chain(record.unrecorded.iter()) {
-        let Some(sum) = total_bytes.checked_add(match message.payload_bytes() {
-            Some(bytes) => bytes,
-            None => return false,
-        }) else {
-            return false;
-        };
-        total_bytes = sum;
-    }
     let Some(result_bytes) = delegates.checked_mul(skein_lib::length::usize_of(limits.result_bytes)) else {
         return false;
     };
@@ -237,8 +207,8 @@ pub(crate) fn room_staged(
         return false;
     };
     let Some(notice_bytes) = received.checked_mul(crate::questions::ANSWER_NOTICE_BYTES) else { return false };
-    let Some(total_bytes) = total_bytes.checked_add(notice_bytes) else { return false };
-    let total_bytes = total_bytes.checked_sub(extra_bytes).expect("separate slots included");
+    let Some(total_bytes) = waiting.bytes.checked_add(notice_bytes) else { return false };
+    let total_bytes = total_bytes.checked_sub(waiting.extra_bytes).expect("separate slots included");
     let Some(total_bytes) = total_bytes.checked_add(if owed_credit { crate::questions::OWED_WORDS.len() } else { 0 })
     else {
         return false;
@@ -252,6 +222,38 @@ pub(crate) fn room_staged(
     let Some(total_bytes) = total_bytes.checked_add(subscription_bytes) else { return false };
     total_count <= skein_lib::length::usize_of(limits.inbox_messages)
         && total_bytes <= skein_lib::length::usize_of(limits.inbox_bytes)
+}
+
+struct WaitingRoom {
+    bytes: usize,
+    extra_count: usize,
+    extra_bytes: usize,
+    reminder: bool,
+}
+
+fn waiting_room(inbox: &[Word], unrecorded: &[Word], bytes: usize) -> Option<WaitingRoom> {
+    let mut used = WaitingRoom { bytes, extra_count: 0, extra_bytes: 0, reminder: false };
+    // Amendment, grace and Met each have a separately priced slot. A notice
+    // that the task may go on cannot consume a sender's room (domain/tasks/messages.md, 2).
+    for word in inbox {
+        used.bytes = used.bytes.checked_add(word.payload_bytes()?)?;
+        match word.kind.family() {
+            MessageFamily::Separate(_) => {
+                used.extra_count = used.extra_count.checked_add(1).expect("bounded merged slots");
+                used.extra_bytes = used.extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
+            }
+            MessageFamily::Slot(_)
+            | MessageFamily::Spoken(_)
+            | MessageFamily::Hint(_)
+            | MessageFamily::Result
+            | MessageFamily::Virtual => {}
+        }
+        used.reminder |= word.kind == MessageKind::QuestionOwed;
+    }
+    for word in unrecorded {
+        used.bytes = used.bytes.checked_add(word.payload_bytes()?)?;
+    }
+    Some(used)
 }
 
 pub(crate) fn message(
@@ -736,18 +738,18 @@ pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding:
     if let Some(number) = read {
         let mut kept = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox count"));
         let mut unrecorded = alloc::collections::BTreeMap::new();
-        for word in &task.unrecorded {
-            unrecorded.insert(word.number, word.clone());
+        for word in core::mem::replace(&mut task.unrecorded, Box::new([])) {
+            unrecorded.insert(word.number, word);
         }
-        for word in &task.inbox {
+        for word in core::mem::replace(&mut task.inbox, Box::new([])) {
             let unoffered = match outstanding {
                 Some(offered) => !offered.contains(&word.number),
                 None => false,
             };
             if word.number > number || unoffered || task.refused.contains(&word.number) {
-                kept.push(word.clone()).expect("retained subset fits");
-            } else if keeps_words && crate::directing_words(task, word) {
-                unrecorded.insert(word.number, word.clone());
+                kept.push(word).expect("retained subset fits");
+            } else if keeps_words && crate::directing_words(task, &word) {
+                unrecorded.insert(word.number, word);
             }
         }
         let mut ordered = List::with_capacity(u32::try_from(unrecorded.len()).expect("bounded words count"));

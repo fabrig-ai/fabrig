@@ -47,26 +47,9 @@ pub(super) fn independent() -> Story {
     start_with(None, true)
 }
 
-fn start_with(bound: Option<u32>, independent: bool) -> Story {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        true,
-        STEPS,
-        Gate::default(),
-        None,
-        StoryLimits {
-            slots: Some(WORKER_SLOTS),
-            result_bytes: Some(RESULT_BYTES),
-            questions: bound,
-            inbox_messages: bound.map(|_| RELEASE_QUESTION_INBOX_MESSAGES),
-            ..StoryLimits::default()
-        },
-    );
-    world.env.limits.tasks.dependencies = DEPENDENCIES;
-    let mut world = world.with_goal_question_capacity(STORY_TASKS, INBOX_BYTES);
+fn landing_rules() -> Box<[engine::LandingRule]> {
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
-    world = world.with_landing_deployment(Box::new([
+    Box::new([
         engine::LandingRule {
             sets: Box::new([]),
             connector: 0,
@@ -95,7 +78,32 @@ fn start_with(bound: Option<u32>, independent: bool) -> Story {
             gates: Box::new([]),
             approvals: Box::new([]),
         },
-    ]));
+    ])
+}
+
+fn start_with(bound: Option<u32>, independent: bool) -> Story {
+    use temper_engine_domain_world::forge_routes::GoalQuestionRoom;
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            slots: Some(WORKER_SLOTS),
+            result_bytes: Some(RESULT_BYTES),
+            questions: bound,
+            inbox_messages: bound.map(|_| RELEASE_QUESTION_INBOX_MESSAGES),
+            goal_question_room: Some(GoalQuestionRoom {
+                tasks: STORY_TASKS,
+                inbox_bytes: INBOX_BYTES,
+                dependencies: Some(DEPENDENCIES),
+            }),
+            landing_deployment: Some(landing_rules()),
+            ..StoryLimits::default()
+        },
+    );
     adopt_fresh(&mut world);
     world.send(protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([])));
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };

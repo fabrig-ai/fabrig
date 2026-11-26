@@ -127,20 +127,9 @@ pub(crate) fn apply(
         },
         &mut child,
     );
-    let mut kept = Queue::uncapped();
-    let mut refusal = None;
-    for _ in 0..child.len() {
-        let request = child.pop().expect("task output count");
-        if let tasks::Request::ProcedureRefused { problem, .. } = request {
-            refusal = Some(StepRefusal::Refused(problem));
-        } else {
-            kept.push(request);
-        }
-    }
-    let mut routed = crate::routing::task::tag_task_outputs(core, env, kept);
-    let mut out = Queue::uncapped();
+    let refusal = take_refusal(&mut child);
+    let mut out = crate::routing::task::tag_task_outputs(core, env, child);
     if let Some(why) = refusal {
-        out = routed;
         drop(core.land(token));
         let mut refused = refused(core, task, step, why);
         for _ in 0..refused.len() {
@@ -149,16 +138,7 @@ pub(crate) fn apply(
         }
         return out;
     }
-    let mut later = Queue::uncapped();
-    for _ in 0..routed.len() {
-        let request = routed.pop().expect("routed step count");
-        match request {
-            Request::Now(now) => later.push(Request::Now(now)),
-            Request::Write(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
-                out.push(request);
-            }
-        }
-    }
+    let mut later = defer_immediate(&mut out);
     let mut revisions = List::with_capacity(revised.capacity());
     for number in revised.into_boxed() {
         revisions
@@ -179,6 +159,53 @@ pub(crate) fn apply(
         out.push(later.pop().expect("deferred immediate output count"));
     }
     out
+}
+
+fn take_refusal(child: &mut Queue<tasks::Request>) -> Option<StepRefusal> {
+    // Accepted steps need no second queue of task writes.
+    for request in child.iter() {
+        if let tasks::Request::ProcedureRefused { .. } = request {
+            return drain_refusal(child);
+        }
+    }
+    None
+}
+
+fn drain_refusal(child: &mut Queue<tasks::Request>) -> Option<StepRefusal> {
+    let mut refusal = None;
+    for _ in 0..child.len() {
+        let request = child.pop().expect("task output count");
+        if let tasks::Request::ProcedureRefused { problem, .. } = request {
+            refusal = Some(StepRefusal::Refused(problem));
+        } else {
+            child.push(request);
+        }
+    }
+    refusal
+}
+
+fn defer_immediate(out: &mut Queue<Request>) -> Queue<Request> {
+    let mut later = Queue::uncapped();
+    // Keep the routed output in place when no event has to follow StepMade.
+    let mut defer = false;
+    for request in out.iter() {
+        if let Request::Now(_) = request {
+            defer = true;
+            break;
+        }
+    }
+    if defer {
+        for _ in 0..out.len() {
+            let request = out.pop().expect("routed step count");
+            match request {
+                Request::Now(now) => later.push(Request::Now(now)),
+                Request::Write(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
+                    out.push(request);
+                }
+            }
+        }
+    }
+    later
 }
 
 pub(crate) fn append_problem(core: &Core, task: u64, step: u64, problem: tasks::Problem, out: &mut Queue<Request>) {

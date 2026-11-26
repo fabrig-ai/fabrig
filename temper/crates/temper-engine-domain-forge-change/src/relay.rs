@@ -72,7 +72,17 @@ pub struct Relayed {
 pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut room: usize) -> Relayed {
     let amended = keep_amendments(&questions.amended, heard);
     if questions.route == Route::None {
-        return Relayed { questions: Questions { amended, ..questions.clone() }, acts: Box::new([]), more: false };
+        return Relayed {
+            questions: with_history(
+                questions,
+                questions.taken,
+                questions.open.clone(),
+                questions.answered.clone(),
+                amended,
+            ),
+            acts: Box::new([]),
+            more: false,
+        };
     }
     let mut acts = List::uncapped();
     let mut more = false;
@@ -161,13 +171,31 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     }
     let remaining = open.get(done..).expect("only answered heads leave the open questions");
     Relayed {
-        questions: Questions { taken, open: Box::from(remaining), answered, amended, ..questions.clone() },
+        questions: with_history(questions, taken, Box::from(remaining), answered, amended),
         acts: acts.into_boxed(),
         more,
     }
 }
 
 // questions.md, 1, Its amendments, kept for later work: these commit with the step.
+fn with_history(
+    questions: &Questions,
+    taken: u32,
+    open: Box<[Open]>,
+    answered: Box<[Answered]>,
+    amended: Box<[Amended]>,
+) -> Questions {
+    Questions {
+        route: questions.route,
+        taken,
+        open,
+        waiting: questions.waiting.clone(),
+        answered,
+        amended,
+        replies: questions.replies.clone(),
+    }
+}
+
 fn keep_amendments(amended: &[Amended], heard: &RelayHeard<'_>) -> Box<[Amended]> {
     let mut kept = List::with_capacity(u32::try_from(AMENDMENTS_KEPT).expect("amendment bound fits u32"));
     let skip = amended.len().saturating_add(heard.amended.len()).saturating_sub(AMENDMENTS_KEPT);
