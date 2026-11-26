@@ -899,14 +899,20 @@ fn landing_list_shows_unknown_last_event_and_engine_relative_ages() {
     *parts.landings.get_mut(0).unwrap() = row;
     let unknown = parts;
     assert!(contains(&read_list(&unknown, false).stdout, "last event unknown"));
-    assert!(contains(&read_list(&unknown, true).stdout, "\"step\":\"probing\",\"last_event\":null"));
+    assert!(contains(
+        &read_list(&unknown, true).stdout,
+        concat!(
+            r#""step":"probing","waits":{"for":"nothing","change":null,"gate":null,"run":null,"landing":null,"#,
+            r#""since":null,"bound":null},"last_event":null"#,
+        )
+    ));
     let mut parts = known;
     let mut row = parts.landings.get(0).unwrap().clone();
     row.phase = w::LandingPhase::Landed;
     *parts.landings.get_mut(0).unwrap() = row;
     let ended = parts;
     assert!(!contains(&read_list(&ended, false).stdout, "last event"));
-    assert!(contains(&read_list(&ended, true).stdout, "\"step\":null,\"last_event\":14029000000000"));
+    assert!(contains(&read_list(&ended, true).stdout, r#""step":null,"waits":null,"last_event":14029000000000"#));
 }
 
 #[test]

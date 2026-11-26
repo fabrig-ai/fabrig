@@ -194,9 +194,15 @@ pub const WAITS: Tool = Tool {
     result: b"waits",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        flag(b"kind", b"KIND", Kind::Word { set: &WAIT_KIND_WORDS }, Optional, b"Only waits of this kind"),
+        flag(
+            b"kind",
+            b"party|question|dependency|resource|account|host|delegate|news|step|room|turn|sign-off",
+            Kind::Word { set: &WAIT_KIND_WORDS },
+            Optional,
+            b"Only waits of this kind",
+        ),
         flag(b"party", b"PARTY", Kind::Number, Optional, b"Only waits at or heard by this party or its roles"),
-        flag(b"due", b"WITHIN", Kind::Duration, Optional, b"Only waits with bounds due within this duration, including those already past; at most 30 days"),
+        flag(b"due", b"DURATION", Kind::Duration, Optional, b"Only waits with bounds due within this duration, including those already past; at most 30 days"),
         flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on with the same filters"),
     ]],
     keyed: Keyed::Never,

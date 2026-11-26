@@ -519,7 +519,8 @@ fn help_waits_names_the_read_and_matches_its_reference() {
     assert_eq!(crate::help::selection(&call), Some(crate::help::Selection::Tool(jig::rows::WAITS_AT)));
     let help = fixtures::help(Some(jig::rows::WAITS_AT));
     assert!(
-        help.starts_with(b"waits --project PROJECT [--kind KIND] [--party PARTY] [--due WITHIN] [--after CURSOR]\n")
+        help.starts_with(b"waits --project PROJECT [--kind party|question|dependency|resource|account|host|delegate|news|step|room|turn|sign-off] \
+            [--party PARTY] [--due DURATION] [--after CURSOR]\n")
     );
     reference_matches(b"waits", b"ctl-waits");
 }

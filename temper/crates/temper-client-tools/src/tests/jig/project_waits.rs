@@ -86,10 +86,14 @@ fn project_waits_send_the_resolved_project_and_each_filter() {
 #[test]
 fn project_waits_refuse_invalid_kinds_and_due_durations_locally() {
     let choices = refusal(&["waits", "--project", "2", "--kind", "sign_off"]);
-    assert_eq!(choices.as_ref(), b"waits: --kind KIND takes one of party, question, dependency, resource, account, host, delegate, news, step, room, turn or sign-off; temper ctl help waits");
+    assert_eq!(
+        choices.as_ref(),
+        b"waits: --kind takes one of party, question, dependency, resource, account, host, delegate, news, step, \
+          room, turn or sign-off; temper ctl help waits"
+    );
     for invalid in ["0s", "2592001", "-1", "1.5h"] {
         let error = refusal(&["waits", "--project", "2", "--due", invalid]);
-        assert_eq!(error.as_ref(), b"waits: --due WITHIN takes a duration: seconds, or a number with s, m or h, from 1 to 2592000 seconds; temper ctl help waits");
+        assert_eq!(error.as_ref(), b"waits: --due DURATION takes a duration: seconds, or a number with s, m or h, from 1 to 2592000 seconds; temper ctl help waits");
     }
     for input in [
         br#"{"tool":"waits","arguments":{"project":2,"due":0}}"#.as_slice(),
