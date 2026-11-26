@@ -72,21 +72,16 @@ pub struct Header { name: Box<[u8]>, value: Box<[u8]> }   // names compared with
   that the upload's room could not join. A withdrawal of the upload's
   demand is not supported: the side above closes the client instead.
 
-- **A gzip encoder** (added 2026-10-20) is beside the client, for a
-  caller whose server takes a compressed request body (RFC 9110, 8.4.1;
-  ../../llm/wire.md, section 1.8): a pure function of the whole body to its gzip
-  member (RFC 1952), DEFLATE inside (RFC 1951) by `skein-deflate`'s
-  encoder (../../data/deflate.md), and a worst case from
-  the body's length that its output never passes, so the caller sets
-  the room aside before it compresses. It is deterministic: one body,
-  one output. It keeps a bounded window and match search, chosen for
-  JSON that repeats itself, and it trades ratio for speed: compressing
-  a body must cost far less than sending the bytes it saves. The client
-  machine itself never compresses: the caller hands it the compressed
-  body, and puts `Content-Encoding: gzip` among its fields. Nothing in
-  skein's production code decodes gzip: the tests decode with a small
-  inflater of their own, and a golden output is checked once against
-  the system's `gzip`.
+- **A compressed request body** is its caller's, for a server that
+  takes one (RFC 9110, 8.4.1; ../../llm/wire.md, section 1.8): the
+  caller compresses the whole body into one gzip member with
+  `skein-deflate`'s `gzip` module at its fast level
+  (../../data/gzip.md, 2), in room it set aside at the member's bound
+  before it compresses, and hands the client the member with
+  `Content-Encoding: gzip` among its fields. The fast level trades
+  ratio for speed, since compressing a body must cost far less than
+  sending the bytes it saves (../../data/deflate.md, 2). The client
+  machine itself never compresses.
 
 ## 2. The response head
 
