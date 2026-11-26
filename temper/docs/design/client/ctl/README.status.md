@@ -16,4 +16,3 @@ The browser boundary check remains later work (`README.md`, section 11).
 
 - **Departs:** 7, the replaced-proposal answer remains `jig/docs/design/client/domain/contract/requests.status.md`, 2.
 
-- **Not yet:** 7: `party reissue`'s answer prints the word DIRECTORY for the service's directory; it prints the owner's own directory, whose line would sign the owner in as the service. [in flight: change 19295]
