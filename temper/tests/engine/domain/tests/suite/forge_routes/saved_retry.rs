@@ -185,6 +185,7 @@ impl Workspace {
             }
         };
         let spec = checkout::Spec {
+            rerun: None,
             key: run.workstream.to_be_bytes().into(),
             repositories: Box::new([checkout::Repository {
                 name: repository.name.clone(),

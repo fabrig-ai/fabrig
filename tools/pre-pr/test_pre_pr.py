@@ -524,6 +524,41 @@ class Delivery(unittest.TestCase):
             self.assertEqual(commands, ['exec python3 -I -B tools/pre-pr/pre_pr.py' + suffix])
             self.assertTrue(script.stat().st_mode & 0o111)
 
+    def test_goal_hook_installs_only_a_missing_rerun_marker_before_goal_mode(self):
+        from shutil import copy2
+        checkout = self.root / 'checkout'
+        git_dir = self.root / 'metadata'
+        hooks = checkout / '.temper'
+        hooks.mkdir(parents=True)
+        hook = copy2(HERE.parents[1] / '.temper/goal-pre-pr', hooks)
+        stand_in = checkout / 'tools/pre-pr/pre_pr.py'
+        stand_in.parent.mkdir(parents=True)
+        stand_in.write_text(
+            'import sys\n'
+            'from pathlib import Path\n'
+            'import subprocess\n'
+            'assert sys.argv[1:] == ["--goal", "head", "dest"]\n'
+            'marker = Path(subprocess.check_output(\n'
+            '    ["git", "rev-parse", "--git-path", "temper/rerun"], text=True).strip())\n'
+            'print(marker.read_text(), end="")\n'
+        )
+        with mock.patch.object(subprocess, 'Popen', side_effect=POPEN):
+            subprocess.run(['git', 'init', '-q', '--separate-git-dir', git_dir], cwd=checkout, check=True)
+            marker = checkout / subprocess.check_output(
+                ['git', 'rev-parse', '--git-path', 'temper/rerun'], cwd=checkout, text=True).strip()
+            marker.parent.mkdir()
+            temporary = marker.with_suffix('.tmp')
+            temporary.write_bytes(b'unfinished\n')
+            staged_inode = temporary.stat().st_ino
+            call = [hook, 'head', 'dest']
+            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 0\n')
+            self.assertEqual(marker.stat().st_ino, staged_inode, 'the staged marker was renamed')
+            self.assertFalse(temporary.exists())
+
+            marker.write_bytes(b'temper-rerun 1 4\n')
+            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 4\n')
+            self.assertEqual(marker.stat().st_ino, staged_inode, 'the worker marker was not replaced')
+
     def test_changed_python_module_runs_its_sibling_suite_once(self):
         directory = self.root / 'tools/example'
         directory.mkdir(parents=True)

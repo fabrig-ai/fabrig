@@ -278,7 +278,7 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::Ste
 
 pub(super) fn workspace(task: u64) -> RunWorkspace {
     RunWorkspace {
-        workspace: super::ForgeWorkspace { repositories: Box::new([]) },
+        workspace: super::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
         workstream: task,
         writes: Box::new([]),
         names: Box::new([]),

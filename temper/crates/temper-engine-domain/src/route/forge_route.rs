@@ -1104,7 +1104,7 @@ pub(crate) fn run_workspace(
     if context.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
         && let tasks::Party::Task(parent) = context.requester
     {
-        return landing_route::prepare_workspace(domain, env, parent);
+        return landing_route::prepare_workspace(domain, env, parent, context.project);
     }
     let root = domain.core.tasks.root(context.task)?;
     let modify = match context.executor {
@@ -1285,13 +1285,26 @@ pub(crate) fn run_workspace(
         repositories.push(workspace_repository(item, push, save)?).ok()?;
     }
     Some(RunWorkspace {
-        workspace: ForgeWorkspace { repositories: repositories.into_boxed() },
+        workspace: ForgeWorkspace {
+            rerun: rerun_bound(domain, context.project),
+            repositories: repositories.into_boxed(),
+        },
         workstream: key,
         writes: writes.into_boxed(),
         names: names.into_boxed(),
         designs: designs.into_boxed(),
         own_holds: own_holds.into_boxed(),
     })
+}
+
+/// The run or job takes its project's bound from the settings built at restore.
+fn rerun_bound(domain: &Domain, project: u32) -> Option<u32> {
+    use forge::settings::Flakes;
+    match domain.forge.landing_settings(project)?.flakes {
+        Some(Flakes::Never) => Some(0),
+        Some(Flakes::Rerun(processes)) => Some(processes),
+        None => None,
+    }
 }
 
 /// Reconstruct the connector's provisional writer projection from the

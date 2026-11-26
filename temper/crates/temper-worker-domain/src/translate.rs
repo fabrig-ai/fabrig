@@ -21,13 +21,13 @@ pub(crate) const SAVED: &[u8] = checkout::SAVED;
 /// holding task's number in eight big-endian bytes; the same repositories, in
 /// the same order, each reached as its identity.
 pub(crate) fn spec(workstream: u64, workspace: wire::Workspace) -> checkout::Spec {
-    let wire::Workspace { repositories } = workspace;
+    let wire::Workspace { rerun, repositories } = workspace;
     let count = u32::try_from(repositories.len()).expect("the root checked the repositories against its limits");
     let mut specs = List::with_capacity(count);
     for repository in repositories {
         specs.push(self::repository(repository)).expect("room for every repository");
     }
-    checkout::Spec { key: Box::new(workstream.to_be_bytes()), repositories: specs.into_boxed() }
+    checkout::Spec { rerun, key: Box::new(workstream.to_be_bytes()), repositories: specs.into_boxed() }
 }
 
 /// The workstream a checkout's key names: the inverse of [`spec`]'s, for the

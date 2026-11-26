@@ -222,7 +222,7 @@ fn largest_writable_items_count_the_own_delivery_head() {
     for _ in 0..limits.items_repositories {
         repositories.push(repository.clone()).unwrap();
     }
-    let items = v1::Items { repositories };
+    let items = v1::Items { repositories, rerun: Some(u32::MAX) };
     let bytes = crate::items(&items);
     assert_eq!(u32::try_from(bytes.len()).unwrap(), crate::largest(&limits).unwrap().items);
     assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), items);

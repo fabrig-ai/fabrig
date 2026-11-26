@@ -2232,6 +2232,16 @@ impl World {
         self.restart_same();
     }
 
+    /// Set the project's flake policy before restoring its settings.
+    #[must_use]
+    pub fn with_flakes(mut self, flakes: forge_top::settings::Flakes) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "flake policy precedes startup");
+        crate::oracle::config::landing(&mut self.restart_config, 1).flakes = Some(flakes);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid flake policy configuration");
+        self
+    }
+
     /// Configure the project's merge command before the first input.
     #[must_use]
     pub fn with_merge_job(mut self, command: &[u8]) -> Self {

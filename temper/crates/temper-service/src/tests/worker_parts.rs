@@ -89,7 +89,8 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
 
 #[test]
 fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
-    let assignment = fixtures::assignment_with(fixtures::repository(3, b"acme", b"app"));
+    let mut assignment = fixtures::assignment_with(fixtures::repository(3, b"acme", b"app"));
+    assignment.workspace.rerun = Some(2);
     let limits = fixtures::wire_limits();
     let items = translate::items(
         &assignment,
@@ -112,11 +113,12 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
         let parts = [Part { token: Token::new(9), bytes: payload::items(&record) }];
         let workspace = worker_route::items(&fixtures::worker_assignment(), &parts, &limits).unwrap();
         let mut expected = fixtures::one_repository();
+        expected.rerun = Some(2);
         expected.repositories[0].git = program;
         expected.repositories[0].save = Some(b"temper/7/s7".as_slice().into());
         assert_eq!(workspace, expected);
     }
-    assert_eq!(translate::workspace(None), wire::Workspace { repositories: Box::new([]) });
+    assert_eq!(translate::workspace(None), wire::Workspace { rerun: None, repositories: Box::new([]) });
 }
 
 fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {

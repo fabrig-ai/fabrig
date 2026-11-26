@@ -251,6 +251,7 @@ struct Holding {
     arrived: Time,
     admitted: Time,
     stores: Box<[crate::cache::Borrowed]>,
+    rerun: Option<u32>,
     /// The spec's repositories, in its order.
     repositories: Box<[Repository]>,
     /// Where each repository checked out so far stands, in the same order.
@@ -575,7 +576,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         refuse_prepare(&mut domain.facts, client, Refusal::Invalid, out);
         return;
     }
-    let Spec { key, repositories } = spec;
+    let Spec { key, rerun, repositories } = spec;
     let crate::cache::Granted { workspace, cached, stores, token: disk, kept } =
         match domain.cache.hold(key.clone(), &repositories) {
             Ok(holding) => holding,
@@ -605,6 +606,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         arrived: env.now,
         admitted: env.now,
         stores,
+        rerun,
         repositories,
         tips,
         conflicts,
@@ -2356,7 +2358,10 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             action: crate::git::Reds::Prepare {
                 wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait"),
-                rerun_processes: env.limits.rerun_processes,
+                rerun_processes: match holding.rerun {
+                    Some(bound) => bound.min(env.limits.rerun_processes),
+                    None => env.limits.rerun_processes,
+                },
             },
         },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),

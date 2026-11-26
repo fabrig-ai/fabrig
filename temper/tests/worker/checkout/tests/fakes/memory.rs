@@ -80,7 +80,7 @@ fn full_spec(limits: &Limits, n: u32) -> Spec {
             push: Some(bytes(limits.name_bytes)),
         });
     }
-    Spec { key: name(limits.name_bytes, n), repositories: repositories.into_boxed_slice() }
+    Spec { rerun: None, key: name(limits.name_bytes, n), repositories: repositories.into_boxed_slice() }
 }
 
 fn message(limits: &Limits) -> Message {

@@ -345,7 +345,7 @@ pub fn assignment_with_settings(
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: 7,
-        workspace: temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) },
+        workspace: temper_engine_domain::ForgeWorkspace { rerun: None, repositories: Box::new([repository]) },
         transcript: Box::new([]),
         parts: Box::new([]),
         answered: Box::new([]),

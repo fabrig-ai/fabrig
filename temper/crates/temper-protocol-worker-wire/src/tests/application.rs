@@ -115,7 +115,7 @@ fn temper_roots_round_trip_in_their_carried_directions() {
     // default on the way back. The payloads use the real temper encoders.
     let mut text = wire::TEXT.replace("account: option u64 save:", "dropped account: option u64 = none save:");
     for end in [
-        "repositories: list 64 Repository }",
+        "rerun: option u32 = none }",
         "landed: list 64 Landed }",
         "repositories: list 64 SavedRepository }",
         "record Tag { tag: u64 }",
@@ -178,6 +178,37 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_ask() {
     let unasked = value.encode(&limits).unwrap();
     peer.down(root, &unasked, &mut out).expect("old workers keep the default");
     assert_eq!(transcode(Mode::Read, &worker, &engine, "JobSpec", out.as_slice()), unasked);
+}
+
+#[test]
+fn an_older_worker_cannot_keep_a_projects_rerun_bound() {
+    use jig_protocol_worker_wire::layouts::{Cause, Nested};
+    use skein_codec::{layout::Mode, schema::parse};
+    let engine = parse(wire::TEXT.as_bytes()).unwrap();
+    let text = wire::TEXT.replace(" rerun: option u32 = none", "");
+    let worker = parse(text.as_bytes()).unwrap();
+    let mut peer = peer(&worker);
+    let root = Nested::Carried(Carried::Items);
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    let mut value = fixtures::items(1);
+    let limits = fixtures::limits();
+
+    for bound in [0, 3] {
+        value.rerun = Some(bound);
+        let bytes = crate::items(&value);
+        assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), value);
+        let problem = peer.down(root, &bytes, &mut out).expect_err("untranslated for this worker");
+        assert_eq!(problem.cause, Cause::Field);
+        assert_eq!(&*problem.kept(), b"the worker's layout cannot keep temper-worker-wire Items.rerun: field");
+        assert_eq!(out.as_slice(), []);
+    }
+
+    value.rerun = None;
+    let bytes = crate::items(&value);
+    peer.down(root, &bytes, &mut out).expect("old workers keep the default");
+    assert_ne!(out.as_slice(), &*bytes, "the previous layout has no field for rerun");
+    let converted = transcode(Mode::Read, &worker, &engine, "Items", out.as_slice());
+    assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&converted)).unwrap(), value);
 }
 
 #[test]

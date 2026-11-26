@@ -783,7 +783,7 @@ impl World {
                 way => repositories[0].name = names[usize::try_from(way - 2).expect("small")].into(),
             }
         }
-        let spec = Spec { key: key.into(), repositories: repositories.into() };
+        let spec = Spec { rerun: None, key: key.into(), repositories: repositories.into() };
         let client = self.clients.get_mut(&name).expect("a client submitted");
         client.repos = repos;
         client.operation = Some(Operation::Prepare);

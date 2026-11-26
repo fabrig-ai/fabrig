@@ -616,7 +616,7 @@ mod tests {
             },
             &mut out,
         );
-        let items = crate::ForgeWorkspace { repositories: Box::new([]) };
+        let items = crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) };
         let kept = crate::boundary::JobWorkspace { attempt: 1, workspace: items.clone(), offered: false };
         domain.job_workspaces.insert(task, kept).unwrap();
         assert!(!domain.job_workspaces_offered(), "a job not yet offered is unfinished work");

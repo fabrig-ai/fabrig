@@ -6,7 +6,8 @@ use crate::git::{Kept, KeptState};
 fn marked() -> (Harness, Token, Kept) {
     let mut h = Harness::new(LIMITS);
     h.observe_marks = true;
-    let (hold, mut op) = h.prepare(1, Spec { key: bytes(b"run"), repositories: Box::new([repository(b"a", true)]) });
+    let (hold, mut op) =
+        h.prepare(1, Spec { rerun: None, key: bytes(b"run"), repositories: Box::new([repository(b"a", true)]) });
     for _ in 0..32_u32 {
         if let Op::Keep { mark: Some(mark), .. } = op {
             return (h, hold, mark);
@@ -76,7 +77,11 @@ fn a_held_mark_tracks_the_second_repository_without_rewriting_unchanged_tips() {
     h.observe_marks = true;
     let hold = h.ready(
         1,
-        Spec { key: bytes(b"run"), repositories: Box::new([repository(b"a", true), repository(b"b", true)]) },
+        Spec {
+            rerun: None,
+            key: bytes(b"run"),
+            repositories: Box::new([repository(b"a", true), repository(b"b", true)]),
+        },
     );
     assert_eq!(io(h.one(Event::Save { hold, message: message() }), hold).kind(), Kind::Commit);
     assert_eq!(h.next(hold, Done::Unchanged).kind(), Kind::Commit);
@@ -165,7 +170,7 @@ fn holds_without_saved_work_write_no_mark() {
         h.observe_marks = true;
         let mut repo = repository(b"a", writable);
         repo.save = None;
-        let hold = h.ready(1, Spec { key: bytes(b"job"), repositories: Box::new([repo]) });
+        let hold = h.ready(1, Spec { rerun: None, key: bytes(b"job"), repositories: Box::new([repo]) });
         for fact in h.facts().as_slice() {
             if let Fact::Started { op: Kind::Keep, .. } = fact {
                 panic!("no saved-work destination")
