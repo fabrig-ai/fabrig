@@ -1,6 +1,8 @@
 # forge: status
 
-2026-11-20. Where temper's code lags or departs from [README.md](README.md).
+2026-11-26. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 9.3: no public record carries a landing's wait [in flight: change 18571].
 
 
 

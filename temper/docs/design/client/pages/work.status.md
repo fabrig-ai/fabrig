@@ -1,6 +1,8 @@
 # work: status
 
-2026-11-18. Where the tree's code lags or departs from [work.md](work.md).
+2026-11-26. Where the tree's code lags or departs from [work.md](work.md).
+
+- **Not yet:** 1, *Its filters*: no "Waits" link [in flight: change 18573].
 
 - **Not yet:** 1, *Work*: a landing is marked the main one by the forge's
   default branch rather than the repository's landing branch [in flight:
