@@ -128,12 +128,20 @@ fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
 }
 
 fn finish_job(world: &mut World, job: &host::JobAssignment) {
-    finish_with(world, job, br#"{"settled":[]}"#);
+    finish_job_on(world, CHANNEL, job);
+}
+
+pub(super) fn finish_job_on(world: &mut World, channel: Token, job: &host::JobAssignment) {
+    finish_with_on(world, channel, job, br#"{"settled":[]}"#);
 }
 
 pub(super) fn finish_with(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
+    finish_with_on(world, CHANNEL, job, result);
+}
+
+fn finish_with_on(world: &mut World, channel: Token, job: &host::JobAssignment, result: &[u8]) {
     let event = world.protocol.answer_job(
-        CHANNEL,
+        channel,
         job.run.raw(),
         job.attempt.raw(),
         host::JobEnding::Finished { result: result.into(), work: host::Work { left: None, saved: None } },

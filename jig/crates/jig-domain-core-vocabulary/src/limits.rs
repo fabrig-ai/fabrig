@@ -132,14 +132,16 @@ const _: () = assert!(
 /// longest declared effort chosen (domain/engine/executors.md, 1).
 #[must_use]
 pub fn policy_owned_bytes(policy: &crate::RunPolicy) -> Option<u64> {
-    let mut largest = model_owned_bytes(&policy.model)?;
+    policy_bytes(&policy.instructions, &policy.model, &policy.alternatives)
+}
+
+pub(crate) fn policy_bytes(instructions: &[u8], main: &crate::Model, alternatives: &[crate::Model]) -> Option<u64> {
+    let mut largest = model_owned_bytes(main)?;
     let mut bytes = sizeof(size_of::<crate::RunPolicy>())?
-        .checked_add(len_u64(policy.instructions.len()))?
+        .checked_add(len_u64(instructions.len()))?
         .checked_add(largest)?
-        .checked_add(
-            len_u64(policy.alternatives.len()).checked_add(1)?.checked_mul(sizeof(size_of::<crate::Model>())?)?,
-        )?;
-    for model in &policy.alternatives {
+        .checked_add(len_u64(alternatives.len()).checked_add(1)?.checked_mul(sizeof(size_of::<crate::Model>())?)?)?;
+    for model in alternatives {
         let owned = model_owned_bytes(model)?;
         bytes = bytes.checked_add(owned)?;
         largest = largest.max(owned);

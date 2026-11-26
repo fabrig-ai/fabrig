@@ -127,6 +127,7 @@ fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
         wires: wires.into_boxed(),
         output: opening.statement.output,
         terms: terms.into_boxed(),
+        jobs: opening.statement.jobs,
         at: opening.at,
     }
 }

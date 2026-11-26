@@ -3,10 +3,10 @@
 use super::Agenda;
 use crate::{
     Bound, Figures, Wait, WaitKind, WaitObject,
-    documents::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy},
+    documents::{JobWhy, TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy},
 };
 use alloc::boxed::Box;
-use jig_domain_fleet::HostKind;
+use jig_domain_fleet::{HostKind, JobShort};
 use jig_domain_people::EntryKind;
 use jig_domain_tasks::{AccountWhy, EscalationHolder, Hold, WAIT_WORDS};
 use skein_lib::{Decimal, Duration, List, Wall, bytes, usize_of};
@@ -159,6 +159,9 @@ fn run(wait: TaskRunWait, out: &mut Words) {
             out.put(host(kind));
             out.put(b" cannot take these run bounds");
         }
+        TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind, why, figures }) => {
+            job(worker, kind, why, figures, out);
+        }
         TaskRunWait::Refused(TaskWaitRefused::Hello { kind, at, .. }) => {
             out.put(host(kind));
             out.put(b" refused at ");
@@ -208,6 +211,45 @@ fn source_state(state: TaskSourceState, out: &mut Words) {
     if let TaskSourceState::Later { until: Some(at) } | TaskSourceState::Limited { until: Some(at) } = state {
         out.put(b" until ");
         out.at(at);
+    }
+}
+
+fn job(worker: Option<u32>, kind: u32, why: JobWhy, figures: Option<jig_domain_fleet::Figures>, out: &mut Words) {
+    match worker {
+        Some(worker) => out.named(b"worker ", u64::from(worker)),
+        None => out.put(b"the engine"),
+    }
+    let kind = u64::from(kind);
+    match why {
+        JobWhy::Untranslated => out.put(b"'s layouts cannot keep this job"),
+        JobWhy::Short(JobShort::Kind) => out.named(b" runs no job of kind ", kind),
+        JobWhy::Short(short @ (JobShort::Spec | JobShort::Result | JobShort::Deadline)) => {
+            let Some(figures) = figures else { return out.named(b" cannot take job kind ", kind) };
+            out.named(b" takes job kind ", kind);
+            match short {
+                JobShort::Spec => out.put(b"'s spec up to "),
+                JobShort::Result => out.put(b"'s result up to "),
+                JobShort::Deadline => out.put(b" for up to "),
+                JobShort::Kind => unreachable!("kind has no figures"),
+            }
+            job_amount(short, figures.offered, true, out);
+            out.put(b"; this job's kind needs ");
+            job_amount(short, figures.required, false, out);
+        }
+    }
+}
+
+fn job_amount(short: JobShort, value: u64, offered: bool, out: &mut Words) {
+    match short {
+        JobShort::Spec | JobShort::Result => {
+            out.number(value);
+            if offered {
+                out.put(b" bytes");
+            }
+        }
+        JobShort::Deadline if value == 0 => out.put(b"0 ms"),
+        JobShort::Deadline => out.span(Duration::from_millis(value)),
+        JobShort::Kind => unreachable!("kind has no figures"),
     }
 }
 
@@ -294,5 +336,38 @@ mod tests {
         assert!(bytes::is_utf8(&words), "character boundary");
         let head = words.strip_suffix(CUT).expect("marked cut");
         assert_eq!(head.len(), usize_of(WAIT_WORDS - 6).div_euclid(3) * 3);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn wait_alarm_words_keep_the_job_host_kind_and_shortfall() {
+    use jig_domain_fleet::Figures as F;
+    for (worker, why, figures, expected) in [
+        (Some(2), JobWhy::Short(JobShort::Kind), None, "worker 2 runs no job of kind 4"),
+        (
+            Some(2),
+            JobWhy::Short(JobShort::Spec),
+            Some(F { required: 16384, offered: 1024 }),
+            "worker 2 takes job kind 4's spec up to 1024 bytes; this job's kind needs 16384",
+        ),
+        (
+            None,
+            JobWhy::Short(JobShort::Result),
+            Some(F { required: 512, offered: 256 }),
+            "the engine takes job kind 4's result up to 256 bytes; this job's kind needs 512",
+        ),
+        (
+            Some(2),
+            JobWhy::Short(JobShort::Deadline),
+            Some(F { required: 1_800_000, offered: 600_000 }),
+            "worker 2 takes job kind 4 for up to 10 min; this job's kind needs 30 min",
+        ),
+        (Some(2), JobWhy::Untranslated, None, "worker 2's layouts cannot keep this job"),
+    ] {
+        let wait = TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind: 4, why, figures });
+        let mut out = Words { bytes: List::with_capacity(WAIT_WORDS), cut: false };
+        run(wait, &mut out);
+        assert_eq!(out.finish().as_ref(), expected.as_bytes());
     }
 }

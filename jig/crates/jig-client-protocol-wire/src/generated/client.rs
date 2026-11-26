@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x16, 0x0d, 0xe8, 0xc3, 0x02, 0xd7, 0x2e, 0x23, 0x3d, 0xe9, 0x3a, 0xec, 0x09, 0x9f, 0x64, 0x73, 0xe9, 0xfc, 0x5c,
-    0x46, 0x5d, 0x4e, 0x25, 0x2b, 0x53, 0x8b, 0x0e, 0x1d, 0x27, 0xdc, 0x01, 0x40,
+    0x42, 0xd2, 0x68, 0x94, 0x39, 0x09, 0x1e, 0x6c, 0x0b, 0x34, 0x14, 0x1c, 0xb9, 0xec, 0xd7, 0x42, 0x3c, 0xa7, 0x23,
+    0x68, 0xe2, 0x10, 0x2b, 0xbd, 0x9d, 0xa4, 0x15, 0x73, 0xff, 0x2f, 0xf9, 0xba,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -4213,6 +4213,15 @@ pub mod paths {
     pub const TASK_WAIT_BOUNDS_WHY: Path = Path::new("TaskWaitBounds.why");
     pub const TASK_WAIT_BOUNDS_FIGURES: Path = Path::new("TaskWaitBounds.figures");
     pub const TASK_WAIT_BOUNDS_TAIL: Path = Path::new("TaskWaitBounds (tail)");
+    pub const JOB_SHORT_TAG: Path = Path::new("JobShort (tag)");
+    pub const JOB_WHY_SHORT_WHY: Path = Path::new("JobWhyShort.why");
+    pub const JOB_WHY_SHORT_TAIL: Path = Path::new("JobWhyShort (tail)");
+    pub const JOB_WHY_TAG: Path = Path::new("JobWhy (tag)");
+    pub const TASK_WAIT_JOB_WORKER: Path = Path::new("TaskWaitJob.worker");
+    pub const TASK_WAIT_JOB_KIND: Path = Path::new("TaskWaitJob.kind");
+    pub const TASK_WAIT_JOB_WHY: Path = Path::new("TaskWaitJob.why");
+    pub const TASK_WAIT_JOB_FIGURES: Path = Path::new("TaskWaitJob.figures");
+    pub const TASK_WAIT_JOB_TAIL: Path = Path::new("TaskWaitJob (tail)");
     pub const TASK_WAIT_REFUSED_TAG: Path = Path::new("TaskWaitRefused (tag)");
     pub const TASK_RUN_WAIT_REFUSED_VALUE: Path = Path::new("TaskRunWaitRefused.value");
     pub const TASK_RUN_WAIT_REFUSED_TAIL: Path = Path::new("TaskRunWaitRefused (tail)");
@@ -44559,11 +44568,248 @@ impl Record for TaskWaitBounds {
     }
 }
 
+// Type: JobShort.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum JobShort {
+    Kind,
+    Spec,
+    Result,
+    Deadline,
+}
+
+// Record: JobShort.
+impl JobShort {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for JobShort {
+    type Limits = Limits;
+    const TAIL: Path = paths::JOB_SHORT_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JobShort")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JobShort")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Kind => field::put(out, &[0], paths::JOB_SHORT_TAG),
+            Self::Spec => field::put(out, &[1], paths::JOB_SHORT_TAG),
+            Self::Result => field::put(out, &[2], paths::JOB_SHORT_TAG),
+            Self::Deadline => field::put(out, &[3], paths::JOB_SHORT_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::JOB_SHORT_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Kind),
+            1 => Ok(Self::Spec),
+            2 => Ok(Self::Result),
+            3 => Ok(Self::Deadline),
+            4..=u8::MAX => Err(Problem { path: paths::JOB_SHORT_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: JobWhyShort.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct JobWhyShort {
+    pub why: JobShort,
+}
+
+// Record: JobWhyShort.
+impl JobWhyShort {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("JobShort"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for JobWhyShort {
+    type Limits = Limits;
+    const TAIL: Path = paths::JOB_WHY_SHORT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JobWhyShort")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JobWhyShort")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.why, limits, out, paths::JOB_WHY_SHORT_WHY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            why: field::read(field::Nested, limits, reader, paths::JOB_WHY_SHORT_WHY)?,
+        })
+    }
+}
+
+// Type: JobWhy.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum JobWhy {
+    Short(JobWhyShort),
+    Untranslated,
+}
+
+// Record: JobWhy.
+impl JobWhy {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("JobWhyShort"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
+impl Record for JobWhy {
+    type Limits = Limits;
+    const TAIL: Path = paths::JOB_WHY_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JobWhy")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JobWhy")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Short(value) => { field::put(out, &[0], paths::JOB_WHY_TAG)?; value.write(limits, out) },
+            Self::Untranslated => field::put(out, &[1], paths::JOB_WHY_TAG),
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::JOB_WHY_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Short(JobWhyShort::read(limits, reader)?)),
+            1 => Ok(Self::Untranslated),
+            2..=u8::MAX => Err(Problem { path: paths::JOB_WHY_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: TaskWaitJob.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TaskWaitJob {
+    pub worker: Option<u32>,
+    pub kind: u32,
+    pub why: JobWhy,
+    pub figures: Option<ShortfallFigures>,
+}
+
+// Record: TaskWaitJob.
+impl TaskWaitJob {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("JobWhy"),
+        skein_codec::bounds::Node::Named("ShortfallFigures"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
+impl Record for TaskWaitJob {
+    type Limits = Limits;
+    const TAIL: Path = paths::TASK_WAIT_JOB_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TaskWaitJob")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TaskWaitJob")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::U32 }, &self.worker, limits, out, paths::TASK_WAIT_JOB_WORKER)?;
+        field::write(field::U32, &self.kind, limits, out, paths::TASK_WAIT_JOB_KIND)?;
+        field::write(field::Nested, &self.why, limits, out, paths::TASK_WAIT_JOB_WHY)?;
+        field::write(field::Optional { item: field::Nested }, &self.figures, limits, out, paths::TASK_WAIT_JOB_FIGURES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            worker: field::read(field::Optional { item: field::U32 }, limits, reader, paths::TASK_WAIT_JOB_WORKER)?,
+            kind: field::read(field::U32, limits, reader, paths::TASK_WAIT_JOB_KIND)?,
+            why: field::read(field::Nested, limits, reader, paths::TASK_WAIT_JOB_WHY)?,
+            figures: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TASK_WAIT_JOB_FIGURES)?,
+        })
+    }
+}
+
 // Type: TaskWaitRefused.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TaskWaitRefused {
     Hello(TaskWaitHello),
     Bounds(TaskWaitBounds),
+    Job(TaskWaitJob),
 }
 
 // Record: TaskWaitRefused.
@@ -44571,7 +44817,8 @@ impl TaskWaitRefused {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("TaskWaitHello"),
         skein_codec::bounds::Node::Named("TaskWaitBounds"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+        skein_codec::bounds::Node::Named("TaskWaitJob"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -44603,6 +44850,7 @@ impl Record for TaskWaitRefused {
         match self {
             Self::Hello(value) => { field::put(out, &[0], paths::TASK_WAIT_REFUSED_TAG)?; value.write(limits, out) },
             Self::Bounds(value) => { field::put(out, &[1], paths::TASK_WAIT_REFUSED_TAG)?; value.write(limits, out) },
+            Self::Job(value) => { field::put(out, &[2], paths::TASK_WAIT_REFUSED_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -44611,7 +44859,8 @@ impl Record for TaskWaitRefused {
         match tag {
             0 => Ok(Self::Hello(TaskWaitHello::read(limits, reader)?)),
             1 => Ok(Self::Bounds(TaskWaitBounds::read(limits, reader)?)),
-            2..=u8::MAX => Err(Problem { path: paths::TASK_WAIT_REFUSED_TAG, reason: skein_codec::Reason::Tag }),
+            2 => Ok(Self::Job(TaskWaitJob::read(limits, reader)?)),
+            3..=u8::MAX => Err(Problem { path: paths::TASK_WAIT_REFUSED_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -73696,6 +73945,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "InboxReadGroup", nodes: InboxReadGroup::SHAPE },
     skein_codec::bounds::Declaration { name: "InboxSelection", nodes: InboxSelection::SHAPE },
     skein_codec::bounds::Declaration { name: "InvalidReason", nodes: InvalidReason::SHAPE },
+    skein_codec::bounds::Declaration { name: "JobShort", nodes: JobShort::SHAPE },
+    skein_codec::bounds::Declaration { name: "JobWhy", nodes: JobWhy::SHAPE },
+    skein_codec::bounds::Declaration { name: "JobWhyShort", nodes: JobWhyShort::SHAPE },
     skein_codec::bounds::Declaration { name: "Kept", nodes: Kept::SHAPE },
     skein_codec::bounds::Declaration { name: "Keyed", nodes: Keyed::SHAPE },
     skein_codec::bounds::Declaration { name: "KeyedAnswer", nodes: KeyedAnswer::SHAPE },
@@ -74328,6 +74580,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "TaskWaitBounds", nodes: TaskWaitBounds::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskWaitHello", nodes: TaskWaitHello::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskWaitInvalid", nodes: TaskWaitInvalid::SHAPE },
+    skein_codec::bounds::Declaration { name: "TaskWaitJob", nodes: TaskWaitJob::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskWaitRefused", nodes: TaskWaitRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskWaitSource", nodes: TaskWaitSource::SHAPE },
     skein_codec::bounds::Declaration { name: "TaskWaitUntooled", nodes: TaskWaitUntooled::SHAPE },

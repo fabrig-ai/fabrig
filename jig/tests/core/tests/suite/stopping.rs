@@ -254,11 +254,10 @@ fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
     }));
     assert_eq!(live_row(&world, procedure).delegates.len(), 1, "the procedure admitted its job");
     let task = live_row(&world, procedure).delegates[0];
-    let phase = live_row(&world, task).phase.clone();
-    assert!(
-        matches!(phase, tasks::Phase::Active(tasks::Active::Claimed { .. })),
-        "a claimed job is waiting in the fleet"
-    );
+    let row = live_row(&world, task);
+    let phase = row.phase.clone();
+    assert_eq!(phase, tasks::Phase::Active(tasks::Active::Due), "the host's only slot is busy");
+    assert_eq!(row.tries, tasks::Tries::NONE);
     assert!(world.jobs.is_empty(), "the job is queued behind the hosted run");
     world.send(root::Event::Core(core::Event::Settling));
     world.send(root::Event::Answer {
@@ -280,7 +279,7 @@ fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
         "the hosted run's answer is acknowledged and its slot frees"
     );
     assert!(world.jobs.is_empty(), "settling assigns no queued job");
-    assert_eq!(live_row(&world, task).phase, phase, "no Placed follows the answer");
+    assert_eq!(live_row(&world, task).phase, phase, "the job stays due after the slot frees");
     world.stop();
     assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1);
 }

@@ -405,15 +405,16 @@ fn retained_inventory_keeps_the_openings_layout_and_text() {
         wires: Box::new([store::OpenedWire { name: "wire".into(), layout: [9; 32], text: text.into() }]),
         output: 2048,
         terms: Box::new([]),
+        jobs: Box::new([]),
         at: skein_lib::Wall::from_nanos(12),
     };
     world.commit(Box::new([Write::Save(root::header(2)), Write::Opening(opening)])).expect("worker opened");
     let key = keys::encode_own(&keys::Own::Opening("worker".into()), root::limits().store.key).expect("opening key");
     let rows = inventory(&mut world, PAGE_ROWS, PAGE_BYTES);
     let bytes = &rows[&key];
-    assert_eq!(&bytes[..2], &2_u16.to_be_bytes());
+    assert_eq!(&bytes[..2], &3_u16.to_be_bytes());
     let row =
-        store::openings_v2::WorkerOpening::decode(&store::openings_v2::CEILINGS, &mut skein_lib::Reader::new(bytes))
+        store::openings_v3::WorkerOpening::decode(&store::openings_v3::CEILINGS, &mut skein_lib::Reader::new(bytes))
             .expect("retained row at the current version");
     assert_eq!(row.worker.as_ref(), b"worker");
     let [wire] = row.wires.as_slice() else { panic!("one kept wire") };

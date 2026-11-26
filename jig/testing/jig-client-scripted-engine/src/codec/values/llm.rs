@@ -110,6 +110,22 @@ pub(in crate::codec) fn wire_task_wait_refused(value: &c::TaskWaitRefused) -> w:
             why: why.as_ref().map(wire_agent_shortfall),
             figures: wire_shortfall_figures(figures.as_ref()),
         }),
+        c::TaskWaitRefused::Job { worker, kind, why, figures } => w::TaskWaitRefused::Job(w::TaskWaitJob {
+            worker: *worker,
+            kind: *kind,
+            why: match why {
+                c::JobWhy::Untranslated => w::JobWhy::Untranslated,
+                c::JobWhy::Short(short) => w::JobWhy::Short(w::JobWhyShort {
+                    why: match short {
+                        c::JobShort::Kind => w::JobShort::Kind,
+                        c::JobShort::Spec => w::JobShort::Spec,
+                        c::JobShort::Result => w::JobShort::Result,
+                        c::JobShort::Deadline => w::JobShort::Deadline,
+                    },
+                }),
+            },
+            figures: wire_shortfall_figures(figures.as_ref()),
+        }),
     }
 }
 

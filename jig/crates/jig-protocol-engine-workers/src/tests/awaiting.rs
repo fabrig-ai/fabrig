@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Record;
 use skein_channel::{Lower, LowerEvent};
-use skein_lib::{Intake, Queue, Time, Token, Writer, stream};
+use skein_lib::{Duration, Intake, List, Queue, Time, Token, Writer, stream};
 
 const CONNECTION: Token = Token::new(1);
 const LOCAL: &[u8] = b"local";
@@ -17,19 +17,20 @@ struct Opening {
     read: stream::Read,
     out: Queue<Request>,
     hello: Option<u32>,
+    statements: List<crate::Statement>,
     refused: Option<u16>,
     ended: Option<Loss>,
 }
 impl Opening {
-    fn new(in_process: bool) -> Self {
-        let schema = crate::limits::schema(&fixtures::LIMITS).expect("schema");
-        let cap = wire::sizes::worker_cap(&fixtures::LIMITS.sizes).expect("worker output");
+    fn new(in_process: bool, limits: &crate::Limits) -> Self {
+        let schema = crate::limits::schema(limits).expect("schema");
+        let cap = wire::sizes::worker_cap(&limits.sizes).expect("worker output");
         let peer_limits = skein_channel::Limits {
             output_bytes: cap.cap.bytes,
             output_frames: cap.cap.frames,
-            ..crate::limits::channel(&fixtures::LIMITS).expect("channel limits")
+            ..crate::limits::channel(limits).expect("channel limits")
         };
-        let mut peer = skein_fake_channel::ScriptedPeer::new(
+        let peer = skein_fake_channel::ScriptedPeer::new(
             schema,
             skein_channel::Role::Initiator,
             peer_limits,
@@ -37,7 +38,28 @@ impl Opening {
             fixtures::credential(LOCAL, fixtures::SECRET_A, fixtures::APPLICATION_VERSION),
         )
         .expect("worker peer");
-        let hello = fixtures::hello_record();
+        let mut opening = Self {
+            component: Component::new(
+                limits,
+                Box::new([]),
+                wire::spoken(),
+                wire::Application::opaque(fixtures::application()),
+            )
+            .expect("component before its table"),
+            peer,
+            input: Intake::with_capacity(limits.room),
+            read: stream::Read::Nothing,
+            out: Queue::uncapped(),
+            hello: None,
+            statements: List::uncapped(),
+            refused: None,
+            ended: None,
+        };
+        opening.component.down(Time::ZERO, Event::Accepted { connection: CONNECTION, in_process }, &mut opening.out);
+        opening.pump(Time::ZERO);
+        opening
+    }
+    fn play_hello(&mut self, hello: &wire::Hello) {
         let mut body = Writer::new(skein_lib::length::usize_of(
             hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
         ));
@@ -48,27 +70,9 @@ impl Opening {
         )
         .expect("hello frame");
         frame.put(&body.finish()).expect("measured hello frame");
-        peer.play(frame.finish().expect("whole hello"));
-        let mut opening = Self {
-            component: Component::new(
-                &fixtures::LIMITS,
-                Box::new([]),
-                wire::spoken(),
-                wire::Application::opaque(fixtures::application()),
-            )
-            .expect("component before its table"),
-            peer,
-            input: Intake::with_capacity(fixtures::LIMITS.room),
-            read: stream::Read::Nothing,
-            out: Queue::uncapped(),
-            hello: None,
-            refused: None,
-            ended: None,
-        };
-        opening.component.down(Time::ZERO, Event::Accepted { connection: CONNECTION, in_process }, &mut opening.out);
-        opening.pump(Time::ZERO);
-        opening
+        self.peer.play(frame.finish().expect("whole hello"));
     }
+
     fn pump(&mut self, now: Time) {
         for _ in 0_u16..1000 {
             let mut progress = false;
@@ -93,6 +97,7 @@ impl Opening {
                     }
                     Request::Lower { lower: Lower::Read(stream::Down::Demand { read, .. }), .. } => self.read = read,
                     Request::Hello { worker, .. } => self.hello = Some(worker),
+                    Request::Opened { statement, .. } => self.statements.push(statement).expect("uncapped statements"),
                     Request::Refused { reason, .. } => self.refused = Some(reason),
                     Request::Ended { why, .. } => self.ended = Some(why),
                     Request::Close { .. } | Request::Abort { .. } => {
@@ -102,7 +107,6 @@ impl Opening {
                     | Request::Told { .. }
                     | Request::Take { .. }
                     | Request::TurnAway { .. }
-                    | Request::Opened { .. }
                     | Request::FiguresTaken { .. }
                     | Request::Lost { .. }
                     | Request::Up { .. }
@@ -138,7 +142,8 @@ fn an_opening_waits_for_the_table_with_its_original_deadline_and_listener_rule()
     for (in_process, configured, expire) in
         [(true, true, false), (false, true, false), (true, false, false), (true, true, true)]
     {
-        let mut opening = Opening::new(in_process);
+        let mut opening = Opening::new(in_process, &fixtures::LIMITS);
+        opening.play_hello(&fixtures::hello_record());
         assert_eq!(opening.refused, None, "no opening is judged before the table");
         assert_eq!(opening.hello, None, "no opening is admitted before the table");
         let deadline = Time::ZERO.saturating_add(fixtures::LIMITS.handshake);
@@ -169,4 +174,41 @@ fn an_opening_waits_for_the_table_with_its_original_deadline_and_listener_rule()
             assert_eq!(opening.hello, None);
         }
     }
+}
+
+#[test]
+fn an_opening_hands_up_the_hellos_jobs_once_and_in_order() {
+    use jig_domain_link::{JobBound, JobKind};
+    // Not sorted: the component preserves what it heard; the fleet judges the kinds.
+    let jobs = [
+        JobBound { kind: JobKind(3), spec: 256, result: 32, deadline: Duration::from_secs(15) },
+        JobBound { kind: JobKind(1), spec: 128, result: 16, deadline: Duration::from_secs(5) },
+        JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: Duration::from_secs(600) },
+    ];
+    let kinds = u32::try_from(jobs.len()).expect("fixture kinds");
+    let mut limits = fixtures::LIMITS;
+    limits.sizes.models = kinds; // The worker-wire bounds use this room for the hello's jobs too.
+    let mut opening = Opening::new(true, &limits);
+    opening.component.down(
+        Time::ZERO,
+        Event::Workers(Box::new([Worker { number: 1, name: LOCAL.into(), places: 4, digest: None, withdrawn: false }])),
+        &mut opening.out,
+    );
+    opening.pump(Time::ZERO);
+    assert!(opening.peer.is_ready(), "terms exchanged");
+    assert!(opening.statements.is_empty(), "no statement before the hello");
+
+    let mut hello = fixtures::hello_record();
+    hello.jobs = List::with_capacity(kinds);
+    for job in jobs {
+        hello
+            .jobs
+            .push(wire::JobBound { kind: job.kind.0, spec: job.spec, result: job.result, deadline: job.deadline })
+            .expect("one slot per job kind");
+    }
+    opening.play_hello(&hello);
+    opening.pump(Time::ZERO);
+    assert_eq!(opening.hello, Some(0));
+    let [statement] = opening.statements.as_slice() else { panic!("one statement: {:?}", opening.statements) };
+    assert_eq!(statement.jobs.as_slice(), &jobs);
 }

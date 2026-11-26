@@ -1,6 +1,6 @@
 # upgrades: status
 
-2026-11-22. Where the design lags or departs from [upgrades.md](upgrades.md).
+2026-11-25. Where the design lags or departs from [upgrades.md](upgrades.md).
 
 - **Design lags:**
   - 4.2 to 5, 12: jig's `protocol/store/layouts.md`, sections 1, 4, 7 and 8 still name patches, seeding or latest kept registered texts in their bounds and tests. Registered changes use the store's texts, defaults, former names and written jobs, with no repository-kept store history.
@@ -10,4 +10,5 @@
 - **Design departs:**
   - 3.2, 3.3, 15: a backup is a checkpoint, the state at one commit taken mostly by hard links, by `temper ctl DIR deployment checkpoint` while the engine serves or `temper-engine checkpoint` with it stopped; a redeploy takes one at its settled stop as its backup and goes back after the new generation's first commit by the new build's `restore` of it, then the previous build (`../protocol/checkpoints.md`, 2.1 and 2.5). A copy with the deployment stopped stays possible, and online backups are no longer open. Because the user's `archive/checkpoints.md` (2026-11-15) makes a serving deployment's state whole and consistent without stopping it.
   - 10: `../protocol/README.md`, 7 versions only the forge's setup `state`; the worker's secret and digest, the demo model's key, the forge's sign-in client secret, the box's started markers and the admin token's handover are fixed forms, never versioned, a change taking a new file name. And the owned forge's preparation writes `state` before the engine starts, so going back past a preparation that migrated it needs the forge's dump, where this draft writes no small file before the new generation's first commit. The reason the design gives: `state` follows the forge's own upgrade. Who decided is not recorded.
+  - 3.1, 9: whether the workers may stay judges each worker's work as well as its opening, where `archive/redeploys.md`, 5.1 lets a worker stay whenever the new engine would accept its opening: a worker the opening accepts must restart where its hello's job kinds fall short of one the new engine declares, or where its kept texts cannot keep every value of a part the new engine sends (`../protocol/wires.md`, 10.2). Because draft-8 asked, 2026-11-25, after staging's verdict said the workers may stay and a goal's close job then sat claimed, never placed, on a worker of the build before: its hello declared the close kind at a 10-minute deadline where the new engine's was 30.
 - **Open:** none.

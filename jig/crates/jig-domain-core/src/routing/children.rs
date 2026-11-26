@@ -869,6 +869,10 @@ pub(crate) fn route_fleet(
         out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
         return out;
     }
+    if let fleet::Event::StartJob { job, adopt: false, .. } = &mut event {
+        // Place by the same kind-wide declaration used before claiming, not by this payload's size or deadline.
+        *job = core.job_declaration(job.kind.0).expect("claimed job's declared kind");
+    }
     if let fleet::Event::Start { grants, .. } = &mut event {
         for grant in &mut **grants {
             match grant.form.table() {

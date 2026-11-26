@@ -104,9 +104,12 @@ fn registered(build: &str, sets: &OwnerSets, family: &KeptFamily, texts: &BTreeM
 
 fn outside(build: &str, old: &Schema, old_held: &[&Schema], new: &Schema, new_held: &[&Schema]) -> Vec<String> {
     if old.version() != new.version() {
-        // temper/docs/design/protocol/floor.md, 6: version 1 openings are read by head
+        // jig/docs/design/protocol/store/records.md, 3: earlier openings are read by head
         // alone and cleared by the next start, without translating their bodies.
-        if (name(old), name(new), old.version(), new.version()) == ("jig-store-openings", "jig-store-openings", 1, 2) {
+        if matches!(
+            (name(old), name(new), old.version(), new.version()),
+            ("jig-store-openings", "jig-store-openings", 1 | 2, 3)
+        ) {
             return vec![];
         }
         return vec![format!(
@@ -210,13 +213,15 @@ fn deployed_layouts_allow_only_the_named_openings_version_move() {
     let (sources, deployed) = deployed_texts(RUNNING, "13efa77461");
     assert_eq!(guard(RUNNING, &OWNER_SETS, &deployed, &sources), Vec::<String>::new());
     let old = &deployed["jig-store-openings"];
-    assert_eq!((old.version(), current.version()), (1, 2));
+    assert_eq!((old.version(), current.version()), (1, 3));
     assert_eq!(outside("mutation", old, &[], &current, &[]), Vec::<String>::new());
     let unrelated = parsed("family fixture-map 1\nversioned record Value { count: u32 }");
     let moved = parsed("family fixture-map 2\nversioned record Value { count: u32 }");
     assert_eq!(outside("mutation", &unrelated, &[], &moved, &[]).len(), 1);
+    let before_jobs = parsed("family jig-store-openings 2\nversioned record WorkerOpening { worker: text 256 }");
+    assert_eq!(outside("mutation", &before_jobs, &[], &current, &[]), Vec::<String>::new());
     let too_far =
-        parsed(&jig_protocol_store::STORE_FAMILIES[1].current.replace("jig-store-openings 2", "jig-store-openings 3"));
+        parsed(&jig_protocol_store::STORE_FAMILIES[1].current.replace("jig-store-openings 3", "jig-store-openings 4"));
     assert_eq!(outside("mutation", old, &[], &too_far, &[]).len(), 1);
 }
 

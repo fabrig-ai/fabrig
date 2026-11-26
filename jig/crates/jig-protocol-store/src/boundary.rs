@@ -883,6 +883,7 @@ pub struct KeptWire {
 pub enum KeptOpening {
     Current(WorkerOpening),
     BeforeLayouts { worker: Box<str> },
+    BeforeJobs { worker: Box<str> },
 }
 
 /// A stored change of the worker setting (protocol/store/opening-rehearsal.md, 1).
@@ -900,6 +901,7 @@ pub struct WorkerOpening {
     pub wires: Box<[OpenedWire]>,
     pub output: u32,
     pub terms: Box<[OpenedTerm]>,
+    pub jobs: Box<[jig_domain_link::JobBound]>,
     pub at: skein_lib::Wall,
 }
 

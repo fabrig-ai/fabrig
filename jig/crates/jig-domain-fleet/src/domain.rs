@@ -296,6 +296,18 @@ impl Domain {
         channel::probe(self, workstream, kinds, version, models, excluded, worker)
     }
 
+    /// Whether this task has a covering host with a free slot, without preferring a workstream.
+    #[must_use]
+    pub fn job_available(&self, run: Token, job: jig_domain_link::JobBound) -> bool {
+        channel::choose_job(self, run, 0, job).is_some()
+    }
+
+    /// The first host's refusal when no host taking work covers the task.
+    #[must_use]
+    pub fn job_refusal(&self, run: Token, job: jig_domain_link::JobBound) -> Option<crate::JobRefusal> {
+        channel::job_refusal(self, run, job)
+    }
+
     /// Latest observed refusal of an allowed kind, while no admitted, connected,
     /// non-draining host of any allowed kind exists (domain/engine/fleet.md).
     /// Slot use and model eligibility do not affect suppression. Engine wins equal

@@ -232,6 +232,42 @@ for what it receives. Its kind is skein's `Refused`: `variant`, `field`,
   NAME: WIRE DECLARATION.PART: WHY`. A part's likewise, as a part that
   does not decode.
 
+### 5.4 What a worker's layouts cannot keep, listed
+
+- **A gap** is a part of what the engine sends whose Keep plan, from the
+  engine's text to the worker's, may refuse a value: each refusal of
+  each Keep plan of 2.1's table (skein's `Plan::refusal`, by its index),
+  for `FromEngine` and for each part the engine sends, in 2.1's order.
+  A variant of `FromEngine` the engine sends only where the worker's
+  layout has it (4.1, *A kind the worker's layout lacks*) is no gap. A
+  wire at the engine's layout has none (2.3).
+- **For the tool that rehearses an upgrade,** with the engine stopped
+  (temper's `protocol/wires.md`, 10.2): a worker whose kept texts give
+  gaps may connect, but some of what the engine sends it would be
+  refused for it (5.1, 5.2). One function lists them, deriving the plans
+  as `judge` does (`wires.md`, 3), its words those of 5.1 for each:
+
+  ```rust
+  // jig_protocol_worker_wire::layouts, named again by jig_protocol_engine_workers
+  pub enum Site { Frame, Charter, Turn, Carried(Carried) } // Frame: a FromEngine record; Turn: a window's turn or a kept part's body
+  pub struct Gap {
+      pub wire: Box<str>,             // the family whose Keep plan refuses
+      pub site: Site,
+      pub why: skein_codec::layout::Refused,
+      pub declaration: Box<str>,      // by the engine's text's names, as Plan::refusal gives them
+      pub part: Box<str>,
+  }
+  impl Gap {
+      /// `the worker's layout cannot keep WIRE DECLARATION.PART: WHY`, 5.1's words.
+      pub fn words(&self) -> Box<[u8]>;
+  }
+  // jig_protocol_engine_workers
+  pub fn gaps(
+      spoken: &List<Spoken>, roots: &List<Root>, limits: &v22::Limits,
+      wires: &List<Stated>,           // a statement's wires (`wires.md`, 3)
+  ) -> Result<List<Gap>, Unfit>;      // Unfit: as `judge` refuses the same wires
+  ```
+
 ## 6. Written converters
 
 - **The rule** (`draft/layouts-both-ways.md`, 7.3): a retype or a
@@ -318,6 +354,11 @@ Focused and fuzzy alone; a story through temper's parts is temper's
   and puts nothing more there while its running attempt can finish.
 - **Fuzzy:** drawn records of every kind, at the derived layout, through
   both components: each arrives as itself or is refused, never altered.
+- **The gaps** (5.4), at the wire crate: none at the same layout; none
+  for a derived text that only adds; one for a field the derived text
+  lacks, a kind the engine always sends that it lacks, and a narrowed
+  bound, each with its site and 5.1's words; none for a kind the engine
+  sends only where the worker has it.
 
 ## 9. Open questions
 

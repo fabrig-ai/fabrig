@@ -112,6 +112,7 @@ pub enum TaskRunWait {
 pub enum TaskWaitRefused {
     Hello { kind: super::HostKind, at: skein_lib::Wall, why: super::HelloRefusal, figures: Option<super::Figures> },
     Bounds { kind: super::HostKind, why: Option<super::AgentShortfall>, figures: Option<super::Figures> },
+    Job { worker: Option<u32>, kind: u32, why: JobWhy, figures: Option<super::Figures> },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -123,6 +124,20 @@ pub enum TaskWaitWhy {
     Invalid(AccountWhy),
     Untooled { worker: u32 },
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobWhy {
+    Short(JobShort),
+    Untranslated,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobShort {
+    Kind,
+    Spec,
+    Result,
+    Deadline,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskSourceState {
     Asking,

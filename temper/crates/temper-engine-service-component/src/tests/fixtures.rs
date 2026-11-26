@@ -25,26 +25,39 @@ pub const ENGINE: &[u8] = br#"{
 
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS
-        .get_or_init(|| {
-            let mut jig = parse_engine(ENGINE);
-            let policy = jig.policies.first().unwrap();
-            assert_eq!(policy.number, 1);
-            jig.projects = Box::new([jig_protocol_config::Project {
-                number: 1,
-                name: "Project 1".into(),
-                policy: policy.policy.clone(),
-                roles: policy.roles.clone(),
-                templates: policy.templates.clone(),
-            }]);
-            for owner in &mut jig.owners {
-                owner.project = 1;
-            }
-            jig
-        })
-        .clone();
-    // This typed fixture reaches the core's start; policy 1 needs 6074 bytes with the standing charter executors.
+    engine_for(ENGINE_SETTINGS.get_or_init(|| fixture_jig(&jig_limits())).clone())
+}
 
+pub(super) fn engine_with_jobs() -> settings::Engine {
+    static JOB_ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
+    engine_for(
+        JOB_ENGINE_SETTINGS
+            .get_or_init(|| {
+                fixture_jig(&engine_figures::over_keeping_job_bounds(&jig_protocol_config_fixtures::small(), true))
+            })
+            .clone(),
+    )
+}
+
+fn fixture_jig(limits: &jig_protocol_config::Limits) -> jig_protocol_config::Engine {
+    let mut jig = parse_engine_for(ENGINE, limits);
+    let policy = jig.policies.first().unwrap();
+    assert_eq!(policy.number, 1);
+    jig.projects = Box::new([jig_protocol_config::Project {
+        number: 1,
+        name: "Project 1".into(),
+        policy: policy.policy.clone(),
+        roles: policy.roles.clone(),
+        templates: policy.templates.clone(),
+    }]);
+    for owner in &mut jig.owners {
+        owner.project = 1;
+    }
+    jig
+}
+
+fn engine_for(jig: jig_protocol_config::Engine) -> settings::Engine {
+    // This typed fixture reaches the core's start; policy 1 needs 6074 bytes with the standing charter executors.
     let own = small_limits();
     let root = limits::engine(&jig.limits, &own).unwrap();
     let connector = *jig.connectors.first().unwrap();
@@ -145,6 +158,10 @@ fn jig_limits() -> jig_protocol_config::Limits {
 }
 
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
+    parse_engine_for(bytes, &jig_limits())
+}
+
+fn parse_engine_for(bytes: &[u8], limits: &jig_protocol_config::Limits) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
@@ -156,7 +173,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::PassedProviders,
         &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_limits(),
+        limits,
     )
     .unwrap();
     let running = temper_worker_service_fixtures::providers();
@@ -352,10 +369,11 @@ pub fn memory_store() -> crate::store::Store {
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     memory_store_for(&root, &profile, &models)
 }
-fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_domain::Limits>, crate::store::Store)
-{
+fn completed_root(
+    settings: settings::Engine,
+) -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_domain::Limits>, crate::store::Store) {
     use temper_engine_domain as root;
-    let settings = start_settings(engine(), &[(1, 100)]);
+    let settings = start_settings(settings, &[(1, 100)]);
     let seeds = seeds();
     let mut limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     limits.host_reply_bytes = settings.host_reply_bytes;
@@ -396,8 +414,12 @@ fn completed_maps() -> jig_protocol_store::Stores {
 }
 /// The real completed first start, without constructing transport components.
 pub fn completed_store() -> crate::store::Store {
+    completed_store_for(engine())
+}
+
+pub(super) fn completed_store_for(settings: settings::Engine) -> crate::store::Store {
     use temper_engine_domain as root;
-    let (mut domain, env, mut store) = completed_root();
+    let (mut domain, env, mut store) = completed_root(settings);
     let mut first_inputs = skein_lib::Queue::uncapped();
     first_inputs.push(root::Event::Credential {
         number: 1,

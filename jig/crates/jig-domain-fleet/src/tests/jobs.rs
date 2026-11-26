@@ -9,25 +9,22 @@ fn job(run: Token, attempt: Token, bound: JobBound, adopt: bool) -> Event {
 }
 
 fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
-    let mut hello = Hello {
+    let worker = u32::try_from(channel.raw().checked_sub(101).expect("fixture worker channel")).unwrap();
+    greet(h, channel, worker, jobs);
+}
+
+fn greet(h: &mut Harness, channel: Token, worker: u32, jobs: Box<[JobBound]>) {
+    let hello = Hello {
         fresh: false,
         reads_usage: true,
         slots: 2,
         stop_bound: Duration::ZERO,
         bounds: fixtures::bounds(),
-        jobs: Box::new([]),
+        jobs,
         workstreams: Box::new([]),
         hosting: Box::new([]),
     };
-    hello.jobs = jobs;
-    assert!(
-        h.step(Event::Hello {
-            channel,
-            worker: u32::try_from(channel.raw().checked_sub(101).expect("fixture worker channel")).unwrap(),
-            hello
-        })
-        .is_empty()
-    );
+    assert!(h.step(Event::Hello { channel, worker, hello }).is_empty());
 }
 
 /// jig/docs/design/domain/engine/executors.md, 5: busy releases its slot and retries the same fenced attempt.
@@ -143,4 +140,47 @@ fn a_disk_pause_and_crossed_busy_recover_the_same_job_attempt() {
         h.step(Event::Paused { channel: C1, state: PauseState::Taking });
         assert!(h.settle().contains(&assignment));
     }
+}
+
+/// Judge declarations in kind, spec, result, deadline order (jig/docs/design/domain/engine/fleet.md, 2).
+#[test]
+fn job_short_reports_the_first_short_bound_in_its_own_unit() {
+    use crate::{Figures, JobShort, JobShortfall, job_short};
+    let required = JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: Duration::from_secs(1800) };
+    let mut offered = JobBound { kind: JobKind(4), spec: 1024, result: 256, deadline: Duration::from_secs(600) };
+    let other = JobBound { kind: JobKind(3), ..required };
+    assert_eq!(job_short(&[other], required), Some(JobShortfall { why: JobShort::Kind, figures: None }));
+    for (why, figures) in [
+        (JobShort::Spec, Figures { required: 16_384, offered: 1024 }),
+        (JobShort::Result, Figures { required: 512, offered: 256 }),
+        (JobShort::Deadline, Figures { required: 1_800_000, offered: 600_000 }),
+    ] {
+        assert_eq!(job_short(&[other, offered], required), Some(JobShortfall { why, figures: Some(figures) }));
+        match why {
+            JobShort::Spec => offered.spec = required.spec,
+            JobShort::Result => offered.result = required.result,
+            JobShort::Deadline => offered.deadline = required.deadline,
+            JobShort::Kind => unreachable!(),
+        }
+    }
+    assert_eq!(job_short(&[offered], required), None);
+    assert_eq!(job_short(&[JobBound { deadline: Duration::from_secs(1801), ..offered }], required), None);
+}
+
+#[test]
+fn job_refusals_follow_worker_settings_before_the_engine_not_channel_tokens() {
+    use crate::{JobRefusal, JobShort, JobShortfall, job_short};
+    let engine = Token::new(0);
+    let mut h = Harness::new(Limits { engine_slots: 2, ..LIMITS });
+    assert_eq!(h.domain.job_refusal(R1, JOB), None, "engine not yet admitted");
+    greet(&mut h, engine, 0, Box::new([]));
+    let offered = JobBound { deadline: Duration::from_secs(2), ..JOB };
+    greet(&mut h, C1, 1, Box::new([]));
+    greet(&mut h, C2, 0, Box::new([offered]));
+    assert_eq!(h.domain.job_refusal(R1, JOB), Some(JobRefusal { worker: Some(1), short: job_short(&[offered], JOB) }));
+    let missing = Some(JobShortfall { why: JobShort::Kind, figures: None });
+    h.step(Event::Paused { channel: C2, state: jig_domain_link::PauseState::Paused });
+    assert_eq!(h.domain.job_refusal(R1, JOB), Some(JobRefusal { worker: Some(2), short: missing }));
+    h.step(Event::Draining { channel: C1 });
+    assert_eq!(h.domain.job_refusal(R1, JOB), Some(JobRefusal { worker: None, short: missing }));
 }

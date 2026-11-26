@@ -2307,7 +2307,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2871;
+const PHRASES: u32 = 2885;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2334,9 +2334,9 @@ const PHRASES: u32 = 2871;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5353;
+const SEGMENTS: u32 = 5384;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 67377;
+const ENGLISH_BYTES: u32 = 67604;
 const ALL: [Word; 2132] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
@@ -7220,6 +7220,16 @@ impl Words {
     #[must_use]
     pub fn say_word(&self, word: jig_client::words::Word, holes: &[Hole]) -> Box<[u8]> {
         self.book().say(self.language, word.id(), holes).expect("checked jig word").text
+    }
+    #[must_use]
+    pub fn job_wait(
+        &self,
+        worker: Option<u32>,
+        kind: u32,
+        why: jig_client::contract::JobWhy,
+        figures: Option<jig_client::contract::Figures>,
+    ) -> Box<[u8]> {
+        jig_client::words::job_wait(&self.book, self.language, worker, kind, why, figures)
     }
     /// A run's supplied placement time in absolute UTC.
     #[must_use]

@@ -107,6 +107,56 @@ The fleet child domain knows the hosts and the runs they host:
   task off that channel until the channel is lost, while the channel
   takes every other run and job; the task claims again, spending no
   try, on any other host that may take it, or waits.
+- **A job goes only where a host runs it** (`../hosts/hub.md`, 9;
+  `executors.md`, 5). A host covers a job where its hello declared the
+  job's kind with a spec, a result and a deadline each at least the
+  application's declaration of that kind (`jig-domain-core`'s
+  `Config.jobs`). One function judges it, for placement and for the
+  application's tool that rehearses an upgrade (temper's
+  `protocol/wires.md`, 10.2): the first of the kind, the spec, the
+  result and the deadline, in that order, that the host's declarations
+  fall short of, with its figures, or none where they cover it.
+
+  ```rust
+  // jig-domain-fleet
+  pub enum JobShort { Kind, Spec, Result, Deadline }
+  pub struct JobShortfall { pub why: JobShort, pub figures: Option<Figures> } // figures: none for Kind; a deadline in milliseconds
+  /// `declared`: a host's hello's kinds; `job`: the application's declaration of the job's kind.
+  pub fn job_short(declared: &[JobBound], job: JobBound) -> Option<JobShortfall>;
+  ```
+
+  `Figures { required, offered }` is the application's declaration and
+  the host's, of the first entry of that kind it declares.
+- **A job is claimed only where a host can take it now,** as a run is
+  (`executors.md`, 5): before its claim the core asks the fleet for a
+  host that covers it, admitted, connected and taking work (not
+  draining, paused, shutting down or mismatched, and not keeping this
+  task off as *untranslated*), with a free slot. With none, the task
+  stays due: no attempt is committed and no try spent, and it claims
+  once one can (a hello admitted, a slot freed, a pause lifted, a
+  channel lost that kept it off). A fresh job claim the fleet then
+  cannot place at once, its host lost between, is refused `Recheck`, as
+  a constrained run's claim is, and goes back to due spending no try; a
+  restored claim keeps its adoption grace (`restart.md`). So no job sits
+  claimed with no host running it.
+- **A job that waits says why,** derived as a run's refusals are,
+  nothing stored: where an admitted, connected host taking work exists
+  and every one of them falls short of the job, by `job_short` or by
+  keeping it off as *untranslated*, the task's wait is
+  `TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind, why,
+  figures })`, of the first such host in setting-number order, the
+  engine's own host after every worker: `worker` its setting number
+  (`workers.md`, 4), none for the engine's host; `kind` the job's;
+  `why` a `JobWhy`, `Short(JobShort)` or `Untranslated`, whose words are
+  the attempt's refusal that the task's retry notice keeps
+  (`../../protocol/channel/layouts.md`, 5.1); `figures` the shortfall's.
+  Otherwise, with no such host or every one busy, the wait is
+  `TaskRunWait::Host`. Its words: `worker W runs no job of kind K`;
+  `worker W takes job kind K's spec up to OFFERED bytes; this job's kind
+  needs REQUIRED`, and the same of its result; `worker W takes job kind
+  K for up to OFFERED; this job's kind needs REQUIRED`, durations as the
+  client writes them; `worker W's layouts cannot keep this job`; `the
+  engine` in place of `worker W` for the engine's host.
 - **A program that starts without its tools leaves that place to its
   task.** A run whose program started without smith's tools ends
   `RunFailure::Untooled` (`../hosts/hub.md`, 3): a fault of its place,

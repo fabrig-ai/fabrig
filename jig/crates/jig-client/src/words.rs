@@ -1,7 +1,9 @@
 //! Jig's enum phrases, overridable one by one (client/domain/client/helpers.md).
 mod decision;
 mod facts;
+mod jobs;
 pub use facts::decision;
+pub use jobs::{JobWord, job_wait};
 mod english;
 use crate::{
     contract::{Bound, HoldCategory, Phase, QuestionAnswerer, Refusal, WaitsOn},
@@ -12,7 +14,7 @@ pub use decision::DecisionWord;
 use skein_lib::List;
 use skein_ui::phrases::{HoleKind, HoleShape, Language, PhraseId, PhraseShape};
 /// Phrase count, for a caller composing a bounded phrasebook.
-pub const PHRASES: u32 = 137;
+pub const PHRASES: u32 = 151;
 /// Owner of jig's public enum vocabulary.
 pub const OWNER: skein_ui::Owner = skein_ui::Owner { number: 65_537 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,6 +26,7 @@ pub enum Word {
     Waiting(WaitingWord),
     Status(StatusWord),
     Decision(DecisionWord),
+    Job(JobWord),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HoldWord {
@@ -263,7 +266,7 @@ impl Word {
     }
 }
 /// All public words, for composing phrasebook capacities without allocation.
-pub const ALL: [Word; 137] = [
+pub const ALL: [Word; 151] = [
     Word::Refusal(RefusalWord::Judged),
     Word::Refusal(RefusalWord::Stale),
     Word::Refusal(RefusalWord::Forgotten),
@@ -401,6 +404,20 @@ pub const ALL: [Word; 137] = [
     Word::Lifted,
     Word::Refusal(RefusalWord::HoldOwnerParty),
     Word::Refusal(RefusalWord::HoldOwnerTask),
+    Word::Job(JobWord::Worker),
+    Word::Job(JobWord::Engine),
+    Word::Job(JobWord::Kind),
+    Word::Job(JobWord::Spec),
+    Word::Job(JobWord::Result),
+    Word::Job(JobWord::Deadline),
+    Word::Job(JobWord::Untranslated),
+    Word::Job(JobWord::CannotTake),
+    Word::Job(JobWord::Hours),
+    Word::Job(JobWord::Minutes),
+    Word::Job(JobWord::Seconds),
+    Word::Job(JobWord::Milliseconds),
+    Word::Job(JobWord::Needs),
+    Word::Job(JobWord::Amount),
 ];
 #[must_use]
 pub fn phrase_shapes(text: u32) -> Box<[PhraseShape]> {

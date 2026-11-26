@@ -741,4 +741,4 @@ pub use jig_protocol_store_families::component_v3;
 pub use jig_protocol_store_families::secrets_v1;
 pub use jig_protocol_store_settings::settings_v3;
 
-pub use jig_protocol_store_families::{openings_v2, registry_v1};
+pub use jig_protocol_store_families::{openings_v3, registry_v1};

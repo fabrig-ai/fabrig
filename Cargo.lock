@@ -6942,6 +6942,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -7416,6 +7417,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
  "jig-domain-core",
+ "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-link",
  "jig-domain-people",

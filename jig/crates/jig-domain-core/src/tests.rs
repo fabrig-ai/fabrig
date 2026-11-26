@@ -623,7 +623,11 @@ pub(crate) fn core() -> (Core, Limits) {
 }
 
 fn core_with_limits(limits: &Limits) -> Core {
-    let mut core = seeded_core(config(41), limits).expect("fixture core configuration");
+    core_with_config(config(41), limits)
+}
+
+fn core_with_config(config: Config, limits: &Limits) -> Core {
+    let mut core = seeded_core(config, limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();

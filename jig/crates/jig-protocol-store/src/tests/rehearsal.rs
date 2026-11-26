@@ -11,9 +11,10 @@ use super::fixtures::{
     disk::{Disk, Seen},
 };
 use crate::{Event, Generations, KeptOpening, KeptWire, KeptWorker, OpenRefusal, Reach, Request, WorkerOpening, Write};
+use jig_domain_link::{JobBound, JobKind};
 use skein_fake_machine::Item;
 use skein_io::kernel::Error;
-use skein_lib::{Token, Wall};
+use skein_lib::{Duration, Token, Wall};
 
 // source() seals a snapshot and two segments, leaving its third segment writable.
 const LINKED_FILES: u32 = 3;
@@ -30,6 +31,10 @@ fn opening(name: &str) -> WorkerOpening {
         }]),
         output: 4096,
         terms: Box::new([crate::OpenedTerm { kind: 3, largest: 64 }]),
+        jobs: Box::new([
+            JobBound { kind: JobKind(1), spec: 12, result: 123, deadline: Duration::from_nanos(1234) },
+            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: Duration::from_secs(600) },
+        ]),
         at: Wall::from_nanos(17),
     }
 }
@@ -296,7 +301,7 @@ fn raw(disk: &mut Disk, store: &mut crate::Store, key: Box<[u8]>, value: Box<[u8
 }
 
 #[test]
-fn an_earlier_openings_head_is_enough_for_both_reaches_and_the_next_start_clears_it() {
+fn earlier_opening_heads_are_enough_for_both_reaches_and_the_next_start_clears_them() {
     let mut source = Disk::new(&[]);
     let mut store = registered(&source);
     let events = source.open(&mut store);
@@ -304,16 +309,22 @@ fn an_earlier_openings_head_is_enough_for_both_reaches_and_the_next_start_clears
     let writes = Box::new([fixtures::header(1), Write::Wires, Write::Opening(opening("current"))]);
     let events = source.request(&mut store, fixtures::commit(1, writes));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
-    let old = crate::keys::encode_own(&crate::keys::Own::Opening("earlier".into()), store.limits.store.key).unwrap();
-    // Nothing resembling a body, so even attempting a v1 decode would refuse it.
-    raw(&mut source, &mut store, old.clone(), Box::new([0, 1]));
+    for (worker, head) in [("before-layouts", [0, 1]), ("before-jobs", [0, 2])] {
+        let key = crate::keys::encode_own(&crate::keys::Own::Opening(worker.into()), store.limits.store.key).unwrap();
+        // Neither has a body; attempting to decode it would refuse the row.
+        raw(&mut source, &mut store, key, Box::new(head));
+    }
     let items = source.items();
     for reach in [Reach::Openings, Reach::Whole] {
         let events = rehearse_registered(&mut Disk::new(&items), reach);
         let Some(Event::Rehearsing { openings, .. }) = events.first() else { panic!("{events:?}") };
         assert_eq!(
             openings.as_ref(),
-            [KeptOpening::Current(opening("current")), KeptOpening::BeforeLayouts { worker: "earlier".into() },]
+            [
+                KeptOpening::BeforeJobs { worker: "before-jobs".into() },
+                KeptOpening::BeforeLayouts { worker: "before-layouts".into() },
+                KeptOpening::Current(opening("current")),
+            ]
         );
         if reach == Reach::Whole {
             let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else { panic!("{events:?}") };
@@ -322,11 +333,11 @@ fn an_earlier_openings_head_is_enough_for_both_reaches_and_the_next_start_clears
     let mut disk = Disk::new(&items);
     let mut store = registered(&disk);
     let events = disk.open(&mut store);
-    let Some(Event::Opened { last: 2, .. }) = events.first() else { panic!("{events:?}") };
-    let events = disk.request(&mut store, fixtures::commit(3, Box::new([fixtures::header(3), Write::Wires])));
+    let Some(Event::Opened { last: 3, .. }) = events.first() else { panic!("{events:?}") };
+    let events = disk.request(&mut store, fixtures::commit(4, Box::new([fixtures::header(4), Write::Wires])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
     let page = crate::pages::load(&mut store, skein_kv::Range::prefix(&[0, 5])).unwrap();
-    assert!(page.rows.is_empty(), "both openings are cleared with the start's wires");
+    assert!(page.rows.is_empty(), "all openings are cleared with the start's wires");
 }
 
 #[test]

@@ -7,12 +7,12 @@ const CAP: u64 = 64 * 1024 * 1024;
 
 #[test]
 fn largest_worker_opening_stays_within_its_codec_bounds() {
-    use jig_protocol_store::openings_v2 as wire;
-    assert_eq!(wire::WorkerOpening::encoded_bound(&wire::CEILINGS), Some(525_530));
+    use jig_protocol_store::openings_v3 as wire;
+    assert_eq!(wire::WorkerOpening::encoded_bound(&wire::CEILINGS), Some(530_654));
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(1).expect("store family").current,
-        jig_protocol_store::openings_v2,
+        jig_protocol_store::openings_v3,
         roots [
             WorkerOpening,
         ]

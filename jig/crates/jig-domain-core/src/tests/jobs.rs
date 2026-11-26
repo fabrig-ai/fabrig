@@ -1,7 +1,12 @@
 //! Job admission (jig/docs/design/domain/engine/executors.md, 5).
+use crate::documents::{JobWhy, TaskRunWait, TaskWaitRefused, run_wait};
 use crate::runs::delegation::job_member;
 use crate::tests::*;
-use jig_domain_link::{Form, JobBound, JobKind};
+use jig_domain_fleet::JobShort;
+use jig_domain_link::{Form, JobBound, JobKind, PauseState};
+
+const SHORT: Token = Token::new(11);
+const COVERING: Token = Token::new(12);
 
 fn bound() -> JobBound {
     JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: Duration::from_secs(60) }
@@ -106,7 +111,19 @@ fn due_job() -> (Core, Limits) {
 }
 
 fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
-    let (mut core, limits) = core();
+    let (mut core, limits) = due_job_without_host(holds);
+    job_hello(&mut core, &limits, COVERING, 1, Box::new([bound()]));
+    (core, limits)
+}
+
+fn due_job_without_host(holds: Box<[tasks::Name]>) -> (Core, Limits) {
+    make_due_job(holds, &limits())
+}
+
+fn make_due_job(holds: Box<[tasks::Name]>, limits: &Limits) -> (Core, Limits) {
+    let mut config = config(41);
+    config.jobs = Box::new([bound()]);
+    let mut core = core_with_config(config, limits);
     let grant = authority::Grant {
         connector: 1,
         kind: 5,
@@ -122,10 +139,10 @@ fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     for resource in &holds {
         let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
-        send_task(&mut core, &limits, tasks::Event::Resource { name: resource.clone(), hold });
+        send_task(&mut core, limits, tasks::Event::Resource { name: resource.clone(), hold });
         send_task(
             &mut core,
-            &limits,
+            limits,
             tasks::Event::ResourceAccess {
                 project: 1,
                 name: resource.clone(),
@@ -133,11 +150,11 @@ fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
             },
         );
     }
-    send_task(&mut core, &limits, tasks::Event::Check);
-    send_task(&mut core, &limits, tasks::Event::Restored);
+    send_task(&mut core, limits, tasks::Event::Check);
+    send_task(&mut core, limits, tasks::Event::Restored);
     send_task(
         &mut core,
-        &limits,
+        limits,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(900)), project: 1, period: 1, budget: 1000 },
     );
     let mut parent = new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None);
@@ -147,21 +164,22 @@ fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
         holdings.push(tasks::Holding::Write { resource, kind: 1 }).expect("fixture holdings");
     }
     parent.holdings = holdings.into_boxed();
-    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([parent]));
+    fixtures::make_batch(&mut core, limits, tasks::Party::Person(1), Box::new([parent]));
     assert!(core.tasks.task(2).is_some(), "procedure fixture");
     let mut row = new_row(&core, 1, tasks::Funder::Task(2), None);
     let job = member();
     row.executor = job.executor;
     row.spec = job.spec;
+    row.spec.job.as_mut().expect("job payload").deadline = Duration::from_secs(1);
     row.contract = tasks::Contract::Job { bytes: 32 };
     row.flags = tasks::Flags::PLAIN;
     row.llm = None;
     row.numbers.budget = 0;
     row.authority.budget.spend = 0;
-    fixtures::make_batch(&mut core, &limits, tasks::Party::Task(2), Box::new([row]));
+    fixtures::make_batch(&mut core, limits, tasks::Party::Task(2), Box::new([row]));
     assert!(core.tasks.task(1).is_some(), "job fixture");
     core.opened = true;
-    (core, limits)
+    (core, *limits)
 }
 
 /// A job's preparation and claim need no agent, account, brief or transcript
@@ -227,7 +245,7 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
                 assert_eq!(named, attempt);
                 assert_eq!(kind, JobKind(7));
                 assert_eq!(spec.as_ref(), [0; 64]);
-                assert_eq!(deadline, Duration::from_secs(60));
+                assert_eq!(deadline, Duration::from_secs(1));
                 assert_eq!(result, 32);
                 assert!(grants.is_empty());
                 assert_eq!(workspace.as_deref(), Some([1, 2, 3].as_slice()));
@@ -419,4 +437,277 @@ fn a_busy_root_activates_a_job_as_a_root_with_read_room_does() {
         }
         assert_eq!(workspaces, 1);
     }
+}
+
+fn job_fleet(core: &mut Core, limits: &Limits, event: fleet::Event) -> Box<[Request]> {
+    watch_outputs(core, limits, Event::Fleet(event))
+}
+
+fn job_hello(core: &mut Core, limits: &Limits, channel: Token, worker: u32, jobs: Box<[JobBound]>) {
+    let out = job_fleet(
+        core,
+        limits,
+        fleet::Event::Hello {
+            worker,
+            channel,
+            hello: Hello {
+                fresh: false,
+                reads_usage: false,
+                jobs,
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    assert!(core.fleet.program_endpoint(channel, 1).is_some(), "worker not admitted: {out:?}");
+}
+
+fn activate_job(core: &mut Core, limits: &Limits) {
+    let context = core.tasks.run_context(1).expect("due job");
+    drop(watch_outputs(core, limits, Event::Activate { context, ready: true, busy: false }));
+}
+
+fn prepared_job(core: &mut Core, limits: &Limits, attempt: u64) -> Box<[Request]> {
+    watch_outputs(
+        core,
+        limits,
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt,
+            holds: Box::new([]),
+            writes: Some(Box::new([])),
+            credentials: Box::new([]),
+            workspace: Some(Box::new([1])),
+        },
+    )
+}
+
+fn start_job(core: &mut Core, limits: &Limits, attempt: u64) {
+    let payload = JobBound { deadline: Duration::from_secs(1), ..bound() };
+    drop(job_fleet(
+        core,
+        limits,
+        fleet::Event::StartJob {
+            reply_to: ReplyTo::new(Token::new(1)),
+            run: Token::new(1),
+            attempt: Token::new(attempt),
+            workstream: 1,
+            job: payload,
+            adopt: false,
+        },
+    ));
+}
+
+fn resume_job(core: &mut Core, limits: &Limits) -> Queue<Request> {
+    resume_fleet(core, &Env { limits: *limits, now: Time::ZERO, wall: Wall::EPOCH })
+}
+
+fn assert_due(core: &Core, wait: TaskRunWait) {
+    let row = core.tasks.task(1).expect("job");
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(row.tries, tasks::Tries::NONE);
+    assert!(core.workspace_flight(1).is_none());
+    assert_eq!(run_wait(core, row), Some(wait));
+}
+
+/// A host must cover the declaration even when this payload needs less
+/// (jig/docs/design/domain/engine/fleet.md, 2).
+#[test]
+fn a_job_waits_for_its_declared_kind_and_deadline_then_places_on_the_covering_worker() {
+    let offered = JobBound { deadline: Duration::from_secs(10), ..bound() };
+    for has_kind in [false, true] {
+        let (jobs, why, figures): (Box<[JobBound]>, _, _) = if has_kind {
+            (Box::new([offered]), JobShort::Deadline, Some(fleet::Figures { required: 60_000, offered: 10_000 }))
+        } else {
+            (Box::new([]), JobShort::Kind, None)
+        };
+        let mut limits = limits();
+        limits.fleet.workers = 2;
+        let (mut core, limits) = make_due_job(Box::new([]), &limits);
+        job_hello(&mut core, &limits, SHORT, 0, jobs);
+        activate_job(&mut core, &limits);
+        assert_due(
+            &core,
+            TaskRunWait::Refused(TaskWaitRefused::Job { worker: Some(1), kind: 7, why: JobWhy::Short(why), figures }),
+        );
+        assert!(!core.proofs.contains_key(&1));
+        assert!(core.take_due().is_none());
+        job_hello(&mut core, &limits, COVERING, 1, Box::new([bound()]));
+        let context = core.take_due().expect("covering hello makes the job ready");
+        drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
+        let attempt = core.workspace_flight(1).unwrap().1;
+        drop(prepared_job(&mut core, &limits, attempt));
+        assert_eq!(core.tasks.task(1).unwrap().phase, tasks::Phase::Active(tasks::Active::Claimed { attempt }));
+        start_job(&mut core, &limits, attempt);
+        let mut assigned = false;
+        for request in &resume_job(&mut core, &limits) {
+            if let Request::Held(held) = request
+                && let Held::Assign { channel, run, attempt: named, .. } = **held
+            {
+                assert_eq!((channel, run.raw(), named.raw()), (COVERING, 1, attempt));
+                assigned = true;
+            }
+        }
+        assert!(assigned, "the covering worker receives the assignment");
+    }
+}
+
+/// Host capacity and pause are readiness, not a shortfall (fleet.md, 2).
+#[test]
+fn a_job_waits_for_the_only_covering_hosts_room_and_resume() {
+    let (mut core, limits) = due_job_without_host(Box::new([]));
+    activate_job(&mut core, &limits);
+    assert_due(&core, TaskRunWait::Host);
+    let busy = Token::new(9);
+    let env = Env { limits: limits.fleet, now: Time::ZERO, wall: Wall::EPOCH };
+    job_hello(&mut core, &limits, COVERING, 1, Box::new([bound()]));
+    let mut out = Queue::uncapped();
+    fleet::step(
+        &mut core.fleet,
+        &env,
+        fleet::Event::StartJob {
+            reply_to: ReplyTo::new(busy),
+            run: busy,
+            attempt: busy,
+            workstream: 9,
+            job: bound(),
+            adopt: false,
+        },
+        &mut out,
+    );
+    fleet::resume(&mut core.fleet, &env, true, &mut out);
+    assert_eq!(out.pop(), Some(fleet::Request::AssignJob { channel: COVERING, run: busy, attempt: busy }));
+    assert_due(&core, TaskRunWait::Host);
+    assert!(!core.due_ready());
+    fleet::step(
+        &mut core.fleet,
+        &env,
+        fleet::Event::Answer {
+            channel: COVERING,
+            run: busy,
+            attempt: busy,
+            answer: fleet::Answer::Ended,
+            payload: busy,
+        },
+        &mut out,
+    );
+    drop(job_fleet(&mut core, &limits, fleet::Event::Acknowledge { run: busy, attempt: busy }));
+    assert!(core.due_ready(), "free slot releases the due job");
+    for state in [PauseState::Paused, PauseState::Draining, PauseState::Taking] {
+        drop(job_fleet(&mut core, &limits, fleet::Event::Paused { channel: COVERING, state }));
+        if state == PauseState::Taking {
+            assert!(core.due_ready(), "taking work releases the due job");
+        } else {
+            assert_due(&core, TaskRunWait::Host);
+            assert!(!core.due_ready());
+        }
+    }
+}
+
+/// A lost host before claim prevents commitment; loss after claim causes Recheck (fleet.md, 2).
+#[test]
+fn a_job_whose_host_is_lost_goes_due_without_spending_a_try() {
+    for claimed in [false, true] {
+        let (mut core, limits) = due_job();
+        activate_job(&mut core, &limits);
+        let attempt = core.workspace_flight(1).unwrap().1;
+        if claimed {
+            drop(prepared_job(&mut core, &limits, attempt));
+            assert_eq!(core.tasks.task(1).unwrap().phase, tasks::Phase::Active(tasks::Active::Claimed { attempt }));
+            start_job(&mut core, &limits, attempt);
+        }
+        drop(job_fleet(&mut core, &limits, fleet::Event::Lost { channel: COVERING }));
+        if claimed {
+            let mut dropped = false;
+            for request in &resume_job(&mut core, &limits) {
+                if let Request::Now(now) = request
+                    && let Now::DropAssignment { task: 1 } = **now
+                {
+                    dropped = true;
+                }
+            }
+            assert!(dropped);
+            assert_eq!(core.fleet.waiting(), 0);
+        } else {
+            let out = prepared_job(&mut core, &limits, attempt);
+            let mut returned = false;
+            for request in out {
+                if let Request::Now(now) = &request
+                    && let Now::RunPreparationFailed { task: 1 } = **now
+                {
+                    returned = true;
+                }
+                if let Request::Ask { ask: Ask::JobClaimed { .. }, .. } = request {
+                    panic!("no handoff when the host is lost during preparation");
+                }
+            }
+            assert!(returned);
+            assert!(!core.proofs.contains_key(&1));
+        }
+        assert_due(&core, TaskRunWait::Host);
+        activate_job(&mut core, &limits);
+        assert!(core.take_due().is_none());
+    }
+}
+
+/// An untranslated job keeps only its task off the channel until it is lost (layouts.md, 5.1).
+#[test]
+fn an_untranslated_job_is_due_after_the_pause_and_waits_for_a_new_channel() {
+    let (mut core, limits) = due_job();
+    activate_job(&mut core, &limits);
+    let attempt = core.workspace_flight(1).expect("prepared job").1;
+    drop(prepared_job(&mut core, &limits, attempt));
+    start_job(&mut core, &limits, attempt);
+    drop(resume_job(&mut core, &limits));
+    let run = Token::new(1);
+    let attempt = Token::new(attempt);
+    let payload = Token::new(99);
+    drop(job_fleet(
+        &mut core,
+        &limits,
+        fleet::Event::Answer { channel: COVERING, run, attempt, answer: fleet::Answer::Untranslated, payload },
+    ));
+    // The hub link decodes the component's local refusal as RefusedWithReason.
+    let reason = b"the worker's layout cannot keep jig-channel Job.workspace: field".as_slice();
+    drop(watch_outputs(
+        &mut core,
+        &limits,
+        Event::AnswerPayload {
+            run,
+            attempt,
+            payload,
+            cumulative: 0,
+            end: tasks::End::RefusedWithReason { reason: reason.into() },
+            saved: None,
+            invalid_saved: false,
+            unusable_history: false,
+            untooled: false,
+            read: None,
+            refused: Box::new([]),
+        },
+    ));
+    let row = core.tasks.task(1).unwrap();
+    assert_eq!(row.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason.into()) }));
+    let tasks::Phase::Active(tasks::Active::BackingOff { until }) = row.phase else { panic!("refusal pause") };
+    let env = Env { limits, now: core.tasks.next_deadline().unwrap(), wall: until };
+    drop(fire(&mut core, &env, Timer::Tasks));
+    assert_due(
+        &core,
+        TaskRunWait::Refused(TaskWaitRefused::Job {
+            worker: Some(2),
+            kind: 7,
+            why: JobWhy::Untranslated,
+            figures: None,
+        }),
+    );
+    let context = core.tasks.run_context(1).unwrap();
+    drop(step(&mut core, &env, Event::Activate { context, ready: true, busy: false }));
+    assert!(!core.due_ready());
+    drop(job_fleet(&mut core, &limits, fleet::Event::Lost { channel: COVERING }));
+    core.reclaim();
+    job_hello(&mut core, &limits, SHORT, 1, Box::new([bound()]));
+    assert!(core.take_due().is_some(), "replacement channel has no exclusion");
 }

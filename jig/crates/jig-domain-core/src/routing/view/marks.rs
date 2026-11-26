@@ -66,7 +66,7 @@ impl Core {
         self.touch_views(Touch::Deployment);
     }
 
-    /// Host or account changes can replace a due agent's next-run wait.
+    /// Host or account changes can replace a due task's next-run wait.
     pub(crate) fn touch_run_waits(&mut self) {
         self.wait_alarms.changed_run_waits();
         for (_, flight) in &self.flights {
@@ -75,7 +75,7 @@ impl Core {
                 continue;
             };
             let Some(row) = self.tasks.task(*task) else { continue };
-            if let tasks::Executor::Agent { .. } = row.executor
+            if let tasks::Executor::Agent { .. } | tasks::Executor::Job { .. } = row.executor
                 && let tasks::Phase::Active(tasks::Active::Due | tasks::Active::Preparing) = row.phase
             {
                 let _new = self.changed_views.insert(binding.subject).expect("bounded watched marks");

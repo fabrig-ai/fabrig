@@ -19,6 +19,7 @@ fn opening(worker: &str, at: u64) -> WorkerOpening {
         ]),
         output: 4096,
         terms: Box::new([OpenedTerm { kind: 3, largest: 81 }, OpenedTerm { kind: 9, largest: 2048 }]),
+        jobs: Box::new([]),
         at: Wall::from_nanos(at),
     }
 }

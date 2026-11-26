@@ -115,12 +115,14 @@ converts is `layouts.md`'s; an application names its own wires
   and the worker's link hands its owner each refusal it hears, with its
   reason and text, before it redials.
 - **The statement handed up whole** (temper's `draft/archive/redeploys.md`,
-  5.1): with the channel accepted, the engine's side hands its owner
-  what the worker stated, its wires as its credential gives them, in
-  their order, its `io.output`, and its terms as its channel's ready
-  event gave them (5), so that the owner may keep the opening
-  (`../store/records.md`, 3, *The workers' openings*), and which wires
-  convert:
+  5.1): with the channel accepted and the worker's hello decoded, the
+  engine's side hands its owner what the worker stated, its wires as
+  its credential gives them, in their order, its `io.output`, its terms
+  as its channel's ready event gave them (5), and the job kinds its
+  hello declares, in the hello's order (`../../domain/hosts/hub.md`, 9),
+  so that the owner may keep the opening (`../store/records.md`, 3,
+  *The workers' openings*), and which wires convert. A channel lost or
+  refused before its hello decodes hands up none:
 
   ```rust
   // jig_protocol_engine_workers
@@ -135,6 +137,7 @@ converts is `layouts.md`'s; an application names its own wires
       pub wires: List<Stated>,           // the credential's, in its order
       pub output: u32,                   // the credential's io.output
       pub terms: List<skein_channel::Term>, // the worker's, as its ready event gave them
+      pub jobs: List<jig_domain_link::JobBound>, // its hello's job kinds, in their order
   }
   // Request::Opened and host::Output::Opened carry `statement: Statement`
   // beside `worker` and `converted`: the names of the wires the engine
@@ -168,7 +171,9 @@ converts is `layouts.md`'s; an application names its own wires
   that order over a whole statement, deriving the plans the opening
   would. Its texts are the opening's, word for word, so a kept opening
   judged by a new build says what that build's opening would refuse it
-  with.
+  with. It reads no `jobs`: the opening is judged before the hello, and
+  a hello's kinds are the fleet's to judge (`../../domain/engine/fleet.md`,
+  2, *A job goes only where a host runs it*).
 
 ## 4. The kinds' table in the schema
 

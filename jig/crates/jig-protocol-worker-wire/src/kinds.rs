@@ -56,6 +56,47 @@ impl Kind {
         }
         unreachable!("every worker record has one kind rule")
     }
+
+    /// Whether the engine sends this kind only where the worker has it
+    /// (jig/docs/design/protocol/channel/layouts.md, 4.1).
+    #[must_use]
+    pub fn optional_at_worker(self) -> bool {
+        match self {
+            Self::Restarting | Self::Figures | Self::ReadUsage | Self::Pause | Self::PartKept | Self::PartBusy => true,
+            Self::Hello
+            | Self::Turn
+            | Self::Call
+            | Self::Answer
+            | Self::Fact
+            | Self::Unauthorized
+            | Self::Limited
+            | Self::AccountRefused
+            | Self::Assignment
+            | Self::Message
+            | Self::Relayed
+            | Self::TurnKept
+            | Self::TurnBusy
+            | Self::Acknowledge
+            | Self::Cancel
+            | Self::Grant
+            | Self::Sources
+            | Self::Check
+            | Self::ReadList
+            | Self::ListRead
+            | Self::Draining
+            | Self::SignOut
+            | Self::Logins
+            | Self::SignedOut
+            | Self::Job
+            | Self::JobAnswer
+            | Self::Ask
+            | Self::Asked
+            | Self::Usage
+            | Self::UsageRead
+            | Self::Paused
+            | Self::Part => false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

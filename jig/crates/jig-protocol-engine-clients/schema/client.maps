@@ -445,6 +445,10 @@ enum HelloRefusal = f::HelloRefusal
 record ShortfallFigures = f::Figures
 record TaskWaitHello
 record TaskWaitBounds
+enum JobShort = f::JobShort
+record JobWhyShort stands for why
+enum JobWhy = d::JobWhy { short tuple }
+record TaskWaitJob
 enum TaskWaitRefused = d::TaskWaitRefused { hello { at via s::wall } }
 record TaskRunWaitRefused stands for value
 record TaskWaitWorker
