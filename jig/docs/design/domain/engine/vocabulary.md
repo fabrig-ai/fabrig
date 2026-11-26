@@ -277,7 +277,8 @@ The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::He
     `Failed`.
   - `Read`: `Read`, the page's rows, each with its joins, and the position the next page
     begins at; or `Busy`, `Gone`, `TooLinked` or `TurnProblem`
-    (`../../protocol/store/loads.md`, 3).
+    (`../../protocol/store/loads.md`, 3). A read answered `Failed` ends as one answered
+    `Busy` does: the store could not serve it now.
   - An answer its range cannot have is read as `Failed`.
 - **Paced by the engine** (`decisions.md`, 1.3): no root answers for room, and none keeps a
   load waiting for one.

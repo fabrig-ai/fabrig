@@ -38,5 +38,7 @@
   one that lowers either bound under kept lines fails them too. No test
   reads a preferences gather that fails, for room, refusal or fit.
 
+- **Not yet:** 1.1, *A dependency's result*: a load with no slot is kept by temper's root, not the engine, and the other roots bound none [in flight: change 19320].
+- **Not yet:** 2.2: an index's load finding no room is the root's read table's, not the engine's [in flight: change 19322].
 - **Not yet:** 2.2: the wait table bounded by `brief.briefs`, not by live tasks, and a wait that finds it full aborts the engine (`jig-domain-core/src/routing/run/preparation.rs`, `start_brief`; `routing/effect/note.rs`, `defer_brief`).
 - **Not yet:** 2.1: the `preferences` section is given where the run's task's authority holds the asking family, whatever its charter names, so a run whose charter names no asking family reads its person's preferences too (`jig-domain-core/src/routing/run/preferences.rs`, `party`).
