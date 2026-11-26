@@ -402,7 +402,7 @@ fn the_written_rows_do_not_convert_again() {
 }
 
 #[test]
-fn unmade_cleanup_keeps_the_repair_converted_in_link() {
+fn unmade_ending_keeps_the_repair_converted_in_link() {
     let mut store = Store::new();
     store.change(
         FAILED_CHANGE,
@@ -420,7 +420,7 @@ fn unmade_cleanup_keeps_the_repair_converted_in_link() {
     assert!(warnings(&output).is_empty(), "the link agrees before the unmade pass");
     store.assert_queue(FAILED_CHANGE, 1, &[ask(1, FAILED_LANDING, repair(0, HEAD))]);
     let mut converted = None;
-    let mut erased = None;
+    let mut ended = None;
     let mut saved_ready = false;
     for (index, request) in output.iter().enumerate() {
         if let forge::Request::Save { record: forge::Stored::ChangeHot(hot), .. } = request
@@ -433,11 +433,20 @@ fn unmade_cleanup_keeps_the_repair_converted_in_link() {
             }
             saved_ready |= hot.change.state == ready();
         }
-        if *request == (forge::Request::Erase { key: forge::Key::Landing(FAILED_LANDING) }) {
-            erased = Some(index);
+        if let forge::Request::Save { record: forge::Stored::Landing(row), .. } = request
+            && row.landing.task == FAILED_LANDING
+            && row.landing.phase == landing::Phase::Cancelled
+            && ended.is_none()
+        {
+            ended = Some(index);
         }
+        assert_ne!(
+            *request,
+            forge::Request::Erase { key: forge::Key::Landing(FAILED_LANDING) },
+            "Link keeps the cancelled landing row"
+        );
     }
-    assert!(converted.expect("conversion save in Link") < erased.expect("unmade erase in Link"));
+    assert!(converted.expect("conversion save in Link") < ended.expect("cancelled landing save in Link"));
     assert!(saved_ready, "Link also saves the Ready change with its converted queue");
     assert_eq!(store.domain.landing_of(FAILED_CHANGE), None);
     assert_eq!(store.domain.change(FAILED_CHANGE).unwrap().change.state, ready());
