@@ -1,4 +1,5 @@
-//! Application asks use the admitted run and make no decision (domain/forge/reds.md, 5.1 and 5.4).
+//! Application asks use the admitted run (temper/docs/design/domain/forge/reds.md, 5.1 and 5.4;
+//! temper/docs/design/domain/forge/writes.md, 2).
 use super::fixtures;
 use jig_domain_host as host;
 use skein_lib::{Queue, Token};
@@ -311,7 +312,7 @@ fn an_admitted_landed_ask_answers_from_the_domain_without_a_commit() {
 }
 
 #[test]
-fn the_engine_does_not_admit_pushes_yet() {
+fn an_attempt_without_a_push_destination_is_refused_admission() {
     let (mut service, run) = fixtures::claimed_chat();
     let before = service.engine.as_ref().unwrap().domain.deployment().commits;
     let bytes = payload::ask(&v1::Ask::Admit(v1::Admit {
@@ -320,9 +321,11 @@ fn the_engine_does_not_admit_pushes_yet() {
         expected: None,
         commit: [3; 32],
     }));
-    let refused =
-        v1::Answer::Unadmitted(v1::Unadmitted { words: b"the engine admits no pushes yet".as_slice().into() });
-    assert_eq!(answer(&mut service, &run, &bytes, 19), host::AskAnswer::Bytes(payload::answer(&refused)));
+    let host::AskAnswer::Bytes(bytes) = answer(&mut service, &run, &bytes, 19) else { panic!("push admission answer") };
+    assert_eq!(
+        v1::Answer::decode(&fixtures::wire_limits(), &mut skein_lib::Reader::new(&bytes)).unwrap(),
+        v1::Answer::Unadmitted(v1::Unadmitted { words: b"this attempt may not push to change/7".as_slice().into() })
+    );
     assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
 }
 

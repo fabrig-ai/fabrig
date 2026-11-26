@@ -1101,7 +1101,17 @@ pub fn settle_root(
                     assignment: run,
                     ..
                 })) => assignment = Some(run),
-                root::Request::Worker(root::WorkerRequest::Deliver(delivery)) => delivered.push(delivery),
+                // A deferred ask answer is still internal here. Route it back through the
+                // domain so that the fixture observes the numbered LinkDown::Asked.
+                root::Request::Worker(root::WorkerRequest::Deliver(delivery)) => {
+                    if let root::Delivery::Host(host) = &delivery
+                        && let root::HostDelivery::Asked { .. } = host.as_ref()
+                    {
+                        crate::route::request(engine, root::Request::Worker(root::WorkerRequest::Deliver(delivery)));
+                    } else {
+                        delivered.push(delivery);
+                    }
+                }
                 root::Request::Party(root::PartyRequest::Deliver(root::Delivery::WebReply { to, reply }))
                     if to == skein_lib::ReplyTo::new(Token::new(31_052)) =>
                 {
