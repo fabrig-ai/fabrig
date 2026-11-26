@@ -1055,7 +1055,11 @@ cause.
   `TEMPER_CLOSE_REFUSAL=3`, 3 refused and 2 broke (section 4.1). Broke,
   its last line on stderr is `pre-pr: broke: <error>`, its first error's
   first line, within 127 bytes and a newline, since a failed job keeps
-  the last 128 bytes of the command's stderr as its reason. Each tests
+  the last 128 bytes of the command's stderr as its reason. The line
+  before it is `smith-check: not judged`, in every mode and on every way
+  it breaks (an exception its top level catches, a checkout with no tree
+  to judge), so a delivery's run is told the check didn't judge its
+  tree, not that it refused it (smith's `domain/run-delivery.md`, 1.1). Each tests
   run's end line, the focused and the fuzzy, says `inherited` where each
   of its own failures was inherited or a flake.
 - **The results file,** for temper (`temper/docs/design/domain/forge/reds.md`,
