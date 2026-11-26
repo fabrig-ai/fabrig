@@ -19,6 +19,7 @@ pub enum In {
 pub enum Range {
     Record(Key),
     Proposal { task: u64, proposal: u64 },
+    Window { task: u64, from: (u64, u32) },
     Read(Box<reads::Range>),
 }
 

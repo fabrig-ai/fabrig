@@ -2,6 +2,7 @@ mod fixtures;
 use core::engine::store::{Answer, In, Out, Range, Rows};
 pub(crate) use fixtures::ended_chat;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as port;
 use jig_domain_people as people;
 use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
@@ -236,14 +237,20 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Now(core::Now::StartPreparation { task: 21, from: (1, 1) }),
+        StoreOut::Engine(port::Out::Load {
+            load: Token::new(21),
+            range: port::Range::Window { task: 21, from: (1, 1) },
+        }),
     );
     let mut expected_turn = 1_u32;
     let mut pages = 0_u32;
     for output in outputs {
         match output {
-            Up::Root(root::Event::TranscriptLoaded { task, rows, done }) => {
-                assert_eq!(task, 21);
+            Up::Root(root::Event::Store(port::In::Loaded {
+                load,
+                result: port::Answer::Rows(port::Rows::Turns { turns: rows, more }),
+            })) => {
+                assert_eq!(load, Token::new(21));
                 pages = pages.checked_add(1).expect("bounded pages");
                 for (row, text) in rows {
                     assert!(text.is_none());
@@ -251,7 +258,7 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
                     assert_eq!(row.transcript.as_ref(), b"opaque");
                     expected_turn = expected_turn.checked_add(1).expect("bounded turns");
                 }
-                assert_eq!(done, expected_turn == 4);
+                assert_eq!(more, expected_turn != 4);
             }
             Up::Root(_) | Up::Ask(_) => unreachable!("only transcript pages"),
         }

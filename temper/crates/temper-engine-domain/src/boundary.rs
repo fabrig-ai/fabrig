@@ -146,16 +146,6 @@ pub enum Event {
     /// The service begins its drain (jig's `domain/engine/restart.md`, 5).
     Stop,
 }
-/// A window turn's text or its omitted body's length (temper/docs/design/domain/root.md, 7).
-#[derive(Hash, Debug)]
-pub enum TurnText {
-    Rendered(Box<[u8]>),
-    Unrendered,
-    Cut(u32),
-}
-/// Protocol texts in the same order as a transcript load's rows.
-pub type TranscriptTexts = Box<[TurnText]>;
-
 #[derive(Hash, Debug)]
 pub enum StoreInput {
     Checkpointed {
@@ -188,9 +178,6 @@ pub enum StoreInput {
         number: u64,
     },
     Loaded {
-        /// Protocol-rendered text in row order, only for transcript window loads.
-        /// Each rendering is at most the core tail budget; a cut turn is alone in its page.
-        texts: Option<TranscriptTexts>,
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,
         /// Owned decoded rows, at most `loads::Limits::rows` and `loads::Limits::reply_bytes`
@@ -1001,7 +988,6 @@ pub(crate) enum Read {
     ChangeDelegate { task: u64, child: u64, step: u64, revision: u64 },
     History { load: u64, most: u32 },
     ChangeFrom { task: u64 },
-    Transcript { task: u64 },
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },

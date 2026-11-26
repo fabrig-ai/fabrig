@@ -393,11 +393,7 @@ impl StartStore {
                     }
                     engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                         let (rows, next) = self.load(&range, after.as_ref(), most);
-                        engine::step(
-                            root,
-                            env,
-                            engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
-                        );
+                        engine::step(root, env, engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                     }
                     engine::Request::Stop => panic!("start stopped: {:?}", root.start_stop()),
                     request @ (engine::Request::Unsettled(_)

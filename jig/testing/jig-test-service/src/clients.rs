@@ -452,7 +452,6 @@ impl Clients {
             | root::Event::Text { .. }
             | root::Event::Turn { .. }
             | root::Event::Answer { .. }
-            | root::Event::TranscriptLoaded { .. }
             | root::Event::Failed { .. } => None,
         }
     }
@@ -535,7 +534,6 @@ impl Clients {
             | root::Event::Text { .. }
             | root::Event::Turn { .. }
             | root::Event::Answer { .. }
-            | root::Event::TranscriptLoaded { .. }
             | root::Event::Committed { .. }
             | root::Event::Failed { .. } => None,
         };

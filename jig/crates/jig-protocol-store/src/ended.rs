@@ -26,7 +26,7 @@ pub fn start(owner: Token, range: store::Range) -> Option<(Request, Pending)> {
         store::Range::Proposal { task, proposal } => {
             (Key::Tasks(tasks::Key::Live(task)), Pending::ProposalOwner { task, proposal })
         }
-        store::Range::Read(_) => return None,
+        store::Range::Read(_) | store::Range::Window { .. } => return None,
     };
     Some((get(owner, key), pending))
 }

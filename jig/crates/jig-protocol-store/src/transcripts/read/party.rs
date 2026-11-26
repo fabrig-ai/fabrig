@@ -21,7 +21,7 @@ pub(crate) fn start(
             task
         }
     };
-    let Some(mut read) = prepare(store, owner, request, 1, u64::from(store.limits.store.page.bytes)) else {
+    let Ok(Some(mut read)) = prepare(store, owner, request, 1, u64::from(store.limits.store.page.bytes)) else {
         return reads::ready(reads::finish(store, task, party, None));
     };
     read.party = Some(party);

@@ -477,7 +477,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(_)
         | core::Event::Fleet(_)
         | core::Event::PartPayload { .. }

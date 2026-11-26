@@ -21,7 +21,13 @@ fn selected() -> TranscriptRead {
 pub(crate) fn kinds() -> [TranscriptRead; 4] {
     [
         selected(),
-        TranscriptRead::Window { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN, after: None },
+        TranscriptRead::Window {
+            task: frames::TASK,
+            attempt: frames::ATTEMPT,
+            turn: frames::TURN,
+            after: None,
+            limits: None,
+        },
         TranscriptRead::Page { task: frames::TASK, backwards: false, after: None },
         TranscriptRead::Page { task: frames::TASK, backwards: true, after: None },
     ]

@@ -77,7 +77,6 @@ pub(crate) fn call(
                 Read::CloserReport(_)
                 | Read::Parts(_)
                 | Read::ChangeFrom { .. }
-                | Read::Transcript { .. }
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
                 | Read::History { .. }

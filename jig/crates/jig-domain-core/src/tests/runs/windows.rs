@@ -112,7 +112,7 @@ fn assert_fresh_brief_tail(cut: bool) {
     core.begin_transcript(1, 1, None);
     window(&mut core).window = Some((1, 1));
     let (load, expected) = if cut {
-        (TranscriptLoad::Cut { turn: cut_turn(1, 1, true), bytes: 1, done: true }, Box::from(CUT_TURN_TEXT))
+        (engine_store::Answer::Cut { turn: cut_turn(1, 1, true), bytes: 1, more: false }, Box::from(CUT_TURN_TEXT))
     } else {
         for (number, body) in [(1, [b'a'; 40]), (2, [b'b'; 40]), (3, [b'c'; 40])] {
             append(&mut core, number, &body);
@@ -120,9 +120,12 @@ fn assert_fresh_brief_tail(cut: bool) {
         let mut expected = [b'c'; 80];
         expected.get_mut(..40).unwrap().fill(b'b');
         assert_eq!(tail(&core, 90).as_ref(), expected);
-        (TranscriptLoad::Page { rows: Box::new([]), done: true }, Box::<[u8]>::from(expected))
+        (
+            engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
+            Box::<[u8]>::from(expected),
+        )
     };
-    let mut out = watch_outputs(&mut core, &limits, Event::TranscriptLoaded { task: 1, load });
+    let mut out = finish_window(&mut core, &limits, 1, load);
     for _ in 0..limits.notes.scopes {
         let mut owner = None;
         for request in &out {

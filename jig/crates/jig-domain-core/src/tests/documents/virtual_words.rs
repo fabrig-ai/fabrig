@@ -39,7 +39,7 @@ fn a_held_delegates_escalation_prepares_its_requesters_next_run() {
     assert_eq!(context.last_message, ENTRY);
     assert_eq!(core.tasks.task(REQUESTER).unwrap().last_message, 0);
     assert_eq!(core.tasks.run_message(REQUESTER), Some(ENTRY));
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
     let row = core.tasks.task(REQUESTER).unwrap();
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert_eq!(row.retry_notice, None);

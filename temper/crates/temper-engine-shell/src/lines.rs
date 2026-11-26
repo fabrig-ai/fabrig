@@ -355,7 +355,6 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::TaskResult => "task result",
         Kind::RequesterWord => "requester word",
         Kind::Turns => "turns",
-        Kind::TaskTranscript => "task transcript",
         Kind::Notes => "notes",
         Kind::ProposalDecision => "proposal decision",
         Kind::TaskProposal => "task proposal",

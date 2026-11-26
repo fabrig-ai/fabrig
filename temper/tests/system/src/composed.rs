@@ -1111,20 +1111,32 @@ impl World {
                 let result = self.store.read(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             }
-            engine::StoreRequest::Engine(engine_store::Out::Load { load, range }) => {
+            engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range:
+                    range @ (engine_store::Range::Read(_)
+                    | engine_store::Range::Record(_)
+                    | engine_store::Range::Proposal { .. }),
+            }) => {
                 let result = self.store.load(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::Engine(
                     engine_store::In::Loaded { load, result },
                 )));
             }
+            engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Window { task, from },
+            }) => {
+                self.root_events.extend(
+                    self.store
+                        .window(load, task, from)
+                        .into_iter()
+                        .map(|answer| engine::Event::Store(engine::StoreInput::Engine(answer))),
+                );
+            }
             engine::StoreRequest::Load { owner, range, after, most, .. } => {
-                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                    owner,
-                    rows,
-                    next,
-                    texts,
-                }));
+                let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
             }
         }
     }

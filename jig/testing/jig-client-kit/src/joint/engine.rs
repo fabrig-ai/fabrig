@@ -259,7 +259,6 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::StartPreparation { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }

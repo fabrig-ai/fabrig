@@ -1,10 +1,9 @@
 //! The core's immediate outputs: payload reads, preparation and the door
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{
-    CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read, Request, Work,
-    emit, forge_route, relay_call,
+    CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Request, Work,
+    forge_route, relay_call,
 };
-use crate::Range;
 use crate::assemble::{brief_outputs, finish_brief_plan, take_payload};
 use crate::boundary::{Payload, WorkspacePreparation};
 use alloc::boxed::Box;
@@ -70,9 +69,6 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::Activate { context } => {
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
             domain.work.push(Work::Activate { context, ready });
-        }
-        core::Now::StartPreparation { task, from } => {
-            start_preparation(domain, env, decision, task, from);
         }
         core::Now::BriefCorePlanned { task, parent, sections, documents } => {
             if waiting_for_goal_workspace(domain, task, true) {
@@ -231,17 +227,6 @@ fn link_now(domain: &mut Domain, value: core::LinkNow) {
             crate::link::route(domain, jig_domain_hub_link::Event::RefusedPayload { request, problem });
         }
     }
-}
-
-/// Load the current transcript window before the brief.
-fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64, from: (u64, u32)) {
-    let waiter = domain
-        .archive_reads
-        .insert(Some(Read::Transcript { task }))
-        .expect("the activation's step found read room")
-        .token();
-    let range = Range::Core(crate::CoreRange::TaskTranscript { task, from });
-    emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
 }
 
 fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, context: Box<tasks::RunContext>) {

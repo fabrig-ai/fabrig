@@ -391,21 +391,31 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.store.pending.push_back((number, writes));
                 }
-                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range:
+                        range @ (engine_store::Range::Read(_)
+                        | engine_store::Range::Record(_)
+                        | engine_store::Range::Proposal { .. }),
+                })) => {
                     let result = self.store.load(range);
                     self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
                         load,
                         result,
                     })));
                 }
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Window { task, from },
+                })) => self.events.extend(
+                    self.store
+                        .window(load, task, from)
+                        .into_iter()
+                        .map(|answer| engine::Event::Store(engine::StoreInput::Engine(answer))),
+                ),
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                        owner,
-                        rows,
-                        next,
-                        texts: None,
-                    }));
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                 }
                 engine::Request::Forge { call, repository, op } => {
                     let located = translate::locate_name(&op);

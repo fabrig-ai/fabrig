@@ -88,7 +88,6 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::StartPreparation { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
@@ -175,7 +174,6 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::PartPayload { .. }
@@ -252,7 +250,6 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::PartPayload { .. }

@@ -265,6 +265,15 @@ impl Application for OpsApplication {
         };
         if let root::Output::Store(engine_store::Out::Load { load, range }) = delivery {
             let result = match range {
+                range @ engine_store::Range::Window { .. } => {
+                    return Ops::deliver(
+                        &mut peers.conformance,
+                        systems,
+                        store,
+                        clock,
+                        Delivery::Root(Box::new(root::Output::Store(engine_store::Out::Load { load, range }))),
+                    );
+                }
                 engine_store::Range::Read(range) => read_page(store, &range, peers.tree_tasks),
                 range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }) => {
                     conformance::point(store, &range)
@@ -384,7 +393,6 @@ impl Application for OpsApplication {
                 | core::Now::NoteBusy { .. }
                 | core::Now::DropAssignment { .. }
                 | core::Now::Activate { .. }
-                | core::Now::StartPreparation { .. }
                 | core::Now::CompleteBrief { .. }
                 | core::Now::BriefCorePlanned { .. }
                 | core::Now::WorkspaceRequest { .. }

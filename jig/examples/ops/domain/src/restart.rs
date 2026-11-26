@@ -152,12 +152,6 @@ pub(crate) fn store(
                 work.push(Work::StartDone(phase));
             }
         }
-        Store::Transcript { task, rows, done } => {
-            work.push(Work::Core(core::Event::TranscriptLoaded {
-                task,
-                load: core::TranscriptLoad::Page { rows, done },
-            }));
-        }
         Store::Restore(record) => {
             if domain.start.state == crate::domain::StartState::Stopped
                 || domain.engine.core().start_failure().is_some()

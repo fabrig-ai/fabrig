@@ -222,9 +222,8 @@ impl Domain {
 
     /// The transcript and turn bytes the root and its core hold now
     /// (domain/root.md, 4.1): the root's running total and the core's
-    /// `transcript_bytes`. A person's read pages waiting in `store_answers`
-    /// are not counted: they are not transcripts, and a preparation's
-    /// transcript pages (`StoreInput::Loaded`) never wait there.
+    /// `transcript_bytes`, including a preparation's allowance while its
+    /// store answers pass through the answer queue.
     #[must_use]
     pub fn held_bytes(&self) -> u64 {
         self.held_bytes
@@ -719,7 +718,7 @@ impl Domain {
             answer_parts: Map::uncapped(),
             refused_calls: Map::uncapped(),
             archive_reads: Slab::with_capacity(limits.loads.loads),
-            store_answers: Queue::with_capacity(limits.loads.loads),
+            store_answers: Queue::with_capacity(limits.loads.loads.saturating_mul(3).saturating_add(2)),
             call_renders: Map::with_capacity(limits.fleet.calls),
             work: Queue::uncapped(),
             facts: Queue::with_capacity(crate::limits::FACTS),

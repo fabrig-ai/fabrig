@@ -584,10 +584,6 @@ impl Application for Testing {
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
                 }
-                Delivery::Now(now @ core::Now::StartPreparation { .. }) => {
-                    store.ask(StoreOut::Now(now));
-                    Vec::new()
-                }
                 Delivery::Start { phase, census } => peers.start(store, phase, census),
                 Delivery::Busy(event) => {
                     peers.busy_events.push(format!("{event:?}"));

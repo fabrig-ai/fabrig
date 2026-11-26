@@ -734,32 +734,36 @@ impl Application for Ops {
             root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
                 vec![Input::Event(root::Event::Core(peers::notes_loaded(owner, List::with_capacity(0), false)))]
             }
-            root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
+            root::Output::Store(core::engine::store::Out::Load {
+                load,
+                range: core::engine::store::Range::Window { task, from },
+            }) => {
+                use core::engine::store as port;
                 let records = observations::core_store(store).rows;
-                let rows = match peers::transcript(&records, task, from) {
-                    Ok(rows) => rows,
-                    Err(event) => return Ok(vec![Input::Event(root::Event::Core(*event))]),
+                let result = match peers::transcript(&records, task, from) {
+                    Ok(rows) => port::Answer::Rows(port::Rows::Turns {
+                        turns: rows
+                            .into_iter()
+                            .map(|row| {
+                                let bound = u32::try_from(row.transcript.len()).expect("stored turn bound");
+                                let limits = jig_protocol_transcript::Limits::new(
+                                    bound,
+                                    jig_client_domain::contract::TurnLimits {
+                                        messages: u32::MAX,
+                                        blocks: u32::MAX,
+                                        text: bound,
+                                        outcome: bound,
+                                    },
+                                );
+                                let text = jig_protocol_transcript::brief_text(&limits, &row.transcript).ok();
+                                (row, text)
+                            })
+                            .collect(),
+                        more: false,
+                    }),
+                    Err(failure) => port::Answer::Failed(failure),
                 };
-                vec![Input::Event(root::Event::Store(root::Store::Transcript {
-                    task,
-                    rows: rows
-                        .into_iter()
-                        .map(|row| {
-                            let limits = jig_protocol_transcript::Limits::new(
-                                u32::try_from(row.transcript.len()).expect("stored turn bound"),
-                                jig_client_domain::contract::TurnLimits {
-                                    messages: u32::MAX,
-                                    blocks: u32::MAX,
-                                    text: u32::try_from(row.transcript.len()).expect("stored turn bound"),
-                                    outcome: u32::try_from(row.transcript.len()).expect("stored turn bound"),
-                                },
-                            );
-                            let text = jig_protocol_transcript::brief_text(&limits, &row.transcript).ok();
-                            (row, text)
-                        })
-                        .collect(),
-                    done: true,
-                }))]
+                vec![Input::Event(root::Event::Store(root::Store::Engine(port::In::Loaded { load, result })))]
             }
             root::Output::ApplicationDocument { watcher, document } => {
                 documents::delivered(peers, store, document);

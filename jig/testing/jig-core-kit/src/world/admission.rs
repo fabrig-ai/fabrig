@@ -96,6 +96,9 @@ impl World {
         self.observer.delivered(self.wall, &mut delivery)?;
         match delivery {
             root::Delivery::Store(
+                load @ core::engine::store::Out::Load { range: core::engine::store::Range::Window { .. }, .. },
+            ) => self.load_window(load),
+            root::Delivery::Store(
                 load @ core::engine::store::Out::Load { range: core::engine::store::Range::Read(_), .. },
             ) => {
                 self.store.ask(StoreOut::Engine(load));

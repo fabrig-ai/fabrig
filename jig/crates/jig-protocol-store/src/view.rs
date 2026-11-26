@@ -167,6 +167,7 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
             | Event::PageRefused { owner, .. }
             | Event::Corrupt { owner }
             | Event::Turns { owner, .. }
+            | Event::WindowFailed { owner }
             | Event::Unread { owner } => Some(*owner),
             Event::Restored { .. }
             | Event::RestoreRefused { .. }

@@ -517,10 +517,7 @@ fn route_now(
         }
 
         core::Now::Activate { context } => {
-            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
-        }
-        value @ core::Now::StartPreparation { .. } => {
-            domain.now.push(crate::Request::Now(value));
+            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
             if let Some(failure) = domain.scripted_brief_failure.clone() {

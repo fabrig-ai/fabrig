@@ -2434,6 +2434,29 @@ fn ended_answer(load: Token, row: Option<Box<tasks::TaskRecord>>, busy: bool) ->
     point_answer(load, row, busy)
 }
 
+/// Fixtures that start directly in preparation still register the load their page answers.
+fn fixture_window(core: &mut Core, task: u64, from: (u64, u32)) -> Token {
+    let Request::Held(held) = core.loads.window(task, from) else { panic!("window held") };
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Window { .. } }) = *held else {
+        panic!("window through store")
+    };
+    load
+}
+
+fn finish_window(core: &mut Core, limits: &Limits, task: u64, result: engine_store::Answer) -> Box<[Request]> {
+    let load = fixture_window(core, task, (1, 1));
+    watch_store_outputs(core, limits, engine_store::In::Loaded { load, result })
+}
+
+fn last_empty_window_page(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
+    finish_window(
+        core,
+        limits,
+        task,
+        engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
+    )
+}
+
 fn watch_decision(mut out: Queue<Request>) -> Box<[Request]> {
     let mut requests = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
@@ -3170,6 +3193,8 @@ fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
     core.loads = loads::Loads::new(1, core.flight_tasks_capacity);
+    fixture_window(&mut core, 102, (1, 1));
+    assert!(!core.loads.room(&limits), "the full work lane does not take the read's room");
     let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 100 })
     else {

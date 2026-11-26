@@ -21,7 +21,7 @@ pub(crate) mod task;
 pub(crate) mod timers;
 pub(crate) mod view;
 
-pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind, TranscriptLoad};
+pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind};
 use crate::{
     CallKey, CallPart, Core, RoutedCall,
     routing::{
@@ -558,7 +558,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
@@ -680,7 +679,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
-        Event::TranscriptLoaded { task, load } => run::preparation::transcript_loaded(core, env, work, task, load),
         Event::People(event) => route_people(core, env, work, event),
         Event::Holdings { request, connector, holdings, refused } => {
             route_holdings(core, env, work, request, connector, holdings, refused)
@@ -740,7 +738,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::RefusedPayload { request, problem, payload } => {
             route_refused_payload(core, work, request, problem, payload)
         }
-        Event::Activate { context, ready, busy } => route_activate(core, env, work, context, ready, busy),
+        Event::Activate { context, ready } => route_activate(core, env, work, context, ready),
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::Delegate { to, key, batch } => delegate(core, env, to, key, batch),

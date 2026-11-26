@@ -13,13 +13,14 @@ pub(crate) enum Flight {
     // A retired read remains charged to its lane until reclaim, but cannot take a terminal.
     Read(Option<reads::Pending>),
     Point(Option<Point>),
+    Window(Option<u64>),
 }
 
 impl Flight {
     fn uses_load_slot(&self) -> bool {
         match self {
-            Self::Read(_) | Self::Point(None) => false,
-            Self::Point(Some(_)) => true,
+            Self::Read(_) | Self::Point(None) | Self::Window(None) => false,
+            Self::Point(Some(_)) | Self::Window(Some(_)) => true,
         }
     }
 }
@@ -108,6 +109,34 @@ impl Loads {
         self.waiting.is_empty() && self.has_slot(limits)
     }
 
+    pub(crate) fn window(&mut self, task: u64, from: (u64, u32)) -> Request {
+        let load = self.flights.insert(Flight::Window(Some(task))).expect("window load room reserved").token();
+        Request::Held(Box::new(Held::Store(store::Out::Load { load, range: store::Range::Window { task, from } })))
+    }
+
+    pub(crate) fn cancel_window(&mut self, task: u64) {
+        let mut name = None;
+        for (id, flight) in &self.flights {
+            if let Flight::Window(Some(owner)) = flight
+                && *owner == task
+            {
+                name = Some(id);
+                break;
+            }
+        }
+        if let Some(id) = name {
+            self.finish_window(id);
+        }
+    }
+
+    fn finish_window(&mut self, id: Id<Flight>) {
+        let Flight::Window(task) = self.flights.get_mut(id).expect("known window flight") else {
+            unreachable!("only retiring a window")
+        };
+        assert!(task.take().is_some(), "one terminal per window");
+        self.flights.retire(id);
+    }
+
     fn has_slot(&self, limits: &Limits) -> bool {
         let mut free = limits.load_slots;
         for (_, flight) in &self.flights {
@@ -126,8 +155,8 @@ pub(crate) fn read(load: Token, range: reads::Range) -> Request {
 pub(crate) fn awaited(core: &Core, load: Token) -> bool {
     match core.loads.flights.get(Id::from_token(load)) {
         Some(Flight::Read(Some(pending))) => pending.awaiting_store(),
-        Some(Flight::Point(Some(_))) => true,
-        Some(Flight::Read(None) | Flight::Point(None)) | None => false,
+        Some(Flight::Point(Some(_)) | Flight::Window(Some(_))) => true,
+        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None)) | None => false,
     }
 }
 
@@ -159,7 +188,22 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
             core.loads.flights.retire(name);
             point::loaded(core, env, work, point, result)
         }
-        Some(Flight::Read(None) | Flight::Point(None)) | None => Queue::uncapped(),
+        Some(Flight::Window(Some(task))) => {
+            let task = *task;
+            let more = match &result {
+                store::Answer::Rows(store::Rows::Turns { more, .. }) | store::Answer::Cut { more, .. } => *more,
+                store::Answer::Rows(store::Rows::Read { .. } | store::Rows::Records { .. })
+                | store::Answer::Failed(_) => false,
+            };
+            if !more || core.stopping || core.settling {
+                core.loads.finish_window(name);
+            }
+            if core.stopping || core.settling {
+                return Queue::uncapped();
+            }
+            crate::routing::run::preparation::transcript_loaded(core, env, work, task, result)
+        }
+        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None)) | None => Queue::uncapped(),
     }
 }
 

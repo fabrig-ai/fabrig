@@ -54,12 +54,12 @@ pub fn notes_loaded(owner: Token, records: List<notes::Record>, more: bool) -> c
 /// Load a committed transcript window in attempt/turn order.
 ///
 /// # Errors
-/// Returns an unread `TranscriptLoaded` answer when the requested opening turn is missing.
+/// Returns an unread window answer when the requested opening turn is missing.
 pub fn transcript(
     records: &BTreeMap<core::Key, &core::Record>,
     task: u64,
     from: (u64, u32),
-) -> Result<Vec<core::TurnRecord>, Box<core::Event>> {
+) -> Result<Vec<core::TurnRecord>, core::engine::store::Failure> {
     let mut rows: Vec<_> = records
         .values()
         .filter_map(|record| {
@@ -75,7 +75,7 @@ pub fn transcript(
         .collect();
     rows.sort_by_key(|row| (row.attempt, row.turn));
     if !rows.first().is_some_and(|row| (row.attempt, row.turn) == from && row.opens_window) {
-        return Err(Box::new(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread }));
+        return Err(core::engine::store::Failure::Unread);
     }
     Ok(rows)
 }

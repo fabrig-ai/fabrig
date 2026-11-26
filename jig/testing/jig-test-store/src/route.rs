@@ -24,7 +24,7 @@ enum Flight {
     Read(Token),
     Notes(Token),
     Point { load: Token, pending: store::ended::Pending },
-    Window { task: u64, attempt: u64, turn: u32 },
+    Window { load: Token, task: u64, attempt: u64, turn: u32 },
 }
 impl Routes {
     /// The supplied size does not limit the retained continuations.
@@ -125,6 +125,13 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             );
             request
         }
+        StoreOut::Engine(engine_store::Out::Load {
+            load,
+            range: engine_store::Range::Window { task, from: (attempt, turn) },
+        }) => {
+            let owner = routes.keep(Flight::Window { load, task, attempt, turn });
+            transcript(routes, owner, None)?
+        }
         StoreOut::NotesLoad { owner, range } => {
             let owner = routes.keep(Flight::Notes(owner));
             Request::Load {
@@ -134,11 +141,6 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
                 rows: limits.core.notes.load_rows,
                 bytes: limits.core.load_bytes,
             }
-        }
-        StoreOut::Now(now) => {
-            let (task, attempt, turn) = window(now)?;
-            let owner = routes.keep(Flight::Window { task, attempt, turn });
-            transcript(routes, owner, None)?
         }
     })
 }
@@ -165,7 +167,7 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
 }
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
-        Flight::Window { task, attempt, turn } => (task, attempt, turn),
+        Flight::Window { task, attempt, turn, .. } => (task, attempt, turn),
         Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } => {
             return None;
         }
@@ -173,46 +175,16 @@ fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Reque
     let limits = routes.limits?;
     Some(Request::Transcript {
         owner,
-        read: store::TranscriptRead::Window { task: *task, attempt: *attempt, turn: *turn, after },
+        read: store::TranscriptRead::Window {
+            task: *task,
+            attempt: *attempt,
+            turn: *turn,
+            after,
+            limits: Some(store::WindowPage { row_bytes: u32::MAX, bytes: u32::MAX, turn_overhead: 0 }),
+        },
         rows: 2,
         bytes: u64::from(limits.core.resume_bytes),
     })
-}
-fn window(now: core::Now) -> Option<(u64, u64, u32)> {
-    match now {
-        core::Now::StartPreparation { task, from: (attempt, turn), .. } => Some((task, attempt, turn)),
-        core::Now::RelayBusy { .. }
-        | core::Now::CallBusy { .. }
-        | core::Now::Link(_)
-        | core::Now::EffectAnswer { .. }
-        | core::Now::ProposalRead { .. }
-        | core::Now::SettingsAnswer { .. }
-        | core::Now::PersonAnswer { .. }
-        | core::Now::SettledCallRefused { .. }
-        | core::Now::Ask { .. }
-        | core::Now::Call { .. }
-        | core::Now::DropCall { .. }
-        | core::Now::Undelivered { .. }
-        | core::Now::SignInRefused { .. }
-        | core::Now::WatchRefused { .. }
-        | core::Now::TaskRead { .. }
-        | core::Now::Account(_)
-        | core::Now::RunText { .. }
-        | core::Now::NotesIndexed { .. }
-        | core::Now::NotesRecalled { .. }
-        | core::Now::NotesRefused { .. }
-        | core::Now::NoteBusy { .. }
-        | core::Now::DropAssignment { .. }
-        | core::Now::Activate { .. }
-        | core::Now::CompleteBrief { .. }
-        | core::Now::BriefCorePlanned { .. }
-        | core::Now::WorkspaceRequest { .. }
-        | core::Now::RunPreparationFailed { .. }
-        | core::Now::BriefFailed { .. }
-        | core::Now::RunPrepared { .. }
-        | core::Now::PartBusy { .. }
-        | core::Now::RestoreRefused => None,
-    }
 }
 /// Translate a terminal, preserving pages and requesting their continuations.
 pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
@@ -260,14 +232,8 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
             }
         }
         Event::Turns { owner, turns, next, cut } => window_loaded(routes, owner, turns, next, cut, into),
-        Event::Unread { owner } => {
-            if let Some(Flight::Window { task, .. }) = routes.pending.remove(&owner) {
-                into.push(Up::Root(root::Event::Core(core::Event::TranscriptLoaded {
-                    task,
-                    load: core::TranscriptLoad::Unread,
-                })));
-            }
-        }
+        Event::Unread { owner } => window_failed(routes, owner, engine_store::Failure::Unread, into),
+        Event::WindowFailed { owner } => window_failed(routes, owner, engine_store::Failure::Failed, into),
         Event::SecretsNotReady { .. } => unreachable!("the root store route handles public records only"),
         Event::Corrupt { owner } => {
             if let Some(Flight::Point { load, .. }) = routes.pending.remove(&owner) {
@@ -304,6 +270,15 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         | Event::SecretsLoaded { .. } => {}
     }
 }
+fn window_failed(routes: &mut Routes, owner: Token, failure: engine_store::Failure, into: &mut Queue<Up>) {
+    if let Some(Flight::Window { load, .. }) = routes.pending.remove(&owner) {
+        into.push(Up::Root(root::Event::Store(engine_store::In::Loaded {
+            load,
+            result: engine_store::Answer::Failed(failure),
+        })));
+    }
+}
+
 fn window_loaded(
     routes: &mut Routes,
     owner: Token,
@@ -312,17 +287,14 @@ fn window_loaded(
     cut: Option<u32>,
     into: &mut Queue<Up>,
 ) {
-    let Some(Flight::Window { task, .. }) = routes.pending.get(&owner) else {
+    let Some(Flight::Window { load, .. }) = routes.pending.get(&owner) else {
         return;
     };
-    if let Some(bytes) = cut {
+    let result = if let Some(bytes) = cut {
         let mut turns = turns.into_iter();
         let turn = turns.next().expect("a cut page has one turn");
         assert!(turns.next().is_none(), "a cut turn is alone in its page");
-        into.push(Up::Root(root::Event::Core(core::Event::TranscriptLoaded {
-            task: *task,
-            load: core::TranscriptLoad::Cut { turn, bytes: u64::from(bytes), done: next.is_none() },
-        })));
+        engine_store::Answer::Cut { turn, bytes: u64::from(bytes), more: next.is_some() }
     } else {
         let mut rows = List::with_capacity(u32::try_from(turns.len()).expect("bounded store page"));
         for turn in turns {
@@ -338,12 +310,9 @@ fn window_loaded(
             let text = jig_protocol_transcript::brief_text(&limits, &turn.transcript).ok();
             rows.push((turn, text)).expect("bounded store page");
         }
-        into.push(Up::Root(root::Event::TranscriptLoaded {
-            task: *task,
-            rows: rows.into_boxed(),
-            done: next.is_none(),
-        }));
-    }
+        engine_store::Answer::Rows(engine_store::Rows::Turns { turns: rows.into_boxed(), more: next.is_some() })
+    };
+    into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load: *load, result })));
     if let Some(after) = next {
         if let Some(request) = transcript(routes, owner, Some(after)) {
             into.push(Up::Ask(request));

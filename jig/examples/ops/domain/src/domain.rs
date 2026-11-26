@@ -291,12 +291,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         | Event::Agent(_)
         | Event::AgentContent { .. }
         | Event::Store(
-            Store::Switched
-            | Store::Restore(_)
-            | Store::Restored(_)
-            | Store::Transcript { .. }
-            | Store::Loaded(_)
-            | Store::Engine(_),
+            Store::Switched | Store::Restore(_) | Store::Restored(_) | Store::Loaded(_) | Store::Engine(_),
         )
         | Event::Released(_)
         | Event::Restart { .. }
@@ -407,7 +402,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     }
     if domain.journal.idle() && domain.ready() {
         if let Some(context) = domain.engine.core_mut().take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
         } else if domain.host.is_ready()
             || domain.engine.core().fleet.is_ready()
             || domain.engine.core().finish_owed()

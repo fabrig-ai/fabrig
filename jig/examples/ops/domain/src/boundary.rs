@@ -24,8 +24,6 @@ pub enum Store {
     Restored(core::start::Phase),
     /// The generation is active; save the start’s wires.
     Switched,
-    /// Ordered opaque transcript rows for a prepared activation.
-    Transcript { task: u64, rows: Box<[core::TranscriptRow]>, done: bool },
     /// A child-specific loaded page in the core's vocabulary.
     Loaded(core::Event),
     /// An answer on the engine’s store port.

@@ -1,9 +1,6 @@
 //! Store adapters for the core's restart script (jig's domain/root.md, 8).
 //! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 7).
-use crate::archive::{
-    Waiting, goal_failed, goal_loaded, note_failed, note_loaded, transcript_failed, transcript_loaded,
-    transcript_unread, waiting,
-};
+use crate::archive::{Waiting, goal_failed, goal_loaded, note_failed, note_loaded, waiting};
 use crate::boundary::{Request, Work};
 use crate::domain::{Domain, close, emit, save};
 use crate::limits::{Limits, core_limits, environment_core};
@@ -33,10 +30,6 @@ pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Opti
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one dispatcher admits root and child loads and routes refusal to their owners"
-)]
 pub(crate) fn request_load(
     domain: &mut Domain,
     waiter: Token,
@@ -68,8 +61,7 @@ pub(crate) fn request_load(
             | crate::CoreRange::People
             | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
-            | crate::CoreRange::Turns { .. }
-            | crate::CoreRange::TaskTranscript { .. },
+            | crate::CoreRange::Turns { .. },
         )
         | Range::Census(_)
         | Range::Forge => domain.limits.loads.rows,
@@ -93,10 +85,6 @@ pub(crate) fn request_load(
             }
             Range::Core(crate::CoreRange::RequesterWord { .. }) => {
                 goal_failed(domain, waiter);
-                return;
-            }
-            Range::Core(crate::CoreRange::TaskTranscript { .. }) => {
-                transcript_failed(domain, waiter);
                 return;
             }
             Range::Core(
@@ -129,7 +117,6 @@ pub(crate) fn request_load(
                 | crate::CoreRange::Sweep
                 | crate::CoreRange::RunProofs
                 | crate::CoreRange::Turns { .. }
-                | crate::CoreRange::TaskTranscript { .. }
                 | crate::CoreRange::RequesterWord { .. }
                 | crate::CoreRange::TaskResult { .. },
             )
@@ -153,7 +140,6 @@ pub(crate) fn load_outputs(
     domain: &mut Domain,
     env: &Env<Limits>,
     load_out: &mut Queue<loads::Request>,
-    mut texts: Option<crate::TranscriptTexts>,
     decision: &mut Option<Decision>,
     out: &mut Queue<Request>,
 ) {
@@ -197,7 +183,6 @@ pub(crate) fn load_outputs(
                         goal_loaded(domain, waiter, rows, out);
                     }
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
-                    Some(Waiting::Transcript) => transcript_loaded(domain, waiter, rows, texts.take(), next, cut, out),
                     Some(Waiting::ChangeFrom) => {
                         crate::archive::change_from_loaded(
                             domain,
@@ -234,7 +219,6 @@ pub(crate) fn load_outputs(
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
                     Some(Waiting::Notes | Waiting::CloserReport) => note_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
-                    Some(Waiting::Transcript) => transcript_unread(domain, waiter),
                     Some(Waiting::ChangeFrom) => crate::archive::change_from_loaded(domain, waiter, None),
                     None => {}
                 }
@@ -306,7 +290,6 @@ pub(crate) fn startup_page(
         Range::Core(crate::CoreRange::Sweep) => unreachable!("sweep page handled above"),
         Range::Core(
             crate::CoreRange::Turns { .. }
-            | crate::CoreRange::TaskTranscript { .. }
             | crate::CoreRange::RequesterWord { .. }
             | crate::CoreRange::TaskResult { .. }
             | crate::CoreRange::Notes(_),

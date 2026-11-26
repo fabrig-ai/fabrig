@@ -1,6 +1,6 @@
 //! Cold note indexes share the root's archive slots. Store terminals and
 //! owner continuations can run before the iteration's single reclaim point.
-//! Its two archive slots are init's default `root.loads.loads=2`.
+//! The two windows fill the engine’s work lane, not the root’s archive slots.
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;
@@ -22,7 +22,8 @@ const CHAT_SPEND: u64 = 100; // The walking policy's maximum run spend; two shar
 const STEPS: u32 = 200;
 
 fn park(driver: &mut Driver, run: &engine::Assignment) {
-    driver.send(protocol::turn(CHANNEL, run.task, run.attempt, 1, 1, None, b"kept turn"));
+    let read = run.messages.last().map(|message| message.number);
+    driver.send(protocol::turn(CHANNEL, run.task, run.attempt, 1, 1, read, b"kept turn"));
     driver.pump();
     driver.answer(CHANNEL, run.task, run.attempt, 1, jig_domain_tasks::End::Parked, engine::Parts::none());
     driver.pump();
@@ -77,13 +78,8 @@ fn hold_transcripts(mut driver: Driver) -> (Driver, Vec<engine::Event>) {
         driver.advance(true);
         let mut remaining = std::collections::VecDeque::new();
         while let Some(event) = driver.events.pop_front() {
-            let transcript = if let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = &event {
-                driver.loads.iter().any(|(issued, range)| {
-                    *issued == *owner && matches!(range, engine::Range::Core(engine::CoreRange::TaskTranscript { .. }))
-                })
-            } else {
-                false
-            };
+            let transcript = temper_engine_domain_world::direct::answer_token(&event)
+                .is_some_and(|load| driver.windows.iter().any(|(issued, _)| *issued == load));
             if transcript {
                 held.push(event);
             } else {
@@ -99,7 +95,7 @@ fn hold_transcripts(mut driver: Driver) -> (Driver, Vec<engine::Event>) {
 }
 
 #[test]
-fn restart_notes_fit_after_a_transcript_slot_is_reclaimed() {
+fn restart_notes_fit_after_a_window_finishes() {
     let (mut driver, mut held) = restarted_transcripts();
     driver.send(held.remove(0));
     driver.events.extend(held);
@@ -108,42 +104,29 @@ fn restart_notes_fit_after_a_transcript_slot_is_reclaimed() {
 }
 
 #[test]
-fn restart_notes_yield_before_a_transcript_slot_is_reclaimed() {
+fn restart_notes_need_no_window_slot_reclaim() {
     let (mut driver, mut held) = restarted_transcripts();
     let before = driver.task(FIRST_TASK).expect("first transcript is preparing").clone();
     let loads = driver.loads.len();
     let decisions = driver.transactions.len();
-    // The first terminal retires one archive slot; the second remains live.
-    // Resume runs before iteration-end reclaim, as in engine::release.
+    // Window answers pass through the engine; the notes read need not wait for root reclaim.
     engine::try_step(&mut driver.root, &driver.env, held.remove(0)).expect("store terminal admitted");
-    temper_engine_domain_world::poll(&mut driver.root, &driver.env, &mut driver.out);
-    driver.collect();
-    let due = driver
-        .store
-        .pending
-        .iter()
-        .flat_map(|(_, writes)| writes.iter())
-        .find_map(|write| {
-            if let engine::Write::Save(engine::Record::Core(jig_domain_core::Record::Tasks(
-                jig_domain_tasks::Stored::Live(row),
-            ))) = write
-                && row.number == FIRST_TASK
-            {
-                Some(row.as_ref())
-            } else {
-                None
-            }
-        })
-        .expect("deferred preparation publishes Due");
+    super::preparation::preparation_commits(&mut driver);
+    let preparing = driver.task(FIRST_TASK).expect("preparation stays held");
     assert_eq!(before.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Preparing));
-    assert_eq!(due.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Due));
-    assert_eq!(due.refusals, before.refusals);
-    assert_eq!(due.retry_notice, before.retry_notice);
-    assert_eq!(due.tries, before.tries);
-    assert_eq!(due.attempt, before.attempt);
-    assert_eq!(due.made, before.made);
-    assert_eq!(due.numbers, before.numbers);
-    assert_eq!(driver.loads.len(), loads, "the refused route issues no replacement load");
+    assert_eq!(preparing.phase, before.phase);
+    assert_eq!(preparing.refusals, before.refusals);
+    assert_eq!(preparing.retry_notice, before.retry_notice);
+    assert_eq!(preparing.tries, before.tries);
+    assert_eq!(preparing.attempt, before.attempt);
+    assert_eq!(preparing.made, before.made);
+    assert_eq!(preparing.numbers, before.numbers);
+    assert!(
+        driver.loads[loads..]
+            .iter()
+            .any(|(_, range)| matches!(range, engine::Range::Core(engine::CoreRange::Notes(_)))),
+        "notes can load before reclaim"
+    );
     driver.root.reclaim();
     driver.events.extend(held);
     driver.pump();
@@ -176,13 +159,9 @@ fn restart_notes_yield_before_a_transcript_slot_is_reclaimed() {
             }
         })
         .collect();
-    let due = phases
-        .iter()
-        .position(|phase| *phase == jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Due))
-        .expect("due transition");
     assert!(
-        phases[due + 1..].contains(&jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Preparing)),
-        "deferred task prepares again after reclaim"
+        !phases.contains(&jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Due)),
+        "the first task never had to reactivate for notes"
     );
     driver.send(engine::Event::Party(engine::PartyInput::Whose {
         reply_to: ReplyTo::new(WHOSE),

@@ -276,7 +276,7 @@ fn defer_brief(core: &mut Core, work: &mut Queue<Work>, task: u64) {
     crate::routing::run::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
-    drop(core.transcripts.remove(&task));
+    core.discard_transcript(task);
     if wait_for_notes(core, work, task, NoteBrief::Activation) {
         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
     }

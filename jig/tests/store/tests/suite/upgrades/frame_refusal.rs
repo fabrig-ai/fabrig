@@ -69,7 +69,7 @@ fn baseline(page: u32) -> World {
 
 fn starts() -> [TranscriptRead; 3] {
     [
-        TranscriptRead::Window { task: TASK, attempt: ATTEMPT, turn: 1, after: None },
+        TranscriptRead::Window { task: TASK, attempt: ATTEMPT, turn: 1, after: None, limits: None },
         TranscriptRead::Page { task: TASK, backwards: false, after: None },
         TranscriptRead::Page { task: TASK, backwards: true, after: None },
     ]

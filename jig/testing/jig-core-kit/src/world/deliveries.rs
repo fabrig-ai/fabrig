@@ -73,6 +73,9 @@ impl World {
                     reads.replied(reply, answer, &self.store);
                 }
             }
+            root::Delivery::Store(load @ engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. }) => {
+                self.load_window(load);
+            }
             root::Delivery::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
                 let requests = if range.party == 0 {
                     assert!(self.internal_reads.insert(load), "one internal erasure load");

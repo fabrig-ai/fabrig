@@ -72,7 +72,7 @@ pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
                 super::run::results::clear(core, task);
                 drop(core.contexts.remove(&task));
                 drop(core.dependency_results.remove(&task));
-                drop(core.transcripts.remove(&task));
+                core.discard_transcript(task);
                 let event = super::run::preparation::preparation_failure(task, failure, &mut out);
                 append_tasks(core, env, event, &mut out);
                 out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));

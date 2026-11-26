@@ -24,7 +24,7 @@ use skein_lib::{Id, List, Queue, Slab, Token};
 /// The root supplies them; the protocol enforces the same decoded-page bound.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// Maximum load slots, including held continuations and abandoned IO awaiting its terminal.
+    /// Maximum load slots, including abandoned IO awaiting its terminal.
     pub loads: u32,
     /// Maximum rows requested and accepted in one incoming page.
     pub rows: u32,
@@ -82,7 +82,6 @@ pub enum Kind {
     TaskResult,
     RequesterWord,
     Turns,
-    TaskTranscript,
     Notes,
     Census,
     Forge,
@@ -110,7 +109,6 @@ pub fn kind(range: &Range) -> Kind {
         Range::Core(CoreRange::TaskResult { .. }) => Kind::TaskResult,
         Range::Core(CoreRange::RequesterWord { .. }) => Kind::RequesterWord,
         Range::Core(CoreRange::Turns { .. }) => Kind::Turns,
-        Range::Core(CoreRange::TaskTranscript { .. }) => Kind::TaskTranscript,
         Range::Core(CoreRange::Notes(_)) => Kind::Notes,
         Range::Census(_) => Kind::Census,
         Range::Forge => Kind::Forge,
@@ -167,7 +165,6 @@ struct Entry {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Phase {
     Waiting,
-    Paging,
     Abandoned,
     Closed,
 }
@@ -243,36 +240,6 @@ pub fn begin(
     Some(owner)
 }
 
-/// Re-arm an uncut transcript page's held slot for its waiter in the answering pass.
-/// The cursor must be the answered continuation. No new capacity is needed. The owner
-/// token is kept; each issued page still has exactly one store terminal.
-pub fn next(domain: &mut Loads, waiter: Token, after: Key, most: u32, out: &mut Queue<Request>) -> Option<Token> {
-    assert!(out.room() >= 1, "one root load output reserved");
-    if most == 0 || most > domain.limits.rows {
-        return None;
-    }
-    let mut held = None;
-    for (id, entry) in &domain.entries {
-        if entry.waiter == waiter && entry.phase == Phase::Paging && entry.after.as_ref() == Some(&after) {
-            held = Some(id);
-            break;
-        }
-    }
-    let id = held?;
-    let entry = domain.entries.get_mut(id).expect("held transcript page");
-    entry.phase = Phase::Waiting;
-    entry.most = most;
-    let owner = id.token();
-    out.push(Request::Load {
-        owner,
-        range: entry.range.clone(),
-        after: Some(after),
-        most,
-        bytes: domain.limits.reply_bytes,
-    });
-    Some(owner)
-}
-
 /// Abandon delivery to a waiter. Its issued IO still occupies a slot until the store's actual
 /// terminal; this call neither emits a terminal nor releases that ownership. Unknown, stale and
 /// already abandoned/closed owners are inert.
@@ -280,10 +247,6 @@ pub fn abandon(domain: &mut Loads, owner: Token) {
     if let Some(entry) = domain.entries.get_mut(Id::from_token(owner)) {
         match entry.phase {
             Phase::Waiting => entry.phase = Phase::Abandoned,
-            Phase::Paging => {
-                entry.phase = Phase::Closed;
-                domain.entries.retire(Id::from_token(owner));
-            }
             Phase::Abandoned | Phase::Closed => {}
         }
     }
@@ -307,7 +270,7 @@ pub fn unloaded(domain: &mut Loads, owner: Token, out: &mut Queue<Request>) {
         match entry.phase {
             Phase::Waiting => out.push(Request::Unloaded { waiter: entry.waiter, failure: Failure::Store }),
             Phase::Abandoned => {}
-            Phase::Paging | Phase::Closed => return,
+            Phase::Closed => return,
         }
         entry.phase = Phase::Closed;
         domain.entries.retire(id);
@@ -331,23 +294,13 @@ pub fn loaded(domain: &mut Loads, owner: Token, rows: Box<[Record]>, next: Optio
             domain.entries.retire(id);
             return;
         }
-        Phase::Paging | Phase::Closed => return,
+        Phase::Closed => return,
         Phase::Waiting => {}
     }
     let checked = check(entry, &domain.limits, &rows, next.clone());
     let waiter = entry.waiter;
-    let paging = kind(&entry.range) == Kind::TaskTranscript && !restarting(waiter);
-    let hold = match &checked {
-        Ok(page) => paging && page.cut.is_none() && next.is_some(),
-        Err(_) => false,
-    };
-    if hold {
-        entry.phase = Phase::Paging;
-        entry.after.clone_from(&next);
-    } else {
-        entry.phase = Phase::Closed;
-        domain.entries.retire(id);
-    }
+    entry.phase = Phase::Closed;
+    domain.entries.retire(id);
     match checked {
         Err(failure) => out.push(Request::Unloaded { waiter, failure }),
         Ok(page) => {
@@ -368,18 +321,8 @@ pub fn loaded(domain: &mut Loads, owner: Token, rows: Box<[Record]>, next: Optio
     }
 }
 
-/// Retire answered pages not continued in this pass and reclaim terminal slots.
-/// Abandoned loads still awaiting their store terminal cannot be reclaimed.
+/// Reclaim terminal slots. Abandoned loads still await their store terminal.
 pub fn reclaim(domain: &mut Loads) {
-    let mut paging = List::with_capacity(domain.limits.loads);
-    for (id, entry) in &domain.entries {
-        if entry.phase == Phase::Paging {
-            paging.push(id).expect("at most one held page per load slot");
-        }
-    }
-    for id in &paging {
-        domain.entries.retire(*id);
-    }
     domain.entries.reclaim();
 }
 
@@ -490,7 +433,6 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
         }
         Range::Core(
             crate::CoreRange::Turns { .. }
-            | crate::CoreRange::TaskTranscript { .. }
             | crate::CoreRange::Tasks
             | crate::CoreRange::Settings
             | crate::CoreRange::Accounts
@@ -561,9 +503,7 @@ fn valid_range(range: &Range) -> bool {
         )
         | Range::Census(_)
         | Range::Forge => true,
-        Range::Core(crate::CoreRange::TaskResult { task } | crate::CoreRange::TaskTranscript { task, .. }) => {
-            *task != 0
-        }
+        Range::Core(crate::CoreRange::TaskResult { task }) => *task != 0,
         Range::Core(crate::CoreRange::Turns { task, attempt }) => *task != 0 && *attempt != 0,
         Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Entry { name })) => *name != 0,
     }

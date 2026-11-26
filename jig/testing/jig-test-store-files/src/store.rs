@@ -550,7 +550,7 @@ impl Store {
     pub fn ask(&mut self, out: StoreOut) {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
-            out @ (StoreOut::Start { .. } | StoreOut::Engine(_) | StoreOut::NotesLoad { .. } | StoreOut::Now(_)) => {
+            out @ (StoreOut::Start { .. } | StoreOut::Engine(_) | StoreOut::NotesLoad { .. }) => {
                 self.request(out);
             }
         }
@@ -572,7 +572,15 @@ impl Store {
         let mut replies = std::mem::take(&mut self.replies);
         if let Some(render) = self.turn_text {
             for reply in &mut replies {
-                if let Up::Root(root::Event::TranscriptLoaded { rows, .. }) = reply {
+                if let Up::Root(root::Event::Store(jig_domain_core::engine::store::In::Loaded {
+                    result:
+                        jig_domain_core::engine::store::Answer::Rows(jig_domain_core::engine::store::Rows::Turns {
+                            turns: rows,
+                            ..
+                        }),
+                    ..
+                })) = reply
+                {
                     for (row, text) in rows {
                         *text = render(&row.transcript);
                     }
@@ -759,6 +767,7 @@ impl Store {
             | Event::Read { .. }
             | Event::Got { .. }
             | Event::Turns { .. }
+            | Event::WindowFailed { .. }
             | Event::Unread { .. }
             | Event::Kept { .. }
             | Event::Carried { .. }

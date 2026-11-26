@@ -221,7 +221,7 @@ mod tests {
         let (mut domain, env) = crate::tests::resume_fixture::root();
         let mut reads = skein_lib::List::with_capacity(env.limits.loads.loads);
         for _ in 0..env.limits.loads.loads {
-            reads.push(domain.archive_reads.insert(Some(Read::Transcript { task: 1 })).unwrap()).unwrap();
+            reads.push(domain.archive_reads.insert(None).unwrap()).unwrap();
         }
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         held(

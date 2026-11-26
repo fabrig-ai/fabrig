@@ -64,7 +64,6 @@ pub(crate) fn call(
             Some(
                 Read::Parts(_)
                 | Read::ChangeFrom { .. }
-                | Read::Transcript { .. }
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
                 | Read::History { .. }

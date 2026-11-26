@@ -106,7 +106,7 @@ pub(crate) fn point(store: &Store, range: &engine_store::Range) -> engine_store:
                 _ => None,
             }
         }
-        engine_store::Range::Read(_) => unreachable!("read pages use the read oracle"),
+        engine_store::Range::Read(_) | engine_store::Range::Window { .. } => unreachable!("not a point load"),
     };
     let record = key.and_then(|key| match store.rows.get(&root::Key::Core(key)) {
         Some(root::Record::Core(row)) => Some(row.clone()),
@@ -125,12 +125,13 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
             Some(page(store, *load, range))
         }
 
-        root::Output::Store(engine_store::Out::Load { load, range }) => {
-            Some(root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
-                load: *load,
-                result: point(store, range),
-            })))
-        }
+        root::Output::Store(engine_store::Out::Load {
+            load,
+            range: range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }),
+        }) => Some(root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
+            load: *load,
+            result: point(store, range),
+        }))),
         root::Output::ProjectMade { .. }
         | root::Output::ApplicationDocument { .. }
         | root::Output::ApplicationRead { .. }
@@ -148,6 +149,7 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::Read { .. }
         | root::Output::Agent(_)
         | root::Output::ToChild(_)
+        | root::Output::Store(engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. })
         | root::Output::Stop => None,
     }
 }

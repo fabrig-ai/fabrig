@@ -273,7 +273,6 @@ pub enum Event {
         refused: Box<[u64]>,
     },
     /// A bounded store page of prior opaque turns; pages arrive oldest first.
-    TranscriptLoaded { task: u64, rows: Box<[core::TranscriptRow]>, done: bool },
     /// Store acknowledgement of this exact commit number.
     Committed { number: u64, fill: u64 },
     /// A store failure of this exact commit number.
@@ -680,7 +679,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::WriterRead { connector, resource, event } => {
             decide(domain, env, Work::WriterRead { connector, resource, event });
         }
-        Event::TranscriptLoaded { task, rows, done } => transcript_loaded(domain, env, task, rows, done),
         Event::Committed { number, fill } => {
             domain.journal.committed(number);
             domain.engine.core_mut().fill = fill;
@@ -734,14 +732,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             decide(domain, env, Work::Answer { channel, task, attempt, cumulative, end, read, refused });
         }
     }
-}
-
-fn transcript_loaded(domain: &mut Domain, env: &Env<Limits>, task: u64, rows: Box<[core::TranscriptRow]>, done: bool) {
-    decide(
-        domain,
-        env,
-        Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Page { rows, done } }),
-    );
 }
 
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]
@@ -1189,7 +1179,7 @@ fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {
             return;
         }
         if let Some(context) = domain.engine.core_mut().take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
             return;
         }
         if domain.engine.core().fleet.ready_to_resume(!domain.engine.core().settling())

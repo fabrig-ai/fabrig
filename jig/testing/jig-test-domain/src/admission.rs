@@ -49,7 +49,6 @@ pub fn class(event: &Event) -> Class {
         | Event::Text { .. }
         | Event::Turn { .. }
         | Event::Answer { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::Committed { .. }
         | Event::Failed { .. } => Class::Admitted,
     }
@@ -140,7 +139,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
-        | Event::TranscriptLoaded { .. }
         | Event::Core(core::Event::PublicDurable { .. })) => {
             domain.store_answers.push(Box::new(event));
             Ok(())
@@ -257,7 +255,6 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::Text { .. }
         | Event::Turn { .. }
         | Event::Answer { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::Committed { .. }
         | Event::Failed { .. } => unreachable!("only a mixed fact is split"),
     }

@@ -365,11 +365,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             }
             let mut owner = None;
             if arrival != Arrival::BeforeBrief && arrival != Arrival::DuringResult {
-                let out = watch_outputs(
-                    &mut core,
-                    &limits,
-                    Event::TranscriptLoaded { task: 1, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
-                );
+                let out = last_empty_window_page(&mut core, &limits, 1);
                 owner = Some(notes_load(&out));
             }
             if arrival == Arrival::BeforeComplete || arrival == Arrival::BeforeWorkspace {
@@ -395,14 +391,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
                         &limits,
                         ended_answer(load, Some(Box::new(fixtures::ended_report(12, tasks::Party::Person(1)))), false),
                     ),
-                    None => watch_outputs(
-                        &mut core,
-                        &limits,
-                        Event::TranscriptLoaded {
-                            task: 1,
-                            load: TranscriptLoad::Page { rows: Box::new([]), done: true },
-                        },
-                    ),
+                    None => last_empty_window_page(&mut core, &limits, 1),
                 };
                 owner = Some(notes_load(&out));
             }

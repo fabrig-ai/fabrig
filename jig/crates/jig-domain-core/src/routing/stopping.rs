@@ -166,7 +166,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }

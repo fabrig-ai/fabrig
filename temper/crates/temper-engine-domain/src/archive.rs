@@ -18,7 +18,6 @@ pub(crate) enum Waiting {
     ChangeDelegate,
     History,
     ChangeFrom,
-    Transcript,
     GoalWords,
     Notes,
     Document,
@@ -32,7 +31,6 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::ChangeDelegate { .. }) => Some(Waiting::ChangeDelegate),
         Some(Read::History { .. }) => Some(Waiting::History),
         Some(Read::ChangeFrom { .. }) => Some(Waiting::ChangeFrom),
-        Some(Read::Transcript { .. }) => Some(Waiting::Transcript),
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
         Some(Read::Document(_)) => Some(Waiting::Document),
@@ -62,7 +60,6 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
             | Read::Remember(_)
             | Read::SettingsNote { .. }
             | Read::ChangeFrom { .. }
-            | Read::Transcript { .. }
             | Read::GoalWords(_),
         )
         | None => None,
@@ -182,137 +179,6 @@ pub(crate) fn change_from_loaded(domain: &mut Domain, waiter: Token, rows: Optio
     domain.work.push(Work::ChangeFromLoaded { task, row });
 }
 
-pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
-    let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    // A stale read fails no current preparation.
-    if domain.engine.core().transcripts.contains_key(&task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
-            task,
-            load: jig_domain_core::TranscriptLoad::Failed,
-        }));
-    }
-}
-
-pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
-    let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    // The core owns the closed/open window policy (jig's `domain/engine/executors-transcripts.md`, 1).
-    if domain.engine.core().transcripts.contains_key(&task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
-            task,
-            load: jig_domain_core::TranscriptLoad::Unread,
-        }));
-    }
-}
-
-pub(crate) fn transcript_loaded(
-    domain: &mut Domain,
-    waiter: Token,
-    rows: Box<[Record]>,
-    texts: Option<crate::TranscriptTexts>,
-    next: Option<Key>,
-    cut: Option<loads::Cut>,
-    out: &mut Queue<Request>,
-) {
-    if cut.is_some() {
-        transcript_failed(domain, waiter);
-        return;
-    }
-    let Some(Some(Read::Transcript { task })) = domain.archive_reads.get(Id::from_token(waiter)) else { return };
-    let task = *task;
-    // A message can invalidate preparation while this store read is in
-    // flight; its old answer belongs to no current preparation (jig's
-    // `examples/ops/domain/src/restart.rs`).
-    if !domain.engine.core().transcripts.contains_key(&task) {
-        retire_read(domain, waiter);
-        return;
-    }
-    let Some(load) = transcript_page(rows, texts, next.is_none()) else {
-        transcript_failed(domain, waiter);
-        return;
-    };
-    domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded { task, load }));
-    if let Some(after) = next {
-        let mut issued = Queue::with_capacity(1);
-        loads::next(&mut domain.loads, waiter, after, domain.limits.loads.rows, &mut issued)
-            .expect("uncut transcript continuation keeps its load slot");
-        match issued.pop().expect("continuation issued") {
-            loads::Request::Load { owner, range, after, most, bytes } => {
-                out.push(Request::Store(crate::StoreRequest::Load { owner, range, after, most, bytes }));
-            }
-            loads::Request::Loaded { .. } | loads::Request::Unloaded { .. } => {
-                unreachable!("continuation only issues IO")
-            }
-        }
-        return;
-    }
-    let Some(Read::Transcript { .. }) = take_read(domain, waiter) else { unreachable!("finished transcript read") };
-    domain.archive_reads.retire(Id::from_token(waiter));
-}
-
-/// Validate row/text pairing before handing a page to the core (temper/docs/design/domain/root.md, 7).
-fn transcript_page(
-    rows: Box<[Record]>,
-    texts: Option<crate::TranscriptTexts>,
-    done: bool,
-) -> Option<jig_domain_core::TranscriptLoad> {
-    let count = rows.len();
-    if let Some(texts) = &texts
-        && texts.len() != count
-    {
-        return None;
-    }
-    let mut texts = match texts {
-        Some(texts) => texts,
-        None => Box::new([]),
-    }
-    .into_iter();
-    let mut loaded = List::with_capacity(u32::try_from(rows.len()).expect("bounded transcript page"));
-    for row in rows {
-        let turn = match row {
-            Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => turn,
-            Record::Core(
-                jig_domain_core::Record::Core(
-                    jig_domain_core::CoreRecord::ProposalDecision(_)
-                    | jig_domain_core::CoreRecord::Settings(_)
-                    | jig_domain_core::CoreRecord::Part(_)
-                    | jig_domain_core::CoreRecord::Call(_)
-                    | jig_domain_core::CoreRecord::EscalationDecision(_)
-                    | jig_domain_core::CoreRecord::Deployment(_)
-                    | jig_domain_core::CoreRecord::RunProof(_)
-                    | jig_domain_core::CoreRecord::Terminal(_)
-                    | jig_domain_core::CoreRecord::Projection(_),
-                )
-                | jig_domain_core::Record::Tasks(_)
-                | jig_domain_core::Record::People(_)
-                | jig_domain_core::Record::Accounts(_)
-                | jig_domain_core::Record::Notes(_),
-            )
-            | Record::Forge { .. } => {
-                return None;
-            }
-        };
-        let text = match texts.next() {
-            Some(crate::TurnText::Cut(bytes)) => {
-                if count != 1 || !turn.transcript.is_empty() {
-                    return None;
-                }
-                return Some(jig_domain_core::TranscriptLoad::Cut { turn, bytes: u64::from(bytes), done });
-            }
-            Some(crate::TurnText::Rendered(text)) => {
-                if text.len() > usize::try_from(crate::TRANSCRIPT_TAIL_BYTES).expect("tail bound fits usize") {
-                    return None;
-                }
-                Some(text)
-            }
-            Some(crate::TurnText::Unrendered) | None => None,
-        };
-        loaded.push((turn, text)).expect("one transcript item per row");
-    }
-    Some(jig_domain_core::TranscriptLoad::Page { rows: loaded.into_boxed(), done })
-}
-
 pub(crate) fn take_read(domain: &mut Domain, waiter: Token) -> Option<Read> {
     let entry = domain.archive_reads.get_mut(Id::from_token(waiter))?;
     entry.take()
@@ -412,83 +278,4 @@ pub(crate) fn history_loaded(
         rows: stored.into_boxed(),
         next,
     }));
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tests::resume_fixture::root;
-    use jig_domain_core as core;
-
-    const TASK: u64 = 1;
-    const PREVIOUS_ATTEMPT: u64 = 1;
-
-    fn transcript_read(domain: &mut Domain) -> Token {
-        domain.archive_reads.insert(Some(Read::Transcript { task: TASK })).expect("reserved transcript read").token()
-    }
-
-    #[test]
-    fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
-        let (mut domain, env) = root();
-        domain.engine.core_mut().begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
-        let waiter = transcript_read(&mut domain);
-        let range = Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) });
-        let mut issued = Queue::with_capacity(1);
-        let owner = loads::begin(&mut domain.loads, waiter, range.clone(), None, 1, &mut issued)
-            .expect("first transcript page admitted");
-        issued.pop().expect("first page issued");
-        for number in 1..env.limits.loads.loads {
-            loads::begin(
-                &mut domain.loads,
-                Token::new(u64::MAX - u64::from(number)),
-                Range::Core(crate::CoreRange::Tasks),
-                None,
-                1,
-                &mut issued,
-            )
-            .expect("other slot held");
-            issued.pop().expect("other load issued");
-        }
-        assert!(!domain.loads.has_room());
-        let row = crate::TurnRecord {
-            task: TASK,
-            attempt: PREVIOUS_ATTEMPT,
-            turn: 1,
-            spent: 1,
-            read: None,
-            at: skein_lib::Wall::EPOCH,
-            opens_window: true,
-            transcript: Box::new(*b"x"),
-        };
-        let rows = Box::new([Record::Core(core::Record::Core(core::CoreRecord::Turn(row)))]);
-        let after = Key::Core(core::Key::Core(core::CoreKey::Turn { task: TASK, attempt: PREVIOUS_ATTEMPT, turn: 1 }));
-        loads::loaded(&mut domain.loads, owner, rows, Some(after.clone()), &mut issued);
-        let Some(loads::Request::Loaded { waiter: found, rows, next, cut }) = issued.pop() else {
-            panic!("page delivered to its waiter");
-        };
-        assert_eq!(found, waiter);
-        let mut out = Queue::with_capacity(1);
-        transcript_loaded(&mut domain, waiter, rows, None, next, cut, &mut out);
-        assert_eq!(
-            out.pop(),
-            Some(Request::Store(crate::StoreRequest::Load {
-                owner,
-                range,
-                after: Some(after),
-                most: env.limits.loads.rows,
-                bytes: env.limits.loads.reply_bytes,
-            }))
-        );
-        let Some(Work::Core(core::Event::TranscriptLoaded {
-            task,
-            load: core::TranscriptLoad::Page { rows, done: false },
-        })) = domain.work.pop()
-        else {
-            panic!("the core hears its page, never Failed for room");
-        };
-        assert_eq!(task, TASK);
-        assert_eq!(rows.len(), 1);
-        assert!(domain.work.is_empty());
-        assert!(out.is_empty());
-    }
 }

@@ -101,8 +101,7 @@ impl Parties {
             | root::Event::StartMissing { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_)
-            | root::Event::TranscriptLoaded { .. } => {}
+            | root::Event::StartDone(_) => {}
         }
     }
 

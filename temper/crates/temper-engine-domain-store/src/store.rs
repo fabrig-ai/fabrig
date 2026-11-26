@@ -553,7 +553,6 @@ pub enum CoreRange {
     },
     /// The committed turns of one task's current window, from its first
     /// (attempt, turn), in key order, for preparing its next run.
-    TaskTranscript { task: u64, from: (u64, u32) },
     /// One bounded notes-child load by name or by scope and cursor.
     Notes(jig_domain_notes::Range),
 }
@@ -620,11 +619,7 @@ impl CoreRange {
             Self::People | Self::Sweep => &[RestoreRange::People],
             Self::Tasks => &[RestoreRange::Core, RestoreRange::Tasks],
             Self::Calls | Self::RunProofs => &[RestoreRange::Core],
-            Self::RequesterWord { .. }
-            | Self::TaskResult { .. }
-            | Self::Turns { .. }
-            | Self::TaskTranscript { .. }
-            | Self::Notes(_) => &[],
+            Self::RequesterWord { .. } | Self::TaskResult { .. } | Self::Turns { .. } | Self::Notes(_) => &[],
         }
     }
 
@@ -674,10 +669,6 @@ impl CoreRange {
             CoreRange::Turns { task, attempt } => {
                 let Core::Core(CoreKey::Turn { task: found, attempt: run, turn }) = key else { return false };
                 found == task && run == attempt && *turn != 0
-            }
-            CoreRange::TaskTranscript { task, from } => {
-                let Core::Core(CoreKey::Turn { task: found, attempt, turn }) = key else { return false };
-                *task != 0 && found == task && *attempt != 0 && *turn != 0 && (*attempt, *turn) >= *from
             }
             CoreRange::Notes(range) => {
                 let Core::Notes(child) = key else { return false };

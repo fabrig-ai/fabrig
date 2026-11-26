@@ -1372,9 +1372,8 @@ fn core_now(
         }
         core::Now::Undelivered { message, .. } => drop(domain.hub_link.take_payload(message.words)),
         core::Now::Activate { context } => {
-            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
+            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        value @ core::Now::StartPreparation { .. } => now(domain, Output::CoreLoad(value)),
         core::Now::BriefCorePlanned { task, sections, .. } => {
             let budget = env.limits.core.brief.brief_bytes;
             let deadline = env.now.saturating_add(env.limits.policy.brief_timeout);

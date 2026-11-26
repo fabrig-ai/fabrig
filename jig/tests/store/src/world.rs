@@ -517,9 +517,13 @@ impl World {
         for record in restored.rows.values() {
             if let core::Record::Core(core::CoreRecord::RunProof(proof)) = record {
                 let turns = match proof.window {
-                    Some(core::CurrentWindow { attempt, turn, .. }) => {
-                        self.transcript(TranscriptRead::Window { task: proof.task, attempt, turn, after: None })
-                    }
+                    Some(core::CurrentWindow { attempt, turn, .. }) => self.transcript(TranscriptRead::Window {
+                        task: proof.task,
+                        attempt,
+                        turn,
+                        after: None,
+                        limits: None,
+                    }),
                     None => Vec::new(),
                 };
                 restored.transcripts.insert(proof.task, turns);
@@ -793,6 +797,7 @@ impl World {
                     | Event::Read { .. }
                     | Event::Got { .. }
                     | Event::Turns { .. }
+                    | Event::WindowFailed { .. }
                     | Event::Unread { .. }
                     | Event::Kept { .. }
                     | Event::Carried { .. }
@@ -1268,7 +1273,7 @@ impl World {
             };
             read = match read {
                 TranscriptRead::Window { task, attempt, turn, .. } => {
-                    TranscriptRead::Window { task, attempt, turn, after: Some(*after) }
+                    TranscriptRead::Window { task, attempt, turn, after: Some(*after), limits: None }
                 }
                 TranscriptRead::Page { task, backwards, .. } => {
                     TranscriptRead::Page { task, backwards, after: Some(*after) }

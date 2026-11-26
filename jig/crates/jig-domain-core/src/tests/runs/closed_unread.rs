@@ -1,4 +1,4 @@
-use crate::{routing::run::preparation::transcript_unread, tests::*};
+use crate::tests::*;
 
 fn unread_window(transient: u32, closed: bool) -> (Core, Limits) {
     let (mut core, limits) = core();
@@ -20,6 +20,16 @@ fn unread_window(transient: u32, closed: bool) -> (Core, Limits) {
     (core, limits)
 }
 
+fn answer_unread(core: &mut Core, limits: &Limits, work: &mut Queue<Work>) -> Queue<Request> {
+    let load = fixture_window(core, 1, (1, 1));
+    loads::loaded(
+        core,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+        work,
+        engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Unread) },
+    )
+}
+
 fn assert_fresh(core: &Core, work: &mut Queue<Work>) {
     let Some(Work::StartBrief { task }) = work.pop() else { panic!("unread tail continues the brief") };
     assert_eq!(task, 1);
@@ -33,9 +43,9 @@ fn assert_fresh(core: &Core, work: &mut Queue<Work>) {
 
 #[test]
 fn an_unread_closed_tail_continues_the_brief_without_counting() {
-    let (mut core, _) = unread_window(0, true);
+    let (mut core, limits) = unread_window(0, true);
     let mut work = Queue::with_capacity(2);
-    let _requests = transcript_unread(&mut core, &mut work, 1);
+    let _requests = answer_unread(&mut core, &limits, &mut work);
     assert_fresh(&core, &mut work);
     assert!(core.transcripts.get(&1).unwrap().closed);
 }
@@ -53,7 +63,7 @@ fn an_unread_open_window_without_a_transient_retry_counts_once() {
 fn assert_open_unread_counts(before: u32) {
     let (mut core, limits) = unread_window(before, false);
     let mut work = Queue::with_capacity(2);
-    let requests = transcript_unread(&mut core, &mut work, 1);
+    let requests = answer_unread(&mut core, &limits, &mut work);
     let mut saved = false;
     for request in &requests {
         if let Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(proof)))) = request {
@@ -73,4 +83,51 @@ fn assert_open_unread_counts(before: u32) {
     assert!(!core.transcripts.contains_key(&1));
     send_task(&mut core, &limits, event);
     assert_eq!(core.tasks.task(1).unwrap().tries.transient, before.checked_add(1).expect("one counted failure"));
+}
+
+#[test]
+fn incompatible_window_answers_fail_and_never_close_the_window() {
+    use engine_store::{Answer, Failure, Rows};
+    for answer in [
+        Answer::Rows(Rows::Records { records: Box::new([]), more: true }),
+        Answer::Rows(Rows::Read { rows: Box::new([]), next: None }),
+        Answer::Failed(Failure::Busy),
+        Answer::Failed(Failure::Gone),
+        Answer::Failed(Failure::TooLinked { joins: 1 }),
+        Answer::Failed(Failure::TurnProblem {
+            task: 1,
+            attempt: 1,
+            turn: 1,
+            owner: Box::new(fixtures::ended_report(1, tasks::Party::Person(1))),
+            why: crate::reads::TurnFailure::Malformed,
+        }),
+        Answer::Failed(Failure::Failed),
+    ] {
+        let (mut core, limits) = unread_window(0, false);
+        let load = fixture_window(&mut core, 1, (1, 1));
+        let requests = watch_store_outputs(&mut core, &limits, engine_store::In::Loaded { load, result: answer });
+        let mut failed = false;
+        for request in requests {
+            if let Request::Now(now) = request
+                && let Now::BriefFailed { task: 1, failure } = *now
+            {
+                assert_eq!(failure.words.as_ref(), b"its window could not be loaded");
+                failed = true;
+            }
+        }
+        assert!(failed);
+        assert_eq!(core.tasks.task(1).unwrap().tries.transient, 1);
+        assert!(!core.proofs.get(&1).unwrap().window.unwrap().closed);
+        assert!(!core.transcripts.contains_key(&1));
+        assert!(!loads::awaited(&core, load));
+        assert!(
+            watch_store_outputs(
+                &mut core,
+                &limits,
+                engine_store::In::Loaded { load, result: Answer::Failed(Failure::Unread) }
+            )
+            .is_empty(),
+            "a failed window has exactly one terminal"
+        );
+    }
 }

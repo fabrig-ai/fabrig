@@ -898,6 +898,7 @@ impl World {
         self.queue(event, 0);
     }
 
+    #[expect(clippy::too_many_lines, reason = "one collection pass routes the world’s finite peers")]
     fn observe(&mut self) {
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
@@ -938,12 +939,27 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
-                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range:
+                        range @ (engine_store::Range::Read(_)
+                        | engine_store::Range::Record(_)
+                        | engine_store::Range::Proposal { .. }),
+                })) => {
                     let result = self.store.load(range);
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })),
                         0,
                     );
+                }
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Window { task, from },
+                })) => {
+                    let pages = self.store.window(load, task, from);
+                    for answer in pages {
+                        self.queue(engine::Event::Store(engine::StoreInput::Engine(answer)), self.settings.page_delay);
+                    }
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
@@ -952,7 +968,7 @@ impl World {
                         self.queue(engine::Event::Store(missing), self.settings.page_delay);
                     }
                     self.queue(
-                        engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
+                        engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }),
                         self.settings.page_delay,
                     );
                 }

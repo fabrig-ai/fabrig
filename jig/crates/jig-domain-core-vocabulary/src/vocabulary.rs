@@ -781,11 +781,6 @@ pub enum Now {
     Activate {
         context: Box<tasks::RunContext>,
     },
-    /// Load the current transcript window in key order from its first turn.
-    StartPreparation {
-        task: u64,
-        from: (u64, u32),
-    },
     /// Assemble connector-held sections for a still-current brief.
     CompleteBrief {
         brief: Token,
@@ -1192,11 +1187,6 @@ pub enum Event {
         budget: u64,
         next: Option<Wall>,
     },
-    /// One page or terminal outcome of the transcript load requested by the core.
-    TranscriptLoaded {
-        task: u64,
-        load: TranscriptLoad,
-    },
     /// Party identity or request.
     People(people::Event),
     /// Host, run or attempt.
@@ -1248,11 +1238,10 @@ pub enum Event {
         problem: tasks::Problem,
         payload: Option<PayloadRefusal>,
     },
-    /// An activation with the root's readiness; `busy` when it has no room to read a transcript.
+    /// An activation with the root's readiness.
     Activate {
         context: Box<tasks::RunContext>,
         ready: bool,
-        busy: bool,
     },
     /// One root-translated named-call answer that needs a durable core decision.
     NamedAnswer {
@@ -1608,7 +1597,6 @@ impl Event {
             | Self::ClaimRefused { .. }
             | Self::ConnectorRepair { .. }
             | Self::PersonTask { .. }
-            | Self::TranscriptLoaded { .. }
             | Self::PartPayload { .. }
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }
@@ -1901,25 +1889,6 @@ impl Timer {
             Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention | Self::Resources => false,
         }
     }
-}
-
-/// The store transport's transcript answer (jig/docs/design/domain/engine/vocabulary.md, 1.1, and jig/docs/design/domain/engine/executors-transcripts.md, 1).
-#[derive(Hash, Debug)]
-pub enum TranscriptLoad {
-    Page {
-        rows: Box<[crate::TranscriptRow]>,
-        done: bool,
-    },
-    /// A window's turn past its store page's room, alone in its page: its
-    /// fields, `turn.transcript` empty and its transcript's length
-    /// (jig/docs/design/domain/engine/executors-transcripts.md, 1).
-    Cut {
-        turn: crate::TurnRecord,
-        bytes: u64,
-        done: bool,
-    },
-    Unread,
-    Failed,
 }
 
 impl Timer {

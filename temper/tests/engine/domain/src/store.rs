@@ -444,22 +444,33 @@ impl Store {
     /// Read one root page through the component and the service's decoding.
     #[must_use]
     pub fn page(&mut self, range: &Range, after: Option<&Key>, most: u32) -> (Box<[Record]>, Option<Key>) {
-        let (rows, next, _) = self.page_with_texts(range, after, most);
-        (rows, next)
-    }
-    /// Read a page with the production protocol's rendered transcript tail.
-    #[must_use]
-    pub fn page_with_texts(
-        &mut self,
-        range: &Range,
-        after: Option<&Key>,
-        most: u32,
-    ) -> (Box<[Record]>, Option<Key>, Option<engine::TranscriptTexts>) {
         match self.page_terminal(range, after, most) {
-            engine::StoreInput::Loaded { rows, next, texts, .. } => (rows, next, texts),
+            engine::StoreInput::Loaded { rows, next, .. } => (rows, next),
             reply => panic!("load {range:?} after {after:?} did not return its page: {reply:?}"),
         }
     }
+
+    /// Read every answer of one window through the real component and service routing.
+    #[must_use]
+    pub fn window(&mut self, load: Token, task: u64, from: (u64, u32)) -> Vec<engine_store::In> {
+        let before = self.replies.len();
+        self.request(engine::StoreRequest::Engine(engine_store::Out::Load {
+            load,
+            range: engine_store::Range::Window { task, from },
+        }));
+        self.replies
+            .split_off(before)
+            .into_iter()
+            .map(|reply| {
+                let engine::StoreInput::Engine(answer @ engine_store::In::Loaded { load: answered, .. }) = reply else {
+                    panic!("window answer: {reply:?}");
+                };
+                assert_eq!(answered, load);
+                answer
+            })
+            .collect()
+    }
+
     /// A page's typed terminal, including the service's load and journal failures.
     #[must_use]
     pub fn page_terminal(&mut self, range: &Range, after: Option<&Key>, most: u32) -> engine::StoreInput {
@@ -754,6 +765,7 @@ impl Store {
             | Event::Read { .. }
             | Event::Got { .. }
             | Event::Turns { .. }
+            | Event::WindowFailed { .. }
             | Event::Unread { .. }
             | Event::Kept { .. }
             | Event::Carried { .. }

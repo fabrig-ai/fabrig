@@ -163,9 +163,6 @@ pub(super) fn system(engine: &mut Engine, number: u16) -> &mut crate::system::Sy
 
 fn immediate(engine: &mut Engine, now: core::Now) {
     match now {
-        value @ core::Now::StartPreparation { .. } => {
-            crate::store::request(engine, jig_test_store::StoreOut::Now(value));
-        }
         // Configuration is parsed whole; inactive account components receive no requests.
         core::Now::Account(request) => {
             if let Some(accounts) = &mut engine.accounts {

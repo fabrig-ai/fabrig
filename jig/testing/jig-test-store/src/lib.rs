@@ -59,7 +59,6 @@ pub enum StoreOut {
     Start { phase: jig_domain_core::start::Phase, census: Option<jig_domain_core::Census> },
     Engine(jig_domain_core::engine::store::Out),
     NotesLoad { owner: skein_lib::Token, range: jig_domain_notes::Range },
-    Now(jig_domain_core::Now),
 }
 /// A typed root event or the next store request.
 #[derive(Debug)]

@@ -334,11 +334,11 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             journal_outputs(&mut journal_out, out);
             return;
         }
-        Event::Store(crate::StoreInput::Loaded { owner, rows, next, texts }) => {
+        Event::Store(crate::StoreInput::Loaded { owner, rows, next }) => {
             let mut decision = Some(load_decision(domain, &env.limits));
             let mut load_out = Queue::with_capacity(1);
             loads::loaded(&mut domain.loads, owner, rows, next, &mut load_out);
-            load_outputs(domain, env, &mut load_out, texts, &mut decision, out);
+            load_outputs(domain, env, &mut load_out, &mut decision, out);
             accept_load(domain, env, decision);
             return;
         }
@@ -346,7 +346,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             let mut decision = Some(load_decision(domain, &env.limits));
             let mut load_out = Queue::with_capacity(1);
             loads::unloaded(&mut domain.loads, owner, &mut load_out);
-            load_outputs(domain, env, &mut load_out, None, &mut decision, out);
+            load_outputs(domain, env, &mut load_out, &mut decision, out);
             accept_load(domain, env, decision);
             return;
         }
@@ -701,7 +701,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
     }
 }
 
-/// One activation's step: the load it allows finds both its read slot and its load slot.
+/// One activation’s step, with the root’s readiness.
 fn activate(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -716,8 +716,7 @@ fn activate(
     if !domain.engine.core().settling() && ready && due && domain.forge.design_workspace_waiting(context.task) {
         forge_event(domain, env, decision, forge::Event::GoalReleased { task: context.task });
     }
-    let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
-    let routed = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Activate { context, ready, busy }));
+    let routed = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Activate { context, ready }));
     route_engine_requests(domain, env, decision, routed);
 }
 

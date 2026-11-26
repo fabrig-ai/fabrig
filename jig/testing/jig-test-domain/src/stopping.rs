@@ -40,7 +40,6 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
         | Event::Text { .. }
         | Event::Turn { .. }
         | Event::Answer { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::Committed { .. }
         | Event::Failed { .. }) => Ok(event),
     }

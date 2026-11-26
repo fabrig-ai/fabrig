@@ -2618,12 +2618,7 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
                     self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                        owner,
-                        rows,
-                        next,
-                        texts: None,
-                    }));
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                 }
                 engine::Request::Forge { call, repository, op } => {
                     if self.unavailable {
@@ -4462,12 +4457,29 @@ impl World {
             let result = self.store.read(range);
             self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             None
-        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) =
-            request
+        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+            load,
+            range:
+                range @ (engine_store::Range::Read(_)
+                | engine_store::Range::Record(_)
+                | engine_store::Range::Proposal { .. }),
+        })) = request
         {
             let result = self.store.load(range);
             self.immediate
                 .push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })));
+            None
+        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+            load,
+            range: engine_store::Range::Window { task, from },
+        })) = request
+        {
+            self.immediate.extend(
+                self.store
+                    .window(load, task, from)
+                    .into_iter()
+                    .map(|answer| engine::Event::Store(engine::StoreInput::Engine(answer))),
+            );
             None
         } else {
             Some(request)

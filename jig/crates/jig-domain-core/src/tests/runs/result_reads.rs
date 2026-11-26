@@ -38,14 +38,7 @@ pub(in crate::tests) fn requested(out: &[Request], wanted: u64) -> Token {
 }
 
 fn start(core: &mut Core, limits: &Limits) -> Token {
-    requested(
-        &watch_outputs(
-            core,
-            limits,
-            Event::TranscriptLoaded { task: PREPARING, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
-        ),
-        DEPENDENCY,
-    )
+    requested(&last_empty_window_page(core, limits, PREPARING), DEPENDENCY)
 }
 
 fn ended(number: u64) -> Box<tasks::TaskRecord> {
@@ -71,12 +64,13 @@ fn two_preparations_share_one_load_slot_without_failing() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut engine = Engine::from_core(core);
     let mut out = Queue::uncapped();
+    let window = fixture_window(engine.core_mut(), PREPARING, (1, 1));
     engine::step(
         &mut engine,
         &env,
-        In::Core(Event::TranscriptLoaded {
-            task: PREPARING,
-            load: TranscriptLoad::Page { rows: Box::new([]), done: true },
+        In::Store(engine_store::In::Loaded {
+            load: window,
+            result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
         }),
         &mut out,
     );
@@ -85,12 +79,13 @@ fn two_preparations_share_one_load_slot_without_failing() {
     };
     assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(DEPENDENCY))));
     assert!(out.is_empty());
+    let window = fixture_window(engine.core_mut(), SECOND, (1, 1));
     engine::step(
         &mut engine,
         &env,
-        In::Core(Event::TranscriptLoaded {
-            task: SECOND,
-            load: TranscriptLoad::Page { rows: Box::new([]), done: true },
+        In::Store(engine_store::In::Loaded {
+            load: window,
+            result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
         }),
         &mut out,
     );

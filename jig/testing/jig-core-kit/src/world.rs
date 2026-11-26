@@ -624,7 +624,6 @@ impl World {
                         }
                     }
                     root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
-                    root::Request::Now(now @ core::Now::StartPreparation { .. }) => self.transcript_loaded(now),
                     root::Request::Now(now) if self.manual => self.released.push(root::Request::Now(now)),
                     root::Request::Now(core::Now::Call { to, run, attempt, call }) => {
                         let token = to.into_token();

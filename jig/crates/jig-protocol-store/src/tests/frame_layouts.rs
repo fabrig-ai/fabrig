@@ -149,9 +149,13 @@ fn scene_with_schemas(bytes: &[u8], sets: OwnerSets, prepared: &'static [Schema]
 }
 fn request(kind: u8, budget: u64) -> Request {
     let read = match kind {
-        0 | 4 => {
-            TranscriptRead::Window { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN, after: None }
-        }
+        0 | 4 => TranscriptRead::Window {
+            task: frames::TASK,
+            attempt: frames::ATTEMPT,
+            turn: frames::TURN,
+            after: None,
+            limits: None,
+        },
         1 => TranscriptRead::Turn { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN },
         2 => {
             let mut range = fixtures::read(ALICE, reads::Scope::Activity { task: frames::TASK });
