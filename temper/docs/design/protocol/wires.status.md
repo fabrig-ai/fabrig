@@ -10,10 +10,4 @@
 - **Not yet:** 10.2: an unreadable wires row is reported as `the copy keeps no wires`, as if the row were absent. If the rehearsal cannot read or decode an opening, it reports an empty openings list. Every configured worker is reported as having no opening kept, including those with readable rows.
 - **Not yet:** 11: the wire tests compare `layout()` with the parsed text's fingerprint and, except for `smith-pieces`, check that a field type change moves it. They do not check that a rename leaves the fingerprint unchanged.
 - **Not yet:** 11: the client freeze test mutates inline schema strings, and the host-tools layout and adapter tests use in-memory fixtures. The host-tools floor has a scratch test, but there is no end-to-end landing-gate check of these mutations over a scratch checkout and its base.
-- **Not yet:** 8, *A kind's bounds are judged as its number is*: a job no worker's declared bounds cover is claimed and sits claimed, with no wait said, until one does. [in flight: change 17715]
-- **Not yet:** 10.1: the kept opening holds no job kinds of the worker's hello, and is handed up before the hello. [in flight: change 17716]
-- **Not yet:** 10.2, step 4: the `unknown: opened before its job kinds were kept` line. [in flight: change 17716]
-- **Not yet:** 10.2, step 4, parts 2 and 3, and *Two judgements*: the verdict judges a worker by its opening alone, so a worker whose hello falls short of a job kind, or whose layouts cannot keep a part the engine sends, is told it may stay. [in flight: change 17718]
-- **Not yet:** 11, *The verdict*: its job-kind and gap cases. [in flight: change 17718]
-- **Not yet:** 11, *The close job kept*. [in flight: change 17719]
 

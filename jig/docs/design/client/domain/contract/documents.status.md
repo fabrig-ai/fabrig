@@ -2,7 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: `Task.run_wait`'s `Refused(TaskWaitRefused::Job { worker, kind, why, figures })`, and its client wire records and words. [in flight: change 17715]
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
 

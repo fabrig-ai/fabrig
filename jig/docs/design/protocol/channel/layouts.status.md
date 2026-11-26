@@ -23,5 +23,4 @@
   or its text, whether deriving the plan or fitting its workspace.
 - **Not yet:** 8: the wire tests do not check the `absent` refusal and
   its text when Keep cannot carry an absent option.
-- **Not yet:** 5.4 and 8: `Site`, `Gap` and `gaps`, and their tests. [in flight: change 17717]
 

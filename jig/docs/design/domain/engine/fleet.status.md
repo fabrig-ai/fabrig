@@ -2,7 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
-- **Not yet:** 2, *A job goes only where a host runs it*, *A job is claimed only where a host can take it now* and *A job that waits says why*: `job_short` is the inline cover check of `choose_job`; the core claims a job before asking the fleet for a host, so a job no host covers sits claimed in the fleet's queue; and a job task has no wait. [in flight: change 17715]
 
 
 
