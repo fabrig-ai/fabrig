@@ -249,12 +249,22 @@ fn a_live_prepare_job_passes_at_the_root() {
 
 #[test]
 fn a_restored_prepare_wait_without_its_job_is_a_root_finding() {
-    let (mut world, change, landing) = preparing();
-    let mut row = world.root.forge().landing(landing).expect("preparing row").clone();
-    // A synthetic stored row: the task has no prepare child and no landing poll.
-    // This is not a sequence a healthy engine produces. The forge alone cannot
-    // know the task's children, and so accepts its external prepare-job wake.
-    row.landing.task = change;
+    use temper_engine_domain_world::forge_routes::Until;
+
+    let (mut world, _, change) = preparing();
+    let row = world.root.forge().landing(change).expect("preparing row").clone();
+    // Finish the job without letting the landing start another prepare.
+    world.root.hold_landings(true);
+    world.automatic_prepare_jobs();
+    world.tick();
+    world.until(Until::Ready);
+    // Consume the poll while the operator hold prevents another landing step.
+    let poll = world.root.forge().inspection_landing_due(change).expect("landing poll");
+    world.advance_to(Time::from_nanos(poll.as_nanos()));
+    world.until(Until::Ready);
+    world.root.hold_landings(false);
+
+    // Restore the stale wait in place, preserving membership and train ownership.
     engine::step(
         &mut world.root,
         &world.env,
