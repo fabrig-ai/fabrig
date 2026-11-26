@@ -829,6 +829,88 @@ fn a_supervised_tree_retains_detached_descendants_after_natural_leader_exit() {
     }
 }
 
+struct DetachedGroupJudge {
+    descendant: Option<u32>,
+    sent_tree_term: bool,
+    reaped: bool,
+    reap_poll: Option<Time>,
+}
+
+impl Referee<Process> for DetachedGroupJudge {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+        let Process::Child(child) = &mut procs[0] else { panic!("binary observer") };
+        if self.descendant.is_none()
+            && let Some(pid) = ready_descendant(child.stderr())
+            && child.tree_status().live_pids.len() == 2
+            && child.tree_status().live_pids.contains(&pid)
+        {
+            child.signal(Signal::Terminate);
+            self.descendant = Some(pid);
+        } else if !self.sent_tree_term
+            && let Some(pid) = self.descendant
+            && child.tree_status().live_at_leader_exit.as_deref() == Some(&[pid])
+        {
+            child.signal_tree(Signal::Terminate);
+            self.sent_tree_term = true;
+        }
+    }
+
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+        if let Some(pid) = self.descendant {
+            if let Some(live) = &child.tree_status().live_at_leader_exit
+                && live != &[pid]
+            {
+                return Err(format!("expected descendant {pid} alive at leader exit, got {live:?}"));
+            }
+            if child.counts().is_some() {
+                // An orphan's exit posts before launchd must have reaped it.
+                self.reaped = !skein_shell::keeper::process_live(pid)
+                    .map_err(|error| format!("checking whether descendant {pid} was reaped: {error:?}"))?;
+                self.reap_poll = (!self.reaped).then(|| now.saturating_add(Duration::from_millis(10)));
+            }
+        }
+        Ok(())
+    }
+
+    fn next_deadline(&self) -> Option<Time> {
+        self.reap_poll
+    }
+
+    fn passed(&self) -> bool {
+        self.sent_tree_term && self.reaped
+    }
+}
+
+#[test]
+fn a_supervised_walk_terms_another_group_after_the_leader_exits() {
+    use skein_world::end_to_end::Expectation;
+    #[cfg(target_os = "linux")]
+    let containments = [Containment::Walk, Containment::Best];
+    #[cfg(target_os = "macos")]
+    let containments = [Containment::Walk];
+    for containment in containments {
+        let binary =
+            Binary::start_contained(fixture("detached-group"), Mode::Pipes, 4096, Expectation::Supervise, containment)
+                .expect("a supervised fixture starts");
+        let mut world = real::World::new(DetachedGroupJudge {
+            descendant: None,
+            sent_tree_term: false,
+            reaped: false,
+            reap_poll: None,
+        });
+        world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
+        let outcome = world.run(&Clock::new(), WORLD_PATIENCE);
+        let child = tree_child(&outcome);
+        let pid = descendant(child.stderr());
+        assert_eq!(child.tree_status().live_at_leader_exit, Some(vec![pid]));
+        assert!(child.tree_status().terminated_pids.contains(&pid));
+        assert_eq!(child.tree_status().cleanup(), Cleanup::Terminate);
+        assert_eq!(skein_shell::keeper::process_live(pid), Ok(false));
+        assert_tree_counted(child, containment);
+    }
+}
+
 // A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]

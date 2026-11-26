@@ -250,8 +250,8 @@ impl Binary {
         Self::start_with_tree(command, mode, stderr_limit, Expectation::EndsWithBinary, false)
     }
 
-    /// Starts a binary with an explicit tree expectation; `force_walk` exercises
-    /// the subreaper path even on a machine with delegated cgroups. The walk
+    /// Starts a binary with an explicit tree expectation; `force_walk` selects
+    /// the walk even on a Linux machine with delegated cgroups, or on macOS. The walk
     /// requires one observer per test process, since its counts are process-wide.
     /// In `Supervise`, stderr overflow retains its bounded prefix and is reported
     /// by `stderr_overflowed`; the referee owns termination while capture drains.
@@ -273,8 +273,9 @@ impl Binary {
 
     /// Starts with explicit containment. `Containment::Best` uses a delegated
     /// cgroup on Linux, falling back to the walk, and the group on macOS.
-    /// `Containment::Walk` requires Linux's subreaper; `Containment::Group`
-    /// uses the binary's process group and adopts no descendants. A containment
+    /// `Containment::Walk` uses Linux's subreaper or, on macOS, keeps observed
+    /// descendants as well as the group. `Containment::Group` uses only the
+    /// binary's group and adopts no descendants. A containment
     /// the machine cannot run fails the start with `StartError::Tree`.
     pub fn start_contained(
         command: Command,

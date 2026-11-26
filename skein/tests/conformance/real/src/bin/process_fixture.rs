@@ -134,6 +134,7 @@ fn fixture(mode: Option<&str>, args: &mut std::env::Args, owner: u32) -> ExitCod
             }
             ExitCode::SUCCESS
         }
+        Some("detached-group") => detached_group(),
         Some("never") => loop {
             std::thread::park();
         },
@@ -157,6 +158,23 @@ fn fixture(mode: Option<&str>, args: &mut std::env::Args, owner: u32) -> ExitCod
             }
         }
         other => panic!("unknown fixture program {other:?}"),
+    }
+}
+
+fn detached_group() -> ! {
+    use std::os::unix::process::CommandExt;
+    #[expect(clippy::zombie_processes, reason = "the tree fixture's leader exits before its detached child")]
+    let child = Command::new("/bin/sleep")
+        .arg("10")
+        .process_group(0)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("start a child in its own group");
+    eprintln!("descendant:{}\nready", child.id());
+    loop {
+        std::thread::park();
     }
 }
 

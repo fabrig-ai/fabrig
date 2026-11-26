@@ -3,12 +3,24 @@
 
 pub use crate::group::{child_id, group_has_other_members, group_live, process_live, signal_group};
 pub use crate::process::{
-    HostedPipes, abandon_binary, close_keeper_fd, hosted_pipes, open_child_pidfd, open_signal_pipe, poll_child,
-    signal_current_thread, signal_kept_child, start_binary, write_service_signal,
+    HostedPipes, abandon_binary, close_keeper_fd, hosted_pipes, open_child_pidfd, open_signal_pipe, pidfd_exited,
+    poll_child, signal_current_thread, signal_kept_child, start_binary, write_service_signal,
 };
 pub use crate::system::wait_readable;
 
 use skein_io::kernel::{Error, Fd};
+
+#[cfg(test)]
+#[expect(clippy::disallowed_types, reason = "the test owns the shell directly while the keeper watches its descendant")]
+mod tests;
+
+/// Lists the children of a process, including unreaped zombies.
+pub fn process_children(pid: u32) -> Result<Box<[u32]>, Error> {
+    if pid <= 1 || i32::try_from(pid).is_err() {
+        return Err(Error::InvalidArgument);
+    }
+    crate::system::group::process_children(pid).map_err(crate::posix::process::map_error)
+}
 
 /// The path an open descriptor names now, for a harness handing a held root to a path-based caller.
 pub fn descriptor_path(fd: Fd) -> Result<Box<[u8]>, Error> {
@@ -17,8 +29,7 @@ pub fn descriptor_path(fd: Fd) -> Result<Box<[u8]>, Error> {
 
 #[cfg(target_os = "linux")]
 pub use crate::process::{
-    make_subreaper, open_cgroup, open_pidfd, pidfd_exited, set_subreaper, start_binary_in_cgroup, subreaper,
-    wait_cgroup_change,
+    make_subreaper, open_cgroup, open_pidfd, set_subreaper, start_binary_in_cgroup, subreaper, wait_cgroup_change,
 };
 
 /// CPU consumed by the calling thread, or `None` when its clock is unavailable
