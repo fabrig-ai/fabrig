@@ -1,10 +1,11 @@
 # root: status
 
-2026-11-20. Where jig's code lags or departs from [root.md](root.md).
+2026-11-26. Where jig's code lags or departs from [root.md](root.md).
 
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.
+- **Not yet:** 2: `jig-domain-contract` [in flight: change 19230]
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks

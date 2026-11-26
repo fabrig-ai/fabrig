@@ -263,6 +263,7 @@ try. A window's later pages keep its first page's slot there
   call's own part, which has them.
 - **Design departs:** `settings-proposals.md`, 1, from the request `ui-walk-large`: the proposal-projects departure remains `settings-proposals.status.md`, 1.
 
+- **Not yet:** 3: `jig-domain-contract` [in flight: change 19230]
 - **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).
 - **Not yet:** 2: engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).
    the brief's missing sections remain `briefs.status.md`, 1.  turn-call objects remain `executors-transcripts.status.md`, 1.  the missing tools remain `executors-tools.status.md`, 1.
