@@ -2,7 +2,6 @@
 
 2026-11-26. Where the design lags or departs from [fuzzy-campaigns.md](fuzzy-campaigns.md).
 
-- **Design lags:** 1, 5 and 8: `skein/docs/foundation/testing-strategy.md`, 1 asks the same work at every run, with no campaign beside the suites. Its 8 keeps a failing seed but asks no repair to widen its world. Its 8.1 gives every tier a CPU budget and a wall, and has no campaign pair.
 - **Design lags:** 3: skein's channel suite runs two tests in both suites, `generic_protocol.rs` registered by `skein/tests/channel/tests/suite/main.rs` and again under `fuzzy/channel.rs`.
 - **Design lags:** 4: `skein/docs/design/testing/sweeps.md`, 4 has `each_seed` alone, a range judged seed by seed, with no test identity, no mode, no case lines and no `gate()`. `Sweep` keeps the set of kinds that fell, not their counts. skein has no test table and no generated test-env document (`skein/docs/foundation/cli.md`, 8).
 - **Design lags:** 4.2: `tools/tiers/design.md`, 11.5 gives each test process the caller's environment less the `NEXTEST` variables, so a campaign's variable in the caller's shell would reach the gate's run.
