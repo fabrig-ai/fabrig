@@ -577,6 +577,7 @@ fn expected_landing() -> w::PublicLanding {
             .expect("members");
     }
     w::PublicLanding {
+        wait: None,
         search: None,
         combined: None,
         step: Some(w::PublicLandingStep::Telling),
@@ -753,7 +754,7 @@ fn the_largest_answers_fit_their_declared_bounds() {
         refusal_bytes: 64,
     };
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
-    assert_eq!(declared, [822, 67_405, 8716]);
+    assert_eq!(declared, [822, 67_405, 8718]);
     for ((kind, task), bound) in
         [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
             .into_iter()
@@ -993,6 +994,7 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
             .expect("member room");
     }
     w::PublicLanding {
+        wait: None,
         search: None,
         combined: None,
         step: None,
@@ -1208,4 +1210,50 @@ fn a_public_cleanup_hold_has_no_hold_kind() {
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
     assert_eq!((got.phase, got.hold), (w::PublicLandingPhase::Held, None));
+}
+
+#[test]
+fn a_public_landing_keeps_only_the_wait_name() {
+    use policy::Awaited;
+    const RUN_NUMBER: u64 = 0x5EC0_0000_0000_0111;
+    let mut d = setup();
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(MARKERS[3])), key: [7; 32] };
+    d.landing.receipts.get_mut(&key).expect("gate receipt").run.number = RUN_NUMBER;
+    for (waiting, room, phase, expected) in [
+        (Some(Awaited::Run { member: 0, gate: 0 }), None, w::PublicLandingPhase::Turn, Some(w::PublicLandingWait::Run)),
+        (Some(Awaited::Turn), None, w::PublicLandingPhase::Turn, Some(w::PublicLandingWait::Turn)),
+        (Some(Awaited::Open), Some(1), w::PublicLandingPhase::Turn, Some(w::PublicLandingWait::Room)),
+        (Some(Awaited::Run { member: 0, gate: 0 }), None, w::PublicLandingPhase::Cancelled, None),
+    ] {
+        let row = d.landing.rows.get_mut(&LANDING).unwrap();
+        row.waiting = waiting;
+        row.room = room;
+        if phase == w::PublicLandingPhase::Cancelled {
+            row.landing.phase = policy::Phase::Cancelled;
+        }
+        let mut oracle = expected_landing();
+        oracle.wait = expected;
+        if phase == w::PublicLandingPhase::Cancelled {
+            oracle.phase = phase;
+            oracle.step = Some(w::PublicLandingStep::Cancelled);
+            oracle.holds_turn = false;
+        }
+        for (kind, task) in
+            [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
+        {
+            let made = made(&d, kind, task, &handed());
+            if kind == w::PUBLIC_LANDING {
+                let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&made.record)).unwrap();
+                assert_eq!(got, oracle);
+            }
+            for marker in [MARKERS[3], RUN] {
+                assert!(skein_lib::bytes::find(&made.record, marker).is_none());
+            }
+            for number in [CHANGE, SECOND, LANDING, RUN_NUMBER] {
+                assert!(skein_lib::bytes::find(&made.record, &number.to_be_bytes()).is_none());
+                assert!(skein_lib::bytes::find(&made.record, &number.to_le_bytes()).is_none());
+                assert!(skein_lib::bytes::find(&made.record, skein_lib::Decimal::of(number).as_bytes()).is_none());
+            }
+        }
+    }
 }

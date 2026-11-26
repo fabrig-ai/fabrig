@@ -209,7 +209,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.setting_policy_requirements, &mut wire.setting_policy_permissions,
         &mut wire.setting_policy_templates, &mut wire.rules_implies, &mut wire.rules_requirements,
         &mut wire.settings_document_held, &mut wire.settings_document_pending, &mut wire.revision_row_items,
-        &mut wire.revisions_page_rows, &mut wire.refusal_full_tasks,
+        &mut wire.revisions_page_rows, &mut wire.refusal_full_tasks, &mut wire.wait_page_rows,
     ]);
     #[rustfmt::skip]
     narrow(client.segments, &mut [

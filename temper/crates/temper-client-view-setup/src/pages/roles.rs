@@ -102,6 +102,7 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
         | Address::Settings { .. }

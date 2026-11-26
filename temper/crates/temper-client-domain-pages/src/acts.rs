@@ -39,6 +39,7 @@ pub fn offers(page: &ReadValue) -> &[Offered] {
         | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Project(_)
         | ReadValue::Ended(_)
         | ReadValue::Me(_)
@@ -73,6 +74,7 @@ pub fn revision(page: &ReadValue) -> Option<contract::Revision> {
         | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Project(_)
         | ReadValue::Ended(_)
         | ReadValue::Me(_)
@@ -177,6 +179,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Requ
         | Act::Playground
         | Act::Suggest { .. }
         | Act::MoreGoals
+        | Act::MoreWaits
+        | Act::RefreshWaits
         | Act::GoalsFilter { .. }
         | Act::ChatFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
@@ -323,6 +327,7 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
                 | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Project(_)
                 | ReadValue::Ended(_)
                 | ReadValue::Me(_)

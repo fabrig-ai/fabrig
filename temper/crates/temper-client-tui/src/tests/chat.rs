@@ -457,6 +457,7 @@ fn root(input: &Input) -> Domain {
                         object: c::InboxObject::Question { message: 1 },
                         activity: Some(1),
                         at: Some(f::NOW),
+                        bound: None,
                         unread: None,
                         cursor: c::InboxCursor::Inbox {
                             task: TASK,

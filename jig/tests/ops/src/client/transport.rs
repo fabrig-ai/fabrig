@@ -550,6 +550,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Result(_) => true,
                 ReadValue::Question(row) => row.ending.is_some(),
                 ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Me(_)
                 | ReadValue::EndedPage(_)
                 | ReadValue::History(_)
@@ -579,6 +580,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Result(result) => out.push(Observed::Ended { task: result.task.task, commit }),
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Me(_)
                 | ReadValue::EndedPage(_)
                 | ReadValue::Question(_)
@@ -629,6 +631,7 @@ impl Scripted {
             Read::PersonTask { task } => Some(ObjectKey::PersonTask(*task)),
             Read::Result { task } => Some(ObjectKey::Result(*task)),
             Read::Tasks { .. }
+            | Read::Waits { .. }
             | Read::Me
             | Read::Ended { .. }
             | Read::History { .. }

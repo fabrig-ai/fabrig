@@ -71,6 +71,7 @@ fn about_task(about: &About) -> Option<u64> {
         | Address::Home { .. }
         | Address::AllHome
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }

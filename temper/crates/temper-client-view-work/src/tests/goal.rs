@@ -1451,10 +1451,15 @@ fn one_band_per_open_need_in_the_inboxs_order() {
         let (tree, bindings, _) = draw(&root, &fixtures::browser_words());
         let open = bands(&tree);
         assert_eq!(open.len(), 2);
-        let approval = open[1];
+        // The approval has waited since the epoch; the question was asked at MADE.
+        let approval = open[0];
         assert_eq!(
             styled_text_in_band(&tree, approval, look::GOAL_BAND_TAG).as_ref(),
             "Needs you · an approval".as_bytes()
+        );
+        assert_eq!(
+            styled_text_in_band(&tree, open[1], look::GOAL_BAND_TAG).as_ref(),
+            "Needs you · a question".as_bytes()
         );
         assert!(
             skein_lib::bytes::find(&fixtures::node_text(&tree, approval), b"Approve A change on Forgejo").is_some()

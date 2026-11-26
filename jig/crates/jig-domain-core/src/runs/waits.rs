@@ -7,7 +7,7 @@ mod reports;
 
 pub(crate) use reports::report;
 
-use crate::{Bound, Core, Limits, Nearest, Wait, WaitKind, WaitObject, Waits, documents::PhaseCounts};
+use crate::{AtBound, Bound, Core, Limits, Nearest, Wait, WaitKind, WaitObject, Waits, documents::PhaseCounts};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -88,6 +88,25 @@ impl Core {
         let Some(row) = self.tasks.task(task) else { return WaitsOn::Nothing };
         from_row(self, limits, row)
     }
+}
+
+/// Proposals that wait directly at policy have no further holder.
+pub(crate) fn policy_proposal_timing(core: &Core, limits: &Limits, since: Wall) -> (Wall, Bound) {
+    own::proposal_clock(core, limits, since, AtBound::Overdue)
+}
+
+/// The inbox link can name an addressee, rather than the owner of the wait.
+pub(crate) fn inbox_timing(core: &Core, limits: &Limits, fact: people::Entry) -> (Wall, Option<Bound>) {
+    if let people::EntryKind::Proposal { proposer: people::Proposer::Party(_), .. } = fact.kind {
+        let (since, bound) = policy_proposal_timing(core, limits, fact.at);
+        return (since, Some(bound));
+    }
+    if let Some(row) = core.tasks.task(fact.task)
+        && let Some(wait) = own::inbox_wait(core, limits, row, fact)
+    {
+        return (wait.since, Some(wait.bound));
+    }
+    (fact.at, None)
 }
 
 pub(crate) fn from_row(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> WaitsOn {

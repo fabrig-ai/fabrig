@@ -650,6 +650,8 @@ fn unchanged_comparisons_stall_across_ancestry_and_read_waits() {
         w.refused_pull = refused;
         assert!(matches!(w.decide_after(FIRST_POLL), Decision::Wait { on: got, .. } if got == on));
         assert_eq!(w.wait_report.as_deref(), Some([forge_wait(code, change, since, STALL)].as_slice()));
+        let name = if refused.is_some() { LandingWaitFor::Read } else { LandingWaitFor::Ancestry };
+        assert_panel_wait(&w.d, &w.env, TASK, name, Some(&w.wait_report.as_ref().unwrap()[0]));
     }
     assert_eq!(w.comparisons.as_slice(), &[(fixtures::BASE, fixtures::HEAD); 7]);
     assert_eq!(w.d.landing_advance(TASK), Some((since, READS)));

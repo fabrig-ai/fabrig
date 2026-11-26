@@ -167,6 +167,7 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             })
             .collect(),
         ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::EndedPage(_)
         | ReadValue::Proposal(_)
         | ReadValue::Question(_)

@@ -57,6 +57,7 @@ Moved to [`address-contracts.md`](address-contracts.md), section 1.
 - `needs-you-terminal.md`: the terminal inbox and its cards.
 - `needs-you-tell.md`: filing a person's words through Tell temper.
 - `needs-you-state.md`: the needs, replies and decisions the client keeps.
+- `waits.md`: a project's waits, and the words a page says a wait in.
 - `settings.md`: the settings and deployment frames.
 - `settings-workflow.md`: How work runs and choosing a way.
 - `settings-proposals.md`: proposing, reviewing and deciding settings.

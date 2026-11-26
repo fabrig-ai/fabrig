@@ -5,7 +5,7 @@ use crate::{
     room,
 };
 use jig_domain_core_vocabulary::waits::{AtBound, Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
-use skein_lib::{Env, List, Wall};
+use skein_lib::{List, Wall};
 use temper_client_protocol_wire::waits::{
     LANDING_ANCESTRY, LANDING_CLOSE, LANDING_DELETE, LANDING_JUDGEMENT, LANDING_MERGE, LANDING_OPEN, LANDING_POST,
     LANDING_PREFIXES, LANDING_READ, LANDING_READY, LANDING_RECEIPT, LANDING_RECORD, LANDING_ROOM, LANDING_RUN,
@@ -13,15 +13,15 @@ use temper_client_protocol_wire::waits::{
 };
 use temper_engine_domain_forge_landing::{Awaited, Phase};
 
-pub(super) fn waits(d: &Domain, env: &Env<Limits>, task: u64) -> List<Reported> {
+pub(super) fn waits(d: &Domain, limits: &Limits, task: u64) -> List<Reported> {
     let mut waits = List::with_capacity(1);
-    if let Some(wait) = waited(d, env, task) {
+    if let Some(wait) = waited(d, limits, task) {
         waits.push(wait).expect("one landing wait");
     }
     waits
 }
 
-fn waited(d: &Domain, env: &Env<Limits>, task: u64) -> Option<Reported> {
+pub(crate) fn waited(d: &Domain, limits: &Limits, task: u64) -> Option<Reported> {
     let row = d.landing.rows.get(&task)?;
     if d.landing_held() {
         return None;
@@ -31,7 +31,7 @@ fn waited(d: &Domain, env: &Env<Limits>, task: u64) -> Option<Reported> {
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
     if row.room.is_some() {
-        return room::waited(d, env, task, LANDING_ROOM);
+        return room::waited(d, limits, task, LANDING_ROOM);
     }
     let on = row.waiting?;
     let (since, _) = d.landing_advance(task)?;
@@ -65,8 +65,8 @@ fn waited(d: &Domain, env: &Env<Limits>, task: u64) -> Option<Reported> {
         Awaited::Run { member, gate } => {
             if let Some(flight) = read_wait::gate_flight(d, row, member, gate)
                 && flight.task == task
-                && let Some(at) = flight
-                    .gate_deadline(d.landing_gate_timeout(row.landing.project), env.limits.change_policy.runner_wait)
+                && let Some(at) =
+                    flight.gate_deadline(d.landing_gate_timeout(row.landing.project), limits.change_policy.runner_wait)
             {
                 let gate = thing(THING_GATE, u64::from(gate));
                 let bound = ReportedBound::At { at, then: AtBound::Hold };

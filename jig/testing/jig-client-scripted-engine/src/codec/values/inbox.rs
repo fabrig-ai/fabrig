@@ -1,6 +1,6 @@
 //! Wire projections of owner inbox facts (client/domain/testing.md, 4).
 use super::super::{c, list, pieces, try_pieces, w};
-use super::{wire_count, wire_cursor, wire_proposer, wire_task_line, wire_task_link};
+use super::{wire_count, wire_cursor, wire_proposer, wire_task_line, wire_task_link, wire_wait_bound};
 pub(in crate::codec) fn wire_inbox_page(value: &c::InboxPage, limits: &w::Limits) -> Result<w::InboxPage, w::Problem> {
     Ok(w::InboxPage {
         selection: value
@@ -59,6 +59,7 @@ pub(in crate::codec) fn wire_inbox_entry(
         object: wire_inbox_object(&value.object),
         activity: value.activity,
         at: value.at.as_ref().map(|item| (item).as_nanos()),
+        bound: value.bound.map(wire_wait_bound),
         unread: value.unread,
         cursor: wire_inbox_cursor(&value.cursor),
     })

@@ -245,7 +245,8 @@ fn row_from(b: &mut Builder, root: &Domain, row: &jig_client::contract::InboxEnt
     let when = super::inbox::row_when(row, w, times);
     let later =
         if root.pages().needs().later(row.card_key()) { w.say(Word::NeedsLaterMeta, &[]) } else { Box::default() };
-    let suffix = skein_lib::bytes::concat(&[&w.say(Word::ToolSeparator, &[]), &when, &later]);
+    let suffix = skein_lib::bytes::concat(&[&w.say(Word::ToolSeparator, &[]), &when]);
+    let overdue = super::inbox::overdue(Some(row), times);
     b.open(Role::Text);
     b.style(look::ASK_META);
     if root.pages().inbox().expect("row inbox").filter.project.is_none()
@@ -254,8 +255,23 @@ fn row_from(b: &mut Builder, root: &Domain, row: &jig_client::contract::InboxEnt
     {
         ask::text(b, Role::Text, &name, look::CHIP);
     }
+    b.open(Role::Text);
     b.run(Run::Plain, &title);
     b.run(Run::Plain, &suffix);
+    if overdue {
+        overdue_text(b, &super::inbox::overdue_words(w));
+    }
+    if !later.is_empty() {
+        b.text(Run::Plain, &later);
+    }
+    b.close();
+    b.close();
+}
+
+fn overdue_text(b: &mut Builder, words: &[u8]) {
+    b.open(Role::Text);
+    b.style(look::NEED_OVERDUE);
+    b.text(Run::Plain, words);
     b.close();
 }
 
@@ -435,6 +451,11 @@ fn from(
     times: &mut Times,
     linked: bool,
 ) {
+    let row = match need {
+        needs::Need::Card(card) => super::inbox::need_row(root, card.object),
+        needs::Need::Approval(_) => None,
+    };
+    let overdue = if super::inbox::overdue(row, times) { super::inbox::overdue_words(w) } else { Box::default() };
     if linked
         && let Some(group) =
             root.pages().needs().findings().group(temper_client_domain::pages::findings::Need::Existing(need))
@@ -449,6 +470,9 @@ fn from(
             times,
             root.pages().inbox().expect("from inbox").filter.project.is_none(),
         );
+        if !overdue.is_empty() {
+            overdue_text(b, &overdue);
+        }
         if let needs::Need::Card(card) = need {
             let asked = ask::read(card, w);
             b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
@@ -467,7 +491,7 @@ fn from(
     let (title, source, project, when) = match need {
         needs::Need::Card(card) => {
             let asked = ask::read(card, w);
-            (asked.title, asked.source, card.project, ask::need_when(card, w, times))
+            (asked.title, asked.source, card.project, ask::need_when_at(card, row, w, times))
         }
         needs::Need::Approval(row) => {
             (row.title.clone(), Some(row.task), Some(row.project), super::approval::when(row, w, times))
@@ -475,7 +499,7 @@ fn from(
     };
     let later =
         if root.pages().needs().later(need.object()) { w.say(Word::NeedsLaterMeta, &[]) } else { Box::default() };
-    let suffix = skein_lib::bytes::concat(&[&w.say(Word::ToolSeparator, &[]), &when, &later]);
+    let suffix = skein_lib::bytes::concat(&[&w.say(Word::ToolSeparator, &[]), &when]);
     let project = if root.pages().inbox().expect("from inbox").filter.project.is_none() {
         match project {
             Some(project) => super::project_name(root.pages().me(root.client()), project),
@@ -490,13 +514,19 @@ fn from(
     };
     b.open(Role::Text);
     b.style(look::ASK_META);
-    b.name(&skein_lib::bytes::concat(&[&prefix, &ask::from_name(need, &title), &suffix]));
+    b.name(&skein_lib::bytes::concat(&[&prefix, &ask::from_name(need, &title), &suffix, &overdue, &later]));
     if let Some(name) = project {
         ask::text(b, Role::Text, &name, look::CHIP);
     }
     ask::from_title(b, need, &title, source, bindings, linked);
     b.open(Role::Text);
     b.text(Run::Plain, &suffix);
+    if !overdue.is_empty() {
+        overdue_text(b, &overdue);
+    }
+    if !later.is_empty() {
+        b.text(Run::Plain, &later);
+    }
     b.close();
     b.close();
 }

@@ -17,6 +17,18 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
             live: decode_cursor(value.live)?,
             ended: decode_cursor(value.ended)?,
         },
+        w::Read::Waits(value) => reads::Read::Waits {
+            query: reads::WaitQuery {
+                project: value.project,
+                kind: match value.kind {
+                    Some(kind) => Some(mapped::wait_kind_to_domain(kind)),
+                    None => None,
+                },
+                party: value.party,
+                due: value.due,
+            },
+            after: decode_cursor(value.after)?,
+        },
         w::Read::Turn(value) => reads::Read::Turn { task: value.task, attempt: value.attempt, turn: value.turn },
         w::Read::TaskText(value) => read_task_text(value),
         w::Read::ActivityBeside(value) => reads::Read::ActivityBeside {
@@ -130,6 +142,12 @@ pub(crate) fn answer(
             let slots = super::parts::plan(&query.parts, settings);
             pages::tasks(page, query, &slots, limits)?
         }
+        reads::Answer::Waits(page) => {
+            let reads::Read::Waits { query, .. } = read else {
+                return Err(super::problem(skein_codec::Reason::Tag));
+            };
+            super::waits::page(page, *query, limits)?
+        }
         reads::Answer::Page(page) => pages::page(models, read, page, private, limits)?,
         reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, private, limits)?,
     };
@@ -140,13 +158,14 @@ pub(crate) fn answer(
 pub(crate) fn owned(owner: w::Owner, version: u32, record: Box<[u8]>) -> w::ReadAnswer {
     w::ReadAnswer::Value(w::Owned { owner, version, record })
 }
-pub(crate) fn decode(bytes: &[u8], limits: &w::Limits) -> Option<reads::Read> {
+pub(crate) fn decode(bytes: &[u8], limits: &w::Limits) -> Result<reads::Read, reads::Why> {
     let mut reader = Reader::new(bytes);
-    let value = w::Read::decode(limits, &mut reader).ok()?;
+    let Ok(value) = w::Read::decode(limits, &mut reader) else { return Err(reads::Why::Unknown) };
     if !reader.is_empty() {
-        return None;
+        return Err(reads::Why::Unknown);
     }
-    read(value)
+    let why = if let w::Read::Waits(_) = &value { reads::Why::Malformed } else { reads::Why::Unknown };
+    read(value).ok_or(why)
 }
 
 #[expect(clippy::option_option, reason = "outer absence is malformed, inner absence is the initial cursor")]

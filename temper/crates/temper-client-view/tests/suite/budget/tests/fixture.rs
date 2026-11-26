@@ -32,6 +32,7 @@ fn need() -> Box<[u8]> {
         object: w::InboxObject::PersonTask,
         activity: None,
         at: Some(RECENT),
+        bound: None,
         unread: None,
         cursor,
         projects: List::with_capacity(0),

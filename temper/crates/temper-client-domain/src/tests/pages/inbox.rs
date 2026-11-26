@@ -760,6 +760,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
                     object,
                     activity: None,
                     at: None,
+                    bound: None,
                     unread: Some(true),
                     cursor,
                 })

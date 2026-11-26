@@ -43,9 +43,12 @@ impl Component {
         }
         let request = match record.owner {
             w::Owner::Jig => {
-                let Some(what) = crate::translate::reads::decode(&record.record, &env.limits.wire) else {
-                    self.respond(exchange, routes::read_none(core::reads::Why::Unknown));
-                    return;
+                let what = match crate::translate::reads::decode(&record.record, &env.limits.wire) {
+                    Ok(what) => what,
+                    Err(why) => {
+                        self.respond(exchange, routes::read_none(why));
+                        return;
+                    }
                 };
                 let Some(core_read) = crate::translate::parts::read(&what, &self.settings) else {
                     self.respond(exchange, routes::read_none(core::reads::Why::Unknown));
@@ -116,6 +119,7 @@ impl Component {
                 | core::reads::Answer::Revisions(_)
                 | core::reads::Answer::TaskText(_)
                 | core::reads::Answer::Tasks(_)
+                | core::reads::Answer::Waits(_)
                 | core::reads::Answer::Document(_)
                 | core::reads::Answer::Ended(_)
                 | core::reads::Answer::Page(_) => {

@@ -79,6 +79,7 @@ impl Check {
                 }
                 ReadValue::Me(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Ended(_)
                 | ReadValue::Proposal(_)
                 | ReadValue::Question(_)

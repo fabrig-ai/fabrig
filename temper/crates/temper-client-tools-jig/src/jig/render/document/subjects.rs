@@ -3,6 +3,7 @@ use super::{Cut, Limits};
 use crate::jig::render::Part;
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
+use skein_lib::Wall;
 
 #[must_use]
 pub fn part_bytes(part: &Part<'_>, limits: &Limits) -> Box<[u8]> {
@@ -26,6 +27,15 @@ pub(crate) fn encode_as(
     digest: Option<crate::jig::digest::Digest>,
     out: &mut Encoder,
 ) {
+    encode_at(part, limits, digest, None, out);
+}
+fn encode_at(
+    part: &Part<'_>,
+    limits: &Limits,
+    digest: Option<crate::jig::digest::Digest>,
+    wall: Option<Wall>,
+    out: &mut Encoder,
+) {
     let mut cut =
         Cut { room: usize::try_from(limits.text).expect("text fits"), left: 0, turn: None, subject: true, digest };
     match part {
@@ -43,11 +53,11 @@ pub(crate) fn encode_as(
         Part::Run(value) => super::encode_run_text(value, out, &mut cut),
         Part::RunState(value) => super::encode_run_state(value, out, &mut cut),
         Part::Inbox(_) | Part::InboxPage(_) | Part::Tasks(_) | Part::TaskPage(_) => {
-            rows(part, limits, out, &mut cut);
+            rows(part, limits, wall, out, &mut cut);
         }
     }
 }
-fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
+fn rows(part: &Part<'_>, limits: &Limits, wall: Option<Wall>, out: &mut Encoder, cut: &mut Cut) {
     let most = usize::try_from(limits.rows).expect("rows fit");
     let digest = cut.digest.take();
     out.object_start();
@@ -56,13 +66,13 @@ fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
     match part {
         Part::Inbox(value) => {
             for row in value.needs.as_slice().iter().chain(value.updates.as_slice()).take(most) {
-                super::read_inbox::encode_owner_inbox_entry(row, out, cut);
+                super::read_inbox::encode_owner_inbox_entry(row, wall, out, cut);
             }
         }
 
         Part::InboxPage(value) => {
             for row in value.rows.as_slice().iter().take(most) {
-                super::read_inbox::encode_owner_inbox_entry(row, out, cut);
+                super::read_inbox::encode_owner_inbox_entry(row, wall, out, cut);
             }
         }
         Part::Tasks(value) => {
@@ -133,14 +143,19 @@ pub(crate) fn tasks_eligible(call: &crate::jig::call::Call) -> bool {
     crate::jig::call::value(call, 4).is_none() && crate::jig::call::value(call, 6).is_none()
 }
 
-pub(crate) fn encode_inbox_read(reading: &crate::jig::runner::reads::Reading, limits: &Limits, out: &mut Encoder) {
+pub(crate) fn encode_inbox_read(
+    reading: &crate::jig::runner::reads::Reading,
+    limits: &Limits,
+    wall: Wall,
+    out: &mut Encoder,
+) {
     let normalized = crate::jig::digest::inbox(reading.documents.get(&3).expect("inbox watch"));
     let digest = crate::jig::digest::part(&normalized, limits);
     let displayed = inbox(reading, limits);
     let displayed = Part::read(&displayed).expect("inbox form");
     out.object_start();
     out.key(b"inbox");
-    encode_as(&displayed, limits, Some(digest), out);
+    encode_at(&displayed, limits, Some(digest), Some(wall), out);
     super::question::encode(reading, out);
     out.key(b"read_on");
     match super::super::lists::inbox_cursor(reading, limits.rows) {

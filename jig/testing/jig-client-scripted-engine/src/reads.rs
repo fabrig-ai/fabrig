@@ -143,7 +143,8 @@ pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
         | Read::History { after, .. }
         | Read::Inbox { after, .. }
         | Read::Spend { after, .. }
-        | Read::Notes { after, .. } => after.take(),
+        | Read::Notes { after, .. }
+        | Read::Waits { after, .. } => after.take(),
         Read::Tasks { live, ended, .. } => ended.take().or_else(|| live.take()),
         Read::Activity { before, .. } => before.take(),
         Read::ActivityBeside { .. }
@@ -199,7 +200,7 @@ impl<A: crate::Application> Engine<A> {
                 return self.checked_read(self.truth.frames.get(&party).cloned().map(|v| ReadValue::Me(Box::new(v))));
             }
             Read::Turn { task, attempt, turn } => return self.read_turn(party, *task, *attempt, *turn),
-            Read::TaskText { .. } => return Err(ReadNone::Unknown),
+            Read::TaskText { .. } | Read::Waits { .. } => return Err(ReadNone::Unknown),
             Read::Task { task } => Some(ObjectKey::Task(*task)),
             Read::Proposal { proposal } => Some(ObjectKey::Proposal(*proposal)),
             Read::Escalation { task } => Some(ObjectKey::Escalation(*task)),
@@ -402,7 +403,7 @@ impl<A: crate::Application> Engine<A> {
                 if row.project.is_some_and(|project| !self.truth.visible(party,project)) { return false; }
                 match query {
                     Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group()) && project.is_none_or(|p| Some(p) == row.project) && kind.is_none_or(|k| k == row.group()) && goal.is_none_or(|g| self.truth.inbox_selection.get(&party).is_some_and(|selections| selections.iter().any(|selection| selection.cursor == row.cursor && selection.goals.iter().any(|goal| *goal == g)))),
-                    Read::TaskText { .. } | Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
+                    Read::TaskText { .. } | Read::Tasks { .. } | Read::Waits { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::ActivityBeside { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect()),
@@ -461,6 +462,7 @@ impl<A: crate::Application> Engine<A> {
                     |project| self.truth.visible(party, project),
                 );
             }
+            Read::Waits { .. } => return false,
             Read::Me => return self.truth.frames.contains_key(&party),
             Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => {
                 return self.truth.frames.get(&party).is_some_and(|f| f.deployment_role.is_some());
@@ -480,6 +482,7 @@ fn empty(read: &Read) -> Rows {
         Read::Notes { .. } => Rows::Notes(vec![]),
         Read::Me
         | Read::Turn { .. }
+        | Read::Waits { .. }
         | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }

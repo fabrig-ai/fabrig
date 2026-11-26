@@ -198,6 +198,7 @@ fn all_projects(
         | Address::Team { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
@@ -663,6 +664,7 @@ fn shown(root: &Domain) -> Shown {
         Address::Inbox { .. } => (false, true, false, false),
         Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
@@ -876,6 +878,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Inbox { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }

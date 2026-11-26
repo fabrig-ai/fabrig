@@ -3872,6 +3872,24 @@ pub fn task_run_wait_to_domain(record: jig_client_protocol_wire::v44::TaskRunWai
 }
 
 #[must_use]
+pub fn wait_kind_to_record(value: &jig_client_domain::contract::WaitKind) -> jig_client_protocol_wire::v44::WaitKind {
+    match value {
+        jig_client_domain::contract::WaitKind::Party => jig_client_protocol_wire::v44::WaitKind::Party,
+        jig_client_domain::contract::WaitKind::Question => jig_client_protocol_wire::v44::WaitKind::Question,
+        jig_client_domain::contract::WaitKind::Dependency => jig_client_protocol_wire::v44::WaitKind::Dependency,
+        jig_client_domain::contract::WaitKind::Resource => jig_client_protocol_wire::v44::WaitKind::Resource,
+        jig_client_domain::contract::WaitKind::Account => jig_client_protocol_wire::v44::WaitKind::Account,
+        jig_client_domain::contract::WaitKind::Host => jig_client_protocol_wire::v44::WaitKind::Host,
+        jig_client_domain::contract::WaitKind::Delegate => jig_client_protocol_wire::v44::WaitKind::Delegate,
+        jig_client_domain::contract::WaitKind::News => jig_client_protocol_wire::v44::WaitKind::News,
+        jig_client_domain::contract::WaitKind::Step => jig_client_protocol_wire::v44::WaitKind::Step,
+        jig_client_domain::contract::WaitKind::Room => jig_client_protocol_wire::v44::WaitKind::Room,
+        jig_client_domain::contract::WaitKind::Turn => jig_client_protocol_wire::v44::WaitKind::Turn,
+        jig_client_domain::contract::WaitKind::SignOff => jig_client_protocol_wire::v44::WaitKind::SignOff,
+    }
+}
+
+#[must_use]
 pub fn wait_kind_to_domain(record: jig_client_protocol_wire::v44::WaitKind) -> jig_client_domain::contract::WaitKind {
     match record {
         jig_client_protocol_wire::v44::WaitKind::Party => jig_client_domain::contract::WaitKind::Party,
@@ -4142,7 +4160,7 @@ pub fn inbox_cursor_to_domain(record: jig_client_protocol_wire::v44::InboxCursor
 }
 
 pub fn inbox_entry_to_domain(record: jig_client_protocol_wire::v44::InboxEntry, context: &crate::Limits) -> Result<jig_client_domain::contract::InboxEntry, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::InboxEntry { reply: field_000000, task: field_000001, project: field_000002, object: field_000003, activity: field_000004, at: field_000005, unread: field_000006, cursor: field_000007, projects: field_000008 } = record;
+    let jig_client_protocol_wire::v44::InboxEntry { reply: field_000000, task: field_000001, project: field_000002, object: field_000003, activity: field_000004, at: field_000005, unread: field_000006, cursor: field_000007, projects: field_000008, bound: field_000009 } = record;
     Ok(jig_client_domain::contract::InboxEntry {
         reply: match field_000000 {
             Some(item) => {
@@ -4182,7 +4200,14 @@ pub fn inbox_entry_to_domain(record: jig_client_protocol_wire::v44::InboxEntry, 
             None => None,
         },
         cursor: inbox_cursor_to_domain(field_000007),
-        projects: field_000008
+        projects: field_000008,
+        bound: match field_000009 {
+            Some(item) => {
+                let converted = wait_bound_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
     })
 }
 
@@ -7452,6 +7477,37 @@ pub fn read_to_record(value: &jig_client_domain::contract::Read) -> jig_client_p
             task: *field_000000,
             position: *field_000001,
             side: activity_side_to_record(field_000002)
+        }),
+        jig_client_domain::contract::Read::Waits { project: field_000000, kind: field_000001, party: field_000002, due: field_000003, after: field_000004 } => jig_client_protocol_wire::v44::Read::Waits(jig_client_protocol_wire::v44::ReadWaits {
+            project: *field_000000,
+            kind: match field_000001 {
+                Some(item) => {
+                    let converted = wait_kind_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            party: match field_000002 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            due: match field_000003 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            after: match field_000004 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
         }),
     }
 }

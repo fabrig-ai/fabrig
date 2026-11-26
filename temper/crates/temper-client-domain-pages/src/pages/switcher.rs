@@ -104,6 +104,7 @@ impl Switcher {
             | Address::Repositories { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Ask { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }

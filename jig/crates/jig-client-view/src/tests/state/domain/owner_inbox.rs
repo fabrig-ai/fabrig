@@ -24,6 +24,7 @@ fn entry(task: u64, object: InboxObject) -> InboxEntry {
         object,
         activity: None,
         at: None,
+        bound: None,
         unread: None,
         cursor: InboxCursor::Number { number: u64::MAX },
     }

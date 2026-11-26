@@ -11,7 +11,7 @@ use jig_client::contract as c;
 use skein_lib::{List, Wall};
 use skein_ui::{Builder, Fraction, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{
-    Address, ChatsFilter, Domain, GoalsFilter, WorkFilter,
+    Address, ChatsFilter, Domain, GoalsFilter, WaitsFilter, WorkFilter,
     pages::{
         Act,
         changes::State,
@@ -228,6 +228,7 @@ fn filters(
             Address::Changes { project },
             current == &(Address::Changes { project }),
         ),
+        (true, None, Word::WaitsPage, Word::WaitsPage, Address::Waits { project, filter: WaitsFilter::ALL }, false),
         (
             shown.chats,
             Some(counts.chats),
@@ -245,16 +246,21 @@ fn filters(
             Some(_) => words.say(unknown, &[]),
             None => words.say(word, &[]),
         };
-        link(b, words, bindings, &label, address);
-        b.style(look::WORK_CHIP);
-        if active {
-            b.state(skein_ui::State::Current);
-            b.style(look::WORK_CURRENT);
-        }
-        b.close();
+        filter_chip(b, bindings, &label, address, active);
     }
     b.close();
 }
+pub(crate) fn filter_chip(b: &mut Builder, bindings: &mut Bindings, label: &[u8], address: Address, current: bool) {
+    crate::bindings::link(b, label, bindings.insert(Act::Go { address }));
+    b.text(Run::Plain, label);
+    b.style(look::WORK_CHIP);
+    if current {
+        b.state(skein_ui::State::Current);
+        b.style(look::WORK_CURRENT);
+    }
+    b.close();
+}
+
 fn goals_current(address: &Address, project: u32) -> bool {
     if let Address::Goals { project: open, .. } = address { *open == project } else { false }
 }

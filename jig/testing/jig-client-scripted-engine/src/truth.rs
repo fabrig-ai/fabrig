@@ -365,6 +365,7 @@ pub(crate) fn identity(value: &ReadValue) -> Option<ObjectKey> {
         ReadValue::PersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
         ReadValue::Result(v) => Some(ObjectKey::Result(v.task.task)),
         ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Me(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
@@ -392,6 +393,7 @@ fn document_project(value: &ReadValue) -> Option<u32> {
         ReadValue::PersonTask(v) => v.project(),
         ReadValue::Ended(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Me(_)
         | ReadValue::Question(_)
         | ReadValue::Result(_)

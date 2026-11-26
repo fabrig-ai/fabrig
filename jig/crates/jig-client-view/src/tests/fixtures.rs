@@ -489,6 +489,7 @@ pub(crate) fn inbox_entry(key: jig_client::contract::ObjectKey) -> jig_client::c
         object,
         activity: Some(1),
         at: Some(skein_lib::Wall::EPOCH),
+        bound: None,
         unread: None,
         cursor: InboxCursor::Number { number: 1 },
     }

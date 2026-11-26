@@ -10,7 +10,7 @@ use jig_client::{
     Client, Handle, Key, Latest, Outcome, State, Told,
     contract::{self, ActKind, ObjectKey, ReadValue, Text},
 };
-use skein_lib::{Duration, Env, List, Queue, Time, Wall};
+use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 
 pub const HOLD: Duration = Duration::from_secs(5);
 pub const TOAST: Duration = Duration::from_millis(4500);
@@ -33,6 +33,32 @@ impl Need<'_> {
         match self {
             Self::Card(card) => card.object,
             Self::Approval(row) => ObjectKey::Task(row.task),
+        }
+    }
+    pub(super) fn at(self, inbox: &Inbox) -> Wall {
+        let card = match self {
+            Self::Approval(row) => return row.since,
+            Self::Card(card) => card,
+        };
+        let since = if let Some(ReadValue::Question(row)) = &card.page {
+            Some(row.since)
+        } else if let Some(ReadValue::PersonTask(row)) = &card.page {
+            row.since
+        } else if let Some(ReadValue::Proposal(row)) = &card.page {
+            Some(row.waiting.since)
+        } else if let Some(ReadValue::Escalation(row)) = &card.page
+            && let Some(hold) = &row.task.hold
+        {
+            hold.hold_wait_since
+        } else {
+            None
+        };
+        match since {
+            Some(since) => since,
+            None => match inbox.need_row(card.object) {
+                Some(row) => row.at.unwrap_or(Wall::EPOCH),
+                None => Wall::EPOCH,
+            },
         }
     }
 }
@@ -341,12 +367,23 @@ impl Session {
         }
         cards.into_boxed()
     }
-    /// The open cards merged: the inbox's in its order, then the approvals' rows the inbox's
-    /// filter takes, those marked later last; no rows until the inbox is known.
+    /// The open cards merged oldest first, with Later last; empty until the inbox is known.
     #[must_use]
     pub fn needs<'a>(&self, inbox: &'a Inbox, approvals: &'a Approvals) -> Box<[Need<'a>]> {
+        let needs = self.existing_needs(inbox, approvals);
+        let mut ordered = Map::with_capacity(needs.len());
+        for (index, need) in needs.iter().enumerate() {
+            ordered.insert((self.later(need.object()), need.at(inbox), index), *need).expect("one key per need");
+        }
+        let mut open = List::with_capacity(needs.len());
+        for (_, need) in &ordered {
+            open.push(*need).expect("ordered needs fit");
+        }
+        open.into_boxed()
+    }
+    pub(super) fn existing_needs<'a>(&self, inbox: &'a Inbox, approvals: &'a Approvals) -> List<Need<'a>> {
         if !inbox.known() {
-            return Box::new([]);
+            return List::with_capacity(0);
         }
         let capacity = inbox
             .cards
@@ -354,23 +391,20 @@ impl Session {
             .checked_add(u32::try_from(approvals.rows().len()).expect("approval rows fit"))
             .expect("inbox and approvals fit");
         let mut needs = List::with_capacity(capacity);
-        for later in [false, true] {
-            for card in inbox.needs() {
-                if self.line(card.object).is_none() && self.later(card.object) == later {
-                    needs.push(Need::Card(card)).expect("inbox cards fit");
-                }
-            }
-            for row in approvals.rows() {
-                if inbox.filter.kind.is_none()
-                    && (inbox.filter.project.is_none() || inbox.filter.project == Some(row.project))
-                    && inbox.takes_goal(row.goal)
-                    && self.later(ObjectKey::Task(row.task)) == later
-                {
-                    needs.push(Need::Approval(row)).expect("approval rows fit");
-                }
+        for card in inbox.needs() {
+            if self.line(card.object).is_none() {
+                needs.push(Need::Card(card)).expect("inbox cards fit");
             }
         }
-        needs.into_boxed()
+        for row in approvals.rows() {
+            if inbox.filter.kind.is_none()
+                && (inbox.filter.project.is_none() || inbox.filter.project == Some(row.project))
+                && inbox.takes_goal(row.goal)
+            {
+                needs.push(Need::Approval(row)).expect("approval rows fit");
+            }
+        }
+        needs
     }
     /// The shown one among the merged open cards of Needs you.
     #[must_use]
@@ -460,6 +494,7 @@ impl Session {
             Address::NewChat { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Chats { .. }
@@ -643,6 +678,7 @@ fn words_title(page: &ReadValue) -> Option<&contract::DocumentText> {
         | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Project(_)
         | ReadValue::Ended(_)
         | ReadValue::Me(_)
@@ -924,6 +960,7 @@ pub(crate) fn act(
                 | Address::AllHome
                 | Address::NewChat { .. }
                 | Address::Goals { .. }
+                | Address::Waits { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Work { .. }
@@ -956,6 +993,7 @@ pub(crate) fn act(
                 | Address::NewChat { .. }
                 | Address::Work { .. }
                 | Address::Goals { .. }
+                | Address::Waits { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Team { .. }

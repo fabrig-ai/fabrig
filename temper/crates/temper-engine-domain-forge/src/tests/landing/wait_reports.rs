@@ -18,9 +18,10 @@ fn quiet_landing_reports_name_the_change_or_turn_holder_and_clear_for_prepare_an
     holder.landing.task = HOLDER;
     holder.landing.phase = Phase::Turn { at: since };
     landing::save(&mut d, &clock, holder, &mut Queue::uncapped());
-    for (on, step) in
-        [(Awaited::Ready { member: 0 }, LANDING_READY), (Awaited::Judgement { member: 0 }, LANDING_JUDGEMENT)]
-    {
+    for (on, step, name) in [
+        (Awaited::Ready { member: 0 }, LANDING_READY, LandingWaitFor::Ready),
+        (Awaited::Judgement { member: 0 }, LANDING_JUDGEMENT, LandingWaitFor::Judgement),
+    ] {
         row.waiting = Some(on);
         let report = report_row(&mut d, &clock, &row);
         assert_eq!(
@@ -38,6 +39,7 @@ fn quiet_landing_reports_name_the_change_or_turn_holder_and_clear_for_prepare_an
                 .as_slice()
             )
         );
+        assert_panel_wait(&d, &clock, LANDING, name, Some(&wait_report(&report, LANDING).unwrap()[0]));
     }
     let turn = Reported {
         since,
@@ -46,7 +48,9 @@ fn quiet_landing_reports_name_the_change_or_turn_holder_and_clear_for_prepare_an
         bound: ReportedBound::None(Unbounded::Behind(HOLDER)),
     };
     row.waiting = Some(Awaited::Turn);
-    assert_eq!(wait_report(&report_row(&mut d, &clock, &row), LANDING), Some([turn.clone()].as_slice()));
+    let report = report_row(&mut d, &clock, &row);
+    assert_eq!(wait_report(&report, LANDING), Some([turn.clone()].as_slice()));
+    assert_panel_wait(&d, &clock, LANDING, LandingWaitFor::Turn, Some(&wait_report(&report, LANDING).unwrap()[0]));
     row.waiting = Some(Awaited::Prepare);
     assert_eq!(wait_report(&report_row(&mut d, &clock, &row), LANDING), Some([].as_slice()));
     row.waiting = Some(Awaited::Turn);
@@ -55,6 +59,7 @@ fn quiet_landing_reports_name_the_change_or_turn_holder_and_clear_for_prepare_an
     assert_eq!(wait_report(&report_row(&mut d, &clock, &row), LANDING), Some([].as_slice()));
     row.waiting = Some(Awaited::Release);
     assert_eq!(wait_report(&report_row(&mut d, &clock, &row), LANDING), None);
+    assert_panel_wait(&d, &clock, LANDING, LandingWaitFor::Release, None);
 }
 
 fn report_row(d: &mut Domain, clock: &Env<Limits>, row: &LandingRow) -> Box<[Request]> {
@@ -88,6 +93,7 @@ fn a_gate_report_tracks_its_runner_wait_then_its_running_deadline() {
     let runner_at = advanced_wall(since, clock.limits.change_policy.runner_wait);
     let (_, report) = poll_clocked_gate_with_report(&mut d, &clock, &run);
     assert_eq!(report.as_deref(), Some([wait(since, runner_at)].as_slice()));
+    assert_panel_wait(&d, &clock, LANDING, LandingWaitFor::Run, Some(&report.unwrap()[0]));
     clock = outbox_room::later(&clock, Duration::from_secs(2));
     let (_, report) = poll_clocked_gate_with_report(&mut d, &clock, &run);
     assert_eq!(report, None, "another waiting reading moves neither since nor the runner deadline");
@@ -95,4 +101,5 @@ fn a_gate_report_tracks_its_runner_wait_then_its_running_deadline() {
     let running_at = advanced_wall(clock.wall, Duration::from_nanos(5_000_000_001));
     let (_, report) = poll_clocked_gate_with_report(&mut d, &clock, &run);
     assert_eq!(report.as_deref(), Some([wait(clock.wall, running_at)].as_slice()));
+    assert_panel_wait(&d, &clock, LANDING, LandingWaitFor::Run, Some(&report.unwrap()[0]));
 }

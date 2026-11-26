@@ -42,6 +42,7 @@ pub(crate) fn admitted(read: &Read, project: u32) -> Admission {
         | Read::PersonTask { task }
         | Read::Proposal { proposer: Proposer::Task(task), .. } => return Admission::Task(*task),
         Read::Frame
+        | Read::Waits { .. }
         | Read::Deployment
         | Read::Settings
         | Read::Setting { .. }

@@ -2223,3 +2223,43 @@ fn findings_stop_proposal_names_the_work_not_the_triager() {
     let c::Ask::Propose { reason, .. } = ask.as_ref() else { panic!("settings proposal") };
     assert_eq!(reason.bytes(), b"Stop asking in Project 1: let agents decide starting work on findings, then tell whoever they would have asked.");
 }
+
+#[test]
+fn needs_interleave_approvals_with_inbox_cards_oldest_first_and_later_last() {
+    use crate::tests::approvals as a;
+    let (mut root, _, watch) = approval_root();
+    let mut cards = fixture();
+    add(&mut cards, SECOND, fixtures::PROJECT);
+    add(&mut cards, THIRD, fixtures::PROJECT);
+    let inbox = cards.inbox.as_mut().unwrap();
+    for (index, since) in [20, 1, 30].into_iter().enumerate() {
+        let card = inbox.cards.get_mut(u32::try_from(index).unwrap()).unwrap();
+        let Some(c::ReadValue::Question(question)) = &mut card.page else { panic!("question fixture") };
+        question.since = Wall::from_nanos(since);
+    }
+    root.pages.inbox = cards.inbox.take();
+    let mut first = a::row(a::CHANGE, fixtures::PROJECT, None);
+    first.since = 10;
+    let mut second = a::row(a::OTHER_CHANGE, fixtures::PROJECT, None);
+    second.since = 25;
+    a::deliver(&mut root, watch, &[first, second], 0);
+    root_event(
+        &mut root,
+        crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(Act::Later { object: SECOND })) },
+    );
+    let session = root.pages().needs();
+    let inbox = root.pages().inbox().unwrap();
+    let approvals = root.forge().approvals();
+    let expected = [ObjectKey::Task(a::CHANGE), FIRST, ObjectKey::Task(a::OTHER_CHANGE), THIRD, SECOND];
+    let mut cards = List::with_capacity(5);
+    for need in &session.needs(inbox, approvals) {
+        cards.push(need.object()).unwrap();
+    }
+    assert_eq!(cards.as_slice(), expected);
+    cards.clear();
+    for need in &session.all(inbox, approvals) {
+        let pages::findings::Need::Existing(need) = need else { panic!("no findings") };
+        cards.push(need.object()).unwrap();
+    }
+    assert_eq!(cards.as_slice(), expected);
+}

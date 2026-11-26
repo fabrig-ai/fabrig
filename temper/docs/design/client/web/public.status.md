@@ -1,6 +1,7 @@
 # public: status
 
-2026-11-23. Where the tree's code lags or departs from [public.md](public.md).
+2026-11-26. Where the tree's code lags or departs from [public.md](public.md).
+
 
 
 - **Not yet:** 4: the browser kit returns the first content quad of each text

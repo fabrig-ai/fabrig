@@ -25,7 +25,7 @@ pub mod question;
 pub mod sign_in;
 pub mod views;
 pub mod words;
-pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind, WorkFilter};
+pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WaitsFilter, WayKind, WorkFilter};
 pub use limits::{Limits, valid};
 #[cfg(test)]
 mod tests;

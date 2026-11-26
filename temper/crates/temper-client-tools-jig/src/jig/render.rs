@@ -60,6 +60,7 @@ impl<'a> Part<'a> {
             | ReadValue::Activity(_)
             | ReadValue::Spend(_)
             | ReadValue::Notes(_)
+            | ReadValue::Waits(_)
             | ReadValue::Deployment(_) => None,
         }
     }
@@ -118,6 +119,7 @@ pub fn person_task(value: &ReadValue) -> Option<&contract::PersonTask> {
         | ReadValue::Me(_)
         | ReadValue::Inbox(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::TaskText(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
@@ -153,6 +155,7 @@ pub(crate) fn person_answerer(value: &ReadValue) -> Option<u64> {
         | ReadValue::Me(_)
         | ReadValue::Inbox(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::TaskText(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
@@ -534,7 +537,7 @@ pub(crate) fn reads(
         };
         return notes::print(page, &reading.called.call, reading.called.json, limits);
     }
-    document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
+    document::print(document::Document::ReadSet(reading, party, wall), reading.called.json, limits, vocabulary)
 }
 
 fn deleted_project(project: u32) -> Box<[u8]> {
@@ -551,6 +554,7 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
     match (call.tool, local, value) {
         (crate::jig::rows::ROLE_LIST_AT | 2, 1, ReadValue::Tasks(_))
         | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
+        | (crate::jig::rows::WAITS_AT, 1, ReadValue::Waits(_))
         | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
         | (crate::jig::rows::DEPLOYMENT_CENSUS_AT | crate::jig::rows::WORKER_LIST_AT, 1, ReadValue::Deployment(_))

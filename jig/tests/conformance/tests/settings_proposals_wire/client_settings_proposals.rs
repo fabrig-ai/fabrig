@@ -249,6 +249,7 @@ fn settings_proposal_projects_cross_the_row_and_document_wire() {
         object,
         activity: None,
         at: None,
+        bound: None,
         unread: None,
         cursor: d::Cursor::Inbox { task: 0, object, at: None },
     };

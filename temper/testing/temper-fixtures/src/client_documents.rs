@@ -32,6 +32,7 @@ pub fn entry(
         project: Some(project),
         activity: Some(position),
         at: Some(at),
+        bound: None,
         unread: None,
         cursor: c::InboxCursor::Inbox { task: number, object, at: Some(at) },
         reply,

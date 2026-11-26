@@ -34,4 +34,5 @@ record PublicJudgement { prefix: fixed 32 verdict: PublicCi gates: list 64 Publi
 enum PublicProof { unkeyed, keyed, dispatched, waiting, passed, failed }
 record PublicGateProof { number: u64 kind: PublicGateKind blocks: bool proof: PublicProof faults: u32 }
 record PublicMember { task: u16 base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 PublicGateProof head: option fixed 32 left: option PublicLeave judgement: option PublicJudgement }
-versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool combined: option PublicCombined step: option PublicLandingStep search: option PublicSearch }
+enum PublicLandingWait { release, ready, turn, prepare, prefixes, open, close, delete, post, run, receipt, judgement, merge, record, ancestry, read, room }
+versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool combined: option PublicCombined step: option PublicLandingStep search: option PublicSearch wait: option PublicLandingWait = none }

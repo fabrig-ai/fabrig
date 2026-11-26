@@ -145,6 +145,7 @@ pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
         gates: List::with_capacity(0),
     };
     let landing = f::PublicLanding {
+        wait: None,
         search: None,
         combined: None,
         step: None,
@@ -184,6 +185,7 @@ pub fn landing_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, land
         gates: List::from_boxed(Box::new([gate])),
     };
     let landing = f::PublicLanding {
+        wait: None,
         search: None,
         combined: None,
         step: None,
@@ -212,6 +214,7 @@ pub fn searching_landing() -> Box<[u8]> {
         left: Some(f::PublicLeave::Blamed(f::PublicBlamed { gate: 3, red: [0x33; 32], green: [0x22; 32] })),
     };
     let landing = f::PublicLanding {
+        wait: None,
         phase: f::PublicLandingPhase::Proving,
         hold: None,
         preparation: 1,

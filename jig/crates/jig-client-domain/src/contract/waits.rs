@@ -1,7 +1,22 @@
 //! The engine's wait records as supplied to clients (jig/docs/design/client/domain/contract/documents.md, 1).
-use super::{EscalationHolder, TaskRunWait, WaitedFor};
+use super::{Chip, Cursor, EscalationHolder, TaskRunWait, WaitedFor};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
+
+/// One page of a project's live waits, using the first page's wall time.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WaitPage {
+    pub now: Wall,
+    pub rows: List<WaitRow>,
+    pub after: Option<Cursor>,
+}
+
+/// The waiting task and one of its own waits.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WaitRow {
+    pub chip: Chip,
+    pub wait: Wait,
+}
 
 /// One episode of waiting, possibly in a descendant of the task on the line.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

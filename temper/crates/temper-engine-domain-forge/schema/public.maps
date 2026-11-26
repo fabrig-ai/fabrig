@@ -34,4 +34,5 @@ record PublicJudgement = crate::PrefixJudgement { gates slice }
 enum PublicProof by hand
 record PublicGateProof by hand
 record PublicMember by hand
+enum PublicLandingWait by hand
 record PublicLanding by hand

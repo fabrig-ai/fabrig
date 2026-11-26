@@ -181,6 +181,7 @@ pub(crate) fn owner_first_window(rows: u32, more: bool) -> (c::InboxPage, c::Inb
                 object,
                 activity: None,
                 at: Some(Wall::EPOCH),
+                bound: None,
                 unread: Some(false),
                 cursor: c::InboxCursor::Inbox { task, object, at: Some(Wall::EPOCH) },
             })

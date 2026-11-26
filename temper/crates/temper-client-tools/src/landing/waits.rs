@@ -1,5 +1,7 @@
 //! A landing's wait and engine-relative ages (domain/landing-waits.md, 2, 4).
 use super::{Encoder, Text, optional_number, w};
+use crate::jig::render::document::clock;
+use skein_lib::Wall;
 
 pub(crate) fn age(now: u64, at: u64, out: &mut Text) {
     let seconds = now.saturating_sub(at).checked_div(1_000_000_000).expect("nonzero second");
@@ -103,7 +105,40 @@ pub(super) fn text(wait: Option<&w::LandingWait>, out: &mut Text) {
         w::LandingWaitFor::Read => out.put(b"a fresh read of its facts from the forge"),
         w::LandingWaitFor::Room => out.put(b"room in the forge's outbox"),
     }
+    timing(wait, out);
     out.put(b"\n");
+}
+pub(super) fn timing(wait: &w::LandingWait, out: &mut Text) {
+    if let Some(since) = wait.since {
+        out.put(b" \xc2\xb7 since ");
+        clock::deadline(Wall::from_nanos(since), out);
+    }
+    if let Some(bound) = &wait.bound {
+        out.put(b" \xc2\xb7 ");
+        match bound {
+            w::LandingWaitBound::At(at) => {
+                out.put(match at.then {
+                    w::LandingWaitThen::Hold => b"holds at ",
+                    w::LandingWaitThen::PassUp => b"passes up at ",
+                    w::LandingWaitThen::Overdue => b"is overdue at ",
+                    w::LandingWaitThen::GiveUp => b"gives up at ",
+                });
+                clock::deadline(Wall::from_nanos(at.at), out);
+            }
+            w::LandingWaitBound::None(bound) => {
+                out.put(b"no bound: ");
+                match &bound.reason {
+                    w::LandingWaitUnbounded::NoDeadline => out.put(b"no deadline"),
+                    w::LandingWaitUnbounded::Standing => out.put(b"standing"),
+                    w::LandingWaitUnbounded::Behind(behind) => {
+                        out.put(b"behind task ");
+                        out.number(behind.task);
+                    }
+                    w::LandingWaitUnbounded::OperatorHold => out.put(b"an operator's hold"),
+                }
+            }
+        }
+    }
 }
 fn gate(wait: &w::LandingWait, words: &[u8], out: &mut Text) {
     out.put(b"gate ");
@@ -127,43 +162,71 @@ pub(super) fn json(wait: Option<&w::LandingWait>, live: bool, out: &mut Encoder)
         out.null();
         return;
     }
+    let (on, change, gate, run, landing, since, bound) = match wait {
+        Some(wait) => (
+            name(&wait.on),
+            wait.change.as_ref(),
+            wait.gate.as_ref(),
+            wait.run.as_ref(),
+            wait.landing.as_ref(),
+            wait.since.as_ref(),
+            wait.bound.as_ref(),
+        ),
+        None => (b"nothing".as_slice(), None, None, None, None, None, None),
+    };
     out.object_start();
     out.key(b"for");
-    out.string(match wait {
-        Some(wait) => name(&wait.on),
-        None => b"nothing",
-    });
+    out.string(on);
     out.key(b"change");
-    optional_number(
-        match wait {
-            Some(wait) => wait.change.as_ref(),
-            None => None,
-        },
-        out,
-    );
+    optional_number(change, out);
     out.key(b"gate");
-    match wait {
-        Some(wait) => match wait.gate.as_ref() {
-            Some(gate) => out.string(gate),
-            None => out.null(),
-        },
+    match gate {
+        Some(gate) => out.string(gate),
         None => out.null(),
     }
     out.key(b"run");
-    optional_number(
-        match wait {
-            Some(wait) => wait.run.as_ref(),
-            None => None,
-        },
-        out,
-    );
+    optional_number(run, out);
     out.key(b"landing");
-    optional_number(
-        match wait {
-            Some(wait) => wait.landing.as_ref(),
-            None => None,
-        },
-        out,
-    );
+    optional_number(landing, out);
+    out.key(b"since");
+    optional_number(since, out);
+    out.key(b"bound");
+    bound_json(bound, out);
+    out.object_end();
+}
+
+fn bound_json(bound: Option<&w::LandingWaitBound>, out: &mut Encoder) {
+    let Some(bound) = bound else {
+        out.null();
+        return;
+    };
+    out.object_start();
+    match bound {
+        w::LandingWaitBound::At(at) => {
+            out.key(b"at");
+            out.unsigned(at.at);
+            out.key(b"then");
+            out.string(match at.then {
+                w::LandingWaitThen::Hold => b"hold",
+                w::LandingWaitThen::PassUp => b"pass_up",
+                w::LandingWaitThen::Overdue => b"overdue",
+                w::LandingWaitThen::GiveUp => b"give_up",
+            });
+        }
+        w::LandingWaitBound::None(bound) => {
+            out.key(b"none");
+            match &bound.reason {
+                w::LandingWaitUnbounded::NoDeadline => out.string(b"no_deadline"),
+                w::LandingWaitUnbounded::Standing => out.string(b"standing"),
+                w::LandingWaitUnbounded::OperatorHold => out.string(b"operator_hold"),
+                w::LandingWaitUnbounded::Behind(behind) => {
+                    out.object_start();
+                    out.key(b"behind");
+                    out.unsigned(behind.task);
+                    out.object_end();
+                }
+            }
+        }
+    }
     out.object_end();
 }

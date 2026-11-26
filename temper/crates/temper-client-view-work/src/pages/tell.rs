@@ -120,6 +120,7 @@ fn title(w: &Words, about: &About) -> Box<[u8]> {
         Address::Home { .. } | Address::AllHome => w.say(Word::RailHome, &[]),
         Address::Work { .. } => w.say(Word::RailWork, &[]),
         Address::Goals { .. } => w.say(Word::Goals, &[]),
+        Address::Waits { .. } => w.say(Word::WaitsPage, &[]),
         Address::Changes { .. } => w.say(Word::Changes, &[]),
         Address::Repositories { .. } => w.say(Word::SettingsRepositoriesTab, &[]),
         Address::Models { .. } => w.say(Word::ModelsTab, &[]),

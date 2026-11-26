@@ -330,6 +330,7 @@ fn read_subject(read: &core::reads::Read) -> Option<Subject> {
         | core::reads::Read::ActivityBeside { .. }
         | core::reads::Read::Inbox { .. }
         | core::reads::Read::Tasks { .. }
+        | core::reads::Read::Waits { .. }
         | core::reads::Read::Notes { .. }
         | core::reads::Read::ScopedNotes { .. }
         | core::reads::Read::Settings

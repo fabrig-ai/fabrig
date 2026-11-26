@@ -15,6 +15,7 @@ mod llm_accounts;
 mod owner_accounts;
 mod pages;
 
+mod project_waits;
 mod reads;
 
 mod stream;

@@ -1,5 +1,5 @@
 //! Landing mechanics without forge addresses or configured names (client/forge/README.md, 9.3).
-use super::Draw;
+use super::{Draw, Word};
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::forge::words::ChangeWord as W;
 use temper_client_protocol_wire::public_v1 as f;
@@ -29,6 +29,18 @@ impl Draw<'_> {
                 self.forge_words(b, step_word(step), &[]);
             }
             b.close();
+        }
+        let live = match landing.phase {
+            f::PublicLandingPhase::Landed | f::PublicLandingPhase::Cancelled => false,
+            f::PublicLandingPhase::Waiting
+            | f::PublicLandingPhase::Preparing
+            | f::PublicLandingPhase::Proving
+            | f::PublicLandingPhase::Proved
+            | f::PublicLandingPhase::Turn
+            | f::PublicLandingPhase::Held => true,
+        };
+        if live && let Some(wait) = &landing.wait {
+            self.paragraph(b, wait_word(wait));
         }
         if let Some(search) = &landing.search {
             for (word, bound) in [(W::SearchGreen, &search.green), (W::SearchRed, &search.red)] {
@@ -113,5 +125,27 @@ fn step_word(step: &f::PublicLandingStep) -> W {
         f::PublicLandingStep::Leaving => W::Leaving,
         f::PublicLandingStep::Recording => W::Recording,
         f::PublicLandingStep::Telling => W::Telling,
+    }
+}
+
+fn wait_word(wait: &f::PublicLandingWait) -> Word {
+    match wait {
+        f::PublicLandingWait::Release => Word::PublicWaitRelease,
+        f::PublicLandingWait::Ready => Word::PublicWaitReady,
+        f::PublicLandingWait::Turn => Word::PublicWaitTurn,
+        f::PublicLandingWait::Prepare => Word::PublicWaitPrepare,
+        f::PublicLandingWait::Prefixes => Word::PublicWaitPrefixes,
+        f::PublicLandingWait::Open => Word::PublicWaitOpen,
+        f::PublicLandingWait::Close => Word::PublicWaitClose,
+        f::PublicLandingWait::Delete => Word::PublicWaitDelete,
+        f::PublicLandingWait::Post => Word::PublicWaitPost,
+        f::PublicLandingWait::Run => Word::PublicWaitRun,
+        f::PublicLandingWait::Receipt => Word::PublicWaitReceipt,
+        f::PublicLandingWait::Judgement => Word::PublicWaitJudgement,
+        f::PublicLandingWait::Merge => Word::PublicWaitMerge,
+        f::PublicLandingWait::Record => Word::PublicWaitRecord,
+        f::PublicLandingWait::Ancestry => Word::PublicWaitAncestry,
+        f::PublicLandingWait::Read => Word::PublicWaitRead,
+        f::PublicLandingWait::Room => Word::PublicWaitRoom,
     }
 }

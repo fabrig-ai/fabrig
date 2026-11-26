@@ -324,6 +324,7 @@ fn reads(root: &dyn Root) -> Option<&AllHome> {
         | crate::Address::Models { .. }
         | crate::Address::Builders { .. }
         | crate::Address::Goals { .. }
+        | crate::Address::Waits { .. }
         | crate::Address::Tell { .. }
         | crate::Address::Adopt { .. } => None,
     }

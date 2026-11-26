@@ -2886,6 +2886,7 @@ fn waiting_at(chat: bool) -> Host {
         object: w::InboxObject::Question(w::InboxObjectQuestion { message: 7 }),
         activity: None,
         at: None,
+        bound: None,
         unread: None,
         cursor: records::live_inbox_cursor_record(),
     };

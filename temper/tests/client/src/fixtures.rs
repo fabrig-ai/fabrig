@@ -1106,6 +1106,7 @@ pub fn task_budget(front: &mut Joint, task: u64) -> jig_domain_core::documents::
                 | reads::Answer::Revisions(_)
                 | reads::Answer::TaskText(_)
                 | reads::Answer::Tasks(_)
+                | reads::Answer::Waits(_)
                 | reads::Answer::Page(_)
                 | reads::Answer::None(_) => None,
             }

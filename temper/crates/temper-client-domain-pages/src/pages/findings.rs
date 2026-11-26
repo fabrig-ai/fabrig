@@ -537,21 +537,11 @@ impl Need<'_> {
             Self::Row(_) => false,
         }
     }
-    fn at(self) -> Wall {
+    fn at(self, inbox: &Inbox) -> Wall {
         match self {
             Self::Finding(card) => Wall::from_nanos(card.row.at),
             Self::Row(row) => row.at.unwrap_or(Wall::EPOCH),
-            Self::Existing(needs::Need::Approval(row)) => row.since,
-            Self::Existing(needs::Need::Card(card)) => match &card.page {
-                Some(c::ReadValue::Question(row)) => row.since,
-                Some(c::ReadValue::PersonTask(row)) => row.since.unwrap_or(Wall::EPOCH),
-                Some(c::ReadValue::Proposal(row)) => row.waiting.since,
-                Some(c::ReadValue::Escalation(row)) => match &row.task.hold {
-                    Some(hold) => hold.hold_wait_since.unwrap_or(Wall::EPOCH),
-                    None => Wall::EPOCH,
-                },
-                Some(_) | None => Wall::EPOCH,
-            },
+            Self::Existing(need) => need.at(inbox),
         }
     }
 }
@@ -565,10 +555,10 @@ impl needs::Session {
         if !inbox.known() {
             return Box::default();
         }
-        let existing = self.needs(inbox, approvals);
+        let existing = self.existing_needs(inbox, approvals);
         let mut rows = List::with_capacity(
-            u32::try_from(existing.len())
-                .expect("needs fit")
+            existing
+                .len()
                 .checked_add(inbox.rows.len())
                 .expect("needs fit")
                 .checked_add(self.findings.count(None))
@@ -583,7 +573,6 @@ impl needs::Session {
             }
             rows.push(Need::Existing(*need)).expect("needs fit");
         }
-        let mut merged = false;
         for row in &inbox.rows {
             if self.answered_here(row.card_key())
                 || match inbox.filter.kind {
@@ -603,7 +592,6 @@ impl needs::Session {
             }
             if !read {
                 rows.push(Need::Row(row)).expect("needs rows fit");
-                merged = true;
             }
         }
         if inbox.filter.goal.is_none() && (inbox.filter.kind.is_none() || inbox.filter.kind == Some(Kind::Finding)) {
@@ -617,7 +605,6 @@ impl needs::Session {
         let mut ordered = Map::with_capacity(rows.len());
         for (index, need) in rows.iter().enumerate() {
             let severity = need.severity(&self.findings);
-            merged |= severity.is_some();
             let rank = match severity {
                 Some(w::Severity::High) | None => 0_u8,
                 Some(w::Severity::Medium) => 1,
@@ -628,10 +615,7 @@ impl needs::Session {
                 Need::Finding(_) => false,
                 Need::Row(row) => self.later(row.card_key()),
             };
-            ordered.insert((later, rank, need.at(), index), *need).expect("one key per need");
-        }
-        if !merged {
-            return rows.into_boxed();
+            ordered.insert((later, rank, need.at(inbox), index), *need).expect("one key per need");
         }
         rows.clear();
         for (_, need) in &ordered {

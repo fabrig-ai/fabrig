@@ -2352,8 +2352,39 @@ pub fn landing_wait_for_to_record(value: &temper_engine_domain_forge::LandingWai
 }
 
 #[must_use]
+pub fn landing_wait_then_to_record(value: &jig_domain_core::AtBound) -> temper_client_protocol_wire::v1::LandingWaitThen {
+    match value {
+        jig_domain_core::AtBound::Hold => temper_client_protocol_wire::v1::LandingWaitThen::Hold,
+        jig_domain_core::AtBound::PassUp => temper_client_protocol_wire::v1::LandingWaitThen::PassUp,
+        jig_domain_core::AtBound::Overdue => temper_client_protocol_wire::v1::LandingWaitThen::Overdue,
+        jig_domain_core::AtBound::GiveUp => temper_client_protocol_wire::v1::LandingWaitThen::GiveUp,
+    }
+}
+
+#[must_use]
+pub fn landing_wait_unbounded_to_record(value: &jig_domain_core::Unbounded) -> temper_client_protocol_wire::v1::LandingWaitUnbounded {
+    match value {
+        jig_domain_core::Unbounded::NoDeadline => temper_client_protocol_wire::v1::LandingWaitUnbounded::NoDeadline,
+        jig_domain_core::Unbounded::Standing => temper_client_protocol_wire::v1::LandingWaitUnbounded::Standing,
+        jig_domain_core::Unbounded::Behind(held) => temper_client_protocol_wire::v1::LandingWaitUnbounded::Behind(temper_client_protocol_wire::v1::LandingWaitBehind { task: *held }),
+        jig_domain_core::Unbounded::OperatorHold => temper_client_protocol_wire::v1::LandingWaitUnbounded::OperatorHold,
+    }
+}
+
+#[must_use]
+pub fn landing_wait_bound_to_record(value: &jig_domain_core::Bound) -> temper_client_protocol_wire::v1::LandingWaitBound {
+    match value {
+        jig_domain_core::Bound::At { at: field_000000, then: field_000001 } => temper_client_protocol_wire::v1::LandingWaitBound::At(temper_client_protocol_wire::v1::LandingWaitAt {
+            at: skein_codec::convert::wall_to_record(field_000000),
+            then: landing_wait_then_to_record(field_000001)
+        }),
+        jig_domain_core::Bound::None(held) => temper_client_protocol_wire::v1::LandingWaitBound::None(temper_client_protocol_wire::v1::LandingWaitNone { reason: landing_wait_unbounded_to_record(held) }),
+    }
+}
+
+#[must_use]
 pub fn landing_wait_to_record(value: &temper_engine_domain_forge::LandingWait) -> temper_client_protocol_wire::v1::LandingWait {
-    let temper_engine_domain_forge::LandingWait { on: field_000000, change: field_000001, gate: field_000002, run: field_000003, landing: field_000004 } = value;
+    let temper_engine_domain_forge::LandingWait { on: field_000000, change: field_000001, gate: field_000002, run: field_000003, landing: field_000004, since: field_000005, bound: field_000006 } = value;
     temper_client_protocol_wire::v1::LandingWait {
         on: landing_wait_for_to_record(field_000000),
         change: match field_000001 {
@@ -2383,12 +2414,26 @@ pub fn landing_wait_to_record(value: &temper_engine_domain_forge::LandingWait) -
                 Some(converted)
             }
             None => None,
+        },
+        since: match field_000005 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        bound: match field_000006 {
+            Some(item) => {
+                let converted = landing_wait_bound_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
 pub fn landing_line_to_record(value: &temper_engine_domain_forge::LandingLine) -> Result<temper_client_protocol_wire::v1::LandingLine, temper_client_protocol_wire::v1::Problem> {
-    let temper_engine_domain_forge::LandingLine { step: field_000000, last_event: field_000001, task: field_000002, phase: field_000003, changes: field_000004, repositories: field_000005, landed: field_000006, train: field_000007 } = value;
+    let temper_engine_domain_forge::LandingLine { step: field_000000, last_event: field_000001, task: field_000002, phase: field_000003, changes: field_000004, repositories: field_000005, landed: field_000006, train: field_000007, waits: field_000008 } = value;
     Ok(temper_client_protocol_wire::v1::LandingLine {
         step: match field_000000 {
             Some(item) => {
@@ -2439,6 +2484,13 @@ pub fn landing_line_to_record(value: &temper_engine_domain_forge::LandingLine) -
         train: match field_000007 {
             Some(item) => {
                 let converted = crate::family::train_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        waits: match field_000008 {
+            Some(item) => {
+                let converted = landing_wait_to_record(item);
                 Some(converted)
             }
             None => None,

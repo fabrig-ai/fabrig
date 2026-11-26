@@ -81,6 +81,7 @@ pub mod task;
 pub mod team;
 pub mod tell;
 pub mod terminal;
+pub mod waits;
 pub mod welcome;
 pub mod work;
 
@@ -134,6 +135,7 @@ pub struct Pages {
     ask_line: Box<[u8]>,
     ask_with: Option<(u32, Box<[u8]>)>,
     changes: Option<changes::Changes>,
+    waits: Option<waits::Waits>,
     drafts: Option<drafts::Drafts>,
     draft_starts: skein_lib::Set<jig_client::Key>,
     stock_ways: Option<stock_ways::StockWays>,
@@ -353,6 +355,8 @@ pub enum Act {
     Latest,
     ClosedChats,
     MoreGoals,
+    MoreWaits,
+    RefreshWaits,
     GoalsFilter {
         filter: crate::GoalsFilter,
     },
@@ -465,6 +469,7 @@ impl Pages {
             ask_line: Box::default(),
             ask_with: None,
             changes: None,
+            waits: None,
             drafts: None,
             draft_starts: skein_lib::Set::with_capacity(u32::MAX),
             stock_ways: None,
@@ -671,6 +676,17 @@ impl Pages {
     #[must_use]
     pub const fn changes(&self) -> Option<&changes::Changes> {
         self.changes.as_ref()
+    }
+    #[must_use]
+    pub const fn waits(&self) -> Option<&waits::Waits> {
+        self.waits.as_ref()
+    }
+    #[must_use]
+    pub fn wait_members(&self, project: u32) -> &[jig_client::contract::ProjectMember] {
+        match self.team.document(project) {
+            Some(document) => document.members.as_slice(),
+            None => &[],
+        }
     }
     #[must_use]
     pub const fn chats(&self) -> Option<&chats::Chats> {
@@ -958,6 +974,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             leave_conversations(pages, out);
             pages.accounts.leave(out);
             pages.builders.leave(out);
+            if let Some(mut page) = pages.waits.take() {
+                page.reset(out);
+            }
             pages.members = None;
             pages.remembered = None;
             pages.told_open = false;
@@ -1029,6 +1048,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     | Address::Models { .. }
                     | Address::Builders { .. }
                     | Address::Goals { .. }
+                    | Address::Waits { .. }
                     | Address::Adopt { .. } => None,
                 };
                 if let Some(project) = project {
@@ -1070,6 +1090,18 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
             unreachable!("suggestions are resolved by the root")
+        }
+        Event::Act { act: Act::RefreshWaits } => {
+            if let Some(page) = &mut pages.waits {
+                page.reset(out);
+            }
+        }
+        Event::Act { act: Act::MoreWaits } => {
+            if client.link().state == Link::Live
+                && let Some(page) = &mut pages.waits
+            {
+                page.more(&mut pages.next, out);
+            }
         }
         Event::Act { act: Act::MoreGoals } => {
             if let Some(goals) = &mut pages.goals {
@@ -1278,6 +1310,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Work { filter, .. } => {
                     out.push(Request::Show { address: Address::Work { project, filter: *filter } });
                 }
+                Address::Waits { filter, .. } => {
+                    out.push(Request::Show { address: Address::Waits { project, filter: *filter } });
+                }
                 Address::Goals { .. } => {
                     out.push(Request::Show { address: Address::Goals { project, filter: crate::GoalsFilter::All } });
                 }
@@ -1442,6 +1477,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         };
         pages.team.configure(&pages.address, pages.launchpad, you, env, client, &mut pages.next, out);
     }
+    if let Some(page) = &mut pages.waits
+        && client.link().state == Link::Live
+        && let Some(reader) = client.link().party
+    {
+        page.configure(reader, &mut pages.next, out);
+    }
     if let Some(chat) = &mut pages.chat {
         chat.next = chat.next.max(pages.next);
     }
@@ -1458,6 +1499,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Address::Home { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::AllHome
@@ -1646,6 +1688,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     if pages.told.told(client, &told, env.limits.forge, out) {
         return true;
     }
+    if let Some(page) = &mut pages.waits
+        && page.told(&told)
+    {
+        return true;
+    }
     if let Some(reads) = &mut pages.milestones
         && reads.told(&told, client, out)
     {
@@ -1729,6 +1776,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 }
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Some(mut page) = pages.waits.take() {
+        page.reset(out);
+    }
     pages.root_pending = false;
     if let Some(page) = pages.how.take() {
         page.leave(out);
@@ -1883,6 +1933,7 @@ fn rail_chats(address: &Address) -> bool {
         | Address::Chats { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Welcome { .. } => false,
         Address::AllHome
@@ -1935,6 +1986,12 @@ fn went(
         reads.leave(out);
     }
     let changing = returned || pages.address != address;
+    if let Some(mut page) = pages.waits.take() {
+        page.reset(out);
+    }
+    if let Address::Waits { project, filter } = address {
+        pages.waits = Some(waits::Waits::new(project, filter));
+    }
     if changing {
         pages.switcher.supersede();
         tell::remember(pages, client);
@@ -2077,6 +2134,7 @@ fn went(
             | Address::Task { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
@@ -2108,6 +2166,7 @@ fn went(
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Repositories { .. }
@@ -2276,6 +2335,7 @@ fn went(
             | Address::Task { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
@@ -2764,6 +2824,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Latest
         | Act::GoalsFilter { .. }
         | Act::MoreGoals
+        | Act::MoreWaits
+        | Act::RefreshWaits
         | Act::ChatFilter { .. }
         | Act::ClosedChats
         | Act::Filter { .. }
@@ -2806,6 +2868,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Talk { project, .. }
         | Address::Work { project, .. }
         | Address::Goals { project, .. }
+        | Address::Waits { project, .. }
         | Address::Changes { project }
         | Address::Team { project, .. }
         | Address::Settings { project }
@@ -2963,6 +3026,9 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
 fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
+            if let Some(page) = &mut pages.waits {
+                page.reset(out);
+            }
             pages.listing = None;
             pages.notes.clear();
             pages.start = None;
@@ -3068,6 +3134,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Task { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Team { .. }

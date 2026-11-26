@@ -67,6 +67,10 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
         w::ReadValue::Project(record) => c::ReadValue::Project(Box::new(documents::project(record, limits)?)),
         w::ReadValue::Ended(record) => c::ReadValue::Ended(Box::new(objects::ended(*record, limits)?)),
         w::ReadValue::Tasks(record) => c::ReadValue::Tasks(Box::new(pages::task_page(record, limits)?)),
+        w::ReadValue::Waits(record) => match super::waits::page(record, limits) {
+            Ok(page) => c::ReadValue::Waits(Box::new(page)),
+            Err(problem) => return Err(super::classify(problem)),
+        },
         w::ReadValue::Turn(record) => c::ReadValue::Turn(Box::new(super::turn::archive(record, limits)?)),
         w::ReadValue::TaskText(record) => c::ReadValue::TaskText(Box::new(task_text(record, limits)?)),
         w::ReadValue::Me(record) => c::ReadValue::Me(Box::new(documents::frame(record, limits)?)),

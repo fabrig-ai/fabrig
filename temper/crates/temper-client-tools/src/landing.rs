@@ -529,6 +529,9 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
             if let Some(step) = &line.step {
                 out.put(b" \xc2\xb7 ");
                 out.put(details::step(step));
+                if let Some(wait) = &line.waits {
+                    waits::timing(wait, out);
+                }
             }
             out.put(b" \xc2\xb7 last event ");
             match &line.last_event {
@@ -621,11 +624,7 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
     out.key(b"phase");
     phase_json(&panel.phase, out);
     out.key(b"waits");
-    waits::json(
-        if details::live(&panel.phase) { panel.waits.as_ref() } else { None },
-        details::live(&panel.phase),
-        out,
-    );
+    waits::json(panel.waits.as_ref(), details::live(&panel.phase), out);
     out.key(b"hold");
     match &panel.hold {
         Some(value) => details::hold_json(value, out),
@@ -740,6 +739,8 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
             Some(step) if details::live(&line.phase) => out.string(details::step(step)),
             Some(_) | None => out.null(),
         }
+        out.key(b"waits");
+        waits::json(line.waits.as_ref(), details::live(&line.phase), out);
         out.key(b"last_event");
         optional_number(line.last_event.as_ref(), out);
         out.key(b"changes");

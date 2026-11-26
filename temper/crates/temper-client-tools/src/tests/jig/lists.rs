@@ -533,7 +533,7 @@ fn long_inbox_proposal_titles_keep_utf8_row_keys_and_the_continuation_within_the
     #[expect(clippy::disallowed_methods, reason = "this test validates the title cuts at a UTF-8 boundary")]
     let printed = core::str::from_utf8(&answer.stdout).expect("title cuts at a character");
     assert!(printed.starts_with("t41/8 · proposal · λ"), "{printed}");
-    assert!(printed.contains("\np73/17 · proposal\n"), "{printed}");
+    assert!(printed.contains("\np73/17 · proposal · since 1970-01-01 00:00 UTC\n"), "{printed}");
     assert!(printed.contains("inbox --kind proposals --after 001122"), "{printed}");
     assert!(printed.contains("bytes left"), "{printed}");
     assert!(!printed.contains("Review details"));
@@ -560,7 +560,13 @@ fn inbox_proposal_titles_are_serial_and_unavailable_documents_keep_their_rows() 
         let answer = root.answer(call).expect("unavailable detail finishes the inbox");
         assert_eq!(answer.status, 0);
         assert!(
-            answer.stdout.starts_with("t41/8 · proposal · Give chats more time\np73/17 · proposal\n".as_bytes()),
+            answer.stdout.starts_with(
+                concat!(
+                    "t41/8 · proposal · Give chats more time · since 1970-01-01 00:00 UTC\n",
+                    "p73/17 · proposal · since 1970-01-01 00:00 UTC\n",
+                )
+                .as_bytes()
+            ),
             "{answer:?}"
         );
         assert!(skein_lib::bytes::find(&answer.stdout, b"The review follows").is_none());

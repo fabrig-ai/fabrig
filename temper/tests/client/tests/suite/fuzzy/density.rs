@@ -1150,6 +1150,7 @@ fn entry(task: u64, project: u32) -> c::InboxEntry {
         project: Some(project),
         activity: Some(1),
         at: Some(Wall::EPOCH),
+        bound: None,
         unread: None,
         cursor: c::InboxCursor::Inbox { task, object, at: Some(Wall::EPOCH) },
         reply: None,

@@ -327,17 +327,17 @@ pub(crate) fn expired_landing(d: &Domain, env: &Env<Limits>, task: u64) -> Optio
 }
 
 /// The room record for a procedure with a place in the line (waits.md, 7).
-pub(crate) fn waited(d: &Domain, env: &Env<Limits>, task: u64, step: u32) -> Option<Reported> {
+pub(crate) fn waited(d: &Domain, limits: &Limits, task: u64, step: u32) -> Option<Reported> {
     let mut since = None;
     for waiter in [Waiter::Change(task), Waiter::Landing(task)] {
-        if let Some(joined) = blocked_since(d, &env.limits, waiter) {
+        if let Some(joined) = blocked_since(d, limits, waiter) {
             since = Some(joined);
             break;
         }
     }
     let since = since?;
     let holders = holders(d);
-    let bound = holders.bound(since, env.limits.waits.room)?;
+    let bound = holders.bound(since, limits.waits.room)?;
     let mut things = List::with_capacity(u32::try_from(NAMED_ENTRIES).expect("wait object bound"));
     for entry in holders.entries.into_iter().flatten() {
         things.push(entry).expect("at most four entries");

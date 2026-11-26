@@ -449,6 +449,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Repositories { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Ask { .. } | Address::Tell { .. }
         | Address::Adopt { .. } => false,
     }

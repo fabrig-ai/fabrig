@@ -1,6 +1,7 @@
 # tools-reads: status
 
-2026-11-22. Where the tree's code lags or departs from [tools-reads.md](tools-reads.md).
+2026-11-26. Where the tree's code lags or departs from [tools-reads.md](tools-reads.md).
+
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].

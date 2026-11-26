@@ -101,6 +101,8 @@ pub const GOAL_SIDE: Style = Style { owner: owner(), token: 393 };
 pub const GOAL_SECTION: Style = Style { owner: owner(), token: 394 };
 /// The goal facts (client/web/look.md).
 pub const GOAL_FACTS: Style = Style { owner: owner(), token: 395 };
+/// A live milestone goal's first wait (client/pages/milestone.md, 3).
+pub const GOAL_WAIT: Style = Style { owner: owner(), token: 860 };
 /// The goal task progress bar (client/web/look.md).
 pub const GOAL_BAR: Style = Style { owner: owner(), token: 396 };
 /// A landed goal task segment (client/web/look.md).
@@ -147,6 +149,8 @@ pub const SHEET_ERROR: Style = Style { owner: owner(), token: 416 };
 /// The session toast (client/pages/README.md).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
 /// Work, client/pages/README.md.
+pub const WAIT_ROW: Style = Style { owner: owner(), token: 648 };
+pub const WAIT_OVERDUE: Style = Style { owner: owner(), token: 649 };
 pub const WORK_PAGE: Style = Style { owner: owner(), token: 650 };
 /// Work, client/pages/README.md.
 pub const WORK_INTRO: Style = Style { owner: owner(), token: 651 };
@@ -1444,8 +1448,8 @@ pub const NAMES: Names<'static> = Names {
         // Reserved for the rail, Work and Deployment (client/web/look.md)
         b"temper-rail-sep",
         b"temper-tabbar-beginning",
-        b"temper-reserved-648",
-        b"temper-reserved-649",
+        b"temper-wait-row",
+        b"temper-wait-overdue",
         b"temper-work-page",
         b"temper-work-intro",
         b"temper-work-kicker",
@@ -1656,7 +1660,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-857",
         b"temper-reserved-858",
         b"temper-reserved-859",
-        b"temper-reserved-860",
+        b"temper-goal-wait",
+        b"temper-need-overdue",
     ],
     regions: &[b"temper-link"],
 };
@@ -1667,6 +1672,8 @@ pub const WHY_OFFERS: Style = Style { owner: owner(), token: 690 };
 
 /// Needs you (temper/docs/design/client/pages/README.md).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };
+/// An overdue need's from line (client/pages/needs-you.md, 1).
+pub const NEED_OVERDUE: Style = Style { owner: owner(), token: 861 };
 
 /// Needs you (temper/docs/design/client/pages/README.md).
 pub const FLOW_Q: Style = Style { owner: owner(), token: 306 };

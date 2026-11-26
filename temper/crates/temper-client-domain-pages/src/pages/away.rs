@@ -194,6 +194,7 @@ fn overturn(root: &mut dyn Routing, env: &Env<Limits>, project: u32, number: u32
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Ask { .. }
         | Address::Work { .. }
         | Address::Told

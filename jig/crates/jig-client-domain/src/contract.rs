@@ -123,7 +123,7 @@ pub use parts::*;
 mod queries;
 pub use queries::*;
 pub mod waits;
-pub use waits::{AtBound, Nearest, ResourceName, Thing, Unbounded, Wait, WaitKind, WaitObject};
+pub use waits::{AtBound, Nearest, ResourceName, Thing, Unbounded, Wait, WaitKind, WaitObject, WaitPage, WaitRow};
 
 pub mod settings;
 pub use settings::*;

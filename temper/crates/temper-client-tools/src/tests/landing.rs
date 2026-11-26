@@ -215,6 +215,7 @@ fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
         }
         landings
             .push(w::LandingLine {
+                waits: None,
                 step: if *task == 61 { Some(w::LandingStep::Turn) } else { None },
                 last_event: if *task == 61 { Some(1_000_000_000) } else { None },
                 train: Some(w::Train {
@@ -762,7 +763,7 @@ fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
 }
 
 fn wait(on: w::LandingWaitFor) -> w::LandingWait {
-    w::LandingWait { on, change: None, gate: None, run: None, landing: None }
+    w::LandingWait { on, change: None, gate: None, run: None, landing: None, since: None, bound: None }
 }
 
 #[test]
@@ -812,12 +813,16 @@ fn landing_waits_name_the_needed_fact_or_the_next_step() {
         assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
         assert!(contains(
             &read_panel(&panel, true).stdout,
-            &format!("\"waits\":{{\"for\":\"{key}\",\"change\":null,\"gate\":null,\"run\":null,\"landing\":null}}")
+            &format!(
+                "\"waits\":{{\"for\":\"{key}\",\"change\":null,\"gate\":null,\"run\":null,\"landing\":null,\"since\":null,\"bound\":null}}"
+            )
         ));
     }
     let mut parts = panel(w::LandingPhase::Proving);
     parts.waits = Some(w::LandingWait {
         on: w::LandingWaitFor::Run,
+        since: None,
+        bound: None,
         change: Some(8414),
         gate: Some(b"tests".as_slice().into()),
         run: Some(412),
@@ -827,7 +832,7 @@ fn landing_waits_name_the_needed_fact_or_the_next_step() {
     assert!(contains(&read_panel(&running, false).stdout, "waits for: gate tests's run 412 at change 8414's prefix"));
     assert!(contains(
         &read_panel(&running, true).stdout,
-        "\"waits\":{\"for\":\"run\",\"change\":8414,\"gate\":\"tests\",\"run\":412,\"landing\":null}"
+        "\"waits\":{\"for\":\"run\",\"change\":8414,\"gate\":\"tests\",\"run\":412,\"landing\":null,\"since\":null,\"bound\":null}"
     ));
     let mut waiting = parts.waits.take().unwrap();
     waiting.run = None;
@@ -894,12 +899,85 @@ fn landing_list_shows_unknown_last_event_and_engine_relative_ages() {
     *parts.landings.get_mut(0).unwrap() = row;
     let unknown = parts;
     assert!(contains(&read_list(&unknown, false).stdout, "last event unknown"));
-    assert!(contains(&read_list(&unknown, true).stdout, "\"step\":\"probing\",\"last_event\":null"));
+    assert!(contains(
+        &read_list(&unknown, true).stdout,
+        concat!(
+            r#""step":"probing","waits":{"for":"nothing","change":null,"gate":null,"run":null,"landing":null,"#,
+            r#""since":null,"bound":null},"last_event":null"#,
+        )
+    ));
     let mut parts = known;
     let mut row = parts.landings.get(0).unwrap().clone();
     row.phase = w::LandingPhase::Landed;
     *parts.landings.get_mut(0).unwrap() = row;
     let ended = parts;
     assert!(!contains(&read_list(&ended, false).stdout, "last event"));
-    assert!(contains(&read_list(&ended, true).stdout, "\"step\":null,\"last_event\":14029000000000"));
+    assert!(contains(&read_list(&ended, true).stdout, r#""step":null,"waits":null,"last_event":14029000000000"#));
+}
+
+#[test]
+fn landing_show_prints_a_since_and_two_kinds_of_bound() {
+    let mut parts = panel(w::LandingPhase::Proving);
+    let mut waiting = wait(w::LandingWaitFor::Run);
+    waiting.change = Some(8414);
+    waiting.gate = Some(b"checks".as_slice().into());
+    waiting.run = Some(412);
+    waiting.since = Some(60_000_000_000);
+    waiting.bound =
+        Some(w::LandingWaitBound::At(w::LandingWaitAt { at: 120_000_000_000, then: w::LandingWaitThen::Hold }));
+    parts.waits = Some(waiting);
+    assert!(contains(
+        &read_panel(&parts, false).stdout,
+        "\nwaits for: gate checks's run 412 at change 8414's prefix · since 1970-01-01 00:01 UTC · holds at 1970-01-01 00:02 UTC\n"
+    ));
+    assert!(contains(
+        &read_panel(&parts, true).stdout,
+        r#""waits":{"for":"run","change":8414,"gate":"checks","run":412,"landing":null,"since":60000000000,"bound":{"at":120000000000,"then":"hold"}}"#
+    ));
+
+    let mut waiting = wait(w::LandingWaitFor::Turn);
+    waiting.landing = Some(8458);
+    waiting.since = Some(60_000_000_000);
+    waiting.bound = Some(w::LandingWaitBound::None(w::LandingWaitNone {
+        reason: w::LandingWaitUnbounded::Behind(w::LandingWaitBehind { task: 8458 }),
+    }));
+    parts.waits = Some(waiting);
+    assert!(contains(
+        &read_panel(&parts, false).stdout,
+        "\nwaits for: the turn, held by landing 8458 · since 1970-01-01 00:01 UTC · no bound: behind task 8458\n"
+    ));
+    assert!(contains(
+        &read_panel(&parts, true).stdout,
+        r#""waits":{"for":"turn","change":null,"gate":null,"run":null,"landing":8458,"since":60000000000,"bound":{"none":{"behind":8458}}}"#
+    ));
+
+    parts.waits = Some(wait(w::LandingWaitFor::Prepare));
+    assert!(contains(&read_panel(&parts, false).stdout, "\nwaits for: the round's prepare job\n"));
+    assert!(contains(
+        &read_panel(&parts, true).stdout,
+        r#""waits":{"for":"prepare","change":null,"gate":null,"run":null,"landing":null,"since":null,"bound":null}"#
+    ));
+}
+
+#[test]
+fn landing_list_prints_wait_timing_after_the_step_only_while_live() {
+    let mut parts = list(Some(61), &[61, 62]);
+    let mut waiting = wait(w::LandingWaitFor::Merge);
+    waiting.since = Some(60_000_000_000);
+    waiting.bound =
+        Some(w::LandingWaitBound::At(w::LandingWaitAt { at: 120_000_000_000, then: w::LandingWaitThen::Hold }));
+    parts.landings.get_mut(0).unwrap().waits = Some(waiting.clone());
+    parts.landings.get_mut(1).unwrap().waits = Some(waiting);
+    let output = read_list(&parts, false);
+    assert!(contains(
+        &output.stdout,
+        "landing 61 · in its turn · turn · since 1970-01-01 00:01 UTC · holds at 1970-01-01 00:02 UTC · last event "
+    ));
+    assert!(contains(&output.stdout, "landing 62 · landed · change 52"));
+    let output = read_list(&parts, true);
+    assert!(contains(
+        &output.stdout,
+        r#""task":61,"phase":"turn","step":"turn","waits":{"for":"merge","change":null,"gate":null,"run":null,"landing":null,"since":60000000000,"bound":{"at":120000000000,"then":"hold"}}"#
+    ));
+    assert!(contains(&output.stdout, r#""task":62,"phase":"landed","step":null,"waits":null"#));
 }

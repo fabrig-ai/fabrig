@@ -27,6 +27,8 @@ pub struct InboxEntry {
     pub object: InboxObject,
     pub activity: Option<u64>,
     pub at: Option<Wall>,
+    /// The current party wait's bound. Updates have none.
+    pub bound: Option<super::waits::Bound>,
     pub unread: Option<bool>,
     pub cursor: InboxCursor,
     pub projects: List<u32>,

@@ -138,8 +138,16 @@ Pause, Resume and Close are `task`'s, as for any task.
   ended, merged in the order they joined (`../../domain/milestones.md`,
   section 7), each its number, title and state, `live`, `done`, `failed`
   or `closed`; a list past one page prints `read on with:` as `task
-  list` does. Under `--json`, the record `milestone_show`: `facts`,
-  `totals` (the answer's fields, or null), `goals` (task lines).
+  list` does. A live goal whose line names a first wait (jig's
+  `domain/engine/waits.md`, 4) goes on with ` · ` and that wait as
+  `task show`'s `waits:` prints one, `KIND OBJECT · since WALL · BOUND`,
+  with the wait's own bound (`../../draft/bounded-waits.md`, 9), led by
+  `task T: ` where it waits at a task under the goal:
+  `820  S7 history in task logs   live · task 833: party question 3 at
+  you · since 2026-11-16 10:02 UTC · passes up at 2026-11-16 18:02 UTC`,
+  its walls as `waits:` prints them. Under `--json`, the record `milestone_show`:
+  `facts`, `totals` (the answer's fields, or null), `goals` (task lines,
+  which carry `wait` and `nearest`, `results.md`, 2).
 
 ## 5. Its tests
 

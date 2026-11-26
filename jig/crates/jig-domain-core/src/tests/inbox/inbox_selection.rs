@@ -468,6 +468,7 @@ fn assert_chat_replies(entries: &[InboxEntry], records: &[Record]) {
         }
         let activity = activity.expect("the reply has an emitted turn activity");
         assert_eq!((entry.activity, entry.at, entry.unread), (Some(activity.position), Some(activity.at), Some(true)));
+        assert_eq!(entry.bound, None, "a reply is an update, not a wait");
         assert_eq!(
             entry.cursor,
             Cursor::Inbox { task: CHAT, object: InboxObject::Reply { message }, at: Some(activity.at) }
@@ -647,6 +648,7 @@ fn ending_a_kept_chat_preserves_cached_and_stored_replies() {
     let result =
         chat_entry(cached.updates.as_slice(), InboxObject::Result { position: chat_owner(&records).result_position });
     assert_eq!((result.reply.as_ref(), result.activity, result.unread), (None, None, Some(true)));
+    assert_eq!(result.bound, None);
     let crate::reads::Answer::Page(page) =
         stored_page(&mut core, &limits, crate::reads::Group::Replies, Some(CHAT), chat_rows(&records, 0, true))
     else {

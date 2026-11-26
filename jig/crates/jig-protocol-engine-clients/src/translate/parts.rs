@@ -41,7 +41,9 @@ pub(crate) fn read(value: &reads::Read, settings: &crate::Settings) -> Option<re
     if let reads::Read::Tasks { query, live, ended } = &mut value {
         let slots = plan(&query.parts, settings);
         for cursor in [live, ended].into_iter().flatten() {
-            let (reads::Cursor::Live { scope, .. } | reads::Cursor::Store { scope, .. }) = cursor;
+            let (reads::Cursor::Live { scope, .. } | reads::Cursor::Store { scope, .. }) = cursor else {
+                return None;
+            };
             if let reads::Scope::Tasks { query: held } = scope {
                 if held != query {
                     return None;

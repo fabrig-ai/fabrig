@@ -1,0 +1,5 @@
+waits of project 2 · now 2026-11-26 09:40 UTC
+812 Store shape · party proposal 3 at role 1 in project 2 · since 2026-11-25 10:02 UTC · overdue since 2026-11-25 11:02 UTC
+820 S7 history in task logs · question 4 to task 812 · since 2026-11-26 08:01 UTC · passes up at 2026-11-26 10:01 UTC · hears task 812
+833 Read the layout · dependency task 820 · since 2026-11-26 07:12 UTC · no bound: no deadline · hears task 820
+read on with: temper ctl waits --project 2 --after 1122

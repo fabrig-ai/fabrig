@@ -1361,3 +1361,52 @@ fn owner_inbox_json_and_timeout_waits_do_not_read_again() {
         }
     }
 }
+
+#[test]
+fn inbox_reads_print_since_bounds_and_overdue() {
+    use c::{AtBound, waits::Bound};
+    use skein_lib::Wall;
+    const MINUTE: u64 = 60_000_000_000;
+    let (mut needs, mut window) = f::owner_first_window(4, false);
+    let (mut updates, _) = f::owner_first_window(1, false);
+    let update = updates.rows.get_mut(0).unwrap();
+    update.object = c::InboxObject::Result { position: 1 };
+    update.at = Some(Wall::from_nanos(5 * MINUTE));
+    update.cursor = c::InboxCursor::Inbox { task: update.task_number(), object: update.object, at: update.at };
+    for (index, bound) in [
+        Some(Bound::At { at: Wall::from_nanos(6 * MINUTE), then: AtBound::PassUp }),
+        Some(Bound::At { at: Wall::from_nanos(7 * MINUTE), then: AtBound::Overdue }),
+        Some(Bound::At { at: Wall::from_nanos(9 * MINUTE), then: AtBound::Overdue }),
+        None,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let row = needs.rows.get_mut(u32::try_from(index).unwrap()).unwrap();
+        row.object = c::InboxObject::PersonTask;
+        row.at = Some(Wall::from_nanos(u64::try_from(index + 1).unwrap() * MINUTE));
+        row.bound = bound;
+        row.cursor = c::InboxCursor::Inbox { task: row.task_number(), object: row.object, at: row.at };
+    }
+    window.needs = needs.rows.clone();
+    window.cached_needs = needs.rows.len();
+    window.updates = updates.rows.clone();
+    for (args, golden, watch) in [
+        (&["inbox"][..], "inbox_need_bounds", true),
+        (&["inbox", "--json"][..], "inbox_need_bounds_json", true),
+        (&["inbox", "--project", "1", "--json"][..], "inbox_filtered_need_bounds_json", false),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        root.wall = Wall::from_nanos(8 * MINUTE);
+        let call = root.submit(args);
+        for page in [&needs, &updates] {
+            root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(Box::new(page.clone()))));
+        }
+        if watch {
+            root.deliver_subject(&f::inbox_watch(), c::Delivery::Inbox(Box::new(window.clone())));
+        }
+        let answer = root.answer(call).expect("inbox answer");
+        assert_eq!(answer.status, 0);
+        f::check_golden(golden, &answer.stdout);
+    }
+}

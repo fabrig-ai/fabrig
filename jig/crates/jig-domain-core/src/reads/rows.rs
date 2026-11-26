@@ -154,6 +154,7 @@ pub(super) fn needs_store(read: &Read, document: &Document) -> bool {
             | Read::Activity { .. }
             | Read::ActivityBeside { .. }
             | Read::Tasks { .. }
+            | Read::Waits { .. }
             | Read::Project { .. }
             | Read::Notes { .. }
             | Read::ScopedNotes { .. }
@@ -207,6 +208,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                 | Read::Activity { .. }
                 | Read::ActivityBeside { .. }
                 | Read::Tasks { .. }
+                | Read::Waits { .. }
                 | Read::Project { .. }
                 | Read::Notes { .. }
                 | Read::ScopedNotes { .. }
@@ -248,7 +250,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                         Some((cursor, activity)) => super::indexed::inbox_position(party, *group, cursor, activity),
                         None => match super::cursor(read) {
                             Some(Cursor::Live { store_after, .. }) => store_after.clone(),
-                            Some(Cursor::Store { .. }) | None => None,
+                            Some(Cursor::Store { .. } | Cursor::Waits { .. }) | None => None,
                         },
                     },
                     after: match last {
@@ -262,7 +264,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                         Some((cursor, activity)) => super::indexed::inbox_position(party, *group, cursor, activity),
                         None => match super::cursor(read) {
                             Some(Cursor::Live { store_after, .. }) => store_after.clone(),
-                            Some(Cursor::Store { .. }) | None => None,
+                            Some(Cursor::Store { .. } | Cursor::Waits { .. }) | None => None,
                         },
                     };
                     if value.cached_needs != 0 || value.cached_updates != documents::Count::Known(0) {
@@ -1247,7 +1249,7 @@ fn inbox_row(
     }
     match &row.value {
         Record::Tasks(tasks::Stored::PersonProposal(proposal) | tasks::Stored::DecidedProposal(proposal)) => {
-            return person_proposal_need(core, party, group, filter, &row, proposal);
+            return person_proposal_need(core, limits, party, group, filter, &row, proposal);
         }
         Record::Tasks(
             tasks::Stored::Activity(_)
@@ -1319,6 +1321,7 @@ fn inbox_row(
                 object,
                 activity: None,
                 at: owner.ended_at,
+                bound: None,
                 unread: Some(true),
                 cursor,
             })))
@@ -1355,6 +1358,8 @@ fn inbox_row(
                 if row.inbox != Some(cursor) {
                     continue;
                 }
+                let (at, bound) = crate::runs::waits::inbox_timing(core, limits, *entry);
+                let cursor = documents::Cursor::Inbox { task: owner.number, object, at: Some(at) };
                 return Ok(Some(PageRow::Inbox(documents::InboxEntry {
                     projects: List::with_capacity(0),
                     reply: None,
@@ -1362,7 +1367,8 @@ fn inbox_row(
                     project: Some(owner.project),
                     object,
                     activity: None,
-                    at: Some(entry.at),
+                    at: Some(at),
+                    bound,
                     unread: None,
                     cursor,
                 })));
@@ -1374,6 +1380,7 @@ fn inbox_row(
 
 fn person_proposal_need(
     core: &Core,
+    limits: &Limits,
     party: u64,
     group: Group,
     filter: Filter,
@@ -1440,6 +1447,13 @@ fn person_proposal_need(
     if row.inbox != Some(cursor) {
         return Err(Missing::Unknown);
     }
+    let (at, bound) = if group.updates() {
+        (at, None)
+    } else {
+        let (since, bound) = crate::runs::waits::policy_proposal_timing(core, limits, at);
+        (since, Some(bound))
+    };
+    let cursor = documents::Cursor::Inbox { task: proposal.first(), object, at: Some(at) };
     Ok(Some(PageRow::Inbox(documents::InboxEntry {
         reply: None,
         task: documents::TaskLink::Stored { number: proposal.first(), status: None },
@@ -1448,6 +1462,7 @@ fn person_proposal_need(
         object,
         activity: None,
         at: Some(at),
+        bound,
         unread: None,
         cursor,
     })))
@@ -1510,6 +1525,7 @@ fn reply_update(
         object,
         activity: Some(line.position),
         at: Some(line.at),
+        bound: None,
         unread: Some(true),
         cursor,
     })))

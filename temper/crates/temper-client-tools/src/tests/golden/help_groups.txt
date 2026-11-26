@@ -191,6 +191,7 @@ pending  List the requests DIR keeps, without reaching the engine
 help  Read the page ctl and the groups, a group's tools, or one tool's record
 me  Read your party: its projects, what it may start, and what waits on it
 inbox  Read what waits on your party, then its updates
+waits  Read a project's live waits, overdue first
 task  Tasks: read one and its parts, and act on it
 chat  Chats: start one, read its conversation, close it
 milestone  Milestones: make one, say whole, list and show its goals

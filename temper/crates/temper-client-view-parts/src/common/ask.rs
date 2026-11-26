@@ -281,6 +281,7 @@ pub fn person_in_words(card: &Card) -> Option<&jig_client::contract::PersonTask>
         | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Project(_)
         | ReadValue::Ended(_)
         | ReadValue::Me(_)
