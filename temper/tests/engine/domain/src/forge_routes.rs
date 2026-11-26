@@ -3936,7 +3936,9 @@ pub fn change_world_with_result_words(
     } else {
         world.adopt();
     }
-    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let mut bounds = protocol::bounds();
+    bounds.message_bytes = bounds.message_bytes.max(world.env.limits.tasks.message_bytes);
+    world.send(protocol::hello_with(Token::new(7), 0, 2, bounds, Box::new([])));
     let ask = if tracked {
         walking::goal_from(
             world.chat(1, b"make the fix"),
