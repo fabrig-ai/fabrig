@@ -151,7 +151,7 @@ impl Peer {
                         assert_eq!(stream, Token::new(100));
                         self.wire.take(down);
                     }
-                    io::Request::Close { .. } | io::Request::Abort { .. } => {
+                    io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
                         self.closed = self.closed.checked_add(1).expect("socket close count");
                         assert!(clients.up(io::Event::Closed { owner: self.owner.expect("bound socket") }));
                     }

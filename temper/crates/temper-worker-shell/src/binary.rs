@@ -19,6 +19,7 @@ pub const WORKER: Table = Table {
     settings: &[&directories::SETTINGS],
     variables: &[
         &environment::JOB,
+        &environment::CLOSE_REFUSAL,
         &temper_service_shell::DISK_BUDGET,
         &INTERNAL_WORKSPACE_REUSE,
         &environment::INTERNAL_DUMP_LLM,

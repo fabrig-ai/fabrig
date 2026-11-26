@@ -414,16 +414,18 @@ impl Readiness {
                     }
                     (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) => {
                         for pipe in &spawn.pipes {
-                            if pipe.way == Way::Inherit {
-                                continue;
+                            match pipe.way {
+                                Way::In | Way::Out | Way::Given(_) => {
+                                    let fd = pipe.parent.expect("a successful Spawn fills each parent end");
+                                    let configured = system::nonblocking(fd);
+                                    assert!(
+                                        configured.is_ok(),
+                                        "O_NONBLOCK applies to each parent pipe end Spawn returns: {configured:?}"
+                                    );
+                                    let _inserted = self.nonblocking.insert(fd);
+                                }
+                                Way::Null | Way::Inherit => {}
                             }
-                            let fd = pipe.parent.expect("a successful Spawn fills each parent end");
-                            let configured = system::nonblocking(fd);
-                            assert!(
-                                configured.is_ok(),
-                                "O_NONBLOCK applies to each parent pipe end Spawn just made: {configured:?}"
-                            );
-                            let _inserted = self.nonblocking.insert(fd);
                         }
                     }
                     _ => {}

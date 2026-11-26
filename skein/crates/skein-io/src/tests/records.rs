@@ -99,7 +99,7 @@ fn request_routing_preserves_every_owned_payload() {
     }
 }
 
-fn entity_requests() -> [Request; 6] {
+fn entity_requests() -> [Request; 7] {
     let entity = Token::new(99);
     [
         Request::Reject { socket: entity },
@@ -112,6 +112,7 @@ fn entity_requests() -> [Request; 6] {
             reason: crate::kernel::Reason::Unknown,
         },
         Request::Close { entity },
+        Request::CloseAfterFlush { entity },
         Request::Abort { entity },
     ]
 }

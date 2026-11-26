@@ -94,6 +94,7 @@ Documents:
   - `adoption-person.md`: a box's person on its forges.
 - `keeping-up.md`: the working set, fresh reads and request budget.
 - `effects.md`: effects and recovery across restarts.
+- `releases.md`: a task's release: it finds first, and each failure's account.
 - `topics.md`: topics and landings as news.
 - `updates.md`: lazy, mechanical updates.
 - `change/README.md`: the change procedure and its documents.

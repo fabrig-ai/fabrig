@@ -110,7 +110,7 @@ impl Ledger {
                     Down::Finish => AskedDown::Finish,
                 },
             },
-            Request::Close { entity } => Asked::Close { entity: *entity },
+            Request::Close { entity } | Request::CloseAfterFlush { entity } => Asked::Close { entity: *entity },
             Request::Abort { entity } => Asked::Abort { entity: *entity },
             Request::Output { .. }
             | Request::Spawn { .. }

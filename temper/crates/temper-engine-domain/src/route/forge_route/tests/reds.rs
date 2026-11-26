@@ -1,7 +1,7 @@
 //! Goal reds at a run's check start and host calls (domain/forge/reds.md, 3 and 5.1).
 #![expect(clippy::match_like_matches_macro, reason = "the subset uses explicit test patterns rather than matches")]
 #![expect(clippy::disallowed_methods, reason = "test assertions inspect emitted writes and host answers")]
-use super::{adopted, change_row, change_start_fixture};
+use super::{adopted, change_row, change_start_fixture, restore_forge, task_change_row, task_event};
 use crate::{Domain, Limits, RunRed, reds_for_run};
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
@@ -36,16 +36,8 @@ fn proof(domain: &mut Domain, task: u64) {
         )
         .unwrap();
 }
-fn restore(domain: &mut Domain, env: &Env<Limits>, row: forge::Stored) {
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: row },
-        &mut Queue::uncapped(),
-    );
-}
 fn hold(domain: &mut Domain, env: &Env<Limits>, task: u64, branch: &[u8]) {
-    restore(
+    restore_forge(
         domain,
         env,
         forge::Stored::Hold(forge::Hold {
@@ -97,24 +89,14 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
         if let Some(parent) = parent {
             row.requester = tasks::Party::Task(parent);
         }
-        tasks::step(
-            &mut domain.core.tasks,
-            &env.with(env.limits.tasks),
-            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) });
         assert!(domain.core.tasks.task(number).is_some(), "task {number}: {:?}", domain.core.tasks.restore_failure());
         proof(&mut domain, number);
     }
-    tasks::step(
-        &mut domain.core.tasks,
-        &env.with(env.limits.tasks),
-        tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) },
-        &mut Queue::uncapped(),
-    );
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), tasks::Event::Check, &mut Queue::uncapped());
+    task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    task_event(&mut domain, &env, tasks::Event::Check);
     assert_eq!(domain.core.tasks.restore_failure(), None);
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), tasks::Event::Restored, &mut Queue::uncapped());
+    task_event(&mut domain, &env, tasks::Event::Restored);
     assert_eq!(domain.core.tasks.restore_failure(), None);
     hold(&mut domain, &env, 7, b"temper/8/g7");
     hold(&mut domain, &env, 8, b"temper/8/g8");
@@ -135,13 +117,11 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
             )
             .unwrap();
     }
-    let mut change = change_row(None);
-    change.task = 20;
-    change.change.task = 20;
+    let mut change = task_change_row(20, None);
     change.repository = adopted(1).provider;
     change.base = base.into();
     change.goal = Some(8); // The destination's holding, not this historical hint, selects the reds.
-    restore(&mut domain, &env, forge::Stored::Change(Box::new(change)));
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(change)));
     (domain, env)
 }
 fn expected() -> Box<[RunRed]> {
@@ -160,11 +140,9 @@ fn change_producer_repair_and_resolution_read_the_goal_holding_their_changes_bas
 #[test]
 fn a_goals_own_run_reads_its_own_reds_even_when_its_change_lands_in_main() {
     let (mut domain, env) = fixture(b"main");
-    let mut change = change_row(None);
-    change.task = 7;
-    change.change.task = 7;
+    let mut change = task_change_row(7, None);
     change.repository = adopted(1).provider;
-    restore(&mut domain, &env, forge::Stored::Change(Box::new(change)));
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(change)));
     assert_eq!(reds_for_run(&domain, 7, 1), expected());
     assert_eq!(
         reds_for_run(&domain, 8, 1).as_ref(),
@@ -284,7 +262,7 @@ fn a_goals_red_call_keeps_its_answer_with_its_record_and_replays_once() {
     let payload =
         domain.forge.named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 }).unwrap();
     domain.forge.forget_named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 });
-    restore(
+    restore_forge(
         &mut domain,
         &env,
         forge::Stored::Call {
@@ -528,8 +506,8 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
         Box::new([change::Handed { number: 1, landing: 61, round: 1, ask: change::Ask::Landed { prefix: [2; 32] } }]);
     row.change.state = change::State::Landing { head: [1; 32] };
     row.change.last_head = Some([1; 32]);
-    restore(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-    restore(
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    restore_forge(
         &mut domain,
         &env,
         forge::Stored::Landing(forge::LandingRow {
@@ -658,7 +636,7 @@ fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes
             let mut repository = adopted(1);
             repository.provider.repository = 2;
             repository.project = domain.core.tasks.task(20).unwrap().project;
-            restore(&mut domain, &env, forge::Stored::Repository(repository));
+            restore_forge(&mut domain, &env, forge::Stored::Repository(repository));
             results.tag = forge::tag(1, 2);
         }
         let writes = decide_report(&mut domain, &env, task, attempt, results);
@@ -787,7 +765,7 @@ fn flake_words_cut_at_character_boundaries_and_name_unnamed_repositories_by_numb
     let project = domain.core.tasks.task(20).unwrap().project;
     let mut repository = domain.forge.repository_tag(project, forge::tag(1, 1)).unwrap();
     repository.owner = Box::new([]);
-    restore(&mut domain, &env, forge::Stored::Repository(repository.clone()));
+    restore_forge(&mut domain, &env, forge::Stored::Repository(repository.clone()));
     let mut results = report();
     results.base = Some(Box::new([0xcd; 32]));
     results.flakes = Box::new([crate::wire::Flake {
@@ -821,7 +799,7 @@ fn landed_reads_require_a_recorded_head_and_keep_landed_verification_states() {
     asking.task = task;
     asking.change.task = task;
     asking.change.early = change::Early::Spent(Box::new([change::StartedFrom { task: dependency, head }]));
-    restore(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
     assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded, "missing dependency row");
     for (state, expected) in [
         (change::State::Producing { requested: true }, Answer::Unlanded),
@@ -842,12 +820,12 @@ fn landed_reads_require_a_recorded_head_and_keep_landed_verification_states() {
         row.task = dependency;
         row.change.task = dependency;
         row.change.state = state;
-        restore(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+        restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), expected);
     }
     let mut asking = change_row(None);
     asking.task = task;
     asking.change.task = task;
-    restore(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
     assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded, "no early start");
 }

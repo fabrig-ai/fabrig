@@ -392,6 +392,43 @@ fn a_graceful_close_flushes_half_closes_and_discards_until_the_peer_ends() {
 }
 
 #[test]
+fn close_after_flush_sends_all_queued_output_without_waiting_for_a_peer_end() {
+    let mut rig = Rig::new(limits());
+    let (socket, recv) = connected(&mut rig, owner(1), FD);
+    let send = give(&mut rig, socket, b"out").take(Kind::Send);
+    give(&mut rig, socket, b"put").nothing();
+    rig.down(Request::CloseAfterFlush { entity: socket }).nothing();
+    assert_eq!(rig.io.next_deadline(), None, "no peer-end deadline");
+
+    filled(&mut rig, recv, b"race").nothing(); // The old receive wins; no discard receive follows.
+    let send = sent(&mut rig, send, 1).take(Kind::Send);
+    assert_eq!(sends(&send), (b"out".as_slice(), 1));
+    let send = sent(&mut rig, send, 2).take(Kind::Send);
+    assert_eq!(sends(&send), (b"put".as_slice(), 0));
+    let shutdown = sent(&mut rig, send, 3).take(Kind::Shutdown);
+    assert_eq!(rig.io.next_deadline(), None);
+    let close = rig.complete(shutdown, Ok(Done::Nothing)).take(Kind::Close);
+    assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: owner(1) }]);
+    rig.empty();
+}
+
+#[test]
+fn close_after_flush_with_no_output_half_closes_then_cancels_the_waiting_receive() {
+    let mut rig = Rig::new(limits());
+    let (socket, recv) = connected(&mut rig, owner(1), FD);
+    let mut out = rig.down(Request::CloseAfterFlush { entity: socket });
+    let shutdown = out.take(Kind::Shutdown);
+    out.nothing();
+    assert_eq!(rig.io.next_deadline(), None);
+    let cancel = rig.complete(shutdown, Ok(Done::Nothing)).take(Kind::Cancel);
+    assert_eq!(cancel.kind, Op::Cancel { target: recv.op });
+    rig.complete(cancel, Ok(Done::Nothing)).nothing();
+    let close = rig.complete(recv, Err(Kernel::Cancelled)).take(Kind::Close);
+    assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: owner(1) }]);
+    rig.empty();
+}
+
+#[test]
 fn a_graceful_close_with_nothing_left_closes_at_once() {
     let mut rig = Rig::new(limits());
     let (socket, recv) = connected(&mut rig, owner(1), FD);

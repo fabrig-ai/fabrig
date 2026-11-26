@@ -232,9 +232,25 @@ pub enum Event {
         page: Token,
         id: Box<[u8]>,
     },
+    /// The browser ended on its own, once, before its `Closed`.
+    Ended {
+        why: Ending,
+        detail: Box<[u8]>,
+    },
     Closed {
         owner: Token,
     },
+}
+
+/// Why the browser ended (skein/docs/design/testing/browser.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Ending {
+    Pipe,
+    Message,
+    Unsent,
+    Neither,
+    Refused,
+    Unanswered,
 }
 
 /// A person's other tab, as the browser lists it (skein/docs/design/testing/browser.md, 6).

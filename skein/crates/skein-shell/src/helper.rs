@@ -29,6 +29,10 @@ impl Launcher {
         }
     }
 
+    #[cfg_attr(
+        target_os = "macos",
+        expect(clippy::unused_self, reason = "only Linux checks the launcher's reach support")
+    )]
     pub(crate) fn check(&mut self) -> Result<(), skein_io::kernel::Unenforced> {
         #[cfg(target_os = "linux")]
         {

@@ -22,6 +22,8 @@ pub struct Spec {
     pub command: Box<[u8]>,
     /// The request file's bytes.
     pub request: Box<[u8]>,
+    /// Whether to ask the command for a typed refusal.
+    pub refusal: bool,
 }
 
 /// Parent to capability.

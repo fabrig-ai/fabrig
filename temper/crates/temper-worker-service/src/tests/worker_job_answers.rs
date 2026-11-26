@@ -33,7 +33,11 @@ fn merge_assignment() -> root::Event {
             grants: Box::new([]),
         },
         items: Ok(items),
-        spec: Ok(root::wire::JobSpec { command: b"app/merge".as_slice().into(), request: b"{}".as_slice().into() }),
+        spec: Ok(root::wire::JobSpec {
+            command: b"app/merge".as_slice().into(),
+            request: b"{}".as_slice().into(),
+            refusal: false,
+        }),
     }
 }
 

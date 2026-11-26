@@ -3924,50 +3924,57 @@ pub fn landing_searched_to_domain(record: crate::v25::LandingSearched) -> temper
 
 #[must_use]
 pub fn landing_round_to_record(value: &temper_engine_domain_forge_landing::Round) -> crate::v25::LandingRound {
-    let temper_engine_domain_forge_landing::Round { merges: field_000000, branch: field_000001, pull: field_000002, upstream: field_000003, combined: field_000004, recorded: field_000005, told: field_000006, ending: field_000007, failure: field_000008, judging: field_000009, changed: field_000010, search: field_000011 } = value;
+    let temper_engine_domain_forge_landing::Round { cleanup: field_000000, merges: field_000001, branch: field_000002, pull: field_000003, upstream: field_000004, combined: field_000005, recorded: field_000006, told: field_000007, ending: field_000008, failure: field_000009, judging: field_000010, changed: field_000011, search: field_000012 } = value;
     crate::v25::LandingRound {
-        merges: *field_000000,
-        branch: field_000001.clone(),
-        pull: match field_000002 {
+        cleanup: match field_000000 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        merges: *field_000001,
+        branch: field_000002.clone(),
+        pull: match field_000003 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        upstream: match field_000003 {
+        upstream: match field_000004 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        combined: match field_000004 {
+        combined: match field_000005 {
             Some(item) => {
                 let converted = landing_combine_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        recorded: *field_000005,
-        told: *field_000006,
-        ending: match field_000007 {
+        recorded: *field_000006,
+        told: *field_000007,
+        ending: match field_000008 {
             Some(item) => {
                 let converted = landing_round_end_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        failure: field_000008.clone(),
-        judging: *field_000009,
-        changed: match field_000010 {
+        failure: field_000009.clone(),
+        judging: *field_000010,
+        changed: match field_000011 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        search: match field_000011 {
+        search: match field_000012 {
             Some(item) => {
                 let converted = landing_search_to_record(item);
                 Some(converted)
@@ -3979,50 +3986,57 @@ pub fn landing_round_to_record(value: &temper_engine_domain_forge_landing::Round
 
 #[must_use]
 pub fn landing_round_to_domain(record: crate::v25::LandingRound) -> temper_engine_domain_forge_landing::Round {
-    let crate::v25::LandingRound { merges: field_000000, branch: field_000001, pull: field_000002, upstream: field_000003, combined: field_000004, recorded: field_000005, told: field_000006, ending: field_000007, failure: field_000008, judging: field_000009, changed: field_000010, search: field_000011 } = record;
+    let crate::v25::LandingRound { cleanup: field_000000, merges: field_000001, branch: field_000002, pull: field_000003, upstream: field_000004, combined: field_000005, recorded: field_000006, told: field_000007, ending: field_000008, failure: field_000009, judging: field_000010, changed: field_000011, search: field_000012 } = record;
     temper_engine_domain_forge_landing::Round {
-        merges: field_000000,
-        branch: field_000001,
-        pull: match field_000002 {
+        cleanup: match field_000000 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        upstream: match field_000003 {
+        merges: field_000001,
+        branch: field_000002,
+        pull: match field_000003 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        combined: match field_000004 {
+        upstream: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        combined: match field_000005 {
             Some(item) => {
                 let converted = landing_combine_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        recorded: field_000005,
-        told: field_000006,
-        ending: match field_000007 {
+        recorded: field_000006,
+        told: field_000007,
+        ending: match field_000008 {
             Some(item) => {
                 let converted = landing_round_end_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        failure: field_000008,
-        judging: field_000009,
-        changed: match field_000010 {
+        failure: field_000009,
+        judging: field_000010,
+        changed: match field_000011 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        search: match field_000011 {
+        search: match field_000012 {
             Some(item) => {
                 let converted = landing_search_to_domain(item);
                 Some(converted)
@@ -9574,20 +9588,64 @@ pub fn regate_to_domain(record: crate::v25::Regate) -> temper_engine_domain_forg
 }
 
 #[must_use]
+pub fn close_refused_to_record(value: &temper_engine_domain_forge_change::CloseRefused) -> crate::v25::CloseRefused {
+    let temper_engine_domain_forge_change::CloseRefused { counts: field_000000 } = value;
+    crate::v25::CloseRefused {
+        counts: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn close_refused_to_domain(record: crate::v25::CloseRefused) -> temper_engine_domain_forge_change::CloseRefused {
+    let crate::v25::CloseRefused { counts: field_000000 } = record;
+    temper_engine_domain_forge_change::CloseRefused {
+        counts: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
 pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) -> crate::v25::CloseAt {
-    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001 } = value;
+    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = value;
     crate::v25::CloseAt {
         branch: *field_000000,
-        landing: *field_000001
+        landing: *field_000001,
+        asked: *field_000002,
+        refused: match field_000003 {
+            Some(item) => {
+                let converted = close_refused_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
 #[must_use]
 pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_forge_change::CloseAt {
-    let crate::v25::CloseAt { branch: field_000000, landing: field_000001 } = record;
+    let crate::v25::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = record;
     temper_engine_domain_forge_change::CloseAt {
         branch: field_000000,
-        landing: field_000001
+        landing: field_000001,
+        asked: field_000002,
+        refused: match field_000003 {
+            Some(item) => {
+                let converted = close_refused_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 

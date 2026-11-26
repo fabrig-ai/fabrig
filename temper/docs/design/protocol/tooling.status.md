@@ -3,6 +3,7 @@
 2026-11-26. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 
+
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract (`../domain/worker/jobs.md`): no project names one, and the
   worker's prepare kind is temper's own alone, with no key kind,

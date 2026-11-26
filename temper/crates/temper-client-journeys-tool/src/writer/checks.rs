@@ -74,7 +74,7 @@ impl Checkout {
         if !self.request_branch_exists(host, name, &branch)? {
             return Ok(Check::not_checked("0".repeat(tip.len()), format!("origin lacks docs/look/{name}")));
         }
-        request::fetch(host, Some(&self.root), &branch).map_err(Stop::Host)?;
+        request::fetch(host, Some(&self.root), "origin", &branch).map_err(Stop::Host)?;
         let request = match request::fetched(host, Some(&self.root), name, None) {
             Ok(request) => request,
             Err(ReadError::Invalid { commit, why }) => return Ok(Check::not_checked(commit, why)),

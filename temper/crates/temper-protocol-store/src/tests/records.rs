@@ -1839,15 +1839,27 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
 }
 
 #[test]
-fn a_landing_read_hold_keeps_its_exact_reason() {
+fn landing_own_holds_keep_their_exact_reasons() {
     use temper_engine_domain_forge_landing as l;
+    type HoldCase = (l::Hold, Option<&'static [u8]>, Option<&'static [u8]>);
+    const CASES: &[HoldCase] = &[
+        (l::Hold::Read, Some(b"read: branch main: no answer"), None),
+        (l::Hold::Cleanup, None, Some(b"close item: forge refused permission; resource org/repo #9")),
+    ];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let mut row = landing_with_clock(None);
-    let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
-    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why: l::Hold::Read };
-    landing.read_hold = Some(b"read: branch main: no answer".as_slice().into());
-    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-    assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    for &(why, read, cleanup) in CASES {
+        let mut row = landing_with_clock(None);
+        let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
+        landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why };
+        if let Some(read) = read {
+            landing.read_hold = Some(Box::from(read));
+        }
+        if let Some(cleanup) = cleanup {
+            landing.landing.round.cleanup = Some(Box::from(cleanup));
+        }
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
 }
 
 #[test]
@@ -1935,8 +1947,17 @@ fn a_landing_written_before_read_holds_reads_as_before() {
     let family = crate::OWNER_SET.families.first().unwrap();
     let before = family
         .current
+        .replace("cleanup: option bytes 512 = none ", "")
         .replace(" read_hold: option bytes 256 = none", "")
-        .replace(", read, claimed: LandingClaimed }", " }");
+        .replace("record LandingClaimed { change: u64 }\n", "")
+        .replace(", read, claimed: LandingClaimed, cleanup", "");
+    assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
+}
+
+#[test]
+fn a_landing_written_before_cleanup_holds_reads_as_before() {
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before = family.current.replace("cleanup: option bytes 512 = none ", "").replace(", cleanup }", " }");
     assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
 }
 
@@ -1944,8 +1965,11 @@ fn a_landing_written_before_read_holds_reads_as_before() {
 fn a_landing_written_before_claim_holds_reads_as_before() {
     use temper_engine_domain_forge_landing as l;
     let family = crate::OWNER_SET.families.first().unwrap();
-    let before =
-        family.current.replace("record LandingClaimed { change: u64 }\n", "").replace(", claimed: LandingClaimed", "");
+    let before = family
+        .current
+        .replace("cleanup: option bytes 512 = none ", "")
+        .replace("record LandingClaimed { change: u64 }\n", "")
+        .replace(", claimed: LandingClaimed, cleanup", "");
     let mut row = landing_with_clock(None);
     let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
     // `read` was the last own-hold variant at the previous layout.
@@ -4061,11 +4085,16 @@ fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
 }
 
 #[test]
-fn a_changes_measured_tips_round_trip_in_its_hot_part() {
-    use temper_engine_domain_forge_change::{CloseAt, State};
+fn a_close_refusal_round_trips_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, CloseRefused, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut row = fixtures::change_row(State::Producing { requested: true });
-    row.close_at = Some(CloseAt { branch: [3; 32], landing: [4; 32] });
+    row.close_at = Some(CloseAt {
+        branch: [3; 32],
+        landing: [4; 32],
+        asked: true,
+        refused: Some(CloseRefused { counts: Some([5; 32]) }),
+    });
     let (cold, hot) = row.clone().split();
     let stored = forge::Stored::ChangeHot(Box::new(hot));
     let decoded = records::decode(&records::encode(&stored), &bounds).expect("current change record");

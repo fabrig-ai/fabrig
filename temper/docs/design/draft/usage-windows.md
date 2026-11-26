@@ -27,9 +27,10 @@ idle, we spawn one from time to time".
   command, which makes no model call, as Claude Code's `/usage` prints
   each window's share. No agent is started for it: a read spends no
   budget, no slot and no turn.
-- **The pace is the last hour's:** a rolling one-hour rate, from the
-  window's readings of the last hour kept in memory, with the window's
-  average since it opened until an hour's readings exist (section 5).
+- **The pace is the last three hours':** a rate over about three hours,
+  from the window's readings of one source kept in memory, with the
+  window's average since it opened until an hour's readings exist
+  (section 5).
 - **Drawn on Accounts:** the user's look request `accounts-usage` draws
   the windows wherever kind 7 holds one (`../client/pages/accounts.md`).
   Where none is held, nothing is drawn and nothing is guessed.
@@ -82,23 +83,35 @@ idle, we spawn one from time to time".
 
 ## 5. The pace
 
-The user: a recent rate, over one hour, rolling.
+The user: a recent rate, over three hours, from one source (2026-11-25),
+replacing "over one hour, rolling" (2026-11-18), on a week that read about
+5%/h on Accounts while it moved 1.3%/h: "can't we simply copy the logic of
+the status page?"
 
-- **The rate is the last hour's:** the share a window used over about
-  the last hour, as a share per hour. It's taken from the oldest reading
-  of the window kept from the last 60 minutes, to the newest, so it moves
-  on as readings come.
-- **What's kept for it:** for each window, its readings of the last 60
-  minutes, at most one every 5 minutes, held in the core's memory beside
-  the fact and never stored. A restart starts them again. A reset, a share
-  lower than the one before, clears them.
+- **The rate is the last three hours':** the share a window used over
+  about the last three hours, as a share per hour. It's taken from the
+  reading nearest 3 hours before the newest, and at least 1 hour before
+  it, to the newest, so it moves on as readings come. Over half an hour,
+  a few whole percents moved the rate in steps of 2%/h.
+- **From one source:** a run's event gives the share to a hundredth of a
+  percent and a usage read to a whole one. The rate is taken from the
+  readings of the newest one's source alone, since a whole reading before
+  a decimal one adds its rounding to the rate. A reading of one source
+  never clears the other's: a whole percent just below an event's share
+  is no reset.
+- **What's kept for it:** for each window, its readings of the last 3
+  hours and 5 minutes, at most one every 5 minutes of each source, each
+  with its source and the window's reset, held in the core's memory
+  beside the fact and never stored. A restart starts them again. A reset,
+  a share lower than the one before of the same source or a reset instant
+  that moved, clears that source's.
 - **Served beside the window:** the accounts document gives each window's
   rate with its fact. The client draws it as the pace ("2.0%/h"), and
   "full in" is the share left at that rate, shown where it comes before
   the reset.
-- **Until an hour's readings exist:** while the oldest reading kept is
-  less than 30 minutes old, the rate is the window's average since it
-  opened, its share over the time since its reset less its length, as the
+- **Until an hour's readings exist:** while the newest reading's source
+  holds no reading at least an hour older, the rate is the window's
+  average since it opened, its share over the time since its reset less its length, as the
   look request's default.
 
 ## 6. What changes where

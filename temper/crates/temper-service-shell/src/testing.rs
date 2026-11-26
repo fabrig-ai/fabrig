@@ -1,5 +1,17 @@
-//! Provider setting fixture for the shell's tests (tools/crates/design.md, 3.2).
+//! Hosted shell seams and fixtures (tools/crates/design.md, 3.2).
 use jig_protocol_config::{self as config, ProviderSetting};
+
+/// Redirect served links to the hosting world's output, without replacing the service adapter.
+pub fn hosted_output<S>(host: &mut crate::host::Host<S>, store: Box<[u8]>, output: impl std::io::Write + 'static) {
+    host.store = store;
+    host.output = Box::new(output);
+}
+
+/// The same ending the shell reports on exit.
+#[must_use]
+pub fn hosted_ending<S>(host: &crate::host::Host<S>) -> (String, u8) {
+    host.ending()
+}
 
 #[must_use]
 pub fn provider_fixture() -> ProviderSetting {

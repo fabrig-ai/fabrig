@@ -12,7 +12,7 @@ pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32
     path.put(repository).ok()?;
     path.put(b"/").ok()?;
     path.put(command).ok()?;
-    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request) };
+    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request), refusal: true };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }
@@ -89,7 +89,7 @@ pub(super) fn replay_words(at: forge_change::CloseAt, failure: &[u8]) -> Box<[u8
     short_commit(&mut words, &at.branch);
     super::append(&mut words, b" and main at ");
     short_commit(&mut words, &at.landing);
-    super::append(&mut words, b", as when its close job failed; it closes again once either moves.\n\n");
+    super::append(&mut words, b", as when its close check refused; it checks again once either moves.\n\n");
     let room = usize::try_from(words.room()).expect("hold bound fits usize");
     super::append(&mut words, &forge::text::fit(failure, room, b""));
     words.into_boxed()

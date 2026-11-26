@@ -111,6 +111,7 @@ fn assign(world: &mut World, head: u64, base: u64) -> Result<(), String> {
         spec: Ok(wire::JobSpec {
             command: b"fabrig/tools/merge".as_slice().into(),
             request: b"request".as_slice().into(),
+            refusal: false,
         }),
     })?;
     Ok(())

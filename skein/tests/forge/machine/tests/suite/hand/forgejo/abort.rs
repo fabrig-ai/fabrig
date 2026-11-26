@@ -10,7 +10,9 @@ fn ends(io: &Queue<skein_io::Request>) -> (List<Token>, List<Token>) {
     let mut aborts = List::with_capacity(8);
     for request in io {
         match request {
-            skein_io::Request::Close { entity } => closes.push(*entity).expect("fixture closes"),
+            skein_io::Request::Close { entity } | skein_io::Request::CloseAfterFlush { entity } => {
+                closes.push(*entity).expect("fixture closes");
+            }
             skein_io::Request::Abort { entity } => aborts.push(*entity).expect("fixture aborts"),
             skein_io::Request::Connect { .. }
             | skein_io::Request::Stream { .. }

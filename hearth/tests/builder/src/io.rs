@@ -124,7 +124,9 @@ impl Below {
                 self.spawn(owner, spawn);
             }
             records::Request::Stream { stream, down } => self.stream(stream, down),
-            records::Request::Close { entity } | records::Request::Abort { entity } => self.close(entity),
+            records::Request::Close { entity }
+            | records::Request::CloseAfterFlush { entity }
+            | records::Request::Abort { entity } => self.close(entity),
             records::Request::Signal { child, signal, to, .. } => {
                 let child = self.children.get(&child).expect("issued child").pid;
                 let signal = match signal {

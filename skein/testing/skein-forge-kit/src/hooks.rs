@@ -249,7 +249,9 @@ impl Listener {
                     self.fault(stream, reset);
                 }
             }
-            skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => {
+            skein_io::Request::Close { entity }
+            | skein_io::Request::CloseAfterFlush { entity }
+            | skein_io::Request::Abort { entity } => {
                 if entity == Token::new(90) {
                     if matches!(self.settlement, Settlement::Held) {
                         self.settling.insert(

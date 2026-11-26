@@ -1,5 +1,5 @@
 //! A closing task's cleanup read bound (temper/docs/design/domain/forge/waits.md, 8–10).
-use super::{Domain, Env, Limits, List, Name, Queue, Request, Stored, emit, goal_branch};
+use super::{Domain, Env, Limits, List, Name, Queue, Request, goal_branch, release_failure};
 use alloc::boxed::Box;
 use skein_forge::api::Error;
 use skein_lib::{Wall, bytes};
@@ -92,7 +92,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         let (what, last) = describe(d, env, task, on);
         let last = crate::waits::read_answer(last);
         let reason = crate::waits::stalled_words(b"release", env.limits.waits.step, &what, Some(&last));
-        failed(d, task, Some(reason), out);
+        failed(d, task, reason, out);
     }
 }
 
@@ -138,15 +138,10 @@ fn describe(d: &Domain, env: &Env<Limits>, task: u64, on: Read) -> (Box<[u8]>, O
     }
 }
 
-pub(super) fn failed(d: &mut Domain, task: u64, reason: Option<Box<[u8]>>, out: &mut Queue<Request>) {
+pub(super) fn failed(d: &mut Domain, task: u64, words: Box<[u8]>, out: &mut Queue<Request>) {
     if !can_fail(d, task) {
         return;
     }
-    let row = d.releases.get_mut(&task).expect("closing release");
-    row.failed = true;
-    let record = Stored::Release(row.clone());
-    d.release_reads.remove(&task);
-    d.release_waits.remove(&task);
-    emit(out, Request::Save { record, read_afresh: None, release: None });
-    emit(out, Request::ReleaseFailed { task, reason, account: None });
+    let mut row = d.releases.get(&task).expect("closing release").clone();
+    release_failure::held(d, &mut row, words, out);
 }

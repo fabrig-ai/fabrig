@@ -105,6 +105,11 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     compiler and does not recompile hot functions in its optimizing tier.
     On the playground walk, the optimizing tier costs more than it saves.
     The Wasm and the stories' checks are unchanged;
+  - `--use-mock-keychain`: on macOS the profile keeps its secrets, its
+    cookies' key among them, in a keychain of its own, never the
+    user's, which a browser whose `HOME` is a scratch directory cannot
+    find (temper's `client/drive.md`, 2.2). A fresh profile has no
+    secret to keep, and on other systems the flag does nothing;
   - `about:blank` as the first page.
 
   The environment is minimal, and it is the child's whole environment
@@ -123,9 +128,27 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   then a kill, as for any child (../runtime/io/processes.md). It is a lifecycle
   notification, as `skein-llm`'s `Close` is: the kit stops, and the
   pipes and the child stay the owner's to settle.
-- **A browser that ends on its own** (its replies' pipe ends, or it
-  breaks) fails every operation in flight with `Crashed`, closes every
-  page and person, and is `Closed`.
+- **A browser that ends on its own** first says why, once, as `Ended`
+  (section 5); then it fails every operation in flight with `Crashed`,
+  closes every page and person, and is `Closed`. Its `Ending` is one of:
+  - `Pipe`: its replies' pipe ended or failed, or its commands' pipe
+    ended, failed or gave bytes; the detail names the pipe and io's
+    fault;
+  - `Message`: a message the wire refuses (section 4): no delimiter, past
+    `Limits::message`, nested too deep, or not JSON, the detail naming
+    which;
+  - `Unsent`: a reply to an id the kit never sent, the detail its id;
+  - `Neither`: a message that is neither a reply nor an event;
+  - `Refused`: `Browser.getVersion`, the browser's cancel or
+    `Browser.close` answered with an error, the detail its method and
+    the error's message;
+  - `Unanswered`: one of those three unanswered within
+    `Limits::answer`, the detail its method.
+
+  The child is still running when the kit ends: its owner ends it, and
+  that exit is the owner's doing, never the browser's own
+  (`../ui/web/testing.md`, 2). Without `Ended`, an owner that kills the
+  child could only report the kill.
 
 ## 4. The wire
 
@@ -231,8 +254,11 @@ pub enum Event {                                         // to the test
     Sent    { page: Token, id: Box<[u8]>, load: Box<[u8]>, document: bool,
               method: Box<[u8]>, url: Box<[u8]> },        // a request its main frame sent, on a page that asks
     Answered { page: Token, id: Box<[u8]> },             // the first answer to a request reported Sent
+    Ended   { why: Ending, detail: Box<[u8]> },          // the browser ended on its own, once, before its Closed (section 3)
     Closed  { owner: Token },                            // terminal
 }
+
+pub enum Ending  { Pipe, Message, Unsent, Neither, Refused, Unanswered }  // section 3; detail at most Limits::text
 
 pub struct Query { role: Box<[u8]>, name: Box<[u8]>, matching: Match, within: Option<Node>, boxes: bool }
 pub enum Match   { Exact, Words }                        // Words: the name contains the query's bytes
@@ -534,7 +560,8 @@ wrong, and reports each as `Trouble` with its text, cut to
 - a console message at error level;
 - a log entry at error level, which is how a content security policy
   violation, a failed load or a blocked request shows, other than the
-  blocked closing warning a go takes as its own (section 6);
+  blocked closing warning a go takes as its own (section 6) and the
+  refusal of the kit's own inspector request (below);
 - the page crashing, which also fails its operations in flight with
   `Crashed`;
 - a native dialog, other than the closing warning a go accepts (section
@@ -553,6 +580,24 @@ prompt gives nothing, and a `beforeunload` prompt keeps the page where
 it is. The page goes on, and the test sees it as it stayed. Left open,
 the dialog would hold every operation on the page until its deadline,
 and no request would answer it.
+
+**The kit's own inspector request.** Enabling `CSS` on a page (section
+6, style) makes Chromium's inspector ask the document again for its own
+URL, a same-origin request answered from the cache alone, to hold its
+sources. A page whose origin may not read its own URL refuses that
+request before it leaves the page, and a `file://` page always does,
+since Chromium treats each `file:` document as a unique origin. The
+refusal is a log entry at error level from the `security` source,
+`Unsafe attempt to load URL U from frame with URL U.` and Chromium's
+reason (seen on Chrome for Testing 147.0.7727.117). The page still
+loaded once, as its own origin: the request was the kit's, and never
+sent. So that entry, one URL in both places, on a page whose
+`CSS.enable` awaits its reply, is the kit's and no `Trouble`; the same
+words outside that wait, or naming two URLs, are the page's. Turned
+down: enabling `CSS` before a page navigates, which would only move the
+request to the blank page it opens at, unchecked; and letting `file:`
+pages read files (`--allow-file-access-from-files`), since a page kept
+to files must not read other local files.
 
 A log entry's `url` is the resource it names, cut to `Limits::text`,
 beside its text and never in it, so that a test's expected words are
@@ -602,7 +647,10 @@ named scenario ceiling with headroom.
   elements in order with depths, all and by a selector, past
   `Limits::elements` counted; a style, a long value cut; a rect, and
   none; a node gone; `files` enabling `Fetch` before navigating, a
-  `file://` request continued and others failed.
+  `file://` request continued and others failed; the refusal of the
+  kit's own inspector request (section 7) not reported while its
+  `CSS.enable` awaits its reply, and the same entry before it, after its
+  reply or naming two URLs reported as `Trouble`.
 - **The machine world:** the kit against a fake browser, a scripted CDP
   peer over in-memory pipes. Its pages and accessibility trees come from
   the scenario, and the seed drives what goes wrong:

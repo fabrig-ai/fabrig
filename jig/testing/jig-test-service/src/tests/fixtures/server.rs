@@ -202,7 +202,7 @@ pub fn retained_response(
                         response.push(*byte).expect("bounded response head");
                     }
                 }
-                io::Request::Close { entity } => {
+                io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } => {
                     closes = closes.checked_add(1).expect("fixture socket close count");
                     let owner = peer_owner(peers, entity);
                     clients.server.up(io::Event::Closed { owner }, &mut clients.server_out);

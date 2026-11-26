@@ -216,6 +216,7 @@ fn signs_in_with_code(owner: &mut Owner, code: &[u8]) {
                 | Lower::Usage { .. }
                 | Lower::Window { .. }
                 | Lower::Close { .. }
+                | Lower::CloseAfterFlush { .. }
                 | Lower::Abort { .. }) => deferred.push(request),
             }
         }

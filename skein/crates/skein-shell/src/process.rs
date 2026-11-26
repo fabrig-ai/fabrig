@@ -101,7 +101,11 @@ pub fn signal_kept_child(
     signal: skein_io::kernel::Signal,
     to: skein_io::kernel::Target,
 ) -> Result<(), Error> {
-    system::process::signal_child(pidfd, signal, to).map(|_| ())
+    #[cfg(target_os = "linux")]
+    let result = system::process::signal_child(pidfd, signal, to).map(|_| ());
+    #[cfg(target_os = "macos")]
+    let result = system::process::signal_kept_child(pidfd, signal, to);
+    result
 }
 
 /// Closes a descriptor opened at startup and never given to io (runtime/readiness.md, 5).
@@ -176,33 +180,12 @@ pub fn open_pidfd(pid: u32) -> Result<Fd, Error> {
     system::process::open_pidfd(pid)
 }
 
-/// Opens and validates a discovered child's identity. The caller must keep
-/// `parent` alive or unreaped throughout this call (or name itself). The
-/// returned pidfd is admitted only after its parent relationship is checked
-/// and a final exit poll binds that proc observation to the opened identity.
-/// PIDs and parent IDs <= 1 are refused. macOS returns ENOTSUP: it has no
-/// pidfd to retain a discovered non-child identity.
+/// Keeps a discovered child by pidfd on Linux and by a kqueue exit watch
+/// on macOS. The caller must hold the parent unended (or name itself).
+/// The parent is checked after binding the handle; a mismatched parent or
+/// a posted exit refuses admission. PIDs and parent IDs <= 1 are refused.
 pub fn open_child_pidfd(pid: u32, parent: u32) -> Result<Fd, Error> {
-    #[cfg(target_os = "linux")]
-    {
-        system::process::open_child_pidfd(pid, parent)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _: (u32, u32) = (pid, parent);
-        Err(unsupported())
-    }
-}
-
-#[cfg(any(test, not(target_os = "linux")))]
-fn unsupported() -> Error {
-    Error::Other(libc::ENOTSUP)
-}
-
-#[cfg(test)]
-#[test]
-fn unsupported_answers_the_platforms_own_enotsup() {
-    assert_eq!(unsupported(), Error::Other(libc::ENOTSUP));
+    system::process::open_child_pidfd(pid, parent)
 }
 
 /// Opens a cgroup directory for the binary's atomic placement at spawn.
@@ -211,8 +194,7 @@ pub fn open_cgroup(path: &Path) -> Result<Fd, Error> {
     system::process::open_cgroup(path)
 }
 
-/// Tests a keeper's pidfd for exit, including descendants not yet adopted.
-#[cfg(target_os = "linux")]
+/// Tests a discovered child's handle for exit without consuming the exit.
 pub fn pidfd_exited(pidfd: Fd) -> Result<bool, Error> {
     system::process::pidfd_exited(pidfd)
 }

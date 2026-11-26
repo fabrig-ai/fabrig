@@ -253,7 +253,9 @@ comes and lands its branch, and the report carries what the run said
      changes left out; its words `Settle goal G's status.` The change
      makes its branch at the goal's branch's tip, its producer the job,
      no agent, and lands as any change into the branch does; nothing
-     staged ends it with no change. Where the project names none, or the
+     staged ends it with no change. A refusal of the close's check holds
+     it at once, and a check that broke holds it once its job's tries are
+     spent (`change/repairs-releases.md`, 1). Where the project names none, or the
      goal holds no goal branch, this step is skipped.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held

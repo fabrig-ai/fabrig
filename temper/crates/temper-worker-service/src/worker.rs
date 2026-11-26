@@ -1721,6 +1721,7 @@ mod merge_tests {
         let close =
             JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
         assert!(hello.jobs.contains(&close));
+        assert_eq!(hello.jobs.len(), 3, "the refusal ask is not a new kind");
         let kinds = crate::worker_settings::job_kinds();
         let kind = kinds.last().expect("close declared");
         assert_eq!(kind.bound, close);

@@ -155,9 +155,20 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   close and drain. It
   reports each trouble the kit sees in the page as the kit gives it,
   its kind, its text and its resource's URL, apart from its own
-  trouble (Chromium's exit or failure, a page it could not open), and
-  judges none: which trouble is expected is its caller's, as a story's
-  expected troubles are the harness's (below). Its page is opened to
+  trouble, and judges none: which trouble is expected is its caller's,
+  as a story's expected troubles are the harness's (below). Its own
+  trouble is one of:
+  - `browser ended: WHY: DETAIL`, the kit's `Ended`
+    (../../testing/browser.md, 3), WHY its `Ending` in lower case. The
+    session then ends Chromium itself, and that exit is never reported:
+    it is the session's kill, not Chromium's end;
+  - `Chromium exited: STATUS` where Chromium exited with no close asked
+    of it and no `Ended` before it; `Chromium: ERROR` where io failed
+    it;
+  - `browser could not open the session page`.
+
+  With its own trouble it offers Chromium's stderr's tail, as the kit
+  keeps it, for its caller to print. Its page is opened to
   report its requests (../../testing/browser.md, section 5), and it
   reports each request the kit reports sent and each first answer, as
   the kit gives them, judging none: which count is its caller's. A
@@ -195,7 +206,9 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   No default clock wake is armed; browser and io events also wake the
   loop. The harness fails a test on any trouble the kit reports that the story did not
   expect, a policy violation, an exception or a native dialog
-  (../../testing/browser.md, section 7); and writes the accessibility snapshot, a
+  (../../testing/browser.md, section 7), and on a browser that ended on
+  its own, naming its `Ending` and detail as the session words them
+  (above); and writes the accessibility snapshot, a
   screenshot, and Chromium's and the binary's stderr's tails on a
   failure (../../testing/browser.md, section 10).
   **Its run ends at forty seconds,** io's close window inside them, on

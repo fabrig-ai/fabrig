@@ -282,7 +282,9 @@ impl Face {
                     service.engine.as_mut().expect("engine").setup.up(skein_io::Event::Connected { owner });
                 }
                 skein_io::Request::Stream { down, .. } => self.wire.take(down),
-                skein_io::Request::Close { .. } | skein_io::Request::Abort { .. } => {
+                skein_io::Request::Close { .. }
+                | skein_io::Request::CloseAfterFlush { .. }
+                | skein_io::Request::Abort { .. } => {
                     service
                         .engine
                         .as_mut()

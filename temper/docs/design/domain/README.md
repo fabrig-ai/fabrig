@@ -25,6 +25,7 @@ all. Then temper's:
    requirements, landing queues, updates, branches, issues, and the ways
    temper takes part in what others own.
    - `forge/effects.md`: effects and recovery across restarts.
+   - `forge/releases.md`: a task's release: it finds first, and each failure's account.
    - `forge/topics.md`: topics and landings as news.
    - `forge/updates.md`: lazy, mechanical updates.
    - `forge/adoption.md`: adopting repositories, rules, workflows and landing branches.

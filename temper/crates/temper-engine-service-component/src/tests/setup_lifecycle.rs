@@ -535,7 +535,9 @@ fn connection_turn(service: &mut crate::Service, face: &mut Face) {
                 service.engine.as_mut().expect("engine").forge.up(skein_io::Event::Connected { owner });
             }
             skein_io::Request::Stream { down, .. } => face.wire.take(down),
-            skein_io::Request::Close { .. } | skein_io::Request::Abort { .. } => {
+            skein_io::Request::Close { .. }
+            | skein_io::Request::CloseAfterFlush { .. }
+            | skein_io::Request::Abort { .. } => {
                 service
                     .engine
                     .as_mut()

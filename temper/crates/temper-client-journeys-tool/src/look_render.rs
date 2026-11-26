@@ -1,13 +1,12 @@
 //! A landed look request rendered beside the print (temper/docs/design/client/journey-writer.md, 6.2).
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, btree_map::Entry},
     path::{Path, PathBuf},
 };
 
 use skein_browser::boundary::{Element, Node};
 use skein_lib::Token;
-use temper_client_walk_lines::print::numbered_ids;
 
 use crate::{
     host::{Ask, Host, browser::Command},
@@ -20,7 +19,8 @@ use crate::{
 
 use self::{
     browser::{Browser, PERSON},
-    copies::{Copy, Page},
+    copies::{Copy, Page, file_url},
+    gallery::Gallery,
     measurement::Matched,
     report::{PageReport, Report},
 };
@@ -28,12 +28,13 @@ use self::{
 mod browser;
 mod copies;
 mod diff;
+mod gallery;
 mod html;
 mod measurement;
 mod report;
 mod rules;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub(crate) fn run(arguments: &[Box<[u8]>], host: &mut Host) -> u8 {
     let request = match request::read(arguments, host) {
@@ -55,9 +56,9 @@ fn diagnostic(host: &mut Host, code: u8, why: &str) -> u8 {
     code
 }
 
-#[derive(Clone, Copy)]
 enum Candidate {
     HandMade,
+    Gallery(String),
     Journey { edited: bool },
 }
 
@@ -65,6 +66,7 @@ struct Plan {
     request: Request,
     requested: Copy,
     printed: Copy,
+    gallery: Gallery,
     pages: BTreeMap<Page, Candidate>,
     rules: BTreeMap<Side, BTreeSet<String>>,
     scratch: PathBuf,
@@ -86,9 +88,14 @@ impl Plan {
             rules.insert(side, selectors);
         }
         let pages = candidates(host, &root, &request, &changes, &requested, &rules)?;
+        let states = pages.values().filter_map(|candidate| match candidate {
+            Candidate::Gallery(state) => Some(state.as_str()),
+            Candidate::HandMade | Candidate::Journey { .. } => None,
+        });
+        let gallery = Gallery::prepare(host, &root, &scratch, states.collect())?;
         let diff = scratch.join("diff");
         done(host, Ask::Directory(diff.clone()))?;
-        Ok(Self { request, requested, printed, pages, rules, scratch, diff })
+        Ok(Self { request, requested, printed, gallery, pages, rules, scratch, diff })
     }
 
     fn check(self, host: &mut Host) -> Result<Report, String> {
@@ -105,31 +112,41 @@ impl Plan {
     fn render(&self, browser: &mut Browser<'_>) -> Result<Report, String> {
         browser.done(Command::Person { person: PERSON })?;
         let mut report = Report::default();
-        for (page, &candidate) in &self.pages {
+        for (page, candidate) in &self.pages {
             browser.item = page.item();
-            match candidate {
-                Candidate::HandMade => report.uncompared(page, "hand-made"),
-                Candidate::Journey { edited } => match self.page(browser, page, edited)? {
-                    ResultForPage::Uncompared(why) => report.uncompared(page, why),
-                    ResultForPage::Compared(lines) => report.compared(page, lines),
-                    ResultForPage::Untouched => (),
-                },
+            let result = match candidate {
+                Candidate::HandMade => ResultForPage::Uncompared("hand-made"),
+                Candidate::Gallery(state) => self.page(browser, page, self.gallery.page(state), true)?,
+                Candidate::Journey { edited } => {
+                    let print = self.printed.pages.get(page).map(|source| (self.printed.path(page), source.as_str()));
+                    self.page(browser, page, print, *edited)?
+                }
+            };
+            match result {
+                ResultForPage::Uncompared(why) => report.uncompared(page, why),
+                ResultForPage::Compared(lines) => report.compared(page, lines),
+                ResultForPage::Untouched => (),
             }
         }
         Ok(report)
     }
 
-    fn page(&self, browser: &mut Browser<'_>, page: &Page, edited: bool) -> Result<ResultForPage, String> {
-        let print = self.printed.pages.get(page);
+    fn page(
+        &self,
+        browser: &mut Browser<'_>,
+        page: &Page,
+        print: Option<(PathBuf, &str)>,
+        edited: bool,
+    ) -> Result<ResultForPage, String> {
         if print.is_none() && edited {
             return Ok(ResultForPage::Uncompared(MISSING));
         }
-        let request = browser.open(self.requested.url(page))?;
+        let request = browser.open(file_url(&self.requested.path(page)))?;
         let selected = self.select(browser, page.side, request)?;
         let result = if !edited && selected.is_empty() {
             ResultForPage::Untouched
-        } else if let Some(print) = print {
-            let right = browser.open(self.printed.url(page))?;
+        } else if let Some((path, print)) = print {
+            let right = browser.open(file_url(&path))?;
             let result = self.compare(browser, page, [request, right], print, edited, &selected)?;
             browser.done(Command::Close { page: right })?;
             result
@@ -169,12 +186,13 @@ impl Plan {
             return Ok(ResultForPage::Uncompared("its markup doesn't parse as written"));
         }
         let mut touched = left.0.iter().map(|element| selected.contains(&element.node)).collect::<Vec<_>>();
-        let comparable = numbered_ids(request);
+        let comparable = html::comparable(request);
+        let comparable_tags = html::tags(&comparable);
         if edited {
             if let Some(parent) = blob(browser.host, &self.request.parent, &page.path())? {
                 let parent = text(&parent, &format!("{} in the request's parent", page.path()))?;
-                let edits = diff::between(browser.host, &self.diff, &numbered_ids(parent), &comparable)?;
-                diff::edited(&tags, &edits, &mut touched);
+                let edits = diff::between(browser.host, &self.diff, &html::comparable(parent), &comparable)?;
+                diff::edited(&comparable_tags, &edits, &mut touched);
             } else {
                 touched.fill(true);
             }
@@ -183,9 +201,9 @@ impl Plan {
             return Ok(ResultForPage::Untouched);
         }
         descendants(&left.0, &mut touched);
-        let landed = numbered_ids(print);
+        let landed = html::comparable(print);
         let alignment = diff::between(browser.host, &self.diff, &comparable, &landed)?;
-        let pairs = diff::pairs(&html::tags(&comparable), &html::tags(&landed), &alignment)?;
+        let pairs = diff::pairs(&comparable_tags, &html::tags(&landed), &alignment)?;
         let matched = Matched { requested: &left.0, landed: &right.0, tags: &tags, pairs: &pairs, touched: &touched };
         Ok(ResultForPage::Compared(matched.compare(browser, opened)?))
     }
@@ -229,10 +247,22 @@ fn candidates(
 ) -> Result<BTreeMap<Page, Candidate>, String> {
     let mut pages = BTreeMap::new();
     let hand_made = hand_made_paths(host, root, request, changes)?;
+    let mut states = BTreeMap::new();
     for page in requested.pages.keys() {
         let Some(journey) = page.journey() else { continue };
-        if hand_made.contains(&page.path()) {
-            pages.insert(page.clone(), Candidate::HandMade);
+        let path = page.path();
+        if hand_made.contains(&path) {
+            let candidate = if page.side == Side::Web {
+                let (directory, _) = path.rsplit_once('/').expect("a page in a directory");
+                let state = match states.entry(directory.to_owned()) {
+                    Entry::Occupied(entry) => entry.into_mut(),
+                    Entry::Vacant(entry) => entry.insert(gallery::named_state(host, request, directory)?),
+                };
+                state.clone().map_or(Candidate::HandMade, Candidate::Gallery)
+            } else {
+                Candidate::HandMade
+            };
+            pages.insert(page.clone(), candidate);
         } else if page.numbered() && requested.walks.contains(&journey) {
             let edited = match changes.journeys.get(&journey) {
                 Some(Change::Pages(files)) => {
@@ -271,7 +301,8 @@ fn hand_made_paths(
         "--no-commit-id",
         "--name-only",
         "--no-renames",
-        "-rz",
+        "-r",
+        "-z",
         &request.parent,
         &request.commit,
         "--",

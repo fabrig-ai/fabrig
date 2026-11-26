@@ -72,6 +72,7 @@ pub(super) struct Activity {
     pub phase: Phase,
     pub busy: bool,
     pub tui_running: bool,
+    pub browser_lost: bool,
 }
 impl Activity {
     fn starting(self) -> bool {
@@ -293,6 +294,12 @@ impl Place {
             }
         }
     }
+    pub fn browser_failed(&mut self, why: String) {
+        match self {
+            Self::Box(state) => state.failed = Some(why),
+            Self::Deployment(state) => state.failed = Some(why),
+        }
+    }
     pub fn ending(&self) -> bool {
         match self {
             Self::Box(state) => matches!(state.stage, BoxStage::Stopping | BoxStage::Classifying),
@@ -412,7 +419,7 @@ impl BoxState {
                 Progress::Finished(classify(
                     "box",
                     self.failed.as_deref().unwrap_or("the box exited"),
-                    refusal,
+                    refusal.filter(|_| !activity.browser_lost),
                     &[box_tail, serve],
                 ))
             }
@@ -463,11 +470,16 @@ pub(super) fn classify(kind: &str, why: &str, refusal: Option<&[u8]>, logs: &[&[
     }
     let mut shown = vec![format!("{kind} failed: {}", why.replace(['\r', '\n'], " "))];
     for lines in logs {
-        for line in lines.iter().skip(lines.len().saturating_sub(20)) {
-            shown.push(format!("| {}", String::from_utf8_lossy(line).trim_end_matches('\n')));
-        }
+        append_tail(&mut shown, lines.iter().map(Box::as_ref));
     }
     Exit { status: 4, shown, error: None }
+}
+
+pub(super) fn append_tail<'a>(shown: &mut Vec<String>, lines: impl DoubleEndedIterator<Item = &'a [u8]>) {
+    let first = shown.len();
+    shown
+        .extend(lines.rev().take(20).map(|line| format!("| {}", String::from_utf8_lossy(line).trim_end_matches('\n'))));
+    shown[first..].reverse();
 }
 
 pub(super) fn origin(link: &[u8]) -> Option<Box<[u8]>> {

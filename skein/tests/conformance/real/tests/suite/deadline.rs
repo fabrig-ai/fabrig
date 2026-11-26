@@ -65,9 +65,11 @@ fn completed(real: &mut Real, process: usize, token: Token, op: Op) -> Complete 
 
 #[test]
 fn cleanup_drains_an_accept_and_reaps_its_child() {
-    let mut backends = vec![Backend::Readiness];
-    #[cfg(target_os = "linux")]
-    backends.push(Backend::Ring);
+    let backends = [
+        Backend::Readiness,
+        #[cfg(target_os = "linux")]
+        Backend::Ring,
+    ];
     for backend in backends {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("a loopback listener");
         let mut real = Real::new(backend);

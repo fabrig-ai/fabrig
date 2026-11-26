@@ -124,6 +124,7 @@ fn refusals_keep_the_batches_invariants() {
     let (mut world, _) = super::landing_batches::run_repairing_in(world, workload, 360);
     merge_unqueued(&mut world);
     eprintln!("seed {seed}: {} restored-fault holds released", world.restored_fault_releases());
+    assert!(world.restored_fault_releases() > 0, "the restored close refusal was released");
     sweep.ran(world.ledger());
     let excluded = sweep.left_out("a_member_merged_by_another_lands_like_any_landing");
     assert!(excluded > 0, "the queued/batch exclusion was reached");

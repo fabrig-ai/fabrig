@@ -7,7 +7,7 @@ use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::{Delegate, Host};
 use skein_world::{
     Referee,
-    end_to_end::{Binary, Cleanup, Command, Expectation, Mode, Streams},
+    end_to_end::{Binary, Cleanup, Command, Containment, Expectation, Mode, Streams},
     real,
 };
 use std::{
@@ -176,6 +176,14 @@ enum Phase {
     Stopping,
     Done,
 }
+fn last_box_log_line(root: &Path) -> Result<Option<String>, String> {
+    match fs::read_to_string(root.join("data/box/logs/box.log")) {
+        Ok(log) => Ok(log.lines().next_back().map(str::to_owned)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!("box log: {error}")),
+    }
+}
+
 struct Judge {
     failed: Option<String>,
     case: Case,
@@ -264,14 +272,7 @@ impl Referee<Root> for Judge {
                 }
                 Phase::Stopping
                     if client.exit_status().is_some()
-                        && match fs::read_to_string(self.root.join("data/box/logs/box.log")) {
-                            Ok(log) => log,
-                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
-                            Err(error) => return Err(format!("box log: {error}")),
-                        }
-                        .lines()
-                        .next_back()
-                        .is_some_and(|line| line.ends_with("Stopped")) =>
+                        && last_box_log_line(&self.root)?.is_some_and(|line| line.ends_with("Stopped")) =>
                 {
                     self.phase = Phase::Done;
                 }
@@ -303,6 +304,19 @@ impl Referee<Root> for Judge {
                 return Err(format!(
                     "TUI's box went Live but did not write token at {}: {figures}",
                     self.token.display()
+                ));
+            }
+            if matches!(self.phase, Phase::Stopping)
+                && let [Root::Client(client), ..] = roots
+            {
+                let last = match last_box_log_line(&self.root) {
+                    Ok(Some(line)) => support::without_secrets(line.as_bytes()),
+                    Ok(None) => "(no line)".into(),
+                    Err(why) => format!("(unavailable: {why})"),
+                };
+                return Err(format!(
+                    "TUI's box did not settle in Stopping: {figures}; last box.log line: {last}; live pids: {:?}",
+                    client.tree_status().live_pids
                 ));
             }
             return Err(format!("TUI's box did not settle in {:?}: {figures}", self.phase));
@@ -371,7 +385,9 @@ fn run(case: Case, name: &str) {
     .into_iter()
     .chain(command.get_args().map(ToOwned::to_owned))
     .collect();
-    let mut binary = Binary::start_with_tree(
+    let containment =
+        if cfg!(target_os = "macos") && matches!(case, Case::Killed) { Containment::Walk } else { Containment::Best };
+    let mut binary = Binary::start_contained(
         Command {
             program: Path::new("/bin/sh").into(),
             arguments,
@@ -381,7 +397,7 @@ fn run(case: Case, name: &str) {
         Mode::Terminal,
         8192,
         Expectation::Supervise,
-        false,
+        containment,
     )
     .expect("temper box on a pseudo-terminal");
     let streams = binary.take_streams().expect("person's terminal");

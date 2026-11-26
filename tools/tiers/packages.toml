@@ -83,6 +83,7 @@ real-temper = [
     "temper-box",
     "temper-box-machine",
     "temper-box-shell",
+    "temper-client-browser-world",
     "temper-client-gallery",
     "temper-client-journeys",
     "temper-client-journeys-tool",

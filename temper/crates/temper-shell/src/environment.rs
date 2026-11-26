@@ -150,3 +150,13 @@ pub const JOB: Variable = Variable {
     absent: "Set when a worker runs a job's scripts.",
     notes: "",
 };
+
+pub const CLOSE_REFUSAL: Variable = Variable {
+    name: "TEMPER_CLOSE_REFUSAL",
+    set: Set::Public,
+    form: "3",
+    way: Way::Sets,
+    line: "Asks the close command to report a typed refusal with exit status 3.",
+    absent: "The close command uses its exit statuses from before typed refusals.",
+    notes: "",
+};

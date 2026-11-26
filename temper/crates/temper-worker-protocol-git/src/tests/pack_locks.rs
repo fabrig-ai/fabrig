@@ -92,6 +92,7 @@ fn spawn(s: &mut Started, directory: &[u8], word: &[u8]) -> Running {
         | io::Request::Usage { .. }
         | io::Request::Window { .. }
         | io::Request::Close { .. }
+        | io::Request::CloseAfterFlush { .. }
         | io::Request::Abort { .. }) => panic!("expected spawn, got {other:?}"),
     }
     let saved = core::mem::replace(&mut s.below.out.io, Queue::with_capacity(20));

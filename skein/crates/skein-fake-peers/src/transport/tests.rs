@@ -104,6 +104,7 @@ impl Pair {
                     | skein_io::Request::Window { .. }
                     | skein_io::Request::Usage { .. }
                     | skein_io::Request::Close { .. }
+                    | skein_io::Request::CloseAfterFlush { .. }
                     | skein_io::Request::Abort { .. }) => panic!("unexpected wire request: {other:?}"),
                 }
             }

@@ -1,8 +1,40 @@
 //! Failed Keep replies name their own step (skein/docs/design/ui/web/testing.md, 2).
-use super::{Play, Script, Step, StepFailure, expected_trouble, step_failure, trouble_report, trouble_step};
+use super::{
+    BrowserEnd, Harness, Names, Outcome, Output, Play, Printed, Runtime, Script, Sent, Setup, Step, StepFailure,
+    expected_trouble, run::BrowserStart, step_failure, trouble_report, trouble_step,
+};
 use crate::tests::face;
-use skein_browser::boundary::{Event, Key, Read, Refusal, Request, Trouble};
-use skein_lib::{Time, Token};
+use skein_browser::boundary::{Below, Event, Key, Read, Refusal, Request, Trouble};
+use skein_io::kernel::Fd;
+use skein_lib::{Time, Token, stream::Up};
+use std::path::Path;
+
+#[test]
+fn an_ended_browser_fails_the_story_with_its_ending_and_detail() {
+    let setup = Harness::new(Setup {
+        server: "fixture-server".into(),
+        args: vec![],
+        printed: Printed { sent: Sent::Page, prefix: b"ready: ", on: Output::Stdout, names: Names::Address },
+        restart: vec![],
+        chromium: "fixture-browser".into(),
+        downloads: None,
+        expected: vec![],
+        origins: vec![],
+    });
+    let start = BrowserStart::Chromium { profile: Path::new("/fixture"), root: Fd::new(1), browser_root: Fd::new(2) };
+    let (mut run, _) = Runtime::new(&setup, &[], start);
+    let BrowserEnd::Chromium(browser) = &mut run.browser else { panic!("Chromium") };
+    for input in [Below::Errors(Up::Bytes(b"last Chromium line\n".as_slice().into())), Below::Replies(Up::End)] {
+        skein_browser::up(browser, &run.benv, input, &mut run.events, &mut run.down);
+    }
+    let event = run.events.pop().expect("kit ending");
+    run.event(&event, &setup, &[]);
+
+    let (outcome, _, _) = run.report();
+    let Outcome::Failed { report, .. } = outcome else { panic!("browser ending must fail the story") };
+    assert!(report.starts_with("browser ended: pipe: replies pipe: end\n"), "{report}");
+    assert!(report.contains("Chromium stderr:\nlast Chromium line\n"), "{report}");
+}
 
 #[test]
 fn a_failed_keep_reports_its_own_step() {

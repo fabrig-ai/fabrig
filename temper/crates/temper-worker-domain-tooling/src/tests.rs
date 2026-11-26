@@ -24,7 +24,7 @@ fn kind(number: u32, delivers: bool) -> Kind {
 }
 
 fn spec() -> Spec {
-    Spec { command: copy_of(b"home/bin/tool"), request: copy_of(b"{request}") }
+    Spec { command: copy_of(b"home/bin/tool"), request: copy_of(b"{request}"), refusal: false }
 }
 
 fn run(owner: Token, kind: u32) -> Event {
@@ -43,9 +43,13 @@ impl Harness {
     }
 
     fn with(limits: Limits) -> Harness {
+        Self::with_kinds(limits, Box::new([kind(1, false), kind(2, true)]))
+    }
+
+    fn with_kinds(limits: Limits, kinds: Box<[Kind]>) -> Harness {
         assert!(valid(&limits));
         Harness {
-            domain: Domain::new(&limits, Box::new([kind(1, false), kind(2, true)])).unwrap(),
+            domain: Domain::new(&limits, kinds).unwrap(),
             env: Env { now: NOW, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         }
@@ -72,9 +76,30 @@ impl Harness {
         assert!(requests.is_empty(), "{requests:?}");
     }
 
+    fn close() -> Harness {
+        Self::with_kinds(limits(), Box::new([Kind { verb: copy_of(b"close"), ..kind(4, true) }]))
+    }
+
+    fn closing(&mut self, refusal: bool) -> Request {
+        self.start(
+            OWNER,
+            Event::Run {
+                owner: OWNER,
+                kind: JobKind(4),
+                spec: Spec { command: copy_of(b"fabrig/.temper/close"), refusal, ..spec() },
+                deadline: DEADLINE,
+                directory: copy_of(b"/job"),
+            },
+        )
+    }
+
     fn running(&mut self, owner: Token, kind: u32) -> Request {
+        self.start(owner, run(owner, kind))
+    }
+
+    fn start(&mut self, owner: Token, event: Event) -> Request {
         assert_eq!(
-            self.one(run(owner, kind)),
+            self.one(event),
             Request::Write { owner, path: copy_of(b"/job/request.json"), bytes: copy_of(b"{request}") }
         );
         let spawn = self.one(Event::Written { owner, written: true });
@@ -158,6 +183,41 @@ fn exit_three_finishes_and_never_delivers() {
     assert_eq!(
         h.one(Event::Read { owner: OWNER, bytes: Some(copy_of(b"conflict")) }),
         Request::Ended { owner: OWNER, end: End::Finished { result: copy_of(b"conflict"), deliver: false } }
+    );
+    h.gone(OWNER, b"stderr");
+}
+
+/// temper/docs/design/protocol/tooling.md, 2: only a spec that asks adds the refusal variable.
+#[test]
+fn a_close_adds_the_refusal_variable_only_when_asked() {
+    for refusal in [true, false] {
+        let mut h = Harness::close();
+        let Request::Spawn { env, .. } = h.closing(refusal) else { panic!("close spawns") };
+        let ask = (copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3"));
+        let plain = [
+            (copy_of(b"PATH"), copy_of(b"/usr/bin:/bin")),
+            (copy_of(b"HOME"), copy_of(b"/job")),
+            (copy_of(b"TEMPER_JOB"), copy_of(b"/job")),
+            (copy_of(b"LANG"), copy_of(b"C.UTF-8")),
+        ];
+        let (base, extra) = env.split_at_checked(plain.len()).expect("the base job environment");
+        assert_eq!(base, plain);
+        assert_eq!(extra, if refusal { core::slice::from_ref(&ask) } else { &[] }, "refusal={refusal}");
+        assert_eq!(h.one(Event::Stop { owner: OWNER }), Request::Kill { owner: OWNER });
+        h.gone(OWNER, b"");
+    }
+}
+
+/// temper/docs/design/protocol/tooling.md, 4.2: a close refusal finishes without delivery.
+#[test]
+fn exit_three_of_an_asking_close_finishes_without_delivery() {
+    let mut h = Harness::close();
+    h.closing(true);
+    assert_eq!(h.exited(Exit::Code(3)), Request::Read { owner: OWNER, path: copy_of(b"/job/result.json"), most: 16 });
+    let result = copy_of(b"{\"refused\":{}}");
+    assert_eq!(
+        h.one(Event::Read { owner: OWNER, bytes: Some(result.clone()) }),
+        Request::Ended { owner: OWNER, end: End::Finished { result, deliver: false } }
     );
     h.gone(OWNER, b"stderr");
 }

@@ -9,6 +9,8 @@ use temper_client_walk_lines::walk::Client;
 
 mod host;
 mod look_compare;
+#[cfg(test)]
+mod look_git;
 mod look_refresh;
 mod look_render;
 mod looks;

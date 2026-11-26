@@ -195,7 +195,7 @@ impl World {
                         self.wire.take(down);
                     }
                 }
-                IoRequest::Close { .. } | IoRequest::Abort { .. } => {
+                IoRequest::Close { .. } | IoRequest::CloseAfterFlush { .. } | IoRequest::Abort { .. } => {
                     assert!(!self.closed, "one socket close");
                     self.closed = true;
                     self.component.up(

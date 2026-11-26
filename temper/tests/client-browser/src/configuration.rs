@@ -9,11 +9,11 @@ use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 use temper_playground::documents::turn_bounds;
 
 /// A closed loopback port: the forge's and the LLM endpoint's, which no story reaches.
-pub(crate) const UNREACHED: &str = "127.0.0.1:9";
+pub const UNREACHED: &str = "127.0.0.1:9";
 /// Keep the stock identities: stock's three endpoints and the box's one fill the agent's four slots.
-pub(crate) const PROVIDER: u16 = 1;
+pub const PROVIDER: u16 = 1;
 pub(crate) const WELCOME_PROVIDER: u16 = 2;
-pub(crate) const ENDPOINT: u16 = 1;
+pub const ENDPOINT: u16 = 1;
 pub(crate) const WELCOME_ENDPOINT: u16 = 2;
 /// The paths the deployment names, each relative to its directory.
 const RELATIVE: &[&str] = &[
@@ -260,29 +260,28 @@ pub(crate) fn configuration(directory: &Path) -> temper_playground::documents::C
 
 /// Commit the prospective settings in a no-task sitting, then let the browser's start take them.
 /// Providers and agent endpoints take effect at the next start, not at the decision.
-pub(crate) fn install(directory: &Path, program: &Path) {
+#[must_use]
+pub fn install(directory: &Path) -> Option<temper_box_kit::hosted::Sitting> {
     use temper_box_kit::ctl::{Call, Step};
     let settings = directory.join("browser-agents.json");
     if !settings.is_file() || directory.join("browser-settings-applied").is_file() {
-        return;
+        return None;
     }
     let value = prepared_settings(directory, &settings);
     private(&settings, &serde_json::to_vec(&value).expect("settings JSON"));
     let client = directory.join("settings-client");
     fs::create_dir(&client).expect("settings client");
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
-    let executable = program.to_path_buf();
     let steps = vec![
-        Step::Run(Call::sign_in().by(program)),
-        Step::Run(Call::new(&["settings", "show", "--json"]).by(program)),
+        Step::Run(Call::sign_in()),
+        Step::Run(Call::new(&["settings", "show", "--json"])),
         Step::Then(Box::new(move |calls| {
             temper_box_kit::ctl::settings_change(calls.last().expect("inventory"), &settings, "browser-settings")
-                .by(&executable)
         })),
-        Step::Run(Call::new(&["sign-out"]).by(program)),
+        Step::Run(Call::new(&["sign-out"])),
     ];
-    let flags = flags(directory).into_iter().map(|word| word.into_string().expect("flag")).collect();
-    let seen = temper_box_kit::boxed::run_ctl_from(program, directory, flags, &client, steps, |_| ());
+    let seen = temper_box_kit::hosted::run_ctl(directory, flags(directory), &client, steps)
+        .unwrap_or_else(|why| panic!("settings setup: {why}"));
     for call in &seen.calls {
         assert_eq!(
             call.exit,
@@ -291,15 +290,21 @@ pub(crate) fn install(directory: &Path, program: &Path) {
             temper_box_kit::without_secrets(&call.stderr)
         );
     }
-    assert_eq!(seen.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", temper_box_kit::without_secrets(&seen.stderr));
+    assert_eq!(
+        seen.exit,
+        skein_io::kernel::Exit::Code(0),
+        "{}",
+        temper_box_kit::without_secrets(seen.ending.as_bytes())
+    );
     assert_eq!(
         seen.calls.len(),
         4,
         "sign in, read inventory, apply, sign out; {}",
-        temper_box_kit::without_secrets(&seen.stderr)
+        seen.failure.as_deref().unwrap_or_default()
     );
-    assert_eq!(seen.left, Some(Vec::new()), "settings sitting drained");
+    assert_eq!(seen.left, 0, "no settings call left unrun");
     private(&directory.join("browser-settings-applied"), b"applied\n");
+    Some(seen)
 }
 
 fn prepared_settings(directory: &Path, settings: &Path) -> serde_json::Value {
@@ -422,7 +427,8 @@ fn agent_settings(agent: &serde_json::Value) -> serde_json::Value {
 }
 
 /// The three directories share the scratch root, as the process tier's flags do.
-pub(crate) fn flags(directory: &Path) -> Vec<std::ffi::OsString> {
+#[must_use]
+pub fn flags(directory: &Path) -> Vec<std::ffi::OsString> {
     ["--config", "--data", "--cache"].into_iter().flat_map(|flag| [flag.into(), directory.into()]).collect()
 }
 

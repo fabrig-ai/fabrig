@@ -3819,9 +3819,9 @@ fn delegate_change_step(
     step: u64,
     connector: u16,
     code: u32,
-    offer: (forge_change::Delegate, Option<forge_change::CloseAt>),
+    offer: &(forge_change::Delegate, Option<forge_change::CloseAt>),
 ) {
-    let (kind, _) = offer;
+    let (kind, _) = *offer;
     if relay::continuing_asker(domain, task, kind) {
         let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
@@ -3851,13 +3851,13 @@ fn delegate_change_step(
         return;
     };
     if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
-        pending.delegate = Some(offer);
+        pending.delegate = Some(*offer);
     } else {
         domain
             .forge_delegating
             .insert(
                 (task, step),
-                ChangeStep { delegate: Some(offer), relayed: None, refusal: None, released: false, passing: None },
+                ChangeStep { delegate: Some(*offer), relayed: None, refusal: None, released: false, passing: None },
             )
             .expect("one forge procedure delegate");
     }
@@ -4026,7 +4026,7 @@ fn change_decision_from_read(
         forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            delegate_change_step(domain, env, task, step, connector, code, (kind, close_at));
+            delegate_change_step(domain, env, task, step, connector, code, &(kind, close_at));
             return;
         }
     };
@@ -4657,20 +4657,15 @@ pub(crate) fn outputs(
                     },
                 )));
             }
-            forge::Request::ReleaseFailed { task, account, reason } => {
-                if let Some(account) = account {
+            forge::Request::ReleaseFailed { task, entry, words } => {
+                if let Some(entry) = entry {
                     domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
                         task,
                         why: tasks::Hold::EffectFailed,
-                        source: Box::new(holds::source(domain, Some(account.entry), account.words)),
+                        source: Box::new(holds::source(domain, Some(entry), words)),
                     }));
                 } else {
-                    holds::hold_as(
-                        domain,
-                        task,
-                        tasks::Hold::EffectFailed,
-                        reason.as_deref().unwrap_or(b"forge could not release this task's resources"),
-                    );
+                    holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
                 }
             }
             forge::Request::ProjectionEffect { row, entry, description } => {

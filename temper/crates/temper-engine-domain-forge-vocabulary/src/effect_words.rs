@@ -16,10 +16,52 @@ fn put(words: &mut List<u8>, bytes: &[u8]) {
 
 pub fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: Outcome) -> Option<Box<[u8]>> {
     let result = outcome_words(outcome)?;
+    Some(write_account(&entry.effect.write, entry.repository, repository, &result))
+}
+
+/// An account of the proposed write, including refusals before it is sent.
+pub fn write_account(
+    write: &Write,
+    id: skein_forge::api::Repository,
+    repository: Option<&crate::Repository>,
+    why: &[u8],
+) -> Box<[u8]> {
+    let mut words = resource_account(operation(write), id, repository, why);
+    target(&mut words, write);
+    words.into_boxed()
+}
+
+/// An account of a branch operation whose resource is still in the hold's name.
+pub fn branch_account(
+    operation: &[u8],
+    name: &crate::Name,
+    repository: Option<&crate::Repository>,
+    why: &[u8],
+) -> Box<[u8]> {
+    let id = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
+    let mut words = resource_account(operation, id, repository, why);
+    if let crate::What::Branch(parts) = &name.what {
+        put(&mut words, b" branch ");
+        for (index, part) in parts.iter().enumerate() {
+            if index > 0 {
+                put(&mut words, b"/");
+            }
+            put(&mut words, part);
+        }
+    }
+    words.into_boxed()
+}
+
+fn resource_account(
+    operation: &[u8],
+    id: skein_forge::api::Repository,
+    repository: Option<&crate::Repository>,
+    why: &[u8],
+) -> List<u8> {
     let mut words = List::with_capacity(ACCOUNT_BYTES);
-    put(&mut words, operation(&entry.effect.write));
+    put(&mut words, operation);
     put(&mut words, b": ");
-    put(&mut words, &result);
+    put(&mut words, why);
     put(&mut words, b"; resource ");
     if let Some(repository) = repository {
         put(&mut words, &repository.owner);
@@ -27,10 +69,9 @@ pub fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: O
         put(&mut words, &repository.name);
     } else {
         put(&mut words, b"repository ");
-        put(&mut words, skein_lib::Decimal::of(u64::from(entry.repository.repository)).as_bytes());
+        put(&mut words, skein_lib::Decimal::of(u64::from(id.repository)).as_bytes());
     }
-    target(&mut words, &entry.effect.write);
-    Some(words.into_boxed())
+    words
 }
 
 /// The terminal answer, shared by effect accounts and a landing's merge readback.

@@ -73,6 +73,7 @@ enum ReadStep {
     Stalled,
     RoomExpired(Box<[u8]>),
     Held { released: bool },
+    CleanupFailed,
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
@@ -1329,12 +1330,16 @@ pub(crate) fn step(
         read_wait::released(d, env, &row);
     }
     if let Some(row) = d.landing.rows.get(&task)
-        && let policy::Phase::Held { why: policy::Hold::Read, .. } = row.landing.phase
+        && let Some(local) = local_step(row, &heard)
     {
         if entry == 0 {
             emit(out, Request::WakeProcedure { task });
         } else {
-            read_ready(d, task, ReadStep::Held { released: heard.released }, out);
+            if let Some(owner) = pending {
+                d.landing.pending.remove(&owner);
+                d.read_line.leave(Waiter::Landing(owner));
+            }
+            read_ready(d, task, local, out);
         }
         return;
     }
@@ -1576,6 +1581,30 @@ fn read_failed(d: &mut Domain, row: &LandingRow, p: &Pending, error: Option<api:
     wait(d, p.task, p.entry, failure, out);
 }
 
+fn local_step(row: &LandingRow, heard: &LandingHeard) -> Option<ReadStep> {
+    match row.landing.phase {
+        policy::Phase::Held { why: policy::Hold::Read | policy::Hold::Cleanup, .. } => {
+            Some(ReadStep::Held { released: heard.released })
+        }
+        policy::Phase::Preparing
+        | policy::Phase::Proving
+        | policy::Phase::Proved { .. }
+        | policy::Phase::Turn { .. }
+            if row.landing.round.cleanup.is_some() && !heard.released && !heard.cancelled =>
+        {
+            Some(ReadStep::CleanupFailed)
+        }
+        policy::Phase::Waiting
+        | policy::Phase::Preparing
+        | policy::Phase::Proving
+        | policy::Phase::Proved { .. }
+        | policy::Phase::Turn { .. }
+        | policy::Phase::Held { .. }
+        | policy::Phase::Landed
+        | policy::Phase::Cancelled => None,
+    }
+}
+
 fn claim_step(d: &mut Domain, task: u64, entry: u64, released: bool, out: &mut Queue<Request>) {
     if entry == 0 {
         emit(out, Request::WakeProcedure { task });
@@ -1641,7 +1670,7 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
     let Some(mut row) = d.landing.rows.get(&task).cloned() else { return };
     let prior = row.clone();
     // A hold must keep the room order, even if the holding task steps again.
-    if let ReadStep::Stalled | ReadStep::Failed(_) = &step {
+    if let ReadStep::Stalled | ReadStep::Failed(_) | ReadStep::CleanupFailed = &step {
         leave_room(d, &mut row);
     }
     let decision = match step {
@@ -1660,9 +1689,15 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
             let stepped = policy::held(row.landing, released, env.wall);
             row.landing = stepped.landing;
             if released {
+                clear_cleanup_results(d, &row);
                 row.read_hold = None;
                 crate::room::release_place(d, crate::room::Waiter::Landing(task), env.wall);
             }
+            stepped.decision
+        }
+        ReadStep::CleanupFailed => {
+            let stepped = policy::cleanup_hold(row.landing);
+            row.landing = stepped.landing;
             stepped.decision
         }
         ReadStep::Failed(_) | ReadStep::Stalled => {
@@ -1699,7 +1734,7 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
         }
         save(d, env, row, out);
     }
-    if let policy::Decision::Hold(policy::Hold::Read) = decision {
+    if let policy::Decision::Hold(policy::Hold::Read | policy::Hold::Cleanup) = decision {
         held_news(task, &prior, out);
     }
     emit_decision(
@@ -1790,7 +1825,7 @@ fn advance(
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
         return;
     };
-    if row.landing.phase == policy::Phase::Cancelled {
+    if row.landing.phase == policy::Phase::Cancelled || local_step(&row, &p.heard).is_some() {
         step(d, env, p.task, p.entry, p.heard, out);
         return;
     }
@@ -2067,7 +2102,7 @@ fn advance(
                 read_failed(d, &row, &p, error, out);
                 return;
             };
-            if pull.state == api::State::Closed {
+            if pull.state == api::State::Closed || pull.merged.is_some() {
                 p.closed = policy::Status::Passed;
             }
             cleanup_branch(d, env, owner, p, &row, 0, out);
@@ -2915,6 +2950,13 @@ fn reads_key(d: &Domain, row: &LandingRow, key: &ReceiptKey) -> bool {
     false
 }
 
+fn cleanup_first(round: &policy::Round) -> Option<u16> {
+    Some(match round.ending? {
+        policy::RoundEnd::Stale => 0,
+        policy::RoundEnd::Leave | policy::RoundEnd::Conflict | policy::RoundEnd::Cut => round.changed.unwrap_or(0),
+    })
+}
+
 /// Cleanup is recovered from the forge without dropping the prefixes that describe the round.
 fn cleanup_branch(
     d: &mut Domain,
@@ -2925,13 +2967,10 @@ fn cleanup_branch(
     from: u16,
     out: &mut Queue<Request>,
 ) {
-    let first = if row.landing.round.ending == Some(policy::RoundEnd::Stale) {
-        0
-    } else {
-        row.landing.round.changed.unwrap_or(0)
-    };
+    let first = cleanup_first(&row.landing.round).expect("ended round");
     for (index, member) in row.landing.members.iter().enumerate().skip(usize::from(from.max(first))) {
-        if member.candidate.is_none() {
+        let facts = p.facts.get(index).expect("cleanup member");
+        if member.candidate.is_none() && facts.candidate.is_none() {
             continue;
         }
         p.stage = Stage::CleanupBranch(u16::try_from(index).expect("member bound"));
@@ -2972,7 +3011,7 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
         let row = row.clone();
         if let Some(number) = row.landing.round.pull {
             p.stage = Stage::CleanupPull;
-            let repo = p.repository;
+            let repo = repository(row.landing.members.get(usize::from(round_effect_top(&row))).expect("round top"));
             ask(d, env, owner, p, repo, api::Read::Pull { number, ci: false }, out);
         } else {
             cleanup_branch(d, env, owner, p, &row, 0, out);
@@ -3106,10 +3145,51 @@ impl Domain {
     }
 }
 
+fn clear_cleanup_results(d: &mut Domain, row: &LandingRow) {
+    for index in 0..row.landing.members.len() {
+        let member = u16::try_from(index).expect("member");
+        d.landing.results.remove(&(row.landing.task, member, 0, 7));
+        d.landing.results.remove(&(row.landing.task, member, 0, 8));
+    }
+}
+
+/// Recheck ownership at the decision, after the last forge read in the gather.
+fn cleanup_ownership(d: &Domain, row: &LandingRow, facts: &mut [policy::MemberFacts]) -> Option<Box<[u8]>> {
+    let first = cleanup_first(&row.landing.round)?;
+    for (member, fresh) in row.landing.members.iter().zip(facts).skip(usize::from(first)) {
+        if member.candidate.is_none() && fresh.candidate.is_none() {
+            continue;
+        }
+        let repository = repository(member);
+        let resource =
+            skein_forge_client::Resource { repository, what: skein_forge_client::What::Branch(member.branch.clone()) };
+        let Some(name) = super::domain::from_client(&resource, &d.landing.limits) else { continue };
+        if let Some(hold) = d.hold(&name)
+            && hold.task != row.landing.task
+        {
+            fresh.deleted = policy::Status::Failed;
+            let by = skein_lib::Decimal::of(hold.task);
+            return Some(crate::effect_words::branch_account(
+                b"delete branch",
+                &name,
+                d.repository(repository),
+                &concat(&[b"held by task ", by.as_bytes()]),
+            ));
+        }
+    }
+    None
+}
+
 #[expect(clippy::too_many_lines, reason = "one policy decision and its atomic durable outputs")]
 fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
     let mut row = d.landing.rows.get(&p.task).expect("pending landing").clone();
+    if let Some(local) = local_step(&row, &p.heard) {
+        read_decision(d, env, p.task, local, out);
+        return;
+    }
     if p.heard.released {
+        clear_cleanup_results(d, &row);
+        row.landing.round.cleanup = None;
         for index in 0..row.landing.members.len() {
             d.landing.results.remove(&(p.task, u16::try_from(index).expect("member"), 0, 9));
         }
@@ -3268,6 +3348,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             );
         }
     }
+    let cleanup = cleanup_ownership(d, &row, &mut p.facts);
     let top = round_top(&row).unwrap_or(0);
     let facts = policy::Facts {
         members: p.facts.clone(),
@@ -3332,6 +3413,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
+    if stepped.decision == policy::Decision::Hold(policy::Hold::Cleanup) {
+        row.landing.round.cleanup = cleanup;
+    }
     if let policy::Decision::Wait { on, .. } = stepped.decision {
         let shared = if let policy::Awaited::Receipt { member, gate } = on {
             facts
@@ -3806,11 +3890,15 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         saved_follow::prune(&mut row, &d.landing.limits);
     }
     reset_results(d, &mut row, &prior);
+    if (prior.landing.round.ending.is_some() && row.landing.round.ending.is_none())
+        || row.landing.preparation != prior.landing.preparation
+    {
+        clear_cleanup_results(d, &row);
+    }
     if row.landing.preparation != prior.landing.preparation || decision == policy::Decision::Stale {
         for index in 0..row.landing.members.len() {
             let member = u16::try_from(index).expect("member");
             d.landing.results.remove(&(p.task, member, 0, 6));
-            d.landing.results.remove(&(p.task, member, 0, 7));
         }
     }
     let news = match decision {
@@ -4401,6 +4489,7 @@ pub(crate) fn outcome(
     env: &Env<Limits>,
     entry: u64,
     outcome: skein_forge_client::Outcome,
+    cleanup_account: Option<Box<[u8]>>,
     out: &mut Queue<Request>,
 ) {
     let Some(kept) = d.entries.get(&entry) else { return };
@@ -4414,6 +4503,7 @@ pub(crate) fn outcome(
         }
     }
     let Some(item) = found else { return };
+    let cleanup = item.operation == Operation::Close || item.operation == Operation::Delete;
     let status = match outcome {
         skein_forge_client::Outcome::Made { .. } => policy::Status::Passed,
         skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => policy::Status::Pending,
@@ -4423,10 +4513,19 @@ pub(crate) fn outcome(
         | skein_forge_client::Outcome::Withdrawn => policy::Status::Failed,
     };
     if item.preparation.is_none() || item.preparation == Some(row.landing.preparation) {
-        d.landing
-            .results
-            .insert((task, item.member, item.gate, operation(item.operation)), (status, merge_refused(outcome)))
-            .expect("bounded effect positions");
+        let key = (task, item.member, item.gate, operation(item.operation));
+        if cleanup && status == policy::Status::Failed && cleanup_account.is_none() {
+            // A veto never made a forge write; authority and its wait belong to the root.
+            d.landing.results.remove(&key);
+        } else {
+            d.landing.results.insert(key, (status, merge_refused(outcome))).expect("bounded effect positions");
+        }
+        if status == policy::Status::Failed
+            && let Some(account) = cleanup_account
+            && row.landing.round.ending.is_some()
+        {
+            row.landing.round.cleanup = Some(account);
+        }
     }
     if item.operation == Operation::Delete && status == policy::Status::Passed {
         let row = d.landing.rows.get(&task).expect("round deletion");
@@ -4492,7 +4591,7 @@ pub(crate) fn outcome(
                 record.failed = status == policy::Status::Failed;
             }
         }
-        if outcome != skein_forge_client::Outcome::Held || item.operation == Operation::Merge {
+        if outcome != skein_forge_client::Outcome::Held || item.operation == Operation::Merge || cleanup {
             remove_entry(&mut row, entry, &d.landing.limits);
         }
         if item.operation == Operation::Record
@@ -5274,6 +5373,7 @@ impl Domain {
                 })
             }
             policy::Hold::Read => row.read_hold.clone(),
+            policy::Hold::Cleanup => Some(concat(&[b"cleanup: ", row.landing.round.cleanup.as_deref()?])),
             policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &failure])),
             policy::Hold::Record { member } => Some(concat(&[
                 b"turn: record of #",
@@ -5326,7 +5426,8 @@ impl Domain {
                             jig_domain_tasks::HOLD_ACCOUNT_BYTES,
                         ));
                     }
-                    policy::Hold::Prepare
+                    policy::Hold::Cleanup
+                    | policy::Hold::Prepare
                     | policy::Hold::Read
                     | policy::Hold::Record { .. }
                     | policy::Hold::Turn
@@ -5722,7 +5823,7 @@ pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out
     if !matches_entry(d, task, entry) {
         return;
     }
-    outcome(d, env, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), out);
+    outcome(d, env, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), None, out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }

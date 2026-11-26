@@ -92,7 +92,7 @@ pub(super) enum Proc {
     Live,
     #[cfg(test)]
     Text(&'static [(&'static str, &'static str)]),
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "linux"))]
     Directory(std::path::PathBuf),
 }
 
@@ -108,7 +108,7 @@ impl Proc {
             Self::Live => Cow::Borrowed(Path::new(path)),
             #[cfg(test)]
             Self::Text(_) => Cow::Borrowed(Path::new(path)),
-            #[cfg(test)]
+            #[cfg(all(test, target_os = "linux"))]
             Self::Directory(root) => Cow::Owned(root.join(path.trim_start_matches('/'))),
         }
     }
@@ -133,7 +133,7 @@ impl Proc {
                 // reads without File::read_to_string's metadata lookup.
                 self.open(path)?.take(u64::MAX).read_to_string(text).ok()?;
             }
-            #[cfg(test)]
+            #[cfg(all(test, target_os = "linux"))]
             Self::Directory(_) => {
                 self.open(path)?.take(u64::MAX).read_to_string(text).ok()?;
             }

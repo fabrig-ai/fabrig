@@ -68,8 +68,12 @@ A look request's round trip: drawing it, landing it, accounting for it and check
      gallery's pages carry no overlay: the person copies the page into a
      hand-made directory and draws there, as for the next. The
      gallery's stylesheets are byte for byte the repository's own, so
-     the copy links those, as a journey's pages do (`journeys.md`, 5.3),
-     and there is no bundle to copy beside it.
+     the copy links those, then `../overlay.css`, as a journey's pages
+     do (`journeys.md`, 5.3), and there is no bundle to copy beside it.
+     The directory's `README.md` names the state in the words
+     `` the gallery's state `NAME` ``, and names no other, so that the
+     render check renders its pages beside that state's print (section
+     4).
   4. **A hand-made page,** last, in a directory of its own under
      `journeys/` whose `README.md` says it is hand-made and from what.
      Its values are written in by hand, and no journey's print will
@@ -209,8 +213,11 @@ request; this does.
   of a journey that its rules select an element of, from its own commit
   under its overlay and stylesheets, against the same page as the
   writer printed it, under the landed stylesheets and an empty overlay.
-  A page with nothing printed beside it, hand-made, is listed as not
-  compared.
+  A page drawn on a gallery state, its directory's `README.md` naming
+  the state (section 2), is compared with that state as
+  `temper-client-gallery` prints it from the same tree as the writer's
+  print. Any other hand-made page, with nothing printed beside it, is
+  listed as not compared.
 - **How:** in the Chromium the browser tiers use, through skein's kit,
   from scratch copies, every request outside `file://` blocked; at
   1440, 1000 and 420 pixels wide, every dialog and disclosure open and

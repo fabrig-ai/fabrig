@@ -616,6 +616,7 @@ impl<'a> BrowserFace<'a> {
             | Event::Style { .. }
             | Event::Rect { .. }
             | Event::Screenshot { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => {}
         }
     }

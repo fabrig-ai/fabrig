@@ -2,6 +2,8 @@ use std::{fmt::Write as _, path::PathBuf};
 
 use crate::host::{Answer, Ask, Gathered, Host, Program, Ran, Step, Stream};
 
+use crate::look_git::{look_step_tests, record};
+
 use super::run;
 
 const LOOK: &str = "look-requests";
@@ -265,6 +267,7 @@ fn commit_lines(commits: &[&str]) -> String {
 }
 
 fn check(steps: Vec<Step>, args: &[Box<[u8]>], code: u8, stdout: &str, stderr: &str) {
+    record(&steps);
     let mut host = Host::canned(steps);
     let exit = run(args, &mut host, 41);
     let Gathered { stdout: out, stderr: err } = host.finish();
@@ -280,6 +283,17 @@ fn stack() -> Steps {
     steps
 }
 
+fn bad_trailer(commit: &str) -> String {
+    format!("look-refresh: {commit} must carry exactly one Look-request trailer with NAME [a-z0-9][a-z0-9-]*\n")
+}
+
+fn verdict(name: &str, landed: &str, result: &str) -> String {
+    format!(
+        "<section data-look-request=\"{name}\" data-look-commit=\"{TIGHTER}\" data-look-landed=\"{landed}\" data-look-tip=\"{TIP}\" data-look-result=\"{result}\">\n</section>\n"
+    )
+}
+
+look_step_tests! {
 #[test]
 fn the_requests_follow_main() {
     for branch in [LOOK, TUI] {
@@ -520,10 +534,6 @@ fn a_first_push_creates_the_branch() {
     );
 }
 
-fn bad_trailer(commit: &str) -> String {
-    format!("look-refresh: {commit} must carry exactly one Look-request trailer with NAME [a-z0-9][a-z0-9-]*\n")
-}
-
 #[test]
 fn a_request_without_its_trailer_is_refused() {
     let mut steps = Steps::default();
@@ -562,12 +572,6 @@ fn a_completed_stack_can_be_refreshed_again() {
         "pages printed at 222222222222, 1 landings since\npushed look-requests at 5555555\n",
         &format!("{FETCH}{REBASED}{push}"),
     );
-}
-
-fn verdict(name: &str, landed: &str, result: &str) -> String {
-    format!(
-        "<section data-look-request=\"{name}\" data-look-commit=\"{TIGHTER}\" data-look-landed=\"{landed}\" data-look-tip=\"{TIP}\" data-look-result=\"{result}\">\n</section>\n"
-    )
 }
 
 #[test]
@@ -681,4 +685,5 @@ fn the_front_shows_help_but_the_run_refuses_arguments() {
     let Front::Run { command, rest } = crate::TABLE.front(&args) else { panic!("the run must handle arguments") };
     assert_eq!(*command, crate::table::LOOK_REFRESH);
     check(Vec::new(), rest, 2, "", "look-refresh: takes no arguments\n");
+}
 }

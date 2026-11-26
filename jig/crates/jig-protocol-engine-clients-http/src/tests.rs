@@ -6,7 +6,7 @@ use skein_http::Method;
 const SOURCE: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
 const IPV6_SOURCE: core::net::IpAddr = core::net::IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1));
 const PROXY: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(192, 0, 2, 9));
-use skein_lib::stream::{Down, Up};
+use skein_lib::stream::{Down, Read, Up};
 mod batch;
 mod fixtures;
 
@@ -953,6 +953,9 @@ fn server_head(server: &mut server::Server, out: &mut Queue<server::Routed>, own
 }
 fn server_call(server: &mut server::Server, out: &mut Queue<server::Routed>, owner: Token) -> Token {
     server_head(server, out, owner, SERVER_HEAD);
+    take_server_call(out)
+}
+fn take_server_call(out: &mut Queue<server::Routed>) -> Token {
     while let Some(routed) = out.pop() {
         if let server::Routed::Call { call, .. } = routed {
             return call;
@@ -974,6 +977,116 @@ fn server_response(server: &mut server::Server, out: &mut Queue<server::Routed>,
     );
     server_settle(server, out);
 }
+#[test]
+fn close_releases_idle_keep_alive_without_waiting_for_the_peer() {
+    let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+    let owner = server_connection(&mut server, &mut out, SERVER_FIRST);
+    let call = server_call(&mut server, &mut out, owner);
+    server_response(&mut server, &mut out, call);
+    server.done(call, &mut out);
+    server_settle(&mut server, &mut out);
+    let mut next = false;
+    while let Some(routed) = out.pop() {
+        if let server::Routed::Io(skein_io::Request::Stream { down: Down::Demand { room, .. }, .. }) = routed {
+            assert!(room > 0, "the next exchange reserves room for its response");
+            next = true;
+        }
+    }
+    assert!(next, "the connection was kept for another request");
+    out = Queue::uncapped();
+
+    server.close(&mut out);
+    server_settle(&mut server, &mut out);
+    let Some(server::Routed::Io(skein_io::Request::CloseAfterFlush { entity })) = out.pop() else {
+        panic!("idle socket requested to close without waiting for peer end")
+    };
+    assert_eq!(entity, SERVER_FIRST);
+    assert!(out.is_empty());
+    assert_eq!(server.next_deadline(), None);
+    server.up(skein_io::Event::Closed { owner }, &mut out);
+    assert!(out.is_empty(), "the completed call does not hear a second terminal");
+}
+
+#[test]
+fn close_after_a_whole_request_queues_the_responses_last_bytes_first() {
+    let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+    let owner = server_connection(&mut server, &mut out, SERVER_FIRST);
+    let call = server_call(&mut server, &mut out, owner);
+    server.close(&mut out);
+    server.answer(call, http::Request::Discard, &mut out);
+    server.answer(
+        call,
+        http::Request::Respond(http::Response {
+            status: 200,
+            headers: Box::new([]),
+            body: http::Body::Length(2),
+            close: false,
+        }),
+        &mut out,
+    );
+    server.answer(call, http::Request::Reply(Down::Demand { read: Read::Nothing, room: 2 }), &mut out);
+    server_settle(&mut server, &mut out);
+    out = Queue::uncapped();
+    server.up(skein_io::Event::Stream { owner, up: Up::Room }, &mut out);
+    server_settle(&mut server, &mut out);
+    let Some(server::Routed::Http { event: http::Event::Reply(Up::Room), .. }) = out.pop() else {
+        panic!("room granted to the reply")
+    };
+    server.answer(call, http::Request::Reply(Down::Send(Box::from(b"ok".as_slice()))), &mut out);
+    server.answer(call, http::Request::Reply(Down::Finish), &mut out);
+    server_settle(&mut server, &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Stream { stream, down: Down::Send(bytes) })) = out.pop() else {
+        panic!("response body queued first")
+    };
+    assert_eq!((stream, bytes.as_ref()), (SERVER_FIRST, b"ok".as_slice()));
+    let Some(server::Routed::Http { event: http::Event::Done(http::Reuse::Keep), .. }) = out.pop() else {
+        panic!("the response finished")
+    };
+    server.done(call, &mut out);
+    let Some(server::Routed::Io(skein_io::Request::CloseAfterFlush { entity })) = out.pop() else {
+        panic!("after the last send, close without waiting for the peer")
+    };
+    assert_eq!(entity, SERVER_FIRST);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn a_close_still_drains_an_upload_thats_unfinished_or_given_up() {
+    const UPLOAD: &[u8] = b"POST /upload HTTP/1.1\r\nHost: localhost\r\nContent-Length: 8\r\n\r\n";
+    for answer_first in [false, true] {
+        let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+        let owner = server_connection(&mut server, &mut out, SERVER_FIRST);
+        server_head(&mut server, &mut out, owner, UPLOAD);
+        let call = take_server_call(&mut out);
+        server.close(&mut out);
+        if answer_first {
+            server.answer(
+                call,
+                http::Request::Respond(http::Response {
+                    status: 413,
+                    headers: Box::new([]),
+                    body: http::Body::None,
+                    close: false,
+                }),
+                &mut out,
+            );
+        } else {
+            server.answer(call, http::Request::Discard, &mut out);
+        }
+        server.finish();
+        server_settle(&mut server, &mut out);
+        let mut closed = false;
+        while let Some(routed) = out.pop() {
+            if let server::Routed::Io(skein_io::Request::Close { entity }) = routed {
+                assert_eq!(entity, SERVER_FIRST);
+                assert!(!closed, "one close only");
+                closed = true;
+            }
+        }
+        assert!(closed, "unread bytes keep the peer drain; answered early: {answer_first}");
+    }
+}
+
 #[test]
 fn each_routed_call_keeps_its_accepted_peer_even_after_idle_replacement() {
     for (accepted_peer, expected) in [

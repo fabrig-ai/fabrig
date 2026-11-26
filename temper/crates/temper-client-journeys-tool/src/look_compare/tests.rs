@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use crate::host::{Answer, Ask, Gathered, Host, Program, Ran, Step, Stream};
 
+use crate::look_git::{look_step_tests, record};
+
 use super::run;
 
 pub(crate) const NAME: &str = "look-request";
@@ -46,23 +48,37 @@ impl Steps {
     }
 
     pub(crate) fn fetch(&mut self, tip: &str) {
-        self.git(
-            &[
-                "fetch",
-                "--no-tags",
-                "--no-recurse-submodules",
-                "--refmap=",
-                "origin",
-                "refs/heads/docs/look/look-request",
-            ],
-            None,
-            "",
-        );
+        self.list_remotes("origin\n");
+        self.fetch_from(&["origin"], tip);
+    }
+
+    pub(crate) fn local_request(&mut self) {
+        self.lookup(0, &format!("{TIP}\n"), "");
+    }
+
+    fn lookup(&mut self, code: i32, stdout: &str, stderr: &str) {
+        self.git_reply(&["rev-parse", "--verify", "--quiet", "abcdef0^{commit}"], None, code, stdout, stderr);
+    }
+
+    fn list_remotes(&mut self, remotes: &str) {
+        self.lookup(1, "", "");
+        self.git(&["remote"], None, remotes);
+    }
+
+    fn fetch_from(&mut self, remote_args: &[&str], tip: &str) {
+        let mut args = vec!["fetch", "--no-tags", "--no-recurse-submodules", "--refmap="];
+        args.extend_from_slice(remote_args);
+        args.push("refs/heads/docs/look/look-request");
+        self.git(&args, None, "");
         self.git(&["rev-parse", "--verify", "FETCH_HEAD^{commit}"], None, &format!("{tip}\n"));
     }
 
     fn request(&mut self, paths: &[&str]) {
         self.fetch(TIP);
+        self.request_changes(paths);
+    }
+
+    fn request_changes(&mut self, paths: &[&str]) {
         self.git(&["show", "-s", "--format=%P", TIP], None, &format!("{PARENT}\n"));
         self.git(
             &["show", "-s", "--format=%(trailers:key=Look-request,unfold)", TIP],
@@ -218,11 +234,57 @@ impl Steps {
 }
 
 fn check(steps: Steps, args: &[Box<[u8]>], code: u8, stdout: &str, stderr: &str) {
+    record(&steps.0);
     let mut host = Host::canned(steps.0);
     assert_eq!(run(args, &mut host), code, "exit with {args:?}");
     let Gathered { stdout: out, stderr: err } = host.finish();
     assert_eq!(String::from_utf8(out).expect("table is text"), stdout);
     assert_eq!(String::from_utf8(err).expect("details are text"), stderr);
+}
+
+fn check_hand_made_request(mut steps: Steps) {
+    steps.request_changes(&[&format!("{WEB}/mockup/01.html")]);
+    steps.blob(TIP, &format!("{WEB}/mockup/walk"), None);
+    steps.check(0, &format!("{HEADER}| `web/journeys/mockup` | not compared: hand-made |\n{FILL}"), "");
+}
+
+look_step_tests! {
+#[test]
+fn a_locally_held_request_is_compared_without_fetching() {
+    let mut steps = Steps::default();
+    steps.local_request();
+    check_hand_made_request(steps);
+}
+
+#[test]
+fn a_missing_request_prefers_forge_then_origin_then_the_only_remote() {
+    for (remotes, chosen) in [
+        ("forge\norigin\n", &["forge"][..]),
+        ("origin\nupstream\n", &["origin"]),
+        ("upstream\n", &["upstream"]),
+        ("-upstream\n", &["--", "-upstream"]),
+    ] {
+        let mut steps = Steps::default();
+        steps.list_remotes(remotes);
+        steps.fetch_from(chosen, TIP);
+        check_hand_made_request(steps);
+    }
+}
+
+#[test]
+fn a_missing_request_without_a_preferred_or_sole_remote_is_refused() {
+    for (remotes, listed) in [("", "none"), ("a\nb\n", "a, b")] {
+        let mut steps = Steps::default();
+        steps.list_remotes(remotes);
+        steps.check(2, "", &format!("look-compare: no remote chosen (remotes: {listed})\n"));
+    }
+}
+
+#[test]
+fn a_failed_commit_lookup_does_not_fetch() {
+    let mut steps = Steps::default();
+    steps.lookup(128, "", "fatal: not a git repository\n");
+    steps.check(2, "", &format!("look-compare: cannot look up commit {SHORT}\n"));
 }
 
 #[test]
@@ -454,4 +516,5 @@ fn a_web_walk_shadowing_the_tui_refuses_before_print() {
         "",
         "look-compare: tui/journeys/sign-in is shadowed by a walk in web/journeys/sign-in; rename one directory\n",
     );
+}
 }

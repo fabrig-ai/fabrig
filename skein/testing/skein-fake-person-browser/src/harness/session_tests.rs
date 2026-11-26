@@ -1,10 +1,14 @@
 //! Completion sorting keeps io's queue across polls, and Chromium's spawn
 //! is prepared without a kernel.
-use super::{Pump, ROOT_CLOSE, Report, page_report, take_root_close};
-use skein_browser::boundary::{Event, Trouble};
-use skein_io::kernel::{Complete, Done, Error, Fd, Op};
-use skein_lib::{Queue, Token};
-use std::path::Path;
+use super::{BROWSER, Opening, PAGE, PERSON, Pump, ROOT_CLOSE, Report, page_report, take_root_close};
+use skein_browser::boundary::Trouble;
+use skein_browser::{Below, Browser, Event, Limits, up};
+use skein_io::{
+    self as io,
+    kernel::{Complete, Done, Error, Exit, Fd, Op},
+};
+use skein_lib::{Env, Queue, Time, Token, Wall, stream::Up};
+use std::{collections::VecDeque, path::Path};
 
 #[test]
 fn page_trouble_reports_kind_text_and_url_without_judging() {
@@ -80,8 +84,10 @@ fn a_full_queue_keeps_every_ordinary_completion_in_order() {
 
     assert!(complete.iter().eq([ordinary(1), ordinary(2), ordinary(3)].iter()), "ordinary completions stay in order");
     assert_eq!(reports.len(), 1);
-    let Report::Trouble(text) = &reports[0] else { panic!("root close failure is Trouble: {reports:?}") };
-    assert_eq!(text, "closing session root: Other(5)");
+    let Report::Trouble { why, chromium_stderr: None } = &reports[0] else {
+        panic!("root close failure is Trouble: {reports:?}");
+    };
+    assert_eq!(why, "closing session root: Other(5)");
 }
 
 #[test]
@@ -124,6 +130,59 @@ fn a_spawn_directory_is_given_beneath_the_root() {
     ] {
         assert_eq!(&*Pump::beneath(Path::new(path)), beneath.as_bytes(), "{path}");
     }
+}
+
+#[test]
+fn the_kit_ending_and_its_stderr_are_reported_instead_of_the_owner_kill() {
+    const CHILD: Token = Token::new(50);
+    const RAW_BROWSER: Token = Token::new(1);
+    const OWNER_KILL: Exit = Exit::Signal(9);
+    const TAIL: &[u8] = b"late\nlast\n";
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: Limits { stderr: 10, ..Limits::default() } };
+    let mut browser = Browser::new(RAW_BROWSER, &env.limits);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    for line in [b"discard me\n".as_slice(), b"late\n", b"last\n"] {
+        up(&mut browser, &env, Below::Errors(Up::Bytes(line.into())), &mut above, &mut below);
+    }
+    up(&mut browser, &env, Below::Replies(Up::End), &mut above, &mut below);
+    let Some(Event::Ended { why, detail }) = above.pop() else { panic!("kit ending") };
+
+    let mut opening = Opening::Raw;
+    let mut reports = Vec::new();
+    let mut requests = VecDeque::new();
+    opening.ended(why, &detail, &browser, &mut reports);
+    for owner in [PAGE, PERSON, BROWSER, RAW_BROWSER] {
+        opening.browser_closed(owner, RAW_BROWSER, Some(CHILD), &mut requests, &mut reports);
+    }
+    assert!(matches!(requests.pop_front(), Some(io::Request::Close { entity: CHILD })));
+    assert!(requests.is_empty(), "only the child's close is asked for");
+    opening.exited(OWNER_KILL, &browser, &mut reports);
+
+    let [Report::Trouble { why, chromium_stderr: Some(tail) }] = reports.as_slice() else {
+        panic!("one browser trouble, got {reports:?}");
+    };
+    assert_eq!(why, "browser ended: pipe: replies pipe: end");
+    assert_eq!(tail.as_ref(), TAIL);
+}
+
+#[test]
+fn only_an_unasked_chromium_exit_names_the_status() {
+    const EXIT: Exit = Exit::Code(19);
+    let browser = Browser::new(BROWSER, &Limits::default());
+    let mut reports = Vec::new();
+    let mut spontaneous = Opening::Open;
+    spontaneous.exited(EXIT, &browser, &mut reports);
+    let [Report::Trouble { why, chromium_stderr: Some(tail) }] = reports.as_slice() else {
+        panic!("one unsolicited exit, got {reports:?}");
+    };
+    assert_eq!(why, "Chromium exited: Code(19)");
+    assert!(tail.is_empty());
+
+    reports.clear();
+    let mut closing = Opening::Closing;
+    closing.exited(Exit::Code(0), &browser, &mut reports);
+    assert!(reports.is_empty(), "an expected close is silent");
 }
 
 #[test]
