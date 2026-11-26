@@ -161,8 +161,9 @@ impl Frame {
             .into_iter()
             .map(|(index, _)| (index, Fd::new(30 + i32::from(index))))
             .collect();
-        let host = OneShot::with_directory(
-            Invocation { directory: Some(b"directory".as_slice().into()), parsed },
+        let directory = service::GIVEN_DIRECTORY.rsplit(|&byte| byte == b'/').next().expect("directory leaf");
+        let host = OneShot::with_text_files(
+            Invocation { directory: Some(directory.into()), parsed },
             Startup {
                 parent: Some(Fd::new(1)),
                 file_parent,
@@ -174,7 +175,6 @@ impl Frame {
                 seed: 1,
             },
             files,
-            Some(service::GIVEN_DIRECTORY),
         )
         .expect("native limits");
         Self {

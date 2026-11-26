@@ -31,7 +31,6 @@ fn parse_with_status<'a>(words: &[&'a [u8]]) -> Result<Call<'a>, (u8, String)> {
 }
 
 fn start((directory, parsed): Call<'_>, clock: &Clock) -> Result<u8, String> {
-    let given = directory;
     let help = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if arguments::class(call) == arguments::Class::Help);
     let mut owned = Vec::new();
     let result = (|| {
@@ -63,7 +62,7 @@ fn start((directory, parsed): Call<'_>, clock: &Clock) -> Result<u8, String> {
         let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
-        let mut host = OneShot::with_directory(
+        let mut host = OneShot::with_text_files(
             Invocation { directory, parsed },
             Startup {
                 parent,
@@ -76,7 +75,6 @@ fn start((directory, parsed): Call<'_>, clock: &Clock) -> Result<u8, String> {
                 seed,
             },
             text_files,
-            given,
         )
         .map_err(|_| "client limits refused")?;
         let mut kernel = Kernel::open(Config { operations: host.operations() }).map_err(|why| why.to_string())?;

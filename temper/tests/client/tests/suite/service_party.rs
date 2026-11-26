@@ -183,7 +183,7 @@ fn assert_output(actual: &[u8], expected: &[u8], context: &str) {
 
 fn reissued_line(party: &str, file: &str) -> String {
     format!(
-        "reissued: party {party}; its sign-ins have ended; sign its directory in with temper ctl owner sign-in {file}\n"
+        "reissued: party {party}; its sign-ins have ended; sign its directory in with temper ctl DIRECTORY sign-in {file}\n"
     )
 }
 
