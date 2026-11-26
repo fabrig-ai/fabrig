@@ -46,7 +46,7 @@ fn unwatch() -> Event {
 fn same_decision(core: &Core, engine: &Engine, requests: &Queue<Request>, out: &Queue<Out>) {
     let hash = BuildHasherDefault::<DefaultHasher>::default();
     assert_eq!(requests.len(), out.len(), "wrapped decision length: {out:?}");
-    for (request, Out::Legacy(wrapped)) in requests.iter().zip(out) {
+    for (request, Out::Core(wrapped)) in requests.iter().zip(out) {
         assert_eq!(hash.hash_one(request), hash.hash_one(wrapped), "{wrapped:?} differs from {request:?}");
     }
     assert_eq!(hash.hash_one(core), hash.hash_one(engine.core()), "core state after the decision");
@@ -59,7 +59,7 @@ fn twins_pass_through_each_decision_in_order() {
     for (event, input) in [(sign_in(), sign_in()), (unwatch(), unwatch())] {
         let requests = crate::step(&mut core, &env, event);
         let mut out = Queue::uncapped();
-        engine::step(&mut engine, &env, In::Legacy(input), &mut out);
+        engine::step(&mut engine, &env, In::Core(input), &mut out);
         same_decision(&core, &engine, &requests, &out);
     }
 }
@@ -71,9 +71,9 @@ fn step_keeps_the_existing_output_at_the_front() {
     let mut engine = fresh_engine(&env.limits);
     fixtures::open_core(engine.core_mut(), &env);
     let mut out = Queue::uncapped();
-    out.push(Out::Legacy(Request::ProjectMade { project: PROJECT }));
-    engine::step(&mut engine, &env, In::Legacy(unwatch()), &mut out);
-    let Some(Out::Legacy(Request::ProjectMade { project })) = out.pop() else { panic!("existing output first") };
+    out.push(Out::Core(Request::ProjectMade { project: PROJECT }));
+    engine::step(&mut engine, &env, In::Core(unwatch()), &mut out);
+    let Some(Out::Core(Request::ProjectMade { project })) = out.pop() else { panic!("existing output first") };
     assert_eq!(project, PROJECT);
 }
 

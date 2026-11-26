@@ -149,8 +149,8 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
 - **`Engine`** holds the core and nothing else. `Engine::new(config, limits)` builds it as
   `Core::new` does, refusing what that refuses with the same `Problem`.
 - **`step(engine, env, input, out)`** takes one input as one decision and appends its outputs to
-  `out`, in the order the core made them. For `In::Legacy(event)` they are exactly what the core's
-  own step returns for `event`, each as `Out::Legacy`.
+  `out`, in the order the core made them. For `In::Core(event)` they are exactly what the core's
+  own step returns for `event`, each as `Out::Core`.
 - **`fire(engine, env, timer, out)`** fires one due timer the same way, as the core's `fire` does.
 - **`due(engine, now, wall, admit)` and `next_deadline(engine, now, wall, admit)`** keep today's
   timers, clocks and admission: `now` is the engine's clock and `wall` the wall's, since a
@@ -168,11 +168,15 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
 
 ### 2.2 In and out
 
-- **`In::Legacy` carries today's `Event`, and `Out::Legacy` today's `Request`,** and neither enum
-  has another variant. A request keeps its mark (1.2) inside `Out::Legacy`, and the root keeps it
-  as it does today (`../root.md`, 3).
-- **The ports come beside `Legacy`.** Each port of the draft (`temper/docs/design/draft/jig-domain-api.md`, 4.2 and 5) arrives as variants of `In` and `Out` and takes its cases out of
-  `Legacy`, a milestone at a time, until `Legacy` is empty and goes.
+- **`In::Core` carries today's `Event`, and `Out::Core` today's `Request`,** and neither enum
+  has another variant. A request keeps its mark (1.2) inside `Out::Core`, and the root keeps it
+  as it does today (`../root.md`, 3). For the draft's pass-through
+  (`temper/docs/design/draft/jig-domain-api.md`, 4.5 and 15), jig names the variants `Core` because
+  its sources keep out the draft's name `Legacy` (`jig/tests/boundary/src/names.rs`).
+- **The ports come beside `In::Core` and `Out::Core`.** Each port of the draft
+  (`temper/docs/design/draft/jig-domain-api.md`, 4.2 and 5) arrives as variants of `In` and `Out`
+  and takes its cases out of `In::Core` and `Out::Core`, a milestone at a time, until they are
+  empty and go.
 
 ### 2.3 The core, while the move runs
 
@@ -194,6 +198,7 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
 ## 3. Later
 
 - **The engine as the API** (`temper/docs/design/draft/jig-domain-api.md`, 4 to 6, by its
-  execution file): the ports beside `Legacy`; connectors' declarations given to `Engine::new`;
-  one class per input, and `idle` in place of `quiescent` and `finish_owed`; then `Legacy` and the
-  access gone, and `In` and `Out` named `Event` and `Request` once today's are.
+  execution file): the ports beside `In::Core` and `Out::Core`; connectors' declarations given to
+  `Engine::new`; one class per input, and `idle` in place of `quiescent` and `finish_owed`; then
+  `In::Core`, `Out::Core` and the access gone, and `In` and `Out` named `Event` and `Request` once
+  today's are.

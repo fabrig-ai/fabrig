@@ -36,7 +36,7 @@ impl Engine {
 /// Take one input as one decision, appending the core's requests in order.
 pub fn step(engine: &mut Engine, env: &Env<Limits>, input: In, out: &mut Queue<Out>) {
     match input {
-        In::Legacy(event) => {
+        In::Core(event) => {
             let requests = crate::step(&mut engine.core, env, event);
             append(requests, out);
         }
@@ -76,6 +76,6 @@ pub fn idle(engine: &Engine) -> bool {
 fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..requests.len() {
         let request = requests.pop().expect("core request count");
-        out.push(Out::Legacy(request));
+        out.push(Out::Core(request));
     }
 }

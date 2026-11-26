@@ -6,13 +6,13 @@ use crate::{Event, Request};
 /// An input from the root, using the core's vocabulary.
 #[derive(Hash, Debug)]
 pub enum In {
-    Legacy(Event),
+    Core(Event),
 }
 
 /// An output to the root, with the core's request mark intact.
 #[derive(Hash, Debug)]
 pub enum Out {
-    Legacy(Request),
+    Core(Request),
 }
 
 /// Which timers the root admits at its watermark.
