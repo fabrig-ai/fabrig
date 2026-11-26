@@ -411,6 +411,7 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                 Keys { from: &[47], to: &[48], root: "Row" },
                 Keys { from: &[48], to: &[49], root: "Row" },
                 Keys { from: &[50], to: &[51], root: "Row" },
+                Keys { from: &[crate::keys::WRITES], to: &[53], root: "Row" },
                 Keys { from: &[127], to: &[128], root: "Row" },
                 Keys { from: &[128], to: &[129], root: "Row" },
                 Keys { from: &[129], to: &[130], root: "Row" },
