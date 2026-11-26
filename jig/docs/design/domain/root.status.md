@@ -5,10 +5,6 @@
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.
-- **Not yet:** 2, 3: `ops`'s root holds `Engine` and steps, fires and
-  times it by the engine's functions. [in flight: change 19208]
-- **Not yet:** 2, 3: the test root holds `Engine` and steps, fires and
-  times it by the engine's functions. [in flight: change 19209]
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks

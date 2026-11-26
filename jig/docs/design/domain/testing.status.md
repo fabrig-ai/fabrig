@@ -2,9 +2,6 @@
 
 2026-11-26. Where jig's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 4: the core world's root holds the engine, and the core
-  world's kit, the reference service and the worlds that step past the
-  root drive it by the engine's functions. [in flight: change 19209]
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 9's seven store sweeps run in fuzzy, sharing their
