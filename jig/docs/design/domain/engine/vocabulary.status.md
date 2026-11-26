@@ -3,8 +3,6 @@
 2026-11-26. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
 
-- **Not yet:** 2.3: temper's root, `temper-engine-domain`, holds `Core` and steps it, times it and asks its quiescence itself, not through the engine [in flight: change 19212].
-- **Not yet:** 2.3: temper's tests that build a core (in `temper-engine-service-stock`, `temper-engine-service-vocabulary`, `temper-box` and `temper-client-tools`) build `Core`, not `Engine` [in flight: change 19213].
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
   1: the root interface has no text for public `Core::effect_owner` and
