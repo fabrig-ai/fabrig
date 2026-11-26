@@ -1,10 +1,10 @@
-//! The root delegates the producer's member messages, with Goal only on merges into main.
+//! The root delegates the producer's member messages, with their trailers only on squashes.
 use super::super::goal_landing::{producing_into_goal, row};
 use super::*;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const TITLE: &[u8] = b"Add the squash trailers";
-const WORDS: &[u8] = b"Squashes each change.\n\nMore text.";
+const WORDS: &[u8] = b"Squashes each change.\n\nMore text.\n\nLook-request: squash-trailers";
 
 fn delegated_messages(into_main: bool) {
     let world = World::configured_limits(
@@ -82,15 +82,17 @@ fn delegated_messages(into_main: bool) {
     assert_eq!(row(&world, change).goal, Some(goal.task));
     assert_eq!(row(&world, change).milestone, None, "a plain goal has no milestone");
     assert_eq!(row(&world, change).title.as_ref(), TITLE);
-    let message = format!(
-        "Add the squash trailers\n\nSquashes each change.\n\nChange: {change}\nPull-request: {pull}\nHead: {head}"
-    );
-    let squash = format!("{message}\nGoal: {}", goal.task);
+    let intro = "Add the squash trailers\n\nSquashes each change.\n\n";
+    let temper = format!("Change: {change}\nPull-request: {pull}\nHead: {head}");
+    let goal_line = format!("\nGoal: {}", goal.task);
+    let merge_goal = if into_main { goal_line.as_str() } else { "" };
+    let message = format!("{intro}{temper}{merge_goal}");
+    let squash = format!("{intro}Look-request: squash-trailers\n{temper}{goal_line}");
     assert_eq!(request["combine"], if into_main { "merge" } else { "squash" });
     assert_eq!(request["members"][0]["number"], 1_u64);
     assert_eq!(request["members"][0]["head"], head);
     assert_eq!(request["members"][0]["squash"], squash);
-    assert_eq!(request["members"][0]["message"], if into_main { squash } else { message });
+    assert_eq!(request["members"][0]["message"], message);
 }
 
 #[test]

@@ -718,9 +718,11 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<Prep
             pull: member.pull,
             head,
             goal: change.goal,
+            head_trailers: &[],
         };
-        let message = forge::member_message::commit_message(&text, main);
-        let squash = forge::member_message::commit_message(&text, true);
+        let message =
+            forge::member_message::commit_message(&text, forge::member_message::Kind::Merge { into_main: main });
+        let squash = forge::member_message::commit_message(&text, forge::member_message::Kind::Squash);
         members
             .push(PrepareMember {
                 number: u64::try_from(index).ok()?.checked_add(1)?,
