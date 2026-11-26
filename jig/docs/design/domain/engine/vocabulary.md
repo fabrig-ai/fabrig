@@ -185,6 +185,16 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
   of `Core` today (its methods, its children's state, its counters, the step's other entrances
   `want_accounts` and `resume_fleet`) compiles through them unchanged. Each milestone narrows what
   passes through, and the clean-up removes them.
+- **Who holds it:** outside `jig-domain-core` and its own tests, whoever builds a core builds an
+  `Engine` in its place: a root, and a kit, a world or a test that drives one. It calls 2.1's
+  functions where they stand for the core's own: `step` with `In::Core` for each event the core's
+  `step` took, `fire` for its timers, `due` and `next_deadline` under the admission it keeps today
+  (`Admit::All` for `due` and `next_deadline`, `Admit::Finishing` for `finishing_due` and
+  `next_finishing_deadline`), and `idle` for `quiescent`. The core's other entrances (`restore`,
+  the start's, the reads', `finish_decision`, `want_accounts`, `resume_fleet`) and every other use
+  go through `core()` and `core_mut()`. What the holder does is unchanged: each event, timer and
+  request crosses in the order it did. A crate that only reads the core for its holder, such as a
+  world's inspection or a reader of the core's state, keeps taking `&Core`, from `core()`.
 - **Never by `Deref`,** since a deref would make each use of the core read as a use of the engine:
   through two named methods every remaining use stays in sight, to review and to the counts. The
   counts of `temper/docs/design/draft/jig-domain-api.md`, 16 that read a use of the core (its
