@@ -7,7 +7,15 @@ use skein_io::kernel::{Error, Fd};
 use super::process::map_error;
 
 pub(crate) fn unreaped_children() -> Result<Box<[u32]>, i32> {
-    let tasks = std::fs::read_dir("/proc/self/task").map_err(|error| error.raw_os_error().unwrap_or(libc::EIO))?;
+    list_children("/proc/self/task")
+}
+
+pub(crate) fn process_children(pid: u32) -> Result<Box<[u32]>, i32> {
+    list_children(&format!("/proc/{pid}/task"))
+}
+
+fn list_children(path: &str) -> Result<Box<[u32]>, i32> {
+    let tasks = std::fs::read_dir(path).map_err(|error| error.raw_os_error().unwrap_or(libc::EIO))?;
     let mut children = Vec::new();
     for task in tasks {
         let task = task.map_err(|error| error.raw_os_error().unwrap_or(libc::EIO))?;

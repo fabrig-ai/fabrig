@@ -19,9 +19,13 @@ use skein_io::kernel::{Error, Fd};
 use super::{last_errno, process::map_error};
 
 pub(crate) fn unreaped_children() -> Result<Box<[u32]>, i32> {
+    process_children(super::process_id())
+}
+
+pub(crate) fn process_children(parent: u32) -> Result<Box<[u32]>, i32> {
     // libproc.h's PROC_PPID_ONLY is 6. The estimate and listing count bytes,
     // not entries; the walk includes zombies after the living processes.
-    let parent = super::process_id();
+    clear_errno();
     // SAFETY: a null buffer with size zero asks only for the byte estimate.
     let estimate = unsafe { libc::proc_listpids(6, parent, std::ptr::null_mut(), 0) };
     if estimate <= 0 {
@@ -34,10 +38,7 @@ pub(crate) fn unreaped_children() -> Result<Box<[u32]>, i32> {
         return Err(libc::ENOBUFS);
     }
     let mut children = vec![0_i32; bytes.checked_div(pid_size).ok_or(libc::ENOBUFS)?];
-    // SAFETY: __error returns this thread's writable errno slot.
-    let errno_slot = unsafe { libc::__error() };
-    // SAFETY: the returned thread-local errno slot is writable.
-    unsafe { errno_slot.write(0) };
+    clear_errno();
     // SAFETY: children is initialized and writable for exactly estimate bytes.
     let listed = unsafe { libc::proc_listpids(6, parent, children.as_mut_ptr().cast(), estimate) };
     if listed == 0 {
@@ -66,6 +67,24 @@ pub(crate) fn unreaped_children() -> Result<Box<[u32]>, i32> {
 
 pub(crate) fn child_id(handle: Fd) -> Result<u32, Error> {
     super::process::child_id(handle)
+}
+
+/// Reads the current parent after the keeper has registered its exit watch.
+pub(super) fn process_parent(pid: libc::pid_t) -> Result<u32, i32> {
+    let (info, read, size, errno) = read_process(pid);
+    if read == size { Ok(info.pbi_ppid) } else { Err(if errno == 0 { libc::EIO } else { errno }) }
+}
+
+fn read_process(pid: libc::pid_t) -> (libc::proc_bsdinfo, i32, i32, i32) {
+    // SAFETY: proc_bsdinfo is C output storage; zero initializes every field.
+    let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    let size = libc::c_int::try_from(size_of::<libc::proc_bsdinfo>()).expect("proc_bsdinfo size fits c_int");
+    clear_errno();
+    // SAFETY: info is writable for exactly size bytes; libproc retains no pointer.
+    // PROC_PIDTBSDINFO with arg 1 also asks for a zombie's status.
+    let read =
+        unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 1, std::ptr::from_mut(&mut info).cast(), size) };
+    (info, read, size, last_errno())
 }
 
 /// Conservatively reads the members of a group whose signal was refused.
@@ -109,16 +128,7 @@ fn read_group(group: u32) -> Option<GroupRefusal> {
             if pid <= 0 {
                 return GroupMember::Failed { pid, bytes: 0, errno: libc::EINVAL };
             }
-            // SAFETY: proc_bsdinfo is C output storage; zero initializes every field.
-            let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
-            let size = libc::c_int::try_from(size_of::<libc::proc_bsdinfo>()).expect("proc_bsdinfo size fits c_int");
-            clear_errno();
-            // SAFETY: info is writable for exactly size bytes; libproc retains no pointer.
-            // PROC_PIDTBSDINFO with arg 1 also asks for a zombie's status.
-            let read = unsafe {
-                libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 1, std::ptr::from_mut(&mut info).cast(), size)
-            };
-            let errno = last_errno();
+            let (info, read, size, errno) = read_process(pid);
             if read == size {
                 GroupMember::Status { pid, status: info.pbi_status, flags: info.pbi_flags }
             } else {
@@ -129,8 +139,10 @@ fn read_group(group: u32) -> Option<GroupRefusal> {
 }
 
 fn clear_errno() {
-    // SAFETY: __error returns this thread's writable errno slot; no pointer is retained.
-    unsafe { *libc::__error() = 0 };
+    // SAFETY: __error returns this thread's writable errno slot.
+    let slot = unsafe { libc::__error() };
+    // SAFETY: the slot is writable and its pointer is not retained.
+    unsafe { slot.write(0) };
 }
 
 pub(crate) fn group_has_other_members(group: u32) -> Result<bool, Error> {
