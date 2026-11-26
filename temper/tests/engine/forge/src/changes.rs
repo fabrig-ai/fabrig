@@ -5,6 +5,15 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 
 #[must_use]
+pub fn branch_name(branch: &[u8]) -> top::Name {
+    top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(branch.split(|&byte| byte == b'/').map(Box::from).collect()),
+    }
+}
+
+#[must_use]
 pub fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         settling: false,

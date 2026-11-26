@@ -1657,9 +1657,27 @@ impl World {
         content: &[u8],
     ) -> skein_forge::api::Commit {
         let push = self.lease_attempt_push(name, attempt, branch, path, content);
-        let raw::Git::Push { commit, .. } = &push else { unreachable!("a leased push") };
-        let commit = *commit;
-        assert_eq!(self.external(raw::Op::Git(push), 1), raw::Answer::Pushed(raw::Pushed::Pushed));
+        self.send_attempt_push(push)
+    }
+
+    /// Deliver a producer's first push through a lease on the absent branch.
+    pub fn push_new_attempt(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+    ) -> skein_forge::api::Commit {
+        let push = self.lease_new_attempt_push(name, attempt, branch, b"main", b"file", b"change");
+        self.send_attempt_push(push)
+    }
+
+    fn send_attempt_push(&mut self, push: raw::Git) -> skein_forge::api::Commit {
+        let (commit, answer) = match &push {
+            raw::Git::Push { commit, .. } => (*commit, raw::Answer::Pushed(raw::Pushed::Pushed)),
+            raw::Git::PushNew { commit, .. } => (*commit, raw::Answer::PushNew { existing: None }),
+            _ => unreachable!("a leased push"),
+        };
+        assert_eq!(self.external(raw::Op::Git(push), 1), answer);
         self.record_wrong_candidate(commit);
         translate::commit(commit)
     }
@@ -1775,6 +1793,30 @@ impl World {
         translate::commit(merge)
     }
     pub fn resolve(&mut self, branch: &[u8], content: &[u8]) {
+        let (head, merged) = self.resolution(branch, content);
+        assert_eq!(
+            self.external(
+                raw::Op::Git(raw::Git::Push { branch: branch.into(), commit: merged, expected: Some(head) }),
+                1
+            ),
+            raw::Answer::Pushed(raw::Pushed::Pushed)
+        );
+    }
+
+    /// A resolver delivers a merge of the branch and the base through its attempt's lease.
+    pub fn resolve_attempt(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        content: &[u8],
+    ) -> skein_forge::api::Commit {
+        let (head, merged) = self.resolution(branch, content);
+        self.admit_attempt(name, attempt, Some(head), merged);
+        self.send_attempt_push(raw::Git::Push { branch: branch.into(), commit: merged, expected: Some(head) })
+    }
+
+    fn resolution(&mut self, branch: &[u8], content: &[u8]) -> (u64, u64) {
         let head = self.branch(branch);
         let base = self.branch(b"main");
         let merged = forge::merge_commit(
@@ -1786,13 +1828,7 @@ impl World {
             b"Resolve conflict",
         )
         .expect("fixture merge commit");
-        assert_eq!(
-            self.external(
-                raw::Op::Git(raw::Git::Push { branch: Box::from(branch), commit: merged, expected: Some(head) }),
-                1,
-            ),
-            raw::Answer::Pushed(raw::Pushed::Pushed)
-        );
+        (head, merged)
     }
     /// The scripted worker delivers a clean prepare on a new landing branch.
     pub fn prepare_landing(&mut self, task: u64, squash: bool) -> u64 {

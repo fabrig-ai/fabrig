@@ -105,7 +105,7 @@ fn name() -> top::Name {
         what: top::What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
     }
 }
-fn report(world: &mut World, lost: bool) {
+fn claim(world: &mut World) {
     let name = name();
     world.event(top::Event::Names { task: TASK, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: TASK, resource: name.clone(), from: None });
@@ -116,12 +116,15 @@ fn report(world: &mut World, lost: bool) {
         designs: Box::new([]),
         holders: Box::new([TASK]),
     });
-    if lost {
-        world.event(top::Event::Lost { task: CHILD, attempt: 1 });
-    } else {
-        let commit = translate::commit(world.branch(BRANCH));
-        world.event(top::Event::Answered { task: CHILD, attempt: 1, pushed: Box::new([(name, commit, true)]) });
-    }
+}
+fn report(world: &mut World) {
+    claim(world);
+    let commit = translate::commit(world.branch(BRANCH));
+    world.event(top::Event::Answered { task: CHILD, attempt: 1, pushed: Box::new([(name(), commit, true)]) });
+    world.run_for(1);
+}
+fn lost(world: &mut World) {
+    world.event(top::Event::Lost { task: CHILD, attempt: 1 });
     world.run_for(1);
 }
 
@@ -310,7 +313,7 @@ fn a_conflicting_update_and_its_resolution_have_distinct_intervals() {
     world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Resolve { base } });
     world.resolve(BRANCH, b"settled both sides");
     let head = translate::commit(world.branch(BRANCH));
-    report(&mut world, false);
+    report(&mut world);
     result(&mut world, false, true);
     let before = effects(&world);
     world.restart();
@@ -385,7 +388,7 @@ fn repair_and_judgement_results_record_their_own_outcomes_once() {
         world.event(top::Event::Delegated { task: TASK, child: CHILD, kind });
         if outcome == h::Answer::Pushed {
             world.push(BRANCH, b"repair");
-            report(&mut world, false);
+            report(&mut world);
         }
         result(&mut world, failed, passed);
         let answers: Vec<_> = effects(&world)
@@ -411,14 +414,22 @@ fn repair_and_judgement_results_record_their_own_outcomes_once() {
 fn a_lost_push_found_again_and_restarted_is_written_once_per_head() {
     let mut world = queued();
     world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Produce });
-    report(&mut world, false);
-    world.push(BRANCH, b"saved work");
-    report(&mut world, true);
+    // The queued change already has a recorded head for the first delivery.
+    let commit = translate::commit(world.branch(BRANCH));
+    world.event(top::Event::Restore {
+        record: top::Stored::BranchHead(top::BranchHead { name: name(), commit, owned: true }),
+    });
+    report(&mut world);
+    claim(&mut world);
+    world.push_attempt(&name(), (CHILD, 1), BRANCH, b"file", b"saved work");
+    world.event(top::Event::Finished { task: CHILD, attempt: 1, lost: true });
+    lost(&mut world);
     let before = effects(&world);
     let pushes: Vec<_> = before.iter().filter(|e| e.what == h::What::Pushed).collect();
     assert_eq!(pushes.len(), 2);
     assert_ne!(pushes[0].head, pushes[1].head);
-    report(&mut world, true);
+    claim(&mut world);
+    lost(&mut world);
     assert_eq!(effects(&world), before, "a reread accepting the same head is no push");
     world.restart();
     world.event(top::Event::Lost { task: CHILD, attempt: 1 });

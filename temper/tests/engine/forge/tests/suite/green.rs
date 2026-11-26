@@ -2,7 +2,9 @@
 use skein_fake_forge_domain::api as raw;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
-use temper_engine_forge_world::changes::{change_row, change_step, change_step_task_running, change_step_with_release};
+use temper_engine_forge_world::changes::{
+    branch_name, change_row, change_step, change_step_task_running, change_step_with_release,
+};
 use temper_engine_forge_world::{World, translate};
 
 const TASK: u64 = 51;
@@ -13,10 +15,13 @@ fn repair(why: change::Repair, requested: bool, live: bool) -> (World, skein_for
     let mut world = World::new(219);
     world.adopt();
     world.landing_ci(b"main", true);
-    world.produce(BRANCH);
+    let name = branch_name(BRANCH);
+    world.event(top::Event::Hold { entry: 0, task: TASK, resource: name.clone(), from: None });
+    let head = world.push_new_attempt(&name, (50, 1), BRANCH);
+    world.event(top::Event::Finished { task: 50, attempt: 1, lost: false });
+    world.run_for(1);
     world.status(BRANCH, raw::Check::Passed);
     let pull = world.open_pull(BRANCH, b"main");
-    let head = translate::commit(world.branch(BRANCH));
     let mut row = change_row();
     row.pull = Some(pull);
     row.change.last_head = Some(head);
@@ -86,8 +91,7 @@ fn a_run_in_progress_is_left_to_finish() {
     // The fixture's client poll is five seconds.
     assert!(until.as_nanos() <= world.wall().as_nanos().saturating_add(5_000_000_000));
     assert_eq!(row(&world).delegate, Some((REPAIR, change::Delegate::Repair(change::Repair::Ci))));
-    world.push(BRANCH, b"repair delivered");
-    let pushed = translate::commit(world.branch(BRANCH));
+    let pushed = world.push_attempt(&branch_name(BRANCH), (REPAIR, 1), BRANCH, b"file", b"repair delivered");
     assert_ne!(head, pushed);
     world.status(BRANCH, raw::Check::Passed);
     let decision = change_step(&mut world, 2, change::Status::Passed, Box::new([]));
@@ -126,7 +130,7 @@ fn ci_passed_on_an_earlier_head_changes_nothing() {
     let (mut world, _) = repair(change::Repair::Ci, true, true);
 
     let earlier = translate::commit(world.branch(BRANCH));
-    world.push(BRANCH, b"new repair head");
+    world.push_attempt(&branch_name(BRANCH), (REPAIR, 1), BRANCH, b"file", b"new repair head");
     world.run_for(3);
     world.status(BRANCH, raw::Check::Failed);
     world.event(top::Event::Enqueue {

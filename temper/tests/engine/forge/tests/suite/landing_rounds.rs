@@ -339,7 +339,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());
     let choice = changes::change_step_task(&mut world, CHANGE, 200, change::Status::Passed, Box::new([]), false, false);
     assert_eq!(choice, change::Decision::Delegate(change::Delegate::Resolve { base }));
-    world.resolve(MEMBER, b"resolved");
+    world.resolve_attempt(&changes::branch_name(MEMBER), (52, 1), MEMBER, b"resolved");
     for entry in 201..210 {
         changes::change_step_task(&mut world, CHANGE, entry, change::Status::Passed, Box::new([]), false, false);
         if matches!(world.change(CHANGE).change.state, change::State::Ready { .. }) {
