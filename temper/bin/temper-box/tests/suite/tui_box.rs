@@ -340,6 +340,10 @@ fn run(case: Case, name: &str) {
     let root = scratch.path();
     let initialized = box_link::command(root, "init").arg("--box").output().expect("initialize box");
     assert!(initialized.status.success());
+    if matches!(case, Case::Working) {
+        // Hold the CSV change at landing so it stays a live delegate after the chat parks.
+        fs::write(root.join("data/landing-held"), b"").expect("hold landings for the working sitting");
+    }
     support::own_listener_files(&root.join("config"));
     let document: serde_json::Value = serde_json::from_slice(
         &support::read_start(
