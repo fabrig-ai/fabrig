@@ -11,6 +11,9 @@ fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
         } else if path == &std::path::PathBuf::from("src/jig/render/goal_title.rs") {
             // The goal title warning names the application's help page (client/ctl/areas.md), area 2.
             names.replace("temper ctl help goal start", "")
+        } else if path == &std::path::PathBuf::from("src/jig/render/lists.rs") {
+            // The waits read-on names the whole command (temper/docs/design/client/ctl/results.md, 1).
+            names.replacen("b\"temper ctl \"", "", 1)
         } else if path == &std::path::PathBuf::from("src/jig/rows.rs") {
             // Help names local recovery and the worker's secret procedure (client/ctl/command-line.md, 1.1; client/ctl/workers.md, 1).
             names
