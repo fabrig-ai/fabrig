@@ -415,4 +415,4 @@ fn child(host: &mut Host, program: Program) -> Result<Ran, Stop> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

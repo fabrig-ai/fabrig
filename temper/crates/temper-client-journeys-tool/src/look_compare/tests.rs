@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use crate::host::{Answer, Ask, Gathered, Host, Program, Ran, Step, Stream};
 
+use crate::look_git::{look_step_tests, record};
+
 use super::run;
 
 pub(crate) const NAME: &str = "look-request";
@@ -218,6 +220,7 @@ impl Steps {
 }
 
 fn check(steps: Steps, args: &[Box<[u8]>], code: u8, stdout: &str, stderr: &str) {
+    record(&steps.0);
     let mut host = Host::canned(steps.0);
     assert_eq!(run(args, &mut host), code, "exit with {args:?}");
     let Gathered { stdout: out, stderr: err } = host.finish();
@@ -225,6 +228,7 @@ fn check(steps: Steps, args: &[Box<[u8]>], code: u8, stdout: &str, stderr: &str)
     assert_eq!(String::from_utf8(err).expect("details are text"), stderr);
 }
 
+look_step_tests! {
 #[test]
 fn every_edit_landed() {
     let mut steps = Steps::default();
@@ -454,4 +458,5 @@ fn a_web_walk_shadowing_the_tui_refuses_before_print() {
         "",
         "look-compare: tui/journeys/sign-in is shadowed by a walk in web/journeys/sign-in; rename one directory\n",
     );
+}
 }

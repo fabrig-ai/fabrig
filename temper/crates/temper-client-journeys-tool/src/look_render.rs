@@ -33,7 +33,7 @@ mod measurement;
 mod report;
 mod rules;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub(crate) fn run(arguments: &[Box<[u8]>], host: &mut Host) -> u8 {
     let request = match request::read(arguments, host) {
@@ -271,7 +271,8 @@ fn hand_made_paths(
         "--no-commit-id",
         "--name-only",
         "--no-renames",
-        "-rz",
+        "-r",
+        "-z",
         &request.parent,
         &request.commit,
         "--",

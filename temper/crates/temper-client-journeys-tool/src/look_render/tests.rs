@@ -11,6 +11,8 @@ use crate::{
     look_compare::tests::{NAME, ON_DISK_WALK, PARENT, ROOT, SHELL_WEB, SHORT, SIGN_IN_PAGE, Steps, TIP, TUI, WEB},
 };
 
+use crate::look_git::{look_step_tests, record};
+
 use super::run;
 
 const SCRATCH: &str = "/landing tree/.git/look-render";
@@ -226,6 +228,7 @@ impl Effects {
 
     fn check(self, code: u8, out: &str, err: &str) {
         let Steps(steps) = self.0;
+        record(&steps);
         let mut host = Host::canned(steps);
         let args = [NAME.as_bytes().into(), SHORT.as_bytes().into()];
         assert_eq!(run(&args, &mut host), code);
@@ -280,6 +283,24 @@ fn uncompared(item: &str, reason: &str) -> String {
     format!("uncompared\t{item}\t{reason}\nresult\tnot compared\n")
 }
 
+fn overlay(requested: &str) -> Effects {
+    let source = page("button", "temper-chip");
+    let mut steps = Effects::default();
+    steps.begin(&[OVERLAY]);
+    steps.copy_request(&[
+        Files::same(OVERLAY, requested),
+        Files::same(SIGN_IN_PAGE, &source),
+        Files::same(WEB_WALK, ON_DISK_WALK),
+    ]);
+    steps.copy_print(&[Files::same(SIGN_IN_PAGE, &source)]);
+    steps.0.blob(PARENT, OVERLAY, Some(""));
+    steps.0.blob(TIP, OVERLAY, Some(requested));
+    steps.start();
+    steps.open(REQUEST, "request");
+    steps
+}
+
+look_step_tests! {
 #[test]
 fn equal_views_have_one_identical_line_for_the_page() {
     let mut steps = edited_button();
@@ -333,23 +354,6 @@ fn a_touched_tag_with_no_pair_reports_one_difference() {
     steps.edit(&page("button", "old"), &edited, &button_patch());
     steps.diff(&edited, &landed, &format!("@@ -{LINE} +{LINE} @@\n-<button class=\"temper-chip\">Continue</button>\n+<p class=\"temper-chip\">Continue</p>\n"));
     steps.verdict(&format!("differs\t{ITEM}\t-\t41 button.temper-chip\tpair\tpresent\tnone\n{DIFFERS}"));
-}
-
-fn overlay(requested: &str) -> Effects {
-    let source = page("button", "temper-chip");
-    let mut steps = Effects::default();
-    steps.begin(&[OVERLAY]);
-    steps.copy_request(&[
-        Files::same(OVERLAY, requested),
-        Files::same(SIGN_IN_PAGE, &source),
-        Files::same(WEB_WALK, ON_DISK_WALK),
-    ]);
-    steps.copy_print(&[Files::same(SIGN_IN_PAGE, &source)]);
-    steps.0.blob(PARENT, OVERLAY, Some(""));
-    steps.0.blob(TIP, OVERLAY, Some(requested));
-    steps.start();
-    steps.open(REQUEST, "request");
-    steps
 }
 
 #[test]
@@ -418,7 +422,8 @@ fn hand_made_pages_receive_a_row_without_rendering() {
             "--no-commit-id",
             "--name-only",
             "--no-renames",
-            "-rz",
+            "-r",
+            "-z",
             PARENT,
             TIP,
             "--",
@@ -589,4 +594,5 @@ fn touching_a_parent_touches_descendants_but_not_its_siblings() {
     let mut selected = [false, true, false, false, false, false];
     super::descendants(&elements, &mut selected);
     assert_eq!(selected, [false, true, true, true, false, false]);
+}
 }
