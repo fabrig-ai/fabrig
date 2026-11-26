@@ -51,6 +51,8 @@ pub const THING_GATE: u32 = 5;
 pub const THING_ROLE: u32 = 6;
 pub const THING_RULE: u32 = 7;
 pub const THING_FORGE: u32 = 8;
+pub const THING_LANDINGS: u32 = 9;
+pub const THING_LANDING_MAKE: u32 = 10;
 
 #[must_use]
 pub const fn step_name(code: u32) -> Option<&'static [u8]> {
@@ -108,6 +110,40 @@ pub const fn thing_name(code: u32) -> Option<&'static [u8]> {
         THING_ROLE => Some(b"role"),
         THING_RULE => Some(b"rule"),
         THING_FORGE => Some(b"forge"),
+        THING_LANDINGS => Some(b"the forge's"),
+        THING_LANDING_MAKE => Some(b"landing"),
         _ => None,
+    }
+}
+
+/// The words that follow a thing's number in a task's lines.
+#[must_use]
+pub const fn thing_suffix(code: u32) -> &'static [u8] {
+    match code {
+        THING_LANDINGS => b" landings",
+        THING_LANDING_MAKE => b"'s make, refused by jig",
+        _ => b"",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{THING_LANDING_MAKE, THING_LANDINGS, thing_name, thing_suffix};
+    use alloc::boxed::Box;
+
+    fn named(code: u32, number: &[u8]) -> Box<[u8]> {
+        skein_lib::bytes::concat(&[thing_name(code).expect("named thing"), b" ", number, thing_suffix(code)])
+    }
+
+    #[test]
+    fn names_the_forges_landings() {
+        assert_eq!(named(9, b"2").as_ref(), b"the forge's 2 landings");
+        assert_eq!(THING_LANDINGS, 9);
+    }
+
+    #[test]
+    fn names_the_landing_make_jig_refused() {
+        assert_eq!(named(10, b"40").as_ref(), b"landing 40's make, refused by jig");
+        assert_eq!(THING_LANDING_MAKE, 10);
     }
 }

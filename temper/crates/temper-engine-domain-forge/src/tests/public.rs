@@ -161,6 +161,7 @@ fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -225,6 +226,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        settling: false,
         room: None,
         source: None,
         kept: None,

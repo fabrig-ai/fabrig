@@ -259,6 +259,9 @@ pub(crate) fn raw_row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::St
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        adopted_refusals: forge.changes,
+        train_refusal_branch: forge.name_bytes,
+        refused_by_jig_why: d::FORMING_REASON_BYTES,
         change_follows_commits: forge.follow_merge,
         follow_source_paths: forge.follow_paths,
         follow_source_branch: forge.name_bytes,

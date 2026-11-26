@@ -305,7 +305,7 @@ fn a_refused_landing_forms_nothing_and_retries_after_room_returns() {
             assert_eq!(task, after);
             assert_eq!(repository, forge_world::REPO);
             assert_eq!(branch.as_ref(), b"main");
-            assert_eq!(why, Some(tasks::Refusal::Live));
+            assert_eq!(why.as_ref(), b"Live");
             assert_eq!(changes.as_ref(), [change]);
             warnings.push(task);
         }
@@ -509,12 +509,17 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
 }
 
 pub(crate) fn full_landing_room() -> (World, u64, u64) {
-    ready_behind_landing(1)
+    ready_behind_landing_in(1, true)
 }
 
 pub(crate) fn ready_behind_landing(landings: u32) -> (World, u64, u64) {
+    ready_behind_landing_in(landings, false)
+}
+
+fn ready_behind_landing_in(landings: u32, across: bool) -> (World, u64, u64) {
     let (mut world, first) = produced_turn_change_with(&StoryLimits {
         turn: true,
+        across,
         landing_members: Some(1),
         landings: Some(landings),
         slots: Some(3),
@@ -533,9 +538,15 @@ pub(crate) fn ready_behind_landing(landings: u32) -> (World, u64, u64) {
     let landing = world.root.forge().landing_of(first).expect("first landing");
     assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
     let chat = world.assigned[0].clone();
-    let (change, producer) = make_change(&mut world, &chat, 101, b"org/repo");
-    push_change(&mut world, &producer, b"org/repo");
-    finish_producer(&mut world, &producer, forge_world::REPO);
+    let (name, repository) = if across {
+        adopt_library(&mut world);
+        (b"org/lib".as_slice(), LIB)
+    } else {
+        (b"org/repo".as_slice(), forge_world::REPO)
+    };
+    let (change, producer) = make_change(&mut world, &chat, 101, name);
+    push_change(&mut world, &producer, name);
+    finish_producer(&mut world, &producer, repository);
     for _ in 0..600 {
         world.tick();
         if world
@@ -577,6 +588,33 @@ fn a_ready_change_waits_when_landing_room_is_full() {
     assert!(landing_rows(&world).iter().all(|row| row.landing.members.iter().all(|member| member.change != change)));
     assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
     assert_eq!(world.merges, 0);
+    let mut warnings = 0;
+    while let Some(fact) = world.root.pop_fact() {
+        if let engine::Fact::LandingTableRefused { repository, branch, limit, holders, changes } = fact {
+            assert_eq!(repository, LIB);
+            assert_eq!(branch.as_ref(), b"main");
+            assert_eq!(limit, 1);
+            assert_eq!(holders.as_ref(), [landing]);
+            assert_eq!(changes.as_ref(), [change]);
+            warnings += 1;
+        }
+    }
+    assert_eq!(warnings, 1);
+    let repository = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::Repository(row) if row.provider == LIB => Some(row),
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("stored repository");
+    assert_eq!(repository.refusals.len(), 1);
+    assert_eq!(repository.refusals[0].branch.as_ref(), b"main");
+    assert_eq!(repository.refusals[0].cause, forge_top::FormingRefusal::Landings);
 }
 
 #[path = "ends_untouched.rs"]
@@ -1293,8 +1331,7 @@ fn a_refused_prepare_holds_the_landing_with_authority_findings() {
     );
 }
 
-#[test]
-fn a_train_forms_after_its_due_readiness_steps_settle() {
+fn gating_pair() -> (World, [u64; 2], engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -1344,7 +1381,7 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
         assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "amended: {answer:?}");
         assert_eq!(live_task(&world, task).waiting_on.as_ref(), [latch]);
     }
-    world.slow_branch = producer_b.workspace.repositories[0].push.clone();
+    world.slow_branch.clone_from(&producer_b.workspace.repositories[0].push);
     world.slow_branch_latency = skein_lib::Duration::from_secs(1);
     finish_producer(&mut world, &producer_a, forge_world::REPO);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
@@ -1354,7 +1391,7 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
         world.tick();
         if [a, b].iter().all(|task| {
             matches!(
-                world.store.change(*task).unwrap().change.state,
+                world.store.change(*task).expect("stored change").change.state,
                 temper_engine_domain_forge_change::State::Gating { .. }
             ) && world.root.tasks().procedure_due(*task).is_none()
         }) {
@@ -1363,12 +1400,18 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     }
     for task in [a, b] {
         assert!(matches!(
-            world.store.change(task).unwrap().change.state,
+            world.store.change(task).expect("stored change").change.state,
             temper_engine_domain_forge_change::State::Gating { .. }
         ));
         assert!(world.root.tasks().procedure_due(task).is_none());
     }
     assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");
+    (world, [a, b], latch_run)
+}
+
+#[test]
+fn a_train_forms_after_its_due_readiness_steps_settle() {
+    let (mut world, [a, b], latch_run) = gating_pair();
     goal_landing::finish_run(
         &mut world,
         &latch_run,
@@ -1384,7 +1427,9 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     let rows = landing_rows(&world);
     assert_eq!(rows.len(), 1);
     let mut queue = [a, b];
-    queue.sort_by_key(|task| (world.store.change(*task).unwrap().change.ready_since.expect("ready"), *task));
+    queue.sort_by_key(|task| {
+        (world.store.change(*task).expect("stored change").change.ready_since.expect("ready"), *task)
+    });
     assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), queue);
 }
 

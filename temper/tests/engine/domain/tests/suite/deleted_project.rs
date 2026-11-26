@@ -130,6 +130,7 @@ fn tier(repository: Repository) -> forge::Stored {
 // An ended change's panel outlives its task; the release must erase both parts.
 fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
+        settling: false,
         source: None,
         kept: None,
         regate: None,

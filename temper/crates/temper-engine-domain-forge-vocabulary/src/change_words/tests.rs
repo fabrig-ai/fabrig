@@ -1006,6 +1006,7 @@ fn preservation_words_yield_to_the_current_request_and_answers() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        settling: false,
         room: None,
         source: None,
         kept: None,
@@ -1097,6 +1098,7 @@ fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::default(),
         project: 5,
         home: forge == 1,

@@ -91,8 +91,7 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
     cause that stops its clock (below). A step that only waits again,
     on the same wait or another, is no advance. The running engine
     keeps it, unstored, with the count of reads the top made for the
-    landing since it, as it keeps a change's one-step hold
-    (`landing-turn.md`, 2).
+    landing since it.
   - **A wait on the forge** is a step's wait on a read again at a
     deadline or on the forge's answer to a write the landing started:
     `prefixes`, `open`, `close`, `delete`, `post`, `receipt` for its own

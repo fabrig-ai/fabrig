@@ -126,6 +126,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
         let row = domain.core.tasks.task(*task).unwrap();
         assert!(row.waiting_on.is_empty(), "the shared non-change dependency ended");
         assert!(domain.core.tasks.procedure_due(*task).is_some(), "its readiness reevaluation is due");
+        assert!(domain.forge.change(*task).unwrap().settling, "the dependency release marked each change");
     }
     (domain, env)
 }
@@ -145,6 +146,7 @@ fn ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     });
     domain.work.push(Work::ForgeSettings(answered));
     super::judge_trains(domain, env);
+    assert!(!domain.forge.change(task).unwrap().settling, "its first decision consumed the release");
     assert!(
         domain.core.tasks.procedure_due(task).is_none(),
         "readiness read settled: {:?}",

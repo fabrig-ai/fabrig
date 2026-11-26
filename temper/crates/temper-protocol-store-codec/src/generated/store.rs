@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x78, 0x10, 0xda, 0xe6, 0xe1, 0x7a, 0xc7, 0x38, 0xcb, 0x22, 0x5e, 0x71, 0x02, 0x3d, 0x15, 0x55, 0x2f, 0x6c, 0x24,
-    0x33, 0x2f, 0x52, 0xa2, 0x13, 0xd4, 0x79, 0x4c, 0xe8, 0x5d, 0x99, 0x73, 0x3f,
+    0x48, 0xfb, 0x7a, 0xfd, 0x39, 0x9e, 0x3a, 0xec, 0x38, 0xcf, 0x24, 0x6d, 0xc3, 0xa8, 0xc9, 0xea, 0x0a, 0x89, 0x34,
+    0x12, 0x7c, 0xc0, 0x32, 0x8c, 0x29, 0x90, 0xd6, 0x18, 0x45, 0xa2, 0x79, 0xef,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -23,6 +23,8 @@ pub struct Limits {
     pub protection_branch: u32,
     pub protection_contexts: u32,
     pub settings_default_branch: u32,
+    pub refused_by_jig_why: u32,
+    pub train_refusal_branch: u32,
     pub adopted_contexts: u32,
     pub adopted_host: u32,
     pub adopted_owner: u32,
@@ -32,6 +34,7 @@ pub struct Limits {
     pub adopted_workflows: u32,
     pub adopted_workflows_item: u32,
     pub adopted_landing: u32,
+    pub adopted_refusals: u32,
     pub retargeted_before: u32,
     pub retargeted_after: u32,
     pub hold_design_writers: u32,
@@ -399,6 +402,8 @@ pub const CEILINGS: Limits = Limits {
     protection_branch: 1_048_576,
     protection_contexts: 2_097_152,
     settings_default_branch: 1_048_576,
+    refused_by_jig_why: 256,
+    train_refusal_branch: 4_096,
     adopted_contexts: 65_536,
     adopted_host: 4_096,
     adopted_owner: 4_096,
@@ -408,6 +413,7 @@ pub const CEILINGS: Limits = Limits {
     adopted_workflows: 16,
     adopted_workflows_item: 255,
     adopted_landing: 4_096,
+    adopted_refusals: 65_536,
     retargeted_before: 4_096,
     retargeted_after: 4_096,
     hold_design_writers: 65_536,
@@ -775,6 +781,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "protection_branch",
     "protection_contexts",
     "settings_default_branch",
+    "refused_by_jig_why",
+    "train_refusal_branch",
     "adopted_contexts",
     "adopted_host",
     "adopted_owner",
@@ -784,6 +792,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "adopted_workflows",
     "adopted_workflows_item",
     "adopted_landing",
+    "adopted_refusals",
     "retargeted_before",
     "retargeted_after",
     "hold_design_writers",
@@ -1155,6 +1164,8 @@ impl Limits {
             self.protection_branch,
             self.protection_contexts,
             self.settings_default_branch,
+            self.refused_by_jig_why,
+            self.train_refusal_branch,
             self.adopted_contexts,
             self.adopted_host,
             self.adopted_owner,
@@ -1164,6 +1175,7 @@ impl Limits {
             self.adopted_workflows,
             self.adopted_workflows_item,
             self.adopted_landing,
+            self.adopted_refusals,
             self.retargeted_before,
             self.retargeted_after,
             self.hold_design_writers,
@@ -1536,6 +1548,8 @@ impl Limits {
             protection_branch: self.protection_branch.min(most),
             protection_contexts: self.protection_contexts.min(most),
             settings_default_branch: self.settings_default_branch.min(most),
+            refused_by_jig_why: self.refused_by_jig_why.min(most),
+            train_refusal_branch: self.train_refusal_branch.min(most),
             adopted_contexts: self.adopted_contexts.min(most),
             adopted_host: self.adopted_host.min(most),
             adopted_owner: self.adopted_owner.min(most),
@@ -1545,6 +1559,7 @@ impl Limits {
             adopted_workflows: self.adopted_workflows.min(most),
             adopted_workflows_item: self.adopted_workflows_item.min(most),
             adopted_landing: self.adopted_landing.min(most),
+            adopted_refusals: self.adopted_refusals.min(most),
             retargeted_before: self.retargeted_before.min(most),
             retargeted_after: self.retargeted_after.min(most),
             hold_design_writers: self.hold_design_writers.min(most),
@@ -1914,6 +1929,8 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PROTECTION_BRANCH,
     paths::PROTECTION_CONTEXTS,
     paths::SETTINGS_DEFAULT_BRANCH,
+    paths::REFUSED_BY_JIG_WHY,
+    paths::TRAIN_REFUSAL_BRANCH,
     paths::ADOPTED_CONTEXTS,
     paths::ADOPTED_HOST,
     paths::ADOPTED_OWNER,
@@ -1923,6 +1940,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::ADOPTED_WORKFLOWS,
     paths::ADOPTED_WORKFLOWS,
     paths::ADOPTED_LANDING,
+    paths::ADOPTED_REFUSALS,
     paths::RETARGETED_BEFORE,
     paths::RETARGETED_AFTER,
     paths::HOLD_DESIGN_WRITERS,
@@ -2343,6 +2361,15 @@ pub mod paths {
     pub const KINDS_BRANCH: Path = Path::new("Kinds.branch");
     pub const KINDS_TAIL: Path = Path::new("Kinds (tail)");
     pub const REPOSITORY_PROTECTION_TAG: Path = Path::new("RepositoryProtection (tag)");
+    pub const REFUSED_BY_JIG_NUMBER: Path = Path::new("RefusedByJig.number");
+    pub const REFUSED_BY_JIG_WHY: Path = Path::new("RefusedByJig.why");
+    pub const REFUSED_BY_JIG_RETRY: Path = Path::new("RefusedByJig.retry");
+    pub const REFUSED_BY_JIG_TAIL: Path = Path::new("RefusedByJig (tail)");
+    pub const FORMING_REFUSAL_TAG: Path = Path::new("FormingRefusal (tag)");
+    pub const TRAIN_REFUSAL_BRANCH: Path = Path::new("TrainRefusal.branch");
+    pub const TRAIN_REFUSAL_SINCE: Path = Path::new("TrainRefusal.since");
+    pub const TRAIN_REFUSAL_CAUSE: Path = Path::new("TrainRefusal.cause");
+    pub const TRAIN_REFUSAL_TAIL: Path = Path::new("TrainRefusal (tail)");
     pub const ADOPTED_PROJECT: Path = Path::new("Adopted.project");
     pub const ADOPTED_CONTEXTS: Path = Path::new("Adopted.contexts");
     pub const ADOPTED_HOME: Path = Path::new("Adopted.home");
@@ -2359,6 +2386,7 @@ pub mod paths {
     pub const ADOPTED_SETTINGS: Path = Path::new("Adopted.settings");
     pub const ADOPTED_WORKFLOWS: Path = Path::new("Adopted.workflows");
     pub const ADOPTED_LANDING: Path = Path::new("Adopted.landing");
+    pub const ADOPTED_REFUSALS: Path = Path::new("Adopted.refusals");
     pub const ADOPTED_TAIL: Path = Path::new("Adopted (tail)");
     pub const RUN_WRITER_TASK: Path = Path::new("RunWriter.task");
     pub const RUN_WRITER_ATTEMPT: Path = Path::new("RunWriter.attempt");
@@ -4126,6 +4154,7 @@ pub mod paths {
     pub const CLOSE_AT_ASKED: Path = Path::new("CloseAt.asked");
     pub const CLOSE_AT_REFUSED: Path = Path::new("CloseAt.refused");
     pub const CLOSE_AT_TAIL: Path = Path::new("CloseAt (tail)");
+    pub const CHANGE_HOT_SETTLING: Path = Path::new("ChangeHot.settling");
     pub const CHANGE_HOT_CLOSE_AT: Path = Path::new("ChangeHot.close_at");
     pub const CHANGE_HOT_ROOM: Path = Path::new("ChangeHot.room");
     pub const CHANGE_HOT_DELEGATE_HEAD: Path = Path::new("ChangeHot.delegate_head");
@@ -5356,6 +5385,179 @@ impl Record for RepositoryProtection {
     }
 }
 
+// Type: RefusedByJig.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusedByJig {
+    pub number: u64,
+    pub why: Box<[u8]>,
+    pub retry: u64,
+}
+
+// Record: RefusedByJig.
+impl RefusedByJig {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, refused_by_jig_why) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for RefusedByJig {
+    type Limits = Limits;
+    const TAIL: Path = paths::REFUSED_BY_JIG_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusedByJig")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusedByJig")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.number, limits, out, paths::REFUSED_BY_JIG_NUMBER)?;
+        field::write(field::Bytes { limit: limits.refused_by_jig_why.min(CEILINGS.refused_by_jig_why) }, &self.why, limits, out, paths::REFUSED_BY_JIG_WHY)?;
+        field::write(field::U64, &self.retry, limits, out, paths::REFUSED_BY_JIG_RETRY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            number: field::read(field::U64, limits, reader, paths::REFUSED_BY_JIG_NUMBER)?,
+            why: field::read(field::Bytes { limit: limits.refused_by_jig_why.min(CEILINGS.refused_by_jig_why) }, limits, reader, paths::REFUSED_BY_JIG_WHY)?,
+            retry: field::read(field::U64, limits, reader, paths::REFUSED_BY_JIG_RETRY)?,
+        })
+    }
+}
+
+// Type: FormingRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FormingRefusal {
+    Landings,
+    Jig(RefusedByJig),
+}
+
+// Record: FormingRefusal.
+impl FormingRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("RefusedByJig"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
+impl Record for FormingRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::FORMING_REFUSAL_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "FormingRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "FormingRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Landings => field::put(out, &[0], paths::FORMING_REFUSAL_TAG),
+            Self::Jig(value) => { field::put(out, &[1], paths::FORMING_REFUSAL_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::FORMING_REFUSAL_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Landings),
+            1 => Ok(Self::Jig(RefusedByJig::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::FORMING_REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: TrainRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TrainRefusal {
+    pub branch: Box<[u8]>,
+    pub since: u64,
+    pub cause: FormingRefusal,
+}
+
+// Record: TrainRefusal.
+impl TrainRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, train_refusal_branch) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("FormingRefusal"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 33;
+}
+
+impl Record for TrainRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::TRAIN_REFUSAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TrainRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TrainRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.train_refusal_branch.min(CEILINGS.train_refusal_branch) }, &self.branch, limits, out, paths::TRAIN_REFUSAL_BRANCH)?;
+        field::write(field::U64, &self.since, limits, out, paths::TRAIN_REFUSAL_SINCE)?;
+        field::write(field::Nested, &self.cause, limits, out, paths::TRAIN_REFUSAL_CAUSE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            branch: field::read(field::Bytes { limit: limits.train_refusal_branch.min(CEILINGS.train_refusal_branch) }, limits, reader, paths::TRAIN_REFUSAL_BRANCH)?,
+            since: field::read(field::U64, limits, reader, paths::TRAIN_REFUSAL_SINCE)?,
+            cause: field::read(field::Nested, limits, reader, paths::TRAIN_REFUSAL_CAUSE)?,
+        })
+    }
+}
+
 // Type: Adopted.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Adopted {
@@ -5375,6 +5577,7 @@ pub struct Adopted {
     pub settings: Settings,
     pub workflows: List<Box<[u8]>>,
     pub landing: Box<[u8]>,
+    pub refusals: List<TrainRefusal>,
 }
 
 // Record: Adopted.
@@ -5399,11 +5602,13 @@ impl Adopted {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, adopted_workflows_item) },
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, adopted_workflows), item: 16, size: size_of::<Box<[u8]>>() },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, adopted_landing) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18] },
+        skein_codec::bounds::Node::Named("TrainRefusal"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, adopted_refusals), item: 19, size: size_of::<TrainRefusal>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 80;
+    pub const ENCODED_AT_ZERO: u64 = 84;
 }
 
 impl Record for Adopted {
@@ -5444,6 +5649,7 @@ impl Record for Adopted {
         field::write(field::Nested, &self.settings, limits, out, paths::ADOPTED_SETTINGS)?;
         field::write(field::Sequence { limit: limits.adopted_workflows.min(CEILINGS.adopted_workflows), minimum: 4, item: field::Bytes { limit: limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item) } }, &self.workflows, limits, out, paths::ADOPTED_WORKFLOWS)?;
         field::write(field::Bytes { limit: limits.adopted_landing.min(CEILINGS.adopted_landing) }, &self.landing, limits, out, paths::ADOPTED_LANDING)?;
+        field::write(field::Sequence { limit: limits.adopted_refusals.min(CEILINGS.adopted_refusals), minimum: 13, item: field::Nested }, &self.refusals, limits, out, paths::ADOPTED_REFUSALS)?;
         Ok(())
     }
 
@@ -5465,6 +5671,7 @@ impl Record for Adopted {
             settings: field::read(field::Nested, limits, reader, paths::ADOPTED_SETTINGS)?,
             workflows: field::read(field::Sequence { limit: limits.adopted_workflows.min(CEILINGS.adopted_workflows), minimum: 4, item: field::Bytes { limit: limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item) } }, limits, reader, paths::ADOPTED_WORKFLOWS)?,
             landing: field::read(field::Bytes { limit: limits.adopted_landing.min(CEILINGS.adopted_landing) }, limits, reader, paths::ADOPTED_LANDING)?,
+            refusals: field::read(field::Sequence { limit: limits.adopted_refusals.min(CEILINGS.adopted_refusals), minimum: 13, item: field::Nested }, limits, reader, paths::ADOPTED_REFUSALS)?,
         })
     }
 }
@@ -36736,6 +36943,7 @@ impl Record for CloseAt {
 // Type: ChangeHot.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
+    pub settling: bool,
     pub close_at: Option<CloseAt>,
     pub room: Option<u64>,
     pub delegate_head: Option<[u8; 32]>,
@@ -36779,74 +36987,75 @@ pub struct ChangeHot {
 // Record: ChangeHot.
 impl ChangeHot {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("CloseAt"),
-        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Option { item: 1 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Option { item: 3 },
         skein_codec::bounds::Node::Scalar(32),
-        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Option { item: 5 },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("Regate"),
-        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Option { item: 9 },
         skein_codec::bounds::Node::Scalar(32),
-        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Option { item: 11 },
         skein_codec::bounds::Node::Named("TaskRelease"),
-        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Option { item: 13 },
         skein_codec::bounds::Node::Named("HistoryJobRecord"),
-        skein_codec::bounds::Node::Option { item: 14 },
+        skein_codec::bounds::Node::Option { item: 15 },
         skein_codec::bounds::Node::Named("SignOff"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 16, size: size_of::<SignOff>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 17, size: size_of::<SignOff>() },
         skein_codec::bounds::Node::Named("ChangeEnding"),
-        skein_codec::bounds::Node::Option { item: 18 },
+        skein_codec::bounds::Node::Option { item: 19 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 20, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 21, size: size_of::<u64>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 22, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 23, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("ChangeResult"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Change"),
         skein_codec::bounds::Node::Named("ChangeCi"),
-        skein_codec::bounds::Node::Option { item: 28 },
+        skein_codec::bounds::Node::Option { item: 29 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 30 },
+        skein_codec::bounds::Node::Option { item: 31 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 32 },
+        skein_codec::bounds::Node::Option { item: 33 },
         skein_codec::bounds::Node::Named("EffectResult"),
         skein_codec::bounds::Node::Named("DelegateRef"),
-        skein_codec::bounds::Node::Option { item: 35 },
+        skein_codec::bounds::Node::Option { item: 36 },
         skein_codec::bounds::Node::Named("ChangeStatus"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("GateReport"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 40, size: size_of::<GateReport>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 41, size: size_of::<GateReport>() },
         skein_codec::bounds::Node::Named("GateRemark"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 42, size: size_of::<GateRemark>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 43, size: size_of::<GateRemark>() },
         skein_codec::bounds::Node::Named("ChangeHold"),
-        skein_codec::bounds::Node::Option { item: 44 },
+        skein_codec::bounds::Node::Option { item: 45 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 46 },
+        skein_codec::bounds::Node::Option { item: 47 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("EffectAccount"),
-        skein_codec::bounds::Node::Option { item: 49 },
+        skein_codec::bounds::Node::Option { item: 50 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_producer_failure_some) },
-        skein_codec::bounds::Node::Option { item: 51 },
+        skein_codec::bounds::Node::Option { item: 52 },
         skein_codec::bounds::Node::Named("Questions"),
         skein_codec::bounds::Node::Named("FollowCheckProgress"),
-        skein_codec::bounds::Node::Option { item: 54 },
+        skein_codec::bounds::Node::Option { item: 55 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
-        skein_codec::bounds::Node::Option { item: 56 },
+        skein_codec::bounds::Node::Option { item: 57 },
         skein_codec::bounds::Node::Named("ChangeHistory"),
-        skein_codec::bounds::Node::Option { item: 58 },
+        skein_codec::bounds::Node::Option { item: 59 },
         skein_codec::bounds::Node::Named("LandingHanded"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 60, size: size_of::<LandingHanded>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 61, size: size_of::<LandingHanded>() },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 6, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 25, 26, 27, 29, 31, 33, 34, 36, 37, 38, 39, 41, 43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 61, 62] },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25, 26, 27, 28, 30, 32, 34, 35, 37, 38, 39, 40, 42, 44, 46, 48, 49, 51, 53, 54, 56, 58, 60, 62, 63] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1528;
+    pub const ENCODED_AT_ZERO: u64 = 1529;
 }
 
 impl Record for ChangeHot {
@@ -36871,6 +37080,7 @@ impl Record for ChangeHot {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Boolean, &self.settling, limits, out, paths::CHANGE_HOT_SETTLING)?;
         field::write(field::Optional { item: field::Nested }, &self.close_at, limits, out, paths::CHANGE_HOT_CLOSE_AT)?;
         field::write(field::Optional { item: field::U64 }, &self.room, limits, out, paths::CHANGE_HOT_ROOM)?;
         field::write(field::Optional { item: field::Fixed::<32> }, &self.delegate_head, limits, out, paths::CHANGE_HOT_DELEGATE_HEAD)?;
@@ -36914,6 +37124,7 @@ impl Record for ChangeHot {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
+            settling: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_SETTLING)?,
             close_at: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CLOSE_AT)?,
             room: field::read(field::Optional { item: field::U64 }, limits, reader, paths::CHANGE_HOT_ROOM)?,
             delegate_head: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::CHANGE_HOT_DELEGATE_HEAD)?,
@@ -40988,7 +41199,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1529;
+    pub const ENCODED_AT_ZERO: u64 = 1530;
 }
 
 impl Record for Value {
@@ -41141,7 +41352,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1531;
+    pub const ENCODED_AT_ZERO: u64 = 1532;
 }
 
 impl Record for Row {
@@ -41379,6 +41590,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ForgeRefused", nodes: ForgeRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "ForgeState", nodes: ForgeState::SHAPE },
     skein_codec::bounds::Declaration { name: "ForgeWriter", nodes: ForgeWriter::SHAPE },
+    skein_codec::bounds::Declaration { name: "FormingRefusal", nodes: FormingRefusal::SHAPE },
     skein_codec::bounds::Declaration { name: "Freshness", nodes: Freshness::SHAPE },
     skein_codec::bounds::Declaration { name: "Gate", nodes: Gate::SHAPE },
     skein_codec::bounds::Declaration { name: "GateFailure", nodes: GateFailure::SHAPE },
@@ -41647,6 +41859,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RedRefused", nodes: RedRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "RedReply", nodes: RedReply::SHAPE },
     skein_codec::bounds::Declaration { name: "RedResult", nodes: RedResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "RefusedByJig", nodes: RefusedByJig::SHAPE },
     skein_codec::bounds::Declaration { name: "Regate", nodes: Regate::SHAPE },
     skein_codec::bounds::Declaration { name: "ReleaseEnding", nodes: ReleaseEnding::SHAPE },
     skein_codec::bounds::Declaration { name: "ReleaseRow", nodes: ReleaseRow::SHAPE },
@@ -41748,6 +41961,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "TierVerification", nodes: TierVerification::SHAPE },
     skein_codec::bounds::Declaration { name: "ToBegin", nodes: ToBegin::SHAPE },
     skein_codec::bounds::Declaration { name: "Topic", nodes: Topic::SHAPE },
+    skein_codec::bounds::Declaration { name: "TrainRefusal", nodes: TrainRefusal::SHAPE },
     skein_codec::bounds::Declaration { name: "UnderPrefix", nodes: UnderPrefix::SHAPE },
     skein_codec::bounds::Declaration { name: "UpdateCondition", nodes: UpdateCondition::SHAPE },
     skein_codec::bounds::Declaration { name: "UpdateStyle", nodes: UpdateStyle::SHAPE },
@@ -41774,6 +41988,8 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.protection_branch,
     CEILINGS.protection_contexts,
     CEILINGS.settings_default_branch,
+    CEILINGS.refused_by_jig_why,
+    CEILINGS.train_refusal_branch,
     CEILINGS.adopted_contexts,
     CEILINGS.adopted_host,
     CEILINGS.adopted_owner,
@@ -41783,6 +41999,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.adopted_workflows,
     CEILINGS.adopted_workflows_item,
     CEILINGS.adopted_landing,
+    CEILINGS.adopted_refusals,
     CEILINGS.retargeted_before,
     CEILINGS.retargeted_after,
     CEILINGS.hold_design_writers,

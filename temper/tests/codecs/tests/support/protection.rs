@@ -19,6 +19,7 @@ pub fn rows(rule: api::Protection) -> [forge::Stored; 3] {
     let repository = forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::default(),
         project: 5,
         home: true,

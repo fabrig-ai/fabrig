@@ -445,11 +445,17 @@ Three kinds join `forge/effects.md`'s section 1, each a row of its own:
 - **A change's state** grows its clean merges' heads, its
   way (`queue` or `turn`), its judgement at its prefix, and the queue of
   its landings' asks: judge, resolve, repair, landed
-  (`landing-members.md`, 3). It stores no landing: the landing's row
+  (`landing-members.md`, 3), and whether it settles in a cohort, from
+  the decision that releases it to its first decision after
+  (`landing-turn.md`, 2), an optional member, false by default. It stores no landing: the landing's row
   holds its members, and a change's landing is derived from the live
   rows (`landing-members.md`, 2). The landing's row keeps the
   times of its last event and its turn's start, and its latest wait
   (`landing-waits.md`, 4).
+- **A repository's row** keeps its trains' refusals, one per train by
+  its branch, each its *since* and its cause, `landings`, or `jig` with
+  the refused make's number, jig's words and the retry
+  (`landing-forming.md`, 3): an optional member, none by default.
 - **Registered layouts,** converted at read (`../protocol/store-versions.md`,
   section 1): new fields declare their defaults, renamed parts their
   former names. A change no plan derives is a written job, not a map
@@ -462,8 +468,10 @@ Three kinds join `forge/effects.md`'s section 1, each a row of its own:
   `gates`, test gates per repository; `receipts_per_gate`;
   `ignored_paths`, per gate, each within a branch name's bounds; and
   `inputs`, within skein's `INPUTS`. A landing that would pass one is
-  refused at its forming (`landing-forming.md`, 2.3), naming the limit; its changes stay ready and
-  wait for room, as a change waits for a hold. Entrance constraints
+  refused at its forming (`landing-forming.md`, 2.3), naming the limit;
+  its changes stay ready and wait for room. A full `landings` is a
+  refusal that may pass, stored on its train and naming the landings
+  holding it (`landing-forming.md`, 3). Entrance constraints
   and representable counts are checked by the forge's `valid`.
 
 ## 13. Settings
@@ -531,7 +539,10 @@ documents for another task or project remain errors.
   build's links and asks are converted once (`landing-members.md`,
   4.2). A change in no live landing, ready, waits in its train's queue
   by its kept time.
-- **Forming** is judged again for every train (`landing-turn.md`, section 2).
+- **Forming** is judged again for every train (`landing-turn.md`, section 2),
+  from what the store holds: a change still settling in a cohort holds
+  its train as before the stop, and a train jig refused is not asked
+  again before its stored retry (`landing-forming.md`, 3).
 
 ## 16. The world
 
@@ -552,6 +563,10 @@ stories supply prepare outcomes as a worker does. The forge's world holds:
 - **forming:** up to `batch` changes in order, the first unit taken past
   it, the first that would pass it waiting first in line; units whole;
   sealed against a change ready later or a dependency given later;
+  three changes released by their shared dependency's landing forming
+  one landing once each has taken its step, one that steps and isn't
+  ready left out, and a restart between the release and the steps
+  forming the same landing (`landing-turn.md`, 2);
 - **a batch** of three stacked by one job, a prefix per member on its
   branch, proved by one run at the top, landed by one fast-forward,
   every member's pull request merged and every change told its prefix;

@@ -14,17 +14,17 @@ use temper_engine_forge_world::{
 const RETRIES: u32 = 1;
 
 fn start() -> World {
-    start_with_room(false).0
+    start_with_room(None).0
 }
 
-fn start_with_room(bounded: bool) -> (World, Trains) {
+fn start_with_room(bound: Option<u32>) -> (World, Trains) {
     let mut workflow = super::landing_batches::workflow(false);
     workflow.latency_min = Duration::from_secs(300);
     workflow.latency_max = workflow.latency_min;
     let mut world = World::batch_turn(31, Some(workflow));
-    if bounded {
+    if let Some(landings) = bound {
         world.limit_entries(1);
-        world.limit_landings(1);
+        world.limit_landings(landings);
     }
     let mut world = landings::turn_in(world);
     world.gate_policy(landing::Project { gate_retries: RETRIES, ..landing::Project::DEFAULT });
@@ -151,7 +151,7 @@ fn frees_room_for_waiter(world: &mut World, dispatch: u64) -> Box<[top::Request]
 
 #[test]
 fn cancelled_landing_frees_its_write_entries() {
-    let (mut world, mut trains) = start_with_room(true);
+    let (mut world, mut trains) = start_with_room(Some(1));
     world.produce(b"temper/52");
     let dispatch = dispatch_in_flight(&mut world);
     wait_for_room(&mut world);
@@ -173,8 +173,81 @@ fn cancelled_landing_frees_its_write_entries() {
 }
 
 #[test]
+fn a_waiting_train_names_the_live_and_settling_landings_taking_its_room() {
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded, WaitKind, WaitObject};
+    use temper_client_protocol_wire::waits as code;
+    use temper_engine_forge_world::REPO;
+    const OTHER: u64 = LANDING + 1;
+    const GOAL: &[u8] = b"goal";
+    const MEMBER: &[u8] = b"temper/53";
+    let (mut world, mut trains) = start_with_room(Some(2));
+    world.external(raw::Op::Git(raw::Git::Create { branch: GOAL.into(), commit: world.branch(b"main") }), 2);
+    world.produce_on(MEMBER, GOAL);
+    landings::ready_change_into(&mut world, 53, MEMBER, GOAL);
+    trains.judge(&mut world);
+    assert_eq!(world.landing_of(53), Some(OTHER));
+
+    let dispatch = dispatch_in_flight(&mut world);
+    world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Cancelled });
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Cancelled);
+    assert!(world.stored().contains_key(&top::Key::Entry(dispatch)));
+    world.take_seen();
+    world.observe_waits();
+    trains.judge(&mut world);
+    assert!(world.landing_of(CHANGE).is_none());
+    assert!(!world.stored().contains_key(&top::Key::Landing(OTHER + 1)), "no make was asked for");
+    let Some(top::Stored::Repository(repository)) = world.stored().get(&top::Key::Repository(REPO)) else {
+        panic!("stored repository")
+    };
+    assert_eq!(repository.refusals.len(), 1);
+    assert_eq!(repository.refusals[0].branch.as_ref(), b"main");
+    assert_eq!(repository.refusals[0].cause, top::FormingRefusal::Landings);
+    let seen = world.take_seen();
+    let waits = seen
+        .iter()
+        .find_map(|request| match request {
+            top::Request::Waits { task: CHANGE, waits } => Some(waits),
+            _ => None,
+        })
+        .expect("change's replacement wait");
+    let [wait] = waits.as_slice() else { panic!("one ready wait") };
+    assert_eq!(wait.kind, WaitKind::Room);
+    assert_eq!(wait.bound, ReportedBound::None(Unbounded::Behind(OTHER)));
+    let WaitObject::Procedure { step, things } = &wait.object else { panic!("procedure wait") };
+    assert_eq!(*step, code::CHANGE_READY);
+    assert_eq!(
+        things.iter().map(|thing| (thing.what, thing.number)).collect::<Vec<_>>(),
+        [(code::THING_LANDINGS, 2), (code::THING_TASK, LANDING), (code::THING_TASK, OTHER)]
+    );
+
+    let inspection = world.inspection();
+    let wait = inspection
+        .waits()
+        .iter()
+        .find(|wait| wait.waiter == format!("task {CHANGE}"))
+        .expect("ready change's inspected wait");
+    assert_eq!(
+        wait.wakes,
+        [
+            skein_world::inspect::Wake::Party(format!("forge: entry {dispatch}")),
+            skein_world::inspect::Wake::Waiter(format!("task {OTHER}")),
+        ]
+    );
+
+    world.run_for(5);
+    assert!(!world.stored().contains_key(&top::Key::Entry(dispatch)), "the write settled");
+    trains.judge(&mut world);
+    assert_eq!(world.landing_of(CHANGE), Some(OTHER + 1), "no make consumed a number before room yielded");
+    assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
+    let Some(top::Stored::Repository(repository)) = world.stored().get(&top::Key::Repository(REPO)) else {
+        panic!("stored repository")
+    };
+    assert!(repository.refusals.is_empty());
+}
+
+#[test]
 fn a_landed_landing_frees_its_write_entries() {
-    let (mut world, mut trains) = start_with_room(true);
+    let (mut world, mut trains) = start_with_room(Some(1));
     world.produce(b"temper/52");
     let dispatch = dispatch_in_flight(&mut world);
     wait_for_room(&mut world);

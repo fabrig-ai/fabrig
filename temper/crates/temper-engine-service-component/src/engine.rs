@@ -390,6 +390,9 @@ impl Engine {
                 root::Fact::LandingRefused { task, repository, branch, why, changes } => {
                     self.notes.push(crate::Note::LandingRefused { task, repository, branch, why, changes });
                 }
+                root::Fact::LandingTableRefused { repository, branch, limit, holders, changes } => {
+                    self.notes.push(crate::Note::LandingTableRefused { repository, branch, limit, holders, changes });
+                }
                 root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error, job } => {
                     self.notes.push(crate::Note::ReadRefused {
                         task,

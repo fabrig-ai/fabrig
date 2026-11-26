@@ -588,20 +588,20 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("forge {forge}'s person: {words}\n")
         }
         temper_engine_service::Note::LandingRefused { task, repository, branch, why, changes } => {
-            use std::fmt::Write as _;
-            let why = match why {
-                Some(why) => format!("{why:?}"),
-                None => "unknown".to_owned(),
-            };
-            let mut members = String::new();
-            for (index, change) in changes.iter().enumerate() {
-                if index != 0 {
-                    members.push_str(", ");
-                }
-                write!(members, "{change}").expect("format landing members");
-            }
+            let why = String::from_utf8_lossy(&why);
+            let members = landing_numbers(&changes);
             format!(
                 "{binary} serve: warning: landing {task} into {} of repository {}/{} not formed: jig refused its task: {why}; its changes {members} wait\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
+        temper_engine_service::Note::LandingTableRefused { repository, branch, limit, holders, changes } => {
+            let holders = landing_numbers(&holders);
+            let members = landing_numbers(&changes);
+            format!(
+                "{binary} serve: warning: landing into {} of repository {}/{} not formed: the forge's landings are full, {limit} of {limit}, held by landings {holders}; its changes {members} wait\n",
                 String::from_utf8_lossy(&branch),
                 repository.forge,
                 repository.repository
@@ -908,6 +908,18 @@ fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalD
         ) => (format!("{reason:?}"), b"".as_slice()),
     };
     run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
+}
+
+fn landing_numbers(numbers: &[u64]) -> String {
+    use std::fmt::Write as _;
+    let mut line = String::new();
+    for (index, number) in numbers.iter().enumerate() {
+        if index != 0 {
+            line.push_str(", ");
+        }
+        write!(line, "{number}").expect("format landing diagnostic numbers");
+    }
+    line
 }
 
 // temper/docs/design/domain/worker/checkouts-prepare.md, 12.4: keep the fields at the detail's head.

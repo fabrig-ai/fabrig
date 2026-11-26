@@ -119,6 +119,7 @@ fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
         contexts: Box::new([]),
         landing: b"trunk".as_slice().into(),
+        refusals: Box::default(),
         workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
         project: PROJECT,
         home,

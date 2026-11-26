@@ -24,6 +24,7 @@ pub fn repository() -> temper_engine_domain_forge::Repository {
     forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::default(),
         project: 1,
         home: false,

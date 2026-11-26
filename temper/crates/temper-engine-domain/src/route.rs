@@ -441,11 +441,12 @@ fn dependencies_met(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
         if let tasks::Phase::Held { why: tasks::Hold::Dependency(_), .. } = row.phase {
             continue;
         }
-        if row.dependencies.contains(&ended.number)
-            && row.waiting_on.is_empty()
-            && domain.forge.change(live.number).is_some()
-        {
-            forge_event(domain, env, decision, forge::Event::DependenciesMet { task: live.number });
+        if row.dependencies.contains(&ended.number) && domain.forge.change(live.number).is_some() {
+            let all_met = row.waiting_on.is_empty();
+            forge_route::dependency_releases_change(domain, env, decision, live.number);
+            if all_met {
+                forge_event(domain, env, decision, forge::Event::DependenciesMet { task: live.number });
+            }
         }
     }
 }

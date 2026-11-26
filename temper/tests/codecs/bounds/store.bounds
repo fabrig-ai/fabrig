@@ -1,5 +1,5 @@
 Address: ceilings encoded=521 decoded=510; at_most(3) encoded=17 decoded=6
-Adopted: ceilings encoded=4485248 decoded=4485360; at_most(3) encoded=149 decoded=105
+Adopted: ceilings encoded=291860612 decoded=293368048; at_most(3) encoded=270 decoded=291
 AgentEndpointLimits: ceilings encoded=97 decoded=64; at_most(3) encoded=36 decoded=3
 AgentFigure: ceilings encoded=76 decoded=64; at_most(3) encoded=15 decoded=3
 AgentFigures: ceilings encoded=15973 decoded=18432; at_most(3) encoded=190 decoded=234
@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1163060191 decoded=1163376096; at_most(3) encoded=3676 decoded=2763
+ChangeHot: ceilings encoded=1163060192 decoded=1163376096; at_most(3) encoded=3677 decoded=2763
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeReply: ceilings encoded=533 decoded=512; at_most(3) encoded=24 decoded=3
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
@@ -196,6 +196,7 @@ ForgeReason: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ForgeRefused: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ForgeState: ceilings encoded=3 decoded=0; at_most(3) encoded=3 decoded=0
 ForgeWriter: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+FormingRefusal: ceilings encoded=277 decoded=256; at_most(3) encoded=24 decoded=3
 Freshness: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Gate: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 GateFailure: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
@@ -464,6 +465,7 @@ RedRefusal: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 RedRefused: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 RedReply: ceilings encoded=2439 decoded=2368; at_most(3) encoded=86 decoded=15
 RedResult: ceilings encoded=1403 decoded=1344; at_most(3) encoded=71 decoded=12
+RefusedByJig: ceilings encoded=276 decoded=256; at_most(3) encoded=23 decoded=3
 Regate: ceilings encoded=87 decoded=32; at_most(3) encoded=58 decoded=3
 ReleaseEnding: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ReleaseRow: ceilings encoded=1114176 decoded=1114112; at_most(3) encoded=71 decoded=6
@@ -492,7 +494,7 @@ Review: ceilings encoded=2097228 decoded=2097152; at_most(3) encoded=82 decoded=
 ReviewsAnswer: ceilings encoded=2097158 decoded=2097152; at_most(3) encoded=9 decoded=3
 Role: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Route: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Row: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3679 decoded=6518
+Row: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3680 decoded=6518
 RuleApproval: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 RuleGate: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 RulePattern: ceilings encoded=69641 decoded=69632; at_most(3) encoded=15 decoded=6
@@ -565,12 +567,13 @@ TierVerdict: ceilings encoded=1052686 decoded=1064960; at_most(3) encoded=35 dec
 TierVerification: ceilings encoded=1052797 decoded=1064992; at_most(3) encoded=117 decoded=60
 ToBegin: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 Topic: ceilings encoded=4107 decoded=4096; at_most(3) encoded=39 decoded=3
+TrainRefusal: ceilings encoded=4385 decoded=4352; at_most(3) encoded=39 decoded=6
 UnderPrefix: ceilings encoded=3084 decoded=3072; at_most(3) encoded=21 decoded=9
 UpdateCondition: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
 UpdateStyle: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 UpdateWrite: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Updating: ceilings encoded=72 decoded=0; at_most(3) encoded=72 decoded=0
-Value: ceilings encoded=3224948869 decoded=3225075712; at_most(3) encoded=3677 decoded=6518
+Value: ceilings encoded=3224948869 decoded=3225075712; at_most(3) encoded=3678 decoded=6518
 Verdict: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 VerdictFiling: ceilings encoded=473354 decoded=710608; at_most(3) encoded=436 decoded=624
 Verification: ceilings encoded=34213838 decoded=34608640; at_most(3) encoded=421 decoded=636
@@ -582,4 +585,4 @@ Welcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 What: ceilings encoded=65541 decoded=65536; at_most(3) encoded=9 decoded=3
 Write: ceilings encoded=10492754 decoded=10492981; at_most(3) encoded=74 decoded=120
 Writer: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
-family: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3679 decoded=6518
+family: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3680 decoded=6518

@@ -11,6 +11,7 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
     let repository = forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::new([]),
         project: 1,
         home: true,
@@ -93,6 +94,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
 fn check_change_row(task: u64) -> forge::ChangeRow {
     use temper_engine_domain_forge_change as change;
     forge::ChangeRow {
+        settling: false,
         room: None,
         source: None,
         kept: None,

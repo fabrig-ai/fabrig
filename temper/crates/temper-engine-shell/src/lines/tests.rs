@@ -1225,14 +1225,14 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
 
 #[test]
 fn a_landing_refusal_names_its_train_reason_and_stack() {
-    for (why, words) in [(Some(jig_domain_tasks::Refusal::Live), "Live"), (None, "unknown")] {
+    for words in ["Live", "unknown"] {
         let line = note_line(
             "temper-box",
             temper_engine_service::Note::LandingRefused {
                 task: 10030,
                 repository: skein_forge::api::Repository { forge: 1, repository: 7 },
                 branch: b"main".as_slice().into(),
-                why,
+                why: Box::from(words.as_bytes()),
                 changes: Box::new([8975, 9104]),
             },
         );
@@ -1243,6 +1243,24 @@ fn a_landing_refusal_names_its_train_reason_and_stack() {
             )
         );
     }
+}
+
+#[test]
+fn a_full_landings_warning_names_the_figure_holders_and_stack() {
+    let line = note_line(
+        "temper",
+        temper_engine_service::Note::LandingTableRefused {
+            repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+            branch: Box::from(b"main".as_slice()),
+            limit: 2,
+            holders: Box::new([40, 41]),
+            changes: Box::new([50, 51]),
+        },
+    );
+    assert_eq!(
+        line,
+        "temper serve: warning: landing into main of repository 1/2 not formed: the forge's landings are full, 2 of 2, held by landings 40, 41; its changes 50, 51 wait\n"
+    );
 }
 
 #[test]

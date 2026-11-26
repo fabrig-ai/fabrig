@@ -170,7 +170,21 @@ fn step_wait(d: &Domain, env: &Env<Limits>, row: &ChangeRow, phase: u32, observe
         return behind(phase, since, if first == Some(row.task) { None } else { first });
     }
     if crate::landing::waiting(d, row) {
-        return behind(phase, since, d.train_holder(row.repository, &row.base));
+        if let Some(landing) = d.train_holder(row.repository, &row.base) {
+            return behind(phase, since, Some(landing));
+        }
+        let cohort = d.settling_changes(row.repository, &row.base, THINGS);
+        if let Some(first) = cohort.first() {
+            let mut things = List::with_capacity(THINGS);
+            for task in &cohort {
+                things.push(thing(code::THING_TASK, *task)).expect("bounded cohort report");
+            }
+            return record(phase, things, since, ReportedBound::None(Unbounded::Behind(*first)));
+        }
+        if let Some((refusal, holders)) = d.forming_refusal(row.repository, &row.base) {
+            return forming_wait(d, phase, since.max(refusal.since), &refusal.cause, &holders);
+        }
+        return behind(phase, since, None);
     }
     if let State::Red { since, .. } = row.change.state {
         return behind(phase, since, None);
@@ -195,6 +209,35 @@ fn step_wait(d: &Domain, env: &Env<Limits>, row: &ChangeRow, phase: u32, observe
         after(since, limits.stall)
     };
     at(phase, step_things(row, clock), since, end, AtBound::Hold)
+}
+
+fn forming_wait(d: &Domain, step: u32, since: Wall, cause: &crate::FormingRefusal, holders: &[u64]) -> Reported {
+    let mut things = List::with_capacity(THINGS);
+    match cause {
+        crate::FormingRefusal::Jig { number, .. } => {
+            things.push(thing(code::THING_LANDING_MAKE, *number)).expect("one refused make");
+            record(step, things, since, ReportedBound::None(Unbounded::NoDeadline))
+        }
+        crate::FormingRefusal::Landings => {
+            things.push(thing(code::THING_LANDINGS, u64::from(d.landing.limits.landings))).expect("a table figure");
+            for holder in holders {
+                if things.room() == 0 {
+                    break;
+                }
+                things.push(thing(code::THING_TASK, *holder)).expect("at most three holders");
+            }
+            let bound = match d.oldest_landing_holder(holders) {
+                Some(holder) => Unbounded::Behind(holder),
+                None => Unbounded::NoDeadline,
+            };
+            Reported {
+                kind: WaitKind::Room,
+                object: WaitObject::Procedure { step, things },
+                since,
+                bound: ReportedBound::None(bound),
+            }
+        }
+    }
 }
 
 fn execution_clock(row: &ChangeRow) -> Option<change::Clock> {

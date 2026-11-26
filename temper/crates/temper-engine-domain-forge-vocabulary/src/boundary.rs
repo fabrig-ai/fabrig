@@ -134,7 +134,25 @@ pub struct Repository {
     pub landing: Box<[u8]>,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 11).
     pub workflows: Box<[Box<[u8]>]>,
+    pub refusals: Box<[TrainRefusal]>,
 }
+
+/// A train's forming episode (temper/docs/design/domain/landing-forming.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TrainRefusal {
+    pub branch: Box<[u8]>,
+    pub since: skein_lib::Wall,
+    pub cause: FormingRefusal,
+}
+
+pub const FORMING_REASON_BYTES: u32 = 256;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FormingRefusal {
+    Landings,
+    Jig { number: u64, why: Box<[u8]>, retry: skein_lib::Wall },
+}
+
 impl Repository {
     /// This project's adoption role (domain/forge/follows.md, 8).
     #[must_use]
@@ -1074,7 +1092,10 @@ pub struct PreviousLink {
 
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the cohort mark is independent of the delegate and base flags")]
 pub struct ChangeRow {
+    /// A release into the train awaits its first change decision.
+    pub settling: bool,
     pub room: Option<u64>,
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
@@ -1198,6 +1219,7 @@ pub struct ChangeCold {
 /// A change's hot store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
+    pub settling: bool,
     pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
@@ -1249,6 +1271,7 @@ impl ChangeRow {
     #[expect(clippy::too_many_lines, reason = "each field is moved explicitly into its cold or hot store part")]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
+            settling,
             room,
             source,
             kept,
@@ -1336,6 +1359,7 @@ impl ChangeRow {
                 report,
             },
             ChangeHot {
+                settling,
                 room,
                 kept,
                 regate,
@@ -1407,6 +1431,7 @@ impl ChangeRow {
             report,
         } = cold;
         let ChangeHot {
+            settling,
             room,
             kept,
             regate,
@@ -1449,6 +1474,7 @@ impl ChangeRow {
         } = hot;
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
+            settling,
             room,
             source,
             kept,
@@ -2362,6 +2388,12 @@ pub enum Event {
     },
     Landing {
         row: LandingRow,
+    },
+    /// Replace a train's refused cause, or clear its episode.
+    TrainRefusal {
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        cause: Option<FormingRefusal>,
     },
     /// An uncommitted merge waits for authority: give up its number, not the turn.
     DeferLandingMerge {

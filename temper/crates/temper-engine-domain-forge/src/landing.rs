@@ -660,6 +660,14 @@ impl Domain {
     }
     /// Check admission before the root allocates its deployment-funded task.
     pub fn landing_admits(&self, project: u32, changes: &[u64]) -> Result<(), crate::LandingRefusal> {
+        self.landing_members_admit(project, changes)?;
+        if !self.landing_room() {
+            return Err(crate::LandingRefusal::Landings);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn landing_members_admit(&self, project: u32, changes: &[u64]) -> Result<(), crate::LandingRefusal> {
         use crate::LandingRefusal;
         if self.landing.way(project) != change::Way::Turn {
             return Err(LandingRefusal::Way);
@@ -688,15 +696,42 @@ impl Domain {
                 return Err(LandingRefusal::Train);
             }
         }
-        if self.landing.rows.len() == self.landing.limits.landings {
-            for (_, row) in &self.landing.rows {
-                if reclaimable(self, row) {
-                    return Ok(());
-                }
-            }
-            return Err(LandingRefusal::Landings);
-        }
         Ok(())
+    }
+
+    fn landing_room(&self) -> bool {
+        if self.landing.rows.len() < self.landing.limits.landings {
+            return true;
+        }
+        for (_, row) in &self.landing.rows {
+            if reclaimable(self, row) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Rows that cannot yield a place, in the order their task numbers were made.
+    #[must_use]
+    pub fn landing_room_holders(&self) -> Box<[u64]> {
+        let mut holders = List::with_capacity(self.landing.rows.len());
+        for (task, row) in &self.landing.rows {
+            if !reclaimable(self, row) {
+                holders.push(*task).expect("counted landing rows");
+            }
+        }
+        holders.into_boxed()
+    }
+
+    pub(crate) fn oldest_landing_holder(&self, holders: &[u64]) -> Option<u64> {
+        for task in holders {
+            if let Some(row) = self.landing.rows.get(task)
+                && !matches_terminal(&row.landing.phase)
+            {
+                return Some(*task);
+            }
+        }
+        holders.first().copied()
     }
     /// The hold account for a unit beyond this milestone (domain/landing.md, 4.1).
     #[must_use]
@@ -736,7 +771,9 @@ impl Domain {
         self.train_holder(repository, branch).is_none()
     }
 
-    pub(crate) fn train_holder(&self, repository: api::Repository, branch: &[u8]) -> Option<u64> {
+    /// The live landing keeping this train (temper/docs/design/domain/landing-turn.md, 2).
+    #[must_use]
+    pub fn train_holder(&self, repository: api::Repository, branch: &[u8]) -> Option<u64> {
         for (task, row) in &self.landing.rows {
             if row.landing.branch.as_ref() != branch || matches_terminal(&row.landing.phase) {
                 continue;
@@ -763,6 +800,9 @@ impl Domain {
     /// The first eligible waiting change of a free train with room (domain/landing-turn.md, 2).
     #[must_use]
     pub fn first_waiting(&self, repository: api::Repository, branch: &[u8], kept: &[u64], now: Wall) -> Option<u64> {
+        if !self.landing_room() {
+            return None;
+        }
         let units = self.waiting_units(repository, branch, kept, &[], now);
         let selection = self.select_waiting(repository, branch, &units);
         let unit = units.get(skein_lib::usize_of(*selection.take.first()?))?;
@@ -1131,6 +1171,8 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
         assert!(retire_finished(d, out), "preflight found a reclaimable terminal landing");
     }
     let count = row.landing.members.len();
+    let first = row.landing.members.first().expect("preflighted members");
+    crate::train_refusal::replace(d, out, repository(first), row.landing.branch.clone(), None, env.wall);
     save(d, env, row, out);
     for index in 0..count {
         emit(

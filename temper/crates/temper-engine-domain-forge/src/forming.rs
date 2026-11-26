@@ -89,7 +89,7 @@ impl Domain {
         }
         units.into_boxed()
     }
-    /// The forming decision for a free train with room for a landing.
+    /// Select units for a free train; admission of the selection judges the table’s room.
     #[must_use]
     pub fn select_waiting(
         &self,
@@ -107,7 +107,7 @@ impl Domain {
         let Some(repo) = self.repository(repository) else {
             return Selection { take: Box::new([]), hold: Box::new([]) };
         };
-        if self.landing_admits(repo.project, &[*first]).is_err() {
+        if self.landing_members_admit(repo.project, &[*first]).is_err() {
             return Selection { take: Box::new([]), hold: Box::new([]) };
         }
         selection

@@ -162,6 +162,7 @@ fn kept(service: Box<crate::Service>) -> jig_protocol_store::Stores {
 fn repository(number: u32) -> forge::Stored {
     forge::Stored::Repository(forge::Repository {
         contexts: Box::new([]),
+        refusals: Box::default(),
         workflows: Box::new([]),
         project: 1,
         home: true,

@@ -636,6 +636,7 @@ fn finish_adoption(
         protection: pending.protection,
         settings,
         landing: request.landing,
+        refusals: Box::default(),
         workflows: match d.repositories.get(&pending.repository) {
             Some(row) => row.workflows.clone(),
             None => Box::default(),
@@ -644,6 +645,9 @@ fn finish_adoption(
     let mut stored = row.clone();
     let mut contexts = List::with_capacity(env.limits.judge_projects);
     if let Some(existing) = d.repository(row.provider) {
+        if existing.project == row.project {
+            stored.refusals.clone_from(&existing.refusals);
+        }
         if row.role == Role::Context && existing.project != row.project {
             stored = existing.clone();
             if !existing.contexts.contains(&row.project) {

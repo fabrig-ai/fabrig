@@ -94,6 +94,8 @@ given keeps its meaning; a new one is added, never renumbered.
 | a role | 6 | its number | `role N` |
 | a landing rule | 7 | its place in its scope, from 0 | `rule N` |
 | a forge | 8 | its number | `forge N` |
+| the forge's landings (`../landing-forming.md`, 3) | 9 | the deployment's `landings` | `the forge's N landings` |
+| a landing's make jig refused (`../landing-forming.md`, 3) | 10 | the make's number | `landing L's make, refused by jig` |
 
 A code the client does not know is printed as its number.
 
@@ -110,7 +112,10 @@ The first row that holds, in this order:
 | is short of a sign-off at its head (`change/branch-path.md`, step 5) | `sign-off` | its step; the rule, then each role that can still sign, at most three | the change's readiness (`Change.ready_since`) | the sign-off figure, *overdue* |
 | waits to land while the operator holds every landing (`../landing-settings.md`, 1.3) | `step` | its step | the stall's origin | none: an operator's hold |
 | waits quietly for its turn, with no read of its own and no stall counting: queued behind the queue's first (`queues.md`), or ready under turn in no landing while its train's live landing holds it (`../landing-turn.md`, 2) | `step` | its step; that first change, or that landing, a task | the stall's origin | none: behind that task, whose own waits bound it |
-| waits quietly with no task to name: ready under turn with no room for its train's landing (`../landing-turn.md`, 2, *Bounded*), or red, waiting for a repair's verdict (`../after-landing.md`, 6) | `step` | its step | the stall's origin | none: no deadline |
+| is ready under turn in no landing, its train free, while changes into its train settle in a cohort (`../landing-turn.md`, 2) | `step` | its step; each settling change, a task, by number, at most four | the stall's origin | none: behind the first settling change, whose next decision ends it |
+| is ready under turn in no landing, its train refused by the forge's `landings` (`../landing-forming.md`, 3) | `room` | its step; the forge's landings, then the landings holding them, oldest first, at most three, each a task | the later of its train's refusal's *since* and the stall's origin | none: behind the oldest holder whose task lives, else behind the oldest holder, whose writes in flight settle within the forge client's bounds |
+| is ready under turn in no landing, its train refused by jig (`../landing-forming.md`, 3) | `step` | its step; the refused make | the later of its train's refusal's *since* and the stall's origin | none: no deadline |
+| waits quietly with no task to name: red, waiting for a repair's verdict (`../after-landing.md`, 6) | `step` | its step | the stall's origin | none: no deadline |
 | any other step | `step` | its step; what it waits on: its pending write's entry, its pull request, its CI's newest run where it knows one | the stall's origin, `Change.since`; where its reads' own count runs (`change/stalls.md`, 1), that count's start | the instant at which the change would be held if nothing moved: the stall, or at checking with a reading the earlier of the execution clock's bounds as the clock stands (`change/stalls.md`, 2.3), or its reads' count's end; *hold* |
 
 - **At the bound** the change is held as its stall holds it, with its
@@ -237,7 +242,9 @@ its bound in the top alone, from its last step that advanced, unstored:
 ## 10. Across a restart
 
 - **Stored:** a change's stall's origin, `Change.since`, and its
-  readiness, a sign-off's *since*: a start finds the same episode.
+  readiness, a sign-off's *since*; whether a change settles in a cohort
+  (`../landing-turn.md`, 2); a train's refusal with its *since*
+  (`../landing-forming.md`, 3): a start finds the same episode.
 - **Started again at the start:** a change's reads' count, a landing's
   last advance, a closer's, a making's and a release's, and a waiter's
   join and its holders' owners' ends, each of which lives in memory: it
@@ -257,9 +264,10 @@ its bound in the top alone, from its last step that advanced, unstored:
   release's and a room wait's clock again. Default: so; a stored one
   would let a bound outlive restarts, at the price of a stored field each.
 - **Unbounded quiet waits:** a red change waiting for its repair, and a
-  ready change under turn waiting for room for its train's landing,
-  report no deadline, though the draft bounds every wait it names
+  ready change under turn whose train jig refused, report no deadline,
+  though the draft bounds every wait it names
   (`../../draft/bounded-waits.md`, 4.1). Default: so; a red change's
   repair is its goal's work, after-landing's waits are not this
-  milestone's fourth goal's, and the landings' room has no owner to be
-  behind.
+  milestone's fourth goal's, and jig's room, holdings and funding are
+  the deployment's, which no member can move, its train asked again
+  each queue window (`../landing-forming.md`, 3).

@@ -119,6 +119,33 @@ fn an_empty_stored_landing_reads_as_the_default_branch() {
 }
 
 #[test]
+fn a_repository_keeps_refusals_of_both_causes() {
+    use skein_lib::Wall;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut repository) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    repository.refusals = Box::new([
+        forge::TrainRefusal {
+            branch: Box::from(b"goal".as_slice()),
+            since: Wall::from_nanos(33),
+            cause: forge::FormingRefusal::Landings,
+        },
+        forge::TrainRefusal {
+            branch: Box::from(b"main".as_slice()),
+            since: Wall::from_nanos(48),
+            cause: forge::FormingRefusal::Jig {
+                number: 40,
+                why: Box::from(b"Live".as_slice()),
+                retry: Wall::from_nanos(1010),
+            },
+        },
+    ]);
+    let stored = forge::Stored::Repository(repository);
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
 fn a_landing_past_name_bytes_fails_to_decode() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
