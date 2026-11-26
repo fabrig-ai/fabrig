@@ -4615,7 +4615,8 @@ fn keep(
         Operation::Open | Operation::Close => (Some(facts.branch.as_ref()), facts.candidate, None),
         Operation::Record => (change_branch, facts.head, None),
         Operation::Merge if row.landing.round.branch.is_empty() => (change_branch, facts.head, facts.base),
-        Operation::Merge => (Some(facts.branch.as_ref()), facts.candidate, row.landing.round.upstream),
+        // The round is proved on the train tip, not on its separate upstream.
+        Operation::Merge => (Some(facts.branch.as_ref()), facts.candidate, facts.base),
         Operation::Delete | Operation::Dispatch | Operation::Rerun | Operation::Pending | Operation::Verdict => {
             (None, None, None)
         }
@@ -4757,12 +4758,14 @@ fn merge_refused(outcome: skein_forge_client::Outcome) -> bool {
             | api::Error::NotInstalled
             | api::Error::RateLimited { .. } => true,
         },
-        skein_forge_client::Outcome::Raced { .. } => true,
-        skein_forge_client::Outcome::Made { .. }
+        // A merge made but not verified is not a refusal. Its turn reads back the tip and pull.
+        skein_forge_client::Outcome::Raced { made: skein_forge_client::Made::Merged(_), .. }
+        | skein_forge_client::Outcome::Made { .. }
         | skein_forge_client::Outcome::Queued
         | skein_forge_client::Outcome::Uncertain
         | skein_forge_client::Outcome::Held
         | skein_forge_client::Outcome::Withdrawn => false,
+        skein_forge_client::Outcome::Raced { .. } => true,
     }
 }
 

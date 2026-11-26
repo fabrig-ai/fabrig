@@ -182,6 +182,7 @@ pub struct World {
     history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
     observe_entry_saves: bool,
+    write_records: Option<Vec<top::Request>>,
     observe_waits: bool,
     serial: u64,
     generation: u64,
@@ -205,6 +206,7 @@ pub struct World {
     writes: u32,
     lose_writes: bool,
     timeout_merges: u32,
+    timeout_next_write: bool,
     dispatch_latency: Option<Duration>,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
@@ -926,6 +928,7 @@ impl World {
             history_held: Vec::new(),
             seen: List::with_capacity(256),
             observe_entry_saves: false,
+            write_records: None,
             observe_waits: false,
             serial: 0,
             generation: 1,
@@ -946,6 +949,7 @@ impl World {
             writes: 0,
             lose_writes: false,
             timeout_merges: 0,
+            timeout_next_write: false,
             dispatch_latency: None,
             lose_rerun_answer: false,
             unavailable: None,
@@ -1652,10 +1656,48 @@ impl World {
         path: &[u8],
         content: &[u8],
     ) -> skein_forge::api::Commit {
+        let push = self.lease_attempt_push(name, attempt, branch, path, content);
+        let raw::Git::Push { commit, .. } = &push else { unreachable!("a leased push") };
+        let commit = *commit;
+        assert_eq!(self.external(raw::Op::Git(push), 1), raw::Answer::Pushed(raw::Pushed::Pushed));
+        self.record_wrong_candidate(commit);
+        translate::commit(commit)
+    }
+
+    /// Admit the worker's lease but let the workload choose when it reaches the forge.
+    pub fn lease_attempt_push(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        path: &[u8],
+        content: &[u8],
+    ) -> raw::Git {
         let expected = self.branch(branch);
+        let commit = self.attempt_commit(expected, path, content);
+        self.admit_attempt(name, attempt, Some(expected), commit);
+        raw::Git::Push { branch: branch.into(), commit, expected: Some(expected) }
+    }
+
+    /// A producer's first push leases the branch while it is absent.
+    pub fn lease_new_attempt_push(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        base: &[u8],
+        path: &[u8],
+        content: &[u8],
+    ) -> raw::Git {
+        let commit = self.attempt_commit(self.branch(base), path, content);
+        self.admit_attempt(name, attempt, None, commit);
+        raw::Git::PushNew { branch: branch.into(), commit }
+    }
+
+    fn attempt_commit(&mut self, parent: u64, path: &[u8], content: &[u8]) -> u64 {
         let mut files: Vec<_> = self
             .forge
-            .object(expected)
+            .object(parent)
             .expect("branch tip")
             .tree
             .iter()
@@ -1663,22 +1705,8 @@ impl World {
             .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
             .collect();
         files.push(raw::File { path: path.into(), content: content.into() });
-        let commit = forge::commit_tree(
-            &mut self.forge,
-            &self.forge_env.limits,
-            expected,
-            None,
-            files.into_boxed_slice(),
-            b"delivery",
-        )
-        .expect("scripted delivery commit");
-        self.admit_attempt(name, attempt, Some(expected), commit);
-        assert_eq!(
-            self.external(raw::Op::Git(raw::Git::Push { branch: branch.into(), commit, expected: Some(expected) }), 1),
-            raw::Answer::Pushed(raw::Pushed::Pushed)
-        );
-        self.record_wrong_candidate(commit);
-        translate::commit(commit)
+        forge::commit_tree(&mut self.forge, &self.forge_env.limits, parent, None, files.into_boxed_slice(), b"delivery")
+            .expect("scripted delivery commit")
     }
 
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
@@ -2055,6 +2083,10 @@ impl World {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
             }
+            if self.timeout_next_write && matches!(&event, forge::Event::Call { op: raw::Op::Write(_), .. }) {
+                self.timeout_next_write = false;
+                env.limits.timeouts = 1000;
+            }
             self.sweep_call(&event, &mut env.limits);
             if self.restart_scripts.is_some() {
                 self.restart_call_config(&event, &mut env);
@@ -2204,6 +2236,15 @@ impl World {
                     }
                 }
                 top::Request::Save { record, release, read_afresh } => {
+                    if let Some(records) = &mut self.write_records
+                        && matches!(record, top::Stored::Writes(_))
+                    {
+                        records.push(top::Request::Save {
+                            record: record.clone(),
+                            release,
+                            read_afresh: read_afresh.clone(),
+                        });
+                    }
                     if self.observe_entry_saves && matches!(record, top::Stored::Entry { .. }) {
                         self.seen
                             .push(top::Request::Save { record: record.clone(), release, read_afresh })
@@ -2219,6 +2260,11 @@ impl World {
                     }
                 }
                 top::Request::Erase { key } => {
+                    if let Some(records) = &mut self.write_records
+                        && matches!(key, top::Key::Writes(_))
+                    {
+                        records.push(top::Request::Erase { key: key.clone() });
+                    }
                     let removed = self.erase_record(&key);
                     wrote = true;
                     // Last rows can be replaced while loaded; release also erases an unwatched client repository.

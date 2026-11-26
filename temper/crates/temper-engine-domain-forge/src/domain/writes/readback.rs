@@ -59,6 +59,17 @@ impl State {
         Self { pending: Map::uncapped(), flight: None, checked: Map::uncapped() }
     }
 
+    pub(super) fn owed(&self, name: &Name, order: u64) -> bool {
+        if let Some(flight) = &self.flight
+            && flight.live
+            && &flight.key.0 == name
+            && flight.key.1 == order
+        {
+            return true;
+        }
+        self.pending.contains_key(&(name.clone(), order))
+    }
+
     pub(crate) fn deadline(&self) -> Option<Time> {
         if self.flight.is_some() {
             return None;

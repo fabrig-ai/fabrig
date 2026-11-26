@@ -177,6 +177,14 @@ pub(super) fn pull(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out
     let recovery = recovery(&row.change.state);
     let reopening = recovery == Recovery::Reopening || recovery == Recovery::Recreating;
     let Some(pull) = &pending.pull else {
+        // Temper's open can assign the number while a search for the pull
+        // by branches is out. Its absence is not a read of the new pull.
+        if recovery == Recovery::Opening
+            && row.pull.is_some()
+            && let Some((_, skein_forge::api::Read::PullFor { .. })) = &pending.read
+        {
+            return behind(BehindRead::PullState, None, None);
+        }
         return if row.pull.is_some() && !reopening && !pending.heard.cancelled {
             Judgement::Drift(Drift { why: change::Hold::PullClosed, nearest: writes::nearest_order(d, &name) })
         } else {

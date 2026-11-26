@@ -403,6 +403,13 @@ pub(super) struct PullSeen {
 }
 
 impl Domain {
+    /// For the world's inspection adapter: an unsettled write's scheduled
+    /// readback, including one whose read is already out to the forge.
+    #[must_use]
+    pub fn inspection_write_readback(&self, name: &Name, order: u64) -> bool {
+        self.write_reads.owed(name, order)
+    }
+
     /// The last entry in the branch's write record, in admission order.
     #[must_use]
     pub fn nearest_write(&self, name: &Name) -> Option<&Written> {

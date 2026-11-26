@@ -157,6 +157,19 @@ fn render(json: &mut Encoder, record: &Recorded) -> Option<()> {
                     json.key(b"by");
                     json.unsigned(*by);
                 }
+                Observation::Retargeted { repository, number, from, to, by } => {
+                    json.string(b"retargeted");
+                    json.key(b"repository");
+                    json.string(repository);
+                    json.key(b"number");
+                    json.unsigned(*number);
+                    json.key(b"from");
+                    json.string(from);
+                    json.key(b"to");
+                    json.string(to);
+                    json.key(b"by");
+                    json.unsigned(*by);
+                }
                 Observation::Revised { repository, number, title, body, by } => {
                     json.string(b"revised");
                     json.key(b"repository");

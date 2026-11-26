@@ -75,6 +75,7 @@ mod fuzzy {
     mod rules_by_path;
     mod simulation;
     mod stale;
+    mod write_records;
 }
 
 mod refusing;

@@ -134,6 +134,13 @@ impl Domain {
         super::read_session::inspection_bound(self, task)
     }
 
+    /// A caller's bound when the last read was a view behind its expected state.
+    #[must_use]
+    pub fn inspection_change_behind(&self, task: u64) -> Option<Wall> {
+        super::read_session::last_behind(self, task)?;
+        self.inspection_change_read_bound(task)
+    }
+
     /// Client resources still owed by the repositories this task awaits after restart
     /// (temper/docs/design/domain/forge/catching-up.md, 2 and 4).
     #[must_use]
