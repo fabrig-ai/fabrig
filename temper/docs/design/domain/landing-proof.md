@@ -65,7 +65,13 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
 - **A failed receipt** makes a key that fails at once, with its run's
   output, until the tree changes or a change's regate supersedes it
   (`landing-regate.md`, 3). A failure whose tests all match open flake
-  findings is rerun once first (`landing-regate.md`, 2).
+  findings is rerun once first (`landing-regate.md`, 2), unless its
+  project's checks can't flake (`forge/judgement.md`, 4).
+- **Only a refusal is a failed receipt** (2.3). A retained failed
+  receipt whose gate names a report, and whose report was read with no
+  failed test or not read, names nothing: it is judged again before it's
+  reused (`forge/judgement.md`, 5), dropped from the project's receipts,
+  and its key is dispatched as one with no receipt.
 
 ## 2. Proof
 
@@ -147,10 +153,14 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
   makes a failed receipt, read with each failed job's failed step and
   the end of its log (skein's `Read::Job`) as the landing makes it, and,
   where its gate names a report (`landing-settings.md`, 1.1), its failed
-  tests, read as a tier's (`after-landing-runs.md`, 3): a report there but
-  not read leaves them unknown. The gate's verdict is its report, one
-  its run never uploaded a fault (2.4); a gate naming none, its failed
-  step (the requester, 2026-11-19).
+  tests, read as a tier's (`after-landing-runs.md`, 3). The gate's
+  verdict is its report, judged as `forge/judgement.md`, 2 says: a
+  report naming failed tests, or more than it carries, refuses; one its
+  run never uploaded, one there but not read, and one naming no failed
+  test name nothing, and are the runner's or broke (2.4), never a
+  receipt. A gate naming none is judged by its failed step (the
+  requester, 2026-11-19). A red job stands beside a runner's fault in
+  another.
 - **A round of one unit:** its changes are repaired
   (`forge/change/repairs.md`), its members leave (`landing.md`, 4.3), and the landing ends with nothing landed. A
   repaired head waits for a later landing, whose keys that did not
@@ -165,11 +175,15 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
 
 - **The runner's, not the change's:** a job whose set-up step failed, or
   whose completion step alone failed, or that failed with no step
-  failed; a failed run whose gate's report it never uploaded
-  (`unreported`: the gate cut by a signal, a shutdown, a lost job); a
-  run cancelled by no one of temper's; a run never found, or found at
-  another commit; a dispatch refused for a missing workflow or runner.
-  Never read from a log's words (`../draft/ci-on-forgejo-17.md`, 2.1).
+  failed; a run or a job cancelled by no one of temper's; a run never
+  found, or found at another commit; a dispatch refused for a missing
+  workflow or runner; and a report that names nothing (2.3) from a run
+  so interrupted. Never read from a log's words
+  (`../draft/ci-on-forgejo-17.md`, 2.1).
+- **Broke, not the change's either:** a report that names nothing from a
+  run that wasn't interrupted, missing, not read as its format, or
+  naming no failed test (`forge/judgement.md`, 2). It is judged no
+  differently from here on, but for its words.
 - **Retried, never repaired or searched:** the failed jobs rerun (skein's
   `Write::Rerun`, naming each job's attempt, so that a lost rerun is
   found by the job's next), or the gate
@@ -177,7 +191,10 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
   cancelled, or never found, is dispatched afresh, never rerun. No
   receipt is made.
 - **Past its bound** the landing is held, saying which gate and why
-  (`landing.md`, 4.2).
+  (`landing.md`, 4.2): the runner's fact and the job it was in, or that
+  the gate's check broke, what its report showed, and that the change
+  wasn't judged. A blocking gate holds; an advisory one holds nothing
+  (2.2).
 
 ## 3. Open questions
 

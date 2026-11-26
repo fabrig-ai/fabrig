@@ -11,7 +11,12 @@ This document holds a change's holds and releases, split from [`repairs.md`](rep
   verdict is posted there.
 - **Bounded apart:** repairs past their limit, resolutions past theirs,
   updates past theirs, hold the change, saying why, and its requester
-  hears.
+  hears. So does CI whose runner's faults outlast `reruns` at a head
+  (`README.md`, 2, step 3): its cause the runner's, `Runner`, its words
+  naming each job, its check and its fact (`set-up failed`, `completion
+  failed`, `no step failed`, `cancelled`) and that the change wasn't
+  judged. Its release counts the jobs' re-runs afresh from their
+  attempts at the release, as a repairs hold's counts repairs afresh.
 - **A step its authority no longer covers holds it too.** A change's
   delegates (its producer, a review, a review asked again, a repair, a
   resolution) are made under the change's own authority, its tasks

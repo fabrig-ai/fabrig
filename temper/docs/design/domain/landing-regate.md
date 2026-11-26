@@ -50,9 +50,10 @@ findings are `findings.md`'s, and a repair, its result and its release
   receipt is made: the report names its failed tests (`landing-proof.md`,
   1.2's report ids: not unset, unread or past its bound), at least one
   and at most 64 (a signature's own bound, `findings.md`, section 4),
-  and each of them is named by an open flake finding; and this landing
-  has not rerun this key for flakes before. Otherwise the receipt is
-  made as 7.3 says, at once.
+  and each of them is named by an open flake finding; this landing
+  has not rerun this key for flakes before; and its project's checks
+  can flake, its `flakes` not `none` (`forge/judgement.md`, 4).
+  Otherwise the receipt is made as 7.3 says, at once.
 - **Named by an open flake finding:** a finding of kind `flake`, in
   any state but `dropped` (`findings.md`, section 4), whose signature's
   repository is the gate's, whose source is the gate's name or `check`

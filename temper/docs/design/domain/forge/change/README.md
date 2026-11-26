@@ -409,12 +409,19 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    fails at the head, the change reads the run of each failed check's job
    (skein's `Read::Run`). A job's failure is the runner's when its first
    failed step is the set-up step or the completion step (every workflow
-   step having passed), or it failed with no step failed; never by its
-   log's words. A failure in a workflow's own step, a cancelled job, and a
-   failed check that names no job are the change's. When every failed
-   check is the runner's and each one's job was re-run fewer than
-   `reruns` times at this head, the change re-runs those jobs, one write
-   each (`../effects.md`, section 1, kind 17), instead of asking a repair.
+   step having passed), or it failed with no step failed, or the job was
+   cancelled by no one of temper's; never by its log's words. A failure in
+   a workflow's own step and a failed check that names no job are the
+   change's, and stand beside any runner's fault (`../judgement.md`, 2).
+   When every failed check is the runner's and each one's job was re-run
+   fewer than `reruns` times at this head, the change re-runs those jobs,
+   one write each (`../effects.md`, section 1, kind 17), instead of asking
+   a repair. **Past `reruns` it holds,** asking none: its cause the
+   runner's, its words naming each job, its check and its fact, and that
+   the change wasn't judged at this head (`repairs-releases.md`, 1). A
+   green CI read at the head ends that hold as it ends a CI hold, and a
+   release counts the jobs' re-runs afresh from their attempts at the
+   release, so the change runs them again up to `reruns` more times.
    A job's re-runs at a head are counted by the forge's attempts, not
    kept by the change: a job at attempt *a* was run again *a* − 1 times,
    by temper or by anyone, and a new head's jobs start at their first.
@@ -424,8 +431,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    CI read at the head is pending again until the new attempts end, and
    the wait on it counts its stall afresh from the re-run. Each re-run's
    account, as every write's, names its job, its check and its reason
-   (`set-up failed`, `completion failed`, `no step failed`). Otherwise
-   the failure is a repair, as above, whose brief says, of each failed
+   (`set-up failed`, `completion failed`, `no step failed`, `cancelled`).
+   Where a failed check is the change's, the failure is a repair, as
+   above, whose brief says, of each failed
    check, whether its failure was the runner's, why, and how many times
    its job was run again at this head (`repairs.md`). A re-run whose
    answer is lost is found by the job's attempt moved past the one it

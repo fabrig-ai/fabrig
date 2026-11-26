@@ -270,7 +270,12 @@ worker's pin. Its scoped report is `target/temper/goal-child-pre-pr.json`.
 
 `.temper/goal-pre-pr HEAD DESTINATION` checks a completed goal in an
 isolated checkout at HEAD. The caller supplies both full commit IDs and
-the history needed to find their common ancestor. The command requires a
+the history needed to find their common ancestor. In a checkout with no
+`temper/rerun` (section 4), a CI runner's, which no worker prepared, it
+first writes `temper-rerun 1 0` there, through `temper/rerun.tmp`
+renamed, since fabrig's checks can't flake (its `flakes`, `none`:
+`temper/docs/design/domain/forge/judgement.md`, 4); a marker a worker
+wrote it leaves as it is. The command requires a
 clean index and worktree, the specified head, and a single merge base.
 It selects the entire diff from that base to HEAD, including changes
 introduced by merged children. An independent advance on the destination
