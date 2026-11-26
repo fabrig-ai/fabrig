@@ -92,12 +92,15 @@ what they write, and how they end. temper runs them as jobs on a worker
     member, and **`squash`** its squash's, both the member's commit
     message (`../draft/squash-in.md`, section 3), in this order:
     `TITLE`; where the member has a description, a blank line and
-    DESCRIPTION; then a blank line and the trailers, a line each,
-    `Change: C`, `Pull-request: N`, `Head: HEAD` and, where the member's
+    DESCRIPTION; then a blank line and the trailers, a line each:
+    first, in `squash` alone, the member's TRAILERS; then `Change: C`,
+    `Pull-request: N`, `Head: HEAD` and, where the member's
     change has a goal, `Goal: G`. `squash` carries `Goal` wherever the
     change has a goal; `message` only for a train into its repository's
     main, so that a merge into a goal's branch names no goal's landing
-    (`../testing/qa/landings.md`, 4). Neither ends in a newline.
+    (`../testing/qa/landings.md`, 4). `message` carries no TRAILERS: a
+    merge keeps the member's own commits, and their trailers with them.
+    Neither ends in a newline.
   - **TITLE** is the member's change's title, as its pull request
     carries it, N the pull request's number, C the change's task, G its
     goal's task (the tracked task it serves), and HEAD the member's head
@@ -108,11 +111,41 @@ what they write, and how they end. temper runs them as jobs on a worker
     space; blank lines and Markdown heading lines (a first non-space
     character `#`) skipped; then its lines up to the next blank line,
     joined, each run of whitespace one space, trimmed; cut to at most
-    1,024 bytes at a character boundary, a cut one ending in `…`; and
+    1,024 bytes, or to the room the bound leaves it (below), at a
+    character boundary, a cut one ending in `…`; and
     wrapped at 72 characters at its spaces, a word longer than that on a
     line of its own. A member whose producer delivered no words, or
     whose first paragraph is empty, has none. It never holds a blank
     line, so the trailers are always the message's last paragraph.
+  - **TRAILERS** are the member's own: those of the last paragraph of
+    its producer's words, or, where the words keep none, of its head
+    commit's message, as the round read it
+    (`../domain/landing-prepare.md`, 1.2). A text's last paragraph is
+    what follows its last blank line (a line empty or of whitespace
+    alone), blank lines at its end aside. It holds trailers where a
+    paragraph comes before it and each of its lines, its trailing
+    whitespace trimmed, is `TOKEN: VALUE`: TOKEN one or more ASCII
+    letters, digits and hyphens, the first a letter; then a colon and a
+    space; VALUE not empty and holding no control character. A last
+    paragraph with any other line holds none. They are kept as written,
+    trimmed, in their order, a repeated one too, all but those whose
+    TOKEN is `Change`, `Pull-request`, `Head` or `Goal` in any ASCII
+    case: temper writes those itself, so none is ever doubled. So a look
+    request's `Look-request` and `Look-landed`
+    (`../client/web/look-requests.md`, 3) reach a goal's branch, and
+    main with it. The rest of the change's message, its account among
+    it, stays with its head, in its pull request.
+  - **The bound:** each message is at most 4,096 bytes, the small
+    profile's `checkout.message_bytes`
+    (`configuration/limit-settings.md`, 5.2), so it fits every
+    checkout's check of it. TITLE, at most 256
+    bytes, and temper's own trailers always fit. The member's TRAILERS
+    come next: each line whole, in their order, while the message
+    without its description fits. DESCRIPTION then takes the room left,
+    cut there as at its 1,024 bytes, and is left out where that room
+    holds no character beside its `…`. So the description is cut
+    first, never a trailer, but where a member's trailers alone pass the
+    bound, when its last lines are dropped.
   - **The engine knows a squash** on the landing's branch by its
     `Head: HEAD` line in the message's last paragraph
     (`../domain/landing-prepare.md`, 1.2).
@@ -376,6 +409,13 @@ limit of the worker's jobs (`../domain/worker/jobs.md`).
   another.
 - **A command's own network:** whether a worker gives it none, so that
   a pin bump needs nothing fetched, or the project's.
+- **A train's request near its job's spec bound:** a member's `squash`
+  may hold up to 4,096 bytes with its TRAILERS (4), so a train of five
+  members, each with trailers near that bound, passes the prepare
+  kind's 16,384-byte spec (`../domain/worker/jobs.md`, 2), and its job
+  is not made, as for any request past it. A change's trailers are a
+  few lines, so none has come near it; a bound on a train's trailers
+  together would settle it should one.
 - **A resolution from the merge job's tree:** a resolution starts from a
   merge in progress made afresh (4.1), so its agent settles again what
   the command settled, its checks recounting a baseline. Handing it the
