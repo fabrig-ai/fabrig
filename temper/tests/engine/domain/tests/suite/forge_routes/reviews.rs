@@ -314,9 +314,9 @@ fn rendered_review_in(
     branch: &[u8],
     content: &[u8],
 ) -> (engine::Assignment, [u8; 32]) {
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"generated", content, 1)
-        .expect("generated file pushed");
+    let parent = world.fake.branch(b"org/repo", branch).unwrap_or(1);
+    let generated = world.worker_commit(parent, b"generated", content);
+    world.run_push(producer, branch, generated, 1);
     let review_index = world.assigned.len();
     let head = produce(world, producer, branch);
     let reviewer = next_assignment(world, review_index);
@@ -1224,14 +1224,27 @@ fn waiting_review_repair(other_change: Option<u64>) -> (World, engine::Assignmen
 }
 
 pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64) {
+    use temper_engine_domain_forge_change::{Hold, State};
     let (mut world, _, change, branch, _) = waiting_review_repair(other_change);
     world.advance_ticks(MAX_TICKS);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
         .expect("another writer advances the idle repair's branch");
+    wait_held(&mut world, change);
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
+    let held = change_row(&world, change).change.state;
+    assert!(
+        matches!(&held, State::Held { why: Hold::BranchMoved, was } if matches!(was.as_ref(), State::WaitingProducer { .. })),
+        "{held:?}"
+    );
+    world.signed_in = None;
+    world.sign_in();
+    // Keep the change's own update in flight while the rest of the release settles.
+    world.hold_write_answers = Some(temper_engine_domain_world::forge_routes::HoldWrite::Update);
+    release(&mut world, change);
     for _ in 0..MAX_TICKS {
         world.tick();
         let row = change_row(&world, change);
-        if matches!(row.change.state, temper_engine_domain_forge_change::State::Preparing { .. })
+        if matches!(row.change.state, State::Preparing { .. })
             && row.pending.is_some_and(|entry| world.root.forge().inspection_entry(entry).is_some())
             && world.events.is_empty()
             && world.store.idle()
