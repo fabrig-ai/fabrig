@@ -62,6 +62,7 @@ impl Roles {
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Repositories { .. }
@@ -195,6 +196,7 @@ fn view_address(address: &Address) -> Box<[u8]> {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
         | Address::Repositories { .. }

@@ -399,6 +399,7 @@ pub(super) fn wanted(root: &dyn Root) -> List<u32> {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Ask { .. }
         | Address::Work { .. }
         | Address::Told
@@ -476,6 +477,7 @@ pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Ask { .. }
         | Address::Work { .. }
         | Address::Told

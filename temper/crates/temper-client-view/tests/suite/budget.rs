@@ -20,6 +20,7 @@ mod tests {
         engine::{Engine, page_requests},
     };
     mod fixture;
+    mod waits;
     use fixture::{NOW, PROJECT, Project};
 
     fn env() -> Env<domain::Limits> {

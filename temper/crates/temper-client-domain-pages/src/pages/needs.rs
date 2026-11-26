@@ -494,6 +494,7 @@ impl Session {
             Address::NewChat { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Chats { .. }
@@ -959,6 +960,7 @@ pub(crate) fn act(
                 | Address::AllHome
                 | Address::NewChat { .. }
                 | Address::Goals { .. }
+                | Address::Waits { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Work { .. }
@@ -991,6 +993,7 @@ pub(crate) fn act(
                 | Address::NewChat { .. }
                 | Address::Work { .. }
                 | Address::Goals { .. }
+                | Address::Waits { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Team { .. }

@@ -79,6 +79,7 @@ pub fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
             | Address::Repositories { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Ask { .. }
             | Address::Tell { .. }
             | Address::Adopt { .. } => false,

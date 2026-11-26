@@ -611,3 +611,41 @@ fn the_root_waits_for_home_unless_its_query_sets_an_inbox_field() {
         assert_eq!(parse(path), Place::Address(Address::Inbox { filter: Filter::ALL }));
     }
 }
+
+const WAITS_PROJECT: u32 = 3;
+const MAX_DUE_SECONDS: u32 = 2_592_000; // waits.md, 1: thirty days.
+
+#[test]
+fn waits_filters_round_trip_alone_and_together() {
+    use crate::WaitsFilter;
+    use jig_client::contract::WaitKind;
+    for (filter, path) in [
+        (WaitsFilter::ALL, b"/projects/3/waits".as_slice()),
+        (WaitsFilter { kind: Some(WaitKind::SignOff), ..WaitsFilter::ALL }, b"/projects/3/waits?kind=sign-off"),
+        (WaitsFilter { mine: true, ..WaitsFilter::ALL }, b"/projects/3/waits?mine=1"),
+        (WaitsFilter { due: Some(3600), ..WaitsFilter::ALL }, b"/projects/3/waits?due=3600"),
+        (
+            WaitsFilter { kind: Some(WaitKind::SignOff), mine: true, due: Some(3600) },
+            b"/projects/3/waits?kind=sign-off&mine=1&due=3600",
+        ),
+        (WaitsFilter { due: Some(1), ..WaitsFilter::ALL }, b"/projects/3/waits?due=1"),
+        (WaitsFilter { due: Some(MAX_DUE_SECONDS), ..WaitsFilter::ALL }, b"/projects/3/waits?due=2592000"),
+    ] {
+        let address = Address::Waits { project: WAITS_PROJECT, filter };
+        assert_eq!(print(&address).as_ref(), path);
+        assert_eq!(parse(path), Place::Address(address));
+    }
+}
+
+#[test]
+fn waits_drops_bad_query_fields_without_dropping_valid_ones() {
+    use crate::WaitsFilter;
+    let expected = Address::Waits { project: WAITS_PROJECT, filter: WaitsFilter { mine: true, ..WaitsFilter::ALL } };
+    for path in [
+        b"/projects/3/waits?kind=other&mine=1".as_slice(),
+        b"/projects/3/waits?due=0&mine=1",
+        b"/projects/3/waits?due=2592001&mine=1",
+    ] {
+        assert_eq!(parse(path), Place::Address(expected.clone()), "{path:?}");
+    }
+}

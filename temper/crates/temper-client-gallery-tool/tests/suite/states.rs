@@ -725,7 +725,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "Written by the goal at 06:55" },
             Part::Links {
                 style: temper_client_view::look::WORK_FILTERS,
-                names: &["All", "Drafts · 2", "Goals · 2", "Changes · 7", "Chats · 1"],
+                names: &["All", "Drafts · 2", "Goals · 2", "Changes · 7", "Waits", "Chats · 1"],
             },
             Part::Named {
                 role: Role::Paragraph,
@@ -749,7 +749,8 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Named { role: Role::Link, name: "New change" },
             Part::Links {
-                style: temper_client_view::look::WORK_FILTERS, names: &["All", "Changes · 6", "Chats · 6"]
+                style: temper_client_view::look::WORK_FILTERS,
+                names: &["All", "Changes · 6", "Waits", "Chats · 6"],
             },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
@@ -805,7 +806,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "work-empty",
         heading: "Nothing in flight yet.",
         parts: &[
-            Part::Links { style: temper_client_view::look::WORK_FILTERS, names: &["All"] },
+            Part::Links { style: temper_client_view::look::WORK_FILTERS, names: &["All", "Waits"] },
             Part::Absent { role: Role::Region, name: "In flight · 0" },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],

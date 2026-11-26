@@ -149,6 +149,8 @@ pub const SHEET_ERROR: Style = Style { owner: owner(), token: 416 };
 /// The session toast (client/pages/README.md).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
 /// Work, client/pages/README.md.
+pub const WAIT_ROW: Style = Style { owner: owner(), token: 648 };
+pub const WAIT_OVERDUE: Style = Style { owner: owner(), token: 649 };
 pub const WORK_PAGE: Style = Style { owner: owner(), token: 650 };
 /// Work, client/pages/README.md.
 pub const WORK_INTRO: Style = Style { owner: owner(), token: 651 };
@@ -1446,8 +1448,8 @@ pub const NAMES: Names<'static> = Names {
         // Reserved for the rail, Work and Deployment (client/web/look.md)
         b"temper-rail-sep",
         b"temper-tabbar-beginning",
-        b"temper-reserved-648",
-        b"temper-reserved-649",
+        b"temper-wait-row",
+        b"temper-wait-overdue",
         b"temper-work-page",
         b"temper-work-intro",
         b"temper-work-kicker",

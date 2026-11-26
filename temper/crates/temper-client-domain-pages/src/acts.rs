@@ -179,6 +179,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Requ
         | Act::Playground
         | Act::Suggest { .. }
         | Act::MoreGoals
+        | Act::MoreWaits
+        | Act::RefreshWaits
         | Act::GoalsFilter { .. }
         | Act::ChatFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),

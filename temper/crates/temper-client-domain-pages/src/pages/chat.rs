@@ -1395,6 +1395,8 @@ impl Chat {
             | Act::Playground
             | Act::Suggest { .. }
             | Act::MoreGoals
+            | Act::MoreWaits
+            | Act::RefreshWaits
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::ClosedChats

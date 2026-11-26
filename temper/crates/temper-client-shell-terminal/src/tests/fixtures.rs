@@ -887,6 +887,7 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
         | Read::History { .. }
         | Read::Spend { .. }
         | Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Notes { .. } => None,
     }
 }

@@ -2012,6 +2012,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         | c::Read::History { .. }
         | c::Read::Spend { .. }
         | c::Read::Project { .. }
+        | c::Read::Waits { .. }
         | c::Read::Deployment => None,
     }
 }

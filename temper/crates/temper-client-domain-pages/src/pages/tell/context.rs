@@ -50,6 +50,7 @@ pub(in crate::pages) fn remember(pages: &mut Pages, client: &Client) {
         | Address::AllHome
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }

@@ -15,7 +15,7 @@ pub mod copy;
 pub mod domain;
 mod route;
 mod sign_in_tab;
-pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind, WorkFilter};
+pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WaitsFilter, WayKind, WorkFilter};
 pub use boundary::{Action, Event, Fact, Opening, Request, Tab};
 pub use domain::{Domain, fire, new, next_deadline, settle, shown, step, take, unlinked};
 pub use limits::{Limits, valid};

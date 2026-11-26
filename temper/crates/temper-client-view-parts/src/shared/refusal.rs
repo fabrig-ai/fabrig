@@ -212,6 +212,7 @@ pub fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
             | Address::Task { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Settings { .. }

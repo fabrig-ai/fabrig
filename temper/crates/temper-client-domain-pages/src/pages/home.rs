@@ -832,6 +832,7 @@ pub fn look(root: &mut dyn Routing, env: &Env<crate::Limits>) {
         | crate::Address::Role { .. }
         | crate::Address::Rule { .. }
         | crate::Address::Goals { .. }
+        | crate::Address::Waits { .. }
         | crate::Address::Ask { .. }
         | crate::Address::Tell { .. }
         | crate::Address::Adopt { .. } => return,

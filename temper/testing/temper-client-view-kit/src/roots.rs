@@ -382,6 +382,7 @@ fn root_at_with_classes_from(
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Work { .. }
         | temper_client_domain::Address::Goals { .. }
+        | temper_client_domain::Address::Waits { .. }
         | temper_client_domain::Address::Ask { .. } | temper_client_domain::Address::Tell { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }

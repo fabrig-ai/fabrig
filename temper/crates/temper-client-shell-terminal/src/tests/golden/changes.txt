@@ -25,11 +25,12 @@ Everything on First, in the words of the agent doing it. A goal opens to its tas
 Work's filters:
   [15] All
   [16] Changes (current)
+  [17] Waits
 ## One change is on the way to main.
 Each change is checked on top of main before it lands.
 Queue:
   ## Queue
-  - [17] Store: policy record · checking · checks started just now
+  - [18] Store: policy record · checking · checks started just now
 Landed recently:
   ## Landed recently
-  - [18] A landed change · 00:00
+  - [19] A landed change · 00:00
