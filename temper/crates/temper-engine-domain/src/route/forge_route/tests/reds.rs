@@ -512,6 +512,7 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
         &env,
         forge::Stored::Landing(forge::LandingRow {
             read_hold: None,
+            gate_hold: None,
             last_event: None,
             turn_since: None,
             waiting: None,

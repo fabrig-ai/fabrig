@@ -444,6 +444,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             LANDING,
             LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
@@ -898,6 +899,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                 task,
                 LandingRow {
                     read_hold: None,
+                    gate_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,

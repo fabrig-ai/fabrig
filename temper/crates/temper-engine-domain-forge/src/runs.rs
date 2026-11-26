@@ -78,6 +78,8 @@ pub struct Follow {
     pub outcome: Option<policy::Verdict>,
     pub writes: Box<[api::Write]>,
     pub page: u32,
+    /// A gate's judgement when its run leaves the active key without a receipt.
+    pub(crate) gate_problem: Option<crate::landing::GateProblem>,
 }
 #[derive(Clone, Debug)]
 pub struct Ended {
@@ -117,38 +119,17 @@ pub fn follow(
         outcome: None,
         writes: Box::new([write]),
         page: 1,
+        gate_problem: None,
     }
 }
 
 /// Retry each failed job of a job fault, otherwise dispatch afresh. The caller
 /// supplies one outbox entry for each write, preserving its ordinary commit fence.
 pub fn retry(follow: &mut Follow, attempt: u16) {
-    assert!(attempt > 1, "a retry follows the first attempt");
-    let mut writes = List::with_capacity(match &follow.run {
-        Some(run) => u32::try_from(run.jobs.len()).expect("bounded jobs").max(1),
-        None => 1,
-    });
-    match follow.outcome {
+    let jobs = match follow.outcome {
         Some(policy::Verdict::Fault(
             policy::Fault::SetUp | policy::Fault::Completion | policy::Fault::NoStep | policy::Fault::Unreported,
-        )) => {
-            if let Some(run) = &follow.run {
-                for job in &run.jobs {
-                    if job.conclusion == Some(api::Conclusion::Failure) {
-                        writes
-                            .push(api::Write::Rerun {
-                                attempt: api::JobAttempt {
-                                    head: follow.commit,
-                                    run: run.id,
-                                    job: job.id,
-                                    attempt: job.attempt,
-                                },
-                            })
-                            .expect("one rerun per failed job");
-                    }
-                }
-            }
-        }
+        )) => true,
         Some(
             policy::Verdict::Running
             | policy::Verdict::Passed
@@ -160,7 +141,33 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
                 | policy::Fault::MissingWorkflow,
             ),
         )
-        | None => {}
+        | None => false,
+    };
+    retry_run(follow, attempt, jobs);
+}
+
+/// A broken gate with a completed run can retry the failed jobs, too.
+pub(crate) fn retry_run(follow: &mut Follow, attempt: u16, jobs: bool) {
+    assert!(attempt > 1, "a retry follows the first attempt");
+    let mut writes = List::with_capacity(match &follow.run {
+        Some(run) => u32::try_from(run.jobs.len()).expect("bounded jobs").max(1),
+        None => 1,
+    });
+    if jobs && let Some(run) = &follow.run {
+        for job in &run.jobs {
+            if job.conclusion == Some(api::Conclusion::Failure) {
+                writes
+                    .push(api::Write::Rerun {
+                        attempt: api::JobAttempt {
+                            head: follow.commit,
+                            run: run.id,
+                            job: job.id,
+                            attempt: job.attempt,
+                        },
+                    })
+                    .expect("one rerun per failed job");
+            }
+        }
     }
     if writes.is_empty() {
         writes
@@ -175,6 +182,7 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
     }
     follow.writes = writes.into_boxed();
     follow.outcome = None;
+    follow.gate_problem = None;
     follow.page = 1;
 }
 
@@ -364,15 +372,7 @@ fn conclusion(value: Option<api::Conclusion>) -> Option<policy::Conclusion> {
 pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
     let mut jobs = List::with_capacity(u32::try_from(run.jobs.len()).expect("bounded jobs"));
     for job in &run.jobs {
-        jobs.push(policy::Job {
-            conclusion: conclusion(job.conclusion),
-            failed: match &job.step {
-                Some(step) => Some(step.number),
-                None => None,
-            },
-            steps: job.steps,
-        })
-        .expect("bounded jobs");
+        jobs.push(run_job(job)).expect("bounded jobs");
     }
     policy::verdict(
         &policy::Run {
@@ -388,6 +388,33 @@ pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
         },
         candidate,
     )
+}
+
+fn run_job(job: &api::RunJob) -> policy::Job {
+    policy::Job {
+        conclusion: conclusion(job.conclusion),
+        failed: match &job.step {
+            Some(step) => Some(step.number),
+            None => None,
+        },
+        steps: job.steps,
+    }
+}
+
+/// Keep the first runner fact as well as any workflow step failure.
+pub(crate) fn gate_jobs(run: &api::Run) -> (bool, Option<(policy::Fault, u64)>) {
+    let mut failed = false;
+    let mut runner = None;
+    for job in &run.jobs {
+        if let Some(fault) = policy::job_fault(run_job(job), false) {
+            if runner.is_none() {
+                runner = Some((fault, job.id));
+            }
+        } else if job.conclusion == Some(api::Conclusion::Failure) {
+            failed = true;
+        }
+    }
+    (failed, runner)
 }
 
 impl Follow {

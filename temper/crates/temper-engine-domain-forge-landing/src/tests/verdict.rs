@@ -1,6 +1,31 @@
-use crate::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};
+use crate::{Conclusion, Fault, Job, Judgement, Run, RunState, Shown, Verdict, judge, verdict};
 use alloc::boxed::Box;
 const HEAD: [u8; 32] = [1; 32];
+
+#[test]
+fn a_passed_verdict_stands_even_beside_a_runner_fault() {
+    for runner in [None, Some(Fault::SetUp)] {
+        assert_eq!(judge(Shown::Passed, runner), Judgement::Passed);
+    }
+}
+
+#[test]
+fn a_shown_red_refuses_even_beside_a_runner_fault() {
+    for runner in [None, Some(Fault::SetUp)] {
+        assert_eq!(judge(Shown::Failures, runner), Judgement::Refused);
+    }
+}
+
+#[test]
+fn a_cancelled_run_without_a_verdict_is_the_runners() {
+    assert_eq!(judge(Shown::Nothing, Some(Fault::Cancelled)), Judgement::Runner(Fault::Cancelled));
+}
+
+#[test]
+fn a_check_without_a_verdict_or_runner_fact_broke() {
+    assert_eq!(judge(Shown::Nothing, None), Judgement::Broke);
+}
+
 fn run(conclusion: Option<Conclusion>, jobs: Box<[Job]>) -> Run {
     Run { commit: HEAD, state: RunState::Completed, conclusion, jobs, cancelled_by_temper: false }
 }

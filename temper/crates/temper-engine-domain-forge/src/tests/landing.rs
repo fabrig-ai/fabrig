@@ -339,6 +339,7 @@ pub(crate) fn erase_landing(d: &mut Domain, task: u64) -> LandingRow {
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
@@ -3285,7 +3286,7 @@ fn failed_receipt_jobs_keep_ids_attempts_and_bounded_names_in_run_order() {
     clippy::too_many_lines,
     reason = "one failed run preserves repair evidence and probe ids from its single report read"
 )]
-fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
+fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
     use skein_forge::api::{self, Answer};
     use temper_engine_domain_forge_tiers::{Failures, Format};
     let xml = br#"<testsuite name="skein-lib::suite"><testcase name="fuzzy::a" classname="skein-lib::suite"><failure/></testcase><testcase name="b" classname="skein-lib::suite"><failure/></testcase></testsuite>"#;
@@ -3301,12 +3302,11 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
             }
         }
     }
-    for (format, bytes, truncated, error, expected, failures) in [
+    for (format, bytes, truncated, expected, failures) in [
         (
             Format::Junit,
             xml.as_slice(),
             false,
-            None,
             tests,
             Some(Failures::Tests(Box::new([
                 b"skein-lib::suite.b".as_slice().into(),
@@ -3317,7 +3317,6 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
             Format::Lines,
             b"test binary fuzzy::a\ntest binary b\n".as_slice(),
             false,
-            None,
             ReceiptReport::Tests(Box::new([
                 ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
                 ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
@@ -3331,7 +3330,6 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
             Format::Lines,
             lines.as_slice(),
             false,
-            None,
             ReceiptReport::Many { bound: LIMITS.tiers.failing_tests },
             Some(Failures::Many),
         ),
@@ -3339,13 +3337,9 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
             Format::Junit,
             b"cut".as_slice(),
             true,
-            None,
             ReceiptReport::Many { bound: LIMITS.tiers.failing_tests },
             Some(Failures::Many),
         ),
-        (Format::Junit, b"not XML".as_slice(), false, None, ReceiptReport::Unread, None),
-        (Format::Junit, b"".as_slice(), false, Some(api::Error::Missing), ReceiptReport::Unread, None),
-        (Format::Junit, b"".as_slice(), false, Some(api::Error::Forbidden), ReceiptReport::Unread, None),
     ] {
         let (mut d, key, run) = reporting_failed_gate(format);
         let mut reads = 0_u32;
@@ -3373,15 +3367,12 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
                     assert_eq!((id, name.as_ref()), (run.id, b"report".as_slice()));
                     assert!(d.receipt(&key).is_none(), "receipt waits for the report");
                     reads += 1;
-                    match error {
-                        Some(error) => Err(error),
-                        None => Ok(Answer::File {
-                            head: fixtures::HEAD,
-                            path: b"report.xml".as_slice().into(),
-                            bytes: bytes.into(),
-                            truncated,
-                        }),
-                    }
+                    Ok(Answer::File {
+                        head: fixtures::HEAD,
+                        path: b"report.xml".as_slice().into(),
+                        bytes: bytes.into(),
+                        truncated,
+                    })
                 }
                 api::Op::Read(api::Read::Job { attempt, .. }) => {
                     assert_eq!((attempt.head, attempt.run, attempt.job), (run.commit, run.id, 9));
@@ -3395,14 +3386,10 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
                 assert!(!matches!(request, Request::Refused { .. }), "a report read never refuses the landing");
                 if let Request::LandingDecision { decision, .. } = request {
                     assert!(reads > 0, "gather decided before reading the failed run report: {decision:?}");
-                    if error == Some(api::Error::Missing) {
-                        assert_eq!(decision, policy::Decision::Retry { member: 0, gate: 0, key: key.key, try_: 2 });
-                    } else {
-                        assert!(
-                            !matches!(decision, policy::Decision::Retry { .. } | policy::Decision::Hold(_)),
-                            "an uploaded or unreadable report keeps the failure: {decision:?}"
-                        );
-                    }
+                    assert!(
+                        !matches!(decision, policy::Decision::Retry { .. } | policy::Decision::Hold(_)),
+                        "a report naming failures keeps the red: {decision:?}"
+                    );
                     decided = true;
                 }
             }
@@ -3412,20 +3399,12 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
         }
         assert!(decided);
         assert_eq!((reads, jobs), (1, 1));
-        if error == Some(api::Error::Missing) {
-            assert!(d.receipt(&key).is_none());
-            assert_eq!(
-                d.entries.get(&91).unwrap().entry.effect.write,
-                api::Write::Rerun { attempt: api::JobAttempt { head: run.commit, run: run.id, job: 9, attempt: 2 } }
-            );
-            continue;
-        }
         let receipt = d.receipt(&key).expect("failed receipt");
         assert!(!receipt.passed);
         assert_eq!(receipt.report, expected);
         assert_eq!(receipt.failures, failures, "the same artifact also supplies safe probe ids");
         assert_eq!((receipt.run.id, receipt.base, receipt.jobs[0].job), (run.id, Some(fixtures::BASE), 9));
-        assert!(!d.landing.flights.contains_key(&key), "no retry for an uploaded or unreadable report");
+        assert!(!d.landing.flights.contains_key(&key), "no retry for a refusing report");
     }
 }
 

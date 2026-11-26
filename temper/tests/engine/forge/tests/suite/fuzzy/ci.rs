@@ -1,5 +1,9 @@
 //! CI's family sweep and its cause referee (testing/blame.md, 3–6).
-use super::super::{blame::judged, landing_batches::workflow};
+use super::super::{
+    blame::judged,
+    landing_batches::workflow,
+    open::{check_starved_gate, reported_gate},
+};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_lib::Duration;
 use skein_world::{
@@ -189,6 +193,7 @@ fn ci_faults_are_blamed_on_their_cause() {
         blame::CANCELLED,
         blame::SILENT,
         blame::MISSING_REPORT,
+        blame::STARVED,
         blame::RUNNER_WAIT,
         blame::WRONG_TREE,
         blame::BASE_RED,
@@ -265,6 +270,10 @@ fn ci_faults_are_blamed_on_their_cause() {
         held_gate(&mut world, b"silent.yml", false, 72);
         held_gate(&mut world, b"missing.yml", true, 73);
         sweep.ran(&judged(&mut world, seed));
+
+        let mut starved = reported_gate(streams.seed_of(Stream::Workload, "starved_gate"), &[], true);
+        check_starved_gate(&mut starved);
+        sweep.ran(&judged(&mut starved, seed));
     }
     sweep.check_fell().expect("each configured CI fault fell");
     eprintln!("cancelled heads excluded {}", sweep.left_out("a_cancelled_check_is_the_runners"));

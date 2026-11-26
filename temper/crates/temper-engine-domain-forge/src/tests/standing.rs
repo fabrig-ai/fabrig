@@ -100,6 +100,7 @@ fn landing(d: &mut Domain) {
             61,
             LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,

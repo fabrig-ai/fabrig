@@ -1294,6 +1294,7 @@ fn kept_landing_failure(d: &mut Domain) {
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

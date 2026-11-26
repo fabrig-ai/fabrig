@@ -322,7 +322,7 @@ LandingRepairAt: ceilings encoded=137 decoded=64; at_most(3) encoded=121 decoded
 LandingResolve: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 LandingRound: ceilings encoded=67437459 decoded=68237824; at_most(3) encoded=209 decoded=324
 LandingRoundEnd: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-LandingRow: ceilings encoded=157935317 decoded=169375744; at_most(3) encoded=3225 decoded=3675
+LandingRow: ceilings encoded=157935834 decoded=169376256; at_most(3) encoded=3233 decoded=3678
 LandingRule: ceilings encoded=70622 decoded=70918; at_most(3) encoded=78 decoded=69
 LandingRun: ceilings encoded=99 decoded=0; at_most(3) encoded=99 decoded=0
 LandingSearch: ceilings encoded=67424589 decoded=68225024; at_most(3) encoded=130 decoded=315

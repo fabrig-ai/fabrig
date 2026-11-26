@@ -1652,6 +1652,8 @@ pub enum LandingReadNoteKind {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
     pub read_hold: Option<Box<[u8]>>,
+    /// The check's reason for a gate hold, independent of the followed run.
+    pub gate_hold: Option<Box<[u8]>>,
     pub last_event: Option<skein_lib::Wall>,
     pub turn_since: Option<skein_lib::Wall>,
     pub waiting: Option<landing::Awaited>,

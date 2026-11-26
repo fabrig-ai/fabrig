@@ -139,7 +139,7 @@ impl Domain {
         let repository = self.changes.get(&row.members.get(member)?.change)?.repository;
         let name = &self.landing.gates(row.project, repository).get(gate)?.name;
         let key = ReceiptKey { project: row.project, repository, check: Check::Gate(name.clone()), key };
-        if let Some(receipt) = self.landing.receipts.get(&key) {
+        if let Some(receipt) = self.receipt(&key) {
             proof = if receipt.passed { w::PublicProof::Passed } else { w::PublicProof::Failed };
         } else {
             let flight = match self.landing.flights.get(&key) {

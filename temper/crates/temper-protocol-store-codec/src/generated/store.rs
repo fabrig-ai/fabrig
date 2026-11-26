@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xb7, 0x94, 0x6c, 0xad, 0xfc, 0x84, 0xad, 0x41, 0xa2, 0x85, 0x18, 0x36, 0x95, 0xd3, 0x4a, 0x50, 0xee, 0x33, 0x90,
-    0xc0, 0x87, 0x07, 0x96, 0x88, 0x4f, 0x10, 0x4e, 0xec, 0xd5, 0xf7, 0x96, 0xa1,
+    0xfd, 0x13, 0x5e, 0xa4, 0x1a, 0x9a, 0xa8, 0xda, 0x58, 0x7e, 0x96, 0xac, 0xa4, 0x8c, 0x10, 0x10, 0x21, 0x6e, 0xce,
+    0x21, 0x1a, 0xd9, 0x35, 0x71, 0xb4, 0xa0, 0x8e, 0xbc, 0xb4, 0xa9, 0x0a, 0xfd,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -194,6 +194,7 @@ pub struct Limits {
     pub landing_row_asks: u32,
     pub landing_row_entries: u32,
     pub landing_row_flake_reruns: u32,
+    pub landing_row_gate_hold_some: u32,
     pub receipt_run_url: u32,
     pub failed_tests_tests: u32,
     pub tier_verification_tier: u32,
@@ -573,6 +574,7 @@ pub const CEILINGS: Limits = Limits {
     landing_row_asks: 64,
     landing_row_entries: 65_536,
     landing_row_flake_reruns: 65_536,
+    landing_row_gate_hold_some: 512,
     receipt_run_url: 2_048,
     failed_tests_tests: 1_024,
     tier_verification_tier: 32,
@@ -952,6 +954,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_row_asks",
     "landing_row_entries",
     "landing_row_flake_reruns",
+    "landing_row_gate_hold_some",
     "receipt_run_url",
     "failed_tests_tests",
     "tier_verification_tier",
@@ -1335,6 +1338,7 @@ impl Limits {
             self.landing_row_asks,
             self.landing_row_entries,
             self.landing_row_flake_reruns,
+            self.landing_row_gate_hold_some,
             self.receipt_run_url,
             self.failed_tests_tests,
             self.tier_verification_tier,
@@ -1719,6 +1723,7 @@ impl Limits {
             landing_row_asks: self.landing_row_asks.min(most),
             landing_row_entries: self.landing_row_entries.min(most),
             landing_row_flake_reruns: self.landing_row_flake_reruns.min(most),
+            landing_row_gate_hold_some: self.landing_row_gate_hold_some.min(most),
             receipt_run_url: self.receipt_run_url.min(most),
             failed_tests_tests: self.failed_tests_tests.min(most),
             tier_verification_tier: self.tier_verification_tier.min(most),
@@ -2100,6 +2105,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_ROW_ASKS,
     paths::LANDING_ROW_ENTRIES,
     paths::LANDING_ROW_FLAKE_RERUNS,
+    paths::LANDING_ROW_GATE_HOLD,
     paths::RECEIPT_RUN_URL,
     paths::FAILED_TESTS_TESTS,
     paths::TIER_VERIFICATION_TIER,
@@ -3373,6 +3379,7 @@ pub mod paths {
     pub const LANDING_ROW_ENTRIES: Path = Path::new("LandingRow.entries");
     pub const LANDING_ROW_FLAKE_RERUNS: Path = Path::new("LandingRow.flake_reruns");
     pub const LANDING_ROW_FOLLOWS: Path = Path::new("LandingRow.follows");
+    pub const LANDING_ROW_GATE_HOLD: Path = Path::new("LandingRow.gate_hold");
     pub const LANDING_ROW_TAIL: Path = Path::new("LandingRow (tail)");
     pub const RECEIPT_RUN_ID: Path = Path::new("ReceiptRun.id");
     pub const RECEIPT_RUN_NUMBER: Path = Path::new("ReceiptRun.number");
@@ -23634,6 +23641,7 @@ pub struct LandingRow {
     pub entries: List<LandingEntry>,
     pub flake_reruns: List<LandingFlakeRerun>,
     pub follows: Option<LandingFollows>,
+    pub gate_hold: Option<Box<[u8]>>,
 }
 
 // Record: LandingRow.
@@ -23660,11 +23668,13 @@ impl LandingRow {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_flake_reruns), item: 17, size: size_of::<LandingFlakeRerun>() },
         skein_codec::bounds::Node::Named("LandingFollows"),
         skein_codec::bounds::Node::Option { item: 19 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_row_gate_hold_some) },
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20, 22] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 405;
+    pub const ENCODED_AT_ZERO: u64 = 410;
 }
 
 impl Record for LandingRow {
@@ -23700,6 +23710,7 @@ impl Record for LandingRow {
         field::write(field::Sequence { limit: limits.landing_row_entries.min(CEILINGS.landing_row_entries), minimum: 16, item: field::Nested }, &self.entries, limits, out, paths::LANDING_ROW_ENTRIES)?;
         field::write(field::Sequence { limit: limits.landing_row_flake_reruns.min(CEILINGS.landing_row_flake_reruns), minimum: 65, item: field::Nested }, &self.flake_reruns, limits, out, paths::LANDING_ROW_FLAKE_RERUNS)?;
         field::write(field::Optional { item: field::Nested }, &self.follows, limits, out, paths::LANDING_ROW_FOLLOWS)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.landing_row_gate_hold_some.min(CEILINGS.landing_row_gate_hold_some) } }, &self.gate_hold, limits, out, paths::LANDING_ROW_GATE_HOLD)?;
         Ok(())
     }
 
@@ -23716,6 +23727,7 @@ impl Record for LandingRow {
             entries: field::read(field::Sequence { limit: limits.landing_row_entries.min(CEILINGS.landing_row_entries), minimum: 16, item: field::Nested }, limits, reader, paths::LANDING_ROW_ENTRIES)?,
             flake_reruns: field::read(field::Sequence { limit: limits.landing_row_flake_reruns.min(CEILINGS.landing_row_flake_reruns), minimum: 65, item: field::Nested }, limits, reader, paths::LANDING_ROW_FLAKE_RERUNS)?,
             follows: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_ROW_FOLLOWS)?,
+            gate_hold: field::read(field::Optional { item: field::Bytes { limit: limits.landing_row_gate_hold_some.min(CEILINGS.landing_row_gate_hold_some) } }, limits, reader, paths::LANDING_ROW_GATE_HOLD)?,
         })
     }
 }
@@ -42561,6 +42573,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_row_asks,
     CEILINGS.landing_row_entries,
     CEILINGS.landing_row_flake_reruns,
+    CEILINGS.landing_row_gate_hold_some,
     CEILINGS.receipt_run_url,
     CEILINGS.failed_tests_tests,
     CEILINGS.tier_verification_tier,

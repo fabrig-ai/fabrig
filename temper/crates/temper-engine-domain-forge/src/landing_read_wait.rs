@@ -224,6 +224,7 @@ pub(super) fn changed(old: &LandingRow, row: &LandingRow) -> bool {
         last_event: _,
         turn_since: _,
         read_hold: _,
+        gate_hold: _,
     } = row;
     landing_changed(&old.landing, landing)
         || entries_changed(&old.entries, entries)

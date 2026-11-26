@@ -253,6 +253,7 @@ pub(super) fn landing() -> d::Stored {
     use temper_engine_domain_forge_landing as l;
     d::Stored::Landing(d::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

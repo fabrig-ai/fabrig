@@ -4669,7 +4669,7 @@ pub fn landing_follow_to_domain(record: crate::v25::LandingFollow) -> temper_eng
 }
 
 pub fn landing_row_to_record(value: &temper_engine_domain_forge_vocabulary::LandingRow) -> Result<crate::v25::LandingRow, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::LandingRow { read_hold: field_000000, last_event: field_000001, turn_since: field_000002, waiting: field_000003, room: field_000004, job: field_000005, landing: field_000006, previous_asks: field_000007, entries: field_000008, flake_reruns: field_000009, follows: field_000010 } = value;
+    let temper_engine_domain_forge_vocabulary::LandingRow { read_hold: field_000000, last_event: field_000001, turn_since: field_000002, waiting: field_000003, room: field_000004, job: field_000005, landing: field_000006, previous_asks: field_000007, entries: field_000008, flake_reruns: field_000009, follows: field_000010, gate_hold: field_000011 } = value;
     Ok(crate::v25::LandingRow {
         read_hold: match field_000000 {
             Some(item) => {
@@ -4756,12 +4756,19 @@ pub fn landing_row_to_record(value: &temper_engine_domain_forge_vocabulary::Land
                 Some(converted)
             }
             None => None,
+        },
+        gate_hold: match field_000011 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
 pub fn landing_row_to_domain(record: crate::v25::LandingRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LandingRow, crate::v25::Problem> {
-    let crate::v25::LandingRow { read_hold: field_000000, last_event: field_000001, turn_since: field_000002, waiting: field_000003, room: field_000004, job: field_000005, landing: field_000006, asks: field_000007, entries: field_000008, flake_reruns: field_000009, follows: field_000010 } = record;
+    let crate::v25::LandingRow { read_hold: field_000000, last_event: field_000001, turn_since: field_000002, waiting: field_000003, room: field_000004, job: field_000005, landing: field_000006, asks: field_000007, entries: field_000008, flake_reruns: field_000009, follows: field_000010, gate_hold: field_000011 } = record;
     Ok(temper_engine_domain_forge_vocabulary::LandingRow {
         read_hold: match field_000000 {
             Some(item) => {
@@ -4848,6 +4855,13 @@ pub fn landing_row_to_domain(record: crate::v25::LandingRow, context: &crate::re
         follows: match field_000010 {
             Some(item) => {
                 let converted = crate::records::by_hand::landing_follows_to_domain(item, context)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        gate_hold: match field_000011 {
+            Some(item) => {
+                let converted = item;
                 Some(converted)
             }
             None => None,

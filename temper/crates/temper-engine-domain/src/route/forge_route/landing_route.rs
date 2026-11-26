@@ -332,6 +332,7 @@ fn create_landing(
     }
     let row = forge::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
