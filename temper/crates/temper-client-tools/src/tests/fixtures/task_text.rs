@@ -4,7 +4,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// A synthetic stored task projected with a small 128-byte text window.
-pub(crate) fn source_task(words: &[u8]) -> (core::Core, core::Limits, tasks::TaskRecord) {
+pub(crate) fn source_task(words: &[u8]) -> (core::engine::Engine, core::Limits, tasks::TaskRecord) {
     let mut limits = jig_test_profile::limits().core;
     limits.documents.text_bytes = 128;
     limits.tasks.spec_bytes = 4096;
@@ -12,7 +12,8 @@ pub(crate) fn source_task(words: &[u8]) -> (core::Core, core::Limits, tasks::Tas
     let mut authority = core::task_authority(&config.seed_projects[0].policy.policy.roles[0].authority);
     authority.budget.spend = 100;
     let rows = jig_test_profile::fixtures::seeded_project_rows(&config);
-    let mut core = core::Core::new(config, &limits).unwrap();
+    let mut engine = core::engine::Engine::new(config, &limits).unwrap();
+    let core = engine.core_mut();
     core.start_begin(true, Wall::EPOCH);
     let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
     for row in rows {
@@ -61,7 +62,7 @@ pub(crate) fn source_task(words: &[u8]) -> (core::Core, core::Limits, tasks::Tas
     let Some(row) = core.tasks.task(1) else { panic!("synthetic task: {made:?}") };
     let mut row = row.clone();
     row.instructions = Some(Box::from(words));
-    (core, limits, row)
+    (engine, limits, row)
 }
 
 fn new_task(authority: tasks::Authority, words: &[u8]) -> tasks::New {
@@ -173,12 +174,13 @@ pub(crate) fn source_show(
     tools: &crate::jig::Limits,
     json: bool,
 ) -> (crate::jig::Printed, skein_lib::List<u64>) {
-    let (core, limits, row) = source_task(words);
+    let (engine, limits, row) = source_task(words);
+    let core = engine.core();
     let mut root = super::signed_in(super::PARTY);
     root.limits.tools = *tools;
     let argv = if json { &["task", "show", "1", "--json"][..] } else { &["task", "show", "1"][..] };
     let call = root.submit(argv);
-    root.serve(call, super::task_result(source_summary(&core, &limits, &row)));
+    root.serve(call, super::task_result(source_summary(core, &limits, &row)));
     let mut offsets = skein_lib::List::with_capacity(tools.text);
     for _ in 0..tools.text {
         let Some((_, jig_client::contract::Read::TaskText { task, field, from })) = root.reads.get(&call) else {
@@ -187,7 +189,7 @@ pub(crate) fn source_show(
         assert_eq!(*task, 1);
         assert_eq!(*field, jig_client::contract::TaskTextField::Specification);
         offsets.push(*from).expect("one offset per source byte");
-        let page = source_chunk(&core, &limits, &row, core::reads::TaskTextField::Specification, *from);
+        let page = source_chunk(core, &limits, &row, core::reads::TaskTextField::Specification, *from);
         root.serve(
             call,
             jig_client::contract::ReadResult::Value(jig_client::contract::ReadValue::TaskText(Box::new(page))),
