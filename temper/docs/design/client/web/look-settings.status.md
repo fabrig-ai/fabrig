@@ -3,18 +3,14 @@
 2026-11-25. Where the tree's code lags or departs from [look-settings.md](look-settings.md).
 
 - **Not yet:** *An account's row*, *Usage*: the `usage-model-week`
-  request's rendered comparison follows landing on main, by the check
-  after landing (`../../draft/archive/look-loop.md`, 5.2), which the
-  `Look-landed: usage-model-week` of the commit carrying its account
-  names: its hand-made
-  `journeys/usage-model-week/` pages on its own commit, under its
-  overlay, against the gallery state `accounts-usage-model-week`
-  (`gallery-project-states.md`, 1) at 1440, 1000 and 420 px, each
-  window's line one row at 1366 by 745 and two at 420, the name column
-  holding every model's name; and the states its message names in
-  words: a limited model's week, its bar red; a model's week with no
-  rate yet, not drawn unless limited. View and stylesheet tests check
-  the tree and rules; they establish no rendered equality.
+  request's rendered comparison is the check after landing's, in
+  `journeys/looks.html`. Its first run read "differs" from rows of the
+  check's own, before it compared only what a request asks
+  (41ca75635e); the `Look-landed: usage-model-week` of the commit that
+  wrote this item asks it again. The states its message names in words,
+  a limited model's week, its bar red, and a model's week with no rate
+  yet, not drawn unless limited, aren't rendered: its account covers
+  them.
 
 - **Not yet:** *An account's row*: the `accounts-usage` request's
   rendered comparison follows landing on main, owned by temper/ui
