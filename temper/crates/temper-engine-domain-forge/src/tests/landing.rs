@@ -3589,7 +3589,16 @@ fn step_regate_with_report(
                 Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
             }
             Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
-            Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Pull { number, .. }) => Answer::Pull(skein_forge::api::Pull {
+                number,
+                head: match number {
+                    2 => b"temper/1/l61".as_slice().into(),
+                    3 => b"temper/52".as_slice().into(),
+                    4 => b"temper/1/l62".as_slice().into(),
+                    _ => fixtures::open_pull().head,
+                },
+                ..fixtures::open_pull()
+            }),
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
             Op::Read(Read::Runs { commit, .. }) => {
                 assert_eq!(commit, fixtures::HEAD);
@@ -3681,6 +3690,51 @@ fn a_regate_dispatches_at_the_same_candidate_and_replaces_the_failed_receipt_wit
     assert_eq!(d.changes.get(&fixtures::CHANGE).unwrap().regate, Some(Regate { receipt: key, run: 41 }));
 }
 
+fn regate_successor(d: &mut Domain, key: &ReceiptKey, regate: Option<Regate>) {
+    use temper_engine_domain_forge_change as change;
+    let mut change = fixtures::opening_row();
+    change.task = 52;
+    change.change.task = 52;
+    change.change.way = change::Way::Turn;
+    change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    change.branch = b"temper/52".as_slice().into();
+    change.pull = Some(3);
+    change.pending = None;
+    change.effect = change::EffectResult::None;
+    change.regate = regate;
+    outputs(d, Event::Change { row: change });
+
+    let mut row = landing_row(62, policy::Phase::Proving);
+    row.landing.round.branch = b"temper/1/l62".as_slice().into();
+    row.landing.round.pull = Some(4);
+    row.landing.round.combined = Some(policy::Combine::Merge);
+    row.landing.members = Box::new([policy::Member {
+        round: None,
+        unit: 0,
+        branch: row.landing.round.branch.clone(),
+        combined: None,
+        recorded: false,
+        told: false,
+        judging: false,
+        leave_told: false,
+        left: None,
+        change: 52,
+        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+        pull: 3,
+        head: Some(fixtures::HEAD),
+        base: Some(fixtures::BASE),
+        candidate: Some(fixtures::HEAD),
+        gates: Box::new([policy::GateProof {
+            proof: policy::Proof::Keyed { key: key.key },
+            posted: policy::Posted::Nothing,
+            faults: 0,
+        }]),
+        asked: None,
+        landed: None,
+    }]);
+    outputs(d, Event::Landing { row });
+}
+
 #[test]
 fn a_failed_regate_replaces_the_receipt_repairs_and_is_spent_in_a_later_landing() {
     use skein_forge::api::{Conclusion, RunJob, RunState, Step};
@@ -3696,17 +3750,13 @@ fn a_failed_regate_replaces_the_receipt_repairs_and_is_spent_in_a_later_landing(
         step: Some(Step { number: 1, name: b"tests".as_slice().into() }),
     }]);
     dispatch_regate(&mut d, &key, &run);
-    let mut later = d.landing.rows.get(&61).unwrap().clone();
     let repair = step_regate(&mut d, 61, 93, &run);
     assert_eq!(repair, policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: 58 } });
     assert!(!d.receipt(&key).unwrap().passed);
     assert_eq!(d.receipt(&key).unwrap().run.id, 57);
-    later.landing.task = 62;
-    later.landing.members[0].left = None;
-    later.landing.members[0].leave_told = false;
-    later.landing.members[0].gates[0].proof = policy::Proof::Keyed { key: key.key };
-    later.entries = Box::new([]);
-    d.landing.rows.insert(62, later).unwrap();
+    outputs(&mut d, Event::SettleEffects { task: 61, root: 61, ending: ReleaseEnding::Cancelled });
+    // A different ready change still names the old receipt, not run 57.
+    regate_successor(&mut d, &key, Some(Regate { receipt: key.clone(), run: 41 }));
     assert_eq!(step_regate(&mut d, 62, 94, &run), repair);
     assert!(!d.landing.flights.contains_key(&key));
 }
@@ -3774,20 +3824,23 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     use temper_client_protocol_wire::waits::{LANDING_RECEIPT, THING_TASK};
     let (mut d, key, mut run) = regate_landing();
     dispatch_regate(&mut d, &key, &run);
-    let mut waiter = d.landing.rows.get(&61).unwrap().clone();
-    waiter.landing.task = 62;
-    waiter.entries = Box::new([]);
-    waiter.landing.members[0].gates[0].proof = policy::Proof::Keyed { key: key.key };
-    waiter.landing.members[0].gates[0].posted = policy::Posted::Nothing;
-    let mut change = d.changes.get(&fixtures::CHANGE).unwrap().clone();
-    change.task = 52;
-    change.change.task = 52;
-    change.regate = None;
-    waiter.landing.members[0].change = 52;
-    d.changes.insert(52, change).unwrap();
-    d.landing.rows.insert(62, waiter).unwrap();
     run.state = skein_forge::api::RunState::Running;
     run.conclusion = None;
+    // Cancel the member, not its landing: the empty landing finishes and frees
+    // the train, but its round's dispatch is still followed for the receipt.
+    outputs(
+        &mut d,
+        Event::SettleEffects { task: fixtures::CHANGE, root: fixtures::CHANGE, ending: ReleaseEnding::Cancelled },
+    );
+    assert_eq!(step_regate(&mut d, 61, 95, &run), policy::Decision::Leave { member: 0, why: policy::Leave::Cancelled });
+    assert_eq!(step_regate(&mut d, 61, 96, &run), policy::Decision::Close);
+    commit_gate_effect(&mut d, 96);
+    assert!(matches!(
+        step_regate(&mut d, 61, 97, &run),
+        policy::Decision::Wait { on: policy::Awaited::Run { member: 0, gate: 0 }, .. }
+    ));
+    assert_eq!(d.landing(61).unwrap().landing.phase, policy::Phase::Landed);
+    regate_successor(&mut d, &key, None);
     let (decision, report) = step_regate_with_report(&mut d, 62, 93, &run);
     assert!(matches!(decision, policy::Decision::Wait { on: policy::Awaited::Receipt { .. }, .. }));
     assert_eq!(d.inspection_landing_bound(62), None, "another landing owns the run");
