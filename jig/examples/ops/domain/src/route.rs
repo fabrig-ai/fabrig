@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_core::effects::connector;
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_hub_link::{Event as LinkEvent, Procedure};
@@ -27,13 +28,14 @@ pub(crate) fn work(
     match item {
         Work::Event(event) => event_in(domain, env, decision, event, work),
         Work::Core(event) => {
-            let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
-            core_out(domain, env, decision, requests, work);
+            let mut out = Queue::uncapped();
+            engine::step(&mut domain.engine, &env.with(env.limits.core), In::Core(event), &mut out);
+            engine_out(domain, env, decision, out, work);
         }
         Work::Effect { owner, origin, effect } => effect_start(domain, env, decision, owner, origin, effect, work),
         Work::Finish => {}
         Work::ResumeFleet => {
-            let requests = core::resume_fleet(&mut domain.core, &env.with(env.limits.core));
+            let requests = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
             core_out(domain, env, decision, requests, work);
             let mut hub_out = Queue::uncapped();
             host::resume(&mut domain.host, &env.with(env.limits.host), &mut hub_out);
@@ -74,19 +76,22 @@ fn effect_start(
     effect: infrastructure::Effect,
     work: &mut Queue<Work>,
 ) {
-    let mut requests = core::step(
-        &mut domain.core,
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
         &env.with(env.limits.core),
-        core::Event::EffectStart {
+        In::Core(core::Event::EffectStart {
             owner,
             connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
             origin,
-        },
+        }),
+        &mut out,
     );
     let mut effect = Some(effect);
     // The core selects description or refusal; the typed input moves once.
-    for _ in 0..requests.len() {
-        match requests.pop().expect("effect start outputs") {
+    for _ in 0..out.len() {
+        let Out::Core(request) = out.pop().expect("effect start outputs");
+        match request {
             core::Request::Ask { connector, ask: core::Ask::Effect(connector::Ask::Describe { owner: asked }) } => {
                 assert!(
                     asked == owner && connector == jig_ops_domain_connectors::number(Connector::Infrastructure),
@@ -101,11 +106,7 @@ fn effect_start(
             | core::Request::Held(_)
             | core::Request::Now(_)
             | core::Request::Ask { .. }
-            | core::Request::ProjectMade { .. }) => {
-                let mut one = Queue::uncapped();
-                one.push(request);
-                core_out(domain, env, decision, one, work);
-            }
+            | core::Request::ProjectMade { .. }) => core_request(domain, env, decision, request, work),
         }
     }
 }
@@ -166,7 +167,7 @@ fn event_in(
         Event::Host(event) => work.push(Work::Host(event)),
         Event::Restart { pending } => {
             domain.start.state = crate::domain::StartState::Starting;
-            let request = domain.core.start_begin(pending, env.wall);
+            let request = domain.engine.core_mut().start_begin(pending, env.wall);
             work.push(Work::Start(request));
         }
         Event::Store(store) => crate::restart::store(domain, env, decision, store, work),
@@ -177,10 +178,11 @@ fn event_in(
             Released::Infrastructure(event) => work.push(Work::Infrastructure(event)),
             Released::Observability(event) => work.push(Work::Observability(event)),
             Released::Start(continuation) => {
-                if !domain.core.stopping() {
+                if !domain.engine.core().stopping() {
                     domain.start.waiting = false;
                     let mut out = Queue::uncapped();
-                    let action = domain.core.start_resume(&env.with(env.limits.core), continuation, &mut out);
+                    let action =
+                        domain.engine.core_mut().start_resume(&env.with(env.limits.core), continuation, &mut out);
                     core_out(domain, env, decision, out, work);
                     work.push(Work::Start(action));
                 }
@@ -207,7 +209,7 @@ fn event_in(
             crate::assemble::connector_read(domain, env, to, task, tool, read, work);
         }
         Event::Effect { to, key, effect, deadline, proposal } => {
-            let owner = domain.core.effect_owner();
+            let owner = domain.engine.core_mut().effect_owner();
             let origin = match proposal {
                 Some(reason) => core::EffectOrigin::Propose { to, key, reason, as_holder: false },
                 None => core::EffectOrigin::Call { to, key, deadline },
@@ -215,8 +217,9 @@ fn event_in(
             work.push(Work::Effect { owner, origin, effect });
         }
         Event::Timer(timer) => {
-            let requests = core::fire(&mut domain.core, &env.with(env.limits.core), timer);
-            core_out(domain, env, decision, requests, work);
+            let mut out = Queue::uncapped();
+            engine::fire(&mut domain.engine, &env.with(env.limits.core), timer, &mut out);
+            engine_out(domain, env, decision, out, work);
         }
         Event::TurnTimer => crate::link::fire(domain, env, decision, work),
         Event::InfrastructureTimer => {
@@ -242,34 +245,57 @@ fn event_in(
     }
 }
 
+fn engine_out(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Output>,
+    mut out: Queue<Out>,
+    work: &mut Queue<Work>,
+) {
+    for _ in 0..out.len() {
+        let Out::Core(request) = out.pop().expect("engine output count");
+        core_request(domain, env, decision, request, work);
+    }
+}
+
 pub(crate) fn core_out(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
-    requests: Queue<core::Request>,
+    mut requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    let mut out = requests;
-    for _ in 0..out.len() {
-        match out.pop().expect("core request count") {
-            core::Request::Write(core::Write::DropHistory { task }) => {
-                write(domain, decision, Write::DropHistory { task });
-            }
-            core::Request::Write(core::Write::DropTranscript { task }) => {
-                write(domain, decision, Write::DropTranscript { task });
-            }
-            core::Request::Write(core::Write::CopySettingsRevision(number)) => {
-                write(domain, decision, Write::CopySettingsRevision(number));
-            }
-            core::Request::Write(core::Write::Save(record)) => {
-                write(domain, decision, Write::Save(Record::Core(record)));
-            }
-            core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
-            core::Request::Held(value) => core_held(domain, env, decision, *value, work),
-            core::Request::Now(value) => core_now(domain, env, decision, *value, work),
-            core::Request::Ask { connector, ask } => core_ask(domain, env, decision, connector, ask, work),
-            core::Request::ProjectMade { project } => held(decision, Output::ProjectMade { project }),
+    for _ in 0..requests.len() {
+        let request = requests.pop().expect("core request count");
+        core_request(domain, env, decision, request, work);
+    }
+}
+
+pub(crate) fn core_request(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Output>,
+    request: core::Request,
+    work: &mut Queue<Work>,
+) {
+    match request {
+        core::Request::Write(core::Write::DropHistory { task }) => {
+            write(domain, decision, Write::DropHistory { task });
         }
+        core::Request::Write(core::Write::DropTranscript { task }) => {
+            write(domain, decision, Write::DropTranscript { task });
+        }
+        core::Request::Write(core::Write::CopySettingsRevision(number)) => {
+            write(domain, decision, Write::CopySettingsRevision(number));
+        }
+        core::Request::Write(core::Write::Save(record)) => {
+            write(domain, decision, Write::Save(Record::Core(record)));
+        }
+        core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
+        core::Request::Held(value) => core_held(domain, env, decision, *value, work),
+        core::Request::Now(value) => core_now(domain, env, decision, *value, work),
+        core::Request::Ask { connector, ask } => core_ask(domain, env, decision, connector, ask, work),
+        core::Request::ProjectMade { project } => held(decision, Output::ProjectMade { project }),
     }
 }
 #[expect(clippy::too_many_lines, reason = "one dispatcher preserves the full held output vocabulary")]
@@ -592,13 +618,13 @@ fn core_ask(
                         &env.limits.infrastructure.vocabulary,
                         code,
                         &translate::infrastructure_spec(&context.spec),
-                        domain.core.counters.deployment().id,
+                        domain.engine.core().counters.deployment().id,
                     ) {
                         Some(procedure) => {
                             work.push(Work::Infrastructure(infrastructure::Event::StartProcedure {
                                 task,
                                 project: context.project,
-                                chat: domain.core.tasks.served_chat(task),
+                                chat: domain.engine.core().tasks.served_chat(task),
                                 pending: context.pending,
                                 added: translate::infrastructure_added(context.added),
                                 procedure,
@@ -626,7 +652,7 @@ fn core_ask(
                                 services: Box::new([spec.service]),
                                 template: spec.template,
                             }));
-                            if let Some(row) = domain.core.tasks.task(task) {
+                            if let Some(row) = domain.engine.core().tasks.task(task) {
                                 for subscription in &row.subscriptions {
                                     match subscription.kind {
                                         tasks::SubscriptionKind::Topic { connector, topic } => {
@@ -804,7 +830,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
                         token: owner,
                         entry,
                         key: translate::infrastructure_key(key),
-                        project: match domain.core.tasks.task(key.task) {
+                        project: match domain.engine.core().tasks.task(key.task) {
                             Some(task) => Some(task.project),
                             None => None,
                         },
@@ -815,7 +841,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
                         token: owner,
                         entry,
                         key: translate::observability_key(key),
-                        project: match domain.core.tasks.task(key.task) {
+                        project: match domain.engine.core().tasks.task(key.task) {
                             Some(task) => Some(task.project),
                             None => None,
                         },
@@ -1036,7 +1062,7 @@ pub(crate) fn connector_out(
             let Some(Procedure { step, connector, code }) = domain.hub_link.take_procedure(task) else { return };
             match action {
                 infrastructure::StepDecision::Effect(effect) => {
-                    let owner = domain.core.effect_owner();
+                    let owner = domain.engine.core_mut().effect_owner();
                     domain.hub_link.keep_effect_procedure(owner, task);
                     work.push(Work::Effect {
                         owner,
@@ -1135,7 +1161,7 @@ pub(crate) fn connector_out(
                 }
                 infrastructure::RestartStage::Outbox => connector::RestartStage::Settled,
             };
-            domain.core.catch_up_done(number, stage);
+            domain.engine.core_mut().catch_up_done(number, stage);
         }
         ConnectorRequest::Observability(observability::Request::Document { watcher, subject, document }) => {
             let document = match document {
@@ -1211,7 +1237,7 @@ pub(crate) fn connector_out(
         ConnectorRequest::Observability(observability::Request::News { alert, subscribers }) => {
             for subscriber in subscribers {
                 let class = translate::news_class(subscriber.class);
-                if let Some(event) = domain.core.connector_news(
+                if let Some(event) = domain.engine.core_mut().connector_news(
                     subscriber.task,
                     subscriber.subscription,
                     class,
@@ -1225,7 +1251,7 @@ pub(crate) fn connector_out(
         ConnectorRequest::Observability(observability::Request::Health { service: _, healthy, subscribers }) => {
             for subscriber in subscribers {
                 let class = translate::news_class(subscriber.class);
-                if let Some(event) = domain.core.connector_news(
+                if let Some(event) = domain.engine.core_mut().connector_news(
                     subscriber.task,
                     subscriber.subscription,
                     class,
@@ -1299,7 +1325,7 @@ pub(crate) fn connector_out(
                 }
                 observability::RestartStage::Outbox => connector::RestartStage::Settled,
             };
-            domain.core.catch_up_done(number, stage);
+            domain.engine.core_mut().catch_up_done(number, stage);
         }
     }
 }
@@ -1381,7 +1407,7 @@ fn core_now(
                 messages,
                 transcript,
                 grants,
-                answered: domain.core.settled_calls(task, attempt),
+                answered: domain.engine.core().settled_calls(task, attempt),
             };
             if crate::assemble::assignment(domain, env, &assignment).is_some() {
                 domain.hub_link.keep_assignment(assignment);
@@ -1404,7 +1430,7 @@ fn core_now(
         | core::Now::EndedTask { .. }
         | core::Now::PartyInputs { .. }) => now(domain, Output::CoreLoad(load)),
         core::Now::RestoreRefused => {
-            assert!(domain.core.start_failure().is_some(), "a refused row records its start failure");
+            assert!(domain.engine.core().start_failure().is_some(), "a refused row records its start failure");
         }
         core::Now::RelayBusy { channel, run, attempt, call } => {
             crate::link::route(

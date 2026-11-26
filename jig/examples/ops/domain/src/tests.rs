@@ -320,7 +320,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                     if let Some(record) = header.take() {
                         step(&mut domain, &env, Event::Store(Store::Restore(record)));
                         assert!(take(&mut domain, &env).is_empty(), "header restore is an empty admitted decision");
-                        for row in jig_test_profile::fixtures::initial_settings_current(&domain.core.current) {
+                        for row in jig_test_profile::fixtures::initial_settings_current(&domain.engine.core().current) {
                             step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
                         }
                     }
@@ -552,13 +552,13 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
     use jig_domain_people as people;
     use skein_lib::ReplyTo;
     let (mut domain, env) = fixture_with_commits(2);
-    domain.core.projects.push(1).expect("open fixture project");
+    domain.engine.core_mut().projects.push(1).expect("open fixture project");
     let identity = people::Identity {
         key: people::IdentityKey { provider: 0, subject: Box::from(*b"party") },
         login: Box::from(*b"party"),
         name: Box::from(*b"Party"),
     };
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people.start_restore(env.wall);
     for record in [
         people::Stored::Person { number: 1, identity },
         people::Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()) },
@@ -572,9 +572,9 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
         assert!(initial.is_empty(), "restore outputs: {initial:?}");
     }
     let people_env = env.with(env.limits.core.people);
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&people_env));
     assert!(take(&mut domain, &env).is_empty());
     let service = fixtures::service();
     step(
@@ -773,7 +773,7 @@ fn either_start_refusal_cause_assembles_a_permanent_end() {
 #[test]
 fn a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief() {
     let (mut domain, env) = fixture();
-    domain.core.begin_transcript(1, 1, Some((1, 1)));
+    domain.engine.core_mut().begin_transcript(1, 1, Some((1, 1)));
     step(
         &mut domain,
         &env,
@@ -797,7 +797,7 @@ fn a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief() {
     );
     assert_eq!(
         core::read_brief_part(
-            &domain.core,
+            domain.engine.core(),
             core::BriefTextLimits { parts: 1, read_bytes: 128, brief_bytes: 128 },
             1,
             core::BriefPart::TranscriptTail
@@ -816,17 +816,17 @@ fn stopping_ignores_the_starts_mark_continuations() {
     step(&mut domain, &env, Event::Core(core::Event::Stopping));
     settle(&mut domain, &env);
     let (mut starting, _) = fixture();
-    let _begin = starting.core.start_begin(false, env.wall);
+    let _begin = starting.engine.core_mut().start_begin(false, env.wall);
     let mut out = Queue::uncapped();
     let core::start::Action::Commit(continuation) =
-        starting.core.start_done(&env.with(env.limits.core), core::start::Phase::LoadCore, &mut out)
+        starting.engine.core_mut().start_done(&env.with(env.limits.core), core::start::Phase::LoadCore, &mut out)
     else {
         panic!("seed continuation")
     };
     for event in [Event::Store(Store::Switched), Event::Released(Released::Start(continuation))] {
         step(&mut domain, &env, event);
         assert!(take(&mut domain, &env).is_empty());
-        assert_eq!(domain.core.start_failure(), None);
+        assert_eq!(domain.engine.core().start_failure(), None);
     }
 }
 
@@ -857,15 +857,15 @@ fn a_new_task_timer_stays_due_at_the_watermark() {
     env.wall = Wall::from_nanos(DUE);
     let mut commits = fill_to_watermark(&mut domain, &env);
     crate::fire(&mut domain, &env, crate::Timer::Core(core::Timer::Tasks));
-    assert_eq!(domain.core.tasks.next_deadline(), Some(Time::from_nanos(DUE)), "refusal leaves the timer due");
+    assert_eq!(domain.engine.core().tasks.next_deadline(), Some(Time::from_nanos(DUE)), "refusal leaves the timer due");
     assert!(take(&mut domain, &env).is_empty(), "a refused timer changes nothing");
     while let Some(number) = commits.pop() {
         step(&mut domain, &env, Event::Store(Store::Committed { number, fill: 0 }));
     }
     settle(&mut domain, &env);
     crate::fire(&mut domain, &env, crate::Timer::Core(core::Timer::Tasks));
-    assert_eq!(domain.core.tasks.next_deadline(), None);
-    let task = domain.core.tasks.task(CHAT).expect("chat remains live");
+    assert_eq!(domain.engine.core().tasks.next_deadline(), None);
+    let task = domain.engine.core().tasks.task(CHAT).expect("chat remains live");
     let mut fired = 0;
     for word in &task.inbox {
         if let tasks::MessageKind::Timer { subscription: SUBSCRIPTION } = word.kind {

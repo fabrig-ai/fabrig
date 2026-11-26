@@ -5,6 +5,7 @@ mod grants;
 use crate::Store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_fleet as fleet;
 use jig_domain_link::JobBound;
 use jig_domain_link::{Grant, Hello};
@@ -336,7 +337,7 @@ impl World {
     #[must_use]
     pub fn next_due(&self) -> Option<Time> {
         let (now, wall) = self.clocks();
-        let mut next = self.domain.core().next_deadline(now, wall);
+        let mut next = engine::next_deadline(self.domain.engine(), now, wall, Admit::All);
         for deadline in self
             .domain
             .connector_deadlines()
@@ -356,7 +357,7 @@ impl World {
     /// The caller supplies clocks; neither draining nor timer delivery advances them.
     pub fn fire_due(&mut self, now: Time, wall: Wall) {
         self.set_clock(now, wall);
-        while let Some(timer) = self.domain.core().due(now, wall) {
+        while let Some(timer) = engine::due(self.domain.engine(), now, wall, Admit::All) {
             if !self.domain.ready() || self.stopped {
                 break;
             }
@@ -792,7 +793,7 @@ impl World {
                 && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)
             {
                 if !self.store.loading() && self.domain.ready() {
-                    if let Some(timer) = self.domain.core().due(env.now, env.wall) {
+                    if let Some(timer) = engine::due(self.domain.engine(), env.now, env.wall, Admit::All) {
                         self.events.push_back(root::Event::Timer(timer));
                         continue;
                     }

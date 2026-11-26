@@ -5,7 +5,10 @@ use jig_core_world::{
     world::{Cut, World},
 };
 use jig_domain_authority as authority;
-use jig_domain_core::{self as core, documents};
+use jig_domain_core::{
+    self as core, documents,
+    engine::{self, In, Out},
+};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Hello, Hosting, Phase};
@@ -13,7 +16,7 @@ use jig_domain_link::{JobBound, JobKind};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
-use skein_lib::{Duration, ReplyTo, Token};
+use skein_lib::{Duration, Queue, ReplyTo, Token};
 
 fn job(world: &World, kind: u32, bytes: usize, seconds: u64) -> core::Delegate {
     jig_core_world::fixtures::job(world, kind, vec![0; bytes].into_boxed_slice(), Duration::from_secs(seconds))
@@ -50,8 +53,9 @@ fn no_child(world: &World, task: u64) {
 fn decide(world: &mut World, task: u64, child: core::Delegate) -> core::StepRefusal {
     let event = step(world, task, child.clone());
     let env = world.env().with(world.env().limits.core);
-    let mut requests = core::step(world.domain.core_mut(), &env, event);
-    let Some(core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: named, why, .. } }) =
+    let mut requests = Queue::uncapped();
+    engine::step(world.domain.engine_mut(), &env, In::Core(event), &mut requests);
+    let Some(Out::Core(core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: named, why, .. } })) =
         requests.pop()
     else {
         panic!("core refused the procedure step: {requests:?}");
