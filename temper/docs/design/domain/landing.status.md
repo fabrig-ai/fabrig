@@ -2,10 +2,6 @@
 
 2026-11-26. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 12: a change's settling in a cohort. 15: a restart
-  keeping it. 16: the cohort's forming stories. [in flight: change 18566]
-- **Not yet:** 12: a repository's trains' refusals. 15: a train jig
-  refused not asked again before its stored retry. [in flight: change 18567]
 
 
 
