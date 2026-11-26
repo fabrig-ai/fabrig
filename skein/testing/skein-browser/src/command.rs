@@ -40,11 +40,12 @@ pub struct Variable {
 
 /// Build Chromium's quiet, offline command with a fixed locale and time zone.
 /// With `file_access`, a `file://` page can read other files Chromium can read.
+/// With `hide_scrollbars`, tall pages lay out at the full window width.
 #[must_use]
-pub fn command(program: &[u8], profile: &[u8], file_access: bool) -> Command {
+pub fn command(program: &[u8], profile: &[u8], file_access: bool, hide_scrollbars: bool) -> Command {
     assert!(!program.is_empty() && !program.contains(&0), "a program path has no NUL");
     assert!(!profile.is_empty() && !profile.contains(&0), "a profile path has no NUL");
-    let mut args = List::with_capacity(16);
+    let mut args = List::with_capacity(17);
     for arg in [
         b"--headless".as_slice(),
         b"--remote-debugging-pipe",
@@ -69,6 +70,9 @@ pub fn command(program: &[u8], profile: &[u8], file_access: bool) -> Command {
     if file_access {
         args.push(Box::from(b"--allow-file-access-from-files".as_slice())).expect("the argument list has room");
     }
+    if hide_scrollbars {
+        args.push(Box::from(b"--hide-scrollbars".as_slice())).expect("the argument list has room");
+    }
     args.push(Box::from(b"about:blank".as_slice())).expect("the argument list has room");
     let mut env = List::with_capacity(3);
     env.push(Variable { name: Box::from(b"LANG".as_slice()), value: Box::from(b"C.UTF-8".as_slice()) })
@@ -92,6 +96,7 @@ pub fn command(program: &[u8], profile: &[u8], file_access: bool) -> Command {
 #[cfg(test)]
 mod tests {
     use super::{Direction, command};
+    use alloc::boxed::Box;
 
     const CHROMIUM: &[u8] = b"/usr/bin/chromium";
     const PROFILE: &[u8] = b"/tmp/fresh-profile";
@@ -99,8 +104,8 @@ mod tests {
     #[test]
     fn chromium_adds_only_the_opt_in_file_access_flag() {
         const FLAG: &[u8] = b"--allow-file-access-from-files";
-        let without = command(CHROMIUM, PROFILE, false);
-        let with = command(CHROMIUM, PROFILE, true);
+        let without = command(CHROMIUM, PROFILE, false, false);
+        let with = command(CHROMIUM, PROFILE, true, false);
         let (page_without, args_without) =
             without.args.as_slice().split_last().expect("initial page without file access");
         let (page_with, args_with) = with.args.as_slice().split_last().expect("initial page with file access");
@@ -116,9 +121,29 @@ mod tests {
     }
 
     #[test]
+    fn chromium_adds_only_the_opt_in_hide_scrollbars_flag() {
+        const FLAG: &[u8] = b"--hide-scrollbars";
+        const PAGE: &[u8] = b"about:blank";
+        let tail = [Box::from(FLAG), Box::from(PAGE)];
+        for file_access in [false, true] {
+            let without = command(CHROMIUM, PROFILE, file_access, false);
+            let with = command(CHROMIUM, PROFILE, file_access, true);
+            let (page, prefix) = without.args.as_slice().split_last().expect("initial page without hidden scrollbars");
+
+            assert_eq!(page.as_ref(), PAGE);
+            for arg in prefix {
+                assert_ne!(arg.as_ref(), FLAG, "hidden scrollbars are opt-in");
+            }
+            assert_eq!(with.args.as_slice().strip_prefix(prefix), Some(tail.as_slice()), "file access: {file_access}");
+            assert_eq!(with.env, without.env);
+            assert_eq!(with.pipes, without.pipes);
+        }
+    }
+
+    #[test]
     fn chromium_keeps_wasm_in_the_baseline_tier() {
         const ONE_V8_FLAG_ARGUMENT: usize = 1;
-        let command = command(CHROMIUM, PROFILE, false);
+        let command = command(CHROMIUM, PROFILE, false, false);
         let mut flags = 0;
         for arg in &command.args {
             if arg.starts_with(b"--js-flags=") {
@@ -131,7 +156,7 @@ mod tests {
 
     #[test]
     fn chromium_pipe_command() {
-        let command = command(CHROMIUM, PROFILE, false);
+        let command = command(CHROMIUM, PROFILE, false, false);
         assert_eq!(command.program.as_ref(), b"/usr/bin/chromium");
         assert_eq!(command.args.last().expect("initial page").as_ref(), b"about:blank");
         let mut profile = false;
