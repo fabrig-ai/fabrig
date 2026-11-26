@@ -14,3 +14,6 @@ detail for interpreting earlier receipts.
   `refs/remotes/origin/main` as its base without them, warns where they
   are unavailable, and refuses as `budgets` a goal outside their window.
   [in flight: change 18068]
+- **Not yet:** 2, *Delivery and CI entry points*: `.temper/goal-pre-pr`
+  writes no `temper/rerun` in a checkout without one [in flight: change
+  18913].

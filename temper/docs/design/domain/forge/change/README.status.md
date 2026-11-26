@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-24. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-26. Where the tree's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2, step 3, *The runner's failures run again*: a job cancelled by no one of temper's is the change's, and a runner's fault past `reruns` asks a repair rather than holding [in flight: change 18912].
 
 
 

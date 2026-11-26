@@ -1,6 +1,8 @@
 # reference: status
 
-2026-11-14. Where the tree's code lags or departs from [reference.md](reference.md).
+2026-11-26. Where the tree's code lags or departs from [reference.md](reference.md).
+
+- **Not yet:** 2: `docs/examples/reference/landing.json` sets no `flakes` [in flight: change 18911].
 
 
 - **Not yet:** the whole document: stage one's golden (`../../testing/README.md`, the
