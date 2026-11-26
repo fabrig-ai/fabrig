@@ -258,6 +258,14 @@ fn a_restored_prepare_wait_without_its_job_is_a_root_finding() {
     world.automatic_prepare_jobs();
     world.tick();
     world.until(Until::Ready);
+    // Ready can fall between forge reads in the in-flight landing step.
+    // Let that step finish and arm its poll before trying to consume it.
+    for _ in 0..200 {
+        if !world.root.forge().inspection_landing_stepping(change) {
+            break;
+        }
+        world.tick();
+    }
     // Consume the poll while the operator hold prevents another landing step.
     let poll = world.root.forge().inspection_landing_due(change).expect("landing poll");
     world.advance_to(Time::from_nanos(poll.as_nanos()));

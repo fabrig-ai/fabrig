@@ -96,6 +96,8 @@ pub struct Store {
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
     // Only the live world's typed readback needs a copy of its writes.
     inflight: Option<BTreeMap<u64, Box<[Write]>>>,
+    // The forge world submits these during a root pass and drives them on a later tick.
+    engine_loads: VecDeque<engine_store::Out>,
     // A drive drains these in order; the next drive reuses their buffers.
     requests: VecDeque<Request>,
     above: Queue<Event>,
@@ -244,6 +246,7 @@ impl Store {
             models,
             catalogue: None,
             inflight: Some(BTreeMap::new()),
+            engine_loads: VecDeque::new(),
             requests: VecDeque::new(),
             above: Queue::uncapped(),
             below: Below {
@@ -341,6 +344,7 @@ impl Store {
         self.replies.clear();
         self.missing.clear();
         self.delayed.clear();
+        self.discard_engine_loads();
         self.holding = false;
         self.failed = false;
         self.hold_next = 0;
@@ -439,7 +443,34 @@ impl Store {
     }
     #[must_use]
     pub fn idle(&self) -> bool {
-        self.pending.is_empty() && self.delayed.is_empty() && self.routes.idle()
+        self.pending.is_empty() && self.engine_loads.is_empty() && self.delayed.is_empty() && self.routes.idle()
+    }
+
+    pub(crate) fn queue_engine_load(&mut self, load: engine_store::Out) {
+        self.engine_loads.push_back(load);
+    }
+
+    pub(crate) fn queued_engine_loads(&self) -> usize {
+        self.engine_loads.len()
+    }
+
+    pub(crate) fn discard_engine_loads(&mut self) {
+        self.engine_loads.clear();
+    }
+
+    /// Only requests submitted before this tick can complete in it.
+    pub(crate) fn advance_engine_loads(&mut self, count: usize) -> Vec<engine::StoreInput> {
+        let mut answers = Vec::new();
+        for _ in 0..count {
+            let engine_store::Out::Load { load, range } = self.engine_loads.pop_front().expect("counted loads");
+            if let engine_store::Range::Window { task, from } = range {
+                answers.extend(self.window(load, task, from).into_iter().map(engine::StoreInput::Engine));
+            } else {
+                let result = self.load_result(load, range);
+                answers.push(engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
+            }
+        }
+        answers
     }
     /// Read one root page through the component and the service's decoding.
     #[must_use]
@@ -534,11 +565,18 @@ impl Store {
     /// Serve a load through the same routing and component as a deployed engine.
     #[must_use]
     pub fn load(&mut self, range: engine_store::Range) -> engine_store::Answer {
-        self.request(engine::StoreRequest::Engine(engine_store::Out::Load { load: Token::new(1), range }));
+        self.load_result(Token::new(1), range)
+    }
+
+    pub(crate) fn load_result(&mut self, load: Token, range: engine_store::Range) -> engine_store::Answer {
+        self.request(engine::StoreRequest::Engine(engine_store::Out::Load { load, range }));
         loop {
             if let Some(reply) = self.replies.pop() {
                 match reply {
-                    engine::StoreInput::Engine(engine_store::In::Loaded { result, .. }) => return result,
+                    engine::StoreInput::Engine(engine_store::In::Loaded { load: answered, result }) => {
+                        assert_eq!(answered, load);
+                        return result;
+                    }
                     engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
                     // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,

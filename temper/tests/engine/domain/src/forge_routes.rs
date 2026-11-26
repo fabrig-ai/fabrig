@@ -2515,6 +2515,7 @@ impl World {
         self.ends.restarted(self.env.now);
         self.out = Queue::uncapped();
         self.events.clear();
+        self.store.discard_engine_loads();
         self.held_write_answers.clear();
         self.held_ancestry_answers.clear();
         self.hold_ancestry_answers = false;
@@ -3237,14 +3238,14 @@ impl World {
     /// Drain the current terminals before choosing a committed restart cut.
     pub fn drain_cut(&mut self) {
         for _ in 0..STEPS {
-            if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+            if self.store.idle() && self.pending.is_empty() && self.events.is_empty() {
                 self.check_quiet();
                 return;
             }
             self.tick();
         }
         assert!(
-            self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty(),
+            self.store.idle() && self.pending.is_empty() && self.events.is_empty(),
             "restart cut drains within the fixture's bound"
         );
     }
@@ -3592,6 +3593,7 @@ impl World {
     )]
     fn tick_at_now(&mut self, target: Option<u64>, resume: bool, retrying_change: bool) -> bool {
         let mut lost = false;
+        let store_loads = self.store.queued_engine_loads();
         if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
             let event = self.events.remove(index).expect("selected eligible input");
             self.send(event);
@@ -3627,6 +3629,8 @@ impl World {
             // temper's own source (domain/root-translation.md, 2.1).
             self.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         }
+        // Store work submitted by an earlier root pass becomes input for a later pass.
+        self.events.extend(self.store.advance_engine_loads(store_loads).into_iter().map(engine::Event::Store));
         if self.fake.is_due(self.fake_env.now) {
             fake::fire(&mut self.fake, &self.fake_env, &mut self.fake_out);
         }
@@ -3731,7 +3735,7 @@ impl World {
         for _ in 0..200 {
             self.tick();
             let done = match target {
-                Until::Ready => self.root.quiescent() && self.events.is_empty() && self.store.pending.is_empty(),
+                Until::Ready => self.root.quiescent() && self.events.is_empty() && self.store.idle(),
                 Until::SignedIn => self.signed_in.is_some(),
                 Until::Adopted => !self.adopted.is_empty(),
                 Until::Assigned => !self.assigned.is_empty(),
@@ -4456,42 +4460,47 @@ impl World {
     }
 
     pub(super) fn stored_read(&mut self, request: engine::Request) -> Option<engine::Request> {
-        if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
-            let result = self.store.read(range);
-            self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
-            None
-        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
-            load,
-            range:
-                range @ (engine_store::Range::Read(_)
-                | engine_store::Range::Record(_)
-                | engine_store::Range::Proposal { .. }
-                | engine_store::Range::Notes(_)),
-        })) = request
-        {
-            let defer = self.defer_note_answers && matches!(range, engine_store::Range::Notes(_));
-            let result = self.store.load(range);
-            let answer = engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
-            if defer {
-                self.events.push_back(answer);
-            } else {
-                self.immediate.push_back(answer);
+        match request {
+            engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                let result = self.store.read(range);
+                self.store_answer(engine::StoreInput::PartLoaded { waiter, result }, false);
             }
-            None
-        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
-            load,
-            range: engine_store::Range::Window { task, from },
-        })) = request
+            engine::Request::Store(engine::StoreRequest::Engine(
+                load @ engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. },
+            )) => self.store.queue_engine_load(load),
+            engine::Request::Store(engine::StoreRequest::Engine(
+                load @ engine_store::Out::Load { range: engine_store::Range::Notes(_), .. },
+            )) if !self.defer_note_answers => self.store.queue_engine_load(load),
+            engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                let defer = matches!(range, engine_store::Range::Notes(_));
+                let result = self.store.load_result(load, range);
+                self.store_answer(engine::StoreInput::Engine(engine_store::In::Loaded { load, result }), defer);
+            }
+            other => return Some(other),
+        }
+        None
+    }
+
+    fn store_answer(&mut self, answer: engine::StoreInput, defer: bool) {
+        let event = engine::Event::Store(answer);
+        // A completion on the immediate path cannot pass an earlier queued answer.
+        if defer
+            || self.events.iter().any(|event| {
+                matches!(
+                    event,
+                    engine::Event::Store(
+                        engine::StoreInput::Engine(_)
+                            | engine::StoreInput::PartLoaded { .. }
+                            | engine::StoreInput::Switched
+                            | engine::StoreInput::Checkpointed { .. }
+                            | engine::StoreInput::CheckpointRefused { .. }
+                    )
+                )
+            })
         {
-            self.immediate.extend(
-                self.store
-                    .window(load, task, from)
-                    .into_iter()
-                    .map(|answer| engine::Event::Store(engine::StoreInput::Engine(answer))),
-            );
-            None
+            self.events.push_back(event);
         } else {
-            Some(request)
+            self.immediate.push_back(event);
         }
     }
 }
