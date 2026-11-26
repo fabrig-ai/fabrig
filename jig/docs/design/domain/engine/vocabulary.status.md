@@ -2,8 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-- **Not yet:** 1.2: the remaining point-load fences.
-  2: the engine, its `In`, `Out` and `Admit`, and the core's access [in flight: change 19185].
 
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
