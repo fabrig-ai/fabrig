@@ -8,32 +8,25 @@ use temper_client_tools::jig::{
     rows,
 };
 
-struct Reissue {
-    directory: Box<[u8]>,
-    json: bool,
-}
-
 pub(super) struct ServiceFile {
     pub(super) path: Option<Box<[u8]>>,
     pub(super) checked: bool,
     pub(super) credentials: std::collections::BTreeMap<u64, Secret>,
-    reissue: Option<Reissue>,
+    reissue_json: Option<bool>,
     printed: Option<Printed>,
 }
 impl ServiceFile {
-    pub(super) fn for_call(parsed: &Parsed, directory: Option<&[u8]>) -> Option<Self> {
+    pub(super) fn for_call(parsed: &Parsed) -> Option<Self> {
         let Parsed::Call { call, json } = parsed else { return None };
-        let (index, reissue) = match call.tool {
+        let (index, reissue_json) = match call.tool {
             rows::PARTY_MAKE_AT => (2, None),
-            rows::PARTY_REISSUE_AT => {
-                (1, Some(Reissue { directory: directory.unwrap_or_default().into(), json: *json }))
-            }
+            rows::PARTY_REISSUE_AT => (1, Some(*json)),
             _ => return None,
         };
         let output = value(call, index)?;
         let path = if let Value::File(path) = output {
             Some(path.clone())
-        } else if reissue.is_some() && *output == Value::Stdin {
+        } else if reissue_json.is_some() && *output == Value::Stdin {
             None
         } else {
             return None;
@@ -42,7 +35,7 @@ impl ServiceFile {
             checked: path.is_none(),
             path,
             credentials: std::collections::BTreeMap::new(),
-            reissue,
+            reissue_json,
             printed: None,
         })
     }
@@ -61,12 +54,11 @@ impl OneShot {
             self.fail(b"service answer did not name its party");
             return;
         };
-        let credential = service
-            .credentials
-            .remove(&party)
-            .filter(|credential| service.reissue.is_none() || u32::try_from(credential.len()) == Ok(CREDENTIAL_BYTES));
+        let credential = service.credentials.remove(&party).filter(|credential| {
+            service.reissue_json.is_none() || u32::try_from(credential.len()) == Ok(CREDENTIAL_BYTES)
+        });
         let Some(credential) = credential else {
-            if service.reissue.is_some() {
+            if service.reissue_json.is_some() {
                 self.fail(format!("party {party}'s new credential was not answered; reissue it again").as_bytes());
             } else {
                 // A keyed make replay has the party but no one-time credential.
@@ -75,13 +67,13 @@ impl OneShot {
             return;
         };
         let address = self.directory.address.as_deref().expect("signed-in address");
-        if let Some(reissue) = &service.reissue {
+        if let Some(json) = service.reissue_json {
             let link = service_link(address, &credential);
             let mut bytes = link.expose().to_vec();
             bytes.push(b'\n');
             let file = service.path.as_deref().unwrap_or(b"-");
-            if !reissue.json {
-                printed.stdout = reissue_advice(&printed.stdout, &reissue.directory, file);
+            if !json {
+                printed.stdout = reissue_advice(&printed.stdout, file);
             }
             if service.path.is_none() {
                 let mut answer = printed.stdout.into_vec();
@@ -112,7 +104,7 @@ impl OneShot {
                 let printed = service.printed.take().expect("durable answer");
                 self.print(printed);
             }
-            Err(error) if service.reissue.is_some() => {
+            Err(error) if service.reissue_json.is_some() => {
                 let mut line = service.path.as_deref().expect("service output file").to_vec();
                 line.extend_from_slice(b" could not be written: ");
                 line.extend_from_slice(error);
@@ -123,11 +115,9 @@ impl OneShot {
     }
 }
 
-fn reissue_advice(answer: &[u8], directory: &[u8], file: &[u8]) -> Box<[u8]> {
+fn reissue_advice(answer: &[u8], file: &[u8]) -> Box<[u8]> {
     let mut line = answer.strip_suffix(b"\n").unwrap_or(answer).to_vec();
-    line.extend_from_slice(b"; sign its directory in with temper ctl ");
-    line.extend_from_slice(directory);
-    line.extend_from_slice(b" sign-in ");
+    line.extend_from_slice(b"; sign its directory in with temper ctl DIRECTORY sign-in ");
     line.extend_from_slice(file);
     line.push(b'\n');
     line.into_boxed_slice()

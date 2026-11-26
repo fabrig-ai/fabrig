@@ -112,14 +112,6 @@ impl OneShot {
         startup: Startup,
         files: Vec<(u8, Fd)>,
     ) -> Result<Self, jig_client::Unusable> {
-        Self::with_directory(call, startup, files, None)
-    }
-    pub(crate) fn with_directory(
-        call: Invocation,
-        startup: Startup,
-        files: Vec<(u8, Fd)>,
-        given: Option<&[u8]>,
-    ) -> Result<Self, jig_client::Unusable> {
         let limits = limits::native();
         let class = match &call.parsed {
             Parsed::Call { call, .. } => arguments::class(call),
@@ -147,7 +139,7 @@ impl OneShot {
             }
             Parsed::Call { .. } | Parsed::File { .. } => (false, None),
         };
-        let service_file = service::ServiceFile::for_call(&call.parsed, given.or(call.directory.as_deref()));
+        let service_file = service::ServiceFile::for_call(&call.parsed);
         let link_file = link::LinkFile::for_call(&call.parsed);
         let mut host = Self {
             exporting,

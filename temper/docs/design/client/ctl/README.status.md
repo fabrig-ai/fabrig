@@ -15,3 +15,4 @@ whole-incident and stored-state stories check answers across a restart.
 The browser boundary check remains later work (`README.md`, section 11).
 
 - **Departs:** 7, the replaced-proposal answer remains `jig/docs/design/client/domain/contract/requests.status.md`, 2.
+
