@@ -1,6 +1,6 @@
 # accounts-lists: status
 
-2026-11-23. Where the tree's code lags or departs from [accounts-lists.md](accounts-lists.md).
+2026-11-26. Where the tree's code lags or departs from [accounts-lists.md](accounts-lists.md).
 
 Section 1 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.
@@ -12,3 +12,4 @@ names after failure, or offer narrowing with stock and personal-name
 fallbacks. Restored attempt times govern the next daily read.
 
 - **Not yet:** 1: a list read on the provider's `direct` endpoint; the core reads on the first endpoint naming the provider [in flight: change 927].
+- **Not yet:** 1, *A window's rate*: readings by origin over 3 hours and 5 minutes, the rate from the newest reading's origin alone from its reading nearest 3 hours back, and a reset clearing only its origin's readings; the core keeps an hour's readings of both origins and rates from the oldest once it is 30 minutes older [in flight: change 18400].
