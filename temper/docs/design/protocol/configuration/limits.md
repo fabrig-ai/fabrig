@@ -325,7 +325,7 @@
   | `setup.states` | the setup host's states, held in memory, for the manifest's and the installation's returns |
   | `setup.state_life_ms` | a state's life; at most an hour, the life of the manifest's conversion code |
   | `setup.runs` | the setup host's runs at once, a forge's one writing run and its one `Reachable` beside it both counted; a request past them, or a second of either kind on one forge, is refused busy |
-  | `setup.fetch_bytes` | a fetched binary's body, written to its part file as it streams, never held; one past it removes the part file and is refused, naming the URL (../setup/owned.md, 6) |
+  | `setup.fetch_bytes` | a fetched binary's body and, for a packed one, its unpacked bytes, each written to its staging file as it streams, never held; one past it removes the staging files and is refused, naming the URL (../setup/owned.md, 6) |
   | `routes.query_bytes` | a forge route's query |
   | `picker.page` | the repositories one read of the picker takes, the setup host's `Reachable` plan's `reachable` on every kind (skein's `forge/setup/forgejo.md`, 1.8), within the forge's own page cap: GitHub's page, a connected Forgejo's; at most 100, GitHub's largest page |
   | `box.backoff_ms`, `box.backoff_max_ms` | a long step restarted, doubling |

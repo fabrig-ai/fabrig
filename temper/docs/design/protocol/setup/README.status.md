@@ -7,8 +7,8 @@
 the TLS host and Claude Code's fetch under its lock, with no smith
 crate, and `temper-launcher` the launcher, the placing of its links in
 a private directory through `smith-agent-document`, and the
-substitution. Forgejo's pins and bottle extraction stay with forge
-setup, whose old fetch paths are re-exports. The pin/progress tests in
+substitution. Forgejo's pins stay with forge setup, whose old fetch
+paths are re-exports. The pin/progress tests in
 `temper-fetch`, the substitution's in `temper-launcher`, the retained
 local-TLS fetch suite and the agent's launcher rows cover the split; the
 process scan exempts `temper-launcher/src/lib.rs` for the launcher's
