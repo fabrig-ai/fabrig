@@ -1,7 +1,7 @@
 //! Finding this build's temper-box (temper/docs/design/client/box-binary.md, 2, 3, 6).
 use crate::{
     Origin,
-    fetch::{hex, url},
+    fetch::{Unpacked, hex, url},
     joined,
 };
 use alloc::boxed::Box;
@@ -160,14 +160,6 @@ impl Progress {
             None => joined(&[b"fetched temper-box ", done.as_bytes(), b" bytes\n"]),
         }
     }
-}
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Unpacked {
-    File { digest: [u8; 32], bytes: u64 },
-    Truncated,
-    Damaged,
-    TooLong,
-    Trailing,
 }
 /// One answer per request. Chunk bytes have not yet been written.
 #[derive(Clone, PartialEq, Eq, Debug)]

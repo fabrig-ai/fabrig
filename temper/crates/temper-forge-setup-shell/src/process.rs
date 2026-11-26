@@ -1,12 +1,10 @@
-//! The lock, exec and extraction exceptions (protocol/setup/owned.md, 4 and 6).
-use skein_lib::sha256::Sha256;
+//! The lock and exec exceptions (protocol/setup/owned.md, 4).
 use std::{
     fs, io,
     os::unix::{ffi::OsStrExt, fs::OpenOptionsExt, process::CommandExt},
     path::Path,
     process::{Command, Stdio},
 };
-use temper_forge_setup::fetch::Extraction;
 use temper_forge_setup::spec::Spec;
 /// Held until dropped or handed across exec as standard input.
 #[derive(Debug)]
@@ -121,67 +119,3 @@ pub fn id() -> u32 {
 pub fn login_id() -> Result<Box<[u8]>, String> {
     skein_shell::login_id()
 }
-
-/// Streams one archive member into a preopened part file, bounded and hashed.
-pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
-    let Ok(mut child) = Command::new("/usr/bin/tar")
-        .arg("-xzOf")
-        .arg(crate::path(archive))
-        .arg(crate::path(member))
-        .env_clear()
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-    else {
-        return Extraction::Failed;
-    };
-    let mut output = child.stdout.take().expect("tar stdout piped");
-    extract_with(&mut output, file, bound, &mut child, std::process::Child::kill, |child| {
-        child.wait().map(|status| status.success())
-    })
-}
-
-const EXTRACT_CHUNK: usize = 16_384;
-
-fn extract_with<C>(
-    output: &mut impl io::Read,
-    file: &mut dyn io::Write,
-    bound: u64,
-    child: &mut C,
-    kill: impl FnOnce(&mut C) -> io::Result<()>,
-    wait: impl FnOnce(&mut C) -> io::Result<bool>,
-) -> Extraction {
-    let mut buffer = [0; EXTRACT_CHUNK];
-    let mut total = 0_u64;
-    let mut hash = Sha256::new();
-    let refusal = loop {
-        let count = match output.read(&mut buffer) {
-            Ok(0) => break None,
-            Ok(count) => count,
-            Err(why) if why.kind() == io::ErrorKind::Interrupted => continue,
-            Err(_) => break Some(Extraction::Failed),
-        };
-        let length = skein_lib::len_u64(count);
-        if length > bound.saturating_sub(total) {
-            break Some(Extraction::Bytes);
-        }
-        total += length;
-        hash.update(&buffer[..count]);
-        if file.write_all(&buffer[..count]).is_err() {
-            break Some(Extraction::Failed);
-        }
-    };
-    if let Some(refusal) = refusal {
-        drop(kill(child));
-        drop(wait(child));
-        return refusal;
-    }
-    match wait(child) {
-        Ok(true) if total != 0 => Extraction::Digest(hash.finish()),
-        Ok(_) | Err(_) => Extraction::Failed,
-    }
-}
-
-#[cfg(test)]
-mod tests;

@@ -39,7 +39,7 @@ fn every_build_is_pinned_to_the_design_table() {
         );
         assert_eq!(pin.file, claude_code::file(b"/cache/"));
         assert_eq!(pin.digest, build.digest);
-        assert!(pin.bottle.is_none());
+        assert!(!pin.packed);
         assert_eq!(pin.binary, Named::ClaudeCode);
     }
     assert_eq!(claude_code::file(b"/cache").as_ref(), b"/cache/claude-code/2.1.311/claude");

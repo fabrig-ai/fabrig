@@ -14,12 +14,8 @@ pub const RUNNER_SHA256_LINUX_AMD64: &str = "bb369fe1ecb50fdc983c0b1d993f19b0920
 /// SHA-256 of `forgejo-runner-13.2.1-linux-arm64` (skein/docs/design/forge/dialects.md, 1.3).
 pub const RUNNER_SHA256_LINUX_ARM64: &str = "eeddb7902f79abe488972f4189fbe3ea02762ee827d1b406b469420bf0d62dd9";
 
-/// SHA-256 of the macOS arm64 bottle of Forgejo 17.0.1 (skein/docs/design/forge/dialects.md, 1.3).
-pub const FORGEJO_BOTTLE_SHA256_MACOS_ARM64: &str = "19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06";
 /// SHA-256 of the bottle's `forgejo/17.0.1/bin/forgejo` (skein/docs/design/forge/dialects.md, 1.3).
 pub const FORGEJO_SHA256_MACOS_ARM64: &str = "4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6";
-/// SHA-256 of the macOS arm64 bottle of forgejo-runner 13.2.1 (skein/docs/design/forge/dialects.md, 1.3).
-pub const RUNNER_BOTTLE_SHA256_MACOS_ARM64: &str = "0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48";
 /// SHA-256 of the bottle's `forgejo-runner/13.2.1/bin/forgejo-runner` (skein/docs/design/forge/dialects.md, 1.3).
 pub const RUNNER_SHA256_MACOS_ARM64: &str = "2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b";
 
@@ -37,65 +33,17 @@ pub enum Platform {
     Macos,
 }
 
-/// What a pin's digest is of: the binary itself, or the archive that holds it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Form {
-    Binary,
-    Archive,
-}
-
-/// The pinned digest, or `None` where there is no such pin: `arch` is the release
-/// architecture name, `amd64` or `arm64`; Linux has no `Archive`; macOS has `arm64` alone.
+/// The pinned binary's digest, or `None` where there is no such pin.
 #[must_use]
-pub fn digest(binary: Binary, platform: Platform, arch: &str, form: Form) -> Option<&'static str> {
-    match (binary, platform, form) {
-        (Binary::Forgejo, Platform::Linux, Form::Binary) => {
-            if arch == "amd64" {
-                Some(FORGEJO_SHA256_LINUX_AMD64)
-            } else if arch == "arm64" {
-                Some(FORGEJO_SHA256_LINUX_ARM64)
-            } else {
-                None
-            }
-        }
-        (Binary::Runner, Platform::Linux, Form::Binary) => {
-            if arch == "amd64" {
-                Some(RUNNER_SHA256_LINUX_AMD64)
-            } else if arch == "arm64" {
-                Some(RUNNER_SHA256_LINUX_ARM64)
-            } else {
-                None
-            }
-        }
-        (Binary::Forgejo | Binary::Runner, Platform::Linux, Form::Archive) => None,
-        (Binary::Forgejo, Platform::Macos, Form::Binary) => {
-            if arch == "arm64" {
-                Some(FORGEJO_SHA256_MACOS_ARM64)
-            } else {
-                None
-            }
-        }
-        (Binary::Forgejo, Platform::Macos, Form::Archive) => {
-            if arch == "arm64" {
-                Some(FORGEJO_BOTTLE_SHA256_MACOS_ARM64)
-            } else {
-                None
-            }
-        }
-        (Binary::Runner, Platform::Macos, Form::Binary) => {
-            if arch == "arm64" {
-                Some(RUNNER_SHA256_MACOS_ARM64)
-            } else {
-                None
-            }
-        }
-        (Binary::Runner, Platform::Macos, Form::Archive) => {
-            if arch == "arm64" {
-                Some(RUNNER_BOTTLE_SHA256_MACOS_ARM64)
-            } else {
-                None
-            }
-        }
+pub fn digest(binary: Binary, platform: Platform, arch: &str) -> Option<&'static str> {
+    match (binary, platform, arch) {
+        (Binary::Forgejo, Platform::Linux, "amd64") => Some(FORGEJO_SHA256_LINUX_AMD64),
+        (Binary::Forgejo, Platform::Linux, "arm64") => Some(FORGEJO_SHA256_LINUX_ARM64),
+        (Binary::Runner, Platform::Linux, "amd64") => Some(RUNNER_SHA256_LINUX_AMD64),
+        (Binary::Runner, Platform::Linux, "arm64") => Some(RUNNER_SHA256_LINUX_ARM64),
+        (Binary::Forgejo, Platform::Macos, "arm64") => Some(FORGEJO_SHA256_MACOS_ARM64),
+        (Binary::Runner, Platform::Macos, "arm64") => Some(RUNNER_SHA256_MACOS_ARM64),
+        (Binary::Forgejo | Binary::Runner, Platform::Linux | Platform::Macos, _) => None,
     }
 }
 

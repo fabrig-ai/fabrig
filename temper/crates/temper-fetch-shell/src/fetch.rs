@@ -79,7 +79,7 @@ pub fn claude_code(
         |file| fs::metadata(file).map(|metadata| (metadata.is_file(), metadata.len())),
         prepare_claude_cache,
         lock_claude_cache,
-        |out| run(limits, trust, Fetch::new(Box::new([pin]), bytes), no_extraction, out),
+        |out| run(limits, trust, Fetch::new(Box::new([pin]), bytes), out),
         out,
     )
 }
@@ -137,37 +137,24 @@ fn claude_present(file: &[u8], bytes: u64, metadata: io::Result<(bool, u64)>) ->
     }
 }
 
-/// The caller's bounded archive extraction (protocol/setup/owned.md, 6).
-pub type Extract = fn(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> fetch::Extraction;
-
-fn no_extraction(_: &[u8], _: &[u8], _: &mut fs::File, _: u64) -> fetch::Extraction {
-    fetch::Extraction::Failed
-}
-
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
-pub fn run(
-    limits: &skein_io::Limits,
-    trust: &Trust,
-    machine: Fetch,
-    extract: Extract,
-    out: &mut dyn io::Write,
-) -> Result<(), Failed> {
-    let mut files = Download::new(NativeCache { extract });
+pub fn run(limits: &skein_io::Limits, trust: &Trust, machine: Fetch, out: &mut dyn io::Write) -> Result<(), Failed> {
+    let mut files = Download::new(NativeCache);
     let mut wire: Option<Connection> = None;
     let result = run_with(
         machine,
         || tls_config(trust),
         |config, request| {
             files.answer(request, |request| match request {
-                WireRequest::Get { origin, path, authorization } => {
+                WireRequest::Get { origin, path } => {
                     if let Some(mut old) = wire.take() {
                         old.close();
                     }
-                    wire = Some(Connection::new(limits, config, &origin, &path, authorization)?);
+                    wire = Some(Connection::new(limits, config, &origin, &path)?);
                     wire.as_mut().expect("new connection").answer()
                 }
                 WireRequest::Read => {
@@ -222,32 +209,23 @@ pub fn run_with<R>(
             | Request::Open { .. }
             | Request::Read
             | Request::Write { .. }
-            | Request::Extract { .. }
+            | Request::Unpack { .. }
             | Request::Finish { .. }
             | Request::Remove { .. }) => answer(&roots, request)?,
         };
     }
 }
 
-fn request_head(origin: &Origin, path: &[u8], authorization: Option<Box<[u8]>>) -> http::Call {
+fn request_head(origin: &Origin, path: &[u8]) -> http::Call {
     let mut authority = origin.host.to_vec();
     if origin.port != 443 {
         authority.extend_from_slice(format!(":{}", origin.port).as_bytes());
     }
-    let mut headers = vec![
+    let headers = Box::new([
         skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
         skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
-    ];
-    if let Some(value) = authorization {
-        headers.push(skein_http::Header { name: b"Authorization".as_slice().into(), value });
-    }
-    http::Call {
-        method: skein_http::Method::Get,
-        target: path.into(),
-        headers: headers.into_boxed_slice(),
-        body: http::Body::None,
-        close: true,
-    }
+    ]);
+    http::Call { method: skein_http::Method::Get, target: path.into(), headers, body: http::Body::None, close: true }
 }
 
 fn body_demand() -> http::Request {
@@ -300,7 +278,6 @@ impl Connection {
         config: &skein_tls::Config,
         origin: &Origin,
         path: &[u8],
-        authorization: Option<Box<[u8]>>,
     ) -> Result<Self, Failed> {
         let url = fetch::url(origin, path);
         let fail = |why| Failed::Transport { url: url.clone(), why };
@@ -333,7 +310,7 @@ impl Connection {
             events: Queue::uncapped(),
             complete: Queue::with_capacity(operations),
             subs: Queue::with_capacity(operations),
-            call: Some(request_head(origin, path, authorization)),
+            call: Some(request_head(origin, path)),
             result: None,
             url,
         };

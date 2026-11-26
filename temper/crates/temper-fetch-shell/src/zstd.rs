@@ -1,19 +1,29 @@
-//! One bounded frame, checked in stream order (temper/docs/design/client/box-binary.md, 3, step 4).
+//! One bounded frame, checked in stream order (temper/docs/design/client/box-binary.md, 3, step 4;
+//! temper/docs/design/protocol/setup/owned.md, 6).
 use ruzstd::decoding::{BlockDecodingStrategy, FrameDecoder, errors::FrameDecoderError};
 use skein_lib::sha256::Sha256;
 use std::{
     error::Error,
     io::{self, Read, Write},
 };
-use temper_fetch::box_binary::{UNPACKED_BYTES, Unpacked};
+use temper_fetch::fetch::Unpacked;
 
 const MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
 const CHECKSUM: u8 = 0x04;
 const RESERVED: u8 = 0x08;
 const SINGLE_SEGMENT: u8 = 0x20;
 
+/// How much of the magic is needed before reporting damage.
+#[derive(Clone, Copy)]
+pub(crate) enum Magic {
+    // The box download treats any incomplete magic as truncated.
+    Complete,
+    // A pinned forge fetch reports a mismatching byte as soon as it is read.
+    Prefix,
+}
+
 #[derive(Debug)]
-pub(super) enum UnpackError {
+pub(crate) enum UnpackError {
     Input(io::Error),
     Output(io::Error),
 }
@@ -55,11 +65,23 @@ struct Header {
     window: u64,
 }
 
-fn header(input: &mut impl Read, bound: u64) -> Result<Header, DecodeError> {
+fn header(input: &mut impl Read, bound: u64, magic: Magic) -> Result<Header, DecodeError> {
     let mut bytes = [0; 18];
-    input.read_exact(&mut bytes[..4]).map_err(reading)?;
-    if bytes[..4] != MAGIC {
-        return Err(DecodeError::Fault(Unpacked::Damaged));
+    match magic {
+        Magic::Complete => {
+            input.read_exact(&mut bytes[..4]).map_err(reading)?;
+            if bytes[..4] != MAGIC {
+                return Err(DecodeError::Fault(Unpacked::Damaged));
+            }
+        }
+        Magic::Prefix => {
+            for (byte, expected) in bytes[..4].iter_mut().zip(MAGIC) {
+                input.read_exact(std::slice::from_mut(byte)).map_err(reading)?;
+                if *byte != expected {
+                    return Err(DecodeError::Fault(Unpacked::Damaged));
+                }
+            }
+        }
     }
     input.read_exact(&mut bytes[4..5]).map_err(reading)?;
     let descriptor = bytes[4];
@@ -75,7 +97,7 @@ fn header(input: &mut impl Read, bound: u64) -> Result<Header, DecodeError> {
         at += 1;
         let base = 1_u64 << (10 + (value >> 3));
         window = base + (base / 8) * u64::from(value & 7);
-        if window > UNPACKED_BYTES {
+        if window > bound {
             return Err(DecodeError::Fault(Unpacked::Damaged));
         }
     }
@@ -104,11 +126,11 @@ fn header(input: &mut impl Read, bound: u64) -> Result<Header, DecodeError> {
     Ok(Header { bytes, len, checksum: descriptor & CHECKSUM != 0, size, window })
 }
 
-fn decode(input: &mut impl Read, output: &mut impl Write, bound: u64) -> Result<Unpacked, DecodeError> {
-    let header = header(input, bound)?;
+fn decode(input: &mut impl Read, output: &mut impl Write, bound: u64, magic: Magic) -> Result<Unpacked, DecodeError> {
+    let header = header(input, bound, magic)?;
     let mut decoder = FrameDecoder::new();
-    // Replay the admitted header. The packed SHA-256 was already verified;
-    // the optional four checksum bytes delimit the frame, not its trust.
+    // Replay the admitted header. The optional checksum bytes delimit the
+    // frame; the caller trusts the packed or unpacked SHA-256 instead.
     decoder.init(&header.bytes[..header.len]).map_err(decoding)?;
 
     let mut hash = Sha256::new();
@@ -119,7 +141,7 @@ fn decode(input: &mut impl Read, output: &mut impl Write, bound: u64) -> Result<
         let available = u64::try_from(decoder.can_collect()).expect("buffer length fits u64");
         // Before the last block, a nonempty drain leaves exactly the window behind.
         // With no drain, no bytes have been written yet and the buffered output
-        // fits the admitted window (at most UNPACKED_BYTES).
+        // fits the admitted window.
         let retained = if !last && available != 0 { header.window } else { 0 };
         if available + retained > bound.saturating_sub(total) {
             return Err(DecodeError::Fault(Unpacked::TooLong));
@@ -158,8 +180,13 @@ fn decoding_read(_: io::Error) -> DecodeError {
     DecodeError::Fault(Unpacked::Damaged)
 }
 
-pub(super) fn decode_zstd(mut input: impl Read, output: &mut impl Write, bound: u64) -> Result<Unpacked, UnpackError> {
-    match decode(&mut input, output, bound) {
+pub(crate) fn decode_zstd(
+    mut input: impl Read,
+    output: &mut impl Write,
+    bound: u64,
+    magic: Magic,
+) -> Result<Unpacked, UnpackError> {
+    match decode(&mut input, output, bound, magic) {
         Ok(file) | Err(DecodeError::Fault(file)) => Ok(file),
         Err(DecodeError::Io(why)) => Err(why),
     }

@@ -193,10 +193,14 @@ fn forge_fetch_command() {
         .output()
         .expect("fetch command");
     assert_eq!(result.status.code(), Some(1));
-    assert_eq!(result.stdout, b"fetched forgejo 0 of 3 bytes\nfetched forgejo 3 of 3 bytes\n");
+    let bytes = peer.bytes;
+    assert_eq!(
+        result.stdout,
+        format!("fetched forgejo 0 of {bytes} bytes\nfetched forgejo {bytes} of {bytes} bytes\n").as_bytes()
+    );
     peer.check(pin);
 
-    let pinned = hex(pin.bottle.as_ref().map_or(&pin.digest, |bottle| &bottle.digest));
+    let pinned = hex(&pin.digest);
     let mut hash = Sha256::new();
     hash.update(b"abc");
     let got = hex(&hash.finish());
@@ -211,7 +215,7 @@ fn forge_fetch_command() {
     );
     let file = directory.join("forgejo/17.0.1/forgejo");
     assert!(!file.with_file_name("forgejo.part").exists());
-    assert!(!file.with_file_name("forgejo.archive").exists());
+    assert!(!file.with_file_name("forgejo.zst.part").exists());
     assert!(!file.exists());
     scratch.remove();
 }
