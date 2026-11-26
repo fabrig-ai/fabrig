@@ -38,6 +38,8 @@ pub enum Request {
         page: Token,
         url: Box<[u8]>,
         requests: bool,
+        /// Continue only requests to `file://`.
+        files: bool,
     },
     Go {
         page: Token,
@@ -115,6 +117,21 @@ pub enum Request {
         page: Token,
         op: Token,
     },
+    Elements {
+        page: Token,
+        op: Token,
+        selector: Option<Box<[u8]>>,
+    },
+    Style {
+        page: Token,
+        op: Token,
+        node: Node,
+    },
+    Rect {
+        page: Token,
+        op: Token,
+        node: Node,
+    },
     Close {
         entity: Token,
     },
@@ -177,6 +194,19 @@ pub enum Event {
         op: Token,
         png: Box<[u8]>,
     },
+    Elements {
+        op: Token,
+        elements: List<Element>,
+        more: u32,
+    },
+    Style {
+        op: Token,
+        style: List<Property>,
+    },
+    Rect {
+        op: Token,
+        rect: Option<Rect>,
+    },
     /// A completed file, named by its person and the page's suggested name.
     Downloaded {
         person: Token,
@@ -202,9 +232,25 @@ pub enum Event {
         page: Token,
         id: Box<[u8]>,
     },
+    /// The browser ended on its own, once, before its `Closed`.
+    Ended {
+        why: Ending,
+        detail: Box<[u8]>,
+    },
     Closed {
         owner: Token,
     },
+}
+
+/// Why the browser ended (skein/docs/design/testing/browser.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Ending {
+    Pipe,
+    Message,
+    Unsent,
+    Neither,
+    Refused,
+    Unanswered,
 }
 
 /// A person's other tab, as the browser lists it (skein/docs/design/testing/browser.md, 6).
@@ -213,6 +259,21 @@ pub struct Tab {
     pub url: Box<[u8]>,
     pub title: Box<[u8]>,
     pub opener: bool,
+}
+
+/// An element in document order. Its depth counts from the root element.
+#[derive(PartialEq, Eq, Debug)]
+pub struct Element {
+    pub node: Node,
+    pub depth: u32,
+    pub name: Box<[u8]>,
+}
+
+/// A computed CSS property, as Chromium writes it.
+#[derive(PartialEq, Eq, Debug)]
+pub struct Property {
+    pub name: Box<[u8]>,
+    pub value: Box<[u8]>,
 }
 
 /// A selected element's whole markup attribute, including an empty value.

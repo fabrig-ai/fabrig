@@ -186,7 +186,9 @@ impl SignInWorld {
                 io::Request::Stream { stream, down } => {
                     self.sockets.iter_mut().find(|peer| peer.token == stream).unwrap().down(down);
                 }
-                io::Request::Close { entity } | io::Request::Abort { entity } => {
+                io::Request::Close { entity }
+                | io::Request::CloseAfterFlush { entity }
+                | io::Request::Abort { entity } => {
                     let owner = if let Some(peer) = self.sockets.iter_mut().find(|peer| peer.token == entity) {
                         assert!(!peer.closed);
                         peer.closed = true;

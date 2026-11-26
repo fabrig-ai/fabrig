@@ -30,11 +30,15 @@ use skein_shell::{Config, Kernel, Wait};
 
 use crate::deadline::{Deadline, Expired};
 
+#[cfg(any(target_os = "macos", test))]
+mod kept;
+#[cfg(target_os = "macos")]
+use kept::KeptProcesses;
+
 // The harness runs on one thread. A walk uses the process-wide reaped-child
 // counter, so another observer cannot share that accounting interval.
 std::thread_local! {
     static ACTIVE: Cell<u32> = const { Cell::new(0) };
-    #[cfg(target_os = "linux")]
     static WALK_ACTIVE: Cell<bool> = const { Cell::new(false) };
     #[cfg(target_os = "linux")]
     static SUBREAPER_BEFORE: Cell<bool> = const { Cell::new(false) };
@@ -55,7 +59,7 @@ pub(crate) fn warm_runtime() {
 pub enum Containment {
     /// The best the machine has: on Linux a delegated cgroup, else the walk; on macOS the group.
     Best,
-    /// The subreaper's walk of pidfds (Linux).
+    /// The subreaper's walk of pidfds on Linux; the group and kept descendants on macOS.
     Walk,
     /// The binary's process group (both systems).
     Group,
@@ -66,7 +70,7 @@ pub enum Containment {
 pub enum Method {
     /// A delegated cgroup v2 contains every descendant from the spawn.
     Cgroup,
-    /// The subreaper discovers children and waits on their pidfds.
+    /// The subreaper waits on pidfds on Linux; macOS watches discovered descendants for exit.
     Walk,
     /// The binary's process group: settled once the binary is reaped and the group has no member.
     Group,
@@ -162,12 +166,9 @@ impl TreeStatus {
 }
 
 // skein-world uses the shell's Error vocabulary without depending on libc.
-// EBUSY is 16 on both systems; ENOTSUP is 95 on Linux and 45 on Darwin.
+// EBUSY is 16 on both systems.
 const BUSY: Error = Error::Other(16);
-#[cfg(target_os = "linux")]
-const NOT_SUPPORTED: Error = Error::Other(95);
-#[cfg(not(target_os = "linux"))]
-const NOT_SUPPORTED: Error = Error::Other(45);
+const NO_PROCESS: Error = Error::Other(3);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Choice {
@@ -191,12 +192,7 @@ fn choose(
                 Choice::Group
             }
         }
-        Containment::Walk => {
-            if !linux {
-                return Err(NOT_SUPPORTED);
-            }
-            Choice::Walk
-        }
+        Containment::Walk => Choice::Walk,
         Containment::Group => Choice::Group,
     };
     if walk_active {
@@ -216,7 +212,7 @@ fn prepare_choice(containment: Containment) -> Result<Choice, Error> {
 
 #[cfg(not(target_os = "linux"))]
 fn prepare_choice(containment: Containment) -> Result<Choice, Error> {
-    choose(containment, false, false, false, ACTIVE.get())
+    choose(containment, false, false, WALK_ACTIVE.get(), ACTIVE.get())
 }
 
 #[derive(Debug)]
@@ -237,22 +233,20 @@ impl Tree {
 
     pub(crate) fn prepare(containment: Containment, baseline: Usage) -> Result<Self, Error> {
         match prepare_choice(containment)? {
-            Choice::Group => {
-                ACTIVE.set(ACTIVE.get().checked_add(1).expect("observer count fits"));
-                Ok(Self::Group(GroupTree {
-                    baseline: baseline.children,
-                    leader: None,
-                    #[cfg(target_os = "linux")]
-                    leader_fd: None,
-                    finished: false,
-                }))
-            }
+            Choice::Group => Ok(Self::Group(GroupTree::prepare(baseline))),
             #[cfg(target_os = "linux")]
             Choice::Best => LinuxTree::prepare(false, baseline).map(Self::Linux),
             #[cfg(target_os = "linux")]
             Choice::Walk => LinuxTree::prepare(true, baseline).map(Self::Linux),
             #[cfg(not(target_os = "linux"))]
-            Choice::Best | Choice::Walk => Err(NOT_SUPPORTED),
+            Choice::Walk => {
+                WALK_ACTIVE.set(true);
+                let mut tree = GroupTree::prepare(baseline);
+                tree.kept = Some(KeptProcesses::new());
+                Ok(Self::Group(tree))
+            }
+            #[cfg(not(target_os = "linux"))]
+            Choice::Best => unreachable!("macOS resolves Best to Group"),
         }
     }
 
@@ -273,10 +267,7 @@ impl Tree {
             Self::Group(tree) => {
                 tree.leader =
                     Some(skein_shell::keeper::child_id(handle).expect("a live child handle names its leader"));
-                #[cfg(target_os = "linux")]
-                {
-                    tree.leader_fd = Some(handle);
-                }
+                tree.leader_fd = Some(handle);
             }
         }
     }
@@ -285,7 +276,7 @@ impl Tree {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.refresh(),
-            Self::Group(_) => {}
+            Self::Group(tree) => tree.refresh().unwrap_or_else(|why| crate::fail(&why)),
         }
     }
 
@@ -293,13 +284,7 @@ impl Tree {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.survey(leader),
-            Self::Group(tree) => {
-                if skein_shell::keeper::poll_child(leader, false).is_ok_and(|exit| exit.is_none()) {
-                    tree.leader.into_iter().collect()
-                } else {
-                    Vec::new()
-                }
-            }
+            Self::Group(tree) => tree.survey(leader),
         }
     }
 
@@ -315,7 +300,7 @@ impl Tree {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.unpopulated(),
-            Self::Group(_) => true,
+            Self::Group(tree) => tree.unpopulated().unwrap_or_else(|why| crate::fail(&why)),
         }
     }
 
@@ -330,7 +315,7 @@ impl Tree {
                 skein_shell::keeper::poll_child(leader, false)
                     .unwrap_or_else(|error| crate::fail(&format!("retaining group leader: {error:?}")));
                 let id = tree.leader.expect("a started group has its leader");
-                let mut delivered = Vec::new();
+                let mut delivered = tree.signal_members(signal).unwrap_or_else(|why| crate::fail(&why));
                 if group_live(id).unwrap_or_else(|why| crate::fail(&why)) {
                     match skein_shell::keeper::signal_kept_child(leader, signal, Target::Group) {
                         Ok(()) => delivered.push(id),
@@ -364,35 +349,14 @@ impl Tree {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.abandon(leader, retain_leader),
-            Self::Group(tree) => {
-                if tree.finished {
-                    return Ok(());
-                }
-                let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
-                let settled =
-                    if retain_leader { Ok(()) } else { tree.finish(leader, Expectation::Measure, false).map(|_| ()) };
-                if settled.is_err() {
-                    skein_shell::keeper::abandon_binary(Some(leader), &[]);
-                    tree.finished = true;
-                }
-                settled
-            }
+            Self::Group(tree) => tree.abandon(leader, retain_leader),
         }
     }
     pub(crate) fn force_settle(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.force_settle(leader, retain_leader),
-            Self::Group(tree) => {
-                if !tree.finished {
-                    let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
-                    if !retain_leader {
-                        skein_shell::keeper::abandon_binary(Some(leader), &[]);
-                    }
-                    tree.finished = true;
-                }
-                Ok(())
-            }
+            Self::Group(tree) => tree.force_settle(leader, retain_leader),
         }
     }
 }
@@ -402,7 +366,12 @@ impl Drop for Tree {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(_) => {} // LinuxTree releases its registration and subreaper setting.
-            Self::Group(_) => ACTIVE.set(ACTIVE.get().checked_sub(1).expect("a registered observer is released")),
+            Self::Group(tree) => {
+                ACTIVE.set(ACTIVE.get().checked_sub(1).expect("a registered observer is released"));
+                if tree.method() == Method::Walk {
+                    WALK_ACTIVE.set(false);
+                }
+            }
         }
     }
 }
@@ -411,12 +380,144 @@ impl Drop for Tree {
 pub(crate) struct GroupTree {
     baseline: Resources,
     leader: Option<u32>,
-    #[cfg(target_os = "linux")]
     leader_fd: Option<Fd>,
+    #[cfg(target_os = "macos")]
+    kept: Option<KeptProcesses>,
     finished: bool,
 }
 
 impl GroupTree {
+    fn prepare(baseline: Usage) -> Self {
+        ACTIVE.set(ACTIVE.get().checked_add(1).expect("observer count fits"));
+        Self {
+            baseline: baseline.children,
+            leader: None,
+            leader_fd: None,
+            #[cfg(target_os = "macos")]
+            kept: None,
+            finished: false,
+        }
+    }
+
+    #[cfg_attr(target_os = "linux", expect(clippy::unused_self, reason = "macOS also keeps a walk in GroupTree"))]
+    fn method(&self) -> Method {
+        #[cfg(target_os = "macos")]
+        if self.kept.is_some() {
+            return Method::Walk;
+        }
+        Method::Group
+    }
+
+    #[cfg_attr(
+        target_os = "linux",
+        expect(
+            clippy::unused_self,
+            clippy::unnecessary_wraps,
+            reason = "only macOS augments the group with a fallible walk"
+        )
+    )]
+    fn refresh(&mut self) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        if !self.finished
+            && let Some(kept) = &mut self.kept
+            && let Some((pid, handle)) = self.leader.zip(self.leader_fd)
+        {
+            kept.discover(Some((pid, handle)), skein_shell::keeper::process_children)?;
+        }
+        Ok(())
+    }
+
+    fn survey(&mut self, leader: Fd) -> Vec<u32> {
+        let mut live = self.live_members().unwrap_or_else(|why| crate::fail(&why));
+        if skein_shell::keeper::poll_child(leader, false).is_ok_and(|exit| exit.is_none()) {
+            live.extend(self.leader);
+        }
+        live.sort_unstable();
+        live
+    }
+
+    fn live_members(&mut self) -> Result<Vec<u32>, String> {
+        self.refresh()?;
+        #[cfg(target_os = "macos")]
+        if let Some(kept) = &self.kept {
+            return Ok(kept.live());
+        }
+        Ok(Vec::new())
+    }
+
+    fn unpopulated(&mut self) -> Result<bool, String> {
+        if self.method() == Method::Walk {
+            return Ok(self.live_members()?.is_empty() && !self.group_has_others()?);
+        }
+        Ok(true)
+    }
+
+    fn group_has_others(&self) -> Result<bool, String> {
+        let id = self.leader.expect("a started group has its leader");
+        skein_shell::keeper::group_has_other_members(id)
+            .map_err(|error| format!("observing process group {id}: {error:?}"))
+    }
+
+    fn signal_members(&mut self, signal: Signal) -> Result<Vec<u32>, String> {
+        self.refresh()?;
+        #[cfg(target_os = "macos")]
+        if let Some(kept) = &self.kept {
+            return kept.signal(signal);
+        }
+        #[cfg(target_os = "linux")]
+        let _: Signal = signal;
+        Ok(Vec::new())
+    }
+
+    fn kill(&mut self, leader: Fd) -> Result<(), String> {
+        let members = self.signal_members(Signal::Kill);
+        let group = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
+        let _delivered = members?;
+        match group {
+            Ok(()) | Err(NO_PROCESS) => Ok(()),
+            Err(error) => Err(format!("killing process group {:?}: {error:?}", self.leader)),
+        }
+    }
+
+    fn abandon(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
+        if self.finished {
+            return Ok(());
+        }
+        if retain_leader {
+            return self.force_settle(leader, true);
+        }
+        let _killed = self.kill(leader);
+        let settled = self.finish(leader, Expectation::Measure, false).map(|_| ());
+        if settled.is_err() {
+            crate::end_to_end::teardown_finding(self.force_settle(leader, false));
+        }
+        settled
+    }
+
+    #[cfg_attr(
+        target_os = "linux",
+        expect(clippy::unnecessary_wraps, reason = "only the macOS walk reports kept survivors here")
+    )]
+    fn force_settle(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
+        if self.finished {
+            return Ok(());
+        }
+        let _killed = self.kill(leader);
+        if !retain_leader {
+            skein_shell::keeper::abandon_binary(Some(leader), &[]);
+        }
+        self.finished = true;
+        #[cfg(target_os = "macos")]
+        if let Some(kept) = &mut self.kept {
+            return kept.finish_killing();
+        }
+        Ok(())
+    }
+
+    #[cfg_attr(
+        target_os = "macos",
+        expect(clippy::unused_self, reason = "only Linux reads scheduler data for named processes")
+    )]
     fn watch(&self, deadline: &mut Deadline) {
         #[cfg(target_os = "linux")]
         watch_owned(deadline, &self.leader.zip(self.leader_fd).into_iter().collect::<Vec<_>>());
@@ -428,11 +529,7 @@ impl GroupTree {
         match self.finish_wait(leader, expectation, observed) {
             Ok(counts) => Ok(counts),
             Err(Failure::Starved(starved)) => {
-                if !self.finished {
-                    let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
-                    skein_shell::keeper::abandon_binary(Some(leader), &[]);
-                    self.finished = true;
-                }
+                crate::end_to_end::teardown_finding(self.force_settle(leader, false));
                 starved.pass();
             }
             Err(Failure::Failed(why) | Failure::TimedOut(why)) => Err(why),
@@ -450,19 +547,16 @@ impl GroupTree {
             call(&mut kernel, Op::Wait { pidfd: leader, reap: false }, &deadline)?;
         }
         let id = self.leader.expect("a started group has its leader");
+        let mut lingering_pids = self.live_members()?;
         let lingering = settle_group(expectation, |step| {
             match step {
                 GroupStep::Reap => {
                     call(&mut kernel, Op::Wait { pidfd: leader, reap: true }, &deadline)?;
                 }
                 GroupStep::Others => {
-                    return skein_shell::keeper::group_has_other_members(id)
-                        .map_err(|error| Failure::Failed(format!("observing process group {id}: {error:?}")));
+                    return Ok(self.group_has_others()? || !self.live_members()?.is_empty());
                 }
-                GroupStep::Kill => match skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group) {
-                    Ok(()) | Err(Error::Other(3_i32)) => {}
-                    Err(error) => return Err(format!("killing process group {id}: {error:?}").into()),
-                },
+                GroupStep::Kill => self.kill(leader)?,
                 GroupStep::Pause => {
                     if deadline.passed() {
                         return Err(Failure::expired(&deadline, "tree did not settle within its kill deadline"));
@@ -477,12 +571,13 @@ impl GroupTree {
         self.finished = true;
         let Done::Usage(usage) = call(&mut kernel, Op::Usage, &deadline)? else { unreachable!("Usage returns usage") };
         let counts = Counts {
-            method: Method::Group,
+            method: self.method(),
             user: difference(usage.children.user, self.baseline.user),
             system: difference(usage.children.system, self.baseline.system),
             peak_rss_bytes: usage.children.peak_rss_bytes,
             peak_scope: PeakScope::LargestProcess { baseline_bytes: self.baseline.peak_rss_bytes },
         };
+        expected_tree_end(expectation, &mut lingering_pids)?;
         expected_group_end(expectation, id, lingering)?;
         Ok(counts)
     }
@@ -496,7 +591,6 @@ pub(crate) fn expected_group_end(expectation: Expectation, id: u32, lingering: b
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
 pub(crate) fn expected_tree_end(expectation: Expectation, lingering: &mut Vec<u32>) -> Result<(), String> {
     if expectation == Expectation::EndsWithBinary && !lingering.is_empty() {
         lingering.sort_unstable();
@@ -1133,6 +1227,7 @@ impl Failure {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn ignore_signal_error(result: Result<Done, Failure>) -> Result<(), Failure> {
     match result {
         Ok(_) | Err(Failure::Failed(_)) => Ok(()),
@@ -1367,7 +1462,14 @@ impl Drop for LinuxTree {
 
 #[cfg(test)]
 mod tests {
-    use super::{BUSY, Choice, Containment, NOT_SUPPORTED, choose};
+    use super::{BUSY, Choice, Containment, choose};
+
+    // Linux adopts this fixture so the test can reap every process it starts (examples.md, 6).
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_kept_walk_outlives_its_leader_and_signals_the_descendants() {
+        super::kept::tests::check_kept_family();
+    }
 
     #[cfg(target_os = "linux")]
     #[test]
@@ -1420,7 +1522,8 @@ mod tests {
             (Group, true, false, true, 1, Err(BUSY)),
             (Group, true, false, false, 1, Ok(Choice::Group)),
             (Best, false, false, false, 0, Ok(Choice::Group)),
-            (Walk, false, false, false, 0, Err(NOT_SUPPORTED)),
+            (Walk, false, false, false, 0, Ok(Choice::Walk)),
+            (Walk, false, false, false, 1, Err(BUSY)),
             (Walk, true, false, true, 1, Err(BUSY)),
             (Best, true, true, true, 1, Err(BUSY)),
             (Walk, true, false, false, 1, Err(BUSY)),

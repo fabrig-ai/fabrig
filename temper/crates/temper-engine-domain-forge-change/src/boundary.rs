@@ -15,6 +15,13 @@ pub type Commit = [u8; 32];
 pub struct CloseAt {
     pub branch: Commit,
     pub landing: Commit,
+    pub asked: bool,
+    pub refused: Option<CloseRefused>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CloseRefused {
+    pub counts: Option<Commit>,
 }
 
 /// The status of a fact or requirement at the named head.
@@ -309,10 +316,6 @@ pub struct Change {
     pub early: Early,
     pub task: u64,
     pub way: Way,
-    /// Its landing's task, once it is a member (domain/landing.md, 4.2).
-    pub landing: Option<u64>,
-    /// An ask handed over as the change leaves or its landing ends (domain/landing.md, 4.3).
-    pub landing_ask: Option<Box<Ask>>,
     pub state: State,
     /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
     pub ended_held: Option<Hold>,
@@ -386,6 +389,15 @@ pub enum Ask {
     Judge(Judgement),
 }
 
+/// A landing's numbered ask (temper/docs/design/domain/landing-members.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Handed {
+    pub number: u32,
+    pub landing: u64,
+    pub round: u16,
+    pub ask: Ask,
+}
+
 /// What the top reads of the landing's verification each step
 /// (temper/docs/design/domain/after-landing.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -415,8 +427,8 @@ pub struct Facts {
     pub rerun: bool,
     /// Pending dependencies in the order of the change's dependencies.
     pub pending: Box<[Pending]>,
-    /// Its landing's current request; absent under queue.
-    pub ask: Option<Ask>,
+    pub ask: Option<Handed>,
+    pub landing: Option<u64>,
     pub branch: Option<Commit>,
     /// The change has a title or an existing pull request (domain/forge/change/README.md, 1).
     pub titled: bool,
@@ -626,6 +638,13 @@ pub enum Decision {
 pub struct Stepped {
     pub change: Change,
     pub decision: Decision,
+    pub took: Option<Took>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Took {
+    Taken(u32),
+    Dropped(u32),
 }
 
 /// Bounds on delegates, updates, stalls and supplied gate facts

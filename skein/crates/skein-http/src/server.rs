@@ -493,6 +493,13 @@ impl Server {
         Server { state: State::Idle(Line::Open), intake: Intake::with_capacity(limits.read) }
     }
 
+    /// Whether no request has begun or the last request was read whole below,
+    /// even if its body was discarded. Giving up unread bytes is not a read.
+    #[must_use]
+    pub fn request_read_whole(&self) -> bool {
+        request_read_whole(&self.state)
+    }
+
     /// What it is waiting for: a function of its state alone.
     #[must_use]
     pub fn waiting(&self) -> Waiting {
@@ -521,8 +528,8 @@ impl Server {
                     None => Waiting::Above,
                 }
             }
-            State::Spent => Waiting::Close,
-            State::Closed => Waiting::Nothing,
+            State::Spent { .. } => Waiting::Close,
+            State::Closed { .. } => Waiting::Nothing,
         }
     }
 }
@@ -530,15 +537,14 @@ impl Server {
 /// An event from the stream below. Use uncapped output queues.
 pub fn up(server: &mut Server, env: &Env<Limits>, ev: Up, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     let limits = &env.limits;
-    let state = mem::replace(&mut server.state, State::Closed);
+    let state = mem::replace(&mut server.state, State::Closed { read_whole: false });
     server.state = match state {
         State::Idle(line) => State::Idle(idle(line, ev)),
         State::Reading(reading) => reading_up(reading, limits, env.wall, ev, above, below),
         State::Exchange(exchange) => exchange_up(exchange, &mut server.intake, env, ev, above, below),
         // An answer to a demand withdrawn, on its way (runtime/lib-streams.md, 1); an end or
         // a failure, which changes nothing now.
-        State::Spent => State::Spent,
-        State::Closed => State::Closed,
+        state @ (State::Spent { .. } | State::Closed { .. }) => state,
     };
 }
 
@@ -546,25 +552,25 @@ pub fn up(server: &mut Server, env: &Env<Limits>, ev: Up, above: &mut Queue<Even
 pub fn down(server: &mut Server, env: &Env<Limits>, rq: Request, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     let limits = &env.limits;
     let intake = &mut server.intake;
-    let state = mem::replace(&mut server.state, State::Closed);
+    let state = mem::replace(&mut server.state, State::Closed { read_whole: false });
     server.state = match rq {
         Request::Close => close(state, intake, above, below),
         Request::Next => match state {
             State::Idle(line) => next(line, limits, above, below),
             State::Reading(_) | State::Exchange(_) => unreachable!("a Next while a request is in progress"),
-            State::Spent => unreachable!("a Next on a connection not to be used again"),
-            State::Closed => unreachable!("a Next after Closed"),
+            State::Spent { .. } => unreachable!("a Next on a connection not to be used again"),
+            State::Closed { .. } => unreachable!("a Next after Closed"),
         },
         Request::Respond(response) => match state {
             State::Exchange(exchange) => respond(exchange, response, intake, env, above, below),
             // After the exchange failed, a request on its way is dropped.
-            State::Spent => State::Spent,
+            state @ State::Spent { .. } => state,
             State::Idle(_) | State::Reading(_) => unreachable!("a Respond with no call in progress"),
-            State::Closed => unreachable!("a Respond after Closed"),
+            State::Closed { .. } => unreachable!("a Respond after Closed"),
         },
         Request::Body(down) => match state {
             State::Exchange(exchange) => body_demanded(exchange, down, intake, limits, above, below),
-            State::Spent => State::Spent,
+            state @ State::Spent { .. } => state,
             // A withdrawal on its way when the body's end went up with
             // `Done` (runtime/lib-streams.md, 1): dropped.
             State::Idle(line) => match down {
@@ -574,21 +580,21 @@ pub fn down(server: &mut Server, env: &Env<Limits>, rq: Request, above: &mut Que
                 }
             },
             State::Reading(_) => unreachable!("a body demand with no call in progress"),
-            State::Closed => unreachable!("a body demand after Closed"),
+            State::Closed { .. } => unreachable!("a body demand after Closed"),
         },
         Request::Discard => match state {
             State::Exchange(exchange) => discard(exchange, intake, limits, above, below),
             // On its way when the body's end went up with `Done`, or the
             // exchange failed.
-            State::Idle(_) | State::Spent => state,
+            State::Idle(_) | State::Spent { .. } => state,
             State::Reading(_) => unreachable!("a Discard with no call in progress"),
-            State::Closed => unreachable!("a Discard after Closed"),
+            State::Closed { .. } => unreachable!("a Discard after Closed"),
         },
         Request::Reply(down) => match state {
             State::Exchange(exchange) => reply(exchange, down, intake, limits, above, below),
-            State::Spent => State::Spent,
+            state @ State::Spent { .. } => state,
             State::Idle(_) | State::Reading(_) => unreachable!("a reply with no call in progress"),
-            State::Closed => unreachable!("a reply after Closed"),
+            State::Closed { .. } => unreachable!("a reply after Closed"),
         },
     };
 }
@@ -606,9 +612,13 @@ enum State {
     /// The connection is not to be used again: a request was rejected or
     /// failed, an exchange failed or was done with a connection that does
     /// not persist, or the client ended it. Waiting for the close.
-    Spent,
+    Spent {
+        read_whole: bool,
+    },
     /// Closed: terminal, and the placeholder of every transition.
-    Closed,
+    Closed {
+        read_whole: bool,
+    },
 }
 
 /// The stream below, as an idle server knows it.
@@ -648,6 +658,8 @@ struct Exchange {
     /// the call until its end went up, it was discarded to its end, or it
     /// was given up.
     body: Option<Incoming>,
+    /// The body was dropped before its framing reached the end below.
+    body_given_up: bool,
     response: Responding,
     /// The demand outstanding below, if any: stated only when none is, and
     /// answered at most once (runtime/lib-streams.md, 1).
@@ -752,11 +764,11 @@ fn next(line: Line, limits: &Limits, above: &mut Queue<Event>, below: &mut Queue
         }
         Line::Ended => {
             above.push(Event::Ended);
-            State::Spent
+            State::Spent { read_whole: true }
         }
         Line::Failed(fault) => {
             above.push(Event::Failed(Error::Stream(fault)));
-            State::Spent
+            State::Spent { read_whole: true }
         }
     }
 }
@@ -802,11 +814,11 @@ fn reading_up(
             } else {
                 above.push(Event::Ended);
             }
-            State::Spent
+            State::Spent { read_whole: !reading.head.begun() }
         }
         Up::Failed(fault) => {
             above.push(Event::Failed(Error::Stream(fault)));
-            State::Spent
+            State::Spent { read_whole: !reading.head.begun() }
         }
     }
 }
@@ -824,7 +836,7 @@ fn line(head: &Head) -> Read {
 fn reject(rejection: Rejection, wall: Wall, above: &mut Queue<Event>, below: &mut Queue<Down>) -> State {
     below.push(Down::Send(response::answer(rejection, wall)));
     above.push(Event::Failed(Error::Rejected(rejection)));
-    State::Spent
+    State::Spent { read_whole: false }
 }
 
 /// A request's head, whole and sound: up it goes, and the exchange begins,
@@ -841,6 +853,7 @@ fn called(request: head::Request, limits: &Limits, above: &mut Queue<Event>) -> 
         keep: request.persist,
         aside: if request.expects { Aside::Continue } else { Aside::Held },
         body: Some(Incoming { rest, face: Face::Idle, allowance }),
+        body_given_up: false,
         response: Responding::Awaited,
         below: None,
         withdrawn: false,
@@ -1015,6 +1028,19 @@ fn body_over_below(exchange: &Exchange) -> bool {
     }
 }
 
+fn request_read_whole(state: &State) -> bool {
+    match state {
+        State::Idle(_) => true,
+        State::Reading(reading) => !reading.head.begun(),
+        State::Exchange(exchange) => exchange_read_whole(exchange),
+        State::Spent { read_whole } | State::Closed { read_whole } => *read_whole,
+    }
+}
+
+fn exchange_read_whole(exchange: &Exchange) -> bool {
+    !exchange.body_given_up && body_over_below(exchange)
+}
+
 /// The rest of the request body is given up, on a connection not used
 /// again: nothing more of it is read, a read outstanding for it is
 /// withdrawn, and its stream, if the side above still reads it, hears
@@ -1026,6 +1052,7 @@ fn give_up(exchange: &mut Exchange, intake: &mut Intake, above: &mut Queue<Event
         return;
     }
     if let Some(incoming) = exchange.body.take() {
+        exchange.body_given_up = true;
         match incoming.face {
             Face::Idle | Face::Demand(_) => above.push(Event::Body(Up::Failed(Fault::Other))),
             Face::Withdrawn | Face::Discarding => {}
@@ -1116,6 +1143,7 @@ fn discard(
     incoming.face = Face::Discarding;
     // No other exchange follows, so no end to read the body to.
     if !exchange.keep {
+        exchange.body_given_up = !incoming.rest.is_over();
         exchange.body = None;
         body::drain(intake);
         withdraw_read(&mut exchange, below);
@@ -1245,6 +1273,7 @@ fn reply_withdrawn(mut exchange: Exchange, below: &mut Queue<Down>) -> State {
 
 /// `Close`, in any state.
 fn close(state: State, intake: &mut Intake, above: &mut Queue<Event>, below: &mut Queue<Down>) -> State {
+    let read_whole = request_read_whole(&state);
     match state {
         // A request being read always has one demand outstanding.
         State::Reading(_) => below.push(Down::Demand { read: Read::Nothing, room: 0 }),
@@ -1254,11 +1283,11 @@ fn close(state: State, intake: &mut Intake, above: &mut Queue<Event>, below: &mu
             }
             body::drain(intake);
         }
-        State::Idle(_) | State::Spent => {}
-        State::Closed => unreachable!("a Close after Closed"),
+        State::Idle(_) | State::Spent { .. } => {}
+        State::Closed { .. } => unreachable!("a Close after Closed"),
     }
     above.push(Event::Closed);
-    State::Closed
+    State::Closed { read_whole }
 }
 
 /// Where an exchange goes after every transition, in one place
@@ -1385,7 +1414,7 @@ fn done(exchange: Exchange, persist: bool, below: &mut Queue<Down>, above: &mut 
         below.push(Down::Demand { read: Read::Nothing, room: 0 });
     }
     above.push(Event::Done(Reuse::Close));
-    State::Spent
+    State::Spent { read_whole: exchange_read_whole(&exchange) }
 }
 
 /// The exchange failed: whichever of its streams the side above still
@@ -1432,7 +1461,7 @@ fn fail(
         // Room that may still come after the end: the server wants none.
         below.push(Down::Demand { read: Read::Nothing, room: 0 });
     }
-    State::Spent
+    State::Spent { read_whole: exchange_read_whole(&exchange) }
 }
 
 /// The error a chunked body's bad framing, or what it holds past its

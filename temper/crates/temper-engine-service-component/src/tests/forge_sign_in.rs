@@ -272,7 +272,9 @@ impl PageReply {
                     self.owner = Some(owner);
                 }
                 skein_io::Request::Stream { down, .. } => self.wire.take(down),
-                skein_io::Request::Close { .. } | skein_io::Request::Abort { .. } => {
+                skein_io::Request::Close { .. }
+                | skein_io::Request::CloseAfterFlush { .. }
+                | skein_io::Request::Abort { .. } => {
                     self.closed = true;
                     assert!(engine.clients.up(skein_io::Event::Closed { owner: self.owner.unwrap() }));
                 }

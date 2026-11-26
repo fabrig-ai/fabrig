@@ -158,17 +158,17 @@ fn a_shared_dependency_forms_one_landing_after_all_three_readiness_reads_settle(
     let (mut domain, env) = kept_changes(&changes);
     for task in [10, 8] {
         ready(&mut domain, &env, task);
-        assert!(domain.forge.change(task).unwrap().change.landing.is_none(), "another readiness read is due");
+        assert!(domain.forge.landing_of(task).is_none(), "another readiness read is due");
     }
     ready(&mut domain, &env, 9);
-    let landing = domain.forge.change(8).unwrap().change.landing.expect("settled readiness forms at once");
+    let landing = domain.forge.landing_of(8).expect("settled readiness forms at once");
     let row = domain.forge.landing(landing).unwrap();
     assert_eq!(row.landing.members.len(), changes.len());
     for (member, expected) in row.landing.members.iter().zip(changes) {
         assert_eq!(member.change, expected);
     }
     for task in changes {
-        assert_eq!(domain.forge.change(task).unwrap().change.landing, Some(landing));
+        assert_eq!(domain.forge.landing_of(task), Some(landing));
     }
 }
 
@@ -176,7 +176,7 @@ fn a_shared_dependency_forms_one_landing_after_all_three_readiness_reads_settle(
 fn a_lone_change_forms_as_soon_as_its_dependency_readiness_settles() {
     let (mut domain, env) = kept_changes(&[8]);
     ready(&mut domain, &env, 8);
-    let landing = domain.forge.change(8).unwrap().change.landing.expect("no other readiness is due");
+    let landing = domain.forge.landing_of(8).expect("no other readiness is due");
     let row = domain.forge.landing(landing).unwrap();
     assert_eq!(row.landing.members.len(), 1);
     assert_eq!(row.landing.members[0].change, 8);

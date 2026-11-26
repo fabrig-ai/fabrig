@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0x45, 0xda, 0x6f, 0x2d, 0x8d, 0xba, 0xba, 0x4e, 0xc2, 0xee, 0x46, 0xc3, 0x6d, 0x29, 0xcd, 0x0d, 0xca, 0x13, 0xec,
-    0xbb, 0xa1, 0x1e, 0x84, 0x16, 0xd8, 0x18, 0xc1, 0xc9, 0x4d, 0xcd, 0xf4, 0x5d,
+    0xbe, 0xcb, 0xe7, 0x05, 0x43, 0xcf, 0x90, 0x65, 0xcc, 0x9f, 0x5e, 0x1d, 0x3e, 0x3f, 0x1e, 0x3d, 0xed, 0x89, 0x86,
+    0xd4, 0xf8, 0xcf, 0xbb, 0x98, 0x29, 0x42, 0x9b, 0x2d, 0xce, 0x68, 0xd3, 0x3b,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -324,6 +324,7 @@ pub mod paths {
     pub const ITEMS_TAIL: Path = Path::new("Items (tail)");
     pub const JOB_SPEC_COMMAND: Path = Path::new("JobSpec.command");
     pub const JOB_SPEC_REQUEST: Path = Path::new("JobSpec.request");
+    pub const JOB_SPEC_REFUSAL: Path = Path::new("JobSpec.refusal");
     pub const JOB_SPEC_TAIL: Path = Path::new("JobSpec (tail)");
     pub const LANDED_TAG: Path = Path::new("Landed.tag");
     pub const LANDED_COMMIT: Path = Path::new("Landed.commit");
@@ -1003,6 +1004,7 @@ impl Record for Items {
 pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
+    pub refusal: bool,
 }
 
 // Record: JobSpec.
@@ -1010,11 +1012,12 @@ impl JobSpec {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_command) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_request) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 8;
+    pub const ENCODED_AT_ZERO: u64 = 9;
 }
 
 impl Record for JobSpec {
@@ -1041,6 +1044,7 @@ impl Record for JobSpec {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, &self.command, limits, out, paths::JOB_SPEC_COMMAND)?;
         field::write(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, &self.request, limits, out, paths::JOB_SPEC_REQUEST)?;
+        field::write(field::Boolean, &self.refusal, limits, out, paths::JOB_SPEC_REFUSAL)?;
         Ok(())
     }
 
@@ -1048,6 +1052,7 @@ impl Record for JobSpec {
         Ok(Self {
             command: field::read(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, limits, reader, paths::JOB_SPEC_COMMAND)?,
             request: field::read(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, limits, reader, paths::JOB_SPEC_REQUEST)?,
+            refusal: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_REFUSAL)?,
         })
     }
 }

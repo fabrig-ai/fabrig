@@ -57,6 +57,7 @@ pub fn command(program: &[u8], profile: &[u8]) -> Command {
         b"--disable-features=MediaRouter",
         b"--metrics-recording-only",
         b"--js-flags=--liftoff-only",
+        b"--use-mock-keychain",
     ] {
         args.push(Box::from(arg)).expect("the argument list has room");
     }
@@ -108,11 +109,16 @@ mod tests {
         assert_eq!(command.program.as_ref(), b"/usr/bin/chromium");
         assert_eq!(command.args.last().expect("initial page").as_ref(), b"about:blank");
         let mut profile = false;
+        let mut mock_keychain = false;
         for arg in &command.args {
             if arg.as_ref() == b"--user-data-dir=/tmp/fresh-profile" {
                 profile = true;
             }
+            if arg.as_ref() == b"--use-mock-keychain" {
+                mock_keychain = true;
+            }
         }
+        assert!(mock_keychain, "profile uses a mock keychain");
         assert!(profile, "the command has a fresh profile");
         assert_eq!(command.pipes.first().expect("command pipe").descriptor, 3);
         assert_eq!(command.pipes.first().expect("command pipe").direction, Direction::Read);

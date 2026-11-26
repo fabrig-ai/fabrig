@@ -84,7 +84,7 @@ fn a_red_third_of_four_is_narrowed_across_restart_and_its_repair_lands_later() {
             world.push_file(branch.as_bytes(), b"file", b"broken");
         }
         landings::ready_change(&mut world, task, branch.as_bytes());
-        assert_eq!(world.change(task).change.landing, None);
+        assert_eq!(world.landing_of(task), None);
     }
     let ready_since = world.change(53).change.ready_since;
     let mut trains = Trains::default();
@@ -211,7 +211,7 @@ fn a_red_third_of_four_is_narrowed_across_restart_and_its_repair_lands_later() {
     assert!(matches!(world.change(53).change.state, change::State::Ready { head, .. } if head == repaired_head));
     assert_eq!(world.change(53).change.ready_since, ready_since);
     trains.judge(&mut world);
-    let repaired_landing = world.change(53).change.landing.expect("later landing formed");
+    let repaired_landing = world.landing_of(53).expect("later landing formed");
     assert_ne!(repaired_landing, LANDING);
     assert_eq!(world.landing(repaired_landing).landing.members.len(), 1);
     landings::drive_landing(&mut world, repaired_landing);

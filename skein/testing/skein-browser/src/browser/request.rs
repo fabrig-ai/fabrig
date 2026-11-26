@@ -33,7 +33,7 @@ impl Browser {
             if let Some(state) = self.page_mut(page) {
                 state.frame = Some(id);
             }
-            self.enable(env, page, 8);
+            self.enable(env, page, Self::ENABLE_FILES);
         } else {
             self.close_page_local(page);
         }

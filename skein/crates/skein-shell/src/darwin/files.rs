@@ -284,10 +284,10 @@ fn open_private(path: &CString, flags: i32) -> Result<i32, i32> {
     let root = Fd::new(libc::AT_FDCWD);
     let flags = flags | libc::O_NOFOLLOW_ANY;
     let opened = open_once(root, path.to_bytes(), flags, 0);
-    if opened == Err(libc::ELOOP) {
-        if let Some(path) = pass_links(root.raw(), path.to_bytes(), 0) {
-            return open_once(root, &path, flags, 0);
-        }
+    if opened == Err(libc::ELOOP)
+        && let Some(path) = pass_links(root.raw(), path.to_bytes(), 0)
+    {
+        return open_once(root, &path, flags, 0);
     }
     opened
 }

@@ -78,6 +78,7 @@ fn assignment(decoded: bool, writable: bool) -> Event {
         Ok(wire::JobSpec {
             command: Box::from(b"home/tools/check".as_slice()),
             request: Box::from(b"request".as_slice()),
+            refusal: false,
         })
     } else {
         Err(wire::Undecodable)

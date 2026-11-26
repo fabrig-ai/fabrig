@@ -29,7 +29,14 @@ pub(super) fn page_event(report: Report) -> Option<Event> {
         Report::Sent { id, load, document, method, url } => Some(Event::PageSent { id, load, document, method, url }),
         Report::Answered { id } => Some(Event::PageAnswered { id }),
         Report::Page { trouble, text, url } => Some(Event::PageTrouble { trouble, text, url }),
-        Report::Io(_) | Report::Opened | Report::BrowserClosed | Report::Trouble(_) => None,
+        Report::Io(_) | Report::Opened | Report::BrowserClosed | Report::Trouble { .. } => None,
+    }
+}
+
+pub(super) fn transport_trouble(why: String, chromium_stderr: Option<Box<[u8]>>) -> Event {
+    match chromium_stderr {
+        Some(stderr) => Event::BrowserFailed { why, stderr },
+        None => Event::FaceDone(Err(why)),
     }
 }
 
@@ -298,9 +305,13 @@ impl Session {
                 }
                 self.actions.extend(actions);
             }
-            Report::Trouble(why) => {
+            Report::Trouble { why, chromium_stderr } => {
                 self.face_job = None;
-                self.event(Event::FaceDone(Err(why)));
+                if chromium_stderr.is_some() {
+                    // A Crashed operation in the same poll is not a separate line failure.
+                    let _operation_failure = self.face.failure();
+                }
+                self.event(transport_trouble(why, chromium_stderr));
             }
         }
     }

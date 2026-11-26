@@ -326,7 +326,9 @@ impl Harness {
                             self.peers.get_mut(&owner).expect("fixture peer").wire.take(down);
                         }
                     }
-                    skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => {
+                    skein_io::Request::Close { entity }
+                    | skein_io::Request::CloseAfterFlush { entity }
+                    | skein_io::Request::Abort { entity } => {
                         let mut owner = None;
                         for (token, peer) in &self.peers {
                             if peer.socket == entity {

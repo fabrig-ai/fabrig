@@ -154,7 +154,7 @@ fn run(dialect: Provider, seed: u64) -> (Trace, (u32, u32)) {
                     assert_eq!(stream, Token::new(100));
                     wire.take(down);
                 }
-                IoRequest::Close { entity } | IoRequest::Abort { entity } => {
+                IoRequest::Close { entity } | IoRequest::CloseAfterFlush { entity } | IoRequest::Abort { entity } => {
                     assert_eq!(entity, Token::new(100));
                     component.up(&env, IoEvent::Closed { owner: owner.expect("connected owner") }, &mut up, &mut io);
                 }

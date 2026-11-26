@@ -9,7 +9,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 | 1, prepare | a landing's stack for one repository (`../landing-prepare.md`, 1.2 and 1.3): temper's own merge train, or the project's prepare command | the repository, the round's base and the commit it stacks from, the train's `combine` and its upstream's tip, its members' heads in order with their messages and branches, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, and each conflict's member, kind and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`../landing-proof.md`, 1.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and a record of each left, its kind and, for a deletion or a rename, the side and the commit that made it (`../../protocol/tooling.md`, 4.1), carried as bytes and parsed by no reader |
-| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command and the close request | the files settled |
+| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command, the close request and whether it asks for a typed refusal | the files settled, or the close check's refusal (`../../protocol/tooling.md`, 4.2) |
 
 ## 1. Job declarations, commands and delivery
 
@@ -38,6 +38,13 @@ smith's agent processes, and declares in its hello the kinds it runs:
   workspace is (`checkouts.md`): the repository at its main's tip, each
   member's head fetched beside it, each upstream at its candidate, and
   the project's home at the pinned revision, read-only.
+- **Its items go with every offer.** The engine works the items out at
+  the job's claim and keeps them, by task and attempt, until that
+  attempt answers or its assignment is dropped, as jig's link keeps the
+  job itself. A worker that answers busy has the same attempt offered
+  again (jig's `domain/engine/executors.md`, 5), and that offer carries
+  the same items (2026-11-25: one that found none aborted the
+  engine).
 - **A command is a process** of the protocol layer's, its argument list
   the contract's (`../../protocol/tooling.md`), its directory the job's,
   its environment free of credentials and of the worker's own, its
@@ -86,11 +93,19 @@ smith's agent processes, and declares in its hello the kinds it runs:
 - **The close kind,** kind 4, verb `close`, delivering
   (`../../protocol/tooling.md`, 4.2). Its checkout holds one repository,
   the close change's, under its own name, writable, prepared as a
-  producer's is: its own branch made at the goal's branch's tip and
+  producer's is: its own branch made at the goal's branch's tip, the
+  commit its change read as it made the job, fetched by that commit
+  (`../forge/change/repairs-releases.md`, 1), and
   checked out, clean (`checkouts.md`); its command is the project's
   `close_job`, a path in that repository, so the spec's command is the
   repository's name, `/`, then that path, and its request the close
-  request's bytes, which the engine writes whole. On exit 0 the delivery
+  request's bytes, which the engine writes whole. Its spec asks for a
+  typed refusal, `JobSpec`'s `refusal` true (`../../protocol/wires.md`,
+  8), and the worker then sets `TEMPER_CLOSE_REFUSAL=3` in the command's
+  environment beside the others (`../../protocol/tooling.md`, 2); a spec
+  that doesn't ask sets nothing. On exit 3 it delivers nothing and
+  finishes the job with the result, as for a merge, and the engine reads
+  it. On exit 0 the delivery
   commits the tree as the command left it, one parent, the tip, its message
   `Settle goal G's status`, G the request's goal, and pushes it as a
   fast-forward onto the branch the item names as writable, a producer's

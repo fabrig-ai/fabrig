@@ -364,7 +364,9 @@ impl Github {
                     peer.pipe.client_down(down);
                 }
             }
-            skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } => self.end(entity),
+            skein_io::Request::Abort { entity }
+            | skein_io::Request::Close { entity }
+            | skein_io::Request::CloseAfterFlush { entity } => self.end(entity),
             other @ (skein_io::Request::Listen { .. }
             | skein_io::Request::Bind { .. }
             | skein_io::Request::Reject { .. }

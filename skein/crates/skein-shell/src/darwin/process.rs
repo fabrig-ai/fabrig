@@ -18,7 +18,7 @@
 //! formatting, allocation or synchronization runs between fork and execve.
 //!
 //! Parent-death exec and spawn call posix's watcher with integers prepared
-//! before spawn. Its post-fork path is documented in posix::parent_death;
+//! before spawn. Its post-fork path is documented in `posix::parent_death`;
 //! the exit wait here uses local kevent records and a raw kqueue descriptor,
 //! without allocation, locks or destructors in the watcher.
 
@@ -63,6 +63,10 @@ struct Child {
     reason = "process-wide child ownership serializes reaping and signalling across hosted loops (runtime/readiness.md, 5)"
 )]
 static CHILDREN: Mutex<BTreeMap<Fd, Child>> = Mutex::new(BTreeMap::new());
+
+// Kept processes have exit watches but are not ours to reap or signal as groups.
+#[expect(clippy::disallowed_types, reason = "keeper descriptors are process-wide, like spawned child handles")]
+static KEPT: Mutex<BTreeMap<Fd, libc::pid_t>> = Mutex::new(BTreeMap::new());
 
 /// Makes the process-wide locks and first nodes before a step can use them.
 pub(crate) fn warm_tables() {
@@ -480,13 +484,7 @@ fn child_handle(pid: libc::pid_t) -> Result<Fd, i32> {
     // XNU bsd_kern_kern_event.c:1213-1218 records only requested notes.
     // A stop posts NOTE_SIGNAL (bsd_kern_kern_sig.c:2124-2125), not the
     // NOTE_EXIT posted at termination (bsd_kern_kern_exit.c:2561-2562).
-    let change = kqueue::event(
-        usize::try_from(pid).map_err(|_| libc::EINVAL)?,
-        libc::EVFILT_PROC,
-        libc::EV_ADD,
-        libc::NOTE_EXIT,
-    );
-    match kqueue::change(queue.as_raw_fd(), change) {
+    match watch_exit(queue.as_raw_fd(), pid) {
         Ok(()) => {}
         Err(libc::ESRCH) => {
             // An already exited child is still ours and unreaped. Keep its
@@ -500,6 +498,51 @@ fn child_handle(pid: libc::pid_t) -> Result<Fd, i32> {
     let prior = CHILDREN.lock().expect("child table is not poisoned").insert(handle, Child { pid, reaped: false });
     assert!(prior.is_none(), "a new descriptor has no child table entry");
     Ok(handle)
+}
+
+fn watch_exit(queue: i32, pid: libc::pid_t) -> Result<(), i32> {
+    let ident = usize::try_from(pid).map_err(|_| libc::EINVAL)?;
+    kqueue::change(queue, kqueue::event(ident, libc::EVFILT_PROC, libc::EV_ADD, libc::NOTE_EXIT))
+}
+
+pub(crate) fn open_child_pidfd(pid: u32, parent: u32) -> Result<Fd, Error> {
+    let pid = libc::pid_t::try_from(pid).map_err(|_| Error::InvalidArgument)?;
+    if pid <= 1 || parent <= 1 || libc::pid_t::try_from(parent).is_err() {
+        return Err(Error::InvalidArgument);
+    }
+    let queue = kqueue::open().map_err(map_error)?;
+    watch_exit(queue.as_raw_fd(), pid).map_err(map_error)?;
+    let actual = super::group::process_parent(pid);
+    // Check the watch even if libproc missed the process: an exit posted
+    // after binding is NotFound, not a failure to bind it (ESRCH).
+    if pidfd_exited(Fd::new(queue.as_raw_fd()))? || actual.map_err(map_error)? != parent {
+        return Err(Error::NotFound);
+    }
+    let handle = Fd::new(queue.into_raw_fd());
+    let prior = KEPT.lock().expect("keeper table is not poisoned").insert(handle, pid);
+    assert!(prior.is_none(), "a new descriptor has no keeper table entry");
+    Ok(handle)
+}
+
+pub(crate) fn pidfd_exited(handle: Fd) -> Result<bool, Error> {
+    super::wait_readable(handle, skein_lib::Duration::ZERO).map_err(map_error)
+}
+
+pub(crate) fn signal_kept_child(handle: Fd, signal: Signal, to: Target) -> Result<(), Error> {
+    let kept = KEPT.lock().expect("keeper table is not poisoned");
+    if let Some(&pid) = kept.get(&handle) {
+        if to == Target::Group {
+            return Err(Error::InvalidArgument);
+        }
+        if pidfd_exited(handle)? {
+            return Err(Error::Other(libc::ESRCH));
+        }
+        // SAFETY: kill takes only integers. Unlike a pidfd it cannot bind
+        // this signal to the watch; the exit poll is immediately before kill.
+        return action(unsafe { libc::kill(pid, signal_number(signal)) }).map_err(map_error);
+    }
+    drop(kept);
+    signal_child(handle, signal, to).map(|_| ())
 }
 
 pub(crate) fn forget(handle: Fd) {
@@ -663,6 +706,7 @@ pub(crate) fn signal_current_thread(signal: skein_io::kernel::ServiceSignal) -> 
 }
 
 pub(crate) fn close_keeper_fd(descriptor: Fd) {
+    let _removed = KEPT.lock().expect("keeper table is not poisoned").remove(&descriptor);
     forget(descriptor);
     let _closed = super::close(descriptor);
 }

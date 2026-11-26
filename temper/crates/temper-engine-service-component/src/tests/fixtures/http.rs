@@ -147,7 +147,7 @@ impl Peer {
                         };
                         self.wire.take(down);
                     }
-                    io::Request::Close { .. } | io::Request::Abort { .. } => {
+                    io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
                         self.closed = self.closed.checked_add(1).unwrap();
                         assert!(engine.clients.up(io::Event::Closed { owner: self.owner.unwrap() }));
                     }

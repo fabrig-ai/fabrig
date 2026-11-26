@@ -720,6 +720,8 @@ impl Protocol {
                 | top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LinkDisagreed { .. }
+                | top::Request::ConversionAskDropped { .. }
                 | top::Request::LandingUnmade { .. }
                 | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
@@ -765,6 +767,7 @@ impl Protocol {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::AskDropped { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }

@@ -82,7 +82,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
                 last_prepare: None,
                 branch: Box::from(b"main".as_slice()),
             },
-            asks: Box::new([]),
+            previous_asks: Box::new([]),
             entries: Box::new([]),
         }),
         RecordKind::Receipt => Stored::Receipt {
@@ -789,7 +789,7 @@ fn landing(members: u32, gates: u32) -> LandingRow {
             last_prepare: None,
             branch: Box::from(b"main".as_slice()),
         },
-        asks: Box::new([]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     }
 }
@@ -799,7 +799,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
     for task in 1..=LIMITS.landings {
         let mut row = landing(LIMITS.landing_members, LIMITS.gates);
         row.landing.task = u64::from(task);
-        row.asks = vec![None; usize::try_from(LIMITS.landing_members).unwrap()].into_boxed_slice();
+        row.previous_asks = vec![None; usize::try_from(LIMITS.landing_members).unwrap()].into_boxed_slice();
         row.entries = vec![
             LandingEntry {
                 run: None,
@@ -819,7 +819,12 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
     for (row, set, held, limit) in [
         (landing(3, 2), RestoreSet::LandingMembers, 3, 2),
         (landing(2, 3), RestoreSet::LandingGates, 3, 2),
-        (LandingRow { asks: vec![None; 3].into_boxed_slice(), ..landing(2, 2) }, RestoreSet::LandingAsks, 3, 2),
+        (
+            LandingRow { previous_asks: vec![None; 3].into_boxed_slice(), ..landing(2, 2) },
+            RestoreSet::LandingAsks,
+            3,
+            2,
+        ),
         (
             LandingRow {
                 entries: vec![

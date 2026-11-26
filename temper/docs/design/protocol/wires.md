@@ -327,6 +327,19 @@ them.
   counts (`../domain/worker/checkouts-prepare.md`, 5), whose absence the
   checked close warns of and leaves to the gate
   (`tools/pre-pr/design.md`, 4.1), is one.
+- **A close asks for its typed refusal in its spec:** `JobSpec`'s
+  `refusal`, a `bool` defaulting to `false`, true on every close job the
+  engine makes (`tooling.md`, 4.2). A worker given it sets
+  `TEMPER_CLOSE_REFUSAL=3` in the command's environment. It is no new
+  kind: the kind's checkout, verb and delivery stay as they are, and a
+  worker whose layout lacks the field can't keep a spec that asks, so
+  the engine sends it none and the job waits for a worker that can,
+  spending no try (jig's `protocol/channel/layouts.md`, 5.1). A spec of
+  an earlier engine, without it, reads as `false`, so a worker of this
+  build runs that close as before. A new kind was turned down: every
+  project's policy grants the job kinds its goals may make (the close
+  job, job 4, `configuration/stock.md`), so a kind 5 would be refused
+  until each deployment's settings granted it.
 
 ## 9. Clients
 

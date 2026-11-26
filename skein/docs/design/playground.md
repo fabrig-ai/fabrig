@@ -278,9 +278,24 @@ session log's versioned text (decided 2026-11-03).
 
 Each stamp keeps the oldest input the page sent that has no stamp yet.
 A stamp with no input waiting breaks the contract and panics. Before the
-first clock, a snapshot ends at the start, step 0 and instant 0, with the
-digest of nothing. Thereafter, the last clock's step and instant, and
-what was said through that clock, give its end (decided 2026-11-03).
+first clock or kept stamp, a snapshot ends at the start, step 0 and
+instant 0, with the digest of nothing. Thereafter its end is the last
+moment the page heard, a clock's or a kept stamp's, with what was said
+from the last input up to it: after a clock, the clock's step and
+instant and what was said through it (decided 2026-11-03); after a
+stamp, the stamp's own step and instant and the digest of nothing,
+since what was said before it is in the stamp's own line. The page
+hears a slice's posts one message at a time, and a person may take the
+snapshot between any two of them: one taken after a slice's stamps and
+before its clock ends at its last input, where its replay checks it,
+never at the clock before (decided 2026-11-26, after a browser walk's
+log on a slow machine ended at the clock before its last input and its
+replay found the digest of nothing there). Turned down: holding back
+the inputs stamped after the last clock, which drops from a failure's
+log the inputs that led to it; and posting a slice as one message,
+which reshapes the bridge (section 5) to fix what the log alone keeps.
+Neither the text nor its reading changes, so the format keeps its
+version.
 
 ### 6.1 The log's text, version 1
 
@@ -311,9 +326,10 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
   - `open path=<bytes> bound=<u32>`, then its headers as an
     exchange's;
   - `close`; `read-on`.
-- **The last line:** `end`, the moment of the last clock the page
-  heard and the digest of what the world said from the last input up
-  to that clock, so a replay runs to that moment and checks it; or
+- **The last line:** `end`, the last moment the page heard, a clock's
+  or a kept stamp's (section 6), and the digest of what the world said
+  from the last input up to it, so a replay runs to that moment and
+  checks it; or
   `cut`, when the log reached its bound: the inputs past it were not
   kept, and a replay runs to the last input kept.
 - **What the world said, as a digest:** SHA-256 over 65 bytes, the
@@ -403,7 +419,9 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
 - **The log:** written and read back; refused for another format or
   version; a replay of another build goes on, the digests deciding
   (section 6); a replay that differs fails at its first input, naming
-  the build the log came from.
+  the build the log came from; a snapshot taken after any message the
+  page heard, a slice's stamps and its clock apart, replays exactly,
+  at paces and budgets drawn from the seed.
 - **The worker's platform:** its pure half (the clock, the timer in the
   world's time, the messages' encoding) in `skein-ui-web`'s step tests.
 - **In a browser:** the application's browser tier walks its playground

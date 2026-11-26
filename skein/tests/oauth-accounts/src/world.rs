@@ -1323,7 +1323,10 @@ pub fn delayed_oauth_output() -> Vec<&'static str> {
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
-                | io::Request::Close { .. }) => panic!("the expired refresh only connects then aborts: {other:?}"),
+                | io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }) => {
+                    panic!("the expired refresh only connects then aborts: {other:?}")
+                }
             }
         }
     }

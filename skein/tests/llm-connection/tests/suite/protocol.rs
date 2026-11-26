@@ -123,7 +123,7 @@ fn run(seed: u64) -> (Trace, (u32, u32, bool)) {
                     assert_eq!(stream, Token::new(100));
                     wire.take(down);
                 }
-                IoRequest::Close { entity } | IoRequest::Abort { entity } => {
+                IoRequest::Close { entity } | IoRequest::CloseAfterFlush { entity } | IoRequest::Abort { entity } => {
                     assert_eq!(entity, Token::new(100));
                     component.up(&env, IoEvent::Closed { owner: owner.expect("connected owner") }, &mut up, &mut io);
                 }
@@ -190,7 +190,7 @@ fn run(seed: u64) -> (Trace, (u32, u32, bool)) {
         if let Some(request) = io.pop() {
             match request {
                 IoRequest::Stream { down, .. } => wire.take(down),
-                IoRequest::Close { entity } => {
+                IoRequest::Close { entity } | IoRequest::CloseAfterFlush { entity } => {
                     assert_eq!(entity, Token::new(100));
                     component.up(&later, IoEvent::Closed { owner: owner.expect("connected owner") }, &mut up, &mut io);
                     component.reclaim();
@@ -308,7 +308,7 @@ fn per_call_reasoning_policy(endpoint_default: bool) {
                     component.up(&env, IoEvent::Connected { owner: token }, &mut up, &mut io);
                 }
                 IoRequest::Stream { down, .. } => wire.take(down),
-                IoRequest::Close { .. } | IoRequest::Abort { .. } => {
+                IoRequest::Close { .. } | IoRequest::CloseAfterFlush { .. } | IoRequest::Abort { .. } => {
                     component.up(&env, IoEvent::Closed { owner: owner.expect("connected owner") }, &mut up, &mut io);
                     component.reclaim();
                 }
@@ -465,6 +465,7 @@ fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
                 | IoRequest::Usage { .. }
                 | IoRequest::Signal { .. }
                 | IoRequest::Close { .. }
+                | IoRequest::CloseAfterFlush { .. }
                 | IoRequest::Abort { .. }) => panic!("unexpected lower request: {other:?}"),
             }
         }

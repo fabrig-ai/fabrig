@@ -200,12 +200,14 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         body: Box::new([]),
         priority: 0,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
-            landing_ask: None,
             way: change::Way::Queue,
-            landing: None,
+
             task,
             state: change::State::Landed { merge: routes::object(99).bytes, since: Wall::from_nanos(17) },
             gates: Box::new([]),

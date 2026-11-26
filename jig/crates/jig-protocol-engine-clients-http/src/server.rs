@@ -42,7 +42,7 @@ struct Connection {
     replacement: Option<(Token, Option<IpAddr>)>,
     reuse: Option<http::Reuse>,
     closing: bool,
-    draining: bool,
+    flushing: bool,
     deadline: Time,
     held: Option<Time>,
 }
@@ -233,7 +233,7 @@ impl Server {
                     replacement: None,
                     reuse: None,
                     closing: false,
-                    draining: false,
+                    flushing: false,
                     deadline: self.env.now.saturating_add(self.env.limits.stall),
                     held: None,
                 },
@@ -375,7 +375,7 @@ impl Server {
         let env = self.http_env();
         let mut selected = None;
         for (owner, connection) in &self.connections {
-            if (self.phase == Phase::Aborting && (!connection.closing || connection.draining))
+            if (self.phase == Phase::Aborting && (!connection.closing || connection.flushing))
                 || (self.phase >= Phase::Closing && !connection.closing && (connection.call.is_none() || self.finished))
                 || !connection.below.is_empty()
                 || !connection.requests.is_empty()
@@ -428,17 +428,20 @@ impl Server {
         true
     }
 }
-fn end(connection: &mut Connection, drain: bool, out: &mut Queue<Routed>) {
-    if !connection.closing || (connection.draining && !drain) {
+fn end(connection: &mut Connection, flush: bool, out: &mut Queue<Routed>) {
+    if !connection.closing || (connection.flushing && !flush) {
         connection.closing = true;
-        connection.draining = drain;
+        connection.flushing = flush;
         connection.events = Queue::uncapped();
         connection.requests = Queue::uncapped();
         connection.below = Queue::uncapped();
-        out.push(Routed::Io(if drain {
-            io::Request::Close { entity: connection.socket }
+        let entity = connection.socket;
+        out.push(Routed::Io(if !flush {
+            io::Request::Abort { entity }
+        } else if connection.http.request_read_whole() {
+            io::Request::CloseAfterFlush { entity }
         } else {
-            io::Request::Abort { entity: connection.socket }
+            io::Request::Close { entity }
         }));
     }
 }

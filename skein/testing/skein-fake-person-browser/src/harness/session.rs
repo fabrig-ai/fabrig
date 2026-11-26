@@ -1,10 +1,10 @@
 //! Incremental harness transport for a program with its own session policy
 //! (ui/web/testing.md, 2). The caller supplies every writable directory.
-use super::{BROWSER, PROCESS, capacity};
+use super::{BROWSER, PROCESS, capacity, ending_report};
 use crate::BrowserFace;
 use skein_browser::{
     self as browser, Browser,
-    boundary::{Below, Down, Event, Request, Trouble},
+    boundary::{Below, Down, Ending, Event, Request, Trouble},
 };
 use skein_io::{
     self as io, Io,
@@ -30,10 +30,31 @@ pub enum Report {
     Io(io::Event),
     Opened,
     BrowserClosed,
-    Page { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
-    Sent { id: Box<[u8]>, load: Box<[u8]>, document: bool, method: Box<[u8]>, url: Box<[u8]> },
-    Answered { id: Box<[u8]> },
-    Trouble(String),
+    Page {
+        trouble: Trouble,
+        text: Box<[u8]>,
+        url: Box<[u8]>,
+    },
+    Sent {
+        id: Box<[u8]>,
+        load: Box<[u8]>,
+        document: bool,
+        method: Box<[u8]>,
+        url: Box<[u8]>,
+    },
+    Answered {
+        id: Box<[u8]>,
+    },
+    /// A transport failure; a kit ending or unsolicited Chromium exit carries its stderr tail.
+    Trouble {
+        why: String,
+        chromium_stderr: Option<Box<[u8]>>,
+    },
+}
+impl Report {
+    fn trouble(why: String) -> Self {
+        Self::Trouble { why, chromium_stderr: None }
+    }
 }
 fn page_report(event: Event) -> Result<Report, Event> {
     match event {
@@ -45,7 +66,7 @@ fn page_report(event: Event) -> Result<Report, Event> {
 }
 
 fn session_page(url: Box<[u8]>) -> Request {
-    Request::Page { person: PERSON, page: PAGE, url, requests: true }
+    Request::Page { person: PERSON, page: PAGE, url, requests: true, files: false }
 }
 
 // Each pop reserves the room for putting an ordinary completion back.
@@ -54,7 +75,7 @@ fn take_root_close(complete: &mut Queue<Complete>, reports: &mut Vec<Report>) {
         let entry = complete.pop().expect("each queued completion is taken once");
         if entry.op == ROOT_CLOSE {
             if let Err(error) = entry.result {
-                reports.push(Report::Trouble(format!("closing session root: {error:?}")));
+                reports.push(Report::trouble(format!("closing session root: {error:?}")));
             }
         } else {
             complete.push(entry);
@@ -68,13 +89,83 @@ enum Opening {
     Context(Box<[u8]>),
     Page,
     Open,
+    Raw,
     Closing,
+    Ended,
+    Exited,
     Closed,
 }
+impl Opening {
+    fn ended(&mut self, why: Ending, detail: &[u8], browser: &Browser, reports: &mut Vec<Report>) {
+        if !matches!(self, Self::Ended | Self::Exited | Self::Closed) {
+            *self = Self::Ended;
+            reports.push(Report::Trouble {
+                why: ending_report(why, detail),
+                chromium_stderr: Some(browser.stderr_tail().into()),
+            });
+        }
+    }
+
+    fn exited(&mut self, exit: kernel::Exit, browser: &Browser, reports: &mut Vec<Report>) {
+        if !matches!(self, Self::Closing | Self::Ended | Self::Exited | Self::Closed) {
+            reports.push(Report::Trouble {
+                why: format!("Chromium exited: {exit:?}"),
+                chromium_stderr: Some(browser.stderr_tail().into()),
+            });
+        }
+        *self = Self::Exited;
+    }
+
+    fn browser_closed(
+        &self,
+        owner: Token,
+        browser_owner: Token,
+        child: Option<Token>,
+        requests: &mut VecDeque<io::Request>,
+        reports: &mut Vec<Report>,
+    ) {
+        if owner == browser_owner {
+            if !matches!(self, Self::Exited | Self::Closed)
+                && let Some(entity) = child
+            {
+                // io closes a child by killing its process group if it is still running.
+                requests.push_back(io::Request::Close { entity });
+            }
+        } else if (owner == PERSON || owner == PAGE)
+            && !matches!(self, Self::Closing | Self::Ended | Self::Exited | Self::Closed)
+        {
+            reports.push(Report::trouble("browser could not open the session page".into()));
+        }
+    }
+}
+
+enum Delivery<'a, 'face> {
+    Drive(&'a mut BrowserFace<'face>),
+    Raw { events: &'a mut Vec<Event>, wake_on_idle: bool, owner: Token },
+}
+
+impl Delivery<'_, '_> {
+    // The transport still has to settle the child when the browser closes.
+    fn send(&mut self, event: Event, now: Time) -> Option<Event> {
+        match self {
+            Self::Drive(face) => {
+                face.event_at(&event, now);
+                Some(event)
+            }
+            Self::Raw { events, owner, .. } => {
+                let closed = matches!(event, Event::Closed { owner: closed } if closed == *owner);
+                events.push(event);
+                closed.then_some(Event::Closed { owner: *owner })
+            }
+        }
+    }
+}
+
 /// One ring for a browser and caller-owned processes. No program, profile or
 /// scratch directory is allocated implicitly; the caller owns deadline policy.
 pub struct Pump {
     browser: Browser,
+    browser_owner: Token,
     io: Io,
     ring: Ring,
     clock: Clock,
@@ -107,6 +198,15 @@ impl Pump {
         environment: Vec<(OsString, OsString)>,
         external: u32,
     ) -> Result<Self, String> {
+        Self::build(chromium, profile, environment, external, BROWSER)
+    }
+    fn build(
+        chromium: PathBuf,
+        profile: PathBuf,
+        environment: Vec<(OsString, OsString)>,
+        external: u32,
+        browser_owner: Token,
+    ) -> Result<Self, String> {
         let bl = browser::Limits::default();
         let cap = capacity::Capacity::new(2, 0, super::Output::Stdout, &bl).ok_or("session capacity does not fit")?;
         let transport = cap.operations.checked_add(1).ok_or("session root capacity does not fit")?;
@@ -120,7 +220,8 @@ impl Pump {
             }
         };
         Ok(Self {
-            browser: Browser::new(BROWSER, &bl),
+            browser: Browser::new(browser_owner, &bl),
+            browser_owner,
             io: Io::new(&cap.io),
             ring,
             clock: Clock::new(),
@@ -197,29 +298,46 @@ impl Pump {
                 .collect(),
         }
     }
+    fn start(&mut self, opening: Opening) {
+        let spawn = Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root());
+        self.opening = opening;
+        self.request(io::Request::Spawn { owner: PROCESS, spawn });
+    }
     pub fn open(&mut self, url: Box<[u8]>, face: &mut BrowserFace<'_>) {
         if matches!(self.opening, Opening::Idle) {
-            let spawn = Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root());
-            self.opening = Opening::Starting(url);
-            self.request(io::Request::Spawn { owner: PROCESS, spawn });
+            self.start(Opening::Starting(url));
         } else {
             face.go_to(url);
         }
     }
     pub fn close_browser(&mut self) {
-        if matches!(self.opening, Opening::Idle | Opening::Closed) {
-            self.opening = Opening::Closed;
-            self.reports.push(Report::BrowserClosed);
-        } else {
-            self.opening = Opening::Closing;
-            self.ask(Request::Close { entity: BROWSER });
+        match self.opening {
+            Opening::Idle | Opening::Closed => {
+                self.opening = Opening::Closed;
+                self.reports.push(Report::BrowserClosed);
+            }
+            Opening::Starting(_) | Opening::Context(_) | Opening::Page | Opening::Open | Opening::Raw => {
+                self.opening = Opening::Closing;
+                self.ask(Request::Close { entity: self.browser_owner });
+            }
+            Opening::Closing | Opening::Ended | Opening::Exited => {}
         }
     }
     pub fn force_browser(&mut self) {
-        self.opening =
-            if matches!(self.opening, Opening::Idle | Opening::Closed) { Opening::Closed } else { Opening::Closing };
-        if let Some(child) = self.child {
-            self.request(io::Request::Close { entity: child });
+        match self.opening {
+            Opening::Idle => self.opening = Opening::Closed,
+            Opening::Starting(_)
+            | Opening::Context(_)
+            | Opening::Page
+            | Opening::Open
+            | Opening::Raw
+            | Opening::Closing => {
+                self.opening = Opening::Closing;
+                if let Some(entity) = self.child {
+                    self.request(io::Request::Close { entity });
+                }
+            }
+            Opening::Ended | Opening::Exited | Opening::Closed => {}
         }
     }
     fn ask(&mut self, request: Request) {
@@ -255,6 +373,9 @@ impl Pump {
     /// Reap, advance and flush once. Wait for a completion or the earliest
     /// deadline only if neither the transport nor the caller has work to take.
     pub fn poll(&mut self, face: &mut BrowserFace<'_>, until: Option<Time>) -> Vec<Report> {
+        self.poll_once(Delivery::Drive(face), until)
+    }
+    fn poll_once(&mut self, mut delivery: Delivery<'_, '_>, until: Option<Time>) -> Vec<Report> {
         self.reap();
         self.ring.deliver(TRANSPORT, &mut self.complete);
         let time = self.clock.now();
@@ -264,17 +385,19 @@ impl Pump {
         self.ienv.wall = time.wall;
         take_root_close(&mut self.complete, &mut self.reports);
         io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits, time.now);
+        let mut face_activity = false;
         while let Some(event) = self.io_events.pop() {
+            // A pipe fault already observed by the kit takes precedence over a
+            // subsequent process exit, including when both arrive in this poll.
+            if matches!(event, io::Event::Exited { owner: PROCESS, .. }) && !self.events.is_empty() {
+                face_activity |= self.browser_events(&mut delivery, time.now);
+            }
             self.io_event(event);
         }
-        if self.pipes.is_some() {
+        if self.browser_live() {
             browser::fire(&mut self.browser, &self.benv, time.now, &mut self.events, &mut self.down);
         }
-        let face_activity = !self.events.is_empty();
-        while let Some(event) = self.events.pop() {
-            face.event_at(&event, time.now);
-            self.browser_event(event);
-        }
+        face_activity |= self.browser_events(&mut delivery, time.now);
         // With no page yet, a settled context has no remaining command deadline.
         if matches!(self.opening, Opening::Context(_)) && self.browser.next_deadline().is_none() {
             let Opening::Context(url) = std::mem::replace(&mut self.opening, Opening::Page) else {
@@ -282,12 +405,21 @@ impl Pump {
             };
             self.ask(session_page(url));
         }
-        face.tick(time.now);
-        for request in face.requests() {
-            self.ask(request);
-        }
+        let raw = matches!(delivery, Delivery::Raw { .. });
+        let (caller_ready, face_wake) = match delivery {
+            Delivery::Drive(face) => {
+                face.tick(time.now);
+                for request in face.requests() {
+                    self.ask(request);
+                }
+                (face.failed(), face.press_wake())
+            }
+            Delivery::Raw { wake_on_idle, .. } => (wake_on_idle && self.browser.next_deadline().is_none(), None),
+        };
         while let Some(down) = self.down.pop() {
-            if let Some([commands, replies, errors]) = self.pipes {
+            if self.browser_live()
+                && let Some([commands, replies, errors]) = self.pipes
+            {
                 let (stream, down) = match down {
                     Down::Commands(d) => (commands, d),
                     Down::Replies(d) => (replies, d),
@@ -314,19 +446,20 @@ impl Pump {
             self.ring.queue(submit);
         }
         let pending = self.io.is_ready()
-            || self.browser.work_pending()
+            || (self.browser_live() && self.browser.work_pending())
             || !self.requests.is_empty()
             || !self.complete.is_empty()
             || self.ring.has_ready()
             || face_activity
-            || face.failed()
-            || !self.reports.is_empty();
+            || caller_ready
+            || !self.reports.is_empty()
+            || (raw && self.closing_root && self.is_empty());
         let deadline = self
             .io
             .next_deadline()
             .into_iter()
-            .chain(self.browser.next_deadline())
-            .chain(face.press_wake())
+            .chain(self.browser_live().then(|| self.browser.next_deadline()).flatten())
+            .chain(face_wake)
             .chain(until)
             .min();
         let wait = match deadline {
@@ -339,12 +472,33 @@ impl Pump {
         self.ring.enter(wait);
         std::mem::take(&mut self.reports)
     }
+    fn browser_live(&self) -> bool {
+        self.pipes.is_some() && !matches!(self.opening, Opening::Exited | Opening::Closed)
+    }
+    fn browser_events(&mut self, delivery: &mut Delivery<'_, '_>, now: Time) -> bool {
+        let mut activity = false;
+        loop {
+            while let Some(event) = self.events.pop() {
+                activity = true;
+                if let Event::Ended { why, detail } = &event {
+                    self.opening.ended(*why, detail, &self.browser, &mut self.reports);
+                }
+                if let Some(event) = delivery.send(event, now) {
+                    self.browser_event(event);
+                }
+            }
+            if !self.browser_live() || !self.browser.work_pending() {
+                return activity;
+            }
+            browser::fire(&mut self.browser, &self.benv, now, &mut self.events, &mut self.down);
+        }
+    }
     fn io_event(&mut self, event: io::Event) {
         match event {
             io::Event::Spawned { owner: PROCESS, child, pipes } => {
                 self.child = Some(child);
                 let [commands, replies, errors] = pipes.as_ref() else {
-                    self.reports.push(Report::Trouble("Chromium pipe layout".into()));
+                    self.reports.push(Report::trouble("Chromium pipe layout".into()));
                     return;
                 };
                 self.pipes = Some([*commands, *replies, *errors]);
@@ -353,7 +507,10 @@ impl Pump {
                 }
             }
             io::Event::Stream { owner, up } if self.pipes.is_some_and(|pipes| pipes.contains(&owner)) => {
-                let [commands, replies, _] = self.pipes.expect("browser pipes");
+                let [commands, replies, errors] = self.pipes.expect("browser pipes");
+                if !self.browser_live() && owner != errors {
+                    return;
+                }
                 let below = if owner == commands {
                     Below::Commands(up)
                 } else if owner == replies {
@@ -364,9 +521,7 @@ impl Pump {
                 browser::up(&mut self.browser, &self.benv, below, &mut self.events, &mut self.down);
             }
             io::Event::Exited { owner: PROCESS, exit } => {
-                if !matches!(self.opening, Opening::Closing) {
-                    self.reports.push(Report::Trouble(format!("Chromium exited: {exit:?}")));
-                }
+                self.opening.exited(exit, &self.browser, &mut self.reports);
                 if let Some(pipes) = self.pipes {
                     for entity in pipes {
                         self.request(io::Request::Close { entity });
@@ -378,11 +533,12 @@ impl Pump {
             }
             io::Event::Closed { owner: PROCESS } => {
                 self.child = None;
+                self.pipes = None;
                 self.opening = Opening::Closed;
                 self.reports.push(Report::BrowserClosed);
             }
             io::Event::Failed { owner: PROCESS, error } => {
-                self.reports.push(Report::Trouble(format!("Chromium: {error:?}")));
+                self.reports.push(Report::trouble(format!("Chromium: {error:?}")));
             }
             event => self.reports.push(Report::Io(event)),
         }
@@ -397,7 +553,10 @@ impl Pump {
         };
         match event {
             Event::Ready { .. } => {
-                if let Opening::Starting(url) = std::mem::replace(&mut self.opening, Opening::Idle) {
+                if matches!(self.opening, Opening::Starting(_)) {
+                    let Opening::Starting(url) = std::mem::replace(&mut self.opening, Opening::Idle) else {
+                        unreachable!("starting session")
+                    };
                     self.opening = Opening::Context(url);
                     self.ask(Request::Person {
                         person: PERSON,
@@ -405,19 +564,40 @@ impl Pump {
                     });
                 }
             }
-            Event::Opened { page: PAGE } => {
-                self.opening = Opening::Open;
-                self.reports.push(Report::Opened);
-            }
-            Event::Closed { owner: BROWSER } => {
-                if let Some(child) = self.child {
-                    self.request(io::Request::Close { entity: child });
+            Event::Opened { page } => {
+                if page == PAGE && matches!(self.opening, Opening::Page) {
+                    self.opening = Opening::Open;
+                    self.reports.push(Report::Opened);
                 }
             }
-            Event::Closed { owner: PERSON | PAGE } if !matches!(self.opening, Opening::Closing | Opening::Closed) => {
-                self.reports.push(Report::Trouble("browser could not open the session page".into()));
+            Event::Closed { owner } => {
+                self.opening.browser_closed(
+                    owner,
+                    self.browser_owner,
+                    self.child,
+                    &mut self.requests,
+                    &mut self.reports,
+                );
             }
-            _ => {}
+            Event::Found { .. }
+            | Event::Met { .. }
+            | Event::Missed { .. }
+            | Event::Warned { .. }
+            | Event::Done { .. }
+            | Event::Refused { .. }
+            | Event::Snapshot { .. }
+            | Event::Screenshot { .. }
+            | Event::Address { .. }
+            | Event::Tabs { .. }
+            | Event::Attribute { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
+            | Event::Ended { .. }
+            | Event::Downloaded { .. }
+            | Event::Trouble { .. }
+            | Event::Sent { .. }
+            | Event::Answered { .. } => {}
         }
     }
     pub fn close_root(&mut self) {
@@ -431,6 +611,66 @@ impl Pump {
             && self.submits.is_empty()
             && self.complete.is_empty()
             && self.requests.is_empty()
+    }
+}
+
+/// The session transport without a person or page policy. After `Ready`, the
+/// caller names its own entities and receives the browser's events in order.
+/// Transport reports (including the child's settlement) stay separate.
+pub struct RawPump(Pump);
+
+impl RawPump {
+    /// `owner` names the browser itself; use other tokens for people and pages.
+    pub fn start(
+        chromium: PathBuf,
+        profile: PathBuf,
+        environment: Vec<(OsString, OsString)>,
+        owner: Token,
+    ) -> Result<Self, String> {
+        let mut pump = Pump::build(chromium, profile, environment, 0, owner)?;
+        pump.start(Opening::Raw);
+        Ok(Self(pump))
+    }
+
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.0.now()
+    }
+
+    pub fn request(&mut self, request: Request) {
+        self.0.benv.now = self.now();
+        self.0.ask(request);
+    }
+
+    /// Whether the browser has a command or operation awaiting an answer.
+    #[must_use]
+    pub fn pending(&self) -> bool {
+        self.0.browser.next_deadline().is_some()
+    }
+
+    /// `wake_on_idle` also returns control once pending commands finish, for
+    /// requests such as `Person` which have no success event.
+    pub fn poll(&mut self, until: Option<Time>, wake_on_idle: bool) -> (Vec<Report>, Vec<Event>) {
+        let mut events = Vec::new();
+        let owner = self.0.browser_owner;
+        let reports = self.0.poll_once(Delivery::Raw { events: &mut events, wake_on_idle, owner }, until);
+        (reports, events)
+    }
+
+    /// Start closing the browser and its root. Poll until `is_empty`.
+    pub fn close(&mut self) {
+        self.0.close_browser();
+        self.0.close_root();
+    }
+
+    /// End the child without waiting for the browser's reply to close.
+    pub fn force(&mut self) {
+        self.0.force_browser();
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

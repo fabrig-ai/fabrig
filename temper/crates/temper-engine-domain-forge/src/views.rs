@@ -74,7 +74,8 @@ impl Domain {
         None
     }
     fn landing_view(&self, task: u64) -> Option<LandingView> {
-        let row = &self.landing.rows.get(&task)?.landing;
+        let kept = self.landing.rows.get(&task)?;
+        let row = &kept.landing;
         let mut members = List::with_capacity(self.landing.limits.landing_members);
         for (member_index, member) in row.members.iter().enumerate() {
             let change = self.changes.get(&member.change)?;
@@ -155,7 +156,11 @@ impl Domain {
                 .expect("admitted members");
         }
         Some(LandingView {
-            read_hold: self.landing.rows.get(&task)?.read_hold.clone(),
+            read_hold: if let policy::Phase::Held { why: policy::Hold::Cleanup, .. } = row.phase {
+                self.landing_hold_reason(kept)
+            } else {
+                kept.read_hold.clone()
+            },
             waits: self.landing_wait(task),
             task,
             project: row.project,

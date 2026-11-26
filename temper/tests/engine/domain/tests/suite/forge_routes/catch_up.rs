@@ -119,6 +119,7 @@ pub(super) fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
 }
 
 pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8], head: u64, base: u64) {
+    use temper_protocol_worker_wire::v1::{self, Record};
     assert_eq!(job.kind, JobKind(3));
     assert_eq!(
         change_row(world, task).delegate,
@@ -128,11 +129,8 @@ pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, bra
     assert_eq!(change_row(world, task).catch_up, Some(translate::commit(base)));
     assert_eq!(change_row(world, task).base.as_ref(), branch);
     assert_eq!(change_row(world, task).change.resolutions, 0);
-    let mut reader = skein_lib::Reader::new(&job.spec);
-    let command_length = reader.u32().expect("command length");
-    reader.bytes(command_length).expect("merge command");
-    let request_length = reader.u32().expect("request length");
-    let request = reader.bytes(request_length).expect("merge request");
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
+    assert!(!spec.refusal);
     let head_text = forge_top::commit_text(&translate::commit(head));
     let base_text = forge_top::commit_text(&translate::commit(base));
     let expected = format!(
@@ -140,8 +138,7 @@ pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, bra
         core::str::from_utf8(&head_text).expect("head text"),
         core::str::from_utf8(&base_text).expect("base text"),
     );
-    assert_eq!(request, expected.as_bytes());
-    assert!(reader.is_empty());
+    assert_eq!(spec.request.as_ref(), expected.as_bytes());
     let workspace = job.workspace.as_ref().expect("the merge job needs its writable repository item");
     assert_eq!(workspace.workstream, task, "the change owns the checkout cache");
     let items = &world.job_workspaces.get(&job.run.raw()).expect("typed job items").repositories;

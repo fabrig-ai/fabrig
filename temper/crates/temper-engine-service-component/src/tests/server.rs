@@ -116,7 +116,7 @@ fn closing_ends_a_held_call_after_its_component_finishes() {
     server.finish();
     while server.advance(&mut out) {}
     assert_eq!(server.next_deadline(), None);
-    let Some(crate::server::Routed::Io(skein_io::Request::Close { entity })) = out.pop() else {
+    let Some(crate::server::Routed::Io(skein_io::Request::CloseAfterFlush { entity })) = out.pop() else {
         panic!("held connection closed")
     };
     assert_eq!(entity, SOCKET);
@@ -174,7 +174,7 @@ fn a_completed_closing_response_drains_while_the_server_serves() {
     }
     assert!(completed, "response completed");
     server.done(call, &mut out);
-    let Some(crate::server::Routed::Io(skein_io::Request::Close { entity })) = out.pop() else {
+    let Some(crate::server::Routed::Io(skein_io::Request::CloseAfterFlush { entity })) = out.pop() else {
         panic!("completed response drains")
     };
     assert_eq!(entity, SOCKET);

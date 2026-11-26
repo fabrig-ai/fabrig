@@ -11,17 +11,15 @@ const REQUEST: &[u8] = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":t
 const COMMAND: &[u8] = b".temper/close";
 
 fn goal_world(command: bool, authority: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        true,
-        STEPS,
-        Gate::default(),
-        None,
-        StoryLimits { result_bytes: Some(512), ..StoryLimits::default() },
-    )
-    .with_close_job(command.then_some(COMMAND), authority)
-    .with_landing_deployment(Box::new([engine::LandingRule {
+    goal_world_with_worker(command, authority, true)
+}
+
+fn goal_world_with_worker(
+    command: bool,
+    authority: bool,
+    close_worker: bool,
+) -> (World, engine::Assignment, Box<[u8]>, u64) {
+    let landing_deployment = Box::new([engine::LandingRule {
         sets: Box::new([]),
         connector: 0,
         kind: 4,
@@ -34,9 +32,27 @@ fn goal_world(command: bool, authority: bool) -> (World, engine::Assignment, Box
         up_to_date: false,
         gates: Box::new([]),
         approvals: Box::new([]),
-    }]));
+    }]);
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            result_bytes: Some(512),
+            close_job: Some((command.then(|| COMMAND.into()), authority)),
+            landing_deployment: Some(landing_deployment),
+            ..StoryLimits::default()
+        },
+    );
     world.adopt();
-    hello_close_worker(&mut world);
+    if close_worker {
+        hello_close_worker(&mut world);
+    } else {
+        world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
+    }
     let request = goal_request(&world, true);
     let goal = assigned_chat(&mut world, 92, request);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
@@ -116,23 +132,52 @@ fn finish_job(world: &mut World, job: &host::JobAssignment) {
 }
 
 pub(super) fn finish_job_on(world: &mut World, channel: Token, job: &host::JobAssignment) {
+    finish_with_on(world, channel, job, br#"{"settled":[]}"#);
+}
+
+pub(super) fn finish_with(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
+    finish_with_on(world, CHANNEL, job, result);
+}
+
+fn finish_with_on(world: &mut World, channel: Token, job: &host::JobAssignment, result: &[u8]) {
     let event = world.protocol.answer_job(
         channel,
         job.run.raw(),
         job.attempt.raw(),
-        host::JobEnding::Finished {
-            result: br#"{"settled":[]}"#.as_slice().into(),
-            work: host::Work { left: None, saved: None },
-        },
+        host::JobEnding::Finished { result: result.into(), work: host::Work { left: None, saved: None } },
     );
     world.send(event);
 }
 
+pub(super) const CLOSE_COUNTS: [u8; 32] = [0x33; 32];
+
+pub(super) fn check_refusal(head: [u8; 32], base: [u8; 32]) -> Box<[u8]> {
+    let head = forge_top::commit_text(&head);
+    let base = forge_top::commit_text(&base);
+    let counts = forge_top::commit_text(&CLOSE_COUNTS);
+    let head = core::str::from_utf8(&head).expect("head hex");
+    let base = core::str::from_utf8(&base).expect("base hex");
+    let counts = core::str::from_utf8(&counts).expect("counts hex");
+    let tree = "2222222222222222222222222222222222222222";
+    format!(r#"{{"refused":{{"head":"{head}","tree":"{tree}","base":"{base}","counts":"{counts}","failures":["test A::rules rule_00"]}}}}"#)
+        .into_bytes()
+        .into_boxed_slice()
+}
+
 #[test]
-fn a_close_change_runs_the_close_job_at_a_branch_at_its_landing_branchs_tip() {
+fn a_close_job_starts_at_the_tip_read_before_assignment() {
     use temper_protocol_worker_wire::v1;
-    let (mut world, goal, branch, tip) = goal_world(true, true);
+    let (mut world, goal, branch, tip) = goal_world_with_worker(true, true, false);
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    for _ in 0..STEPS {
+        if change_row(&world, task).close_at.is_some() {
+            break;
+        }
+        world.tick();
+    }
+    let moved = advance_goal_tip(&mut world, &goal, &branch);
+    world.send(protocol::lost(CHANNEL));
+    hello_close_worker(&mut world);
     let job = next_job(&mut world, task);
     assert_eq!(job.kind, jig_domain_link::JobKind(forge_top::CLOSE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
@@ -145,9 +190,11 @@ fn a_close_change_runs_the_close_job_at_a_branch_at_its_landing_branchs_tip() {
     assert_eq!(workspace.workstream, task);
     let items = &world.job_workspaces.get(&job.run.raw()).expect("typed job items").repositories;
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].start, engine::ForgeStart::Branch(branch.clone()));
+    assert_eq!(items[0].start, engine::ForgeStart::Commit(translate::commit(tip)));
     assert_eq!(items[0].push.as_deref(), Some(change_row(&world, task).branch.as_ref()));
-    assert_eq!(branch_tip(&mut world, &branch), tip);
+    assert_eq!(branch_tip(&mut world, &branch), moved);
+    assert_ne!(moved, tip);
+    assert!(change_row(&world, task).close_at.expect("recorded attempt").asked);
     assert_eq!(world.assigned.len(), 1, "only the goal's agent exists");
     finish_job(&mut world, &job);
     for _ in 0..STEPS {
@@ -269,9 +316,18 @@ fn fail_close_until_held(
     failure: host::JobFailure,
     detail: &[u8],
 ) {
-    for attempt in 0..=world.env.limits.tasks.retries.permanent.retries {
+    let retries = match failure {
+        host::JobFailure::Failed | host::JobFailure::Deadline => world.env.limits.tasks.retries.run.retries,
+        host::JobFailure::Undelivered(host::DeliveryOutcome::Refused) => {
+            world.env.limits.tasks.retries.permanent.retries
+        }
+        unexpected => panic!("unexpected close fault fixture: {unexpected:?}"),
+    };
+    let child = job.run.raw();
+    for attempt in 0..=retries {
         if attempt != 0 {
             job = next_job(world, task);
+            assert_eq!(job.run.raw(), child, "the retry belongs to the original job");
         }
         let event = world.protocol.answer_job(
             CHANNEL,
@@ -315,33 +371,40 @@ fn advance_goal_tip(world: &mut World, goal: &engine::Assignment, branch: &[u8])
     super::goal_delivery::deliver(world, goal, tip, b"docs/design/close.md")
 }
 
-fn assert_fresh_workspace(world: &World, task: u64, job: &host::JobAssignment, previous: &[engine::ForgeRepository]) {
+fn assert_fresh_workspace(
+    world: &World,
+    task: u64,
+    job: &host::JobAssignment,
+    previous: &[engine::ForgeRepository],
+    tip: u64,
+) {
     assert_eq!(job.workspace.as_ref().expect("writable workstream").workstream, task);
     let fresh = &world.job_workspaces.get(&job.run.raw()).expect("fresh workspace").repositories;
     let ([fresh], [previous]) = (fresh.as_ref(), previous) else { panic!("one writable repository per job") };
     assert!(fresh.save.is_some());
     assert_ne!(fresh.save, previous.save, "a fresh job has its own saved-work branch");
-    let mut same_checkout = fresh.clone();
-    same_checkout.save.clone_from(&previous.save);
-    assert_eq!(&same_checkout, previous);
+    let mut expected = previous.clone();
+    expected.start = engine::ForgeStart::Commit(translate::commit(tip));
+    expected.save.clone_from(&fresh.save);
+    assert_eq!(fresh, &expected);
 }
 
 #[test]
 fn a_fresh_close_job_keeps_its_changes_writable_workspace() {
-    let (mut world, goal, branch, _) = goal_world(true, true);
+    let (mut world, goal, branch, tip) = goal_world(true, true);
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
     let first = next_job(&mut world, task);
     let child = first.run.raw();
     let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].start, engine::ForgeStart::Branch(branch.clone()));
+    assert_eq!(items[0].start, engine::ForgeStart::Commit(translate::commit(tip)));
     assert_eq!(items[0].push.as_deref(), Some(change_row(&world, task).branch.as_ref()));
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
-    advance_goal_tip(&mut world, &goal, &branch);
+    let tip = advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
-    assert_fresh_workspace(&world, task, &retry, &items);
+    assert_fresh_workspace(&world, task, &retry, &items, tip);
     finish_job(&mut world, &retry);
     world.close();
 }
@@ -432,7 +495,7 @@ fn a_fresh_close_job_that_fails_holds_its_change_with_the_new_words() {
 }
 
 #[test]
-fn releasing_a_close_change_makes_a_fresh_job() {
+fn releasing_a_broken_close_rechecks_unchanged_tips() {
     let (mut world, goal, branch, _) = goal_world(true, true);
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
     let first = next_job(&mut world, task);
@@ -447,7 +510,6 @@ fn releasing_a_close_change_makes_a_fresh_job() {
     };
     assert_eq!(reason.as_ref(), b"its change holds on its failure");
     let before = change_row(&world, task).close_at.expect("first job recorded its tips");
-    let tip = advance_goal_tip(&mut world, &goal, &branch);
     release_change(&mut world, &goal, task);
     let fresh = next_job(&mut world, task);
     assert_ne!(fresh.run.raw(), child);
@@ -458,22 +520,21 @@ fn releasing_a_close_change_makes_a_fresh_job() {
     assert_eq!(fresh_items[0].push, items[0].push);
     assert_eq!(live_task(&world, fresh.run.raw()).authority.budget.spend, 0);
     assert_eq!(change_row(&world, task).delegate, Some((fresh.run.raw(), change::Delegate::Close)));
-    assert_eq!(
-        change_row(&world, task).close_at,
-        Some(change::CloseAt { branch: translate::commit(tip), landing: before.landing })
-    );
+    assert_eq!(change_row(&world, task).close_at, Some(before));
     finish_job(&mut world, &fresh);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
     world.close();
 }
 
 #[test]
-fn a_move_on_main_alone_makes_a_fresh_close_job() {
+fn moving_main_alone_rechecks_a_refused_close() {
     let (mut world, goal, branch, tip) = goal_world(true, true);
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
     let first = next_job(&mut world, task);
     let child = first.run.raw();
-    fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
+    let landing = branch_tip(&mut world, b"main");
+    finish_with(&mut world, &first, &check_refusal(translate::commit(tip), translate::commit(landing)));
+    super::goal_closer::wait_held(&mut world, task, goal.task);
     let landing = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"counts", b"updated", 1)
         .expect("main moved");
     release_change(&mut world, &goal, task);
@@ -481,7 +542,12 @@ fn a_move_on_main_alone_makes_a_fresh_close_job() {
     assert_ne!(fresh.run.raw(), child);
     assert_eq!(
         change_row(&world, task).close_at,
-        Some(change::CloseAt { branch: translate::commit(tip), landing: translate::commit(landing) })
+        Some(change::CloseAt {
+            branch: translate::commit(tip),
+            landing: translate::commit(landing),
+            asked: true,
+            refused: None,
+        })
     );
     finish_job(&mut world, &fresh);
     world.close();
@@ -495,7 +561,7 @@ fn a_fresh_close_job_keeps_its_changes_writable_workspace_after_restart() {
     let child = first.run.raw();
     let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
     fail_close_until_held(&mut world, task, first, host::JobFailure::Failed, b"exit 1: close: unknown tag");
-    advance_goal_tip(&mut world, &goal, &branch);
+    let tip = advance_goal_tip(&mut world, &goal, &branch);
     world.drain_cut();
     world.restart_same();
     // The reconnecting worker advertises the same job kind as before restart.
@@ -509,10 +575,57 @@ fn a_fresh_close_job_keeps_its_changes_writable_workspace_after_restart() {
     release_change(&mut world, &goal, task);
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
-    assert_fresh_workspace(&world, task, &retry, &items);
+    assert_fresh_workspace(&world, task, &retry, &items, tip);
     finish_job(&mut world, &retry);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
     world.close();
+}
+
+#[test]
+fn a_broken_close_holds_after_its_run_tries() {
+    for (failure, detail, expected) in [
+        (
+            host::JobFailure::Failed,
+            b"exit 1: close: command failed".as_slice(),
+            "the close check broke and didn't judge the goal: exit 1: close: command failed; its release runs it again.",
+        ),
+        (
+            host::JobFailure::Deadline,
+            b"command timed out".as_slice(),
+            "the close check broke and didn't judge the goal: command timed out; its release runs it again.",
+        ),
+    ] {
+        let (mut world, goal, branch, _) = goal_world(true, true);
+        let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+        let job = next_job(&mut world, task);
+        fail_close_until_held(&mut world, task, job, failure, detail);
+        super::goal_closer::assert_hold_words(&world, task, expected);
+        world.close();
+    }
+}
+
+#[test]
+fn an_unrecognized_finished_close_holds_without_another_try() {
+    const OTHER_HEAD: [u8; 32] = [0x12; 32];
+    let wrong_head = check_refusal(OTHER_HEAD, OTHER_HEAD);
+    for (result, reason) in [
+        (br#"{"other":1}"#.as_slice(), r#"{"other":1}"#),
+        (b"not JSON".as_slice(), "not JSON"),
+        (wrong_head.as_ref(), r#"{"refused":{"head":"12121212121212121212121212121212121212121212"#),
+    ] {
+        let (mut world, goal, branch, _) = goal_world(true, true);
+        let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+        let job = next_job(&mut world, task);
+        finish_with(&mut world, &job, result);
+        super::goal_closer::wait_held(&mut world, task, goal.task);
+        let expected = format!(
+            "the close check broke and didn't judge the goal: it finished with {reason}; its release runs it again."
+        );
+        super::goal_closer::assert_hold_words(&world, task, &expected);
+        assert_eq!(change_row(&world, task).close_at.expect("close attempt").refused, None);
+        assert!(world.jobs.is_empty(), "a finished invalid result must not spend another try");
+        world.close();
+    }
 }
 
 #[test]

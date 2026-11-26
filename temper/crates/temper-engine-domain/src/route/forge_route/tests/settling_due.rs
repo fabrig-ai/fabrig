@@ -73,9 +73,9 @@ fn gating(domain: &mut Domain, env: &Env<Limits>, status: change::Status) {
 
 fn only_waiter_forms(domain: &mut Domain, env: &Env<Limits>) {
     super::judge_trains(domain, env);
-    let formed = domain.forge.change(7).unwrap().change.landing.expect("the settled waiter forms at this judgement");
+    let formed = domain.forge.landing_of(7).expect("the settled waiter forms at this judgement");
     assert_eq!(members(domain, formed).as_ref(), [7]);
-    assert_eq!(domain.forge.change(8).unwrap().change.landing, None);
+    assert_eq!(domain.forge.landing_of(8), None);
     assert!(domain.core.tasks.procedure_due(8).is_some());
 }
 
@@ -120,7 +120,7 @@ fn a_gating_head_holds_for_one_step_only_even_when_woken_again() {
     let (_, _, first) = domain.core.tasks.procedure_due(8).unwrap();
     for _ in 0_u8..2 {
         super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.change(7).unwrap().change.landing, None, "the same due step keeps holding");
+        assert_eq!(domain.forge.landing_of(7), None, "the same due step keeps holding");
     }
     settle(&mut domain, &env, 8);
     wake(&mut domain, &env, 8);
@@ -134,7 +134,7 @@ fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
         let (mut domain, env) = ready_changes(&[7, 8], 3);
         gating(&mut domain, &env, change::Status::Passed);
         super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+        assert_eq!(domain.forge.landing_of(7), None);
         settle(&mut domain, &env, 8);
         // Leave no waiting unit while proving the old hold has been spent.
         let ready_seven = domain.forge.change(7).unwrap().clone();
@@ -159,7 +159,7 @@ fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
         restore(&mut domain, &env, ready_seven);
         settle(&mut domain, &env, 7);
         super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.change(7).unwrap().change.landing, None, "the new gating episode settles again");
+        assert_eq!(domain.forge.landing_of(7), None, "the new gating episode settles again");
         settle(&mut domain, &env, 8);
         wake(&mut domain, &env, 8);
         only_waiter_forms(&mut domain, &env);
@@ -193,11 +193,7 @@ fn a_returned_gate_terminal_holds_until_the_due_step_consumes_it() {
         }]);
         restore_task(&mut domain, &env, task);
         super::judge_trains(&mut domain, &env);
-        assert_eq!(
-            domain.forge.change(7).unwrap().change.landing.is_none(),
-            holds,
-            "only the current gate at the checked head settles"
-        );
+        assert_eq!(domain.forge.landing_of(7).is_none(), holds, "only the current gate at the checked head settles");
         assert_eq!(domain.forge.change(8).unwrap().verdicts.first().unwrap().status, status);
     }
 }

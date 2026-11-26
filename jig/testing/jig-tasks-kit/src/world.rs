@@ -863,7 +863,7 @@ impl World {
                     &mut self.out,
                 );
             }
-            if let Request::Ended { task, requester: Party::Task(parent), ending } = &request {
+            if let Request::Ended { task, requester: Party::Task(parent), ending, wake } = &request {
                 let last = self.pending.iter().rev().find_map(|pending| {
                     if let Request::Save { record: Stored::Live(row) } = pending
                         && row.number == *parent
@@ -880,6 +880,7 @@ impl World {
                     &self.env,
                     Event::DelegateResult {
                         task: *parent,
+                        wake: *wake,
                         word: Word {
                             number: self.message,
                             from: Party::Task(*task),

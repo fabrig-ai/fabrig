@@ -202,7 +202,7 @@ pub(super) fn abort_channel(service: &mut Stages) {
             io::Request::Stream { stream, .. } | io::Request::Output { stream, .. } => {
                 Some(*stream) == service.input || Some(*stream) == service.output
             }
-            io::Request::Close { entity } | io::Request::Abort { entity } => {
+            io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } | io::Request::Abort { entity } => {
                 Some(*entity) == service.input || Some(*entity) == service.output
             }
             io::Request::Listen { .. }

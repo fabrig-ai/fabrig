@@ -20,7 +20,7 @@ No earlier story split the binaries. What exists already:
 ## 1. In one page
 
 - **Two sets on fabrig.ai:**
-  - **the box,** as today: one whole-product binary at `fabrig.ai/temper/<os>-<arch>`, stripped and gzipped, built from main;
+  - **the box:** `temper`, the client, at `fabrig.ai/temper/<os>-<arch>`, stripped and served unpacked, which fetches `temper-box`, the whole product, stripped and packed by `zstd -19` as `temper-box.zst`, built from main;
   - **the deployment,** new: four binaries under `fabrig.ai/temper/v{MAJOR}/`, gzipped and not stripped, each build in a directory of its own commit (section 2).
 - **The user's four cover a deployment's processes.** Seven of today's commands had no home among them, and section 3 places each:
   - `ctl`;
@@ -49,14 +49,15 @@ No earlier story split the binaries. What exists already:
 |---|---|---|
 | For | a person trying temper on their own machine | an engine, its workers and their agents, on hosts a deployer runs |
 | Binaries | `temper`, the client, which fetches `temper-box`, the whole product, at its first `temper box` (`cli.md`, section 5) | four, one per process (section 4) |
-| Where | `fabrig.ai/temper/<os>-<arch>` for `temper`, and `temper-box` in each commit's directory of the deployment set | `fabrig.ai/temper/v{MAJOR}/<COMMIT>/<os>-<arch>/<name>`, and `fabrig.ai/temper/v{MAJOR}/<os>-<arch>/<name>` for the latest |
-| Prepared | stripped, then gzipped | gzipped, not stripped, so a crash names its frames |
+| Where | `fabrig.ai/temper/<os>-<arch>` for `temper`, and `<os>-<arch>/temper-box.zst` in each commit's directory of the deployment set | `fabrig.ai/temper/v{MAJOR}/<COMMIT>/<os>-<arch>/<name>`, and `fabrig.ai/temper/v{MAJOR}/<os>-<arch>/<name>` for the latest |
+| Prepared | stripped; `temper` served unpacked, `temper-box` packed by `zstd -19` | gzipped, not stripped, so a crash names its frames |
 | Built from | main's latest, for now | one commit for the four |
 | Beside them | as the site serves it | `SHA256SUMS`, one line per served file, and `examples.tar.gz`, the commit's `temper/docs/examples/`, in each commit's directory |
 
 - **`<os>-<arch>`** is `$(uname -s)-$(uname -m)`, as the box's (`../release.md`, 5.1): `Linux-x86_64` and `Darwin-arm64`.
 - **The starting documents:** the server's help has a deployer copy the example documents. A downloaded set has no checkout, so each commit's directory carries them, as `examples.tar.gz`, from the same commit as the binaries.
-- **Gzipped with no `.gz` suffix,** as the box's file is served. A download pipes through `gunzip`, and the help says so beside each URL.
+- **The deployment's gzipped with no `.gz` suffix:** a download pipes through `gunzip`, and the help says so beside each URL.
+- **The box's packed as each is fetched** (the user, 2026-11-25): `temper` is served unpacked, so the site's one-line download needs no unpacking step; `temper-box.zst` keeps its suffix and is unpacked by `temper box` itself, so nothing is asked of the machine (`../client/box-binary.md`, 3). The whole product is about 58 MB unpacked, 24.0 MB gzipped and 17.0 MB as `zstd -19`. Its line in the commit's `SHA256SUMS` names `<os>-<arch>/temper-box.zst` and holds the packed file's digest.
 - **Each build in its own directory,** named by its commit's twelve hex digits. A build writes its directory whole, then moves `v{MAJOR}`'s latest link to it in one step. A reader never sees two commits mixed, and a deployer can pin a commit by its directory. The latest link is the draft's reading of "always pointing to the latest release (main for now)", which the user said of the box set.
 
 ## 3. What the four leave without a home
@@ -151,6 +152,7 @@ The site's release job builds the box binary today, when a release build is aske
 - **Prepared and published:**
   - each file checked: it runs `--version` and prints the run's commit;
   - each file gzipped with `gzip -9 -n`, not stripped;
+  - the box's `temper-box`, stripped, packed with `zstd -19` as `<os>-<arch>/temper-box.zst` in the same directory, and its `temper`, stripped, served unpacked at the short link (section 2);
   - `examples.tar.gz` written from the commit's `temper/docs/examples/`;
   - `SHA256SUMS` written;
   - the commit's directory written whole, then the latest link moved (section 2).

@@ -530,7 +530,7 @@ mv "$TEMPER_TEST_LIVE_ACCOUNT" "$TEMPER_TEST_LIVE_STORE/synthetic-import"
 cat > "$TEMPER_TEST_LIVE_STORE/give-back" <<'HOOK'
 #!/bin/sh
 set -eu
-test ! -d "/proc/$(cat "$TEMPER_TEST_LIVE_STORE/runner")"
+! kill -0 "$(cat "$TEMPER_TEST_LIVE_STORE/runner")" 2>/dev/null || exit 1
 kill -0 "$(cat "$TEMPER_TEST_LIVE_STORE/box")"
 mv "$TEMPER_TEST_LIVE_STORE/synthetic-import" "$TEMPER_TEST_LIVE_ACCOUNT"
 printf '%s\n' 'HOOK RETURNED'

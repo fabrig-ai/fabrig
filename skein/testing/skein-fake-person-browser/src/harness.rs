@@ -1,6 +1,6 @@
 //! The server and Chromium are children of one io loop (ui/web/testing.md, 2).
 use crate::BrowserFace;
-use browser::boundary::{Below, Down, Event, Request, Trouble};
+use browser::boundary::{Below, Down, Ending, Event, Request, Trouble};
 use skein_browser::{self as browser, Browser};
 use skein_fake_peers::Listening;
 use skein_fake_person::Next;
@@ -788,6 +788,18 @@ impl Runtime {
             Event::Refused { op, .. } if *op == SNAPSHOT || *op == IMAGE => {
                 self.capture_answer(*op);
             }
+            Event::Ended { why, detail } => {
+                let ending = ending_report(*why, detail);
+                if let Some(Outcome::Failed { report, .. }) = &mut self.outcome {
+                    write!(report, "\n{ending}").expect("string write");
+                } else {
+                    self.fail(0, 0, ending);
+                }
+                // No snapshot or screenshot can be requested from a dead kit.
+                if !self.closing.active() {
+                    self.close();
+                }
+            }
             Event::Closed { owner } => self.closing.browser_closed(*owner, &mut self.requests),
             Event::Sent { .. }
             | Event::Answered { .. }
@@ -798,6 +810,9 @@ impl Runtime {
             | Event::Missed { .. }
             | Event::Done { .. }
             | Event::Refused { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
             | Event::Attribute { .. }
             | Event::Tabs { .. }
             | Event::Address { .. }
@@ -1048,7 +1063,13 @@ impl Runtime {
                 page_with_query(line.url.as_bytes(), &setup.page_query, setup.page_addresses)
             };
             faces[self.opening].first_url = String::from_utf8(url.to_vec()).expect("printed URL is UTF-8");
-            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url, requests: false });
+            self.ask(Request::Page {
+                person: person(self.opening),
+                page: page(self.opening),
+                url,
+                requests: false,
+                files: false,
+            });
             return true;
         }
         false
@@ -1335,6 +1356,18 @@ fn event_owner(event: &io::Event) -> Option<Token> {
         | io::Event::Closed { owner } => Some(*owner),
         io::Event::Resized | io::Event::Window { .. } | io::Event::Shutdown { .. } => None,
     }
+}
+
+fn ending_report(why: Ending, detail: &[u8]) -> String {
+    let why = match why {
+        Ending::Pipe => "pipe",
+        Ending::Message => "message",
+        Ending::Unsent => "unsent",
+        Ending::Neither => "neither",
+        Ending::Refused => "refused",
+        Ending::Unanswered => "unanswered",
+    };
+    format!("browser ended: {why}: {}", String::from_utf8_lossy(detail))
 }
 
 fn trouble_report(trouble: Trouble, text: &[u8], url: &[u8]) -> String {

@@ -1,6 +1,6 @@
 # accounts-lists: status
 
-2026-11-23. Where the tree's code lags or departs from [accounts-lists.md](accounts-lists.md).
+2026-11-26. Where the tree's code lags or departs from [accounts-lists.md](accounts-lists.md).
 
 Section 1 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.

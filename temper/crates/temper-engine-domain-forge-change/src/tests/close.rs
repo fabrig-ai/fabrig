@@ -1,7 +1,8 @@
 //! Close producers (temper/docs/design/domain/forge/change/README.md, 1, temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 
-const TIPS: crate::CloseAt = crate::CloseAt { branch: HEAD, landing: BASE };
+const TIPS: crate::CloseAt = crate::CloseAt { branch: HEAD, landing: BASE, asked: true, refused: None };
+const REFUSAL: crate::CloseAt = crate::CloseAt { refused: Some(crate::CloseRefused { counts: None }), ..TIPS };
 
 fn close(requested: bool) -> (Change, Facts) {
     let mut c = change(State::Producing { requested });
@@ -33,9 +34,9 @@ fn a_close_waits_while_its_closer_waits_for_work() {
 }
 
 #[test]
-fn a_close_with_unchanged_tips_holds_on_its_failure() {
+fn a_close_with_unchanged_tips_holds_on_its_refusal() {
     let (c, mut f) = close(false);
-    f.close_at = Some(TIPS);
+    f.close_at = Some(REFUSAL);
     let h = Heard { delegate: Status::Failed, ..heard() };
     let next = decide(&c, &f, &h);
     assert_eq!(next.decision, Decision::Hold(Hold::Failed));
@@ -46,9 +47,9 @@ fn a_close_with_unchanged_tips_holds_on_its_failure() {
 }
 
 #[test]
-fn a_failed_close_restarts_if_either_tip_moved() {
+fn a_refused_close_restarts_if_either_tip_moved() {
     let (c, mut f) = close(false);
-    f.close_at = Some(TIPS);
+    f.close_at = Some(REFUSAL);
     let h = Heard { delegate: Status::Failed, ..heard() };
     for tips in [crate::CloseAt { branch: NEW, ..TIPS }, crate::CloseAt { landing: NEW, ..TIPS }] {
         f.close_tips = Some(tips);

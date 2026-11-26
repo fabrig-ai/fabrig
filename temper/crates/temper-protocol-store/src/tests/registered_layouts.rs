@@ -230,6 +230,33 @@ fn a_change_layout_without_measured_tips_defaults_to_none() {
 }
 
 #[test]
+fn earlier_close_tips_default_to_not_asked_or_refused() {
+    const BRANCH: [u8; 32] = [3; 32];
+    const LANDING: [u8; 32] = [4; 32];
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let close_at = family.current.lines().find(|line| line.starts_with("record CloseAt {")).unwrap();
+    let before = family.current.replacen(close_at, "record CloseAt { branch: fixed 32 landing: fixed 32 }", 1);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"CloseAt", None).unwrap(),
+        &[],
+        &new,
+        new.root(b"CloseAt", None).unwrap(),
+        &[],
+    )
+    .expect("close attempt metadata defaults on the registered layout");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    let earlier = [BRANCH, LANDING].concat();
+    plan.convert(&earlier, &mut out, &mut work).unwrap();
+    let at = crate::v25::CloseAt::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
+    assert_eq!(at, crate::v25::CloseAt { branch: BRANCH, landing: LANDING, asked: false, refused: None });
+}
+
+#[test]
 fn a_change_layout_without_regate_defaults_it_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let before = family.current.replacen("regate: option Regate = none ", "", 1);

@@ -6,6 +6,12 @@ use skein_lib::List;
 use temper_client_protocol_wire::waits::{LANDING_ANCESTRY, LANDING_OPEN, LANDING_READ, THING_TASK};
 
 const TASK: u64 = 61;
+const CLEANUP_PULL: u64 = 92;
+const OTHER_HOLDER: u64 = 77;
+const CLOSE_REFUSED: &[u8] = b"cleanup: close item: forge refused permission; resource org/repo #92";
+const DELETE_REFUSED: &[u8] =
+    b"cleanup: delete branch: forge refused permission; resource org/repo branch temper/1/l61-0";
+const CLEANUP_HOLD: policy::Decision = policy::Decision::Hold(policy::Hold::Cleanup);
 const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
 const FRESH: api::Commit = [20; 32];
@@ -61,6 +67,9 @@ struct World {
     env: Env<Limits>,
     prefixes: [Option<api::Commit>; 4],
     pull: Option<api::Pull>,
+    closed_pull: Option<u64>,
+    refuse_cleanup: bool,
+    refusals: List<Option<Box<[u8]>>>,
     main: api::Commit,
     entry: u64,
     by_test: bool,
@@ -96,6 +105,9 @@ impl World {
             env: e,
             prefixes: [None; 4],
             pull: None,
+            closed_pull: None,
+            refuse_cleanup: false,
+            refusals: List::uncapped(),
             main: fixtures::BASE,
             entry: 90,
             by_test,
@@ -119,7 +131,6 @@ impl World {
             change.change.task = change.task;
             change.change.state =
                 temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: w.env.wall };
-            change.change.landing = None;
             change.pull = Some(1_u64.checked_add(n).unwrap());
             change.branch = alloc::format!("temper/c{n}").into_bytes().into_boxed_slice();
             if goal {
@@ -149,7 +160,7 @@ impl World {
         let mut row = landing_row(TASK, policy::Phase::Preparing);
         row.landing.preparation = round.checked_sub(1).unwrap();
         row.landing.members = members.into_boxed();
-        row.asks = alloc::vec![None; count.try_into().unwrap()].into_boxed_slice();
+
         if goal {
             row.landing.branch = b"temper/g".as_slice().into();
         }
@@ -221,11 +232,15 @@ impl World {
                 }
                 if let Some(pull) = &self.pull
                     && pull.number == number
+                    && self.closed_pull != Some(number)
                 {
                     return Ok(Answer::Pull(pull.clone()));
                 }
                 let mut pull = fixtures::open_pull();
                 pull.number = number;
+                if self.closed_pull == Some(number) {
+                    pull.state = api::State::Closed;
+                }
                 if self.main == GREEN || self.main == FRESH {
                     pull.merged = merged_member(row, number);
                 }
@@ -282,6 +297,14 @@ impl World {
                 more: false,
             }),
             Read::Items { .. } => Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: self.env.now }),
+            Read::Permission { user } => Ok(Answer::Permission(api::UserPermission {
+                user,
+                login: b"bot".as_slice().into(),
+                permission: api::Permission::Write,
+            })),
+            Read::Settings => Ok(Answer::Settings(adopted().settings)),
+            Read::Protection { .. } => Ok(Answer::Protection(None)),
+            Read::File { .. } => Err(Error::Missing),
             other => panic!("unexpected read {other:?}"),
         }
     }
@@ -416,6 +439,11 @@ impl World {
                 Op::Read(read) => self.read(read),
                 Op::Write(sent) => {
                     assert_eq!(sent, write);
+                    if self.refuse_cleanup {
+                        assert!(matches!(sent, Write::Close { .. } | Write::DeleteBranch { .. }));
+                        self.refuse_write(call);
+                        return;
+                    }
                     let answer = match &sent {
                         Write::OpenPull { head, .. } => {
                             if let Open::Withhold = self.open {
@@ -432,9 +460,10 @@ impl World {
                             self.pull = Some(pull);
                             Answer::Created(entry)
                         }
-                        Write::Close { .. } => {
+                        Write::Close { number } => {
                             self.move_main(MainMove::Closing);
                             self.pull = None;
+                            self.closed_pull = Some(*number);
                             Answer::Done
                         }
                         Write::DeleteBranch { branch } => {
@@ -481,6 +510,34 @@ impl World {
         }
         panic!("effect answered");
     }
+    fn refuse_write(&mut self, call: Token) {
+        let mut out = self.send(Event::Client(skein_forge_client::Event::Answered {
+            call,
+            free: 0,
+            rate: None,
+            cost: 1,
+            result: Err(Error::Forbidden),
+        }));
+        while let Some(request) = out.pop() {
+            if let Request::Outcome {
+                task: TASK,
+                outcome: skein_forge_client::Outcome::Failed(Error::Forbidden),
+                account,
+                ..
+            } = request
+            {
+                self.refusals.push(account).unwrap();
+            }
+        }
+        self.d.reclaim();
+    }
+
+    fn release_cleanup(&mut self) {
+        let mut heard = preparing_heard(None);
+        heard.released = true;
+        assert_eq!(self.decide_heard(heard), policy::Decision::None);
+    }
+
     fn prepared(&mut self, goal: bool) {
         self.decide(policy::Decision::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE });
         self.prefixes = if goal { [Some(GREEN), None, None, None] } else { [Some(GREEN), Some(RED), None, None] };
@@ -1081,14 +1138,21 @@ fn main_moving_after_cut_cleanup_prepares_and_lands() {
 fn main_moving_after_the_kept_round_opens_prepares_and_lands() {
     cut_on_a_stale_base(MainMove::Opened);
 }
-#[test]
-fn a_stale_squash_turn_without_gates_cleans_up_and_prepares_again() {
+fn proved_squash() -> World {
     use policy::Decision as D;
     let mut w = World::new(1, true, false);
     w.prepared(true);
+    w.entry = CLEANUP_PULL - 1;
     w.decide(D::Open);
     w.decide(D::None);
     w.decide(D::Proved);
+    w
+}
+
+#[test]
+fn a_stale_squash_turn_without_gates_cleans_up_and_prepares_again() {
+    use policy::Decision as D;
+    let mut w = proved_squash();
     let since = w.env.wall;
     assert_eq!(w.d.landing(TASK).unwrap().turn_since, Some(since));
     w.main = [19; 32];
@@ -1100,4 +1164,93 @@ fn a_stale_squash_turn_without_gates_cleans_up_and_prepares_again() {
     assert_eq!(w.d.landing(TASK).unwrap().turn_since, None);
     w.decide(D::Prepare { member: 0, head: fixtures::HEAD, main: [19; 32] });
     assert_eq!(w.d.landing(TASK).unwrap().landing.preparation, 2);
+}
+
+fn stale_cleanup() -> World {
+    let mut w = proved_squash();
+    w.main = [19; 32];
+    w.decide(policy::Decision::None);
+    w
+}
+
+fn refuse_cleanup(pull_already_closed: Option<u64>, write: policy::Decision) -> World {
+    let mut w = stale_cleanup();
+    w.closed_pull = pull_already_closed;
+    w.refuse_cleanup = true;
+    w.decide(write);
+    w
+}
+
+#[test]
+fn a_refused_cleanup_has_an_account_only_on_the_landing() {
+    use policy::Decision as D;
+    const CASES: &[(Option<u64>, D, &[u8])] =
+        &[(None, D::Close, CLOSE_REFUSED), (Some(CLEANUP_PULL), D::Delete { member: 0 }, DELETE_REFUSED)];
+    for &(closed, write, words) in CASES {
+        let mut w = refuse_cleanup(closed, write);
+        w.decide(CLEANUP_HOLD);
+        assert_eq!(w.d.landing_hold_words(TASK).as_deref(), Some(words));
+        assert_eq!(w.refusals.as_slice(), &[None], "one refused write, no root account");
+    }
+}
+
+#[test]
+fn another_tasks_branch_holds_cleanup_without_a_deletion() {
+    let mut w = stale_cleanup();
+    w.closed_pull = Some(CLEANUP_PULL);
+    let m = &w.d.landing(TASK).unwrap().landing.members[0];
+    let resource =
+        skein_forge_client::Resource { repository: REPO, what: skein_forge_client::What::Branch(m.branch.clone()) };
+    let name = domain::from_client(&resource, &w.env.limits).unwrap();
+    w.send(Event::Restore {
+        record: Stored::Hold(Hold {
+            name,
+            task: OTHER_HOLDER,
+            writer: None,
+            design_writers: Box::new([]),
+            beside: None,
+            drift: None,
+        }),
+    });
+    w.refuse_cleanup = true;
+    w.decide(CLEANUP_HOLD);
+    let words = b"cleanup: delete branch: held by task 77; resource org/repo branch temper/1/l61-0";
+    assert_eq!(w.d.landing_hold_words(TASK).as_deref(), Some(words.as_slice()));
+    assert!(w.refusals.is_empty(), "no deletion sent");
+}
+
+fn held_deletion() -> World {
+    let mut w = refuse_cleanup(Some(CLEANUP_PULL), policy::Decision::Delete { member: 0 });
+    w.decide(CLEANUP_HOLD);
+    w
+}
+
+#[test]
+fn release_finds_an_externally_deleted_branch_and_goes_on() {
+    let mut w = held_deletion();
+    w.prefixes[0] = None;
+    w.release_cleanup();
+    w.decide(policy::Decision::Stale);
+    w.decide(policy::Decision::Prepare { member: 0, head: fixtures::HEAD, main: [19; 32] });
+    assert_eq!(w.refusals.as_slice(), &[None], "no second deletion");
+}
+
+#[test]
+fn a_second_refusal_holds_after_one_released_deletion() {
+    let mut w = held_deletion();
+    w.release_cleanup();
+    w.decide(policy::Decision::Delete { member: 0 });
+    w.decide(CLEANUP_HOLD);
+    assert_eq!(w.d.landing_hold_words(TASK).as_deref(), Some(DELETE_REFUSED));
+    assert_eq!(w.refusals.as_slice(), &[None, None], "one deletion per try");
+}
+
+#[test]
+fn a_restarted_cleanup_hold_has_the_same_account() {
+    let w = held_deletion();
+    let saved = Stored::Landing(w.d.landing(TASK).unwrap().clone());
+    let mut cold = World::new(1, true, false);
+    cold.send(Event::Restore { record: saved });
+    cold.decide(policy::Decision::Wait { until: None, on: policy::Awaited::Release });
+    assert_eq!(cold.d.landing_hold_words(TASK).as_deref(), Some(DELETE_REFUSED));
 }

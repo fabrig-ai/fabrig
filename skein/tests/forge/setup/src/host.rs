@@ -757,7 +757,7 @@ impl HostWorld {
                 self.aborts += 1;
                 self.end(entity);
             }
-            skein_io::Request::Close { entity } => {
+            skein_io::Request::Close { entity } | skein_io::Request::CloseAfterFlush { entity } => {
                 if let Some(peer) = self.peers.get_mut(&entity)
                     && matches!(peer.end, PeerEnd::Open)
                 {

@@ -468,7 +468,9 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   and compiled, run after landing: `temper box` on a pseudo-terminal
   with a `temper-box` beside it, the local link on its pipe signing the
   TUI in, Ctrl+C with "Stop the box" stopping the box and `temper`
-  exiting 0, and `temper` killed stopping the box.
+  exiting 0, and `temper` killed stopping the box, watched to its end on
+  macOS by skein-world's walk, as the box is not in `temper`'s group
+  (`skein/docs/design/examples.md`, 6).
 - **`/web`'s tests** (*`/web`, temper in the browser*), focused: rows of
   the state for the printed link's life (a `link` line live; `linked`
   told false then true spending it; true told again spending nothing; a

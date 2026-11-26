@@ -513,7 +513,9 @@ impl Joint {
                     }
                 }
             }
-            skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } => self.end(entity),
+            skein_io::Request::Abort { entity }
+            | skein_io::Request::Close { entity }
+            | skein_io::Request::CloseAfterFlush { entity } => self.end(entity),
             skein_io::Request::Listen { owner, addr } => {
                 self.hook_listener = Some(owner);
                 self.up(skein_io::Event::Listening { owner, listener: LISTENER, addr });

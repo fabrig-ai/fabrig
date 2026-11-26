@@ -96,7 +96,7 @@ pub(crate) fn ended(
     core: &mut Core,
     env: &Env<Limits>,
     task: u64,
-    requester: tasks::Party,
+    recipient: (tasks::Party, bool),
     ending: tasks::Ending,
     pending: &mut Queue<tasks::Request>,
     out: &mut Queue<Request>,
@@ -119,6 +119,7 @@ pub(crate) fn ended(
     core.retire_parts(task, None, out);
     drop(core.proofs.remove(&task));
     out.push(Request::Write(Write::Erase(Key::Core(CoreKey::RunProof(task)))));
+    let (requester, wake) = recipient;
     match requester {
         tasks::Party::Person(person) => {
             out.push(Request::Held(Box::new(Held::Result { person, task, words: super::ending_words(ending) })));
@@ -131,6 +132,7 @@ pub(crate) fn ended(
                 env,
                 tasks::Event::DelegateResult {
                     task: parent,
+                    wake,
                     word: tasks::Word {
                         number: position,
                         from: tasks::Party::Task(task),

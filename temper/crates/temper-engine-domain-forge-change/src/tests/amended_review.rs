@@ -74,10 +74,10 @@ fn stale_reviews_use_the_existing_gate_paths_before_merge() {
                 f.gates = Box::new([GateReport { number: 9, head: HEAD, status, revision: 0 }]);
                 if matches!(state, State::Ready { .. } | State::Judging { .. }) {
                     c.way = Way::Turn;
-                    c.landing = Some(50);
+                    f.landing = Some(50);
                 }
                 if matches!(state, State::Judging { .. }) {
-                    f.ask = Some(Ask::Judge(target.clone()));
+                    f.ask = Some(handed(Ask::Judge(target.clone())));
                 }
                 let mut next = decide(&c, &f, &heard());
                 if next.decision == Decision::None {

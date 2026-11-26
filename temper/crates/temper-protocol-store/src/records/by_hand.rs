@@ -9,9 +9,9 @@ pub use super::application::{core_refused_to_domain, core_refused_to_record};
 pub use super::application::{several_repositories_to_domain, several_repositories_to_record};
 pub use super::away::{reach_to_domain, reach_to_record};
 pub use super::change::{
-    authority_hold_to_domain, authority_hold_to_record, change_to_domain, change_to_record, delegate_ref_to_domain,
-    delegate_ref_to_record, landing_below_to_domain, landing_below_to_record, llm_choice_to_domain,
-    llm_choice_to_record, route_to_domain, route_to_record, stands_to_domain, stands_to_record,
+    authority_hold_to_domain, authority_hold_to_record, delegate_ref_to_domain, delegate_ref_to_record,
+    landing_below_to_domain, landing_below_to_record, llm_choice_to_domain, llm_choice_to_record, route_to_domain,
+    route_to_record, stands_to_domain, stands_to_record,
 };
 pub use super::entries::{read_result_to_domain, read_result_to_record};
 pub use super::findings::{finding_areas_to_domain, finding_areas_to_record};

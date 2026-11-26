@@ -117,10 +117,11 @@ fn bound_port(io: &mut impl StartupIo, preferred: u16) -> Result<(Fd, std::net::
         }
     }
 }
-/// skein sets `SO_REUSEADDR` on bind: two merely bound sockets can share a
-/// port, and listening makes a reservation exclusive. Another init that
-/// listened first between this one's bind and listen spends a try; a
-/// replacement asks the kernel for another port, as a taken port does.
+/// On Linux, skein's `SO_REUSEADDR` lets two sockets bind the same loopback
+/// address before either listens. If another init listens first, this one
+/// retries with a kernel-chosen port. On macOS, the second bind is refused
+/// without `SO_REUSEPORT`, which skein doesn't set, so `bound_port` takes
+/// a kernel-chosen port before listening.
 fn listened(
     io: &mut impl StartupIo,
     mut fd: Fd,

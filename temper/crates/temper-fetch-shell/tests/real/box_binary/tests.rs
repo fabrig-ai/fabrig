@@ -4,7 +4,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_fetch::box_binary::{self as machine, Build, Candidate, Event, Request};
-use temper_fetch_shell::testing::{Files, cached, digest, gzip, identity, scratch, script, site, suffix};
+use temper_fetch_shell::testing::{Files, cached, digest, identity, scratch, script, site, suffix, zstd};
 
 fn next(machine: &mut machine::Find, event: Event) -> Request {
     let mut out = Queue::uncapped();
@@ -39,9 +39,9 @@ fn lock_cleanup_and_publication_order() {
     let file = root.join("bin/0123456789ab/Linux-x86_64/temper-box");
     let mut files = Files::default();
     let mut event = Event::Begin;
-    let compressed = gzip(body);
+    let compressed = zstd(body);
     let sums = format!(
-        "{}  Linux-x86_64/temper-box\n",
+        "{}  Linux-x86_64/temper-box.zst\n",
         String::from_utf8(temper_fetch::fetch::hex(&digest(&compressed)).into()).unwrap()
     )
     .into_bytes();
@@ -56,7 +56,7 @@ fn lock_cleanup_and_publication_order() {
         if let Request::Clean { .. } = &request {
             assert!(files.is_held());
             if !cache_read {
-                for suffix_name in [".gz.part", ".part", ".sha256.part"] {
+                for suffix_name in [".zst.part", ".part", ".sha256.part"] {
                     fs::write(suffix(&file, suffix_name), b"stale").unwrap();
                 }
             }
@@ -65,7 +65,7 @@ fn lock_cleanup_and_publication_order() {
             cache_read = true;
             let other = fs::OpenOptions::new().write(true).open(suffix(&file, ".lock")).unwrap();
             assert!(other.try_lock().is_err(), "lock held before cache is read");
-            for suffix_name in [".gz.part", ".part", ".sha256.part"] {
+            for suffix_name in [".zst.part", ".part", ".sha256.part"] {
                 assert!(!suffix(&file, suffix_name).exists());
             }
             for parent in [root.join("bin"), root.join("bin/0123456789ab"), file.parent().unwrap().to_path_buf()] {
@@ -115,7 +115,7 @@ fn lock_cleanup_and_publication_order() {
     };
     assert!(result.is_ok(), "{result:?}");
     assert!(cache_read);
-    for suffix_name in [".gz.part", ".part", ".sha256.part"] {
+    for suffix_name in [".zst.part", ".part", ".sha256.part"] {
         assert!(!suffix(&file, suffix_name).exists());
     }
     assert_eq!(publication, ["sum", "rename sum", "publish"]);

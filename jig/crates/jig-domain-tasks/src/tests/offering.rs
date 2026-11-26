@@ -868,6 +868,7 @@ fn finish_follow_up(h: &mut Harness) -> Vec<Request> {
     h.send(Event::Settled { task: FOLLOW_UP });
     h.send(Event::DelegateResult {
         task: TASK,
+        wake: true,
         word: word(RESULT, M::Result(crate::ResultKind::Report), Party::Task(FOLLOW_UP)),
     })
 }

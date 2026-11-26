@@ -1,6 +1,6 @@
 # journey-writer: status
 
-2026-11-25. Where temper's code lags or departs from [journey-writer.md](journey-writer.md).
+2026-11-26. Where temper's code lags or departs from [journey-writer.md](journey-writer.md).
 
 - **Not yet:**
   - 2: `temper-client-walk pages` selects directories whose `walk`

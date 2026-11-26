@@ -144,7 +144,7 @@ impl ListenerSockets {
                 wire.write(&self.response);
                 self.web.push((owner, socket, wire));
             }
-            IoRequest::Close { entity } => {
+            IoRequest::Close { entity } | IoRequest::CloseAfterFlush { entity } => {
                 let at = self.web.iter().position(|(_, socket, _)| *socket == entity).expect("issuer socket");
                 let (owner, _, _) = self.web.remove(at);
                 component.up(env, IoEvent::Closed { owner }, above, below, &mut Queue::with_capacity(1));

@@ -12,6 +12,7 @@ use std::{
     path::Path,
     thread,
 };
+use temper_forge_setup::fetch::Pin;
 fn pem(root: &[u8]) -> Vec<u8> {
     let mut writer = Writer::new(
         base64::encoded_len(Alphabet::Standard, u32::try_from(root.len()).expect("fetch fixture"))
@@ -80,17 +81,14 @@ pub fn server() -> Server {
     let thread = serve(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\nabc");
     Server { address, thread: Some(thread) }
 }
+// The mirror receives no authorization header, even for a bottle.
+fn expected_head(address: SocketAddr, pin: &Pin) -> String {
+    let path = std::str::from_utf8(&pin.path).expect("pinned request path");
+    format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n")
+}
+
 impl Server {
-    pub fn check(&mut self) {
-        let arch = match std::env::consts::ARCH {
-            "x86_64" => "amd64",
-            "aarch64" => "arm64",
-            _ => panic!("test host architecture"),
-        };
-        let expected = format!(
-            "GET /forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{arch} HTTP/1.1\r\nHost: {}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n",
-            self.address
-        );
+    pub fn check(&mut self, pin: &Pin) {
         let head = self
             .thread
             .take()
@@ -98,7 +96,7 @@ impl Server {
             .join()
             .expect("file server")
             .unwrap_or_else(|starved| starved.pass());
-        assert_eq!(head, expected.as_bytes());
+        assert_eq!(head, expected_head(self.address, pin).as_bytes());
     }
 }
 
@@ -109,5 +107,50 @@ fn expired(deadline: &Deadline) -> Starved {
     match deadline.expired() {
         Expired::Starved(starved) => starved,
         Expired::Failed(figures) => panic!("the fetch peer did not answer: {figures}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::expected_head;
+    use skein_forge::forgejo::pin::Platform;
+    use temper_forge_setup::{
+        fetch::pins,
+        setup::{Account, Fetch, Mirror, Origin, Owned},
+    };
+
+    #[test]
+    fn mirrored_forgejo_requests_follow_the_platform_pin() {
+        let address = "127.0.0.1:8443".parse().expect("mirror address");
+        let origin = Origin { host: b"127.0.0.1".as_slice().into(), port: 8443 };
+        let owned = Owned {
+            public: None,
+            fetch: Fetch {
+                forgejo: true,
+                runner: false,
+                mirror: Some(Mirror { forgejo: origin.clone(), runner: origin }),
+            },
+            forgejo: b"/cache/forgejo/17.0.1/forgejo".as_slice().into(),
+            runner: None,
+            listen: "127.0.0.1:3000".parse().expect("forge address"),
+            person: Account { login: b"ada".as_slice().into(), email: b"ada@example.invalid".as_slice().into() },
+        };
+        let headers = "Host: 127.0.0.1:8443\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n";
+        for (platform, machine, line) in [
+            (
+                Platform::Linux,
+                "x86_64",
+                "GET /forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-amd64 HTTP/1.1",
+            ),
+            (
+                Platform::Macos,
+                "aarch64",
+                "GET /v2/homebrew/core/forgejo/blobs/sha256:19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06 HTTP/1.1",
+            ),
+        ] {
+            let pins = pins(&owned, platform, machine).expect("mirrored pins");
+            let [pin] = pins.as_ref() else { panic!("only Forgejo is fetched") };
+            assert_eq!(expected_head(address, pin), format!("{line}\r\n{headers}"), "{platform:?}/{machine}");
+        }
     }
 }

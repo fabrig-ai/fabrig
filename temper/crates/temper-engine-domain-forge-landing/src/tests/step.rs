@@ -414,6 +414,19 @@ fn a_held_landing_waits_until_released() {
     assert_eq!(next.landing.members[0].gates[0].faults, 0);
 }
 #[test]
+fn a_claim_holds_the_current_phase_and_resumes_it_on_release() {
+    let landing = dispatched();
+    let why = Hold::Claimed { change: 8 };
+    let held = crate::claim(landing.clone(), 8);
+    assert_eq!(held.decision, Decision::Hold(why));
+    assert_eq!(held.landing.phase, Phase::Held { was: Box::new(landing.phase.clone()), why });
+    let held_again = crate::claim(held.landing, 8);
+    assert_eq!(decide(&held_again.landing, &facts()).decision, Decision::Wait { until: None, on: Awaited::Release });
+    let resumed = crate::held(held_again.landing, true, at(10));
+    assert_eq!(resumed.decision, Decision::None);
+    assert_eq!(resumed.landing, landing);
+}
+#[test]
 fn current_runs_poll_and_wait_for_a_receipt_before_proving() {
     for run in [None, Some(Verdict::Running), Some(Verdict::Passed), Some(Verdict::Failed)] {
         let mut f = facts();
@@ -1276,6 +1289,45 @@ fn opening_and_cleanup_wait_on_the_first_outstanding_effect() {
     f.members[0].deleted = Status::Passed;
     f.members[1].deleted = Status::Pending;
     assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Delete { member: 1 } });
+}
+
+#[test]
+fn a_failed_cleanup_fact_holds_the_landing() {
+    const CASES: &[(Status, Status)] = &[(Status::Failed, Status::Unknown), (Status::Passed, Status::Failed)];
+    let (mut landing, mut facts) = stacked(1);
+    landing.round.ending = Some(crate::RoundEnd::Stale);
+    for &(closed, deleted) in CASES {
+        facts.closed = closed;
+        facts.members[0].deleted = deleted;
+        let stopped = decide(&landing, &facts);
+        assert_eq!(stopped.decision, Decision::Hold(Hold::Cleanup));
+        assert_eq!(stopped.landing.phase, Phase::Held { was: Box::new(Phase::Proving), why: Hold::Cleanup });
+    }
+}
+
+#[test]
+fn a_cleanup_release_reaches_the_next_rounds_prepare() {
+    let (mut landing, mut facts) = stacked(1);
+    landing.round.ending = Some(crate::RoundEnd::Stale);
+    landing.round.cleanup = Some(b"delete branch refused".as_slice().into());
+    landing.phase = Phase::Held { was: Box::new(Phase::Proving), why: Hold::Cleanup };
+    facts.released = true;
+    let resumed = decide(&landing, &facts);
+    assert_eq!(resumed.decision, Decision::None);
+    assert_eq!(resumed.landing.phase, Phase::Preparing);
+    assert_eq!(resumed.landing.round.cleanup, None);
+    facts.released = false;
+    facts.closed = Status::Passed;
+    facts.members[0].deleted = Status::Passed;
+    let cleaned = decide(&resumed.landing, &facts);
+    assert_eq!(cleaned.decision, Decision::Stale);
+    facts.preparation = crate::Preparation::Absent;
+    facts.members[0].candidate = None;
+    facts.opened = None;
+    facts.opening = Status::Unknown;
+    let prepared = decide(&cleaned.landing, &facts);
+    assert_eq!(prepared.decision, Decision::Prepare { member: 0, head: head(0), main: MAIN });
+    assert_eq!(prepared.landing.preparation, 2, "the round after the one that held");
 }
 
 #[test]

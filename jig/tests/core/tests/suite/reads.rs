@@ -993,7 +993,7 @@ fn parking_with_nothing_awaited_commits_the_notice_and_resumes() {
 }
 
 #[test]
-fn parking_with_a_closer_makes_it_and_numbers_no_notice() {
+fn a_finish_parked_for_its_closer_makes_it_and_numbers_no_notice() {
     use jig_core_world::fixtures::live_row;
     use jig_domain_authority::Executor;
     let seed = 815;
@@ -1022,8 +1022,10 @@ fn parking_with_a_closer_makes_it_and_numbers_no_notice() {
     let before = world.assignments.len();
     let messages = world.domain.core().counters.deployment().messages;
     let tasks = world.domain.core().counters.deployment().tasks;
-    world.end(tasks::End::Parked, 0);
+    let result = tasks::TaskResult::Report { words: b"delivered".as_slice().into() };
+    world.end(tasks::End::Finished { result: result.clone(), cancel_delegates: false }, 0);
     let parent = live_row(&world, task);
+    assert_eq!(parent.parked_result, Some(result));
     let closer = parent.closer.expect("core numbered and made the closer");
     assert_eq!(world.domain.core().counters.deployment().tasks, tasks + 1);
     assert_eq!(parent.phase, tasks::Phase::Active(tasks::Active::Idle));

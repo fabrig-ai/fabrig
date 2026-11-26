@@ -55,6 +55,7 @@ pub struct Pages {
     address: String,
     peers: Vec<(Box<[u8]>, String)>,
     streamed_path: Option<Box<[u8]>>,
+    watched_path: Option<(Box<[u8]>, u32)>,
     reload: Option<(Token, Response)>,
 }
 
@@ -83,6 +84,7 @@ impl Pages {
             address: String::new(),
             peers: Vec::new(),
             streamed_path: None,
+            watched_path: None,
             reload: None,
         }
     }
@@ -91,6 +93,16 @@ impl Pages {
     /// open until its client closes or the origin stops (testing/browser.md, 9).
     pub fn stream(&mut self, path: Box<[u8]>) {
         self.streamed_path = Some(path);
+    }
+
+    /// Count calls to one path, regardless of which response it serves.
+    pub fn watch_path(&mut self, path: Box<[u8]>) {
+        self.watched_path = Some((path, 0));
+    }
+
+    #[must_use]
+    pub fn watched_calls(&self) -> u32 {
+        self.watched_path.as_ref().map_or(0, |(_, calls)| *calls)
     }
 
     #[must_use]
@@ -252,6 +264,11 @@ impl Pages {
             match event {
                 server::Event::Call(call) => {
                     let path = call.target.split(|byte| *byte == b'?').next().expect("target has a path");
+                    if let Some((watched, calls)) = &mut self.watched_path
+                        && watched.as_ref() == path
+                    {
+                        *calls = calls.saturating_add(1);
+                    }
                     let page = self.pages.iter().find(|page| page.path.as_ref() == path);
                     let streaming = page.is_some() && self.streamed_path.as_deref() == Some(path);
                     let favicon = path == b"/favicon.ico";

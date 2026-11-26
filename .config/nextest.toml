@@ -469,6 +469,7 @@ default-filter = """
   binary_id(=temper-box::proof_live) |
   binary_id(=temper-box::suite) |
   binary_id(=temper-client-browser-world::browser_all) |
+  binary_id(=temper-client-browser-world::settings_sitting) |
   binary_id(=temper-client-gallery::suite) |
   binary_id(=temper-client-journeys-tool::real) |
   binary_id(=temper-client-journeys::suite) |

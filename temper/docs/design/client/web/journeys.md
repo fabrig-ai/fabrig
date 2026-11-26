@@ -389,8 +389,10 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   4 runs the writer's, its words, lines and exits the command's under
   the script's name (`look-refresh: WHY`), fetches
   `main` alone, rebases the branch on `origin/main`, drops each request
-  whose name a commit on `main` carries in that trailer once the last
-  `Printed:` there covers that commit (`../journey-writer.md`, 6), and pushes it
+  once main's `looks.html` holds an entry for its newest `Look-landed`,
+  or, for one landed with no `Look-landed`, once the last `Printed:` on
+  `main` covers the commit carrying its `Look-request`
+  (`../journey-writer.md`, 6), and pushes it
   with `--force-with-lease`, its lease the branch as the checkout last
   knew it, so that a branch moved from another checkout is refused,
   never overwritten. It says which commit main's pages were printed at,

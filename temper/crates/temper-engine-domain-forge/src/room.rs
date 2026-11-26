@@ -444,7 +444,7 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     let account = holders.account(step, env.limits.waits.room).expect("expired wait has ended holders");
     match waiter {
         Waiter::Change(task) => crate::domain::hold_room_change(d, env, task, account, out),
-        Waiter::Release(task) => crate::domain::room_release_failed(d, task, account, out),
+        Waiter::Release(task) => crate::domain::room_release_failed(d, task, account.words, out),
         Waiter::Making(owner) => crate::domain::goal_branch::room_failed(d, owner, &account.words, out),
         Waiter::Landing(_) => unreachable!("landing's room hold is handled by the landing"),
     }

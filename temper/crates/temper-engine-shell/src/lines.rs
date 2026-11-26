@@ -541,6 +541,20 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
         temper_engine_service::Note::LandingRead(note) => landing_read_line(binary, note),
+        temper_engine_service::Note::LinkDisagreed { change, named, landing } => {
+            let where_now = match landing {
+                Some(landing) => format!("landing {landing}"),
+                None => "no landing".to_owned(),
+            };
+            format!(
+                "{binary} serve: warning: change {change} named landing {named}; by the landings' rows it is in {where_now}\n"
+            )
+        }
+        temper_engine_service::Note::ConversionAskDropped { change, landing, kind } => {
+            format!(
+                "{binary} serve: warning: change {change}: its {kind} of landing {landing} dropped as its asks were converted: its queue is full\n"
+            )
+        }
         temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
             let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
             format!(
