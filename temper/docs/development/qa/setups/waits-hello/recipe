@@ -1,0 +1,7 @@
+recipe 1
+ctl project make Hello --key w-hello
+ctl goal start --project Hello --charter 2 --deadline 2030-01-01T00:00Z --budget 1 --key w-g1 "S1 \xc2\xb7 history\x0a\x0aThe first."
+ctl goal start --project Hello --after 1 --charter 2 --deadline 2030-01-01T00:00Z --budget 1 --key w-g2 "S2 \xc2\xb7 indexes\x0a\x0aThe second."
+check
+ctl project show Hello
+ctl waits --project Hello --kind dependency

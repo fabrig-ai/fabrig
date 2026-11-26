@@ -8,4 +8,4 @@ ctl account list --until usable
 web reload "/projects/1"
 web see "work/hello is in Hello"
 ctl project show Hello
-web see "Nothing needs you."
+web see "Hello is ready."

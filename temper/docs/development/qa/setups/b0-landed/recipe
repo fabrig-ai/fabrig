@@ -4,7 +4,8 @@ ctl task answer 1 2 "Go ahead. The CSV's first line must be the header fruit,cou
 ctl task show 2 --until ended
 ctl task show 1 --until phase:idle
 ctl chat show 1
-web reload "/tasks/1"
+web reload "/tasks/2"
 web see "CSV export was added and merged."
+check
 ctl inbox --kind questions
 web see "Nothing needs you."
