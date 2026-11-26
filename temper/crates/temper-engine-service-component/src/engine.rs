@@ -280,7 +280,7 @@ impl Engine {
         self.restored_limit_revision();
         self.drain_notes();
     }
-    fn holding(&self) -> Option<CoreWait> {
+    fn start_gate_wait(&self) -> Option<CoreWait> {
         if self.begin || !self.domain.ready() {
             Some(CoreWait::Starting { step: self.domain.start_phase() })
         } else if !self.forge_records.done() {
@@ -289,6 +289,13 @@ impl Engine {
             Some(CoreWait::FirstPeriods)
         } else if !self.forge.resolving.is_empty() {
             Some(CoreWait::Resolving)
+        } else {
+            None
+        }
+    }
+    fn holding(&self) -> Option<CoreWait> {
+        if let Some(why) = self.start_gate_wait() {
+            Some(why)
         } else if self.domain.commits_in_flight() >= u64::from(self.env.limits.journal.commits) {
             Some(CoreWait::Store {
                 oldest: self.domain.oldest_commit_in_flight().expect("a full commit window is nonempty"),
@@ -475,6 +482,9 @@ impl Engine {
         {
             return true;
         }
+        // Root work can open the gate at the end of a pass, with no transport work left to wake it.
+        let clients_pending = clients_pending
+            || self.end.is_none() && !self.clients.held_me.is_empty() && self.start_gate_wait().is_none();
         let effects = stop::marked(self) || self.end.is_some() || stop::closing(self);
         let components = (self.store.opened || self.end.is_some() || stop::closing(self)) && clients_pending
             || effects && self.setup.work_pending(now)
@@ -599,11 +609,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     forge_pass(engine);
     engine.workers.iterate(now, &mut engine.events);
     engine.drain_worker_notes();
-    let open = !engine.begin
-        && engine.domain.ready()
-        && engine.forge_records.done()
-        && engine.first_periods.is_empty()
-        && engine.forge.resolving.is_empty();
+    let open = engine.start_gate_wait().is_none();
     if open {
         engine.forge.serving = Some(());
     }
@@ -621,18 +627,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         &mut engine.accounts,
     );
     clients_pass(engine);
-    for _ in 0..engine.clients.early.len() {
-        if engine.events.room() == 0 {
-            break;
-        }
-        let event = engine.clients.early.pop().expect("staged client input");
-        if open {
-            engine.events.push(event);
-        } else if let root::Event::Party(value) = event {
-            engine.observe_party(false);
-            engine.clients.not_ready(value);
-        }
-    }
+    client_gate(engine, open);
     stop::advance(engine);
     if engine.end.is_some() {
         engine.abort_if_ended();
@@ -661,6 +656,35 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     engine.forge.down(skein_forge_connection::Request::Offer);
     clients_pass(engine);
 }
+fn client_gate(engine: &mut Engine, open: bool) {
+    if open {
+        for _ in 0..engine.events.room().min(engine.clients.held_me.len()) {
+            let value = engine.clients.held_me.pop().expect("held watch");
+            engine.events.push(root::Event::Party(value));
+        }
+        for _ in 0..engine.events.room().min(engine.clients.early.len()) {
+            engine.events.push(engine.clients.early.pop().expect("staged client input"));
+        }
+        return;
+    }
+    if !engine.clients.held_me.is_empty() {
+        engine.observe_party(false);
+    }
+    for _ in 0..engine.clients.early.len() {
+        if let root::Event::Party(value) = engine.clients.early.pop().expect("staged client input") {
+            engine.observe_party(false);
+            if let root::PartyInput::Watch { subject: jig_domain_core::documents::Watched::Frame, .. } = &value {
+                engine.clients.held_me.push(value);
+            } else if let root::PartyInput::Unwatch { watcher } = value {
+                // The open and close can both have been staged in this pass.
+                engine.clients.cancel_held_me(watcher);
+            } else {
+                engine.clients.not_ready(value);
+            }
+        }
+    }
+}
+
 fn input_pass(engine: &mut Engine, now: Time) {
     if engine.drain.is_some() && !stop::requested(engine) {
         return;

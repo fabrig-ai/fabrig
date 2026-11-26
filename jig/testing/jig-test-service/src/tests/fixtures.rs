@@ -146,14 +146,20 @@ pub fn started(document: &[u8]) -> Service {
 pub fn memory_store(engine: &mut crate::Engine) {
     let checked = engine.store.host.component.checked();
     let limits = checked.limits();
-    engine.store.host.component = jig_protocol_store::Store::over(
-        &checked,
-        jig_test_store::application(&engine.env.limits.connector),
-        &engine.store.models,
+    open_memory_store(
+        engine,
         jig_protocol_store::Stores {
             store: skein_kv::Store::memory(&limits.store),
             secrets: skein_kv::Store::memory(&limits.secrets),
         },
+    );
+}
+pub fn open_memory_store(engine: &mut crate::Engine, stores: jig_protocol_store::Stores) {
+    engine.store.host.component = jig_protocol_store::Store::over(
+        &engine.store.host.component.checked(),
+        jig_test_store::application(&engine.env.limits.connector),
+        &engine.store.models,
+        stores,
     );
     engine.store.host.ask(jig_protocol_store::Request::Open {
         purpose: jig_protocol_store::Purpose::Serve,

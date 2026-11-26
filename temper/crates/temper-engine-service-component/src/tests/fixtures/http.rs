@@ -196,18 +196,21 @@ impl Peer {
         panic!("the HTTP peer reaches its condition or waits for input within its turn bound");
     }
     pub fn read_hello(&mut self, engine: &mut Engine) -> bool {
-        // Keep the clock at REQUEST_AT: no predecessor waits out a heartbeat.
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |peer, _| peer.event_data().is_some());
-        let Some(data) = self.event_data() else { return false };
-        let record =
-            skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, data, u32::try_from(data.len()).unwrap())
-                .unwrap();
-        match wire::StreamEvent::decode(&engine.clients.env.limits.wire, &mut Reader::new(&record)) {
-            Ok(wire::StreamEvent::Hello(_) | wire::StreamEvent::Opened(_)) => true,
-            Ok(wire::StreamEvent::Delivery(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_)) | Err(_) => {
+        match self.first_stream_event(engine) {
+            Some(wire::StreamEvent::Hello(_) | wire::StreamEvent::Opened(_)) => true,
+            Some(wire::StreamEvent::Delivery(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_)) | None => {
                 false
             }
         }
+    }
+    pub fn first_stream_event(&mut self, engine: &mut Engine) -> Option<wire::StreamEvent> {
+        // Keep the clock at REQUEST_AT: no predecessor waits out a heartbeat.
+        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |peer, _| peer.event_data().is_some());
+        let data = self.event_data()?;
+        let record =
+            skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, data, u32::try_from(data.len()).unwrap())
+                .unwrap();
+        wire::StreamEvent::decode(&engine.clients.env.limits.wire, &mut Reader::new(&record)).ok()
     }
     fn event_data(&self) -> Option<&[u8]> {
         let start = skein_lib::bytes::find(&self.wire.received, b"data: ")?;

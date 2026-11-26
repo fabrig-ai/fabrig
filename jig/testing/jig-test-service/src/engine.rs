@@ -211,6 +211,12 @@ impl Engine {
             || self.begin
             || (!self.first_periods.is_empty() && self.domain.ready() && !self.blocked)
             || (self.domain.ready() && !self.parties.is_empty())
+            || (self.domain.ready()
+                && self.drain.is_none()
+                && match &self.clients {
+                    Some(clients) => !clients.startup_frames.is_empty(),
+                    None => false,
+                })
             || ((self.event_pending() || !self.held.is_empty()) && !self.blocked)
             || (!self.held.is_empty() && self.passing())
             || self.ready
@@ -351,20 +357,11 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.abort_if_ended();
         return;
     }
-    if starting && let Some(clients) = &mut engine.clients {
-        for _ in 0..clients.early.len() {
-            let event = clients.early.pop().expect("client startup input");
-            clients.not_ready(event);
-        }
+    if let Some(clients) = &mut engine.clients {
+        clients.startup_inputs(!starting && engine.drain.is_none(), &mut engine.events);
     }
     if engine.begin && !engine.listeners_open() {
         return;
-    }
-    if !starting && let Some(clients) = &mut engine.clients {
-        for _ in 0..clients.early.len() {
-            let event = clients.early.pop().expect("client startup inputs");
-            engine.events.push(event);
-        }
     }
     if engine.begin {
         engine.begin = false;
