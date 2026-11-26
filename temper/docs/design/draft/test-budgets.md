@@ -176,7 +176,7 @@ Draft, 2026-11-16, with the user; section 3's delivery check and section 5's noi
 - **The slow tiers' budgets,** which stay as they are.
 - **The repairs towards the ideal:** plans of their own (`archive/focused-pyramid.md`, for one).
 - **Raising a budget, a reference or an ideal,** which is the user's alone, and dropping or shrinking a test to meet one.
-- **The after-landing budgets** (the user, 11-20: "after landing tests should have budgets too, but maybe we'll treat this problem separately"). The real loop's and end to end's layers keep their CPU figures in `tools/tiers/budgets.toml`, reported by their runs after landing as warnings, until a draft of their own. A sweep of fresh seeds (section 4) waits for the same draft.
+- **The after-landing budgets** (the user, 11-20: "after landing tests should have budgets too, but maybe we'll treat this problem separately"). The real loop's and end to end's layers keep their CPU figures in `tools/tiers/budgets.toml`, reported by their runs after landing as warnings, until a draft of their own. A sweep of fresh seeds (section 4) is `fuzzy-campaigns.md`'s: campaigns after landing, their CPU reported as warnings, their envelope the user's.
 - **A count per test inside a shared process,** which needs a harness that reads the counter around each test; a count per binary is this draft's first pass, and a test's run alone its second (section 6).
 - **A sandbox for the gate's binaries** (no network, no children, no writes outside the run's own directory): the replay after landing finds what it would forbid, after the fact. It comes if the replay's findings show a need.
 
