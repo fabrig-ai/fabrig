@@ -289,6 +289,7 @@ pub(super) fn keep(
             true
         }
         Judgement::Owed => {
+            super::read_session::owe_readback(d, pending.task);
             super::branch_due(d, pending.task);
             super::wait_for_forge(d, env, pending, Some(retry(env)), out);
             false

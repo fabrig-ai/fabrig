@@ -77,18 +77,16 @@ pub(in super::super) fn account(
         && let Some(behind) = read.behind
     {
         behind_words(&mut words, behind);
+    } else if why == change::Hold::Stalled
+        && let Some(read) = evidence
+        && read.readback_owed
+    {
+        append(&mut words, b"can't tell whether the forge read shows a write of temper's: its readback did not settle");
     } else if why == change::Hold::Stalled {
         append(&mut words, b"no progress at ");
         append(&mut words, was.step_name());
         append(&mut words, b" for ");
-        let runner = if let change::State::Checking { .. } = was.as_ref() {
-            match row.change.clock {
-                Some(clock) => clock.waited >= env.limits.forge.change_policy.runner_wait,
-                None => false,
-            }
-        } else {
-            false
-        };
+        let runner = runner_stalled(was, row, env);
         let bound =
             if runner { env.limits.forge.change_policy.runner_wait } else { env.limits.forge.change_policy.stall };
         append(&mut words, skein_lib::Decimal::of(bound.as_nanos() / 60_000_000_000).as_bytes());
@@ -108,6 +106,15 @@ pub(in super::super) fn account(
         return None;
     }
     Some(forge::text::fit(words.as_slice(), skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"..."))
+}
+
+fn runner_stalled(state: &change::State, row: &forge::ChangeRow, env: &Env<Limits>) -> bool {
+    if let change::State::Checking { .. } = state
+        && let Some(clock) = row.change.clock
+    {
+        return clock.waited >= env.limits.forge.change_policy.runner_wait;
+    }
+    false
 }
 
 /// Every change hold has an account even when the deciding neighbour gave none.

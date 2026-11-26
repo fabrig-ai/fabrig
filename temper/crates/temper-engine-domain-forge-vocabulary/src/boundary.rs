@@ -1895,6 +1895,7 @@ pub struct BehindWait {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
     pub behind: Option<ReadBehind>,
+    pub readback_owed: bool,
     pub nearest_write: Option<u64>,
     pub touched: crate::Touched,
     /// State to restore if the root does not authorize this effect.

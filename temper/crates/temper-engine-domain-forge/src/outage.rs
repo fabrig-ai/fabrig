@@ -142,6 +142,10 @@ pub(crate) fn reading(d: &Domain, owner: Token) -> bool {
     }
 }
 
+pub(crate) fn exempts_change(d: &Domain, task: u64, owner: Token) -> bool {
+    reading(d, owner) && !super::read_session::waiting_on_record(d, task)
+}
+
 pub(super) fn recommitted(d: &Domain, entry: u64) -> bool {
     match &d.outage {
         Some(state) => state.recommitted(entry),
@@ -293,10 +297,13 @@ pub(super) fn read_ended(
         state(d).reads.insert(owner, reading).expect("retains its pending read");
         return false;
     }
+    let change = match d.steps.get(&owner) {
+        Some(pending) if !super::read_session::waiting_on_record(d, pending.task) => Some(pending.task),
+        Some(_) | None => None,
+    };
     let capacity = *result == Err(Error::Busy) && (reading.outage || d.pending_ci.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
-        if let Some(pending) = d.steps.get(&owner) {
-            let task = pending.task;
+        if let Some(task) = change {
             super::read_session::pause(d, task);
             crate::waits::changed(d, task);
         }
@@ -306,22 +313,16 @@ pub(super) fn read_ended(
         return true;
     }
     if reading.outage
-        && let Some(pending) = d.steps.get(&owner)
+        && let Some(task) = change
     {
-        let task = pending.task;
         super::read_session::ended(d, env, task, env.wall, out);
         crate::waits::changed(d, task);
-    }
-    if reading.outage
-        && let Some(pending) = d.steps.get(&owner)
-        && let Some(row) = d.changes.get_mut(&pending.task)
-    {
-        // since is stored, but this extension is in memory only. Only the
-        // unavailable part of this read chain is excluded; prior answered
-        // waiting still counts, and a later ordinary step can save its since.
-        let start = reading.asked.max(row.change.since);
-        let elapsed = env.wall.as_nanos().saturating_sub(start.as_nanos());
-        row.change.since = Wall::from_nanos(row.change.since.as_nanos().saturating_add(elapsed));
+        if let Some(row) = d.changes.get_mut(&task) {
+            // Only the unavailable part of this read chain is excluded.
+            let start = reading.asked.max(row.change.since);
+            let elapsed = env.wall.as_nanos().saturating_sub(start.as_nanos());
+            row.change.since = Wall::from_nanos(row.change.since.as_nanos().saturating_add(elapsed));
+        }
     }
     false
 }

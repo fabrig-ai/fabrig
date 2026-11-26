@@ -564,6 +564,7 @@ fn held_landing_judgements_wait_and_are_woken_by_fresh_reads() {
     row.change.state = c::State::Landing { head: HEAD };
     let evidence = ChangeEvidence {
         behind: None,
+        readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
         prior: row.change.clone(),

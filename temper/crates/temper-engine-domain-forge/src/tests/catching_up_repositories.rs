@@ -408,6 +408,7 @@ fn landing_judgement_waits_for_all_member_repositories() {
         temper_engine_domain_forge_landing::Repository { forge: OTHER.forge, repository: OTHER.repository };
     let evidence = ChangeEvidence {
         behind: None,
+        readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
         prior: fixtures::opening_row().change,

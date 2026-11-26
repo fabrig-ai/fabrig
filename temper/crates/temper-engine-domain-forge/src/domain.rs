@@ -489,7 +489,7 @@ impl Domain {
                 return true;
             }
             if let Some(owner) = step_owner(self, row.task) {
-                return outage::reading(self, owner);
+                return outage::exempts_change(self, row.task, owner);
             }
             return false;
         }
@@ -6202,6 +6202,7 @@ fn hold_read_session(
         Some(pending) => step_evidence(d, &row, pending, prior),
         None => crate::ChangeEvidence {
             behind: read_session::last_behind(d, task),
+            readback_owed: read_session::readback_owed(d, task),
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
             prior,
@@ -6961,6 +6962,7 @@ fn has_agent_question(row: &ChangeRow) -> bool {
 fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: change::Change) -> crate::ChangeEvidence {
     crate::ChangeEvidence {
         behind: pending.behind.or(read_session::last_behind(d, pending.task)),
+        readback_owed: read_session::readback_owed(d, pending.task),
         nearest_write: match pending.drift {
             Some(drift) => drift.nearest,
             None => None,

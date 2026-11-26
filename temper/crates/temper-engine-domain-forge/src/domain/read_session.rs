@@ -11,18 +11,25 @@ use skein_lib::{List, Queue, Wall};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Session {
     since: Wall,
-    behind: Option<crate::ReadBehind>,
+    record: RecordWait,
     until: Wall,
     exempt: bool,
     ended: bool,
     started: bool,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum RecordWait {
+    None,
+    Behind(crate::ReadBehind),
+    Readback,
+}
+
 impl Session {
     fn new(env: &Env<Limits>, since: Wall) -> Self {
         Self {
             since,
-            behind: None,
+            record: RecordWait::None,
             until: Wall::from_nanos(since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos())),
             exempt: false,
             ended: false,
@@ -34,7 +41,7 @@ impl Session {
         Self {
             since: wait.since,
             until: wait.until,
-            behind: Some(wait.evidence),
+            record: RecordWait::Behind(wait.evidence),
             exempt: false,
             ended: false,
             started: true,
@@ -90,12 +97,10 @@ pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, 
     let mut exempt = !super::fresh_reads_in(d)
         || row.room.is_some()
         || pending.heard.delegate_live
-        || (pending.behind.is_some() || last_behind(d, pending.task).is_some())
-            && super::change_writers(d, row, pending).0
         || waits_for_dependencies(row, pending)
         || connection_wait::waiting(d, row.task, row.repository.forge);
     if let Some(owner) = step_owner(d, row.task) {
-        exempt |= outage::reading(d, owner);
+        exempt |= outage::exempts_change(d, pending.task, owner);
     }
     if !d.read_sessions.contains_key(&pending.task) {
         let since =
@@ -137,7 +142,7 @@ pub(super) fn since(d: &Domain, task: u64) -> Option<Wall> {
 
 pub(super) fn behind(d: &mut Domain, task: u64, evidence: crate::ReadBehind, out: &mut Queue<Request>) {
     if let Some(session) = d.read_sessions.get_mut(&task) {
-        session.behind = Some(evidence);
+        session.record = RecordWait::Behind(evidence);
         if !session.exempt {
             let wait = BehindWait { since: session.since, until: session.until, evidence };
             save(d, task, Some(wait), out);
@@ -146,7 +151,31 @@ pub(super) fn behind(d: &mut Domain, task: u64, evidence: crate::ReadBehind, out
 }
 
 pub(super) fn last_behind(d: &Domain, task: u64) -> Option<crate::ReadBehind> {
-    d.read_sessions.get(&task)?.behind
+    match d.read_sessions.get(&task)?.record {
+        RecordWait::Behind(evidence) => Some(evidence),
+        RecordWait::None | RecordWait::Readback => None,
+    }
+}
+
+pub(super) fn owe_readback(d: &mut Domain, task: u64) {
+    if let Some(session) = d.read_sessions.get_mut(&task) {
+        session.record = RecordWait::Readback;
+    }
+}
+
+pub(super) fn readback_owed(d: &Domain, task: u64) -> bool {
+    match d.read_sessions.get(&task) {
+        Some(session) => session.record == RecordWait::Readback,
+        None => false,
+    }
+}
+
+/// An outage cannot extend a caller's wait on a judgement already in progress.
+pub(crate) fn waiting_on_record(d: &Domain, task: u64) -> bool {
+    match d.read_sessions.get(&task) {
+        Some(session) => session.record != RecordWait::None,
+        None => false,
+    }
 }
 
 /// The active read count is independent of any wait the policy last took.
@@ -213,7 +242,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             super::hold_read_session(d, env, task, None, out);
             continue;
         };
-        if outage::reading(d, owner) {
+        if outage::exempts_change(d, task, owner) {
             pause(d, task);
             continue;
         }
@@ -224,6 +253,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             None => false,
         };
         if expired {
+            outage::forget_read(d, owner);
             wait_for_forge(d, env, &pending, None, out);
         } else {
             d.steps.insert(owner, pending).expect("gather keeps its room");

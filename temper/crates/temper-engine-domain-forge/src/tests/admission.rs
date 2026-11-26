@@ -220,6 +220,77 @@ fn change_reads_ride_outages_with_capped_waits_and_reset_on_an_answer() {
     }
 }
 
+#[test]
+fn a_change_waiting_on_the_write_record_keeps_its_bound_through_an_outage() {
+    use temper_engine_domain_forge_change as change;
+    use temper_engine_domain_forge_vocabulary::writes::Operation;
+
+    for readback in [false, true] {
+        let mut d = gathering();
+        let mut env = env();
+        env.limits.client.read_attempts = 1;
+        let task = fixtures::CHANGE;
+        let name = run_branch(b"51");
+        let head = fixtures::HEAD;
+        let newer = [41; 32];
+        let observed = if readback { newer } else { head };
+        let mut writes = Queue::uncapped();
+        let attempt = Sender::Attempt { task, attempt: 1 };
+        d.admit(&name, Operation::Create { after: head }, attempt, &mut writes).expect("first head");
+        assert!(matches!(d.observe(&name, Some(head), Actor::Unknown, &mut writes), Seen::Explained { .. }));
+        let order = if readback {
+            let operation = Operation::Update { pull: 1, before: head, base: fixtures::BASE, after: None };
+            let sender = Sender::Entry { task, entry: 2 };
+            d.admit(&name, operation, sender, &mut writes).expect("update intent")
+        } else {
+            let operation = Operation::Push { before: Some(head), after: newer };
+            let order = d.admit(&name, operation, attempt, &mut writes).expect("second head");
+            assert!(matches!(d.observe(&name, Some(newer), Actor::Unknown, &mut writes), Seen::Explained { .. }));
+            order
+        };
+        let bound = d.inspection_change_read_bound(task).expect("gather's bound");
+        let (call, op) = fixtures::next_at(&mut d, &env);
+        assert!(matches!(op, Op::Read(Read::Branch { .. })));
+        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(observed)));
+
+        // The branch must be asked again, rather than judged by the inconclusive read.
+        fixtures::advance(&mut d, &mut env, Duration::from_secs(1));
+        send(&mut d, &env, fixtures::change_step());
+        let (mut call, retry) = fixtures::next_at(&mut d, &env);
+        if retry != op {
+            assert!(readback && matches!(retry, Op::Read(Read::Commits { .. })), "{retry:?}");
+            fixtures::answer_at(&mut d, &env, call, Err(skein_forge::api::Error::Unavailable));
+            let (next, retry) = fixtures::next_at(&mut d, &env);
+            assert_eq!(retry, op);
+            call = next;
+        }
+        fixtures::answer_at(&mut d, &env, call, Err(skein_forge::api::Error::Unavailable));
+        assert_eq!(d.inspection_change_read_bound(task), Some(bound), "the outage cannot move the wait's bound");
+
+        let remaining = bound.as_nanos() - env.wall.as_nanos();
+        fixtures::advance(&mut d, &mut env, Duration::from_nanos(remaining - 1));
+        assert!(!matches!(d.change(task).expect("caller").change.state, change::State::Held { .. }));
+        let out = fixtures::advance(&mut d, &mut env, Duration::from_nanos(1));
+        assert!(matches!(
+            d.change(task).expect("caller").change.state,
+            change::State::Held { why: change::Hold::Stalled, .. }
+        ));
+        let mut named = false;
+        for request in &out {
+            if let Request::ChangeDecision {
+                decision: change::Decision::Hold(change::Hold::Stalled),
+                evidence: Some(read),
+                ..
+            } = request
+            {
+                named |= read.behind.is_none() == readback && read.readback_owed == readback;
+            }
+        }
+        assert!(named, "hold names the inconclusive read: {out:?}");
+        assert!(d.write_entry(&name, order).is_some(), "holding the caller doesn't drop the write");
+    }
+}
+
 fn assert_connection_wait(out: &Queue<Request>) {
     let mut waiting = false;
     for request in out {

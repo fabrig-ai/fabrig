@@ -376,8 +376,13 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
     {
         return None;
     }
+    // A retry does not finish a gather. The caller's read clock, not the
+    // phase clock, bounds waits on a coherent set of forge facts.
+    if let Some(at) = view.forge.inspection_change_read_bound(row.task) {
+        return Some(Time::from_nanos(at.as_nanos()));
+    }
     if matches!(row.change.state, State::WaitingProducer { .. }) {
-        return view.forge.inspection_change_read_bound(row.task).map(|at| Time::from_nanos(at.as_nanos()));
+        return None;
     }
     if matches!(row.change.state, State::Producing { .. })
         && (!view.forge.inspection_step_dependencies(row.task).is_empty()

@@ -49,6 +49,7 @@ fn fixture() -> (Domain, ChangeEvidence) {
     let row = opening_row();
     let evidence = ChangeEvidence {
         behind: None,
+        readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
         size: None,

@@ -577,6 +577,7 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
     let change = fixtures::opening_row();
     let evidence = ChangeEvidence {
         behind: None,
+        readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
         size: None,

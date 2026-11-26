@@ -611,6 +611,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             entry: Some(ENTRY),
             evidence: Some(forge::ChangeEvidence {
                 behind: None,
+                readback_owed: false,
                 nearest_write: None,
                 touched: forge::Touched::UNKNOWN,
                 size: None,
@@ -783,6 +784,7 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
             behind: None,
+            readback_owed: false,
             nearest_write: None,
             touched: forge::Touched::UNKNOWN,
             size: None,
@@ -1260,6 +1262,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
         row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::BranchMoved };
         let evidence = forge::ChangeEvidence {
             behind: None,
+            readback_owed: false,
             nearest_write: None,
             touched: forge::Touched::UNKNOWN,
             prior: row.change.clone(),
@@ -2818,6 +2821,7 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
         ]);
         let evidence = forge::ChangeEvidence {
             behind,
+            readback_owed: false,
             nearest_write: Some(3),
             touched: forge::Touched::UNKNOWN,
             prior,
@@ -5051,6 +5055,7 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     .unwrap();
     let evidence = forge::ChangeEvidence {
         behind: None,
+        readback_owed: false,
         nearest_write: None,
         touched: forge::Touched::UNKNOWN,
         size: None,
