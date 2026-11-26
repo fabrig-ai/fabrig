@@ -5,6 +5,7 @@ mod acts;
 mod admission;
 mod documents;
 mod effects;
+mod engine;
 mod fill;
 pub(crate) mod fixtures;
 mod funding;

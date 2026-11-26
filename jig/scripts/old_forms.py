@@ -12,7 +12,19 @@ FORMS = {
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
     'inner_allow': re.compile(r'#!\[allow\b'),
+    # State reached through the core (temper/docs/design/draft/jig-domain-api.md, 16, count 4).
+    'child_state': re.compile(
+        r'\bcore(?:\s*\(\s*\)|_mut\s*\(\s*\))?\s*\.\s*'
+        r'(?:accounts|authority|brief|fleet|notes|people|tasks|views)\b'
+    ),
+    # Events made in a root (temper/docs/design/draft/jig-domain-api.md, 16, count 5).
+    'child_event': re.compile(r'\b(?:jig_domain_)?(?:tasks|fleet|people)::Event::\w+'),
 }
+ROOT_SOURCE = re.compile(
+    r'^(?!.*(?:/(?:tests|fuzzy)/|/(?:tests[^/]*|fuzzy)\.rs$))'
+    r'(?:examples/ops/domain|testing/jig-test-domain)/src/'
+)
+INCLUDE = {'child_state': ROOT_SOURCE, 'child_event': ROOT_SOURCE}
 EXEMPT = {
     'max_out': {
         # The kernel's submission bounds stay at its edges.
@@ -36,6 +48,7 @@ MARKERS = {
     'max_out': ('max_out', 'MAX_OUT'), 'JournalRoom': ('JournalRoom',),
     'takes': ('takes',), 'worst_case': ('worst_case',),
     'inner_allow': ('#![allow',),
+    'child_state': ('core',), 'child_event': ('Event',),
 }
 WORDS = ('max_out', 'JournalRoom', 'worst_case')
 COMMENT_FORMS = {

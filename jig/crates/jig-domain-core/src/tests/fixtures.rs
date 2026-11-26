@@ -77,6 +77,42 @@ pub(crate) fn make_batch_at(
 use super::*;
 use jig_domain_link::{Bounds, EndpointBound};
 
+pub(super) fn open_core(core: &mut Core, env: &Env<Limits>) {
+    drop(finish_start(core, env));
+    settle_fleet(&mut core.fleet, &env.with(env.limits.fleet));
+}
+
+pub(super) fn newcomer() -> people::Identity {
+    people::Identity {
+        key: people::IdentityKey { provider: 0, subject: Box::new([2]) },
+        login: Box::from(&b"newcomer"[..]),
+        name: Box::from(&b"A Newcomer"[..]),
+    }
+}
+
+pub(super) const TASK_ALARM_AT: Wall = Wall::from_nanos(10);
+
+pub(super) fn arm_task_alarm(core: &mut Core, limits: &Limits) {
+    const TASK: u64 = 1;
+    const SUBSCRIPTION: u64 = 1;
+    const REPLY: Token = Token::new(3);
+    make_task(core, limits, TASK);
+    tasks::step(
+        &mut core.tasks,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
+        tasks::Event::Subscribe {
+            reads_project: false,
+            reply_to: ReplyTo::new(REPLY),
+            task: TASK,
+            subscription: tasks::Subscription {
+                number: SUBSCRIPTION,
+                kind: tasks::SubscriptionKind::Timer { at: TASK_ALARM_AT, period: None },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+}
+
 pub(crate) fn list_record(names: u64, read: bool, failure: Option<accounts::ReadFailure>) -> accounts::ListRecord {
     accounts::ListRecord {
         names,

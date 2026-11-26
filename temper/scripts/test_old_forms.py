@@ -10,6 +10,7 @@ import unittest
 
 SCRIPT = Path(__file__).with_name("old_forms.py").resolve()
 FORMS = ("max_out", "JournalRoom", "takes", "worst_case")
+CHILD_FORMS = ("child_state", "child_event")
 HEADER = (
     "# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3): each count may only fall.\n"
     "# Lower them with `python3 -I -B scripts/old_forms.py --write`; "
@@ -40,8 +41,10 @@ class OldForms(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(source, encoding="utf-8")
         (root / "scripts").mkdir(exist_ok=True)
+        forms = FORMS + CHILD_FORMS
+        counts += (0,) * (len(forms) - len(counts))
         (root / "scripts/old-forms.txt").write_text(
-            HEADER + "".join(f"{form} {count}\n" for form, count in zip(FORMS, counts))
+            HEADER + "".join(f"{form} {count}\n" for form, count in zip(forms, counts))
             + "comment:actual 0\ncomment:genuine 0\n",
             encoding="utf-8")
         return root
@@ -62,6 +65,29 @@ let size = payload.worst_case();
 """})
         self.run_script(root, exit=1, lines=[
             *(f"{form}: count 1, baseline 0" for form in FORMS), RULE])
+
+    def test_child_uses_count_only_in_root_source(self):
+        source = """
+let _ = core.tasks;
+let _ = engine.core().people;
+let _ = engine.core_mut().fleet;
+step(tasks::Event::HoldFrom { .. });
+"""
+        path = "crates/temper-engine-domain/src"
+        root = self.repository({
+            f"{path}/lib.rs": source + "/*" + source + "*/\n",
+            f"{path}/tests.rs": source,
+            f"{path}/tests_helpers.rs": source,
+            f"{path}/route/tests/helper.rs": source,
+            f"{path}/fuzzy.rs": source,
+            f"{path}/fuzzy/helper.rs": source,
+            "crates/other/src/lib.rs": source,
+        })
+        self.run_script(root, exit=1, lines=[
+            "child_state: count 3, baseline 0",
+            "child_event: count 1, baseline 0",
+            RULE,
+        ])
 
     def test_a_use_in_a_comment_or_a_doc_comment_does_not_count(self):
         root = self.repository({"src/lib.rs": """

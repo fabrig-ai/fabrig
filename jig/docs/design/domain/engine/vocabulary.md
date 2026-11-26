@@ -137,3 +137,68 @@ step its last answer arrives.
 - **A compound request is one decision** (../people/acts.md, 1): the route
   above runs once per operation, in order, within one step of the root's,
   and its hand-offs are bounded by its operations (`README.md`, section 7).
+
+## 2. The engine
+
+What a root calls: `Engine`, the core behind five free functions, and its vocabulary, `In` and
+`Out` (`temper/docs/design/draft/jig-domain-api.md`, 4.1 and 4.5). For now it passes through:
+what crosses it is section 1's vocabulary whole, and it changes no behaviour of the core's.
+
+### 2.1 Its functions
+
+- **`Engine`** holds the core and nothing else. `Engine::new(config, limits)` builds it as
+  `Core::new` does, refusing what that refuses with the same `Problem`.
+- **`step(engine, env, input, out)`** takes one input as one decision and appends its outputs to
+  `out`, in the order the core made them. For `In::Core(event)` they are exactly what the core's
+  own step returns for `event`, each as `Out::Core`.
+- **`fire(engine, env, timer, out)`** fires one due timer the same way, as the core's `fire` does.
+- **`due(engine, now, wall, admit)` and `next_deadline(engine, now, wall, admit)`** keep today's
+  timers, clocks and admission: `now` is the engine's clock and `wall` the wall's, since a
+  sign-in expires on the wall. `Admit::All` admits every timer, as the core's `due` and
+  `next_deadline` do; `Admit::Finishing`, while the root holds new work at its watermark
+  (`../root.md`, 3), admits only a timer that advances admitted work, as `finishing_due` and
+  `next_finishing_deadline` do (`jig-domain-core/src/routing/timers.rs`).
+- **`idle(engine)`** is the core's own quiescence, the journal's left to the root that holds it:
+  the core's `quiescent(journal_idle)` is `idle(engine) && journal_idle`. It includes the
+  finishing the core owes (`../root.md`, 3).
+- **Where they live.** `Engine` and the functions are the `engine` module of `jig-domain-core`; `In`,
+  `Out` and `Admit` are the same module of `jig-domain-core-vocabulary`, which the core's re-exports
+  whole (`README.md`, 3). No crate root re-exports them while the core's own `step` and `fire`
+  hold those names.
+
+### 2.2 In and out
+
+- **`In::Core` carries today's `Event`, and `Out::Core` today's `Request`,** and neither enum
+  has another variant. A request keeps its mark (1.2) inside `Out::Core`, and the root keeps it
+  as it does today (`../root.md`, 3). For the draft's pass-through
+  (`temper/docs/design/draft/jig-domain-api.md`, 4.5 and 15), jig names the variants `Core` because
+  its sources keep out the draft's name `Legacy` (`jig/tests/boundary/src/names.rs`).
+- **The ports come beside `In::Core` and `Out::Core`.** Each port of the draft
+  (`temper/docs/design/draft/jig-domain-api.md`, 4.2 and 5) arrives as variants of `In` and `Out`
+  and takes its cases out of `In::Core` and `Out::Core`, a milestone at a time, until they are
+  empty and go.
+
+### 2.3 The core, while the move runs
+
+- **The whole core, by method:** `Engine::core` gives it shared and `Engine::core_mut`
+  exclusive (`engine.core()`, `engine.core_mut()`). So every use a root, a kit or a world makes
+  of `Core` today (its methods, its children's state, its counters, the step's other entrances
+  `want_accounts` and `resume_fleet`) compiles through them unchanged. Each milestone narrows what
+  passes through, and the clean-up removes them.
+- **Never by `Deref`,** since a deref would make each use of the core read as a use of the engine:
+  through two named methods every remaining use stays in sight, to review and to the counts. The
+  counts of `temper/docs/design/draft/jig-domain-api.md`, 16 that read a use of the core (its
+  methods called, its children's state reached) read `core()` and `core_mut()` as they read
+  `core.`, and do not count those two, so a root that holds `Engine` in place of `Core` lowers
+  no count by doing so.
+- **Why a pass-through:** built alone, the engine would be checked by nothing. Passing through, it
+  is checked by every root's suites as each root adopts it, and each later move is a real one
+  (`temper/docs/design/draft/jig-domain-api.md`, 15).
+
+## 3. Later
+
+- **The engine as the API** (`temper/docs/design/draft/jig-domain-api.md`, 4 to 6, by its
+  execution file): the ports beside `In::Core` and `Out::Core`; connectors' declarations given to
+  `Engine::new`; one class per input, and `idle` in place of `quiescent` and `finish_owed`; then
+  `In::Core`, `Out::Core` and the access gone, and `In` and `Out` named `Event` and `Request` once
+  today's are.

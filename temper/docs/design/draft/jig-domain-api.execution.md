@@ -8,7 +8,7 @@ Each is a goal, one change of one concern. A milestone that grows past a day's c
 
 | Milestone | Draft parts | Stream | Needs | Its figure after landing | State |
 |---|---|---|---|---|---|
-| J1, the engine as a pass-through: `Engine` in `jig-domain-core` over `Core`, with `step`, `due`, `fire`, `next_deadline` and `idle` keeping today's clocks and timers' admission, `In::Legacy` and `Out::Legacy` carrying today's `Event` and `Request` and nothing else, and a temporary access to the whole `Core`, shared and exclusive, by method and not by `Deref`; the counts of the draft's section 16 measured again, each with its command from the draft's notes written here, those a pattern finds added to jig's and temper's old-forms ratchets (`jig/scripts/old-forms.txt`, `temper/scripts/old-forms.txt`) | 4.1, 4.5, 15, 16 | engine | none | the counts' baseline | not started |
+| J1, the engine as a pass-through: `Engine` in `jig-domain-core` over `Core`, with `step`, `due`, `fire`, `next_deadline` and `idle` keeping today's clocks and timers' admission, `In::Legacy` and `Out::Legacy` carrying today's `Event` and `Request` and nothing else, and a temporary access to the whole `Core`, shared and exclusive, by method and not by `Deref`; the counts of the draft's section 16 measured again, each with its command from the draft's notes written here, those a pattern finds added to jig's and temper's old-forms ratchets (`jig/scripts/old-forms.txt`, `temper/scripts/old-forms.txt`) | 4.1, 4.5, 15, 16 | engine | none | the counts' baseline | done, by goal 19159 (`jig/docs/design/domain/engine/vocabulary.md`, 2; the counts and their commands, below); its figure is read after landing |
 | J2, jig's roots on the engine: `ops`'s root and the test root hold `Engine` in place of `Core`, and the kits and worlds that drive the core (`jig-core-kit`, `jig-conformance`, `jig-test-service`) drive it; no behaviour moves | 15 | roots | J1 | counts 1 and 3 | not started |
 | J3, temper's root on the engine: `temper-engine-domain` and the engine service's crates that drive the core hold `Engine`; no behaviour moves | 15 | roots | J1 | counts 1 and 3 | not started |
 | J4, the store's loads: one `Load` and its one `Loaded` with a typed result, paced by the engine; store answers' order and a released callback's place among them kept as named predicates with their tests; the ten named loads and their `busy` flags gone | 4.4, 5.1, 18 | engine | J2, J3; the user's word on one order for every root (the draft's section 18), or its default | counts 1, 2, 3 and 8 | not started |
@@ -46,3 +46,138 @@ Each is a goal, one change of one concern. A milestone that grows past a day's c
 - **The user's word on one order for every root** (the draft's section 18) comes before J4 starts. Without it, J4 takes the default and says so in its design.
 - **Each milestone lowers its counts** and none raises one; a count the ratchet holds fails the gate if it rises.
 - **This file's states:** each goal marks its own row, so goals side by side don't change the same line. The draft's status file is rewritten by J23 alone.
+
+## 3. The counts
+
+Baseline measured at `98305c3322` (2026-11-26). The commands below read one Git revision, `HEAD` by default. For a per-root figure, the three roots are `ops`, the test root and temper, in that order. Set up `jig_api_count` below from the repository root before running the numbered commands; for example, `jig_api_count 1 98305c3322` reads count 1 at the baseline.
+
+1. **Distinct edge variants named in the roots' non-test sources:** 212, 317 and 252; **349** in their union. `jig_api_count 1`.
+   As in [the notes](jig-domain-api.notes.md), section 3, this reads cases of `Ask`, `Held`, `Now`, `Request`, `Write` and `Event` under `core::`, `jig_domain_core::` (normalized to `core::`) and `connector::`. It also reads `In::` and `Out::` cases whether bare or module-qualified, including `Legacy` once named in a root. None is named yet.
+2. **Variants carried through `Legacy`:** **270**. `jig_api_count 2`.
+   These are 76 `Event`, 38 `Ask`, 46 `Held`, 40 `Now`, 8 `LinkNow` and 5 `Write` in `vocabulary.rs`, and 38 `Ask` and 19 `Event` in `effects/connector.rs`.
+3. **Distinct core methods called in the roots:** 23, 25 and 67; **73** in their union. `jig_api_count 3`.
+4. **Accesses to children's state in the roots:** 17, 36 and 386; **439** in total. `jig_api_count 4`. The `child_state` ratchet records **53** in jig and **386** in temper.
+5. **Children's events named in the roots:** 15, 16 and 78; **109** in total. `jig_api_count 5`. The `child_event` ratchet records **31** in jig and **78** in temper.
+6. **Production manifests outside the core, its vocabulary, the contract and the children naming a child's crate:** **27** (77 in the broader count that includes test kits). `jig_api_count 6`.
+7. **Non-test lines in `jig-domain-hub-link`:** **1,309**. `jig_api_count 7`.
+8. **Non-test lines in the roots, and in temper's wiring:** 3,671, 4,762 and 34,683; **43,116** in total. Of temper's lines, **13,019** are in 31 wiring files. `jig_api_count 8`.
+9. **Functions of the conformance kit's `Application`:** **26**. `jig_api_count 9`.
+10. **Fields in `Core` and `TaskRecord`:** **99** and **96**, respectively. `jig_api_count 10`.
+
+Counts 3 and 4 read `core.`, `core().` and `core_mut().` alike, and count 3 excludes the two access methods themselves (`jig/docs/design/domain/engine/vocabulary.md`, 2.3). Counts 4 and 5 read source text, while the ratchets strip comments; the figures agree at this baseline. To check the ratchets in the working tree, run `(cd jig && python3 -I -B scripts/old_forms.py)` and `(cd temper && python3 -I -B scripts/old_forms.py)`.
+
+```bash
+jig_api_count() {
+  python3 -I -B - "$@" <<'PY'
+import re, subprocess, sys, tomllib
+
+count = int(sys.argv[1])
+rev = sys.argv[2] if len(sys.argv) > 2 else 'HEAD'
+roots = ['jig/examples/ops/domain/src/', 'jig/testing/jig-test-domain/src/',
+         'temper/crates/temper-engine-domain/src/']
+children = 'accounts authority brief fleet notes people tasks views'.split()
+
+
+def git(*args):
+    return subprocess.check_output(['git', *args], text=True)
+
+
+def read(path):
+    return git('show', f'{rev}:{path}')
+
+
+def source(prefix):
+    for path in git('ls-tree', '-r', '--name-only', rev, '--', prefix).splitlines():
+        if path.endswith('.rs') and not re.search(r'/(tests|fuzzy)/|/(tests[^/]*|fuzzy)\.rs$', path):
+            yield path, read(path)
+
+
+def body(path, decl):
+    return re.search(r'^pub '+decl+r' \{\n(.*?)^\}', read(path), re.M | re.S)[1]
+
+
+if count in (1, 3, 4, 5):
+    access = r'\bcore(?:\s*\(\s*\)|_mut\s*\(\s*\))?\s*\.\s*'
+    state = access + r'(?:' + '|'.join(children) + r')\b'
+    event = r'\b(?:jig_domain_)?(?:tasks|fleet|people)::Event::\w+'
+    legacy = r'\b(core|jig_domain_core|connector)::(Ask|Held|Now|Request|Write|Event)::([A-Z]\w*)'
+    port = r'\b(In|Out)\s*::\s*([A-Z]\w*)'
+    union, total = set(), 0
+    for root in roots:
+        text = '\n'.join(t for _, t in source(root))
+        if count == 1:
+            hits = {('core' if q == 'jig_domain_core' else q, name, case)
+                    for q, name, case in re.findall(legacy, text)}
+            hits.update(('engine', name, case) for name, case in re.findall(port, text))
+        elif count == 3:
+            hits = set(re.findall(access + r'([a-z_]\w*)\s*\(', text)) - {'core', 'core_mut'}
+        else:
+            hits = re.findall(state if count == 4 else event, text)
+        print(root, len(hits))
+        if count in (1, 3):
+            union.update(hits)
+        else:
+            total += len(hits)
+    if count in (1, 3):
+        print('union', len(union))
+    else:
+        print('total', total)
+elif count == 2:
+    v = 'jig/crates/jig-domain-core-vocabulary/src/'
+    specs = {v+'vocabulary.rs': 'Event Ask Held Now LinkNow Write',
+             v+'effects/connector.rs': 'Ask Event'}
+    total = 0
+    for path, names in specs.items():
+        for name in names.split():
+            cases = set(re.findall(r'^    ([A-Z]\w*)\s*(?=[({,]|$)', body(path, 'enum '+name), re.M))
+            print(path, name, len(cases))
+            total += len(cases)
+    print('total', total)
+elif count == 6:
+    names = {'jig-domain-' + child for child in children}
+    excluded = names | {'jig-domain-core', 'jig-domain-core-vocabulary', 'jig-domain-contract'}
+    dependents = git('grep', '-l', '-E', r'^jig-domain-('+'|'.join(children)+r')[. =]',
+                     rev, '--', '*Cargo.toml').splitlines()
+    paths = [entry.split(':', 1)[1] for entry in dependents]
+    broad = sum(path != 'Cargo.toml' and not re.search(r'/jig-domain-core(?:-vocabulary)?/', path)
+                for path in paths)
+    production = 0
+    for path in paths:
+        if path == 'Cargo.toml' or re.search(r'/(tests|testing|benchmarks)/', path):
+            continue
+        doc = tomllib.loads(read(path))
+        if doc.get('package', {}).get('name') not in excluded and names & doc.get('dependencies', {}).keys():
+            production += 1
+    print('production', production, 'broad', broad)
+elif count == 7:
+    print(sum(t.count('\n') for _, t in source('jig/crates/jig-domain-hub-link/src/')))
+elif count == 8:
+    wiring = re.compile(
+        r'^(admission|assemble|boundary|deadline|decision|domain|journal_stop|lib|limits|link|'
+        r'loads|push|restart|settling|start_wait|stopping|translate|wire|route)\.rs$|'
+        r'^route/(asks|held|now|parts|opened|public|host_route|applications|document|see)\.rs$|'
+        r'^route/(parts|document)/[^/]+\.rs$')
+    total = 0
+    for root in roots:
+        lines = {p[len(root):]: t.count('\n') for p, t in source(root)}
+        root_total = sum(lines.values())
+        print(root, root_total)
+        total += root_total
+        if root == roots[-1]:
+            chosen = {p: n for p, n in lines.items() if wiring.search(p)}
+            print('temper wiring', len(chosen), 'files', sum(chosen.values()), 'lines', chosen)
+    print('total', total)
+elif count in (9, 10):
+    specs = {
+        9: [('jig/testing/jig-conformance/src/harness.rs', 'trait Application', r'^\s+fn ')],
+        10: [('jig/crates/jig-domain-core/src/lib.rs', 'struct Core',
+              r'^\s+(?:pub(?:\(crate\))? )?[a-z_]+:'),
+             ('jig/crates/jig-domain-tasks/src/boundary.rs', 'struct TaskRecord', r'^\s+pub [a-z_]+:')],
+    }
+    for path, decl, pattern in specs[count]:
+        print(decl, len(re.findall(pattern, body(path, decl), re.M)))
+else:
+    sys.exit('expected a count from 1 to 10')
+PY
+}
+```

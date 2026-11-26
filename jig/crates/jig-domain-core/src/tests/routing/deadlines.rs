@@ -1,5 +1,5 @@
 //! Clock projection and ordered timer selection (jig/docs/design/domain/engine/vocabulary.md, 1.1).
-use crate::tests::*;
+use crate::tests::{fixtures::TASK_ALARM_AT, *};
 use jig_domain_link::{Form, Scheme};
 
 fn arm_brief(core: &mut Core, limits: &Limits, deadline: Time) -> Time {
@@ -127,23 +127,8 @@ fn a_dirty_header_is_taken_once_and_never_before_the_load() {
 fn with_task_alarm() -> (Core, Limits) {
     let (mut core, limits) = core();
     core.opened = true;
-    make_task(&mut core, &limits, 1);
-    let mut out = Queue::uncapped();
-    tasks::step(
-        &mut core.tasks,
-        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
-        tasks::Event::Subscribe {
-            reads_project: false,
-            reply_to: ReplyTo::new(Token::new(3)),
-            task: 1,
-            subscription: tasks::Subscription {
-                number: 1,
-                kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(10), period: None },
-            },
-        },
-        &mut out,
-    );
-    assert_eq!(core.tasks.next_deadline(), Some(Time::from_nanos(10)));
+    fixtures::arm_task_alarm(&mut core, &limits);
+    assert_eq!(core.tasks.next_deadline(), Some(Time::from_nanos(TASK_ALARM_AT.as_nanos())));
     (core, limits)
 }
 
