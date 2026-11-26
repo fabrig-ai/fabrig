@@ -1016,7 +1016,7 @@ filter = "binary(=proof_live) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 [[fixture.reader]]
 pair = "default"
 package = "temper-twin-tool"
-filter = "binary(=suite) & (test(/b0_plan_scripts_are_exactly_the_twins_cued_and_asked_in_box_form/) | test(/ctl_hello_scripts_are_only_the_twins_review_with_qa_verdict_text_in_box_form/))"
+filter = "binary(=suite) & (test(/b0_plan_scripts_match_the_twin_without_the_chat_wakeup/) | test(/ctl_hello_scripts_are_only_the_twins_review_with_qa_verdict_text_in_box_form/))"
 [[fixture.reader]]
 pair = "default"
 package = "temper-client-journeys-tool"

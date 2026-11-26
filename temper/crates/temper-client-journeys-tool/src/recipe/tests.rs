@@ -308,7 +308,8 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     );
     assert_eq!(
         project.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [br#"web see "Nothing needs you.""#.as_slice()]
+        [br#"web see "Hello is ready.""#.as_slice()],
+        "project-landing checks Hello's Home at the root"
     );
 }
 
