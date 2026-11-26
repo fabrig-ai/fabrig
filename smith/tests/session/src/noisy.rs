@@ -10,6 +10,9 @@ use smith_domain_tools as tools;
 
 use crate::{BUDGET, Count, Settings, Span, World, spec};
 
+/// Leave enough tool rounds within a session's turn budget to fill its job cells.
+const NOISY_TURNS: u64 = 20;
+
 /// Settings drawn from `seed`: small limits, faults, latencies that race the
 /// deadlines, and an opener that nudges, dawdles and abandons.
 #[must_use]
@@ -36,7 +39,7 @@ pub fn noisy(seed: u64) -> Settings {
             completion_blocks: 16,
             failure_bytes: 512,
             delegated_result_bytes: 16_384,
-            budget: Budget { turns: pick(1, 6), time: session_timeout, ..BUDGET },
+            budget: Budget { turns: pick(1, NOISY_TURNS), time: session_timeout, ..BUDGET },
             retries: pick(0, 4),
             backoff_base: Duration::from_millis(50),
             backoff_max: Duration::from_secs(2),
@@ -72,7 +75,7 @@ pub fn noisy(seed: u64) -> Settings {
             answer_tokens: pick(1, 40),
             calls_per_answer: pick(1, 3),
             malformed: pick(0, 200),
-            tool_rounds: pick(0, 5),
+            tool_rounds: pick(0, NOISY_TURNS),
             ..calm.provider
         },
         tool: Span::millis(10, 3_000),
@@ -96,6 +99,8 @@ pub fn noisy(seed: u64) -> Settings {
         .history_bytes
         .checked_add(crate::reservation_envelope(&settings.agent).expect("bounded scripted credits"))
         .expect("bounded pressure plus credit envelope");
+    // Draw the job cells last, keeping every earlier draw in its seed's place.
+    settings.agent.tools.jobs = pick(1, u64::from(calm.agent.tools.jobs));
     settings
 }
 

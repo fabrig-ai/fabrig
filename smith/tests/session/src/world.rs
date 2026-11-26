@@ -14,6 +14,7 @@ use crate::fixture;
 use crate::tickets::{SERVED, Ticketed, Tickets};
 use crate::translate;
 
+mod jobs;
 mod llm;
 mod window_referee;
 
@@ -57,8 +58,8 @@ pub const TOOLS: tools::Limits = tools::Limits {
 
 /// Checked credit envelope around the original retained-payload pressure.
 /// The provider and a result batch own their credits successively, so the larger
-/// envelope suffices. All six owned result families and concrete delegated results
-/// are included; record arrays and caller/emitted copies remain independently
+/// envelope suffices. Owned results, including job and shell output, and concrete
+/// delegated results are included; record arrays and caller/emitted copies remain independently
 /// measured by the shared heap meter under scenario ceilings.
 /// smith/docs/design/domain/tools.md, sections 4, 5 and 6; skein/docs/foundation/programming-model.md, section 6.3.
 #[must_use]
@@ -267,6 +268,16 @@ pub struct Stats {
     pub op_cancels: u32,
     pub op_timeouts: u32,
     pub op_faults: u32,
+    /// Job reads and stops dispatched to io, including cleanup reads.
+    pub job_acts: u32,
+    /// Completions with a tools-entrance refusal, suppressed write and subsequent read.
+    pub refused_write_read: u32,
+    /// Calls refused for a job number the session did not hold.
+    pub unknown_jobs: u32,
+    /// Yielding commands refused because all the session's job cells were occupied.
+    pub full_jobs: u32,
+    /// Sessions by the most jobs they held at once, from zero through the four-cell limit.
+    pub held_peaks: [u32; 5],
     /// Results of calls to the tools that went back to the LLM, each checked
     /// against its call.
     pub results: u32,
@@ -338,6 +349,8 @@ pub struct Told {
     pub tools_started: u32,
     /// Count of tools answered facts drained from the component.
     pub tools_answered: u32,
+    /// Job ends the session reported outside tool answers.
+    pub jobs_ended: u32,
     /// Count of yielded facts drained from the component.
     pub yielded: u32,
     /// Count of used facts drained from the component.
@@ -399,6 +412,11 @@ pub struct Session {
     accepted_late: Vec<bool>,
     /// Delegated terminal values, indexed by their immutable origin.
     delegated_results: BTreeMap<(u32, u32), Returned>,
+    /// Highest job number seen in this session's recorded shell answers.
+    highest_job: u32,
+    held_peak: usize,
+    /// Job ends reported by an answer or a terminal fact, never both.
+    job_ends: BTreeSet<u32>,
     /// Exact inclusive and own price reports observed before terminal handoff.
     priced: u32,
     /// When its time budget runs out, once it opened.
@@ -484,6 +502,11 @@ enum Delivery {
     Ran {
         owner: Token,
     },
+    /// A held command ends, or its pending read is due, at the unrounded time.
+    Job {
+        owner: Token,
+        at: Time,
+    },
 }
 
 /// A delegated call in flight, as the opener keeps it.
@@ -516,6 +539,8 @@ enum Work {
     File(Op),
     /// A command started, finished then.
     Command(io::Started),
+    /// A command with a successful spawn whose yield precedes its end and deadline.
+    Yielding(jobs::Command),
     /// Nothing more: it ends so (it failed to start, timed out, or was
     /// cancelled).
     Ending(Done),
@@ -560,6 +585,8 @@ pub struct World {
     /// The tools' operations in flight, by their tokens, and every token an
     /// operation has had (a call's, for each operation it asks for).
     ops: Ledger<Token, Pending>,
+    /// Commands past their yield, by the same token as their spawn.
+    jobs: BTreeMap<Token, jobs::Job>,
     owners: BTreeSet<Token>,
     /// The tools of the calls each session's tools started, as they told,
     /// until their first operation; and whether the call of each operation's
@@ -625,6 +652,7 @@ impl World {
             checkout,
             roots: BTreeMap::new(),
             ops: Ledger::new("operation"),
+            jobs: BTreeMap::new(),
             owners: BTreeSet::new(),
             starting: BTreeMap::new(),
             writing: BTreeMap::new(),
@@ -813,7 +841,7 @@ impl World {
                 let pending = self.ops.get(owner).expect("live operation");
                 match &pending.work {
                     Work::File(op) if Some(pending.session) == session => Some((owner, op)),
-                    Work::File(_) | Work::Command(_) | Work::Ending(_) => None,
+                    Work::File(_) | Work::Command(_) | Work::Yielding(_) | Work::Ending(_) => None,
                 }
             })
             .collect()
@@ -896,7 +924,7 @@ impl World {
                 }
             }
             agent::Request::Io { owner, op, deadline } => self.start_op(owner, op, deadline),
-            agent::Request::Job { .. } => unreachable!("the tools issue no job act yet"),
+            agent::Request::Job { owner, act } => self.job_act(owner, act),
             agent::Request::CancelIo { owner } => self.cancel_op(owner),
             agent::Request::Delegate { owner, opener, call, deadline, origin } => {
                 let session = self.sessions.get(&opener.raw()).and_then(|session| session.session);
@@ -1008,6 +1036,7 @@ impl World {
         let assistant = &turn.messages[assistant_index];
         assert_resumed_tail(session, index, &turn.messages[..assistant_index]);
         let original = &session.accepted_content[index];
+        let mut shape = jobs::RefusalShape::default();
         assert_eq!(assistant.content.len(), original.len(), "every provider block retains its position");
         for (position, (block, original)) in assistant.content.iter().zip(original.iter()).enumerate() {
             match original {
@@ -1037,6 +1066,7 @@ impl World {
                         continue;
                     }
                     let result = result.expect("every callable ToolUse block has its settled result");
+                    shape.observe(call, result, &mut self.stats, self.settings.agent.tools.jobs);
                     match call {
                         Decoded::Delegated { .. } => {
                             let position = u32::try_from(position).expect("bounded provider position");
@@ -1052,9 +1082,11 @@ impl World {
                         Decoded::Owned { call } => match result {
                             Returned::Owned { outcome } => {
                                 assert!(fixture::fits(call, outcome), "result belongs to its call");
+                                jobs::observe_answer(&mut session.highest_job, &mut session.job_ends, outcome);
                             }
-                            Returned::NotRun { .. } => {}
-                            Returned::Text { .. } | Returned::Invalid { .. } | Returned::Withdrawn => {
+                            // The shape referee checked any tools-entrance refusal against this call.
+                            Returned::NotRun { .. } | Returned::Invalid { .. } => {}
+                            Returned::Text { .. } | Returned::Withdrawn => {
                                 panic!("an owned call retains its owned result or never ran")
                             }
                         },
@@ -1075,6 +1107,7 @@ impl World {
                 }
             }
         }
+        assert_eq!(turn.jobs, session.highest_job, "a turn records the highest job number announced");
         session.records.push(turn);
     }
 
@@ -1126,6 +1159,11 @@ impl World {
             | agent::End::Budget { .. } => {
                 let name = session.session.expect("a session that ran had opened");
                 assert!(self.idle(name), "a session ends once nothing it asked for is in flight");
+                assert!(self.jobs.values().all(|job| job.session != name), "a session ends only after its jobs");
+                assert!(
+                    session.job_ends.iter().copied().eq(1..=session.highest_job),
+                    "each announced job ended before its session ends"
+                );
             }
         }
         if ended.end == agent::End::Closed {
@@ -1139,6 +1177,7 @@ impl World {
             self.openers.remove(&name);
             self.closing.remove(&name);
         }
+        self.stats.held_peaks[session.held_peak] += 1;
         self.tickets.free(opener);
         self.sessions.get_mut(&opener).expect("looked up above").ended = Some(ended);
     }
@@ -1234,9 +1273,19 @@ impl World {
             Work::Ending(Done::Failed { fault: Fault::Other })
         } else {
             match op {
-                Op::Spawn { cwd, command, head, tail, after: _ } => {
+                Op::Spawn { cwd, command, head, tail, after } => {
                     match io::spawn(&self.checkout, &cwd, &command, &[], (head, tail)) {
-                        Ok(started) => Work::Command(started),
+                        Ok(started) => {
+                            if let Some(yield_at) = after.map(|delay| self.now.saturating_add(delay))
+                                && yield_at < ends.min(deadline)
+                            {
+                                let work = Work::Yielding(jobs::Command { started, ends, deadline });
+                                ends = yield_at;
+                                work
+                            } else {
+                                Work::Command(started)
+                            }
+                        }
                         Err(done) => Work::Ending(done),
                     }
                 }
@@ -1252,6 +1301,7 @@ impl World {
             let done = match work {
                 Work::Command(started) => io::exited(None, &[], started.head, started.tail),
                 Work::File(_) | Work::Ending(_) => Done::TimedOut,
+                Work::Yielding(_) => unreachable!("a command only yields before its deadline"),
             };
             let noticed = deadline.saturating_add(self.draw(self.settings.network));
             (work, ends) = (Work::Ending(done), noticed);
@@ -1266,6 +1316,9 @@ impl World {
     /// after a network draw, unless it ends of itself first.
     fn cancel_op(&mut self, owner: Token) {
         assert!(self.owners.contains(&owner), "a cancel names an operation io was asked for");
+        if self.cancel_job(owner) {
+            return;
+        }
         let Some(pending) = self.ops.get(owner) else {
             // It ended in the iteration the cancel was sent.
             self.stats.cancels_crossed += 1;
@@ -1295,6 +1348,7 @@ impl World {
                 let program = &started.process.program;
                 io::exited(Some(program.exit), &program.output, started.head, started.tail)
             }
+            Work::Yielding(command) => self.hold_job(owner, pending.session, command),
             Work::Ending(done) => done,
         };
         if self.op_cancel_lost.remove(&owner) {
@@ -1339,11 +1393,12 @@ impl World {
         }
     }
 
-    /// Whether the session `name` has nothing in flight.
+    /// Whether the session `name` has no calls in flight. An unpolled job is not a call.
     fn idle(&self, name: Token) -> bool {
         !self.calling.contains_key(&name)
             && self.tools.values().all(|run| run.session != name)
             && self.ops.values().all(|op| op.session != name)
+            && self.jobs.values().all(|job| job.session != name || job.batch_effect().is_none())
     }
 
     /// Whether the call `owner`'s operation `op` is for, of `session`'s tools,
@@ -1377,7 +1432,8 @@ impl World {
     fn batched(&mut self, session: Token, writes: bool) {
         let runs = self.tools.values().filter(|run| run.session == session).map(|run| run.effect == Effect::Write);
         let ops = self.ops.values().filter(|op| op.session == session).map(|op| op.writes);
-        let others: Vec<bool> = runs.chain(ops).collect();
+        let polls = self.jobs.values().filter(|job| job.session == session).filter_map(jobs::Job::batch_effect);
+        let others: Vec<bool> = runs.chain(ops).chain(polls).collect();
         assert!(!others.contains(&true), "nothing runs beside a write");
         if writes {
             assert!(others.is_empty(), "a write runs alone");
@@ -1514,6 +1570,7 @@ impl World {
                     }
                 }
                 Delivery::Ran { owner } => self.ran(owner),
+                Delivery::Job { owner, at } => self.job_tick(owner, at),
             }
         }
     }
@@ -1547,6 +1604,9 @@ impl World {
             provider_closing: ProviderClosing::default(),
             accepted_late: Vec::new(),
             delegated_results: BTreeMap::new(),
+            highest_job: 0,
+            held_peak: 0,
+            job_ends: BTreeSet::new(),
             records: Vec::new(),
             priced: 0,
             expires: None,
@@ -1617,7 +1677,9 @@ impl World {
             if let Some(&known) = self.openers.get(&session) {
                 assert_eq!(known, opener.raw(), "a kit's fact names the opener of its session");
             }
-            if let tools::FactKind::Started { session, tool } = fact {
+            if let tools::FactKind::Started { session, tool } = fact
+                && tool != tools::Tool::Job
+            {
                 self.starting.entry(session).or_default().push_back(tool);
             }
         }
@@ -1635,7 +1697,12 @@ impl World {
             | agent::FactKind::BuiltinAnswered { .. }
             | agent::FactKind::CompactionEnded { .. } => return,
             agent::FactKind::Opened { .. } => &mut told.opened,
-            agent::FactKind::JobEnded { .. } | agent::FactKind::ReasoningDropped { .. } => &mut told.reasoning_dropped,
+            agent::FactKind::JobEnded { opener, job, end, .. } => {
+                let session = self.sessions.get_mut(&opener.raw()).expect("a job terminal names its opener");
+                jobs::observe_end(&mut session.job_ends, job, end);
+                &mut told.jobs_ended
+            }
+            agent::FactKind::ReasoningDropped { .. } => &mut told.reasoning_dropped,
             agent::FactKind::CompletionStarted { .. } => &mut told.completions_started,
             agent::FactKind::CompletionAnswered { .. } => &mut told.completions_answered,
             agent::FactKind::CompletionFailed { .. } => &mut told.completions_failed,
@@ -1676,7 +1743,7 @@ impl World {
         assert_eq!(told.completions_cancelled, stats.cancels, "a fact for every cancelled call");
         assert_eq!(told.used, turns, "a fact for every completion's usage");
         assert_eq!((told.kits_opened, told.kits_closed), (opened, opened), "a kit opened and closed per session");
-        assert!(told.tools_started <= stats.ops, "a call the tools start asks io for something");
+        assert!(told.tools_started <= stats.ops + stats.job_acts, "a call the tools start asks io for something");
         assert!(told.tools_answered >= told.tools_started, "a fact for the answer to every call started");
         assert!(told.tools_answered >= stats.results, "a fact for every result that went back");
         assert_eq!(told.yielded, stats.yields, "a fact for every yield");
@@ -1692,6 +1759,7 @@ impl World {
         assert_eq!(self.agent.runs(), 0, "every run has ended and been reclaimed");
         assert_eq!((self.agent.kits(), self.agent.flights()), (0, 0), "every kit has closed, its calls answered");
         assert!(self.ops.is_empty() && self.op_cancel_lost.is_empty(), "every operation has ended, once");
+        assert!(self.jobs.is_empty(), "no held command outlives its session");
         assert_eq!(self.agent.next_deadline(), None, "no alarm outlives its session");
         assert_eq!(self.provider.calls(), 0, "the provider holds no call");
         assert!(self.calls.is_empty() && self.calling.is_empty(), "no call is in flight");
@@ -1835,7 +1903,7 @@ fn describe_agent_request(request: &agent::Request) -> String {
         agent::Request::Yield { owner } => format!("yield completion {}", owner.raw()),
         agent::Request::Cancel { owner } => format!("cancel {}", owner.raw()),
         agent::Request::Io { owner, op, deadline } => format!("io {} {op:?} by {}", owner.raw(), deadline.as_nanos()),
-        agent::Request::Job { .. } => unreachable!("the tools issue no job act yet"),
+        agent::Request::Job { owner, act } => format!("job {} {act:?}", owner.raw()),
         agent::Request::CancelIo { owner } => format!("cancel io {}", owner.raw()),
         agent::Request::Delegate { owner, opener, call, deadline, origin } => {
             format!(

@@ -699,15 +699,28 @@ fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
 
 #[test]
 fn a_new_part_just_within_the_line_is_sent() {
+    use skein_fake_llm_domain::api::Script;
     use smith_session_world::{Settings, World as Simulated, spec};
-    const LINE: u64 = 521;
-    let mut world = Simulated::new(Settings::calm(104));
+    const LAST_PROMPT: u64 = 40;
+    const DRAWN_NEW_PART: u64 = 411;
+    const LINE: u64 = LAST_PROMPT + DRAWN_NEW_PART;
+    const TURN_TOKENS: u64 = 8;
+    let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([read_turn(TURN_TOKENS)]) };
+    let mut world = Simulated::with_scripts(Settings::calm(104), Box::new([script]));
     let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: LINE, ..spec(b"fix the build") });
     world.run(SIMULATION_ITERATIONS);
     let prompt = &world.session(opener).measures[1];
-    assert_eq!(prompt.new_part, 481);
-    assert_eq!(prompt.guard.expect("guarded request").last_prompt, 40);
+    assert_eq!(prompt.new_part, DRAWN_NEW_PART);
+    assert_eq!(prompt.guard.expect("guarded request").last_prompt, LAST_PROMPT);
     assert!(prompt.sent);
+}
+
+fn read_turn(tokens: u64) -> skein_fake_llm_domain::api::Turn {
+    use skein_fake_llm_domain::api::Line;
+    smith_session_world::fixture::calls(
+        Box::new([Line::Call { name: bytes(b"read"), arguments: bytes(br#"{"path":"src/lib.rs"}"#) }]),
+        tokens,
+    )
 }
 
 #[test]
@@ -718,10 +731,7 @@ fn the_most_output_just_within_the_line_then_compacts_within_the_window() {
     const OUTPUT: u32 = 1_024;
     const SUMMARY_TOKENS: u64 = 8;
     use skein_fake_llm_domain::api::{Line, Script};
-    let read = smith_session_world::fixture::calls(
-        Box::new([Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() }]),
-        u64::from(OUTPUT),
-    );
+    let read = read_turn(u64::from(OUTPUT));
     let summary =
         smith_session_world::fixture::says(Box::new([Line::Text { text: bytes(b"summary") }]), SUMMARY_TOKENS);
     let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([read.clone(), read, summary]) };

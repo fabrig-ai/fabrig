@@ -11,7 +11,7 @@
 use std::time::Duration;
 
 use skein_fake_checkout::{self as fake, Checkout, Program};
-use smith_domain_tools::{Call, Exit, Outcome, Part, Path};
+use smith_domain_tools::{Call, Exit, Outcome, Part, Path, Yield};
 
 /// The files each session's repository starts with: their content starts
 /// with their path.
@@ -96,13 +96,24 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
         | Call::Remove { path }
         | Call::Write { path, .. }
         | Call::Edit { path, .. } => path,
-        Call::Job { .. } => return matches!(outcome, Outcome::Job { .. }),
-        Call::Shell { command, .. } => {
-            let Outcome::Exited { exit, head, .. } = outcome else {
-                return false;
+        Call::Job { job, .. } => {
+            return match outcome {
+                Outcome::Job { job: answered, .. } => job == answered,
+                Outcome::Interrupted { .. } => true,
+                _ => false,
             };
-            // What it wrote by its end, or by its deadline.
-            return if *exit == Exit::TimedOut { output(command).starts_with(head) } else { head.starts_with(command) };
+        }
+        Call::Shell { command, after, .. } => {
+            return match outcome {
+                Outcome::Running { head, tail, dropped, .. } => {
+                    matches!(after, Yield::Asked(_)) && head.is_empty() && tail.is_empty() && *dropped == 0
+                }
+                Outcome::Exited { exit: Exit::TimedOut, head, .. } | Outcome::Interrupted { head, .. } => {
+                    output(command).starts_with(head)
+                }
+                Outcome::Exited { head, .. } => head.starts_with(command),
+                _ => false,
+            };
         }
     };
     let Some(place) = place(path) else {

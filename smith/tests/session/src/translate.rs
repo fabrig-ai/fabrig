@@ -8,18 +8,20 @@ use smith_domain_session::llm as agent;
 
 use crate::tickets::{Ticketed, Tickets};
 use skein_fake_llm_domain::api as provider;
-use skein_lib::Token;
-use smith_domain_tools::{Call, Effect, Exit, Grants, Namespace, Outcome};
+use skein_json::{Document, Kind};
+use skein_lib::{Duration, Token};
+use smith_domain_tools::{Budget, Call, Effect, Exit, Grants, JobNumber, Namespace, Outcome, Timeout, Wait, Yield};
 
 /// The tools the agent's side offers, by name: the family that grants each,
 /// and its schema.
-const TOOLS: [(&[u8], Family, &[u8]); 6] = [
+const TOOLS: [(&[u8], Family, &[u8]); 7] = [
     (b"read", Family::Inspect, br#"{"path":"string"}"#),
     (b"list", Family::Inspect, br#"{"path":"string"}"#),
     (b"search", Family::Inspect, br#"{"path":"string","pattern":"string"}"#),
     (b"write", Family::Modify, br#"{"path":"string","content":"string"}"#),
     (b"edit", Family::Modify, br#"{"path":"string","edits":[{"old":"string","new":"string"}]}"#),
-    (b"shell", Family::Shell, br#"{"command":"string"}"#),
+    (b"shell", Family::Shell, br#"{"command":"string","yield_seconds":"integer"}"#),
+    (b"job", Family::Shell, br#"{"job":"integer","wait_seconds":"integer","output_bytes":"integer","stop":"boolean"}"#),
 ];
 
 #[derive(Clone, Copy)]
@@ -223,7 +225,6 @@ pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
 
 fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
     use agent::Problem;
-    use skein_json::Kind;
     use smith_tools_world::calls;
     if !TOOLS.iter().any(|(tool, _, _)| *tool == name) {
         return Err(Problem::UnknownTool);
@@ -249,7 +250,7 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
         text.ok_or_else(|| Problem::WrongType { field: field.into() })
     };
     let fixture = "the finite fixture doesn't send this input";
-    for field in [b"offset".as_slice(), b"window", b"depth", b"glob", b"timeout_seconds", b"output_bytes"] {
+    for field in [b"offset".as_slice(), b"window", b"depth", b"glob"] {
         assert!(document.member(0, field).is_none(), "{fixture}: tool option");
     }
     let kind = |at| document.token(at).expect("admitted token").kind;
@@ -262,7 +263,23 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
             None,
         ),
         b"write" => calls::write(string(0, b"path")?, string(0, b"content")?),
-        b"shell" => calls::shell(string(0, b"command")?, None),
+        b"shell" => {
+            let timeout = number(document, b"timeout_seconds", false)?
+                .map_or(Timeout::Default, |seconds| Timeout::Asked(Duration::from_secs(u64::from(seconds))));
+            let after = job_seconds(document, b"yield_seconds")?.map_or(Yield::Never, Yield::Asked);
+            Call::Shell { command: string(0, b"command")?.into(), timeout, after, output: output_budget(document)? }
+        }
+        b"job" => {
+            let job =
+                number(document, b"job", false)?.ok_or_else(|| Problem::Missing { field: b"job".as_slice().into() })?;
+            let wait = job_seconds(document, b"wait_seconds")?.map_or(Wait::Default, Wait::Asked);
+            let stop = match document.member(0, b"stop").map(kind) {
+                Some(Kind::True) => true,
+                None | Some(Kind::False) => false,
+                Some(_) => return Err(Problem::WrongType { field: b"stop".as_slice().into() }),
+            };
+            Call::Job { job: JobNumber(job), wait, output: output_budget(document)?, stop }
+        }
         b"edit" => {
             let path = string(0, b"path")?;
             let start = member(0, b"edits")?;
@@ -280,8 +297,30 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
             }
             calls::edits(path, &edits)
         }
-        _ => unreachable!("the finite fixture offers six tools"),
+        _ => unreachable!("the name was checked against the offered tools"),
     })
+}
+
+fn number(document: &Document, field: &[u8], zero_allowed: bool) -> Result<Option<u32>, agent::Problem> {
+    let Some(index) = document.member(0, field) else { return Ok(None) };
+    let token = document.token(index).expect("admitted member");
+    if token.kind != Kind::Number {
+        return Err(agent::Problem::WrongType { field: field.into() });
+    }
+    let digits = document.text(token).expect("a number has text");
+    let number = skein_lib::bytes::decimal(digits).and_then(|value| u32::try_from(value).ok());
+    number
+        .filter(|&value| zero_allowed || value != 0)
+        .map(Some)
+        .ok_or_else(|| agent::Problem::BadValue { field: field.into() })
+}
+
+fn job_seconds(document: &Document, field: &[u8]) -> Result<Option<Duration>, agent::Problem> {
+    Ok(number(document, field, true)?.map(|seconds| Duration::from_secs(u64::from(seconds))))
+}
+
+fn output_budget(document: &Document) -> Result<Budget, agent::Problem> {
+    Ok(number(document, b"output_bytes", false)?.map_or(Budget::Default, Budget::Asked))
 }
 
 /// The text the LLM reads for what came of a call, and whether it failed.
