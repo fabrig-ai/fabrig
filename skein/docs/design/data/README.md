@@ -14,5 +14,6 @@ representations before the store:
   - [`codec/layouts.md`](codec/layouts.md): plans between two layouts, either way, in Read or Keep mode.
   - [`codec/command.md`](codec/command.md): an owner's files and the command.
   - [`codec/maps.md`](codec/maps.md): translation from maps files.
-- [`deflate.md`](deflate.md), `skein-deflate`: raw DEFLATE, an input compressed within a bound and a stream inflated within its caller's room.
+- [`deflate.md`](deflate.md), `skein-deflate`: raw DEFLATE, an input compressed within a bound at the fast or the best level, and a stream inflated within its caller's room.
+- [`gzip.md`](gzip.md), `skein-deflate`: one gzip member around a DEFLATE stream, written at either level and read back whole.
 - [`kv.md`](kv.md), `skein-kv`: ordered byte keys and values, durable commits, a commit log and snapshots on io's files.
