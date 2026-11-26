@@ -227,7 +227,6 @@ Documents:
   - `repairs-briefs.md`: gathering the forge sections of a brief.
   - `repairs-releases.md`: holds and releases.
   - `repairs-later.md`: repairs, resolutions and releases' open questions.
-  - `recheck-contracts.md`: the shapes a goal's changes share while they build the one check after a repair that changed nothing.
 - `questions.md`: questions and the change's words.
   - `notices.md`: what a relay tells the senders of answers and words.
 - `branch-path.md`: the goal's branch path.
