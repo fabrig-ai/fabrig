@@ -1,12 +1,14 @@
-//! The root delegates the producer's member messages, with Goal only on merges into main.
-use super::super::goal_landing::{producing_into_goal, row};
+//! The root delegates the producer's member messages, with their trailers only on squashes.
+use super::super::goal_landing::{producing_into_goal_with_message, row};
 use super::*;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const TITLE: &[u8] = b"Add the squash trailers";
 const WORDS: &[u8] = b"Squashes each change.\n\nMore text.";
+const WORDS_WITH_TRAILER: &[u8] = b"Squashes each change.\n\nMore text.\n\nLook-request: squash-trailers";
+const HEAD_MESSAGE: &[u8] = b"Keep the look request\n\nLook-request: usage-model-week\nLook-landed: usage-model-week";
 
-fn delegated_messages(into_main: bool) {
+fn delegated_messages(into_main: bool, words: &[u8], head_message: &[u8], trailers: &str) {
     let world = World::configured_limits(
         true,
         true,
@@ -33,7 +35,8 @@ fn delegated_messages(into_main: bool) {
         let goal = assigned_chat(&mut world, 92, ask);
         let branch = format!("temper/{}/g{}", goal.task, goal.task);
         world.until(Until::Ready);
-        let (change, producer) = producing_into_goal(&mut world, &goal, branch.as_bytes(), 93, b"feature");
+        let (change, producer) =
+            producing_into_goal_with_message(&mut world, &goal, branch.as_bytes(), 93, b"feature", head_message);
         assert_eq!(row(&world, change).base.as_ref(), branch.as_bytes());
         (world, goal, producer, change)
     };
@@ -55,7 +58,7 @@ fn delegated_messages(into_main: bool) {
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-                words: WORDS.into(),
+                words: words.into(),
             },
             cancel_delegates: false,
         },
@@ -82,23 +85,30 @@ fn delegated_messages(into_main: bool) {
     assert_eq!(row(&world, change).goal, Some(goal.task));
     assert_eq!(row(&world, change).milestone, None, "a plain goal has no milestone");
     assert_eq!(row(&world, change).title.as_ref(), TITLE);
-    let message = format!(
-        "Add the squash trailers\n\nSquashes each change.\n\nChange: {change}\nPull-request: {pull}\nHead: {head}"
-    );
-    let squash = format!("{message}\nGoal: {}", goal.task);
+    let intro = "Add the squash trailers\n\nSquashes each change.\n\n";
+    let temper = format!("Change: {change}\nPull-request: {pull}\nHead: {head}");
+    let goal_line = format!("\nGoal: {}", goal.task);
+    let merge_goal = if into_main { goal_line.as_str() } else { "" };
+    let message = format!("{intro}{temper}{merge_goal}");
+    let squash = format!("{intro}{trailers}\n{temper}{goal_line}");
     assert_eq!(request["combine"], if into_main { "merge" } else { "squash" });
     assert_eq!(request["members"][0]["number"], 1_u64);
     assert_eq!(request["members"][0]["head"], head);
     assert_eq!(request["members"][0]["squash"], squash);
-    assert_eq!(request["members"][0]["message"], if into_main { squash } else { message });
+    assert_eq!(request["members"][0]["message"], message);
 }
 
 #[test]
 fn a_goal_branch_prepare_uses_the_producers_words_without_a_merge_goal_trailer() {
-    delegated_messages(false);
+    delegated_messages(false, WORDS_WITH_TRAILER, b"", "Look-request: squash-trailers");
 }
 
 #[test]
 fn a_main_prepare_keeps_the_members_goal_in_both_messages() {
-    delegated_messages(true);
+    delegated_messages(true, WORDS_WITH_TRAILER, b"", "Look-request: squash-trailers");
+}
+
+#[test]
+fn a_goal_branch_squash_keeps_the_pushed_heads_trailers_when_the_words_have_none() {
+    delegated_messages(false, WORDS, HEAD_MESSAGE, "Look-request: usage-model-week\nLook-landed: usage-model-week");
 }

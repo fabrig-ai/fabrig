@@ -41,6 +41,7 @@ mod limits;
 mod link;
 mod make;
 mod making;
+mod member_message;
 mod milestones;
 mod outbox_room;
 mod panel;

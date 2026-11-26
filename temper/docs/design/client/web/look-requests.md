@@ -187,8 +187,11 @@ starts no browser to compare, and is complete when it lands:
 Each commit of the landing carries the request's `Look-request: NAME`
 trailer, a later fix of what it missed included; one that lacks it hides
 the fix from `look-refresh.sh` and from whoever reads the request's
-history. Where the landing departs, the account says why, and later
-requests take the print as it is.
+history. A goal's squash of the landing's change keeps the trailers of
+its head commit's last paragraph (`../../protocol/tooling.md`, 4,
+TRAILERS), so they reach main; the account above them stays with that
+head, in the change's pull request. Where the landing departs, the
+account says why, and later requests take the print as it is.
 
 - **Its end:** the landing's last commit, the one carrying its account,
   carries `Look-landed: NAME` beside its `Look-request: NAME`. A repair

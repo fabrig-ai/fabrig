@@ -162,7 +162,8 @@ pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::L
             if let top::Request::LandingNews { task, member, step } = request {
                 news.push(world.landing_news_words(task, member, step).expect("committed news"));
             }
-            if let top::Request::LandingDecision { task: decided, decision: choice, entry, evidence: facts } = request
+            if let top::Request::LandingDecision { task: decided, decision: choice, entry, evidence: facts, .. } =
+                request
                 && decided == task
             {
                 decision = Some(choice);
