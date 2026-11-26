@@ -112,6 +112,16 @@ testing, against fakes that share none of its types:
 - **restarts,** cold, at drawn moments or at one a scenario chooses, from
   the store's last durable commit.
 
+Its root holds the engine as every root does (`root.md`, 3), and what
+drives that root drives the engine as a root does: the core world's
+kit, the reference service and the conformance harness step and fire
+it, through the root or past it where a story races the root, and ask
+its timers by the engine's functions, under the admission the driver
+keeps (`engine/vocabulary.md`, 2.1). What they read of the core they
+read through the engine's access while the move runs
+(`engine/vocabulary.md`, 2.3). The worlds that test the core itself,
+below any root, keep driving `Core`.
+
 Its stories are engine/world.md, section 1's; its referee is `testing.md`, section 6's.
 Beside the referee, the documents the core delivers are held to a
 reference made from outside: a task query's rows against every task the

@@ -530,8 +530,9 @@ pub enum ForgeReadAnswer {
     Finding(Option<Box<forge::FindingAnswer>>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
+    /// Keep the setting's payload out of every journal delivery slot's inline size.
     Setting {
-        value: Option<forge::settings::SizedValue>,
+        value: Option<Box<forge::settings::SizedValue>>,
         revision: Option<u32>,
     },
     /// The proposal's items and whether an enforcing approval covers an owned Forgejo (domain/forge/change/questions.md, 2).
@@ -858,13 +859,6 @@ pub enum StoreRequest {
     },
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "worker delivery carries typed settings, including named repair settings"
-    )
-)]
 pub enum WorkerRequest {
     Settings(Box<[core::settings::WorkerSetting]>),
     Host(Box<HostRequest>),

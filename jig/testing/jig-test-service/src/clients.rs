@@ -39,6 +39,7 @@ pub(super) struct Clients {
     pending: bool,
     pub(super) starting: Option<()>,
     pub(super) early: Queue<root::Event>,
+    pub(super) startup_frames: Queue<root::Event>,
     endings: kit::host::Endings,
     pub(super) bridge: kit::host::Bridge,
     public_names: Option<()>,
@@ -69,6 +70,7 @@ impl ::core::fmt::Debug for Clients {
             .field("pending", &self.pending)
             .field("starting", &self.starting)
             .field("early", &self.early)
+            .field("startup_frames", &self.startup_frames)
             .field("endings", &self.endings)
             .field("bridge", &self.bridge)
             .field("public_names", &self.public_names)
@@ -171,6 +173,7 @@ impl Clients {
             pending: true,
             starting: Some(()),
             early: Queue::uncapped(),
+            startup_frames: Queue::uncapped(),
             endings: kit::host::Endings::new(u32::MAX),
             bridge: kit::host::Bridge::new(crate::tokens::CLIENTS),
             public_names: None,
@@ -308,10 +311,49 @@ impl Clients {
         self.closed = self.component_closed && self.server.closed();
     }
     fn root(&mut self, value: root::Event, events: &mut Queue<root::Event>) {
-        if self.starting.is_some() {
+        if let root::Event::Core(core::Event::Unwatch { watcher }) = &value
+            && self.cancel_startup_frame(*watcher)
+        {
+            return;
+        }
+        if self.starting.is_some()
+            && let root::Event::Core(core::Event::Watch { subject: core::documents::Watched::Frame, .. }) = &value
+        {
+            self.startup_frames.push(value);
+        } else if self.starting.is_some() || !self.startup_frames.is_empty() || !self.early.is_empty() {
             self.early.push(value);
         } else {
             events.push(value);
+        }
+    }
+    fn cancel_startup_frame(&mut self, watcher: Token) -> bool {
+        let mut removed = false;
+        for _ in 0..self.startup_frames.len() {
+            let value = self.startup_frames.pop().expect("held startup frames");
+            if let root::Event::Core(core::Event::Watch { watcher: held, .. }) = &value
+                && *held == watcher
+            {
+                removed = true;
+            } else {
+                self.startup_frames.push(value);
+            }
+        }
+        removed
+    }
+    pub(super) fn startup_inputs(&mut self, release_frames: bool, events: &mut Queue<root::Event>) {
+        if release_frames {
+            // A new client input cannot pass a watch still waiting at the gate.
+            for _ in 0..self.startup_frames.len() {
+                events.push(self.startup_frames.pop().expect("held startup frames"));
+            }
+        }
+        for _ in 0..self.early.len() {
+            let event = self.early.pop().expect("client startup input");
+            if self.starting.is_some() {
+                self.not_ready(event);
+            } else {
+                events.push(event);
+            }
         }
     }
     pub fn advance(
@@ -501,7 +543,7 @@ fn ended(key: &root::Key) -> Option<u64> {
 }
 
 impl Clients {
-    pub fn not_ready(&mut self, value: root::Event) {
+    fn not_ready(&mut self, value: root::Event) {
         let event = match value {
             root::Event::Core(value) => translation::starting(value),
             root::Event::Application { reply_to, .. } => {

@@ -1,0 +1,8 @@
+recipe 1
+after "ctl-hello"
+ctl repository adopt --project Hello --owner work --name hello --landing main --key qa-land-1
+forge push forgejo work/hello qa-landing-check "Add landing note" "notes/landing.md"
+ctl change open --project Hello --branch qa-landing-check --title "Landing check" --as-allowed --key qa-land-2
+check
+ctl change show 1 --until landed --timeout 900
+ctl landing history --project Hello --change 1

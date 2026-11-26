@@ -81,14 +81,7 @@ pub struct Pin {
     pub path: Box<[u8]>,
     pub digest: [u8; 32],
     pub file: Box<[u8]>,
-    pub bottle: Option<Bottle>,
-}
-/// The verified archive and its one binary member (protocol/setup/owned.md, 6).
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Bottle {
-    pub digest: [u8; 32],
-    pub member: Box<[u8]>,
-    pub token: bool,
+    pub packed: bool,
 }
 /// Why the fetch was refused; no existing binary is replaced.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -96,9 +89,10 @@ pub enum Failure {
     Architecture(Box<[u8]>),
     Present { file: Box<[u8]> },
     Status { url: Box<[u8]>, status: u16 },
-    Redirect { url: Box<[u8]> },
-    Gone { url: Box<[u8]>, status: u16 },
-    Extraction { url: Box<[u8]> },
+    Truncated { url: Box<[u8]> },
+    Damaged { url: Box<[u8]> },
+    UnpackedBytes { url: Box<[u8]> },
+    Trailing { url: Box<[u8]> },
     Bytes { url: Box<[u8]> },
     ClaudeBytes { url: Box<[u8]> },
     Size { url: Box<[u8]> },
@@ -114,14 +108,10 @@ impl Failure {
             Self::Status { url, status } => {
                 joined(&[url, b": HTTP status ", Decimal::of(u64::from(*status)).as_bytes()])
             }
-            Self::Redirect { url } => joined(&[url, b": invalid or repeated redirect"]),
-            Self::Gone { url, status } => joined(&[
-                url,
-                b": HTTP status ",
-                Decimal::of(u64::from(*status)).as_bytes(),
-                b": give the binary by path, or a mirror",
-            ]),
-            Self::Extraction { url } => joined(&[url, b": extraction failed"]),
+            Self::Truncated { url } => joined(&[url, b": truncated zstd frame"]),
+            Self::Damaged { url } => joined(&[url, b": damaged zstd frame"]),
+            Self::UnpackedBytes { url } => joined(&[url, b": unpacked file past setup.fetch_bytes"]),
+            Self::Trailing { url } => joined(&[url, b": zstd frame followed by other bytes"]),
             Self::Size { url } => joined(&[url, b": body past its Content-Length"]),
             Self::ClaudeBytes { url } => joined(&[url, b": body past the pinned size"]),
             Self::Bytes { url } => joined(&[url, b": body past setup.fetch_bytes"]),
@@ -160,25 +150,27 @@ pub enum Event {
     Answered { status: u16, length: Option<u64>, location: Option<Box<[u8]>> },
     Chunk(Box<[u8]>),
     Ended,
-    Extracted(Extraction),
+    Unpacked(Unpacked),
 }
-/// The bounded extraction's result.
+/// The result of unpacking a bounded zstd frame (temper/docs/design/protocol/setup/owned.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Extraction {
-    Digest([u8; 32]),
-    Bytes,
-    Failed,
+pub enum Unpacked {
+    File { digest: [u8; 32], bytes: u64 },
+    Truncated,
+    Damaged,
+    TooLong,
+    Trailing,
 }
 /// One effect, answered by one event, or the terminal answer.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     Hash { file: Box<[u8]> },
-    Get { origin: Origin, path: Box<[u8]>, authorization: Option<Box<[u8]>> },
+    Get { origin: Origin, path: Box<[u8]> },
     Open { part: Box<[u8]> },
     Read,
     Say(Fetched),
     Write { offset: u64, bytes: Box<[u8]> },
-    Extract { archive: Box<[u8]>, member: Box<[u8]>, part: Box<[u8]>, bound: u64 },
+    Unpack { packed: Box<[u8]>, part: Box<[u8]>, bound: u64 },
     Finish { part: Box<[u8]>, file: Box<[u8]> },
     Remove { part: Box<[u8]> },
     End(Result<(), Failure>),
@@ -193,7 +185,7 @@ enum Phase {
     Write,
     SayRead,
     SayEnd,
-    Extract,
+    Unpack,
     Finish,
     RemovePart,
     Remove,
@@ -211,7 +203,6 @@ pub struct Fetch {
     said: u64,
     hash: Sha256,
     failure: Option<Failure>,
-    redirected: bool,
 }
 impl Fetch {
     #[must_use]
@@ -226,7 +217,6 @@ impl Fetch {
             said: 0,
             hash: Sha256::new(),
             failure: None,
-            redirected: false,
         }
     }
     fn pin(&self) -> &Pin {
@@ -235,14 +225,11 @@ impl Fetch {
     fn part(&self) -> Box<[u8]> {
         joined(&[&self.pin().file, b".part"])
     }
-    fn archive(&self) -> Box<[u8]> {
-        joined(&[&self.pin().file, b".archive"])
+    fn packed(&self) -> Box<[u8]> {
+        joined(&[&self.pin().file, b".zst.part"])
     }
     fn download(&self) -> Box<[u8]> {
-        match &self.pin().bottle {
-            Some(_) => self.archive(),
-            None => self.part(),
-        }
+        if self.pin().packed { self.packed() } else { self.part() }
     }
     fn url(&self) -> Box<[u8]> {
         url(&self.pin().origin, &self.pin().path)
@@ -255,7 +242,6 @@ impl Fetch {
         if self.index == self.pins.len() {
             self.end(Ok(()))
         } else {
-            self.redirected = false;
             self.phase = Phase::Hash;
             Request::Hash { file: self.pin().file.clone() }
         }
@@ -275,23 +261,9 @@ impl Fetch {
             Named::ClaudeCode => Failure::ClaudeBytes { url: self.url() },
         }
     }
-    fn head(&mut self, status: u16, length: Option<u64>, location: Option<Box<[u8]>>) -> Request {
-        if self.pin().bottle.is_some() && [301, 302, 303, 307, 308].contains(&status) && location.is_some() {
-            if !self.redirected
-                && let Some(location) = location
-                && let Some((origin, path)) = redirect(&location)
-            {
-                self.redirected = true;
-                return Request::Get { origin, path, authorization: None };
-            }
-            return self.end(Err(Failure::Redirect { url: self.url() }));
-        }
+    fn head(&mut self, status: u16, length: Option<u64>) -> Request {
         if status != 200 {
-            let failure = match self.pin().bottle {
-                Some(_) => Failure::Gone { url: self.url(), status },
-                None => Failure::Status { url: self.url(), status },
-            };
-            self.end(Err(failure))
+            self.end(Err(Failure::Status { url: self.url(), status }))
         } else if match length {
             Some(length) => length > self.bound,
             None => false,
@@ -320,7 +292,9 @@ impl Fetch {
                 } else {
                     let offset = self.total;
                     self.total = offset.checked_add(length).expect("admitted length");
-                    self.hash.update(&bytes);
+                    if !self.pin().packed {
+                        self.hash.update(&bytes);
+                    }
                     self.phase = Phase::Write;
                     Request::Write { offset, bytes }
                 }
@@ -332,7 +306,7 @@ impl Fetch {
                     self.say(Phase::SayEnd)
                 }
             }
-            Event::Begin | Event::Done | Event::Hashed(_) | Event::Answered { .. } | Event::Extracted(_) => {
+            Event::Begin | Event::Done | Event::Hashed(_) | Event::Answered { .. } | Event::Unpacked(_) => {
                 unreachable!("body answer")
             }
         }
@@ -357,55 +331,36 @@ impl Fetch {
         Request::Read
     }
     fn verdict(&mut self) -> Request {
-        let got = core::mem::replace(&mut self.hash, Sha256::new()).finish();
-        let pinned = match &self.pin().bottle {
-            Some(bottle) => bottle.digest,
-            None => self.pin().digest,
-        };
-        if got != pinned {
-            self.remove(Failure::Digest { url: self.url(), pinned, got })
-        } else if let Some(bottle) = &self.pin().bottle {
-            let request = Request::Extract {
-                archive: self.archive(),
-                member: bottle.member.clone(),
-                part: self.part(),
-                bound: self.bound,
-            };
-            self.phase = Phase::Extract;
-            request
-        } else {
-            self.phase = Phase::Finish;
-            Request::Finish { part: self.part(), file: self.pin().file.clone() }
+        if self.pin().packed {
+            self.phase = Phase::Unpack;
+            return Request::Unpack { packed: self.packed(), part: self.part(), bound: self.bound };
         }
+        let got = core::mem::replace(&mut self.hash, Sha256::new()).finish();
+        let pinned = self.pin().digest;
+        if got == pinned { self.finish() } else { self.remove(Failure::Digest { url: self.url(), pinned, got }) }
     }
-    fn extracted(&mut self, extraction: Extraction) -> Request {
-        let failure = match extraction {
-            Extraction::Digest(got) if got == self.pin().digest => {
-                self.phase = Phase::Finish;
-                return Request::Finish { part: self.part(), file: self.pin().file.clone() };
+    fn finish(&mut self) -> Request {
+        self.phase = Phase::Finish;
+        Request::Finish { part: self.part(), file: self.pin().file.clone() }
+    }
+    fn unpacked(&mut self, unpacked: Unpacked) -> Request {
+        let pinned = self.pin().digest;
+        let failure = match unpacked {
+            Unpacked::File { digest, bytes } if bytes <= self.bound => {
+                if digest == pinned {
+                    return self.finish();
+                }
+                Failure::Digest { url: self.url(), pinned, got: digest }
             }
-            Extraction::Digest(got) => Failure::Digest { url: self.url(), pinned: self.pin().digest, got },
-            Extraction::Bytes => Failure::Bytes { url: self.url() },
-            Extraction::Failed => Failure::Extraction { url: self.url() },
+            Unpacked::File { .. } | Unpacked::TooLong => Failure::UnpackedBytes { url: self.url() },
+            Unpacked::Truncated => Failure::Truncated { url: self.url() },
+            Unpacked::Damaged => Failure::Damaged { url: self.url() },
+            Unpacked::Trailing => Failure::Trailing { url: self.url() },
         };
         self.failure = Some(failure);
         self.phase = Phase::RemovePart;
         Request::Remove { part: self.part() }
     }
-}
-fn redirect(location: &[u8]) -> Option<(Origin, Box<[u8]>)> {
-    let rest = location.strip_prefix(b"https://")?;
-    let slash = skein_lib::bytes::find(rest, b"/")?;
-    for byte in rest.get(..slash)? {
-        if b"?#".contains(byte) {
-            return None;
-        }
-    }
-    let parsed = skein_forge::github::redirect::parse(location, u32::MAX, u32::MAX).ok()?;
-    if parsed.origin.port == 0 {
-        return None;
-    }
-    Some((Origin { host: parsed.origin.host, port: parsed.origin.port }, rest.get(slash..)?.into()))
 }
 /// Consumes a host answer and emits exactly one next request.
 pub fn step(machine: &mut Fetch, event: Event, out: &mut Queue<Request>) {
@@ -421,24 +376,17 @@ pub fn step(machine: &mut Fetch, event: Event, out: &mut Queue<Request>) {
                 Some(_) => machine.end(Err(Failure::Present { file: machine.pin().file.clone() })),
                 None => {
                     machine.phase = Phase::Head;
-                    Request::Get {
-                        origin: machine.pin().origin.clone(),
-                        path: machine.pin().path.clone(),
-                        authorization: match &machine.pin().bottle {
-                            Some(bottle) if bottle.token => Some(b"Bearer QQ==".as_slice().into()),
-                            Some(_) | None => None,
-                        },
-                    }
+                    Request::Get { origin: machine.pin().origin.clone(), path: machine.pin().path.clone() }
                 }
             }
         }
         Phase::Head => {
-            let Event::Answered { status, length, location } = event else { unreachable!("response head") };
-            machine.head(status, length, location)
+            let Event::Answered { status, length, .. } = event else { unreachable!("response head") };
+            machine.head(status, length)
         }
-        Phase::Extract => {
-            let Event::Extracted(extraction) = event else { unreachable!("extraction answer") };
-            machine.extracted(extraction)
+        Phase::Unpack => {
+            let Event::Unpacked(unpacked) = event else { unreachable!("unpack answer") };
+            machine.unpacked(unpacked)
         }
         Phase::Read => machine.body(event),
         phase @ (Phase::Open
@@ -464,22 +412,16 @@ pub fn step(machine: &mut Fetch, event: Event, out: &mut Queue<Request>) {
                 }
                 Phase::SayRead => machine.read(),
                 Phase::SayEnd => machine.verdict(),
-                Phase::Finish => match machine.pin().bottle {
-                    Some(_) => {
-                        machine.phase = Phase::Remove;
-                        Request::Remove { part: machine.archive() }
-                    }
-                    None => machine.advance(),
-                },
-                Phase::RemovePart => {
+                Phase::Finish if !machine.pin().packed => machine.advance(),
+                Phase::Finish | Phase::RemovePart => {
                     machine.phase = Phase::Remove;
-                    Request::Remove { part: machine.archive() }
+                    Request::Remove { part: machine.packed() }
                 }
                 Phase::Remove => match machine.failure.take() {
                     Some(failure) => machine.end(Err(failure)),
                     None => machine.advance(),
                 },
-                Phase::Begin | Phase::Hash | Phase::Head | Phase::Read | Phase::Extract | Phase::End => {
+                Phase::Begin | Phase::Hash | Phase::Head | Phase::Read | Phase::Unpack | Phase::End => {
                     unreachable!("handled above")
                 }
             }

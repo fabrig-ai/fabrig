@@ -3,6 +3,7 @@ use super::*;
 use jig_core_world::fixtures::change;
 use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::world::Setup;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_link::{Form, Scheme};
 
 const SEED: u64 = 211;
@@ -57,7 +58,7 @@ fn pass_time(world: &mut World, duration: Duration) {
     world.fire_due(now.saturating_add(duration), Wall::from_nanos(wall.as_nanos() + duration.as_nanos()));
     // People expires one retained answer per turn; drain each due turn before asking again.
     let (now, wall) = world.clocks();
-    while world.domain.core().due(now, wall) == Some(core::Timer::People) {
+    while engine::due(world.domain.engine(), now, wall, Admit::All) == Some(core::Timer::People) {
         world.send(root::Event::Timer(core::Timer::People));
     }
     fresh_session(world);

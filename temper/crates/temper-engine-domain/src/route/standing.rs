@@ -17,7 +17,7 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
             continue;
         };
         let mut leaver = false;
-        for task in domain.core.tasks.view_tasks() {
+        for task in domain.engine.core().tasks.view_tasks() {
             if orphan(domain, task.number, *project) {
                 leaver = true;
                 break;
@@ -49,7 +49,7 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
 
 fn owner(domain: &Domain, project: u32, preferred: Option<u64>) -> Option<u64> {
     let mut lowest: Option<u64> = None;
-    for holding in domain.core.people.project_members(project)? {
+    for holding in domain.engine.core().people.project_members(project)? {
         if holding.role == people::Role::Owner {
             if preferred == Some(holding.person) {
                 return preferred;
@@ -64,24 +64,24 @@ fn owner(domain: &Domain, project: u32, preferred: Option<u64>) -> Option<u64> {
 }
 
 fn orphan(domain: &Domain, task: u64, project: u32) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
     if row.project != project || row.flags.ended_by != tasks::EndedBy::Standing {
         return false;
     }
     match row.requester {
-        tasks::Party::Person(person) => domain.core.people.role(person, project).is_none(),
+        tasks::Party::Person(person) => domain.engine.core().people.role(person, project).is_none(),
         tasks::Party::Task(_) | tasks::Party::Deployment { .. } => false,
     }
 }
 
 fn operations(domain: &mut Domain, task: u64, person: u64) -> Option<List<tasks::Operation>> {
-    let row = domain.core.tasks.task(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     let tasks::Party::Person(previous) = row.requester else { return None };
     let delegates = row.delegates.clone();
     let mut operations = List::uncapped();
     operations.push(tasks::Operation::Move(tasks::Move { task, reason: Box::new([]) })).expect("uncapped operations");
     for delegate in delegates {
-        let Some(row) = domain.core.tasks.task(delegate) else { continue };
+        let Some(row) = domain.engine.core().tasks.task(delegate) else { continue };
         if row.executor != tasks::Executor::Person(tasks::PersonAddress::Person(previous)) {
             continue;
         }
@@ -94,7 +94,7 @@ fn operations(domain: &mut Domain, task: u64, person: u64) -> Option<List<tasks:
             | tasks::Phase::Ended(_) => continue,
         }
         let revision = row.revisions.person;
-        let message = core::fresh(&mut domain.core.counters, core::Family::Message)?;
+        let message = core::fresh(&mut domain.engine.core_mut().counters, core::Family::Message)?;
         operations
             .push(tasks::Operation::Amend(tasks::Amend {
                 funder: None,
@@ -123,11 +123,11 @@ fn operations(domain: &mut Domain, task: u64, person: u64) -> Option<List<tasks:
 /// move leaves the task for the next roles save or project period.
 pub(crate) fn move_roles(domain: &mut Domain, project: u32, preferred: Option<u64>) {
     let Some(person) = owner(domain, project, preferred) else { return };
-    let period = domain.core.period(project);
-    let (_, pool) = domain.core.person_pool(project, person);
-    let Some(funding) = domain.core.tasks.funding(tasks::Funder::Period { project, period }) else { return };
+    let period = domain.engine.core().period(project);
+    let (_, pool) = domain.engine.core().person_pool(project, person);
+    let Some(funding) = domain.engine.core().tasks.funding(tasks::Funder::Period { project, period }) else { return };
     let period_budget = funding.numbers.budget;
-    for task in domain.core.tasks.view_tasks() {
+    for task in domain.engine.core().tasks.view_tasks() {
         if orphan(domain, task.number, project) {
             let Some(operations) = operations(domain, task.number, person) else { continue };
             // The root supplies the new person's funding context, as Move does.

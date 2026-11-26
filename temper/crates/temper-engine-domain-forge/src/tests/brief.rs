@@ -1294,6 +1294,7 @@ fn kept_landing_failure(d: &mut Domain) {
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
@@ -1878,7 +1879,7 @@ fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
     }]));
     assert_eq!(failed.next(HEAD), Some(Read::Run { run: 4 }));
     failed.read(4, Ok(Answer::Run(fixtures::failed_run(first, Some(0)))));
-    assert_eq!(failed.fault(HEAD), change::Fault::Runner { reruns: 0 });
+    assert_eq!(failed.fault(HEAD, &[]), change::Fault::Runner { reruns: 0 });
     assert_eq!(LIMITS.change_policy.reruns, 1);
     let second = JobAttempt { attempt: 2, ..first };
     let checks = Box::new([Status {

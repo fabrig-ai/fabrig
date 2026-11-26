@@ -319,6 +319,7 @@ pub(crate) const fn failed(returned: &run::Returned) -> bool {
         | run::Returned::DeliveryRefused(_)
         | run::Returned::Rejected { .. }
         | run::Returned::ChecksFailed { .. }
+        | run::Returned::ChecksNotJudged { .. }
         | run::Returned::Stale
         | run::Returned::DeliveryFailed { .. }
         | run::Returned::Cancelled

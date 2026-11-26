@@ -59,9 +59,9 @@ fn note(name: u64, text: &[u8], references: List<u64>, recalled: Option<u32>) ->
 
 fn root(requester: tasks::Party) -> (crate::Domain, Env<crate::Limits>, crate::CallKey) {
     let (source, _, task) = super::live_task(None, tasks::Executor::Procedure { connector: 0, code: 1 });
-    let mut row = source.core.tasks.task(task).unwrap().clone();
+    let mut row = source.engine.core().tasks.task(task).unwrap().clone();
     row.requester = requester;
-    let funding = *source.core.tasks.funding(row.funder).unwrap();
+    let funding = *source.engine.core().tasks.funding(row.funder).unwrap();
     let mut limits = super::resume_fixture::limits();
     limits.loads.rows = BOUND;
     limits.notes.load_rows = BOUND;
@@ -125,7 +125,7 @@ fn call(domain: &mut crate::Domain, env: &Env<crate::Limits>, key: crate::CallKe
     assert!(decision.write_free(), "the root's load and checks keep no durable record");
     crate::decision::accept_routed(
         &mut domain.journal,
-        &mut domain.core.counters,
+        &mut domain.engine.core_mut().counters,
         &env.limits.journal,
         decision,
         false,
@@ -369,7 +369,7 @@ fn a_remember_call_keeps_changes_and_drops_by_place() {
         host_route::render(&mut domain, &env.limits, &mut decision, ReplyTo::new(RIGHT), answer);
         crate::decision::accept_routed(
             &mut domain.journal,
-            &mut domain.core.counters,
+            &mut domain.engine.core_mut().counters,
             &env.limits.journal,
             decision,
             false,
@@ -530,7 +530,7 @@ fn a_refused_remember_call_writes_nothing() {
         assert!(out.is_empty(), "{rule}: no further load");
         assert!(domain.work.is_empty(), "{rule}: no write");
         assert_eq!(rendered(&mut domain), C::Remember(Box::new(Answer::Refused(expected))), "{rule}");
-        assert!(!domain.core.call_parts.contains_key(&key), "{rule}: no call record");
+        assert!(!domain.engine.core().call_parts.contains_key(&key), "{rule}: no call record");
         domain.archive_reads.reclaim();
         if !busy(&load) {
             assert!(domain.archive_reads.is_empty(), "{rule}: no retained read");

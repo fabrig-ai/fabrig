@@ -11,7 +11,7 @@ pub(crate) fn call(
     call: forge::DecidedCall,
 ) {
     if let Some(party) = person(domain, key.task)
-        && let Some(context) = domain.core.tasks.delegation(key.task)
+        && let Some(context) = domain.engine.core().tasks.delegation(key.task)
     {
         domain.work.push(Work::Forge(forge::Event::Decided {
             to,
@@ -30,19 +30,19 @@ pub(crate) fn call(
 /// HOW is render-only: the caller's current route, not part of the saved judgement
 /// (temper/docs/design/domain/agent/tools.md, HOW names the one way its caller can ask).
 pub(crate) fn how(domain: &Domain, task: u64) -> super::AskHow {
-    let Some(row) = domain.core.tasks.task(task) else { return super::AskHow::None };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return super::AskHow::None };
     match row.requester {
         tasks::Party::Task(_) => {
-            if let Some(context) = domain.core.tasks.delegation(task)
-                && context.authority.tools.0 & domain.core.settings.tools.message.0 != 0
+            if let Some(context) = domain.engine.core().tasks.delegation(task)
+                && context.authority.tools.0 & domain.engine.core().settings.tools.message.0 != 0
             {
                 return super::AskHow::Message;
             }
         }
         tasks::Party::Person(person) => {
             if let tasks::Executor::Agent { charter } = row.executor
-                && let Some(charter) = domain.core.charter(charter)
-                && charter.policy.tools.0 & domain.core.settings.tools.delegate.0 != 0
+                && let Some(charter) = domain.engine.core().charter(charter)
+                && charter.policy.tools.0 & domain.engine.core().settings.tools.delegate.0 != 0
             {
                 return super::AskHow::Person(person);
             }
@@ -53,19 +53,19 @@ pub(crate) fn how(domain: &Domain, task: u64) -> super::AskHow {
 }
 
 pub(crate) fn person(domain: &Domain, task: u64) -> Option<u64> {
-    let row = domain.core.tasks.task(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     match row.requester {
         tasks::Party::Person(person) => Some(person),
         tasks::Party::Deployment { .. } => None,
         tasks::Party::Task(requester) => {
-            let parent = domain.core.tasks.task(requester)?;
+            let parent = domain.engine.core().tasks.task(requester)?;
             if tasks::gathering::executor(parent.executor) {
                 return match parent.requester {
                     tasks::Party::Person(person) => Some(person),
                     tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
                 };
             }
-            let chat = domain.core.tasks.task(domain.core.tasks.served_chat(task)?)?;
+            let chat = domain.engine.core().tasks.task(domain.engine.core().tasks.served_chat(task)?)?;
             match chat.requester {
                 tasks::Party::Person(person) => Some(person),
                 tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
@@ -75,7 +75,7 @@ pub(crate) fn person(domain: &Domain, task: u64) -> Option<u64> {
 }
 
 fn always(domain: &Domain, task: u64) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
     let words = row.spec.words.as_ref();
     words == b"Asks: always"
         || words.starts_with(b"Asks: always\n")

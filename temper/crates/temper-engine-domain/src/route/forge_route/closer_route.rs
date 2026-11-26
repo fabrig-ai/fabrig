@@ -20,7 +20,7 @@ struct Replacement {
 }
 
 pub(crate) fn resume_closer_step(domain: &mut Domain, env: &Env<Limits>, journal: &mut Decision, task: u64) {
-    if let Some(context) = domain.core.tasks.run_context(task) {
+    if let Some(context) = domain.engine.core().tasks.run_context(task) {
         start_closer_step(domain, env, journal, &context);
     }
 }
@@ -32,11 +32,11 @@ pub(crate) fn start_closer_step(
     journal: &mut Decision,
     context: &tasks::RunContext,
 ) {
-    if domain.core.settling() {
+    if domain.engine.core().settling() {
         return;
     }
     let task = context.task;
-    let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((_, _, procedure_step)) = domain.engine.core().tasks.procedure_due(task) else { return };
     let goal = match context.requester {
         tasks::Party::Task(goal) => goal,
         tasks::Party::Person(_) | tasks::Party::Deployment { .. } => {
@@ -44,7 +44,7 @@ pub(crate) fn start_closer_step(
             return;
         }
     };
-    let Some(goal_record) = domain.core.tasks.task(goal) else { return };
+    let Some(goal_record) = domain.engine.core().tasks.task(goal) else { return };
     let goal_words = goal_record.spec.words.clone();
     let bound = match goal_record.contract {
         tasks::Contract::Report { words } => words,
@@ -113,7 +113,7 @@ pub(crate) fn start_closer_step(
         }
         None => None,
     };
-    let dependencies = domain.core.tasks.task(task).expect("due closer").dependencies.len();
+    let dependencies = domain.engine.core().tasks.task(task).expect("due closer").dependencies.len();
     let at = goal_report::At { step: procedure_step, dependencies };
     let Some(observation) = goal_report::observed(domain, env, task, at) else { return };
     let facts = facts(domain, &row, branch.as_deref(), base_holds, observation);
@@ -293,7 +293,7 @@ fn facts(
             landed.push(number).expect("goal tree bounds landed changes");
         }
     }
-    let pending = !domain.core.tasks.task(row.task).expect("live closer").waiting_on.is_empty();
+    let pending = !domain.engine.core().tasks.task(row.task).expect("live closer").waiting_on.is_empty();
     let running = match row.closer.running {
         Some(run) => child(domain, run.change, run.step),
         None => c::Child::Done,
@@ -305,7 +305,10 @@ fn facts(
     c::Facts {
         report,
         goal_branch: branch.is_some(),
-        close_job: domain.forge.close_job(domain.core.tasks.task(row.task).expect("live closer").project).is_some(),
+        close_job: domain
+            .forge
+            .close_job(domain.engine.core().tasks.task(row.task).expect("live closer").project)
+            .is_some(),
         pending,
         landed: landed.into_boxed(),
         base_holds,
@@ -314,7 +317,7 @@ fn facts(
         land_ended: ended_count(domain, row, c::Step::Land),
         bound: attempt_bound(domain, row.task),
         landing_child,
-        released: domain.core.tasks.task(row.task).expect("live closer").due_reason == tasks::Why::Released,
+        released: domain.engine.core().tasks.task(row.task).expect("live closer").due_reason == tasks::Why::Released,
     }
 }
 
@@ -337,7 +340,7 @@ fn submit_replacing(
     replacement: Option<Replacement>,
 ) {
     let task = row.task;
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else { return };
     goal_report::submitted(domain, task);
     let previous = row.relay.clone();
     let (asked, more) = relay::apply(domain, env, &mut row, &mut decision);
@@ -362,7 +365,7 @@ fn goal_branch(
     goal: u64,
     repository: &forge::Repository,
 ) -> Option<(Box<[u8]>, forge::Name)> {
-    let root = domain.core.tasks.root(goal)?;
+    let root = domain.engine.core().tasks.root(goal)?;
     let branch = super::tree_branch(repository, root, b'g', goal, None, env.limits.forge.name_bytes)?;
     let name = forge::Name {
         forge: repository.provider.forge,
@@ -421,7 +424,7 @@ fn ending(row: &forge::ChangeRow) -> Option<forge::Ending> {
     }
 }
 fn child(domain: &Domain, task: u64, step: c::Step) -> c::Child {
-    if let Some(row) = domain.core.tasks.task(task) {
+    if let Some(row) = domain.engine.core().tasks.task(task) {
         match &row.phase {
             tasks::Phase::Ended(_) => {}
             tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } if step == c::Step::Close => {
@@ -489,7 +492,7 @@ fn close_child(domain: &Domain, task: &tasks::TaskRecord) -> c::Child {
 
 fn live_delegate(domain: &Domain, row: &forge::ChangeRow) -> bool {
     let Some((child, _)) = row.delegate else { return false };
-    let Some(record) = domain.core.tasks.task(child) else { return false };
+    let Some(record) = domain.engine.core().tasks.task(child) else { return false };
     match &record.phase {
         tasks::Phase::Ended(_) => false,
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => true,
@@ -497,7 +500,7 @@ fn live_delegate(domain: &Domain, row: &forge::ChangeRow) -> bool {
 }
 
 fn attempt_bound(domain: &Domain, task: u64) -> u8 {
-    let project = domain.core.tasks.task(task).expect("live closer").project;
+    let project = domain.engine.core().tasks.task(task).expect("live closer").project;
     match domain.forge.landing_settings(project) {
         Some(landing) => landing.landing_attempts,
         None => crate::LANDING_ATTEMPTS,
@@ -528,6 +531,7 @@ fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8
     use super::forge_change::Hold;
     match held {
         Some(Hold::Repairs) => Some(b"repairs"),
+        Some(Hold::Runner) => Some(b"its CI runner's re-runs"),
         Some(Hold::Resolutions) => Some(b"conflict resolutions"),
         Some(Hold::Rejected) => Some(b"a rejection"),
         Some(Hold::PullClosed) => Some(b"its pull request closed"),
@@ -538,6 +542,7 @@ fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8
             | Hold::BranchMoved
             | Hold::Retargeted
             | Hold::Failed
+            | Hold::RedStands
             | Hold::Flake
             | Hold::NoTest
             | Hold::Authority(_)
@@ -613,7 +618,7 @@ impl Short {
 }
 
 fn goal_run_live(domain: &Domain, goal: u64) -> bool {
-    match domain.core.tasks.task(goal).expect("live goal").phase {
+    match domain.engine.core().tasks.task(goal).expect("live goal").phase {
         tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. }) => true,
         tasks::Phase::Active(
             tasks::Active::Idle | tasks::Active::Due | tasks::Active::Preparing | tasks::Active::BackingOff { .. },
@@ -720,8 +725,8 @@ fn delegate(
     goal_words: &[u8],
     kind: c::Step,
 ) -> Result<super::super::Delegate, Short> {
-    let context = domain.core.tasks.delegation(row.task).ok_or(Short::Terms)?;
-    let goal = domain.core.tasks.delegation(row.goal).ok_or(Short::Terms)?;
+    let context = domain.engine.core().tasks.delegation(row.task).ok_or(Short::Terms)?;
+    let goal = domain.engine.core().tasks.delegation(row.goal).ok_or(Short::Terms)?;
     let room = context.tasks_left.min(goal.tasks_left);
     if room < 2 {
         return Err(Short::Tasks { left: room });
@@ -736,7 +741,7 @@ fn delegate(
         .saturating_sub(context.numbers.spent_below)
         .saturating_sub(context.numbers.reserved);
     let spend = available.checked_div(2).expect("nonzero divisor");
-    let minimum = domain.core.authority.rules().minimum_run_spend;
+    let minimum = domain.engine.core().authority.rules().minimum_run_spend;
     let (words, base, own) = match kind {
         c::Step::Close => {
             let mut words = List::uncapped();
@@ -917,7 +922,7 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
 }
 
 fn goal_finish(domain: &Domain, goal: u64) -> Option<c::GoalFinish> {
-    match domain.core.tasks.task(goal)?.parked_result.as_ref()? {
+    match domain.engine.core().tasks.task(goal)?.parked_result.as_ref()? {
         tasks::TaskResult::Report { words }
         | tasks::TaskResult::Verdict { words, .. }
         | tasks::TaskResult::Change { words, .. }
@@ -1018,7 +1023,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
     }
     let Some(mut pending) = pending else { return };
     if pending.asked {
-        let record = domain.core.tasks.task(task).expect("admitted closer step");
+        let record = domain.engine.core().tasks.task(task).expect("admitted closer step");
         let mut number = None;
         for credit in &record.questions {
             if credit.asked == tasks::Party::Task(row.goal) {
@@ -1037,7 +1042,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
 }
 
 pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domain_core::StepRefusal) -> bool {
-    let Some((connector, code, _)) = domain.core.tasks.procedure_due(task) else { return false };
+    let Some((connector, code, _)) = domain.engine.core().tasks.procedure_due(task) else { return false };
     if connector != domain.config.forge_connector || code != super::GOAL_CLOSER_CODE {
         return false;
     }
@@ -1053,10 +1058,10 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domai
                 row.done = false;
                 domain.work.push(Work::Forge(forge::Event::Closer { row }));
             }
-            if let Some(record) = domain.core.tasks.task(task)
+            if let Some(record) = domain.engine.core().tasks.task(task)
                 && !record.waiting_on.is_empty()
             {
-                let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
+                let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else { return true };
                 domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
                     task,
                     step,

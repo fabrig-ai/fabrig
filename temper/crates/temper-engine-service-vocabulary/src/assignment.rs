@@ -283,7 +283,7 @@ fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
                 name: Token::new(word.number),
                 sender: root::inbox_sender(word),
                 words,
-                finish_requested: word.finish_requested(),
+                finish_requested: tasks::finish_requested(word),
             })
             .expect("bounded messages");
     }

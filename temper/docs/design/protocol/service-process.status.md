@@ -1,6 +1,6 @@
 # service-process: status
 
-2026-11-22. Where the tree's code lags or departs from [service-process.md](service-process.md).
+2026-11-26. Where the tree's code lags or departs from [service-process.md](service-process.md).
 
 - **Not yet:** 1.2: the accepted `core-after-project` decision calls for
   a distinct `WatchRefusal::NotReady`, in place on jig's client wire 19,

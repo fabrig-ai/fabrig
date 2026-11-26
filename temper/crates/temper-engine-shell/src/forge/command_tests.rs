@@ -11,6 +11,7 @@ use std::{
     path::PathBuf,
 };
 use temper_config_shell::{File, Shape};
+use temper_fetch_shell::testing::zstd;
 use temper_forge_setup::{fetch as model, machine::BoxKind};
 use temper_forge_setup_shell::{fetch::Failed, setup_file};
 use temper_shell::directories::EnvironmentEntry;
@@ -323,14 +324,14 @@ fn fake_verb_refusals() {
 #[test]
 fn forge_fetch_rows() {
     use forge_fetch::{ROOTS, Row, Script};
-    use skein_forge::forgejo::pin::{self, Binary, Form};
+    use skein_forge::forgejo::pin::{self, Binary};
     let config = configuration();
     let paths = test_fixtures::setup_bytes(false, false);
     let fetched = String::from_utf8(paths.to_vec()).expect("setup text").replace(
         "\"/programs/forgejo\"",
         "\"fetched\",\"mirror\":{\"forgejo\":\"https://mirror.example.invalid\",\"runner\":\"https://mirror.example.invalid\"}",
     );
-    let pin = pin::digest(Binary::Forgejo, Platform::Linux, "amd64", Form::Binary).expect("Linux Forgejo pin");
+    let pin = pin::digest(Binary::Forgejo, Platform::Linux, "amd64").expect("Linux Forgejo pin");
     for (name, group, setup, row, reason) in [
         ("fake", Some(BoxKind::Fake), FAKE, None, "it is fake, not owned"),
         ("paths", Some(BoxKind::Owned), paths.as_ref(), None, "neither of its binaries is \"fetched\""),
@@ -364,7 +365,7 @@ fn forge_fetch_rows() {
             output,
             Output {
                 exit: 1,
-                stdout: row.map_or(b"".as_slice(), Row::stdout).into(),
+                stdout: row.map_or_else(Vec::new, Row::stdout),
                 stderr: format!("temper-box forge fetch: forge 3: {diagnostic}\n"),
             },
             "{name}"

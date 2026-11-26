@@ -6,8 +6,8 @@ const MOST: u32 = 8;
 
 pub(super) fn append(domain: &Domain, env: &Env<Limits>, project: u32, since: Wall, words: &mut List<u8>) {
     let mut live = Map::uncapped();
-    for candidate in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.core.tasks.task(candidate.number) else { continue };
+    for candidate in domain.engine.core().tasks.view_tasks() {
+        let Some(row) = domain.engine.core().tasks.task(candidate.number) else { continue };
         if row.project != project || !tasks::gathering::executor(row.executor) {
             continue;
         }

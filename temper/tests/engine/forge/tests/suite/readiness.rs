@@ -449,6 +449,7 @@ fn a_no_change_producer_result_records_the_ending_once() {
         flake: false,
         no_test: false,
         failed: false,
+        lost: false,
         cancelled: false,
         words: b"Nothing needed".as_slice().into(),
     };

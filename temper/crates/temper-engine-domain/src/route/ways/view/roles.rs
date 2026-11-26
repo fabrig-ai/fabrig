@@ -64,8 +64,8 @@ fn push(
 
 fn standing(domain: &Domain, project: u32) -> Set<u32> {
     let mut charters = Set::with_capacity(domain.limits.tasks.charters);
-    for task in domain.core.tasks.view_tasks().as_ref() {
-        let row = domain.core.tasks.task(task.number).expect("live task view");
+    for task in domain.engine.core().tasks.view_tasks().as_ref() {
+        let row = domain.engine.core().tasks.task(task.number).expect("live task view");
         if row.project != project || row.label != 3 {
             continue;
         }
@@ -77,7 +77,7 @@ fn standing(domain: &Domain, project: u32) -> Set<u32> {
             Executor::Agent { charter } => charter,
             Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => continue,
         };
-        if domain.core.current.charter(number).is_some() {
+        if domain.engine.core().current.charter(number).is_some() {
             charters.insert(number).expect("one entry per configured charter");
         }
     }
@@ -85,7 +85,7 @@ fn standing(domain: &Domain, project: u32) -> Set<u32> {
 }
 
 fn template(domain: &Domain, project: u32, number: u32) -> Option<u32> {
-    for template in &domain.core.project_templates(project) {
+    for template in &domain.engine.core().project_templates(project) {
         if template.number == number {
             return match template.executor {
                 TemplateExecutor::Charter(charter) => Some(charter),

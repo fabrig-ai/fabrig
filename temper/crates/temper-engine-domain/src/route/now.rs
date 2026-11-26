@@ -414,12 +414,12 @@ fn workspace_facts_waiting(domain: &Domain, context: &tasks::RunContext) -> bool
 }
 
 fn waiting_for_goal_workspace(domain: &Domain, task: u64, design_only: bool) -> bool {
-    let Some(context) = domain.core.tasks.run_context(task) else { return false };
+    let Some(context) = domain.engine.core().tasks.run_context(task) else { return false };
     let charter = match context.executor {
         tasks::Executor::Agent { charter } => charter,
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return false,
     };
-    let Some(charter) = domain.core.charter(charter) else { return false };
+    let Some(charter) = domain.engine.core().charter(charter) else { return false };
     (charter.policy.modify || !design_only)
         && !crate::no_workspace(&charter.policy)
         && domain.forge.goal_workspace_waiting(task, charter.policy.modify)
@@ -440,7 +440,7 @@ pub(super) fn resume_workspaces(domain: &mut Domain, env: &Env<Limits>) {
     }
     for task in &ready {
         let pending = domain.run_workspaces.remove(task).expect("collected preparation wait");
-        if domain.core.tasks.run_context(*task).is_none() {
+        if domain.engine.core().tasks.run_context(*task).is_none() {
             continue;
         }
         match pending {
@@ -497,7 +497,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     for key in answered {
         let answer = super::call_answer(domain, key).expect("live call part has its connector answer");
         records
-            .push(crate::CallRecord { key, answer, settled: domain.core.call_settled.get(&key).cloned() })
+            .push(crate::CallRecord { key, answer, settled: domain.engine.core().call_settled.get(&key).cloned() })
             .expect("retained call bound");
     }
     let application_parts = crate::boundary::AssignmentParts {
@@ -519,7 +519,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
         brief,
         messages,
         transcript,
-        answered: domain.core.settled_calls(task, attempt),
+        answered: domain.engine.core().settled_calls(task, attempt),
         grants,
     };
     let budget = assignment.run.budget;

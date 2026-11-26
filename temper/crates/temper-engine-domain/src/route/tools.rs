@@ -15,7 +15,7 @@ fn read_repository(
     key: crate::CallKey,
     repository: Option<Box<[u8]>>,
 ) -> Option<temper_engine_domain_forge::Repository> {
-    let project = match domain.core.tasks.delegation(key.task) {
+    let project = match domain.engine.core().tasks.delegation(key.task) {
         Some(context) => Some(context.project),
         None => None,
     };
@@ -68,7 +68,7 @@ pub(crate) fn relay_payload(
         if let core::SettingsRead::Setting { revision, .. } = &mut read
             && *revision == 0
         {
-            *revision = domain.core.current.newest();
+            *revision = domain.engine.core().current.newest();
         }
         domain.work.push(Work::Core(core::Event::NamedAction {
             to: reply_to,
@@ -86,11 +86,11 @@ pub(crate) fn relay_payload(
                 | core::effects::connector::OutboxOutcome::Held { .. },
             ),
         ..
-    }) = domain.core.call_parts.get(&key)
+    }) = domain.engine.core().call_parts.get(&key)
         && env.wall < *deadline
     {
         let deadline = *deadline;
-        let owner = domain.core.effect_owner();
+        let owner = domain.engine.core_mut().effect_owner();
         domain.work.push(Work::Core(core::Event::EffectStart {
             owner,
             connector: domain.config.forge_connector,
@@ -104,7 +104,7 @@ pub(crate) fn relay_payload(
         Some(answer) => relay_call(domain, &env.limits, decision, reply_to, answer),
         None => {
             if let Some(kind) = tool_kind(&body.tool)
-                && let Some(part) = domain.core.authorize_tool(key, kind)
+                && let Some(part) = domain.engine.core().authorize_tool(key, kind)
             {
                 if reading {
                     super::host_route::read(
@@ -194,7 +194,7 @@ pub(crate) fn relay_payload(
                         );
                         return;
                     }
-                    let expanded = match domain.core.tasks.delegation(key.task) {
+                    let expanded = match domain.engine.core().tasks.delegation(key.task) {
                         Some(context) => {
                             if let Tool::Change { changes } = tool {
                                 forge_route::change_batch(domain, env, key.task, &context, &changes)
@@ -466,7 +466,7 @@ pub(super) fn settings_value(
 ) -> Option<temper_engine_domain_forge::settings::SizedValue> {
     let core::SettingsAnswer::Setting(document) = answer else { return None };
     let core::settings::Setting::Application { kind, scope, number } = document.setting else { return None };
-    if document.revision != domain.core.current.newest() {
+    if document.revision != domain.engine.core().current.newest() {
         return None;
     }
     domain.forge.setting(kind, scope, number).cloned()

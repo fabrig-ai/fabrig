@@ -5,6 +5,7 @@
 
 use crate::{Refusal, ReplyRef, Seen};
 use alloc::boxed::Box;
+pub use jig_domain_contract::ops::Role;
 use skein_lib::{Duration, List, ReplyTo, Token, Wall};
 
 /// Maximum address bytes retained in an account sign-in answer.
@@ -103,48 +104,6 @@ pub struct InitialOwner {
     pub project: u32,
     /// Configured provider/subject pair to grant `Owner` on its first person creation.
     pub identity: IdentityKey,
-}
-
-/// People's project membership label; the root translates it to authority policy and performs the
-/// action checks. (domain/people/README.md, section 4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Role {
-    /// `Owner` membership; may start chats here, while broader owner actions remain root policy.
-    Owner,
-    /// Maintainer membership; may start chats here, with authority checked by the root.
-    Maintainer,
-    /// Member membership; may start chats here within the root's policy and funding check.
-    Member,
-    /// Observer membership; creation is refused and its keyed role outcome is saved.
-    Observer,
-    /// A role numbered by this project's policy, beyond the four defaults.
-    Policy { role: u32 },
-}
-
-impl Role {
-    /// Number used by authority and role-addressed task entries.
-    #[must_use]
-    pub const fn number(self) -> u32 {
-        match self {
-            Self::Owner => 0,
-            Self::Maintainer => 1,
-            Self::Member => 2,
-            Self::Observer => 3,
-            Self::Policy { role } => role,
-        }
-    }
-
-    /// Resolve a configured policy role to a membership label.
-    #[must_use]
-    pub const fn from_number(number: u32) -> Self {
-        match number {
-            0 => Self::Owner,
-            1 => Self::Maintainer,
-            2 => Self::Member,
-            3 => Self::Observer,
-            role => Self::Policy { role },
-        }
-    }
 }
 
 /// One person's authoritative project role; a roles record permits at most one holding per person.

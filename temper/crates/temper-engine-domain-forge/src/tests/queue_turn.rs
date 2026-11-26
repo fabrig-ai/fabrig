@@ -432,6 +432,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     flake: false,
                     no_test: false,
                     failed: true,
+                    lost: false,
                     cancelled: false,
                     words: Box::from(b"review failed".as_slice()),
                 }

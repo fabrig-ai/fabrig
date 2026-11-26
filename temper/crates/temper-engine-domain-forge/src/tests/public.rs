@@ -232,6 +232,7 @@ fn change_row() -> ChangeRow {
         source: None,
         kept: None,
         regate: None,
+        ci_recheck: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -280,6 +281,7 @@ fn change_row() -> ChangeRow {
         delegate_flake: false,
         delegate_no_test: false,
         delegate_head: None,
+        delegate_words: None,
         verdicts: Box::new([]),
         milestone: None,
         person: None,
@@ -303,6 +305,7 @@ fn change_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        runner_ci: None,
         close_at: None,
         report: Box::new([]),
         repairs: None,
@@ -445,6 +448,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             LANDING,
             LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
@@ -603,6 +607,17 @@ fn each_repair_reason_projects_to_the_public_step() {
         assert_eq!(got.step, w::PublicStep::Repairing);
         assert_eq!(got.repair, Some(expected));
     }
+}
+
+#[test]
+fn red_stands_projects_to_the_public_failed_hold() {
+    let mut d = setup();
+    let row = d.changes.get_mut(&CHANGE).expect("change");
+    row.change.state = c::State::Held {
+        was: Box::new(c::State::Repairing { requested: false, why: c::Repair::Landing { gate: 0 } }),
+        why: c::Hold::RedStands,
+    };
+    assert_eq!(change(&d, &handed()).hold, Some(w::PublicHold::Failed));
 }
 
 #[test]
@@ -899,6 +914,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                 task,
                 LandingRow {
                     read_hold: None,
+                    gate_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,

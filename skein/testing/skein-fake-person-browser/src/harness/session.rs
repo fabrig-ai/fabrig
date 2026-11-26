@@ -184,6 +184,7 @@ pub struct Pump {
     profile: PathBuf,
     environment: Vec<(OsString, OsString)>,
     file_access: bool,
+    hide_scrollbars: bool,
     child: Option<Token>,
     pipes: Option<[Token; 3]>,
     opening: Opening,
@@ -199,7 +200,7 @@ impl Pump {
         environment: Vec<(OsString, OsString)>,
         external: u32,
     ) -> Result<Self, String> {
-        Self::build(chromium, profile, environment, external, BROWSER, false)
+        Self::build(chromium, profile, environment, external, BROWSER, false, false)
     }
     fn build(
         chromium: PathBuf,
@@ -208,6 +209,7 @@ impl Pump {
         external: u32,
         browser_owner: Token,
         file_access: bool,
+        hide_scrollbars: bool,
     ) -> Result<Self, String> {
         let bl = browser::Limits::default();
         let cap = capacity::Capacity::new(2, 0, super::Output::Stdout, &bl).ok_or("session capacity does not fit")?;
@@ -242,6 +244,7 @@ impl Pump {
             profile,
             environment,
             file_access,
+            hide_scrollbars,
             child: None,
             pipes: None,
             opening: Opening::Idle,
@@ -276,9 +279,14 @@ impl Pump {
         environment: &[(OsString, OsString)],
         root: Fd,
         file_access: bool,
+        hide_scrollbars: bool,
     ) -> Spawn {
-        let command =
-            browser::command::command(chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes(), file_access);
+        let command = browser::command::command(
+            chromium.as_os_str().as_bytes(),
+            profile.as_os_str().as_bytes(),
+            file_access,
+            hide_scrollbars,
+        );
         let mut env = environment.to_vec();
         // As in the browser tier, leave Chromium's singleton socket to the host's
         // temporary directory. A deep scratch directory can make its path too long.
@@ -309,8 +317,14 @@ impl Pump {
         }
     }
     fn start(&mut self, opening: Opening) {
-        let spawn =
-            Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root(), self.file_access);
+        let spawn = Self::chromium_spawn(
+            &self.chromium,
+            &self.profile,
+            &self.environment,
+            self.root(),
+            self.file_access,
+            self.hide_scrollbars,
+        );
         self.opening = opening;
         self.request(io::Request::Spawn { owner: PROCESS, spawn });
     }
@@ -639,8 +653,9 @@ impl RawPump {
         environment: Vec<(OsString, OsString)>,
         owner: Token,
         file_access: bool,
+        hide_scrollbars: bool,
     ) -> Result<Self, String> {
-        let mut pump = Pump::build(chromium, profile, environment, 0, owner, file_access)?;
+        let mut pump = Pump::build(chromium, profile, environment, 0, owner, file_access, hide_scrollbars)?;
         pump.start(Opening::Raw);
         Ok(Self(pump))
     }

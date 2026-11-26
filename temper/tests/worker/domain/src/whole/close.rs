@@ -96,6 +96,7 @@ fn assign(world: &mut World, head: u64) -> Result<(), String> {
             workspace: Some(host::Workspace { workstream: 81, items: Token::new(0) }),
         },
         items: Ok(wire::Workspace {
+            rerun: None,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,

@@ -182,7 +182,7 @@ fn a_second_timeout_refuses_with_the_retrys_given_time() {
         harness.step(Event::Checked { owner, ran: timed_out_check() }).as_ref(),
         [returned(
             7,
-            Returned::ChecksFailed {
+            Returned::ChecksNotJudged {
                 repository: bytes(b"temper"),
                 check: bytes(b".temper/pre-pr"),
                 given: Duration::from_secs(120),
@@ -276,7 +276,7 @@ fn retries_are_cut_at_the_call_and_ordinary_deadlines() {
             harness.step(Event::Checked { owner, ran: timed_out_check() }).as_ref(),
             [returned(
                 7,
-                Returned::ChecksFailed {
+                Returned::ChecksNotJudged {
                     repository: bytes(b"temper"),
                     check: bytes(b".temper/pre-pr"),
                     given: Duration::from_secs(90),
@@ -289,16 +289,16 @@ fn retries_are_cut_at_the_call_and_ordinary_deadlines() {
 
 #[test]
 fn checks_without_retry_room_or_a_timeout_return_feedback_at_once() {
-    for (exit, start, call_until) in [
-        (Exit::Code { code: 1 }, 0, 600),
-        (Exit::Cancelled, 0, 600),
-        (Exit::Unstarted, 0, 600),
-        (Exit::Signalled { signal: 15 }, 0, 600),
-        (Exit::TimedOut, 0, 120),
-        (Exit::TimedOut, 0, 119),
-        (Exit::TimedOut, 180, 600),
-        (Exit::TimedOut, 181, 600),
-        (Exit::TimedOut, 301, 600),
+    for (exit, start, call_until, refused) in [
+        (Exit::Code { code: 1 }, 0, 600, true),
+        (Exit::Cancelled, 0, 600, false),
+        (Exit::Unstarted, 0, 600, false),
+        (Exit::Signalled { signal: 15 }, 0, 600, false),
+        (Exit::TimedOut, 0, 120, false),
+        (Exit::TimedOut, 0, 119, false),
+        (Exit::TimedOut, 180, 600, false),
+        (Exit::TimedOut, 181, 600, false),
+        (Exit::TimedOut, 301, 600, false),
     ] {
         let mut harness = Harness::new(Limits { check_timeout: Duration::from_secs(60), ..LIMITS });
         let (_, conversation) = harness.coding(1, 100);
@@ -312,17 +312,18 @@ fn checks_without_retry_room_or_a_timeout_return_feedback_at_once() {
         let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else { panic!("first check") };
         let owner = *owner;
         harness.after(Duration::from_secs(60));
+        let repository = bytes(b"temper");
+        let check = bytes(b".temper/pre-pr");
+        let given = Duration::from_secs(60);
+        let ran = Ran { exit, ..timed_out_check() };
+        let expected = if refused {
+            Returned::ChecksFailed { repository, check, given, ran }
+        } else {
+            Returned::ChecksNotJudged { repository, check, given, ran }
+        };
         assert_eq!(
             harness.step(Event::Checked { owner, ran: Ran { exit, ..timed_out_check() } }).as_ref(),
-            [returned(
-                7,
-                Returned::ChecksFailed {
-                    repository: bytes(b"temper"),
-                    check: bytes(b".temper/pre-pr"),
-                    given: Duration::from_secs(60),
-                    ran: Ran { exit, ..timed_out_check() }
-                }
-            )],
+            [returned(7, expected)],
             "exit={exit:?}, start={start}, call_until={call_until}"
         );
     }
@@ -345,14 +346,14 @@ fn winding_down_for_turns_does_not_retry_even_with_ordinary_time_left() {
     let owner = *owner;
     harness.after(Duration::from_secs(60));
     let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
-    let [Request::Return { result: Returned::ChecksFailed { given, .. }, .. }] = &*requests else {
+    let [Request::Return { result: Returned::ChecksNotJudged { given, .. }, .. }] = &*requests else {
         panic!("no retry in wind-down: {requests:?}");
     };
     assert_eq!(*given, Duration::from_secs(60));
 }
 
 fn timed_out_check() -> Ran {
-    Ran { exit: Exit::TimedOut, output: bytes(b"tail"), cut: 3 }
+    Ran { exit: Exit::TimedOut, said_not_judged: false, output: bytes(b"tail"), cut: 3 }
 }
 
 #[test]
@@ -360,9 +361,11 @@ fn a_change_that_fails_its_checks_or_its_delivery_goes_back_to_the_llm() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
-    let failing = Ran { exit: Exit::Code { code: 1 }, output: bytes(b"test parse ... FAILED"), cut: 12 };
+    let failing =
+        Ran { exit: Exit::Code { code: 1 }, said_not_judged: false, output: bytes(b"test parse ... FAILED"), cut: 12 };
     let requests = harness.step(Event::Checked { owner, ran: failing });
-    let failing = Ran { exit: Exit::Code { code: 1 }, output: bytes(b"test parse ... FAILED"), cut: 12 };
+    let failing =
+        Ran { exit: Exit::Code { code: 1 }, said_not_judged: false, output: bytes(b"test parse ... FAILED"), cut: 12 };
     assert_eq!(
         &*requests,
         &[returned(
@@ -405,7 +408,12 @@ fn a_change_can_be_delivered_after_failing_checks_when_its_contract_allows_it() 
     assert_eq!(program.root, Token::new(901));
     let requests = harness.step(Event::Checked {
         owner,
-        ran: Ran { exit: Exit::Signalled { signal: 15 }, output: bytes(b"second failed"), cut: 0 },
+        ran: Ran {
+            exit: Exit::Signalled { signal: 15 },
+            said_not_judged: false,
+            output: bytes(b"second failed"),
+            cut: 0,
+        },
     });
     let [Request::Deliver { .. }] = requests.as_ref() else { panic!("delivery follows both checks: {requests:?}") };
     let mut check_exits = List::with_capacity(2);
@@ -740,11 +748,11 @@ fn unknown_extra_field_ownership_is_checked_before_shape_judgement() {
 
 #[test]
 fn a_mid_run_delivery_without_a_change_contract_needs_passing_checks() {
-    for (exit, output, cut, custom, call_time) in [
-        (Exit::Code { code: 1 }, b"draft failed".as_slice(), 0, true, LIMITS.budget.time),
-        (Exit::TimedOut, b"tail".as_slice(), 3, false, LIMITS.budget.time),
-        (Exit::TimedOut, b"tail".as_slice(), 3, true, LIMITS.budget.time),
-        (Exit::TimedOut, b"tail".as_slice(), 3, true, Duration::from_secs(1)),
+    for (exit, output, cut, custom, call_time, refused) in [
+        (Exit::Code { code: 1 }, b"draft failed".as_slice(), 0, true, LIMITS.budget.time, true),
+        (Exit::TimedOut, b"tail".as_slice(), 3, false, LIMITS.budget.time, false),
+        (Exit::TimedOut, b"tail".as_slice(), 3, true, LIMITS.budget.time, false),
+        (Exit::TimedOut, b"tail".as_slice(), 3, true, Duration::from_secs(1), false),
     ] {
         let mut harness = Harness::new(LIMITS);
         let mut policy = mid_report();
@@ -768,17 +776,19 @@ fn a_mid_run_delivery_without_a_change_contract_needs_passing_checks() {
         assert_eq!(*deadline, harness.env.now.saturating_add(given));
         let owner = *owner;
         harness.after(Duration::from_millis(1));
+        let repository = bytes(b"temper");
+        let check = bytes(check);
+        let ran = Ran { exit, said_not_judged: false, output: bytes(output), cut };
+        let expected = if refused {
+            Returned::ChecksFailed { repository, check, given, ran }
+        } else {
+            Returned::ChecksNotJudged { repository, check, given, ran }
+        };
         assert_eq!(
-            harness.step(Event::Checked { owner, ran: Ran { exit, output: bytes(output), cut } }).as_ref(),
-            [returned(
-                50,
-                Returned::ChecksFailed {
-                    repository: bytes(b"temper"),
-                    check: bytes(check),
-                    given,
-                    ran: Ran { exit, output: bytes(output), cut },
-                }
-            )],
+            harness
+                .step(Event::Checked { owner, ran: Ran { exit, said_not_judged: false, output: bytes(output), cut } })
+                .as_ref(),
+            [returned(50, expected)],
             "exit={exit:?}, custom={custom}, call_time={call_time:?}"
         );
     }

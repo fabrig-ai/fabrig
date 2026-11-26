@@ -25,18 +25,32 @@ const HAND_MADE_DIR: &str = "temper/docs/design/client/web/journeys/not-a-walk";
 const HAND_MADE_PAGE: &str = "temper/docs/design/client/web/journeys/not-a-walk/index.html";
 const GALLERY: &str = "/landing tree/.git/look-render/gallery";
 const STATE_FILE: &str = "accounts-usage-filling.html";
-const STATE_README: &str = "Hand-made from the gallery's state `accounts-usage-filling`, printed by `temper-client-gallery` at main `ed505074e5`: an account's folded row with its 5 h and week windows.";
+const STATE_README: &str = "Hand-made from the gallery's state `accounts-usage-filling`: an account's folded row with its 5 h and week windows.";
+const DRAWN_NAME: &str = "`accounts-after.html` the request";
+const BEFORE_NAME: &str = "`accounts-before.html`";
 const DRAWN_DIR: &str = "temper/docs/design/client/web/journeys/usage-model-week";
 const DRAWN_README: &str = "temper/docs/design/client/web/journeys/usage-model-week/README.md";
 const DRAWN_PAGE: &str = "temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html";
 const DRAWN_ITEM: &str = "web/journeys/usage-model-week/accounts-after.html";
-const STATE_SOURCE: &str =
-    "<!doctype html>\n<html><head></head><body><details><dialog></dialog></details></body></html>\n";
-const STATE_OPENED: &str =
-    "<!doctype html>\n<html><head></head><body><details open><dialog open></dialog></details></body></html>\n";
-const STATE_TAGS: &[(&str, u32)] = &[("html", 0), ("head", 1), ("body", 1), ("details", 2), ("dialog", 3)];
+const BEFORE: &str = "temper/docs/design/client/web/journeys/usage-model-week/accounts-before.html";
+const BEFORE_ITEM: &str = "web/journeys/usage-model-week/accounts-before.html";
+const STATE_SOURCE: &str = concat!(
+    "<!doctype html>\n<html><head></head><body><details><dialog></dialog></details>",
+    "<span class=\"temper-usage-name\"><i>Account</i></span></body></html>\n",
+);
+const STATE_OPENED: &str = concat!(
+    "<!doctype html>\n<html><head></head><body><details open><dialog open></dialog></details>",
+    "<span class=\"temper-usage-name\"><i>Account</i></span></body></html>\n",
+);
+const STATE_TAGS: &[(&str, u32)] =
+    &[("html", 0), ("head", 1), ("body", 1), ("details", 2), ("dialog", 3), ("span", 2), ("i", 3)];
 const FIRST_REQUEST_NODE: Node = 11;
 const FIRST_PRINT_NODE: Node = 111;
+const SPAN: Node = FIRST_REQUEST_NODE + 5; // Sixth start tag in STATE_SOURCE.
+const LANDED_SPAN: Node = FIRST_PRINT_NODE + 5;
+const USAGE_NAME: &str = ".temper-usage-name";
+const REQUEST_OVERLAY: &str = ".temper-usage-name { width: 48px; padding: 0 2px }";
+const UNSPECIFIED: &str = "not the requested look";
 const ITEM: &str = "web/journeys/sign-in/02.html";
 const PERSON: Token = Token::new(1);
 const REQUEST: Token = Token::new(2);
@@ -52,6 +66,24 @@ const DIFF_LINE: usize = LINE + 6; // Six tag boundaries in HEADER put the butto
 const WIDTHS: [u32; 3] = [1440, 1000, 420]; // journey-writer.md, 6.2, step 7.
 const HEIGHT: u32 = 900;
 const BOX: Rect = Rect { x: -5, y: 20, width: 80, height: 30 };
+const BOX_STYLE_CHANGE: [&[(&str, &str)]; 2] = [
+    &[
+        ("width", "80px"),
+        ("height", "30px"),
+        ("inline-size", "80px"),
+        ("block-size", "30px"),
+        ("transform-origin", "40px 15px"),
+        ("perspective-origin", "40px 15px"),
+    ],
+    &[
+        ("width", "81px"),
+        ("height", "50px"),
+        ("inline-size", "81px"),
+        ("block-size", "50px"),
+        ("transform-origin", "40.5px 25px"),
+        ("perspective-origin", "40.5px 25px"),
+    ],
+];
 const LEFT_COLOR: &str = "rgb(1, 2, 3)";
 const RIGHT_COLOR: &str = "rgb(4, 5, 6)";
 const IDENTICAL: &str = "identical\tweb/journeys/sign-in/02.html\nresult\tidentical\n";
@@ -244,25 +276,30 @@ impl Effects {
         self.done(Command::Close { page: request });
     }
 
-    fn open_gallery_pair(&mut self, path: &str, [request, print]: [Token; 2], requested: &[(&str, u32)]) {
-        self.open_file(request, "request", path);
+    fn gallery_pair(&mut self, [request, print]: [Token; 2], requested: &[(&str, u32)]) {
         self.open_file(print, "gallery", STATE_FILE);
         self.elements_of(request, FIRST_REQUEST_NODE, requested);
         self.elements_of(print, FIRST_PRINT_NODE, STATE_TAGS);
-        self.0.blob(PARENT, path, None);
     }
 
-    fn measure_gallery(&mut self, [request, print]: [Token; 2], paired_request_indices: &[Node]) {
+    fn gallery_span(&mut self, [request, print]: [Token; 2]) {
+        self.selects(request, USAGE_NAME, Some((SPAN, "span")));
+        self.gallery_pair([request, print], STATE_TAGS);
+    }
+
+    fn selects(&mut self, page: Token, selector: &str, hit: Option<(Node, &str)>) {
+        let elements =
+            hit.into_iter().map(|(node, name)| Element { node, name: name.as_bytes().into(), depth: 2 }).collect();
+        self.chrome(
+            Command::Elements { page, selector: Some(selector.as_bytes().into()) },
+            Reply::Elements { elements, more: 0 },
+        );
+    }
+
+    fn measure_gallery(&mut self, [request, print]: [Token; 2], from: Node, styles: [&[(&str, &str)]; 2]) {
         for width in WIDTHS {
             self.viewport_pair([request, print], width);
-            for (index, &left) in paired_request_indices.iter().enumerate() {
-                let right = u64::try_from(index).expect("fixture index");
-                self.measure_pair(
-                    [(request, FIRST_REQUEST_NODE + left), (print, FIRST_PRINT_NODE + right)],
-                    [&[]; 2],
-                    [None; 2],
-                );
-            }
+            self.styles([(request, from), (print, LANDED_SPAN)], styles);
         }
     }
 
@@ -310,7 +347,7 @@ impl Effects {
         self.measure_pair([(REQUEST, BUTTON), (PRINT, LANDED_BUTTON)], styles, boxes);
     }
 
-    fn measure_pair(&mut self, pair: [(Token, Node); 2], styles: [&[(&str, &str)]; 2], boxes: [Option<Rect>; 2]) {
+    fn styles(&mut self, pair: [(Token, Node); 2], styles: [&[(&str, &str)]; 2]) {
         for ((page, node), properties) in pair.into_iter().zip(styles) {
             let style = properties
                 .iter()
@@ -318,6 +355,10 @@ impl Effects {
                 .collect();
             self.chrome(Command::Style { page, node }, Reply::Style(style));
         }
+    }
+
+    fn measure_pair(&mut self, pair: [(Token, Node); 2], styles: [&[(&str, &str)]; 2], boxes: [Option<Rect>; 2]) {
+        self.styles(pair, styles);
         for ((page, node), rect) in pair.into_iter().zip(boxes) {
             self.chrome(Command::Rect { page, node }, Reply::Rect(rect));
         }
@@ -345,19 +386,61 @@ impl Effects {
     }
 }
 
-fn drawn_request(readme: &str, pages: &[Files<'_>]) -> Effects {
+fn drawn_request(readme: &str, pages: &[Files<'_>], [parent, overlay]: [&str; 2]) -> Effects {
     let mut steps = Effects::default();
     let mut changed = vec![DRAWN_README];
     changed.extend(pages.iter().map(|file| file.path));
-    steps.begin(&changed);
-    steps.0.blob(TIP, &format!("{DRAWN_DIR}/walk"), None);
     let mut files = vec![Files::same(DRAWN_README, readme)];
     files.extend_from_slice(pages);
+    if parent == overlay {
+        steps.begin(&changed);
+    } else {
+        let mut all = changed.clone();
+        all.push(OVERLAY);
+        steps.begin(&all);
+        files.push(Files::same(OVERLAY, overlay));
+    }
+    steps.0.blob(TIP, &format!("{DRAWN_DIR}/walk"), None);
     steps.copy_request(&files);
     steps.copy_print(&[]);
+    if parent != overlay {
+        steps.0.blob(PARENT, OVERLAY, Some(parent));
+        steps.0.blob(TIP, OVERLAY, Some(overlay));
+    }
     steps.hand_made_paths(DRAWN_DIR, &changed);
     steps.0.blob(TIP, DRAWN_README, Some(readme));
     steps
+}
+
+fn named_drawing(overlays: [&str; 2]) -> Effects {
+    drawn_request(&format!("{STATE_README}\n{DRAWN_NAME}, its week filling"), &[drawn_page(DRAWN_PAGE)], overlays)
+}
+
+fn gallery_drawing(overlays: [&str; 2]) -> Effects {
+    let mut steps = named_drawing(overlays);
+    start_gallery(&mut steps);
+    steps.open_file(REQUEST, "request", DRAWN_PAGE);
+    steps
+}
+
+fn start_gallery(steps: &mut Effects) {
+    steps.gallery_print(0, "");
+    steps.gallery_page(STATE_SOURCE, STATE_OPENED);
+    steps.start();
+}
+
+fn gallery_differences(rows: &[(&str, &str, &str)]) -> String {
+    use std::fmt::Write as _;
+
+    let mut expected = String::new();
+    for width in WIDTHS {
+        for (name, from, to) in rows {
+            writeln!(expected, "differs\t{DRAWN_ITEM}\t{width}\t2 span.temper-usage-name\t{name}\t{from}\t{to}")
+                .expect("write string");
+        }
+    }
+    expected.push_str(DIFFERS);
+    expected
 }
 
 fn drawn_page(path: &str) -> Files<'_> {
@@ -452,6 +535,47 @@ pub(crate) fn report_with_printed_and_hand_made_pages() -> Vec<u8> {
     report.finish()
 }
 
+const INSERTION: usize = 3; // Between <body> and <details> in STATE_TAGS.
+const NEW_RULE: &str = ".new { color: red }";
+
+fn inline_drawing(overlay: &str) -> Effects {
+    const HEADER: &str = "<!doctype html>\n<html><head></head><body>";
+    const TAIL: &str = "</dialog></details><span class=\"temper-usage-name\"><i>Account</i></span></body></html>\n";
+    const NEW_TAG: &str = "<hr class=\"new\" data-node=7>";
+    let drawing = format!("{HEADER}{NEW_TAG}<details DATA-NODE='8'><dialog data-node=\"9\">{TAIL}");
+    let drawing_open = format!("{HEADER}{NEW_TAG}<details open DATA-NODE='8'><dialog open data-node=\"9\">{TAIL}");
+    let mut steps = drawn_request(
+        &format!("{STATE_README}\n{DRAWN_NAME}"),
+        &[Files { path: DRAWN_PAGE, source: &drawing, copy: &drawing_open }],
+        ["", overlay],
+    );
+    steps.gallery_print(0, "");
+    steps.gallery_page(
+        &format!("{HEADER}<details data-node=\"1\"><dialog data-node=\"2\">{TAIL}"),
+        &format!("{HEADER}<details open data-node=\"1\"><dialog open data-node=\"2\">{TAIL}"),
+    );
+    steps.start();
+    steps.open_file(REQUEST, "request", DRAWN_PAGE);
+    steps.selects(REQUEST, ".new", Some((FIRST_REQUEST_NODE + u64::try_from(INSERTION).expect("fixture index"), "hr")));
+    steps
+}
+
+fn inline_alignment(steps: &mut Effects) {
+    const LINE_HEADER: &str = "<!doctype html>\n<html\n><head\n></head\n><body\n";
+    const LINE_TAIL: &str = concat!(
+        "><details\n><dialog\n></dialog\n></details\n><span class=\"temper-usage-name\"\n><i\n>",
+        "Account</i\n></span\n></body\n></html\n>\n",
+    );
+    let mut tags = STATE_TAGS.to_vec();
+    tags.insert(INSERTION, ("hr", 2));
+    steps.gallery_pair([REQUEST, PRINT], &tags);
+    steps.diff(
+        &format!("{LINE_HEADER}><hr class=\"new\"\n{LINE_TAIL}"),
+        &format!("{LINE_HEADER}{LINE_TAIL}"),
+        "@@ -6 +5,0 @@\n-><hr class=\"new\"\n",
+    );
+}
+
 look_step_tests! {
 #[test]
 fn a_locally_held_request_is_render_checked_without_fetching() {
@@ -486,10 +610,27 @@ fn computed_color_differences_are_listed_widest_first() {
 #[test]
 fn box_coordinates_one_pixel_apart_are_equal() {
     let mut steps = edited_button();
+    let [left, _] = BOX_STYLE_CHANGE;
+    let near = &[
+        ("width", "81px"), ("height", "29px"), ("inline-size", "81px"), ("block-size", "29px"),
+        ("transform-origin", "40.5px 14.5px"), ("perspective-origin", "40.5px 14.5px"),
+    ];
     for width in WIDTHS {
-        steps.measure(width, [&[]; 2], [Some(BOX), Some(Rect { x: -4, y: 21, width: 81, height: 29 })]);
+        steps.measure(width, [left, near], [Some(BOX), Some(Rect { x: -4, y: 21, width: 81, height: 29 })]);
     }
     steps.verdict(IDENTICAL);
+}
+
+#[test]
+fn box_difference_replaces_all_six_dependent_style_differences() {
+    let mut steps = edited_button();
+    let mut expected = String::new();
+    for width in WIDTHS {
+        steps.measure(width, BOX_STYLE_CHANGE, [Some(BOX), Some(Rect { width: 81, height: 50, ..BOX })]);
+        expected.push_str(&difference(width, "box", "-5,20 80x30", "-5,20 81x50"));
+    }
+    expected.push_str(DIFFERS);
+    steps.verdict(&expected);
 }
 
 #[test]
@@ -589,31 +730,99 @@ fn hand_made_pages_receive_a_row_without_rendering() {
 }
 
 #[test]
-fn a_gallery_drawing_is_compared_with_the_opened_state() {
-    let mut steps = drawn_request(STATE_README, &[drawn_page(DRAWN_PAGE)]);
-    steps.gallery_print(0, "");
-    steps.gallery_page(STATE_SOURCE, STATE_OPENED);
-    steps.start();
-    steps.open_gallery_pair(DRAWN_PAGE, [REQUEST, PRINT], STATE_TAGS);
-    steps.measure_gallery([REQUEST, PRINT], &[0, 1, 2, 3, 4]); // Every tag is new against the parent.
-    steps.verdict(&format!("identical\t{DRAWN_ITEM}\nresult\tidentical\n"));
+fn only_the_named_request_is_compared_with_the_opened_state() {
+    let readme = format!("{STATE_README}\n{DRAWN_NAME}, its week filling\n{BEFORE_NAME} the look before");
+    let mut steps = drawn_request(&readme, &[drawn_page(DRAWN_PAGE), drawn_page(BEFORE)], ["", REQUEST_OVERLAY]);
+    start_gallery(&mut steps);
+    let pair = [REQUEST, PRINT];
+    steps.open_file(REQUEST, "request", DRAWN_PAGE);
+    steps.gallery_span(pair);
+    steps.measure_gallery(pair, SPAN, [&[]; 2]);
+    steps.verdict(&format!("identical\t{DRAWN_ITEM}\nuncompared\t{BEFORE_ITEM}\t{UNSPECIFIED}\nresult\tidentical\n"));
 }
 
 #[test]
 fn two_drawings_share_one_gallery_print_and_state_page() {
-    const BEFORE: &str = "temper/docs/design/client/web/journeys/usage-model-week/accounts-before.html";
-    const BEFORE_ITEM: &str = "web/journeys/usage-model-week/accounts-before.html";
-    let readme = format!("{STATE_README}\nAlso drawn on the gallery's state `accounts-usage-filling`.");
-    let mut steps = drawn_request(&readme, &[drawn_page(DRAWN_PAGE), drawn_page(BEFORE)]);
-    steps.gallery_print(0, "");
-    steps.gallery_page(STATE_SOURCE, STATE_OPENED);
-    steps.start();
-    for (path, pair) in [(DRAWN_PAGE, [REQUEST, PRINT]), (BEFORE, [Token::new(4), Token::new(5)])] {
-        steps.open_gallery_pair(path, pair, STATE_TAGS);
-        steps.measure_gallery(pair, &[0, 1, 2, 3, 4]);
-        steps.close_pages(pair);
+    let readme = format!(
+        "{STATE_README}\nAlso drawn on the gallery's state `accounts-usage-filling`.\n\
+        {DRAWN_NAME}, its week filling\n{BEFORE_NAME} the request"
+    );
+    let mut steps = drawn_request(&readme, &[drawn_page(DRAWN_PAGE), drawn_page(BEFORE)], ["", REQUEST_OVERLAY]);
+    start_gallery(&mut steps);
+    for (path, [request, print]) in [(DRAWN_PAGE, [REQUEST, PRINT]), (BEFORE, [Token::new(4), Token::new(5)])] {
+        steps.open_file(request, "request", path);
+        steps.gallery_span([request, print]);
+        steps.measure_gallery([request, print], SPAN, [&[]; 2]);
+        steps.close_pages([request, print]);
     }
     steps.stop_and_check(0, &format!("identical\t{DRAWN_ITEM}\nidentical\t{BEFORE_ITEM}\nresult\tidentical\n"), "");
+}
+
+#[test]
+fn naming_a_state_without_request_pages_never_prints_it() {
+    for suffix in [None, Some("ed look"), Some("2"), Some("-like"), Some("_like"), Some("'s"), Some("’s")] {
+        let readme = suffix.map_or_else(|| STATE_README.to_owned(), |suffix| format!("{STATE_README}\n{DRAWN_NAME}{suffix}"));
+        let mut steps = drawn_request(&readme, &[drawn_page(DRAWN_PAGE), drawn_page(BEFORE)], ["", REQUEST_OVERLAY]);
+        steps.start();
+        let expected = format!(
+            "uncompared\t{DRAWN_ITEM}\t{UNSPECIFIED}\nuncompared\t{BEFORE_ITEM}\t{UNSPECIFIED}\nresult\tnot compared\n"
+        );
+        steps.stop_and_check(0, &expected, "");
+    }
+}
+
+#[test]
+fn gallery_compares_only_selected_elements_and_their_declared_style() {
+    let mut steps = gallery_drawing(["", REQUEST_OVERLAY]);
+    let pair = [REQUEST, PRINT];
+    steps.gallery_span(pair);
+    steps.measure_gallery(pair, SPAN, [
+        &[("width", "48px"), ("padding-left", "2px"), ("color", LEFT_COLOR), ("height", "12px"), ("--x", "red")],
+        &[("width", "40px"), ("padding-left", "1px"), ("color", RIGHT_COLOR), ("height", "10px"), ("--x", "blue")],
+    ]); // No Style for <i> inside the span, or for other tags; no Rect for even the span.
+    steps.verdict(&gallery_differences(&[("padding-left", "2px", "1px"), ("width", "48px", "40px")]));
+}
+
+#[test]
+fn a_shorthand_can_set_longhands_with_different_prefixes() {
+    let mut steps = gallery_drawing([
+        "", ".temper-usage-name { inset: 2px; gap: 2px; transform: none; scroll-margin: 2px }",
+    ]);
+    let pair = [REQUEST, PRINT];
+    steps.gallery_span(pair);
+    steps.measure_gallery(pair, SPAN, [
+        &[("top", "2px"), ("row-gap", "2px"), ("transform", "none"), ("transform-origin", "0px 0px"), ("scroll-margin-top", "2px")],
+        &[("top", "1px"), ("row-gap", "1px"), ("transform", "none"), ("transform-origin", "24px 0px"), ("scroll-margin-top", "1px")],
+    ]);
+    steps.verdict(&gallery_differences(&[("row-gap", "2px", "1px"), ("scroll-margin-top", "2px", "1px"), ("top", "2px", "1px")]));
+}
+
+#[test]
+fn changed_and_removed_rules_carry_their_parents_declared_names() {
+    let mut steps = gallery_drawing([
+        ".temper-usage-name:hover { --temper-name-width: 48px } span { min-width: 2px } .unchanged { opacity: 1 }",
+        ".temper-usage-name:hover { color: red } .unchanged { opacity: 1 }",
+    ]);
+    for selector in [USAGE_NAME, "span"] {
+        steps.selects(REQUEST, selector, Some((SPAN, "span")));
+    }
+    let pair = [REQUEST, PRINT];
+    steps.gallery_pair(pair, STATE_TAGS);
+    steps.measure_gallery(pair, SPAN, [
+        &[("--temper-name-width", "48px"), ("min-width", "2px"), ("color", LEFT_COLOR)],
+        &[("--temper-name-width", "40px"), ("min-width", "0px"), ("color", RIGHT_COLOR)],
+    ]);
+    steps.verdict(&gallery_differences(&[
+        ("--temper-name-width", "48px", "40px"), ("color", LEFT_COLOR, RIGHT_COLOR), ("min-width", "2px", "0px"),
+    ]));
+}
+
+#[test]
+fn an_untouched_gallery_drawing_has_no_page_verdict() {
+    let mut steps = gallery_drawing(["", REQUEST_OVERLAY]);
+    steps.selects(REQUEST, USAGE_NAME, None);
+    steps.done(Command::Close { page: REQUEST });
+    steps.stop_and_check(0, NOTHING, "");
 }
 
 #[test]
@@ -623,7 +832,7 @@ fn a_readme_must_name_one_distinct_valid_gallery_state() {
         "Two examples: the gallery's state `accounts-usage-filling` and the gallery's state `account-2`.",
         "Not a state name: the gallery's state `../accounts-usage-filling`.",
     ] {
-        let mut steps = drawn_request(readme, &[drawn_page(DRAWN_PAGE)]);
+        let mut steps = drawn_request(&format!("{readme}\n{DRAWN_NAME}"), &[drawn_page(DRAWN_PAGE)], [""; 2]);
         steps.start();
         steps.stop_and_check(0, &uncompared(DRAWN_ITEM, "hand-made"), "");
     }
@@ -637,7 +846,7 @@ fn a_tui_hand_made_page_cannot_name_a_gallery_state() {
     let mut steps = Effects::default();
     steps.begin(&[README, PAGE]);
     steps.0.blob(TIP, &format!("{DIR}/walk"), None);
-    steps.copy_request(&[Files::same(README, STATE_README), drawn_page(PAGE)]);
+    steps.copy_request(&[Files::same(README, &format!("{STATE_README}\n{DRAWN_NAME}")), drawn_page(PAGE)]);
     steps.copy_print(&[]);
     steps.hand_made_paths(DIR, &[README, PAGE]);
     steps.start();
@@ -646,7 +855,7 @@ fn a_tui_hand_made_page_cannot_name_a_gallery_state() {
 
 #[test]
 fn a_state_missing_from_the_gallery_is_not_compared() {
-    let mut steps = drawn_request(STATE_README, &[drawn_page(DRAWN_PAGE)]);
+    let mut steps = named_drawing(["", REQUEST_OVERLAY]);
     steps.gallery_print(0, "");
     steps.0.read(&format!("{GALLERY}/{STATE_FILE}"), None);
     steps.start();
@@ -655,33 +864,26 @@ fn a_state_missing_from_the_gallery_is_not_compared() {
 
 #[test]
 fn gallery_print_failure_aborts_before_chromium_without_stdout() {
-    let mut steps = drawn_request(STATE_README, &[drawn_page(DRAWN_PAGE)]);
+    let mut steps = named_drawing(["", REQUEST_OVERLAY]);
     steps.gallery_print(1, "error: gallery could not print\nsecond cargo diagnostic line\n");
     steps.check(3, "", "look-render: gallery print: exit 1: error: gallery could not print\n");
 }
 
 #[test]
-fn inserting_one_inline_tag_keeps_the_following_pairs() {
-    const DRAWING: &str = "<!doctype html>\n<html><head></head><body><hr class=\"new\" data-node=7><details DATA-NODE='8'><dialog data-node=\"9\"></dialog></details></body></html>\n";
-    const DRAWING_OPEN: &str = "<!doctype html>\n<html><head></head><body><hr class=\"new\" data-node=7><details open DATA-NODE='8'><dialog open data-node=\"9\"></dialog></details></body></html>\n";
-    const STATE: &str = "<!doctype html>\n<html><head></head><body><details data-node=\"1\"><dialog data-node=\"2\"></dialog></details></body></html>\n";
-    const OPEN: &str = "<!doctype html>\n<html><head></head><body><details open data-node=\"1\"><dialog open data-node=\"2\"></dialog></details></body></html>\n";
-    const LINE_HEADER: &str = "<!doctype html>\n<html\n><head\n></head\n><body\n";
-    const LINE_TAIL: &str = "><details\n><dialog\n></dialog\n></details\n></body\n></html\n>\n";
-    let mut steps = drawn_request(STATE_README, &[Files { path: DRAWN_PAGE, source: DRAWING, copy: DRAWING_OPEN }]);
-    steps.gallery_print(0, "");
-    steps.gallery_page(STATE, OPEN);
-    steps.start();
-    let mut tags = STATE_TAGS.to_vec();
-    tags.insert(3, ("hr", 2)); // Insert between <body> and <details>.
-    steps.open_gallery_pair(DRAWN_PAGE, [REQUEST, PRINT], &tags);
-    steps.diff(
-        &format!("{LINE_HEADER}><hr class=\"new\"\n{LINE_TAIL}"),
-        &format!("{LINE_HEADER}{LINE_TAIL}"),
-        "@@ -6 +5,0 @@\n-><hr class=\"new\"\n",
-    );
-    steps.measure_gallery([REQUEST, PRINT], &[0, 1, 2, 4, 5]);
-    steps.verdict(&format!("differs\t{DRAWN_ITEM}\t-\t2 hr.new\tpair\tpresent\tnone\n{DIFFERS}"));
+fn an_inserted_inline_tag_is_skipped_without_disturbing_pairs() {
+    const SHIFTED_SPAN: Node = SPAN + 1; // One inserted tag before the span.
+    let mut steps = inline_drawing(&format!("{NEW_RULE} {REQUEST_OVERLAY}"));
+    steps.selects(REQUEST, USAGE_NAME, Some((SHIFTED_SPAN, "span")));
+    inline_alignment(&mut steps);
+    steps.measure_gallery([REQUEST, PRINT], SHIFTED_SPAN, [[("width", "48px")].as_slice(); 2]);
+    steps.verdict(&format!("identical\t{DRAWN_ITEM}\nresult\tidentical\n"));
+}
+
+#[test]
+fn a_gallery_drawing_with_no_paired_selection_is_uncompared() {
+    let mut steps = inline_drawing(NEW_RULE);
+    inline_alignment(&mut steps);
+    steps.verdict(&uncompared(DRAWN_ITEM, "nothing printed beside it"));
 }
 
 #[test]

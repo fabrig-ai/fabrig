@@ -418,13 +418,13 @@ fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
     domain.core_header_loaded = true;
     domain.forge.restore_begin(env.wall);
     let core_env = crate::limits::environment_core(&env);
-    let mut action = domain.core.start_begin(false, env.wall);
+    let mut action = domain.engine.core_mut().start_begin(false, env.wall);
     for _ in 0_u32..20 {
         let mut out = Queue::uncapped();
         action = match action {
             Action::Step(Phase::RestoreConnector { connector: 0 }) => return (domain, env),
-            Action::Step(phase) => domain.core.start_done(&core_env, phase, &mut out),
-            Action::Commit(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
+            Action::Step(phase) => domain.engine.core_mut().start_done(&core_env, phase, &mut out),
+            Action::Commit(continuation) => domain.engine.core_mut().start_resume(&core_env, continuation, &mut out),
             Action::Idle | Action::Refused(_) => panic!("start stopped before the forge restore"),
         };
     }
@@ -451,7 +451,7 @@ fn a_start_gives_the_forge_its_defaults() {
     }
     assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
     crate::restart::restore_connector_done(&mut domain);
-    assert_eq!(domain.core.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
+    assert_eq!(domain.engine.core().start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
     let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults {
         connector: 0,
         defaults,
@@ -538,7 +538,7 @@ fn the_rules_default_carries_the_standing_requirements() {
     supplied.push(standing[0].clone()).unwrap();
     config.core.defaults.rules.requirements = supplied.into_boxed();
     let (domain, _) = resume_fixture::root_with_config_and_limits(config, &limits);
-    let requirements = &domain.core.current.rules().requirements;
+    let requirements = &domain.engine.core().current.rules().requirements;
     assert_eq!(requirements.len(), base.len() + 2);
     for (number, guard, must_be_guarded) in [
         (5, authority::Guard::Guarded, true),
@@ -646,8 +646,8 @@ fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
 fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, Env<RootLimits>) {
     use jig_domain_people as people;
     let (mut domain, env) = root();
-    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.engine.core_mut().people.start_restore(env.wall);
     let mut out = Queue::uncapped();
     let people_env = env.with(env.limits.people);
     for record in [
@@ -668,11 +668,11 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
             },
         },
     ] {
-        people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut out);
+        people::step(&mut domain.engine.core_mut().people, &people_env, people::Event::Restore { record }, &mut out);
     }
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&people_env));
     (domain, env)
 }
 fn read_forge(
@@ -788,9 +788,9 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
                 &mut out,
             );
             let expected = match edit {
-                settings::Edit::Set(value) => Some(value),
+                settings::Edit::Set(value) => Some(Box::new(value)),
                 settings::Edit::Remove => None,
-                settings::Edit::Reset => Some(default.clone()),
+                settings::Edit::Reset => Some(Box::new(default.clone())),
             };
             assert_eq!(
                 read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
@@ -822,7 +822,7 @@ fn a_revision_setting_answer_names_the_revision_it_read() {
     use jig_domain_people::{ApplicationScope, Role};
     for has_value in [false, true] {
         let (mut domain, env) = reader_in(Some(Role::Member), PROJECT);
-        let revision = domain.core.current.newest();
+        let revision = domain.engine.core().current.newest();
         domain.forge.keep_settings(
             &crate::translate::environment_forge(&env),
             u64::from(revision),
@@ -831,7 +831,7 @@ fn a_revision_setting_answer_names_the_revision_it_read() {
             &mut Queue::uncapped(),
         );
         let record = s::Revision {
-            head: domain.core.current.newest_head().clone(),
+            head: domain.engine.core().current.newest_head().clone(),
             items: Box::new([]),
             applications: if has_value {
                 Box::from([a::RevisionRecorded {
@@ -857,7 +857,7 @@ fn a_revision_setting_answer_names_the_revision_it_read() {
             Delivery::ForgeRead {
                 reply: READ_REPLY,
                 answer: crate::ForgeReadAnswer::Setting {
-                    value: if has_value { Some(ways(0)) } else { None },
+                    value: if has_value { Some(Box::new(ways(0))) } else { None },
                     revision: Some(revision),
                 },
             }
@@ -896,7 +896,7 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
     let setting = s::Setting::Application { kind: 7, scope: PROJECT, number: 1 };
     let query = crate::ForgeRead::Setting { kind: 7, scope: PROJECT, number: 1 };
     let read = |domain: &mut Domain, expected, revision| {
-        let inventory = jig_domain_core::documents::settings_inventory(&domain.core);
+        let inventory = jig_domain_core::documents::settings_inventory(domain.engine.core());
         let mut found = None;
         for line in &inventory.settings {
             if line.setting == setting {
@@ -913,13 +913,13 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
         );
         domain.reclaim();
     };
-    read(&mut domain, Some(ways(0)), None);
+    read(&mut domain, Some(Box::new(ways(0))), None);
     let changed = settings::SizedValue {
         size: 7,
         value: settings::Value::Ways(settings::ProjectWays { drafts: false, goals: true, changes: true, way: 0 }),
     };
     for (key, kind, edit, expected, revision) in [
-        (1, 7, settings::Edit::Set(changed.clone()), Some(changed.clone()), Some(2)),
+        (1, 7, settings::Edit::Set(changed.clone()), Some(Box::new(changed.clone())), Some(2)),
         (
             2,
             6,
@@ -927,11 +927,11 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
                 size: 1,
                 value: settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
             }),
-            Some(changed),
+            Some(Box::new(changed)),
             Some(2),
         ),
         (3, 7, settings::Edit::Remove, None, Some(4)),
-        (4, 7, settings::Edit::Reset, Some(ways(0)), None),
+        (4, 7, settings::Edit::Reset, Some(Box::new(ways(0))), None),
     ] {
         let core_edit = match &edit {
             settings::Edit::Set(_) => s::Edit::Set(s::Value::Application(Box::new([]))),
@@ -942,7 +942,7 @@ fn a_setting_answer_names_the_same_revision_as_its_committed_inventory() {
             settings::Edit::Set(value) => Box::from([KindValue { kind, scope: PROJECT, number: 1, value }]),
             settings::Edit::Remove | settings::Edit::Reset => Box::from([]),
         };
-        let against = domain.core.current.newest();
+        let against = domain.engine.core().current.newest();
         assert_eq!(
             room_checks::settled(
                 &mut domain,
@@ -1030,7 +1030,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         (1, 0, Owned, true, true, true, false, true, true, true),
         (2, PROJECT, Owned, true, true, true, true, true, true, true),
     ] {
-        let (reader, _) = reader(Some(Role::Member));
+        let (mut reader, _) = reader(Some(Role::Member));
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
@@ -1068,7 +1068,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
             },
         };
         let (mut domain, env) = resume_fixture::root_with_config(config);
-        domain.core.people = reader.core.people;
+        ::core::mem::swap(&mut domain.engine.core_mut().people, &mut reader.engine.core_mut().people);
         domain.forge.restore_begin(env.wall);
         forge::step(
             &mut domain.forge,
@@ -1178,7 +1178,7 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         out.pop(),
         Some(crate::Request::Party(crate::PartyRequest::Deliver(Delivery::ForgeRead {
             reply: READ_REPLY,
-            answer: crate::ForgeReadAnswer::Setting { value: Some(rule(false)), revision: None },
+            answer: crate::ForgeReadAnswer::Setting { value: Some(Box::new(rule(false))), revision: None },
         })))
     );
     assert!(out.is_empty());
@@ -1309,7 +1309,7 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                 &mut Queue::uncapped(),
             );
             for (query, read_value, revision) in [
-                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value), None),
+                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(Box::new(value)), None),
                 (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None, None),
             ] {
                 let answer = read_forge(&mut domain, &env, READ_SIGN_IN, scope, query);
@@ -1512,7 +1512,7 @@ fn make_follow_owner_task(
             }]),
         },
     ] {
-        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
     }
 }
 
@@ -1532,7 +1532,7 @@ fn a_follow_task_owner_must_be_a_live_standing_role_of_its_project() {
         let (mut domain, env) = follow_root();
         if present {
             make_follow_owner_task(&mut domain, &env, project, label, &standing);
-            assert!(domain.core.tasks.task(52).is_some());
+            assert!(domain.engine.core().tasks.task(52).is_some());
             if ended {
                 for event in [
                     tasks::Event::Cancel {
@@ -1543,9 +1543,14 @@ fn a_follow_task_owner_must_be_a_live_standing_role_of_its_project() {
                     tasks::Event::EffectsSettled { task: 52 },
                     tasks::Event::Settled { task: 52 },
                 ] {
-                    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+                    tasks::step(
+                        &mut domain.engine.core_mut().tasks,
+                        &env.with(env.limits.tasks),
+                        event,
+                        &mut Queue::uncapped(),
+                    );
                 }
-                assert!(domain.core.tasks.task(52).is_none(), "the standing role ended");
+                assert!(domain.engine.core().tasks.task(52).is_none(), "the standing role ended");
             }
         }
         let mut value = follow_value();
@@ -1650,8 +1655,8 @@ fn a_follow_refusal_names_the_follow_and_the_failing_member() {
             ),
             "owner" => value.owner = settings::FollowOwner::Person(99),
             "deployment owner" => {
-                domain.core.people =
-                    reader_in(Some(jig_domain_people::Role::Owner), jig_domain_people::DEPLOYMENT).0.core.people;
+                let (mut reader, _) = reader_in(Some(jig_domain_people::Role::Owner), jig_domain_people::DEPLOYMENT);
+                ::core::mem::swap(&mut domain.engine.core_mut().people, &mut reader.engine.core_mut().people);
             }
             "paths" => {
                 let mut paths = List::uncapped();
@@ -1773,7 +1778,10 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
                 Delivery::ForgeRead {
                     reply: READ_REPLY,
                     answer: crate::ForgeReadAnswer::Setting {
-                        value: Some(settings::SizedValue { value: settings::Value::Follow(expected.clone()), size }),
+                        value: Some(Box::new(settings::SizedValue {
+                            value: settings::Value::Follow(expected.clone()),
+                            size,
+                        })),
                         revision: None
                     }
                 }
@@ -1807,7 +1815,7 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
         );
         crate::route::route_into(&mut domain, &env, &mut decision);
         let before = domain.forge.setting(3, 0, 1).cloned();
-        let current = domain.core.current.newest();
+        let current = domain.engine.core().current.newest();
         ask(
             &mut domain,
             &env,
@@ -1831,7 +1839,7 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
         assert_eq!(owner, RESTORE_OWNER);
         assert_eq!(judged.as_ref(), &[connector::Judged::Refuse { why: words.into() }]);
         assert_eq!(domain.forge.setting(3, 0, 1).cloned(), before);
-        assert_eq!(domain.core.current.newest(), current);
+        assert_eq!(domain.engine.core().current.newest(), current);
         assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
     }
 }

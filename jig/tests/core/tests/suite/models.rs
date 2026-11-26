@@ -5,6 +5,7 @@ use jig_core_world::{
     fixtures, peers,
     world::{Boot, Setup, World},
 };
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_fleet as fleet;
 use jig_domain_link::Hello;
@@ -345,10 +346,11 @@ fn a_change_asks_the_root_to_tell_the_catalogue_before_its_commit() {
     let (mut world, signed) = setup(1);
     let value = added(&world, 33);
     let env = world.env().with(world.env().limits.core);
-    let mut out = core::step(
-        world.domain.core_mut(),
+    let mut out = Queue::uncapped();
+    engine::step(
+        world.domain.engine_mut(),
         &env,
-        core::Event::ChangeSettings {
+        In::Core(core::Event::ChangeSettings {
             reply_to: ReplyTo::new(Token::new(SEED)),
             sign_in: signed,
             key: [21; 16],
@@ -358,11 +360,12 @@ fn a_change_asks_the_root_to_tell_the_catalogue_before_its_commit() {
                 items: Box::new([set(value.clone())]),
                 running: s::Running::Stays,
             }),
-        },
+        }),
+        &mut out,
     );
     let mut told = 0;
     let mut committed = false;
-    while let Some(request) = out.pop() {
+    while let Some(Out::Core(request)) = out.pop() {
         match request {
             core::Request::Ask { ask: core::Ask::Catalogue { models }, .. } => {
                 assert!(!committed, "catalogue precedes the revision's commit writes");

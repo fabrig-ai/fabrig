@@ -365,7 +365,7 @@ mod expiry_tests {
     fn wall_expiry_is_taken_at_the_watermark() {
         let mut env = fixtures::env();
         let mut domain = fixtures::domain();
-        domain.core.people.start_restore(env.wall);
+        domain.engine.core_mut().people.start_restore(env.wall);
         let expiry = Wall::from_nanos(10);
         let mut ignored = Queue::uncapped();
         for record in [
@@ -380,27 +380,27 @@ mod expiry_tests {
             people::Stored::SignIn { number: 1, person: 1, expires: expiry },
         ] {
             people::step(
-                &mut domain.core.people,
+                &mut domain.engine.core_mut().people,
                 &env.with(env.limits.core.people),
                 people::Event::Restore { record },
                 &mut ignored,
             );
         }
         let people_env = env.with(env.limits.core.people);
-        assert!(domain.core.people.start_link());
-        domain.core.people.start_sweep();
-        assert!(domain.core.people.start_complete(&people_env));
-        assert!(domain.core.people.ready());
+        assert!(domain.engine.core_mut().people.start_link());
+        domain.engine.core_mut().people.start_sweep();
+        assert!(domain.engine.core_mut().people.start_complete(&people_env));
+        assert!(domain.engine.core().people.ready());
         let commits = fixtures::fill_to_watermark(&mut domain, &env);
         for _ in 0..commits {
-            domain.core.counters.next_commit();
+            domain.engine.core_mut().counters.next_commit();
         }
         env.now = Time::from_nanos(2);
         env.wall = expiry;
         super::try_step(&mut domain, &env, Event::Timer(core::Timer::People))
             .expect("sign-in expiry advances admitted work even at the watermark");
-        assert_eq!(domain.core.people.sign_in_person(1), None);
-        assert_eq!(domain.core.people.next_wall_expiry(), None);
-        assert_eq!(domain.core.people.next_deadline(), None);
+        assert_eq!(domain.engine.core().people.sign_in_person(1), None);
+        assert_eq!(domain.engine.core().people.next_wall_expiry(), None);
+        assert_eq!(domain.engine.core().people.next_deadline(), None);
     }
 }

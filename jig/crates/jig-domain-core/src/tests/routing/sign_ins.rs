@@ -1,13 +1,5 @@
 //! A sign-in is named only by its own reply (`domain/people/README.md`, section 3).
-use crate::tests::{routing::engine_timers::timer_core, *};
-
-fn newcomer() -> people::Identity {
-    people::Identity {
-        key: people::IdentityKey { provider: 0, subject: Box::new([2]) },
-        login: Box::from(&b"newcomer"[..]),
-        name: Box::from(&b"A Newcomer"[..]),
-    }
-}
+use crate::tests::{fixtures::newcomer, routing::engine_timers::timer_core, *};
 
 #[test]
 fn a_sign_in_reply_names_the_sign_in_its_decision_saved() {

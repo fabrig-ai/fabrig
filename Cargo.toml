@@ -208,6 +208,7 @@ members = [
     "jig/crates/jig-client-view",
     "jig/crates/jig-client-view-words",
     "jig/crates/jig-client-view-codec",
+    "jig/crates/jig-domain-contract",
     "jig/crates/jig-domain-core",
     "jig/crates/jig-domain-core-vocabulary",
     "jig/crates/jig-domain-accounts",
@@ -484,7 +485,6 @@ aho-corasick = { version = "1.1.5", default-features = false, features = ["std",
 syn = { version = "2", features = ["full", "visit", "extra-traits", "visit-mut"] }
 skein-fork = { path = "skein/testing/skein-fork" }
 skein-rows = { path = "skein/testing/skein-rows" }
-flate2 = { version = "=1.1.5", default-features = false, features = ["rust_backend"] }
 ruzstd = { version = "=0.8.3", default-features = false, features = ["std"] }
 skein-forge-conformance = { path = "skein/testing/skein-forge-conformance" }
 skein-forge-connection = { path = "skein/crates/skein-forge-connection" }
@@ -710,6 +710,7 @@ jig-ops-domain = { path = "jig/examples/ops/domain" }
 jig-ops-domain-observability = { path = "jig/examples/ops/domain-observability" }
 jig-ops-domain-infrastructure = { path = "jig/examples/ops/domain-infrastructure" }
 jig-domain-authority = { path = "jig/crates/jig-domain-authority" }
+jig-domain-contract = { path = "jig/crates/jig-domain-contract" }
 jig-domain-core = { path = "jig/crates/jig-domain-core" }
 jig-domain-core-vocabulary = { path = "jig/crates/jig-domain-core-vocabulary" }
 jig-domain-notes = { path = "jig/crates/jig-domain-notes" }
@@ -948,21 +949,9 @@ debug = false
 [profile.dev.package.skein-ui-bundle]
 opt-level = 3
 
-[profile.dev.package.flate2]
-opt-level = 3
-
-[profile.dev.package.miniz_oxide]
-opt-level = 3
-
 # The store reads every frame through it: optimized, the engine's domain world and jig's core world run
 # 14% and 18% fewer instructions, with the same checks.
 [profile.dev.package.skein-deflate]
-opt-level = 3
-
-[profile.dev.package.crc32fast]
-opt-level = 3
-
-[profile.dev.package.adler2]
 opt-level = 3
 
 [profile.dev.package.rustls]

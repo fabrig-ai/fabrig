@@ -90,7 +90,7 @@ fn simultaneously_due_checks_each_stop_and_answer_after_reap() {
             above.pop(),
             Some(ToDomain::Checked {
                 owner,
-                ran: run::Ran { exit: run::Exit::TimedOut, output: Box::new([]), cut: 0 }
+                ran: run::Ran { exit: run::Exit::TimedOut, said_not_judged: false, output: Box::new([]), cut: 0 }
             })
         );
     }

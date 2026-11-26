@@ -7,16 +7,8 @@ use crate::{
     Active, Authority, Limits, MessageKind, Party, Phase, Refusal, Request, Spec, Stored, Tries, WakePolicy, Was, Word,
 };
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, Queue, ReplyTo};
-
-/// Close a whole subtree with a common bounded reason (domain/tasks/changes.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Cancel {
-    pub task: u64,
-    pub reason: Box<[u8]>,
-    pub grace: Option<Duration>,
-    pub message: Option<u64>,
-}
+pub use jig_domain_contract::ops::{AddressChange, Amend, Amendment, Cancel, Change, Tracking};
+use skein_lib::{Env, Queue, ReplyTo};
 
 /// End a live task failed by its application (domain/tasks/lifecycle.md, 13).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -31,44 +23,6 @@ pub struct Release {
     pub task: u64,
     pub again: Option<bool>,
     pub message: Option<u64>,
-}
-
-/// Whether an amendment tracks a task at a priority, or untracks it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Tracking {
-    /// A goal from this decision, at this priority.
-    Tracked { priority: u32 },
-    /// No goal from this decision.
-    Untracked,
-}
-
-/// Whole optional task changes; root checks any widening against its holder.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Amendment {
-    /// Change goal tracking independently of the specification.
-    pub tracked: Option<Tracking>,
-    /// Whole person address change, independent of spec and hold revisions.
-    pub addressed: Option<AddressChange>,
-    /// Replace the charter's instructions, delivered whole as this amendment's message.
-    pub instructions: Option<Box<[u8]>>,
-    /// Release this exact hold with the change; a later hold remains in place.
-    pub release: Option<u64>,
-    pub spec: Option<Spec>,
-    pub wake: Option<WakePolicy>,
-    /// Whole replacement dependency list, at any mutable phase (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
-    pub dependencies: Option<Box<[u64]>>,
-    pub authority: Option<Authority>,
-    /// A new LLM choice for an agent task's next run; `None` keeps its choice (domain/tasks/changes.md
-    /// ).
-    pub llm: Option<crate::LlmChoice>,
-    pub reason: Box<[u8]>,
-}
-
-/// A replacement address naming the person task revision it decides about.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct AddressChange {
-    pub revision: u64,
-    pub address: crate::PersonAddress,
 }
 
 /// Shape accepted for a person task's address, as for its creation.
@@ -212,22 +166,6 @@ pub struct HoldRow {
     pub at: skein_lib::Wall,
 }
 
-/// One kind of durable task-tree change.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Change {
-    Made,
-    Concluded,
-    Cancelled,
-    Released,
-    Amended,
-    Moved,
-    Proposed,
-    ProposalPassed,
-    ProposalAccepted,
-    ProposalRejected,
-    ProposalWithdrawn,
-}
-
 pub(crate) fn history(
     domain: &mut Domain,
     number: u64,
@@ -267,17 +205,6 @@ pub struct DependencyPlace {
     pub root: u64,
     pub depth: u32,
     pub status: crate::Status,
-}
-
-/// Amend a task with its root-issued message (domain/tasks/changes.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Amend {
-    /// The giver's source for a widening or an accepted proposal (domain/authority-budgets.md, 1, and domain/authority.md, 9).
-    pub funder: Option<crate::Funder>,
-    pub task: u64,
-    pub message: u64,
-    pub stop_run: bool,
-    pub amendment: Box<Amendment>,
 }
 
 pub(crate) struct AmendPlan {

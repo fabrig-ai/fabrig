@@ -438,6 +438,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
             child: 71 + member,
             status: change::Status::Passed,
             failed: false,
+            lost: false,
             cancelled: false,
             no_change: false,
             flake: false,

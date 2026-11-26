@@ -4,6 +4,7 @@
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit, Engine, In};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::Bounds;
@@ -65,7 +66,7 @@ pub struct Domain {
     pub(crate) environment_closed_reason: Box<[u8]>,
     pub(crate) environment_close_grace: skein_lib::Duration,
     pub(crate) deployment: [u8; 16],
-    pub(crate) core: core::Core,
+    pub(crate) engine: Engine,
     pub(crate) observability: observability::Domain,
     pub(crate) infrastructure: infrastructure::Domain,
     pub(crate) host: host::Hub,
@@ -121,13 +122,13 @@ impl Domain {
         let turn_rng = skein_lib::Rng::new(config.core.seed ^ 0x5455_524E_4255_5359);
         let mut core_config = config.core;
         core_config.hub_turns = limits.host.turns;
-        let mut core = core::Core::new(core_config, &limits.core)?;
-        check_engine_hello(&mut core.fleet, &limits.core.fleet, config.agent_bounds, limits.host.slots);
+        let mut engine = Engine::new(core_config, &limits.core)?;
+        check_engine_hello(&mut engine.core_mut().fleet, &limits.core.fleet, config.agent_bounds, limits.host.slots);
         // Connector hold rules are configuration, so a cold root installs
         // the same translated vocabulary before restoring live task rows.
         let mut configured = Queue::uncapped();
         jig_domain_tasks::step(
-            &mut core.tasks,
+            &mut engine.core_mut().tasks,
             &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core.tasks },
             jig_domain_tasks::Event::Kinds {
                 connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
@@ -157,7 +158,7 @@ impl Domain {
             environment_closed_reason: config.environment_closed_reason,
             environment_close_grace: config.environment_close_grace,
             deployment,
-            core,
+            engine,
             observability: observability::Domain::with_templates(&limits.observability, config.triage_templates)
                 .with_leads(&limits.observability, config.lead_templates),
             infrastructure: infrastructure::Domain::new(config.backend, &limits.infrastructure),
@@ -197,14 +198,14 @@ impl Domain {
     /// The phase currently selected by the core's start.
     #[must_use]
     pub fn start_phase(&self) -> Option<core::start::Phase> {
-        self.core.start_phase()
+        self.engine.core().start_phase()
     }
 
     /// The start's refusal with the phase it refused at.
     #[must_use]
     pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
-        match self.core.start_failure() {
-            Some(failure) => Some((self.core.start_phase(), failure)),
+        match self.engine.core().start_failure() {
+            Some(failure) => Some((self.engine.core().start_phase(), failure)),
             None => None,
         }
     }
@@ -213,7 +214,7 @@ impl Domain {
     #[must_use]
     pub fn ready(&self) -> bool {
         match self.start.state {
-            StartState::Starting => self.core.start_opened(),
+            StartState::Starting => self.engine.core().start_opened(),
             StartState::Unselected | StartState::Stopped => false,
         }
     }
@@ -222,7 +223,8 @@ impl Domain {
     #[must_use]
     pub fn quiescent(&self) -> bool {
         self.journal.idle()
-            && (!self.ready() || (!self.host.is_ready() && !self.core.due_ready() && !self.core.finish_owed()))
+            && (!self.ready()
+                || (!self.host.is_ready() && !self.engine.core().due_ready() && !self.engine.core().finish_owed()))
     }
 
     /// The protocol timer adapter wakes the root at this hub retry deadline.
@@ -233,7 +235,7 @@ impl Domain {
 
     /// Reclaim child-retired slots after an iteration.
     pub fn reclaim(&mut self) {
-        self.core.reclaim();
+        self.engine.core_mut().reclaim();
         self.host.reclaim();
     }
 
@@ -263,8 +265,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::Store(Store::Committed { number, fill }) => {
             domain.journal.committed(number);
             if domain.ready() {
-                let _filled =
-                    core::step(&mut domain.core, &env.with(env.limits.core), core::Event::Fill { bytes: fill });
+                // Fill updates the meter without asking the journal for a decision.
+                let mut filled = Queue::uncapped();
+                engine::step(
+                    &mut domain.engine,
+                    &env.with(env.limits.core),
+                    In::Core(core::Event::Fill { bytes: fill }),
+                    &mut filled,
+                );
             } else {
                 domain.start.fill = Some(fill);
             }
@@ -297,7 +305,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 
 pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     // A stopped journal takes no decision and moves no child.
-    if domain.journal.stopped() || domain.start.state == StartState::Stopped || domain.core.start_failure().is_some() {
+    if domain.journal.stopped()
+        || domain.start.state == StartState::Stopped
+        || domain.engine.core().start_failure().is_some()
+    {
         return;
     }
     let mut decision = domain.journal.decide();
@@ -325,7 +336,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     break;
                 }
                 // Coalesce projections only after ordinary hand-offs quiesce.
-                let requests = core::finish_decision(&mut domain.core, &env.with(env.limits.core));
+                let requests = core::finish_decision(domain.engine.core_mut(), &env.with(env.limits.core));
                 crate::route::core_out(domain, env, &mut decision, requests, &mut work);
                 let Some(next) = work.pop() else { break };
                 next
@@ -336,9 +347,9 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     let decision_work_finished = work.is_empty();
     assert!(decision_work_finished, "decision_work_finished: complete synchronous route");
     if finish_only {
-        assert!(!domain.wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
+        assert!(!domain.wrote && !domain.engine.core().counters.dirty(), "stopping continuation makes no commit");
     }
-    if let Some(header) = domain.core.decision_header(domain.wrote) {
+    if let Some(header) = domain.engine.core_mut().decision_header(domain.wrote) {
         write(domain, &mut decision, Write::Save(Record::Core(header)));
     }
     domain.journal.accept(decision);
@@ -363,7 +374,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, timer: crate::Timer) {
 
 /// Iterate drains only the journal: one commit and a bounded ordered release.
 pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if domain.journal.stopped() || domain.start.state == StartState::Stopped || domain.core.start_failure().is_some() {
+    if domain.journal.stopped()
+        || domain.start.state == StartState::Stopped
+        || domain.engine.core().start_failure().is_some()
+    {
         if !domain.stopped_reported {
             domain.stopped_reported = true;
             out.push(Output::Stop);
@@ -378,18 +392,18 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     for _ in 0..ready.len() {
         out.push(ready.pop().expect("journal release count"));
     }
-    if domain.core.stopping() {
-        if domain.core.finish_owed() {
+    if domain.engine.core().stopping() {
+        if domain.engine.core().finish_owed() {
             decide(domain, env, Work::Finish);
         }
         return;
     }
     if domain.journal.idle() && domain.ready() {
-        if let Some(context) = domain.core.take_due() {
+        if let Some(context) = domain.engine.core_mut().take_due() {
             decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
         } else if domain.host.is_ready()
-            || domain.core.fleet.is_ready()
-            || domain.core.finish_owed()
+            || domain.engine.core().fleet.is_ready()
+            || domain.engine.core().finish_owed()
             || timers_due(domain, env)
         {
             decide(domain, env, Work::ResumeFleet);
@@ -399,7 +413,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
 
 fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
     for due in [
-        domain.core.next_deadline(env.now, env.wall),
+        engine::next_deadline(&domain.engine, env.now, env.wall, Admit::All),
         observability::next_deadline(&domain.observability),
         infrastructure::next_deadline(&domain.infrastructure),
         domain.next_turn_deadline(),
@@ -410,7 +424,7 @@ fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
             return true;
         }
     }
-    match domain.core.effect_deadline() {
+    match domain.engine.core().effect_deadline() {
         Some(due) => due <= env.wall,
         None => false,
     }

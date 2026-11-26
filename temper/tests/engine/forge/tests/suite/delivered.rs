@@ -125,6 +125,7 @@ fn resolutions_and_repairs_deliver_their_heads_too() {
             child: CHILD,
             status: change::Status::Passed,
             failed: false,
+            lost: false,
             cancelled: false,
             no_change: false,
             flake: false,

@@ -1443,9 +1443,12 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "stock startup precedes the zero-budget landing's prepare step")]
 fn a_stock_landing_can_start_its_prepare_job() {
-    use jig_domain_core::{Core, Delegate, Event, ProcedureStep, StepEnd, step};
+    use jig_domain_core::{
+        Delegate, Event, ProcedureStep, StepEnd,
+        engine::{Engine, In, Out, step},
+    };
     use jig_domain_tasks as tasks;
-    use skein_lib::{Env, Time, Wall};
+    use skein_lib::{Env, Queue, Time, Wall};
 
     let mut engine = fixtures::engine().jig;
     let prepare = crate::limits::prepare_bound();
@@ -1457,26 +1460,29 @@ fn a_stock_landing_can_start_its_prepare_job() {
     let mut config = config::core(&engine, [1; 16], 7);
     config.jobs = Box::new([prepare]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: engine.limits.core };
-    let mut core = Core::new(config, &env.limits).expect("stock core");
-    let mut action = core.start_begin(false, env.wall);
+    let mut jig = Engine::new(config, &env.limits).expect("stock core");
+    let mut action = jig.core_mut().start_begin(false, env.wall);
     loop {
         use jig_domain_core::start::{Action, Phase, SweepInput};
-        let mut out = skein_lib::Queue::uncapped();
+        let mut out = Queue::uncapped();
         action = match action {
-            Action::Step(Phase::Sweep) => core.start_sweep(&env, SweepInput::Finished, &mut out),
-            Action::Step(phase) => core.start_done(&env, phase, &mut out),
-            Action::Commit(continuation) => core.start_resume(&env, continuation, &mut out),
+            Action::Step(Phase::Sweep) => jig.core_mut().start_sweep(&env, SweepInput::Finished, &mut out),
+            Action::Step(phase) => jig.core_mut().start_done(&env, phase, &mut out),
+            Action::Commit(continuation) => jig.core_mut().start_resume(&env, continuation, &mut out),
             Action::Idle => break,
             Action::Refused(why) => panic!("stock start: {why:?}"),
         };
     }
-    drop(step(&mut core, &env, Event::Period { project: 1, period: 1, budget: 1000, next: None }));
-    let seed = core.procedure_seed(1).expect("landing seed");
+    let mut out = Queue::uncapped();
+    step(&mut jig, &env, In::Core(Event::Period { project: 1, period: 1, budget: 1000, next: None }), &mut out);
+    drop(out);
+    let seed = jig.core_mut().procedure_seed(1).expect("landing seed");
     let task = seed.number();
-    drop(step(
-        &mut core,
+    let mut out = Queue::uncapped();
+    step(
+        &mut jig,
         &env,
-        Event::ConnectorRepair {
+        In::Core(Event::ConnectorRepair {
             seed: Box::new(seed),
             executor: tasks::Executor::Procedure { connector: 1, code: 3 },
             spec: tasks::Spec {
@@ -1488,10 +1494,12 @@ fn a_stock_landing_can_start_its_prepare_job() {
             },
             contract: tasks::Contract::Report { words: prepare.result },
             holdings: Box::new([]),
-        },
-    ));
+        }),
+        &mut out,
+    );
+    drop(out);
     // The landing has reached prepare with no task budget and no delegate.
-    let mut authority = core.tasks.delegation(task).expect("landing authority").authority;
+    let mut authority = jig.core().tasks.delegation(task).expect("landing authority").authority;
     assert_eq!(authority.budget.spend, 0);
     authority.tools.0 = 0;
     authority.delegation.kinds = Box::new([]);
@@ -1518,36 +1526,42 @@ fn a_stock_landing_can_start_its_prepare_job() {
         wake: Some(tasks::WakePolicy::DEFAULT),
         llm: None,
     };
-    let (_, _, number) = core.tasks.procedure_due(task).expect("prepare step due");
-    let mut out = step(
-        &mut core,
+    let (_, _, number) = jig.core().tasks.procedure_due(task).expect("prepare step due");
+    let mut out = Queue::uncapped();
+    step(
+        &mut jig,
         &env,
-        Event::ProcedureStep {
+        In::Core(Event::ProcedureStep {
             task,
             step: number,
             connector: 1,
             code: 3,
             decision: ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
-        },
+        }),
+        &mut out,
     );
     let mut refused = None;
-    while let Some(request) = out.pop() {
+    while let Some(Out::Core(request)) = out.pop() {
         if let jig_domain_core::Request::Ask { ask: jig_domain_core::Ask::StepRefused { why, .. }, .. } = request {
             refused = Some(why);
         }
     }
     assert!(refused.is_none(), "prepare delegation refused: {refused:?}");
-    drop(step(
-        &mut core,
+    let mut out = Queue::uncapped();
+    step(
+        &mut jig,
         &env,
-        Event::ProcedureHoldings {
+        In::Core(Event::ProcedureHoldings {
             task,
             step: number,
             connector: 1,
             holdings: Some(Box::new([Box::new([])])),
             refused: None,
-        },
-    ));
+        }),
+        &mut out,
+    );
+    drop(out);
+    let core = jig.core();
     let child = *core.tasks.task(task).expect("landing").delegates.first().expect("prepare delegate");
     assert_eq!(core.tasks.task(child).expect("prepare task").executor, tasks::Executor::Job { kind: prepare.kind.0 });
 }

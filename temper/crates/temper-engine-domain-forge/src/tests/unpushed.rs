@@ -172,6 +172,7 @@ fn an_unpushed_changes_branch_is_read_only_when_due() {
                         flake: false,
                         no_test: false,
                         failed: false,
+                        lost: false,
                         cancelled: false,
                         words: Box::new([]),
                     },

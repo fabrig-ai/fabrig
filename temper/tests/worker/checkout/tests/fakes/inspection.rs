@@ -56,6 +56,7 @@ impl Fixture {
         self.step(Event::Prepare {
             client: Token::new(1),
             spec: Spec {
+                rerun: None,
                 key: key.into(),
                 repositories: Box::new([Repository {
                     admit: false,

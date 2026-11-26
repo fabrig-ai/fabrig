@@ -272,9 +272,15 @@ fn the_stylesheet_sets_a_progress_for_every_whole_percent() {
     assert_eq!(stylesheet.matches("[data-progress=").count(), 101);
 }
 
+fn assert_best_form(name: &str, compressed: &[u8], plain: &[u8]) {
+    assert_eq!(&compressed[3..9], &[0, 0, 0, 0, 0, 2], "{name}: no flags or time, extra flags 2");
+    let mut decoded = skein_lib::List::allocated(u32::try_from(plain.len()).expect("fixture fits u32"));
+    skein_deflate::gzip::decode(compressed, &mut decoded).expect("gzip member");
+    assert_eq!(decoded.as_slice(), plain, "{name}");
+}
+
 #[test]
 fn the_bundler_writes_a_compressed_form_beside_each_text() {
-    use std::io::Read;
     let scratch = Scratch::new("bundle-gzip-types");
     let inputs = inputs(&scratch);
     let out = scratch.path().join("out");
@@ -285,9 +291,7 @@ fn the_bundler_writes_a_compressed_form_beside_each_text() {
             .contains(&Path::new(name).extension().and_then(|ext| ext.to_str()).unwrap_or(""))
         {
             let compressed = files.get(&format!("{name}.gz")).expect("compressed form");
-            let mut decoded = Vec::new();
-            flate2::read::GzDecoder::new(compressed.as_slice()).read_to_end(&mut decoded).expect("gzip member");
-            assert_eq!(&decoded, plain, "{name}");
+            assert_best_form(name, compressed, plain);
         } else {
             assert!(!files.contains_key(&format!("{name}.gz")), "no form for {name}");
         }

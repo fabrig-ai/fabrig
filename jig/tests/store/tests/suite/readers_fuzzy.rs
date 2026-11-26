@@ -1,9 +1,13 @@
 //! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/testing.md, 1).
-use jig_domain_core::{self as core, reads};
+use jig_domain_core::{
+    self as core,
+    engine::{self, In, Out},
+    reads,
+};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Restore, Row, Write, keys, restore::Item};
 use jig_store_world::{World, root};
-use skein_lib::Rng;
+use skein_lib::{Queue, Rng};
 use skein_lib::{Token, Wall};
 use std::collections::BTreeMap;
 
@@ -250,20 +254,22 @@ fn joined_answer(
     let env = stand.env().with(stand.env().limits.core);
     let sign_in = stand.sign_in.expect("signed in");
     stand.domain.core_mut().reclaim();
-    let mut output = core::step(
-        stand.domain.core_mut(),
+    let mut output = Queue::uncapped();
+    engine::step(
+        stand.domain.engine_mut(),
         &env,
-        core::Event::Read { reply: skein_lib::ReplyTo::new(Token::new(900)), sign_in, read },
+        In::Core(core::Event::Read { reply: skein_lib::ReplyTo::new(Token::new(900)), sign_in, read }),
+        &mut output,
     );
-    let Some(core::Request::Held(held)) = output.pop() else { panic!("one load") };
+    let Some(Out::Core(core::Request::Held(held))) = output.pop() else { panic!("one load") };
     assert!(output.is_empty());
     let core::Held::ReadLoad { load, mut range } = *held else { panic!("retained read load: {held:?}") };
     range.rows = range.rows.min(rows);
     let mut events = world.request(jig_protocol_store::Request::Read { owner: load, range: *range }).into_iter();
     let Some(jig_protocol_store::Event::Read { result, .. }) = events.next() else { panic!("store read") };
     assert!(events.next().is_none());
-    let mut output = core::step(stand.domain.core_mut(), &env, core::Event::ReadLoaded { load, result });
-    let Some(core::Request::Held(held)) = output.pop() else { panic!("one answer") };
+    engine::step(stand.domain.engine_mut(), &env, In::Core(core::Event::ReadLoaded { load, result }), &mut output);
+    let Some(Out::Core(core::Request::Held(held))) = output.pop() else { panic!("one answer") };
     assert!(output.is_empty());
     let core::Held::Read { answer, .. } = *held else { panic!("read answer") };
     answer

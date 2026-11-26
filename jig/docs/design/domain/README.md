@@ -99,14 +99,16 @@ an application's worker, if it has workers
 ├── smith-host-domain           their agent, smith's: processes; or smith-inline-agent, as the root chooses
 └── <workspace>                 the application's
 
+jig-domain-contract            the values the core and its connectors exchange, by capability, and the operations' (connectors.md, 2)
 jig-domain-link                the link's values, shared by the fleet, the hub and accounts: names, logins, bounds, grants, the hello (root.md, section 2; hosts/hub.md, 1)
 skein-lib's journal             the commit barrier every root holds (root.md, section 4)
 ```
 
 The crate graph is the role graph: no jig crate depends on an
 application's; the core and its children depend on skein-lib and the shared
-value crate jig-domain-link alone (root.md, section 2); the hub depends
-on the same two, and carries smith's payloads as bytes; the agent capabilities are smith's crates, and jig ships none.
+value crates jig-domain-contract and jig-domain-link alone (root.md, section 2),
+and the contract on skein-lib and jig-domain-link alone; the hub depends
+on skein-lib and jig-domain-link, and carries smith's payloads as bytes; the agent capabilities are smith's crates, and jig ships none.
 Which crates link smith is hosts/hub.md, 8. Nothing in jig names a
 system.
 

@@ -77,7 +77,10 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
             } else if let Request::ToChild(released) = request {
                 crate::try_step(domain, env, Event::Released(released)).unwrap();
             } else if let Request::Store(StoreRequest::Read { range, .. }) = request {
-                assert!(domain.core.people.deletions().contains_key(&1), "only deletion reads in this fixture");
+                assert!(
+                    domain.engine.core().people.deletions().contains_key(&1),
+                    "only deletion reads in this fixture"
+                );
                 assert_eq!(range.scope, jig_domain_core::reads::Scope::TaskSummaries);
                 // Leave the deletion's store walk pending while checking admission.
             } else {

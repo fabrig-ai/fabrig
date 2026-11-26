@@ -36,7 +36,9 @@ The welcome's look is split from [the browser's look](look.md).
   as the note does, "temper box" in ink at 600, its link underlined in
   the line's colour (`--gf-line-2`, 3 px under), in the line's own size
   and colour (`welcome-top`). The main is
-  one 680 px column: the tagline (14 px) above the level-1 heading
+  one 680 px column, starting 40 px under the top bar and ending 40 px
+  under its last line, so that every step fits a 1366 x 768 screen's
+  browser window (the look request `welcome-fits`): the tagline (14 px) above the level-1 heading
   (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on
   paper, 12 px corners, their acts at their foot so that their
@@ -81,9 +83,12 @@ The welcome's look is split from [the browser's look](look.md).
   project" at the field's right, "Rename it whenever you like." muted
   under them. At 760 px and under, the cards stack, the steps but the
   current one keep their circles alone, Ready's field and act stack, the act 48 px high and
-  full width, and the gutters are 16 px in the top bar and 20 px in
-  the main. Each act keeps a focus ring.
+  full width, the gutters are 16 px in the top bar and 20 px in
+  the main, and the column starts 16 px under the top bar and ends 56 px
+  under its last line. Each act keeps a focus ring.
 
 ## 2. Open questions
 
-None.
+- **A reserved scrollbar gutter,** which would keep the column still
+  between steps on a window too short for one of them: not decided
+  (the look request `welcome-fits`).

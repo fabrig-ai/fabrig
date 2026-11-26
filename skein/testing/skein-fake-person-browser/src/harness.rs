@@ -377,6 +377,7 @@ impl Runtime {
                     setup.chromium.as_os_str().as_bytes(),
                     profile.as_os_str().as_bytes(),
                     false,
+                    false,
                 );
                 startup.push_back(io::Request::Spawn {
                     owner: PROCESS,

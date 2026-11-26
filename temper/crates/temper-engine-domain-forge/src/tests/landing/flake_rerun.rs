@@ -35,6 +35,28 @@ fn gate() -> (Domain, ReceiptKey, api::Run) {
     seed_flake(&mut d);
     (d, key, run)
 }
+fn gate_with_flakes(flakes: crate::settings::Flakes) -> (Domain, ReceiptKey, api::Run) {
+    use crate::settings::{Edit, ProjectGates, ProjectLanding, SettingKey, SettingRow, SettingSlot, SizedValue, Value};
+    let (mut d, key, run) = reporting_gate(Format::Lines);
+    let (by, gates, ..) = d.landing.projects.get(&key.project).unwrap();
+    let landing = ProjectLanding { by: *by, flakes: Some(flakes), ..ProjectLanding::default() };
+    let gates = ProjectGates { repositories: gates.clone() };
+    for (kind, value) in [(4, Value::Landing(landing)), (5, Value::Gates(gates))] {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Setting(SettingRow {
+                    key: SettingKey { kind, scope: key.project, number: 1, slot: SettingSlot::Change },
+                    edit: Edit::Set(SizedValue { size: 0, value }),
+                }),
+            },
+        );
+    }
+    d.restore_landing_settings();
+    seed_flake(&mut d);
+    begin_reporting_gate(&mut d, 91);
+    (d, key, run)
+}
 fn begin(d: &mut Domain, entry: u64) {
     outputs(
         d,
@@ -131,6 +153,31 @@ fn first_rerun(d: &mut Domain, key: &ReceiptKey, run: &api::Run) {
 }
 
 #[test]
+fn known_flakes_fail_immediately_when_the_project_disallows_flakes() {
+    let (mut d, key, run) = gate_with_flakes(crate::settings::Flakes::Never);
+    let (decision, _) = gather(&mut d, &run, Ok(file(TEST)));
+    assert_eq!(
+        decision,
+        policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: run.number } }
+    );
+    let receipt = d.receipt(&key).unwrap();
+    assert_eq!((receipt.passed, receipt.run.id), (false, run.id));
+    assert!(d.landing.rows.get(&61).unwrap().flake_reruns.is_empty());
+    assert_eq!(d.finding(key.project, 1).unwrap().seen, Some(1));
+    for (_, entry) in &d.entries {
+        if let Write::Rerun { .. } | Write::Dispatch { .. } = entry.entry.effect.write {
+            panic!("no write starts a flake rerun");
+        }
+    }
+}
+
+#[test]
+fn rerun_zero_still_allows_a_known_flake_gate_rerun() {
+    let (mut d, key, run) = gate_with_flakes(crate::settings::Flakes::Rerun(0));
+    first_rerun(&mut d, &key, &run);
+}
+
+#[test]
 fn known_flake_reruns_before_receipt_and_green_counts_it_once() {
     let (mut d, key, run) = gate();
     let dispatched = d.landing.flights.get(&key).unwrap().clone();
@@ -193,7 +240,7 @@ fn a_second_red_reads_new_attempts_and_repairs_without_a_third_run() {
 }
 
 #[test]
-fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
+fn only_refusals_publish_a_failure_when_no_flake_rerun_applies() {
     for case in 0..11_u32 {
         let (mut d, key, run) = gate();
         let mut report = Ok(file(TEST));
@@ -230,8 +277,15 @@ fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
             }
             _ => unreachable!(),
         }
-        gather(&mut d, &run, report);
-        assert!(!d.receipt(&key).unwrap().passed, "case {case}");
+        let (decision, _) = gather(&mut d, &run, report);
+        if matches!(case, 4 | 7) {
+            // A promised report that is unread or empty names no failure (domain/forge/judgement.md, 2).
+            assert_eq!(decision, policy::Decision::Retry { member: 0, gate: 0, key: key.key, try_: 2 }, "case {case}");
+            assert!(d.receipt(&key).is_none(), "case {case}");
+            assert!(d.change(fixtures::CHANGE).unwrap().asks.is_empty(), "case {case}");
+        } else {
+            assert!(!d.receipt(&key).unwrap().passed, "case {case}");
+        }
         assert!(d.landing.rows.get(&61).unwrap().flake_reruns.is_empty(), "case {case}");
     }
 }

@@ -592,6 +592,7 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
     };
     let row = LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

@@ -90,7 +90,7 @@ impl Browser {
             .map_err(|why| format!("Chromium path: {why}"))?;
         // Chromium gets the kit's fixed locale and a private home, not the caller's environment.
         let environment = vec![("HOME".into(), profile.as_os_str().to_owned())];
-        let pump = RawPump::start(chromium, profile, environment, Token::new(0), true)?;
+        let pump = RawPump::start(chromium, profile, environment, Token::new(0), true, true)?;
         Ok(Self { pump, serial: 0 })
     }
 

@@ -482,6 +482,11 @@ root domain.
 - **Siblings share no domain types.** The parent translates between their
   vocabularies with small total functions; an exhaustive match makes a
   change on either side break the build in one place.
+- **A kit's contract.** A kit may give siblings a crate of values that
+  both name: below each, depending on lib and other vocabularies alone,
+  holding no state and deciding nothing; a change to it breaks every
+  sibling's build, on purpose. jig's are `jig-domain-link` and
+  `jig-domain-contract`.
 - **Only the root domain faces the protocol layer,** and only the root
   admits new external work, by its watermark (7.1).
 
@@ -502,7 +507,7 @@ step code (section 10).
   either crate.
 - **Who names it:** the domain and its parents, a protocol layer, and a
   machine that encodes or decodes those values, which then holds no copy
-  of them. A sibling domain doesn't (4.5).
+  of them. A sibling domain doesn't, but through a kit's contract (4.5).
 - **A copy needs a reason.** A layer keeps a type of its own for a
   domain's values only where it adds a meaning, a check or a projection.
   A format's version lives in the code that writes and reads it, not in a

@@ -27,17 +27,17 @@ temper-forge-setup           step code: the setup's types and checks; the machin
 ├── temper-fetch, skein-forge-setup, skein-forge
 └── jig-protocol-config, skein-lib, skein-json
 temper-fetch-shell           ordinary Rust: the fetch's host, its requests over TLS, on skein-io;
+│                              a packed file's unpacking, the forge's and the box's, on ruzstd;
 │                              Claude Code's fetch, under its lock (6.6); no smith crate
 ├── temper-fetch
-└── skein-io, skein-http, skein-tls, skein-lib, skein-shell
+└── skein-io, skein-http, skein-tls, skein-lib, skein-shell, ruzstd
 temper-launcher              ordinary Rust: Claude Code's launcher, the placing of its links in a
 │                              private directory and the substitution of "fetched" in an agent's
 │                              document (6.6); for the box's binary, a worker's and the agent's
 ├── temper-fetch-shell, temper-fetch, smith-agent-document
 └── skein-io, skein-lib, skein-json, skein-shell, skein-forge
 temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run: commands, files, the
-│                              forge's locks, the exec; Forgejo's fetch on temper-fetch-shell's host,
-│                              with its bottle's extraction
+│                              forge's locks, the exec; Forgejo's fetch on temper-fetch-shell's host
 ├── temper-forge-setup, temper-fetch-shell
 └── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
 temper-box-machine           the box's machine (step code), its kinds' groups, their files and records

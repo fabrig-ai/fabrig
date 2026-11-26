@@ -10,9 +10,8 @@ use temper_engine_forge_world::{
 };
 
 #[test]
-#[ignore = "a change's reds: P67, no change starts another repair"]
 fn a_no_change_landing_repair_regates_once() {
-    let mut world = super::reported_gate(&[b"suite.failed"]);
+    let mut world = super::reported_gate(31, &[b"suite.failed"], false);
     for entry in 100..180 {
         if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Leave { .. }) {
             break;
@@ -43,20 +42,19 @@ fn a_no_change_landing_repair_regates_once() {
         flake: false,
         no_test: false,
         failed: false,
+        lost: false,
         cancelled: false,
         words: b"Nothing to change".as_slice().into(),
     });
     world.take_calls();
-    // Let the old round finish cleanup; then give the held change the person's release once.
+    // Let the old round finish cleanup. The change must proceed without a release.
     for entry in 400..440 {
         if landings::step_landing(&mut world, LANDING, entry) == landing::Decision::Finish {
             break;
         }
     }
     changes::change_step_task(&mut world, CHANGE, 500, change::Status::Passed, Box::new([]), false, false);
-    if matches!(world.change(CHANGE).change.state, change::State::Held { .. }) {
-        world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
-    }
+    assert!(!matches!(world.change(CHANGE).change.state, change::State::Held { .. }), "no release needed");
     let mut fresh_repair = None;
     for entry in 501..521 {
         let decision =

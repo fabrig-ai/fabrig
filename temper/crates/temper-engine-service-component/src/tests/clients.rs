@@ -724,6 +724,177 @@ fn a_box_given_link_signs_in_after_early_not_ready() {
     assert!(answer.token.is_some(), "the sign-in returns a credential");
 }
 
+type Engine = crate::engine::Engine;
+
+fn browser_call(
+    engine: &mut Engine,
+    socket: Token,
+    method: &[u8],
+    path: &[u8],
+    fields: &[u8],
+    body: &[u8],
+) -> peer::Peer {
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
+    let request = skein_lib::bytes::concat(&[
+        method,
+        b" ",
+        path,
+        b" HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nConnection: close\r\nJig-Client: browser\r\nContent-Length: ",
+        length.as_bytes(),
+        b"\r\n",
+        fields,
+        b"\r\n",
+        body,
+    ]);
+    peer::Peer::raw_on(engine, &request, socket)
+}
+
+fn open_me(engine: &mut Engine, cookie: &[u8], replaces: Option<[u8; 16]>) -> peer::Peer {
+    let version = skein_lib::Decimal::of(u64::from(jig_client_protocol_wire::VERSION));
+    let base = b"/jig/v1/stream?version=";
+    let path = if let Some(name) = replaces {
+        let mut hex = skein_lib::Writer::new(32);
+        for byte in name {
+            hex.put(&[skein_lib::bytes::hex_digit(byte >> 4), skein_lib::bytes::hex_digit(byte & 15)]).unwrap();
+        }
+        skein_lib::bytes::concat(&[base, version.as_bytes(), b"&replaces=", &hex.finish()])
+    } else {
+        skein_lib::bytes::concat(&[base, version.as_bytes()])
+    };
+    browser_call(engine, peer::SOCKET, b"GET", &path, cookie, &[])
+}
+
+fn opened_me(peer: &mut peer::Peer, engine: &mut Engine) -> [u8; 16] {
+    use jig_client_protocol_wire as wire;
+    let first = peer.first_stream_event(engine);
+    assert!(peer.received().starts_with(b"HTTP/1.1 200"), "stream status: {:?}", peer.received().get(..12));
+    let Some(wire::StreamEvent::Opened(opened)) = first else {
+        panic!("first event is the versioned hello with me");
+    };
+    assert_eq!((opened.me.owner, opened.me.version), (wire::Owner::Jig, wire::VERSION));
+    let mut record = skein_lib::Reader::new(&opened.me.record);
+    let wire::DeliveryValue::Me(me) =
+        wire::DeliveryValue::decode(&engine.clients.env.limits.wire, &mut record).unwrap()
+    else {
+        panic!("the opening carries me");
+    };
+    assert_eq!(me.party.number, OWNER_PARTY);
+    opened.hello.stream
+}
+
+fn restarting_with_cookie() -> (crate::Service, Box<[u8]>, [u8; 16]) {
+    use super::fixtures;
+    let mut service = fixtures::ready();
+    let link = service.links().pop().unwrap();
+    let engine = service.engine.as_mut().unwrap();
+    let mut sign_in = browser_call(
+        engine,
+        peer::SOCKET,
+        b"POST",
+        b"/jig/v1/sign-in/link",
+        b"Content-Type: application/octet-stream\r\n",
+        &peer::link_body(&link),
+    );
+    sign_in.pump(engine, true);
+    let set = super::sign_in::header(&sign_in, "set-cookie");
+    let at = skein_lib::bytes::find(set, b";").unwrap();
+    let cookie = skein_lib::bytes::concat(&[b"Cookie: ", set.get(..at).unwrap(), b"\r\n"]);
+    let mut stream = open_me(engine, &cookie, None);
+    stream.pump(engine, true);
+    let replaces = opened_me(&mut stream, engine);
+
+    let mut service = fixtures::restarting_from(service.engine.take().unwrap());
+    // Withhold a name answer after the mark so credential checks can use the kept digest.
+    service.engine.as_mut().unwrap().forge.resolving.insert(1, ()).unwrap();
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.store.host.mark_durable());
+    assert!(engine.clients.starting.is_some());
+    (service, cookie, replaces)
+}
+
+fn wait_for_me(engine: &mut Engine, peer: &mut peer::Peer) {
+    peer.handoff(engine);
+    assert_eq!(engine.clients.early.len(), 1, "the credential was checked and me was staged");
+    for _ in 0_u32..5 {
+        crate::engine::iterate(engine, skein_lib::Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
+        peer.pump(engine, false);
+        assert!(peer.received().is_empty(), "no response before the gate opens: {:?}", peer.received().get(..12));
+        assert!(!peer.is_closed(), "the unopened stream has not ended");
+    }
+    assert_eq!(engine.clients.held_me.len(), 1);
+    assert_eq!(engine.domain.core().views.watchers(), 0);
+    assert!(!engine.work_pending(skein_lib::Time::from_nanos(1)), "the held watch does not spin the loop");
+}
+
+#[test]
+fn a_reconnecting_stream_waits_then_opens_with_me() {
+    let (mut service, cookie, replaces) = restarting_with_cookie();
+    let engine = service.engine.as_mut().unwrap();
+    let mut peer = open_me(engine, &cookie, Some(replaces));
+    wait_for_me(engine, &mut peer);
+    assert_eq!(engine.forge.resolving.remove(&1), Some(()));
+    assert!(engine.work_pending(skein_lib::Time::from_nanos(1)), "the held watch can now run");
+    peer.pump(engine, true);
+    opened_me(&mut peer, engine);
+    assert!(engine.clients.held_me.is_empty());
+}
+
+#[test]
+fn a_stream_gone_during_start_takes_its_held_me_with_it() {
+    let (mut service, cookie, replaces) = restarting_with_cookie();
+    let engine = service.engine.as_mut().unwrap();
+    let mut peer = open_me(engine, &cookie, Some(replaces));
+    wait_for_me(engine, &mut peer);
+    peer.end(engine);
+    assert!(peer.is_closed());
+    // Take the socket terminal and the resulting Unwatch while the gate is still shut.
+    peer.pump(engine, false);
+    let revision = engine.domain.revision();
+    crate::engine::iterate(engine, skein_lib::Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
+    assert!(engine.clients.held_me.is_empty());
+    assert_eq!(engine.forge.resolving.remove(&1), Some(()));
+    super::fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    assert_eq!(engine.domain.revision(), revision, "neither the Watch nor its Unwatch reached the root");
+    assert_eq!(engine.domain.core().views.watchers(), 0);
+
+    let mut next = open_me(engine, &cookie, None);
+    next.pump(engine, true);
+    opened_me(&mut next, engine);
+}
+
+#[test]
+fn a_non_frame_watch_is_refused_busy_while_starting() {
+    use jig_client_protocol_wire as wire;
+    use skein_lib::Writer;
+    let (mut service, cookie, _) = restarting_with_cookie();
+    let engine = service.engine.as_mut().unwrap();
+    let mut stream = browser_call(engine, peer::SOCKET, b"GET", b"/jig/v1/stream", &cookie, &[]);
+    let Some(wire::StreamEvent::Hello(hello)) = stream.first_stream_event(engine) else {
+        panic!("a versionless stream gets its name without me");
+    };
+    let limits = &wire::CEILINGS;
+    let subject = wire::Subject::Accounts;
+    let mut record = Writer::new(usize::try_from(subject.measure(limits).unwrap()).unwrap());
+    subject.write(limits, &mut record).unwrap();
+    let subject = wire::Owned { owner: wire::Owner::Jig, version: wire::VERSION, record: record.finish() };
+    let open = wire::Open { stream: hello.stream, watch: 1, subject };
+    let mut body = Writer::new(usize::try_from(open.measure(limits).unwrap()).unwrap());
+    open.write(limits, &mut body).unwrap();
+    let fields = skein_lib::bytes::concat(&[&cookie, b"Content-Type: application/octet-stream\r\n"]);
+    let mut watch = browser_call(engine, Token::new(101), b"POST", b"/jig/v1/watch", &fields, &body.finish());
+    watch.handoff(engine);
+    assert_eq!(engine.clients.early.len(), 1, "the watch passed transport admission");
+    watch.pump(engine, true);
+    assert!(watch.received().starts_with(b"HTTP/1.1 200"));
+    assert_eq!(
+        wire::OpenAnswer::decode(limits, &mut watch.sign_in_body()),
+        Ok(wire::OpenAnswer::Refused(wire::OpenAnswerRefused { why: wire::WatchRefusal::Busy }))
+    );
+    assert!(engine.clients.starting.is_some());
+}
+
 #[test]
 fn a_clients_listener_failure_stops_the_engine() {
     let mut service = super::fixtures::started();

@@ -114,6 +114,30 @@ client names not ready when its answer carries that refusal; the
 service's log names what the gate waits on. No gate reason travels on
 the client wire (`README.md`, section 11).
 
+- **A stream's `me` waits for the gate.** It is the one party's input
+  the gate holds rather than refuses: the watch of `me`, the subject
+  the core names the frame, that a stream opens with, whose hello waits
+  for it (jig's `protocol/client/wire.md`, section 2, and
+  `protocol/client/default-http.md`, section 2). While the gate is
+  shut it stays in the service, and once the gate opens it reaches the
+  root in the order it came, so a page that reconnects while the
+  engine starts is answered its hello with `me` then, and goes live.
+  Its unwatch while it waits (the stream ended: the page left, or the
+  client's silence bound passed) takes it from the service unsent, and
+  the root never sees either. It waits as long as the gate is shut,
+  one to a stream, within the streams' bound (jig's
+  `protocol/client/README.md`, section 10), and counts for the line
+  below as an input held. Every other watch is refused as above.
+  - *Why:* refused, `me` ends the stream before its hello, which the
+    engine end answers `409`, the stream refused for want of room for
+    its `me` (jig's `protocol/client/default-http.md`, section 2): a want the engine doesn't
+    have, and a failed load the browser logs whatever the page does
+    with it. Every restart opens this window to every page left open,
+    and the 2026-11-26 sign-in story met it in 3 of 9 runs.
+  - *Turned down:* a not-ready refusal of the stream, since no status
+    but `200` stays out of the browser's log and jig's wire has no
+    not-ready end before the hello; and the page or its story expecting
+    the `409`, which would still name the start a want of room.
 - **The line.** When the gate has kept a party's input from the root for
   1 s or more, answered not ready or held, the service writes one stderr
   line, which the box keeps in `serve.log` (setup/box-supervision.md, 1):

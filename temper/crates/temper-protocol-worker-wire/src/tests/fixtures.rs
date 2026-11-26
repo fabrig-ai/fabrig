@@ -49,7 +49,7 @@ pub fn items(count: u32) -> v1::Items {
         let repository = repository(u64::from(tag), Box::from(&b"https://forge/acme/shop.git"[..]));
         repositories.push(repository).expect("counted room");
     }
-    v1::Items { repositories }
+    v1::Items { repositories, rerun: None }
 }
 
 pub fn identity(token: &[u8]) -> v1::Identity {

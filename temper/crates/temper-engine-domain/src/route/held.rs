@@ -17,7 +17,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
     };
     match held {
         core::Held::NeedArrived { party, project, needs, .. } => {
-            let name = domain.core.project_name(project).expect("a need belongs to a project");
+            let name = domain.engine.core().project_name(project).expect("a need belongs to a project");
             let (topic, payload) = crate::push::words(project, needs, name);
             for push in domain.forge.pushes(party, &topic, &payload) {
                 emit(decision, &env.limits, Delivery::Push(push));
@@ -241,7 +241,7 @@ mod tests {
         assert!(domain.work.is_empty(), "one pressure event, with no root-owned retry");
         crate::decision::accept_routed(
             &mut domain.journal,
-            &mut domain.core.counters,
+            &mut domain.engine.core_mut().counters,
             &env.limits.journal,
             decision,
             true,
@@ -273,8 +273,14 @@ mod tests {
         assert!(domain.work.is_empty());
     }
     fn delivery(domain: &mut Domain, limits: &Limits, decision: Decision) -> Delivery {
-        crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &limits.journal, decision, true)
-            .unwrap();
+        crate::decision::accept_routed(
+            &mut domain.journal,
+            &mut domain.engine.core_mut().counters,
+            &limits.journal,
+            decision,
+            true,
+        )
+        .unwrap();
         while let Some(output) = crate::decision::commit(&mut domain.journal, &limits.journal) {
             let crate::decision::JournalOutput::Commit { number, .. } = output else { panic!("store commit") };
             crate::decision::committed(&mut domain.journal, number);

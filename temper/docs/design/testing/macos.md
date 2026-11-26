@@ -421,7 +421,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   compiler. No LLVM, a `clang` without the target or no `llvm-ar` is a
   fault (5.4). Only the browser parts' jobs run it: Linux's tiers name no
   compiler, and the workflow's set-up is not temper's, which takes
-  Homebrew as a URL alone (`../draft/macos.md`, 4.3).
+  nothing of Homebrew's at run time (`../protocol/setup/owned.md`, 6).
 - **`process`'s and `live`'s:** Forgejo and its runner, fetched as section
   2 has it.
 - **`temper`'s:** Forgejo and its runner, fetched as section 2 has it,

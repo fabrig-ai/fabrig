@@ -90,16 +90,15 @@
   7) names what failed in its words, as a CI repair's name its failed
   check, so that its agent finds the failure without its brief. After its
   opening and instruction come, each on a line of its own: where its
-  contract offers the flake verdict (*A landing repair that finds only
-  flakes*, below), `Flake: if every failed test below is a flake (an open
+  contract offers the flake verdict (*A landing repair's verdicts*,
+  below), `Flake: if every failed test below is a flake (an open
   flake finding names it, or it passes when run again at this head) and
   nothing needs changing, finish with verdict 1, naming each test and how
-  you saw it pass; a person then releases the change to run its gate once
-  more.`, or where it offers the no-test verdict (*A landing repair that
-  finds no failed test*), `No test: if no test failed in the run below
-  and nothing needs changing, finish with verdict 2, saying what its
-  jobs show; a person then releases the change to run its gate once
-  more.`; then
+  you saw it pass; its gate then runs once more at the same content.`, or
+  where it offers the no-test verdict, `No test: if no test failed in the
+  run below and nothing needs changing, finish with verdict 2, saying
+  what its jobs show; its gate then runs once more at the same
+  content.`; then
   `Gate run: RUN at PREFIX, base BASE: LINK`, RUN the run's id as the
   forge's API gives it, the one `read_ci what=job` takes, PREFIX the commit the
   gate ran at (the candidate, or the red prefix) and BASE the round's
@@ -188,89 +187,139 @@
   - **Counted as asked:** the repair stays in the change's repairs, on its
     panel and in its result, whose reason for it goes on `then CI passed at H`
     (`README.md`, 2, step 7).
-- **A CI repair that changes nothing checks its head again.** A CI repair
-  (above: its reason CI failed at the head) changes nothing when it ends
-  finding nothing to do (its result `no_change`), or ends delivering with
-  the change's branch, read after its end, still at the head it was asked
-  to repair: a flake its agent saw pass, or a red that names no failing
-  test. Neither is a failure: neither holds the change, and the hold
-  "failed for good" stays a repair's that failed or was cancelled. At a
-  green head the rule above ends it. At a head whose CI still fails, the
-  change checks that head again, by the first of these that applies:
-  - **Run again at the head,** where the forge runs a job again (Forgejo
-    does; skein's GitHub adapter refuses the write) and a failed check at
-    the head names a job read at this head: the change runs that job again,
-    one write as a runner's re-run is (`README.md`, 2, step 3), choosing a
-    job the runner failed before another, its account's reason `a repair
-    changed nothing`. It is checking at the same head: the gates' verdicts
-    there stay valid, under a queue it keeps its turn, CI read at the head
-    is pending again until the new attempt ends, and its stall counts
-    afresh. One job runs again for each such repair; a failed check still
-    red after it is a red as any other.
-  - **Updated onto its base,** where no job can run again and the head
-    lacks its base's tip: an update (`../updates.md`, section 1), counted
-    against its updates and holding past their bound as any update does,
-    and its new head is checked again (`README.md`, 2, step 3).
-  - **Otherwise its red stands:** checking at the same head, the next
-    repair is asked as for any red.
+- **A repair that changes nothing is checked once more**
+  (`../../../draft/whose-red.md`, 5). A CI repair (its reason CI failed
+  at the head, `Ci` or `Semantic`) or a landing's repair (`Landing` or
+  `LandingAt`) changes nothing when it ends with the change's branch,
+  read after its end, still at the head it was asked to repair, whatever
+  its verdict: its result `no_change`, its flake or no-test verdict (*A
+  landing repair's verdicts*, below), or a delivery that pushed nothing.
+  None is a failure, and the hold "failed for good" stays a repair's that
+  failed or was cancelled. At a green head the rule above ends a CI
+  repair. Otherwise, in the step that reads the unchanged head, with no
+  person's release:
+  - **One check of the same content,** spending no repair. At CI, the
+    failed job runs again at the head, one write as a runner's re-run is
+    (`README.md`, 2, step 3), a job the runner failed chosen before
+    another, its account's reason `a repair changed nothing`: it is
+    checking at the same head, the gates' verdicts there stay valid,
+    under a queue it keeps its turn, and its stall counts afresh. At a
+    landing, the change names as its regate the failed receipt its
+    repair's reason resolves to (*A landing's repair*, above;
+    `../../landing-regate.md`, 3) and goes on at its head as an unchanged
+    head does: checked again (`README.md`, 2, step 3), ready and formed
+    into a landing, with no new commit. The repair stays counted as
+    asked; the check counts none.
+  - **Its identity is kept** on the change's row, written in the step
+    that asks the check, so a restart finds it as it was: the check it
+    repairs, the measurement asked in its place, and whether that has
+    been taken. At CI it is `ci_recheck` (*Its record*, below): the
+    failed job's attempt that ran again, and the later attempt that took
+    it. At a landing it is the regate (`../../landing-regate.md`, 5): the
+    failed receipt's key and run, and the run whose receipt took it.
+  - **Only a measurement made after the repair counts.** At CI it is a
+    read at the head in which the job run again shows a later attempt
+    than the repaired one, ended. A read still naming the repaired
+    attempt, or the later one not ended, is waited for as pending CI is,
+    within the stall (`stalls.md`, 2), never judged as the red. At a
+    landing it is the receipt that the regate's own fresh dispatch made
+    at its key (`../../landing-regate.md`, 3). An older receipt at that
+    key, or a key another landing made at the same head over another
+    base, is no measurement of it: judged as any gate's run is, its
+    green goes on and its red asks a repair, counted, as ever.
+  - **Where the same content can't be checked again,** it holds at
+    once. At CI, no failed check at the head names a job read at it, or
+    the forge runs no job again (skein's GitHub adapter refuses the
+    write). At a landing, no failed receipt resolves (gone past
+    `receipts_per_gate`). Its cause is `RedStands`, its account `its red
+    at HEAD stands: repair task R changed nothing, and the same content
+    can't be checked again: WHY; release this change to ask a fresh
+    repair, or cancel it`, WHY `no failed check names a job the forge
+    can run again` or `the landing no longer keeps its failed receipt`.
+    The update onto its base that a CI repair which changed nothing once
+    got where no job could run again is gone: it checks other content.
+  - **Its verdict is kept.** The repair's words are kept with the change
+    as a successful repair's are, in its result (`README.md`, 2, step 7),
+    opening `changed nothing (VERDICT): `, VERDICT `no change`, `flake` or
+    `no failed test`, in the step that reads the unchanged head.
+  - **Green, it goes on.** Its measurement passed, the change goes on as
+    at any green head or green gate.
+  - **Red again, it holds.** Its measurement refused
+    (`../judgement.md`, 2), the change holds, its cause `RedStands`, its
+    account `its red at HEAD stands: repair task R changed nothing, and
+    the same content failed again: KEYS; release this change to ask a
+    fresh repair, or cancel it`. KEYS are the failures as the measurement
+    names them, separated by `, `: at a landing, its receipt's failed
+    tests' keys as *A landing's repair* (above) names them, else its
+    failed jobs' names; at CI, the failed checks' contexts at the head.
+    It blames no one: the red may be the change's, a regression the
+    repair didn't fix, or not, and the goal or a person decides. A
+    measurement the runner failed, or one that broke, is no verdict: it is
+    tried again within its allowance and then held as `../judgement.md`,
+    3 says, never as this.
+  - **The words** are the hold's account, within jig's
+    `HOLD_ACCOUNT_BYTES`: HEAD the head's first twelve digits, as for
+    every repair, and R the repair's task. KEYS or WHY is cut first,
+    keeping whole keys and marking the cut ` …`; the way out is never
+    cut. The hold reaches its task and its requester as every hold does
+    (`repairs-releases.md`, 1, *Every hold reaches its task*). The
+    client's and the public wire read the cause as `failed`, as they read
+    `runner`, its account saying which (`../../../protocol/wires.md`, 9).
+  - **Its release** asks a fresh repair for the red that stands, with
+    its reason, under current forge facts and authority, counted against
+    the allowance the release reset (`repairs-releases.md`, 1, *A
+    release*). A hold of this cause at CI also ends at a green read at its
+    head, as *A hold ends too* (above) says of a CI repair's hold.
+  - **Once per repair:** the record is cleared when the change's head
+    moves, a repair is asked for it, or the change ends, so a fresh repair
+    that changes nothing is owed its own one check.
 
-  The repair that changed nothing stays counted as asked; the run again
-  and the update count no repair. A red that comes back asks the next
-  repair, counted, so a red that keeps coming back ends at the repair
-  bound: the change holds, its hold's account `its repairs are spent: N of
-  LIMIT taken`, N its repairs and LIMIT `forge.change_policy.repairs`, for
-  every change as for a follow change. Other reasons are not touched: a
-  gate's, a review's or a check's repair, a person's request for changes,
-  a landing's, a resolution and a queue's ejection that change nothing
-  hold the change as before (5, *A repair of another reason that changes
-  nothing*), but for a landing repair's flake or no-test verdict (below).
-- **A landing repair that finds only flakes** (`../../landing-regate.md`,
-  3) says so with a verdict, rather than a no-change taken as a failure:
-  - **Offered** where the repair's reason is a landing's gate
-    (`Landing` or `LandingAt`) and the failed receipt it resolves to (*A
-    landing's repair*, above) names its failed tests (`Failed test:`
-    lines, not `not known` nor `more than N`) when the repair is asked:
-    its change contract lists one choice (jig's `domain/tasks/README.md`,
-    section 3), code 1, `flake`, its words within the contract's words,
-    no fields and no follow-ups, and its words carry the `Flake:` line.
-    Any other repair's contract lists none, and a mixed or unknown
-    failure keeps the repairs it has today.
-  - **Its result:** the repair's task ends done with verdict 1 and its
-    words. Read with the change's branch after its end (as a CI repair's
-    no-change is), still at the head it was asked to repair, it holds the
-    change, its cause `Flake`, its account `its repair, task N, found only
-    flakes: WORDS; release this change to run its gate once more, or
-    cancel it`, WORDS the verdict's words cut to the account's bytes and
-    marked; it is not a failure, and the hold "failed for good" stays a
-    repair's that failed or was cancelled. A branch moved by then is the
-    repair's push, taken as any repair's, the verdict's words its account.
-    The repair stays counted as asked.
-  - **Its release** (*A release*, below, steps 1 to 4) asks no repair:
-    the change names, as its regate, the failed receipt its repair's
-    reason resolves to, by its key and its run (`../../landing-regate.md`,
-    3 and 5), none where none resolves, in the step that decides; and goes
-    on at the head it read as a repair that left that head unchanged
-    would, checked again (`README.md`, 2, step 3), ready and formed into
-    a landing, with no new commit. A restart after the release finds the
-    regate on the row and asks nothing again. The regate is cleared when
-    the change's head moves or a repair is asked for it.
-  - **Bounded as before:** a red from the run its regate gives is a
-    landing's failure, its repair counted against the allowance the
-    release reset; a flake verdict holds every time, so only a person's
-    release runs a gate once more.
-- **A landing repair that finds no failed test** (`../../landing-regate.md`,
-  1) says so with verdict 2, as a flake's (above) but for these:
-  - **Offered** where the repair's reason is a landing's gate and the
-    failed receipt it resolves to names no failed test when the repair
-    is asked: `Failed tests: not known`, or a report read naming none.
-    Its contract's one choice is code 2, `no_test`, its words carrying
-    the `No test:` line; never beside the flake's.
-  - **Its result** holds the change, its cause `NoTest`, its account
-    `its repair, task N, found no failed test: WORDS; release this
-    change to run its gate once more, or cancel it`, WORDS cut and
-    marked as a flake's.
-  - **Its release** asks no repair and regates once, as a flake's;
-    bounded as a flake's.
+  Other reasons are not touched: a gate's, a review's or a check's
+  repair, a person's request for changes, a resolution and a queue's
+  ejection that change nothing hold the change as before
+  (`repairs-later.md`, *A repair of another reason that changes
+  nothing*).
+- **Its record,** on the change's row (family `ChangeHot`): at CI,
+  `ci_recheck: option CiRecheck = none`, `record CiRecheck { job:
+  JobAttempt taken: option u32 = none }`, the failed job's attempt that
+  ran again and, once taken, the attempt that took it; at a landing, the
+  regate (`../../landing-regate.md`, 5). Until the step that reads the
+  head classifies the repair, its words wait beside the head it reported
+  and its verdict flags, as `delegate_words: option ResultText = none`,
+  so a restart between the repair's end and that read keeps them; that
+  step takes them into the result and clears them, whether the head
+  moved or not. Its cause is `ChangeHold`'s
+  added arm `red_stands`, after `runner`. Each is a registered layout's
+  added field or arm, so no store version moves
+  (`../../../protocol/store-versions.md`, section 1), and neither
+  wire's layout changes.
+- **A landing repair's verdicts** (`../../landing-regate.md`, 1): a
+  landing's repair may say why it changed nothing with a verdict, read
+  as a repair that changes nothing is (above) at an unchanged head and,
+  at a moved head, as any repair's push, the verdict's words its
+  account. It is no class of the check (`../judgement.md`, 2).
+  - **The flake verdict is offered** where the repair's reason is a
+    landing's gate and the failed receipt it resolves to (*A landing's
+    repair*, above) names its failed tests (`Failed test:` lines, not
+    `not known` nor `more than N`) when the repair is asked: its change
+    contract lists one choice (jig's `domain/tasks/README.md`, section
+    3), code 1, `flake`, its words within the contract's words, no fields
+    and no follow-ups, and its words carry the `Flake:` line. Any other
+    repair's contract lists none, and a mixed or unknown failure keeps
+    the repairs it has today.
+  - **The no-test verdict is offered** where the repair's reason is a
+    landing's gate and the failed receipt it resolves to names no failed
+    test when the repair is asked: `Failed tests: not known`, or a report
+    read naming none. Its contract's one choice is code 2, `no_test`, its
+    words carrying the `No test:` line; never beside the flake's.
+- **The previous build's holds** (`../../../draft/whose-red.md`, 8): a
+  change that build held on its repair's flake verdict (`Flake`) or
+  no-test verdict (`NoTest`) stays held, and no step of this build holds
+  so. Its release asks no repair: the change names its regate, untaken,
+  as above, and goes on at the head it read, checked again, with its one
+  check owed, which the rule above then judges; where no failed receipt
+  resolves, it holds at once as above.
+
 ## 2. Resolutions
 
 Moved to [`repairs-resolutions.md`](repairs-resolutions.md), section 1.

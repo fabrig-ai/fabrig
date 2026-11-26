@@ -1,5 +1,10 @@
 //! CI's family sweep and its cause referee (testing/blame.md, 3–6).
-use super::super::{blame::judged, landing_batches::workflow};
+use super::super::{
+    blame::judged,
+    blame_open::spent_runner,
+    landing_batches::workflow,
+    open::{check_starved_gate, reported_gate},
+};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_lib::Duration;
 use skein_world::{
@@ -147,18 +152,16 @@ fn queue(world: &mut World, sweep: &Sweep) {
     world.event(top::Event::Change { row });
     let run = world.ci_runs().into_iter().find(|run| translate::commit(run.commit) == head).expect("head CI");
     assert_eq!(run.state, raw::RunState::Running);
-    let holding = if run.workflow.is_none()
-        && matches!(world.change(task).change.state, change::State::Checking { head: checked } if checked == head)
-    {
-        vec!["a change's CI job"]
-    } else {
-        vec![]
-    };
-    let exclusion = sweep.leaves_out(blame::CANCELLED, &holding).expect("cancelled head excluded before cancellation");
-    world.leave_out(exclusion.scenario, blame::CANCELLED);
-    world.run_for(61);
+    assert!(run.workflow.is_none());
+    assert!(sweep.leaves_out(blame::CANCELLED, &["a change's CI job"]).is_none());
+    world.cancel_ci(run.id);
     assert_eq!(
         changes::change_step_task(world, task, 1400, change::Status::Passed, Box::new([]), false, false),
+        change::Decision::Effect(change::Effect::Rerun { head })
+    );
+    world.run_for(61);
+    assert_eq!(
+        changes::change_step_task(world, task, 1401, change::Status::Passed, Box::new([]), false, false),
         change::Decision::Ready
     );
     world.landing_ci(b"main", true);
@@ -174,7 +177,7 @@ fn queue(world: &mut World, sweep: &Sweep) {
     assert!(sweep.leaves_out(blame::BASE_RED, &holding).is_none(), "queue draw has no live landing candidate");
     world.red_base(b"main");
     assert_eq!(
-        changes::change_step_task(world, task, 1401, change::Status::Passed, Box::new([]), false, false),
+        changes::change_step_task(world, task, 1402, change::Status::Passed, Box::new([]), false, false),
         change::Decision::QueueRepair
     );
     assert_eq!(world.change(task).change.repairs, 0);
@@ -189,30 +192,13 @@ fn ci_faults_are_blamed_on_their_cause() {
         blame::CANCELLED,
         blame::SILENT,
         blame::MISSING_REPORT,
+        blame::STARVED,
         blame::RUNNER_WAIT,
         blame::WRONG_TREE,
         blame::BASE_RED,
     ] {
         sweep.configure(kind);
     }
-    for kind in [blame::SET_UP, blame::LOST] {
-        sweep
-            .exclude(Exclusion::new(
-                "a_runner_fault_past_its_reruns_holds_without_repair",
-                "a change's reds",
-                kind,
-                &["a change's CI job", "its reruns are spent"],
-            ))
-            .expect("named combination");
-    }
-    sweep
-        .exclude(Exclusion::new(
-            "a_cancelled_check_is_the_runners",
-            "a change's reds",
-            blame::CANCELLED,
-            &["a change's CI job"],
-        ))
-        .expect("named combination");
     sweep
         .exclude(Exclusion::new(
             "a_red_inherited_from_the_base_asks_no_repair",
@@ -265,7 +251,13 @@ fn ci_faults_are_blamed_on_their_cause() {
         held_gate(&mut world, b"silent.yml", false, 72);
         held_gate(&mut world, b"missing.yml", true, 73);
         sweep.ran(&judged(&mut world, seed));
+
+        let mut starved = reported_gate(streams.seed_of(Stream::Workload, "starved_gate"), &[], true);
+        check_starved_gate(&mut starved);
+        sweep.ran(&judged(&mut starved, seed));
+
+        let fault = if seed == 1 { raw::Failing::NoStep } else { raw::Failing::Setup };
+        sweep.ran(&judged(&mut spent_runner(seed, fault), seed));
     }
     sweep.check_fell().expect("each configured CI fault fell");
-    eprintln!("cancelled heads excluded {}", sweep.left_out("a_cancelled_check_is_the_runners"));
 }

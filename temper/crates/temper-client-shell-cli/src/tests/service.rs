@@ -186,7 +186,11 @@ fn party_reissue_writes_the_private_link_after_durable_answer() {
     assert_eq!(f.stdout(), b"");
     f.store_token_with_address();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
-    assert_eq!(f.stdout(), b"reissued: party 9; its sign-ins have ended; sign its directory in with temper ctl ./owner/directory sign-in ./record\n");
+    assert!(
+        skein_lib::bytes::find(f.stdout(), service::GIVEN_DIRECTORY).is_none(),
+        "answer names the owner's directory"
+    );
+    assert!(f.stdout() == b"reissued: party 9; its sign-ins have ended; sign its directory in with temper ctl DIRECTORY sign-in ./record\n", "answer names the service directory placeholder and output path");
     assert_eq!(f.stderr(), b"");
     assert_eq!(f.record_how, Some(OpenHow::CreateNoFollow { mode: Some(0o600) }));
     assert!(f.record_data == service::REISSUED_LINK, "file holds only the service link and a newline");
@@ -208,7 +212,11 @@ fn party_reissue_pipes_only_the_link_to_stdout() {
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert!(f.stdout() == service::REISSUED_LINK, "stdout holds only the link and a newline");
-    assert_eq!(f.stderr(), b"reissued: party 9; its sign-ins have ended; sign its directory in with temper ctl ./owner/directory sign-in -\n");
+    assert!(
+        skein_lib::bytes::find(f.stderr(), service::GIVEN_DIRECTORY).is_none(),
+        "answer names the owner's directory"
+    );
+    assert!(f.stderr() == b"reissued: party 9; its sign-ins have ended; sign its directory in with temper ctl DIRECTORY sign-in -\n", "answer names the service directory placeholder and stdin");
     assert_eq!(f.file_steps, [] as [&str; 0]);
     assert!(!f.opened(b"record"));
     f.service_stays_private(b"");

@@ -64,6 +64,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 close_job: Some(b"tools/close".as_slice().into()),
                 landing_attempts: 7,
                 check_timeout_ms: Some(60000),
+                flakes: Some(d::Flakes::Rerun(3)),
                 gate_retries: 3,
                 gate_timeout_ms: 70000,
                 tier_retries: 4,
@@ -522,6 +523,7 @@ fn repair_settings_with_the_whole_named_llm_round_trip() {
     let subagent = d::NamedModel { model: b"helper".as_slice().into(), effort: None };
     let landing = d::ProjectLanding {
         wait: temper_engine_domain_forge_change::Wait::Landed,
+        flakes: Some(d::Flakes::Never),
         repairs: Some(d::RepairSettings {
             goals: 16,
             attempts: 8,

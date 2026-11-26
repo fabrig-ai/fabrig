@@ -1,16 +1,14 @@
 # vocabulary: status
 
-2026-11-23. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+2026-11-26. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-- **Not yet:** 1.2: the remaining point-load fences.
 
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
   1: the root interface has no text for public `Core::effect_owner` and
   `application_part_request`
-  (`jig-domain-core/src/routing/flight.rs`), `call_room`
-  (`jig-domain-core/src/runs/calls.rs`), or `next_finishing_deadline` and
-  `finishing_due` (`jig-domain-core/src/routing/timers.rs`), which the test
+  (`jig-domain-core/src/routing/flight.rs`) or `call_room`
+  (`jig-domain-core/src/runs/calls.rs`), which the test
   service uses; no reason is recorded.
   1.1: children's timers arrive through `fire`, but the section has no
   text on how many due children a pass fires.

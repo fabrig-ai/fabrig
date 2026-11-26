@@ -38,6 +38,7 @@ mod landing_proofs;
 #[path = "milestones.rs"]
 mod milestone_rows;
 mod readiness;
+mod recheck;
 mod report;
 pub use report::{Report, WAIT_REPORT, age_words, wait_kind};
 mod room;

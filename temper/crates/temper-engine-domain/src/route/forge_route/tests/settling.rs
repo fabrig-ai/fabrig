@@ -23,7 +23,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     let (mut domain, env) = super::procedure_root_with_limits(limits);
     super::fresh_procedure_forge(&mut domain, &env);
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
-    let template = fixture.core.tasks.task(task).unwrap();
+    let template = fixture.engine.core().tasks.task(task).unwrap();
     let mut batch = List::with_capacity(4);
     for number in core::iter::once(LATCH).chain(changes.iter().copied()) {
         batch
@@ -64,7 +64,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     }
     let mut made = Queue::uncapped();
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
             reads_project: false,
@@ -76,9 +76,9 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
         },
         &mut made,
     );
-    assert!(domain.core.tasks.task(LATCH).is_some(), "{made:?}");
+    assert!(domain.engine.core().tasks.task(LATCH).is_some(), "{made:?}");
     for task in changes {
-        assert_eq!(domain.core.tasks.task(*task).unwrap().waiting_on.as_ref(), &[LATCH]);
+        assert_eq!(domain.engine.core().tasks.task(*task).unwrap().waiting_on.as_ref(), &[LATCH]);
         let mut row = super::change_row(Some(*task));
         row.task = *task;
         row.change.task = *task;
@@ -123,9 +123,9 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     }));
     super::judge_trains(&mut domain, &env);
     for task in changes {
-        let row = domain.core.tasks.task(*task).unwrap();
+        let row = domain.engine.core().tasks.task(*task).unwrap();
         assert!(row.waiting_on.is_empty(), "the shared non-change dependency ended");
-        assert!(domain.core.tasks.procedure_due(*task).is_some(), "its readiness reevaluation is due");
+        assert!(domain.engine.core().tasks.procedure_due(*task).is_some(), "its readiness reevaluation is due");
         assert!(domain.forge.change(*task).unwrap().settling, "the dependency release marked each change");
     }
     (domain, env)
@@ -148,9 +148,9 @@ fn ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     super::judge_trains(domain, env);
     assert!(!domain.forge.change(task).unwrap().settling, "its first decision consumed the release");
     assert!(
-        domain.core.tasks.procedure_due(task).is_none(),
+        domain.engine.core().tasks.procedure_due(task).is_none(),
         "readiness read settled: {:?}",
-        domain.core.tasks.task(task)
+        domain.engine.core().tasks.task(task)
     );
 }
 

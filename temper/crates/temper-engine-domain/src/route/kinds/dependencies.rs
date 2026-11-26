@@ -11,7 +11,7 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
     if value.project == asked.scope {
         return Some(words(asked.number, &[b"project ", project.as_bytes(), b" cannot depend on itself"]));
     }
-    if !domain.core.open_project(value.project) {
+    if !domain.engine.core().open_project(value.project) {
         return Some(words(asked.number, &[b"project ", project.as_bytes(), b" is not a project of this deployment"]));
     }
     None

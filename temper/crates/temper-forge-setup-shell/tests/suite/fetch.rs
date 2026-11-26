@@ -14,7 +14,7 @@ use std::{
     thread,
 };
 use temper_forge_setup::{
-    fetch::{Bottle, Fetch, Fetched, Pin},
+    fetch::{Fetch, Fetched, Pin},
     setup::Origin,
 };
 use temper_forge_setup_shell::fetch;
@@ -78,17 +78,21 @@ fn server(listener: TcpListener, response: Vec<u8>) -> thread::JoinHandle<Result
 }
 #[test]
 fn local_tls_fetch() {
-    let good = b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\nabc";
+    const BOUND: u64 = 1_048_576;
+    const UNPACKED: usize = 32_768;
+    let binary = vec![b'x'; UNPACKED];
+    let good = body_response(&temper_fetch_shell::testing::zstd(&binary));
     for (name, root, trusted) in [("right", pki::ROOT, true), ("roots", pki::OTHER, false)] {
         let scratch = support::Scratch::new(&format!("fetch-{name}"));
         let file = scratch.path().join("cache/binary");
         let part_file = scratch.path().join("cache/binary.part");
+        let packed_file = scratch.path().join("cache/binary.zst.part");
         fs::create_dir_all(file.parent().expect("fetch fixture")).expect("fetch fixture");
         let roots = scratch.path().join("root.pem");
         fs::write(&roots, pem(root)).expect("fetch fixture");
         let listener = TcpListener::bind("127.0.0.1:0").expect("fetch fixture");
         let port = listener.local_addr().expect("fetch fixture").port();
-        let server = server(listener, good.to_vec());
+        let server = server(listener, good.clone());
         let url = format!("https://127.0.0.1:{port}/binary");
         let result = fetch::run(
             &support::io(),
@@ -98,11 +102,11 @@ fn local_tls_fetch() {
                     binary: Fetched::read(b"fetched forgejo 0 bytes").expect("progress fixture").binary,
                     origin: Origin { host: b"127.0.0.1".as_slice().into(), port },
                     path: b"/binary".as_slice().into(),
-                    digest: sha(b"abc"),
+                    digest: sha(&binary),
                     file: file.as_os_str().as_bytes().into(),
-                    bottle: None,
+                    packed: true,
                 }]),
-                3,
+                BOUND,
             ),
             &mut Vec::new(),
         );
@@ -110,7 +114,7 @@ fn local_tls_fetch() {
         let head = server.join().expect("fetch fixture").unwrap_or_else(|starved| starved.pass());
         let expected = if trusted {
             assert!(result.is_ok(), "{name}: {result:?}");
-            assert_eq!(fs::read(&file).expect("fetch fixture"), b"abc");
+            assert_eq!(fs::read(&file).expect("fetch fixture"), binary);
             assert_eq!(fs::metadata(&file).expect("fetch fixture").permissions().mode() & 0o777, 0o755);
             format!("GET /binary HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n")
         } else {
@@ -120,32 +124,10 @@ fn local_tls_fetch() {
             String::new()
         };
         assert!(!part_file.exists(), "{name}");
+        assert!(!packed_file.exists(), "{name}");
         assert_eq!(String::from_utf8(head).expect("fetch fixture"), expected, "{name}");
         scratch.remove();
     }
-}
-
-fn tarball(scratch: &support::Scratch, binary: &[u8]) -> Vec<u8> {
-    use std::process::{Command, Stdio};
-    let keg = scratch.path().join("keg");
-    fs::create_dir_all(keg.join("bin")).expect("bottle fixture");
-    fs::write(keg.join("bin/member"), binary).expect("bottle fixture");
-    fs::write(keg.join("bin/empty"), []).expect("bottle fixture");
-    let archive = scratch.path().join("bottle.tar.gz");
-    let status = Command::new("/usr/bin/tar")
-        .arg("-czf")
-        .arg(&archive)
-        .arg("-C")
-        .arg(keg)
-        .args(["bin/member", "bin/empty"])
-        .env_clear()
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .expect("make bottle fixture");
-    assert!(status.success(), "make bottle fixture: {status}");
-    fs::read(archive).expect("bottle fixture")
 }
 
 fn body_response(body: &[u8]) -> Vec<u8> {
@@ -153,54 +135,6 @@ fn body_response(body: &[u8]) -> Vec<u8> {
         format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
     response.extend_from_slice(body);
     response
-}
-
-#[test]
-fn local_tls_bottle_fetch() {
-    // Two host chunks, compressing below the extraction bound, exercise both reads.
-    const BINARY_BYTES: usize = 32_768;
-    let scratch = support::Scratch::new("bottle-fetch");
-    let binary = vec![b'x'; BINARY_BYTES];
-    let archive = tarball(&scratch, &binary);
-    let roots = scratch.path().join("root.pem");
-    fs::write(&roots, pem(pki::ROOT)).expect("bottle fixture");
-    let cache = scratch.path().join("right");
-    fs::create_dir_all(&cache).expect("bottle fixture");
-    let file = cache.join("binary");
-    let part = cache.join("binary.part");
-    let archive_file = cache.join("binary.archive");
-    let first = TcpListener::bind("127.0.0.1:0").expect("bottle fixture");
-    let second = TcpListener::bind("127.0.0.1:0").expect("bottle fixture");
-    let first_port = first.local_addr().expect("bottle fixture").port();
-    let second_port = second.local_addr().expect("bottle fixture").port();
-    let second = server(second, body_response(&archive));
-    let first = server(first, format!("HTTP/1.1 307 Redirect\r\nLocation: https://127.0.0.1:{second_port}/object?signature=a%2Fb\r\nContent-Length: 0\r\n\r\n").into_bytes());
-    let result = fetch::run(
-        &support::io(),
-        &skein_shell::Trust::Machine { ssl_cert_file: Some(roots) },
-        Fetch::new(
-            Box::new([Pin {
-                binary: Fetched::read(b"fetched forgejo 0 bytes").expect("progress fixture").binary,
-                origin: Origin { host: b"127.0.0.1".as_slice().into(), port: first_port },
-                path: b"/bottle".as_slice().into(),
-                digest: sha(&binary),
-                file: file.as_os_str().as_bytes().into(),
-                bottle: Some(Bottle { digest: sha(&archive), member: b"bin/member".as_slice().into(), token: true }),
-            }]),
-            BINARY_BYTES as u64,
-        ),
-        &mut Vec::new(),
-    );
-    let first = first.join().expect("bottle peer").unwrap_or_else(|starved| starved.pass());
-    let second = second.join().expect("bottle peer").unwrap_or_else(|starved| starved.pass());
-    assert!(result.is_ok(), "{result:?}");
-    assert_eq!(first, format!("GET /bottle HTTP/1.1\r\nHost: 127.0.0.1:{first_port}\r\nUser-Agent: temper\r\nAuthorization: Bearer QQ==\r\nConnection: close\r\n\r\n").as_bytes());
-    assert_eq!(second, format!("GET /object?signature=a%2Fb HTTP/1.1\r\nHost: 127.0.0.1:{second_port}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n").as_bytes());
-    assert_eq!(fs::read(&file).expect("cached binary"), binary);
-    assert_eq!(fs::metadata(&file).expect("cached binary").permissions().mode() & 0o777, 0o755);
-    assert!(!part.exists(), "part removed");
-    assert!(!archive_file.exists(), "archive removed");
-    scratch.remove();
 }
 
 #[test]
@@ -225,7 +159,7 @@ fn concurrent_claude_commands_make_one_request() {
                     path: b"/binary".as_slice().into(),
                     digest: sha(b"abc"),
                     file: file.as_os_str().as_bytes().into(),
-                    bottle: None,
+                    packed: false,
                 };
                 barrier.wait();
                 let mut out = Vec::new();

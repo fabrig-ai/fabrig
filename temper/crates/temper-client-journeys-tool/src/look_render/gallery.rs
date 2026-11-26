@@ -16,9 +16,29 @@ use crate::{
 
 use super::html;
 
-pub(super) fn named_state(host: &mut Host, request: &Request, directory: &str) -> Result<Option<String>, String> {
-    let readme = blob(host, &request.commit, &format!("{directory}/README.md"))?;
-    Ok(readme.as_deref().and_then(|bytes| std::str::from_utf8(bytes).ok()).and_then(state).map(str::to_owned))
+pub(super) struct Drawing {
+    pub(super) state: String,
+    readme: String,
+}
+
+impl Drawing {
+    pub(super) fn read(host: &mut Host, request: &Request, directory: &str) -> Result<Option<Self>, String> {
+        let readme = blob(host, &request.commit, &format!("{directory}/README.md"))?;
+        let Some(readme) = readme.and_then(|bytes| String::from_utf8(bytes.into_vec()).ok()) else {
+            return Ok(None);
+        };
+        Ok(state(&readme).map(str::to_owned).map(|state| Self { state, readme }))
+    }
+
+    pub(super) fn requests(&self, file: &str) -> bool {
+        let phrase = format!("`{file}` the request");
+        self.readme.match_indices(&phrase).any(|(start, _)| {
+            self.readme[start + phrase.len()..]
+                .chars()
+                .next()
+                .is_none_or(|next| !next.is_ascii_alphanumeric() && !matches!(next, '-' | '_' | '\'' | '’'))
+        })
+    }
 }
 
 fn state(readme: &str) -> Option<&str> {

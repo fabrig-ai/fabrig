@@ -2339,6 +2339,16 @@ impl World {
         self.restart_same();
     }
 
+    /// Set the project's flake policy before restoring its settings.
+    #[must_use]
+    pub fn with_flakes(mut self, flakes: forge_top::settings::Flakes) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "flake policy precedes startup");
+        crate::oracle::config::landing(&mut self.restart_config, 1).flakes = Some(flakes);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid flake policy configuration");
+        self
+    }
+
     /// Configure the project's merge command before the first input.
     #[must_use]
     pub fn with_merge_job(mut self, command: &[u8]) -> Self {
@@ -4046,7 +4056,9 @@ pub fn change_world_with_result_words(
     } else {
         world.adopt();
     }
-    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let mut bounds = protocol::bounds();
+    bounds.message_bytes = bounds.message_bytes.max(world.env.limits.tasks.message_bytes);
+    world.send(protocol::hello_with(Token::new(7), 0, 2, bounds, Box::new([])));
     let ask = if tracked {
         walking::goal_from(
             world.chat(1, b"make the fix"),

@@ -73,6 +73,7 @@ fn a_green_head_cancels_a_repair_not_running_then_goes_on() {
         flake: false,
         no_test: false,
         failed: false,
+        lost: false,
         cancelled: true,
         words: b"CI passed at head".as_slice().into(),
     });

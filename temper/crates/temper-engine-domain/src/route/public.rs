@@ -49,14 +49,14 @@ pub(crate) fn public_tasks(domain: &Domain, public: &[u64]) -> Box<[PublicTask]>
     tasks.into_boxed()
 }
 pub(crate) fn public_goal(domain: &Domain, task: u64) -> Option<u64> {
-    let mut current = domain.core.tasks.task(task)?;
+    let mut current = domain.engine.core().tasks.task(task)?;
     let mut goal = None;
     for _ in 0..=current.depth {
         if current.tracked.is_some() && !tasks::gathering::executor(current.executor) {
             goal = Some(current.number);
         }
         match current.requester {
-            tasks::Party::Task(parent) => current = domain.core.tasks.task(parent)?,
+            tasks::Party::Task(parent) => current = domain.engine.core().tasks.task(parent)?,
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => return goal,
         }
     }

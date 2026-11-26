@@ -54,7 +54,7 @@ pub(crate) fn translate(
             });
         }
         connector::StepDecision::Propose { spend } => {
-            let mut authority = domain.core.tasks.task(task).expect("procedure task live").authority.clone();
+            let mut authority = domain.engine.core().tasks.task(task).expect("procedure task live").authority.clone();
             authority.budget.spend = authority.budget.spend.saturating_add(spend);
             return Some(core::ProcedureStep {
                 proposals: Box::new([tasks::ProposalAction::Widen { task, authority }]),
@@ -63,7 +63,7 @@ pub(crate) fn translate(
         }
         connector::StepDecision::Job { kind, spec, deadline } => return Some(job(domain, task, kind, spec, deadline)),
         connector::StepDecision::Delegate { kinds } => {
-            let row = domain.core.tasks.task(task).expect("procedure task live");
+            let row = domain.engine.core().tasks.task(task).expect("procedure task live");
             let capacity = u32::try_from(kinds.len()).expect("bounded program");
             let mut batch = List::with_capacity(capacity);
             let budget = row
@@ -209,7 +209,7 @@ fn specification(words: Box<[u8]>) -> tasks::Spec {
 
 /// A job delegate's opaque spec and empty child delegation (jig/docs/design/domain/engine/executors.md, 5).
 fn job(domain: &Domain, task: u64, kind: u32, spec: Box<[u8]>, deadline: skein_lib::Duration) -> core::ProcedureStep {
-    let mut authority = domain.core.tasks.task(task).expect("procedure task live").authority.clone();
+    let mut authority = domain.engine.core().tasks.task(task).expect("procedure task live").authority.clone();
     authority.budget.spend = 0;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     core::ProcedureStep {

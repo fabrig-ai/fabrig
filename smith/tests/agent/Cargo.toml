@@ -29,6 +29,9 @@ skein-fake-llm-domain.workspace = true
 skein-world.workspace = true
 
 [dev-dependencies]
+skein-io.workspace = true
+smith-protocol-machine.workspace = true
+smith-protocol-machine-fixtures.workspace = true
 smith-host-domain.workspace = true
 smith-agent-service.workspace = true
 skein-llm.workspace = true

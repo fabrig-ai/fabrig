@@ -94,6 +94,34 @@ application root            routes between the core and every connector
   | restart: restore these records | done |
   | catch up, from the opening: read afresh and settle the outbox | each half's report, its fresh reads in and its outbox settled |
 
+- **The core's side is one crate of values,** `jig-domain-contract`, a
+  kit's contract (programming-model.md, 4.5): the core's vocabulary and
+  the children whose values it holds depend on it, and a connector may
+  name it. It sits below them and every connector, depending on skein-lib
+  and `jig-domain-link` alone, so the crate graph stays acyclic. Its
+  values are the core's own, each moved down from the vocabulary or the
+  child that defined it and still named along that path, so a caller
+  builds through either.
+- **One module per capability that carries values, and `ops`.** A value
+  the asks and answers of one capability carry is that capability's
+  module's: `lifecycle` (restoring, catching up, adopting), `resources`
+  (names, roles, kinds of hold, a member's holdings), `effects` (an
+  effect's key, description, form and recovery class, its outbox's
+  outcomes, and authority's effects, judges, verdicts and findings),
+  `topics` (news' classes), `parts` (references to what a connector
+  keeps), `procedures` (a procedure's step and decision, with its
+  delegates), `projections` (a goal's projected records) and `settings`
+  (an application's settings items, their judgements and defaults). `ops`
+  holds the operations' values, whichever capability carries them: a
+  batch's members, a task's spec, contract, authority, funding, executor,
+  phase, result, holds and words, its amendments, cancels and proposals.
+- **Values, not decisions** (programming-model.md, 4.6): definitions, the
+  methods that read or name a value, derived impls, and no state. A
+  helper that reads a domain's limits or chooses an outcome stays in that
+  domain as a free function: seeding a repair or a procedure's delegate
+  (`RepairSeed` and `PersonSeed`, which carry the tasks child's events,
+  stay in the core's vocabulary), and a word's payload size, a message's
+  inbox family and a hold's check (the tasks child's).
 - **Tasks are named by number.** The connector keeps the numbers of the
   tasks it serves as plain values; it never sees a task. What it projects
   of a goal, the root gives it, in the connector's own terms.

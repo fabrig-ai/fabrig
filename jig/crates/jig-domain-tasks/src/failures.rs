@@ -1,28 +1,8 @@
 //! Per-class task failure history and configured equal-jitter backoff
 //! (domain/tasks/lifecycle-holds.md, section 1). Root classifies external failures;
 //! this module uses injected randomness and owns no clock or peer state.
+pub use jig_domain_contract::ops::Class;
 use skein_lib::{Duration, Rng};
-
-/// Root-reported activation failure category; each category has its own bounded retry policy and
-/// counter. (domain/tasks/lifecycle-holds.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Class {
-    /// Transient peer/read/transcript failure reported by the root.
-    Transient,
-    /// Failure requiring an external correction, such as an unavailable resource or invalid
-    /// assignment.
-    Permanent,
-    /// `Run` itself reported execution failure.
-    Run,
-    /// `Agent` crashed, violated its channel contract or stalled.
-    Agent,
-    /// Worker was lost.
-    Lost,
-    /// Returned result violated the admitted task contract.
-    Invalid,
-    /// A workspace or required brief section could not be prepared for now.
-    Infrastructure,
-}
 
 /// Task's per-class failure counters, updated with saturation; counts describe history rather
 /// than a retry permission. (domain/tasks/lifecycle-holds.md, section 1).

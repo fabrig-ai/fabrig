@@ -15,14 +15,14 @@ fn release_failure_holds_with_the_forge_words_and_optional_entry() {
     ] {
         let (mut domain, env, context) = change_start_fixture();
         let task = context.task;
-        let mut record = domain.core.tasks.task(task).unwrap().clone();
-        let ledger = *domain.core.tasks.funding(record.funder).unwrap();
+        let mut record = domain.engine.core().tasks.task(task).unwrap().clone();
+        let ledger = *domain.engine.core().tasks.funding(record.funder).unwrap();
         record.phase = tasks::Phase::Closing(tasks::Closing {
             stage: tasks::Stage::Releases,
             ending: tasks::Ending::Failed { reason: Box::from(b"failed".as_slice()) },
         });
-        domain.core.tasks =
-            crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
+        let mut fresh = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
+        ::core::mem::swap(&mut domain.engine.core_mut().tasks, &mut fresh.engine.core_mut().tasks);
         for event in [
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
             tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) },
@@ -31,7 +31,7 @@ fn release_failure_holds_with_the_forge_words_and_optional_entry() {
         ] {
             task_event(&mut domain, &env, event);
         }
-        assert_eq!(domain.core.tasks.restore_failure(), None);
+        assert_eq!(domain.engine.core().tasks.restore_failure(), None);
         let mut row = task_change_row(task, Some(1));
         row.repository = adopted(1).provider;
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
@@ -44,7 +44,7 @@ fn release_failure_holds_with_the_forge_words_and_optional_entry() {
         assert!(domain.work.is_empty());
         task_event(&mut domain, &env, event);
         let tasks::Phase::Held { was: tasks::Was::Closing(_), why: tasks::Hold::EffectFailed, source: Some(source) } =
-            &domain.core.tasks.task(task).unwrap().phase
+            &domain.engine.core().tasks.task(task).unwrap().phase
         else {
             panic!("failed effect holds the close")
         };

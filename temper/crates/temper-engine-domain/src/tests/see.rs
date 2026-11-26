@@ -50,8 +50,8 @@ fn task_answer(tracked: bool) -> Answer {
         if tracked { Some(1) } else { None },
         jig_domain_tasks::Executor::Procedure { connector: 0, code: 1 },
     );
-    domain.core.people = jig_domain_people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people = jig_domain_people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.engine.core_mut().people.start_restore(env.wall);
     let mut out = skein_lib::Queue::uncapped();
     for record in [
         jig_domain_people::Stored::Person {
@@ -68,20 +68,20 @@ fn task_answer(tracked: bool) -> Answer {
         },
     ] {
         jig_domain_people::step(
-            &mut domain.core.people,
+            &mut domain.engine.core_mut().people,
             &env.with(env.limits.people),
             jig_domain_people::Event::Restore { record },
             &mut out,
         );
     }
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&env.with(env.limits.people)));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&env.with(env.limits.people)));
     let document = d::task_from_row(
-        &domain.core,
+        domain.engine.core(),
         &crate::limits::core_limits(&env.limits),
         1,
-        domain.core.tasks.task(number).unwrap(),
+        domain.engine.core().tasks.task(number).unwrap(),
         env.wall,
     )
     .unwrap();
@@ -245,9 +245,9 @@ fn chat(requester: jig_domain_tasks::Party) -> (crate::Domain, skein_lib::Env<cr
     use jig_domain_people as people;
     use jig_domain_tasks as tasks;
     let (domain, env, number) = super::live_task(None, tasks::Executor::Procedure { connector: 0, code: 1 });
-    let mut row = domain.core.tasks.task(number).unwrap().clone();
+    let mut row = domain.engine.core().tasks.task(number).unwrap().clone();
     row.requester = requester;
-    let ledger = *domain.core.tasks.funding(row.funder).unwrap();
+    let ledger = *domain.engine.core().tasks.funding(row.funder).unwrap();
     let parent = if let tasks::Party::Task(number) = requester {
         let mut parent = row.clone();
         parent.number = number;
@@ -421,7 +421,7 @@ fn person_flights_route_core_and_forge_answers_with_names_and_refusals() {
         let expected = if line == "me" {
             assert_eq!(read, Read::Project { project: 1 });
             let mut document = d::make(
-                &domain.core,
+                domain.engine.core(),
                 &crate::limits::core_limits(&env.limits),
                 1,
                 &d::Subject::Project { project: 1 },
@@ -533,9 +533,9 @@ fn goals_leave_milestones_out_of_live_and_ended_rows() {
     use jig_domain_core::reads::{EndedGroup, TaskPage};
     let (domain, env, key) = chat(jig_domain_tasks::Party::Person(1));
     let number = key.task;
-    let row = domain.core.tasks.task(number).unwrap();
+    let row = domain.engine.core().tasks.task(number).unwrap();
     let limits = crate::limits::core_limits(&env.limits);
-    let mut goal = d::task_line(&domain.core, &limits, 1, row, None).unwrap();
+    let mut goal = d::task_line(domain.engine.core(), &limits, 1, row, None).unwrap();
     goal.tracked = Some(1);
     let mut milestone = goal.clone();
     milestone.chip.number = number.checked_add(1).unwrap();

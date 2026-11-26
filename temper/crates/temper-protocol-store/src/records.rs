@@ -306,6 +306,8 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         change_cold_base: forge.name_bytes,
         change_hot_verdicts: forge.change_policy.gates,
         change_hot_gate_remarks: forge.change_policy.gates,
+        // A runner release keeps at most one attempt per admitted check.
+        runner_baseline_attempts: forge.client.rows,
         gate_remark_words: forge.client.answer_bytes,
         live_branch_branch: forge.name_bytes,
         live_record_comments: forge.client.inbox,

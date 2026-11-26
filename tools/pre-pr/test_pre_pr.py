@@ -6,7 +6,9 @@ import io
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -180,7 +182,7 @@ class Delivery(unittest.TestCase):
             self.assertEqual(receipt['verdict'], 'broke')
             self.assertEqual(receipt['failures'], [{'class': 'broke', 'name': 'check Python tests', 'key': None,
                                                    'detail': detail}])
-            self.assertEqual(err.getvalue().splitlines()[-1], f'pre-pr: broke: {detail}')
+            self.assertTrue(err.getvalue().endswith(f'smith-check: not judged\npre-pr: broke: {detail}\n'))
 
     def test_candidate_tool_diagnostics_refuse(self):
         lint = {'reason': 'compiler-message', 'package_id': 'api', 'message': {
@@ -464,7 +466,9 @@ class Delivery(unittest.TestCase):
             self.assertTrue(summary[0].startswith(' (delivery, base base, pin)'))
             self.assertEqual(summary[1], 'failures: 0 new, 0 flakes, 0 inherited, 1 broke; '
                              'every key in target/temper/pre-pr-light-failures.json')
-            last = err.getvalue().splitlines(keepends=True)[-1].encode()
+            marker, reason = err.getvalue().splitlines(keepends=True)[-2:]
+            self.assertEqual(marker, 'smith-check: not judged\n')
+            last = reason.encode()
             self.assertEqual(last, ('pre-pr: broke: ' + first_line).encode()[:127].decode(errors='ignore').encode() + b'\n')
             self.assertLessEqual(len(last), 128)
 
@@ -478,6 +482,27 @@ class Delivery(unittest.TestCase):
                  mock.patch.object(PRE, 'workspace_checks', return_value=[]), redirect_stderr(io.StringIO()):
                 self.assertEqual(PRE.main([]), expected)
             self.assertEqual(self.receipt('pre-pr-light-failures.json')['verdict'], verdict)
+
+    def test_no_tree_leaves_the_previous_receipt_and_reports_not_judged(self):
+        receipt = self.root / 'target/temper/pre-pr-light-failures.json'
+        receipt.parent.mkdir(parents=True)
+        receipt.write_bytes(b'previous receipt')
+        with mock.patch.object(Path, 'cwd', return_value=self.root), \
+             mock.patch.object(PRE, 'checked_git', return_value=b''), \
+             mock.patch.object(PRE, 'snapshot', side_effect=OSError('snapshot unavailable')), \
+             redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(PRE.main([]), 1)
+        self.assertEqual(err.getvalue(), 'smith-check: not judged\npre-pr: broke: snapshot unavailable\n')
+        self.assertEqual(receipt.read_bytes(), b'previous receipt')
+
+    def test_top_level_exception_reports_not_judged(self):
+        script = str(HERE / 'pre_pr.py')
+        with mock.patch.object(sys, 'argv', [script]), \
+             mock.patch.object(Path, 'cwd', side_effect=OSError('no current directory')), \
+             redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit) as ended:
+            runpy.run_path(script, run_name='__main__')
+        self.assertEqual(ended.exception.code, 1)
+        self.assertEqual(err.getvalue(), 'smith-check: not judged\npre-pr: broke: no current directory\n')
 
     def test_no_checkout_breaks_and_checks_nothing(self):
         with mock.patch.object(Path, 'cwd', return_value=self.root), \
@@ -498,6 +523,41 @@ class Delivery(unittest.TestCase):
             commands = [line for line in script.read_text().splitlines() if line.startswith('exec ')]
             self.assertEqual(commands, ['exec python3 -I -B tools/pre-pr/pre_pr.py' + suffix])
             self.assertTrue(script.stat().st_mode & 0o111)
+
+    def test_goal_hook_installs_only_a_missing_rerun_marker_before_goal_mode(self):
+        from shutil import copy2
+        checkout = self.root / 'checkout'
+        git_dir = self.root / 'metadata'
+        hooks = checkout / '.temper'
+        hooks.mkdir(parents=True)
+        hook = copy2(HERE.parents[1] / '.temper/goal-pre-pr', hooks)
+        stand_in = checkout / 'tools/pre-pr/pre_pr.py'
+        stand_in.parent.mkdir(parents=True)
+        stand_in.write_text(
+            'import sys\n'
+            'from pathlib import Path\n'
+            'import subprocess\n'
+            'assert sys.argv[1:] == ["--goal", "head", "dest"]\n'
+            'marker = Path(subprocess.check_output(\n'
+            '    ["git", "rev-parse", "--git-path", "temper/rerun"], text=True).strip())\n'
+            'print(marker.read_text(), end="")\n'
+        )
+        with mock.patch.object(subprocess, 'Popen', side_effect=POPEN):
+            subprocess.run(['git', 'init', '-q', '--separate-git-dir', git_dir], cwd=checkout, check=True)
+            marker = checkout / subprocess.check_output(
+                ['git', 'rev-parse', '--git-path', 'temper/rerun'], cwd=checkout, text=True).strip()
+            marker.parent.mkdir()
+            temporary = marker.with_suffix('.tmp')
+            temporary.write_bytes(b'unfinished\n')
+            staged_inode = temporary.stat().st_ino
+            call = [hook, 'head', 'dest']
+            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 0\n')
+            self.assertEqual(marker.stat().st_ino, staged_inode, 'the staged marker was renamed')
+            self.assertFalse(temporary.exists())
+
+            marker.write_bytes(b'temper-rerun 1 4\n')
+            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 4\n')
+            self.assertEqual(marker.stat().st_ino, staged_inode, 'the worker marker was not replaced')
 
     def test_changed_python_module_runs_its_sibling_suite_once(self):
         directory = self.root / 'tools/example'
@@ -594,12 +654,16 @@ class Delivery(unittest.TestCase):
                  ('close', '3', [broke], 2), ('close', '3', [], 0)]
         cases += [(scope, '3', errors, 1) for scope in ('delivery', 'child', 'goal') for errors in ([red], [broke])]
         for scope, value, errors, status in cases:
-            with self.subTest(scope=scope, value=value, errors=errors), redirect_stderr(io.StringIO()):
+            with self.subTest(scope=scope, value=value, errors=errors), redirect_stderr(io.StringIO()) as err:
                 result.write_bytes(settlement)
                 env = {'TEMPER_JOB': str(self.root)}
                 if value is not None:
                     env['TEMPER_CLOSE_REFUSAL'] = value
                 self.assertEqual(PRE.finish('tree', 'base', errors, self.root, env, scope, (), ['head']), status)
+                if errors == [broke]:
+                    self.assertTrue(err.getvalue().endswith('smith-check: not judged\npre-pr: broke: missing\n'))
+                else:
+                    self.assertNotIn('smith-check: not judged', err.getvalue())
                 self.assertEqual(result.read_bytes(), settlement)
 
     def test_a_refusal_the_checker_cannot_write_exits_two(self):
@@ -622,7 +686,8 @@ class Delivery(unittest.TestCase):
                 self.assertEqual(PRE.finish('tree', 'base', [PRE.failure('format', 'diff')], self.root,
                                             env, 'close', (), ['head']), 2)
             detail = 'result directory is not writable' if job_set else 'TEMPER_JOB is missing'
-            self.assertTrue(err.getvalue().endswith(f'pre-pr: broke: cannot write close refusal: {detail}\n'))
+            self.assertTrue(err.getvalue().endswith(
+                f'smith-check: not judged\npre-pr: broke: cannot write close refusal: {detail}\n'))
             self.assertEqual(result.read_bytes(), settlement)
             self.assertEqual(sorted(path.name for path in self.root.iterdir()), ['result.json', 'target'])
 
@@ -645,8 +710,9 @@ class Delivery(unittest.TestCase):
         errors[3]['inherited'] = True
         errors += [PRE.failure('ñ' * 100, 'too many bytes')] + [PRE.failure(f'test later {i}', 'failed') for i in range(6)]
         env = {'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(self.root)}
-        with redirect_stderr(io.StringIO()):
+        with redirect_stderr(io.StringIO()) as err:
             self.assertEqual(PRE.finish(tree, base, errors, self.root, env, 'close', (), [head], counts_ref=counts), 3)
+        self.assertNotIn('smith-check: not judged', err.getvalue())
         result = (self.root / 'result.json').read_bytes()
         self.assertEqual(result, stem + encoded + b',"format"],"more":7}}\n')
         self.assertLessEqual(len(result), 512)
@@ -954,7 +1020,7 @@ class Changes(unittest.TestCase):
                 self.assertEqual(PRE.main(['--close']), status)
                 checks.assert_not_called()
                 run.assert_not_called()
-                self.assertTrue(err.getvalue().startswith('pre-pr: broke: '), err.getvalue())
+                self.assertTrue(err.getvalue().startswith('smith-check: not judged\npre-pr: broke: '), err.getvalue())
                 self.assertIn(why, err.getvalue())
                 self.assertEqual(result.read_bytes(), settlement)
                 receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())

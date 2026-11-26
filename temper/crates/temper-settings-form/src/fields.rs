@@ -82,6 +82,7 @@ pub enum Shape {
     FollowOwner,
     FollowCheck,
     ProjectLanding,
+    LandingFlakes,
     RepairSettings,
     RepairGoalSettings,
     ProjectGates,

@@ -10,7 +10,7 @@ use skein_lib::List;
 use temper_engine_domain_forge::settings::{NamedLlm, NamedModel, RepairGoal, RepairSettings, Repairs};
 
 pub(crate) fn restored(domain: &mut Domain, spec_bytes: u32) {
-    let projects = domain.core.projects.clone();
+    let projects = domain.engine.core().projects.clone();
     for &project in &projects {
         let Some(landing) = domain.forge.landing_settings(project) else { continue };
         let Some(settings) = &landing.repairs else { continue };
@@ -23,8 +23,8 @@ pub(crate) fn restored(domain: &mut Domain, spec_bytes: u32) {
     }
 }
 pub(super) fn resolve(domain: &Domain, v: &RepairSettings) -> Result<Repairs, &'static [u8]> {
-    let charter = domain.core.current.charter(v.goal.charter).ok_or(b"goal.charter".as_slice())?;
-    let entries = catalogue::entries(&domain.core.current);
+    let charter = domain.engine.core().current.charter(v.goal.charter).ok_or(b"goal.charter".as_slice())?;
+    let entries = catalogue::entries(&domain.engine.core().current);
     let models = catalogue::rows(&entries);
     let charter = charters::resolved(charter, &entries, &crate::limits::core_limits(&domain.limits))
         .ok_or(b"goal.llm".as_slice())?;

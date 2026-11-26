@@ -481,11 +481,11 @@ wants of that symptom.
 | Problem | Scenario | Package | Fixed by |
 |---|---|---|---|
 | P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | holds already: active |
-| P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds |
+| P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds: active |
 | P37 | `a_starved_gate_is_the_runners` | `temper-engine-forge-world` | a change's reds |
 | S7 | `a_landing_without_its_prepare_task_moves` | `temper-engine-domain-world` | holds already: active |
 | P53 | `a_resolution_keeping_a_deleted_path_is_refused` | `temper-engine-domain-world` | a change's reds |
-| P58 residual | `a_repair_whose_tests_pass_regates_by_itself` | `temper-engine-domain-world` | a change's reds |
+| P58 residual | `a_repair_whose_tests_pass_regates_by_itself` | `temper-engine-domain-world` | a change's reds: active |
 | P120 | `the_newest_ruling_reaches_the_resolution` | `temper-engine-domain-world` | holds already: active |
 
 - **P124's first scenario,** `cancelled_landing_frees_its_write_entries`
@@ -559,10 +559,8 @@ own change.
 | Scenario | Fault | When |
 |---|---|---|
 | `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
-| `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
 | `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
 | `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
-| `a_repair_whose_tests_pass_regates_by_itself` | `runs` / `a repair finds its tests passing` | `a landing's gate red` |
 | `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'

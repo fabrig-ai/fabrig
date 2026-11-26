@@ -201,10 +201,10 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
-const REPAIR_SETTING: &[u8] = br#"{"kind":"project-landing","project":7}"#;
-fn repair_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLanding {
+const LANDING_SETTING: &[u8] = br#"{"kind":"project-landing","project":7}"#;
+fn landing_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLanding {
     use temper_client_protocol_wire::v1 as w;
-    let items = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).expect("repair setting file");
+    let items = file::decode(&kind_file(LANDING_SETTING, json), &Limits::standard()).expect("landing setting file");
     let item = items.get(0).unwrap();
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
     let c::SettingValue::Application(bytes) = &set.value else { panic!("kind 4 bytes") };
@@ -218,8 +218,32 @@ fn repair_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLan
     landing
 }
 #[test]
+fn landing_flakes_round_trip_unset_never_and_rerun() {
+    use temper_client_protocol_wire::v1::{SettingsFlakeRerun, SettingsFlakes};
+    for (json, expected) in [
+        (b"{}".as_slice(), None),
+        (br#"{"flakes":"none"}"#, Some(SettingsFlakes::Never)),
+        (br#"{"flakes":{"rerun":3}}"#, Some(SettingsFlakes::Rerun(SettingsFlakeRerun { processes: 3 }))),
+    ] {
+        assert_eq!(landing_round_trip(json).flakes, expected);
+    }
+}
+#[test]
+fn malformed_landing_flakes_are_refused_by_path() {
+    for (json, why) in [
+        (br#"{"flakes":"sometimes"}"#.as_slice(), b"flakes: none or an object with rerun required".as_slice()),
+        (br#"{"flakes":{"rerun":-1}}"#, b"flakes.rerun: expected unsigned integer"),
+        (br#"{"flakes":{"rerun":4294967296}}"#, b"flakes.rerun: u32 bound"),
+        (br#"{"flakes":{"rerun":1,"other":0}}"#, b"flakes.other: unknown member"),
+        (br#"{"flakes":{}}"#, b"flakes.rerun: missing member"),
+    ] {
+        let error = file::decode(&kind_file(LANDING_SETTING, json), &Limits::standard()).unwrap_err();
+        assert_eq!(error.as_ref(), joined(&[b"settings file item 1: ", why]).as_ref());
+    }
+}
+#[test]
 fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
-    let landing = repair_round_trip(
+    let landing = landing_round_trip(
         br#"{"wait":"landed","repairs":{"goal":{"charter":5,"llm":null,"priority":0,"budget":2000000}}}"#,
     );
     let repairs = landing.repairs.as_ref().unwrap();
@@ -228,7 +252,7 @@ fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
 }
 #[test]
 fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
-    let landing = repair_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    let landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
     let repairs = landing.repairs.as_ref().unwrap();
     assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
     assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
@@ -249,12 +273,12 @@ fn repair_settings_refuse_unknown_and_missing_members_by_path() {
         (br#"{"repairs":{"goal":{"charter":5,"budget":2}}}"#, b"repairs.goal.priority: missing member"),
         (br#"{"repairs":{"goal":{"charter":5,"priority":0}}}"#, b"repairs.goal.budget: missing member"),
     ] {
-        let error = file::decode(&kind_file(REPAIR_SETTING, json), &Limits::standard()).unwrap_err();
+        let error = file::decode(&kind_file(LANDING_SETTING, json), &Limits::standard()).unwrap_err();
         assert_eq!(error.as_ref(), joined(&[b"settings file item 1: ", why]).as_ref());
     }
     // llm alone is optional, as for a template's default choice.
     file::decode(
-        &kind_file(REPAIR_SETTING, br#"{"wait":"landed","repairs":{"goal":{"charter":5,"priority":0,"budget":2}}}"#),
+        &kind_file(LANDING_SETTING, br#"{"wait":"landed","repairs":{"goal":{"charter":5,"priority":0,"budget":2}}}"#),
         &Limits::standard(),
     )
     .expect("llm may be absent");

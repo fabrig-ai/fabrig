@@ -19,6 +19,15 @@ fn goal_world_with_worker(
     authority: bool,
     close_worker: bool,
 ) -> (World, engine::Assignment, Box<[u8]>, u64) {
+    goal_world_with_flakes(command, authority, close_worker, None)
+}
+
+fn goal_world_with_flakes(
+    command: bool,
+    authority: bool,
+    close_worker: bool,
+    flakes: Option<forge_top::settings::Flakes>,
+) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let landing_deployment = Box::new([engine::LandingRule {
         sets: Box::new([]),
         connector: 0,
@@ -47,6 +56,9 @@ fn goal_world_with_worker(
             ..StoryLimits::default()
         },
     );
+    if let Some(flakes) = flakes {
+        world = world.with_flakes(flakes);
+    }
     world.adopt();
     if close_worker {
         hello_close_worker(&mut world);
@@ -152,6 +164,10 @@ fn finish_with_on(world: &mut World, channel: Token, job: &host::JobAssignment, 
 pub(super) const CLOSE_COUNTS: [u8; 32] = [0x33; 32];
 
 pub(super) fn check_refusal(head: [u8; 32], base: [u8; 32]) -> Box<[u8]> {
+    refusal_with(head, base, r#""test A::rules rule_00""#)
+}
+
+pub(super) fn refusal_with(head: [u8; 32], base: [u8; 32], failures: &str) -> Box<[u8]> {
     let head = forge_top::commit_text(&head);
     let base = forge_top::commit_text(&base);
     let counts = forge_top::commit_text(&CLOSE_COUNTS);
@@ -159,9 +175,23 @@ pub(super) fn check_refusal(head: [u8; 32], base: [u8; 32]) -> Box<[u8]> {
     let base = core::str::from_utf8(&base).expect("base hex");
     let counts = core::str::from_utf8(&counts).expect("counts hex");
     let tree = "2222222222222222222222222222222222222222";
-    format!(r#"{{"refused":{{"head":"{head}","tree":"{tree}","base":"{base}","counts":"{counts}","failures":["test A::rules rule_00"]}}}}"#)
+    format!(r#"{{"refused":{{"head":"{head}","tree":"{tree}","base":"{base}","counts":"{counts}","failures":[{failures}]}}}}"#)
         .into_bytes()
         .into_boxed_slice()
+}
+
+#[test]
+fn run_and_close_workspace_items_carry_the_restored_rerun_bound() {
+    use forge_top::settings::Flakes;
+    for (flakes, expected) in [(Some(Flakes::Never), Some(0)), (Some(Flakes::Rerun(3)), Some(3)), (None, None)] {
+        let (mut world, goal, branch, _) = goal_world_with_flakes(true, true, true, flakes);
+        let change = make_change(&mut world, &goal, &branch, REQUEST, None);
+        let job = next_job(&mut world, change);
+        let items = world.job_workspaces.get(&job.run.raw()).expect("close job items");
+        assert_eq!((goal.workspace.rerun, items.rerun), (expected, expected), "flakes {flakes:?}");
+        finish_job(&mut world, &job);
+        world.close();
+    }
 }
 
 #[test]
@@ -314,6 +344,7 @@ fn fail_close_until_held(
 ) {
     let retries = match failure {
         host::JobFailure::Failed | host::JobFailure::Deadline => world.env.limits.tasks.retries.run.retries,
+        host::JobFailure::Cancelled(host::Reason::Contact) => world.env.limits.tasks.retries.lost.retries,
         host::JobFailure::Undelivered(host::DeliveryOutcome::Refused) => {
             world.env.limits.tasks.retries.permanent.retries
         }
@@ -594,6 +625,26 @@ fn a_broken_close_holds_after_its_run_tries() {
         super::goal_closer::assert_hold_words(&world, task, expected);
         world.close();
     }
+}
+
+#[test]
+fn a_lost_close_holds_after_its_runner_tries() {
+    let (mut world, goal, branch, _) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let job = next_job(&mut world, task);
+    fail_close_until_held(
+        &mut world,
+        task,
+        job,
+        host::JobFailure::Cancelled(host::Reason::Contact),
+        b"worker contact lost",
+    );
+    super::goal_closer::assert_hold_words(
+        &world,
+        task,
+        "the close check's runner was lost and didn't judge the goal: worker contact lost; its release runs it again.",
+    );
+    world.close();
 }
 
 #[test]

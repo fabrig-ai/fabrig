@@ -2,6 +2,7 @@
 use super::Setting;
 use crate::Limits;
 use alloc::boxed::Box;
+pub use jig_domain_contract::settings::{Edit, Item, Restored, RestoredEdit};
 
 /// Where a kind's values are kept (jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -19,21 +20,7 @@ pub struct Kind {
     pub per_scope: u32,
     pub charters: u8,
 }
-/// An edit whose value stays with its connector (jig/docs/design/domain/engine/settings-application.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Edit {
-    Set(Box<[u8]>),
-    Remove,
-    Reset,
-}
-/// One application setting handed to its connector (jig/docs/design/domain/engine/settings-application.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Item {
-    pub kind: u32,
-    pub scope: u32,
-    pub number: u32,
-    pub edit: Edit,
-}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Follows {
     Default,
@@ -70,21 +57,7 @@ pub struct RevisionRecorded {
     pub edit: SizedEdit,
     pub replaced: Replaced,
 }
-/// An application item a restore proposes (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Restored {
-    pub kind: u32,
-    pub scope: u32,
-    pub number: u32,
-    pub edit: RestoredEdit,
-}
-/// Where a restore takes an application's value (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum RestoredEdit {
-    Set { revision: u64 },
-    Remove,
-    Reset,
-}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SizedEdit {
     Set { size: u32 },

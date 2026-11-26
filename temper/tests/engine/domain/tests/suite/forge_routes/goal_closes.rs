@@ -1,7 +1,7 @@
 //! Stock template goals close without an agent's judgement after their work lands
 //! (temper/docs/design/protocol/configuration/stock.md;
 //! temper/docs/design/domain/forge/branches.md, 2; jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
-use super::close_change::{CLOSE_COUNTS, check_refusal, finish_with};
+use super::close_change::{CLOSE_COUNTS, check_refusal, finish_with, refusal_with};
 use super::goal_branch::{branch_tip, stock_defaults};
 use super::goal_closer::{
     close_job, closer_row, finish_close as push_close, producer_for, result_words, wait_ended, wait_held, wait_landing,
@@ -863,7 +863,7 @@ struct RefusedClose {
     at: change::CloseAt,
 }
 
-fn goal_with_refused_close() -> RefusedClose {
+fn goal_at_close() -> (World, u64, u64, u64, host::JobAssignment, change::CloseAt) {
     let (mut world, goal, branch) = goal_world(4);
     let head = translate::commit(branch_tip(&mut world, &branch));
     let main = translate::commit(branch_tip(&mut world, b"main"));
@@ -871,15 +871,16 @@ fn goal_with_refused_close() -> RefusedClose {
     let closer = closer_of(&mut world, goal.task);
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
-    finish_with(&mut world, &job, &check_refusal(head, main));
-    wait_held(&mut world, close, goal.task);
-    let run = awakened(&mut world, goal.task);
-    let at = change::CloseAt {
-        branch: head,
-        landing: main,
-        asked: true,
-        refused: Some(change::CloseRefused { counts: Some(CLOSE_COUNTS) }),
-    };
+    let at = change::CloseAt { branch: head, landing: main, asked: true, refused: None };
+    (world, goal.task, closer, close, job, at)
+}
+
+fn goal_with_refused_close() -> RefusedClose {
+    let (mut world, goal, closer, close, job, at) = goal_at_close();
+    finish_with(&mut world, &job, &check_refusal(at.branch, at.landing));
+    wait_held(&mut world, close, goal);
+    let run = awakened(&mut world, goal);
+    let at = change::CloseAt { refused: Some(change::CloseRefused { counts: Some(CLOSE_COUNTS) }), ..at };
     RefusedClose { world, run, closer, close, job: job.run.raw(), at }
 }
 
@@ -919,6 +920,26 @@ fn a_refused_close_holds_and_wakes_its_goal_once() {
         change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed }
     );
     super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    world.close();
+}
+
+#[test]
+fn a_close_refusal_naming_no_failure_is_broke() {
+    const RESULT_PREFIX: usize = 64; // tooling.md, 4.2 and repairs-releases.md, 1
+    let (mut world, goal, _, close, job, at) = goal_at_close();
+    let result = refusal_with(at.branch, at.landing, "");
+    finish_with(&mut world, &job, &result);
+    wait_held(&mut world, close, goal);
+    let prefix = core::str::from_utf8(&result[..RESULT_PREFIX]).expect("ASCII refusal");
+    super::goal_closer::assert_hold_words(
+        &world,
+        close,
+        &format!(
+            "the close check broke and didn't judge the goal: it finished with {prefix}; its release runs it again."
+        ),
+    );
+    assert_eq!(row(&world, close).close_at, Some(at));
+    assert!(world.jobs.is_empty(), "the finished job spent no retry");
     world.close();
 }
 

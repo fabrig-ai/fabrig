@@ -1,5 +1,4 @@
 # crate-layout: status
 
-2026-11-22. Where the tree's code lags or departs from [crate-layout.md](crate-layout.md).
+2026-11-26. Where the tree's code lags or departs from [crate-layout.md](crate-layout.md).
 
-No gap.

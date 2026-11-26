@@ -25,7 +25,10 @@ fn no_kit_crate_depends_on_an_application_crate_even_when_empty() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-const CORE_FAMILY: [&str; 10] = [
+const CONTRACT: &str = "jig-domain-contract";
+const CONTRACT_DEPENDENCIES: [&str; 2] = ["skein-lib", "jig-domain-link"];
+const CORE_FAMILY: [&str; 11] = [
+    CONTRACT,
     "jig-domain-core",
     "jig-domain-core-vocabulary",
     "jig-domain-accounts",
@@ -47,16 +50,19 @@ fn core_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                 .dependencies
                 .iter()
                 .filter(|name| {
-                    if manifest.name.as_deref() == Some("jig-domain-core") {
-                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
-                            && !CORE_FAMILY.contains(&name.as_str())
-                    } else if manifest.name.as_deref() == Some("jig-domain-core-vocabulary") {
+                    let name = name.as_str();
+                    if CONTRACT_DEPENDENCIES.contains(&name) {
+                        return false;
+                    }
+                    match manifest.name.as_deref() {
+                        Some(CONTRACT) => true,
+                        Some("jig-domain-core") => !CORE_FAMILY.contains(&name),
                         // Below the core, above its children (jig/docs/design/domain/engine/README.md, 3).
-                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
-                            && (!CORE_FAMILY.contains(&name.as_str())
-                                || ["jig-domain-core", "jig-domain-core-vocabulary"].contains(&name.as_str()))
-                    } else {
-                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
+                        Some("jig-domain-core-vocabulary") => {
+                            !CORE_FAMILY.contains(&name)
+                                || ["jig-domain-core", "jig-domain-core-vocabulary"].contains(&name)
+                        }
+                        _ => name != CONTRACT,
                     }
                 })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
@@ -859,6 +865,16 @@ fn link_values_depend_on_skein_lib_alone() {
 }
 
 #[test]
+fn contract_values_depend_only_on_foundation_and_link_values() {
+    let crates: Vec<_> =
+        manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some(CONTRACT)).collect();
+    assert_eq!(crates.len(), 1, "one connector contract");
+    for dependency in &crates[0].dependencies {
+        assert!(CONTRACT_DEPENDENCIES.contains(&dependency.as_str()), "contract dependency: {dependency}");
+    }
+}
+
+#[test]
 fn accounts_cannot_depend_on_fleet() {
     let source = "[package]\nname = \"jig-domain-accounts\"\n[dependencies]\njig-domain-fleet.workspace = true\n";
     let manifest = parse_manifest(PathBuf::from("accounts/Cargo.toml"), source);
@@ -870,6 +886,13 @@ fn the_core_vocabulary_cannot_depend_on_the_core() {
     let source = "[package]\nname = \"jig-domain-core-vocabulary\"\n[dependencies]\njig-domain-core.workspace = true\njig-domain-tasks.workspace = true\n";
     let manifest = parse_manifest(PathBuf::from("vocabulary/Cargo.toml"), source);
     assert_eq!(core_breaches(&[manifest]), ["vocabulary/Cargo.toml: jig-domain-core"]);
+}
+
+#[test]
+fn the_contract_cannot_depend_on_a_core_child() {
+    let source = "[package]\nname = \"jig-domain-contract\"\n[dependencies]\njig-domain-tasks.workspace = true\nskein-lib.workspace = true\n";
+    let manifest = parse_manifest(PathBuf::from("contract/Cargo.toml"), source);
+    assert_eq!(core_breaches(&[manifest]), ["contract/Cargo.toml: jig-domain-tasks"]);
 }
 
 #[test]

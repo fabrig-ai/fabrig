@@ -107,7 +107,7 @@ fn checks_that_pass_fail_and_time_out() {
             done,
             ToDomain::Checked {
                 owner: Token::new(number),
-                ran: run::Ran { exit: expected, output: Box::new([]), cut: 0 }
+                ran: run::Ran { exit: expected, said_not_judged: false, output: Box::new([]), cut: 0 }
             }
         );
     }

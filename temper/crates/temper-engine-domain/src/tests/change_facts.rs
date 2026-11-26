@@ -13,7 +13,7 @@ use temper_engine_domain_forge as forge;
 
 fn lineage() -> [tasks::TaskRecord; 3] {
     let (root, _, task) = live_task(Some(1), tasks::Executor::Procedure { connector: 0, code: 1 });
-    let mut milestone = root.core.tasks.task(task).unwrap().clone();
+    let mut milestone = root.engine.core().tasks.task(task).unwrap().clone();
     milestone.number = 1;
     milestone.root = 1;
     milestone.spec.words = b"Store shape\nMilestone words".as_slice().into();
@@ -40,8 +40,8 @@ fn lineage() -> [tasks::TaskRecord; 3] {
 
 fn ledger() -> Record {
     let (root, _, number) = live_task(None, tasks::Executor::Procedure { connector: 0, code: 1 });
-    let row = root.core.tasks.task(number).unwrap();
-    Record::Core(core::Record::Tasks(tasks::Stored::Ledger(*root.core.tasks.funding(row.funder).unwrap())))
+    let row = root.engine.core().tasks.task(number).unwrap();
+    Record::Core(core::Record::Tasks(tasks::Stored::Ledger(*root.engine.core().tasks.funding(row.funder).unwrap())))
 }
 
 fn root(rows: &[tasks::TaskRecord]) -> (Domain, Env<Limits>) {
@@ -122,8 +122,14 @@ fn fill(root: &mut Domain, env: &Env<Limits>, view: &mut forge::ChangesView) {
 }
 
 fn release(root: &mut Domain, env: &Env<Limits>, decision: Decision) {
-    crate::decision::accept_routed(&mut root.journal, &mut root.core.counters, &env.limits.journal, decision, false)
-        .unwrap();
+    crate::decision::accept_routed(
+        &mut root.journal,
+        &mut root.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        false,
+    )
+    .unwrap();
     crate::decision::resume(&mut root.journal, &mut Queue::uncapped());
     root.archive_reads.reclaim();
 }

@@ -1,37 +1,25 @@
 use crate::forgejo::pin::{
-    Binary, FORGEJO_BOTTLE_SHA256_MACOS_ARM64, FORGEJO_SHA256_LINUX_AMD64, FORGEJO_SHA256_LINUX_ARM64,
-    FORGEJO_SHA256_MACOS_ARM64, Form, Platform, RUNNER_BOTTLE_SHA256_MACOS_ARM64, RUNNER_SHA256_LINUX_AMD64,
-    RUNNER_SHA256_LINUX_ARM64, RUNNER_SHA256_MACOS_ARM64, RUNNER_VERSION, VERSION, digest, names_forgejo, names_runner,
+    Binary, FORGEJO_SHA256_LINUX_AMD64, FORGEJO_SHA256_LINUX_ARM64, FORGEJO_SHA256_MACOS_ARM64, Platform,
+    RUNNER_SHA256_LINUX_AMD64, RUNNER_SHA256_LINUX_ARM64, RUNNER_SHA256_MACOS_ARM64, RUNNER_VERSION, VERSION, digest,
+    names_forgejo, names_runner,
 };
 
 #[test]
 fn digest_answers_only_the_pinned_release_architectures() {
-    for (platform, arch, form, forgejo, runner) in [
-        (Platform::Linux, "amd64", Form::Binary, Some(FORGEJO_SHA256_LINUX_AMD64), Some(RUNNER_SHA256_LINUX_AMD64)),
-        (Platform::Linux, "arm64", Form::Binary, Some(FORGEJO_SHA256_LINUX_ARM64), Some(RUNNER_SHA256_LINUX_ARM64)),
-        (Platform::Linux, "amd64", Form::Archive, None, None),
-        (Platform::Linux, "arm64", Form::Archive, None, None),
-        (Platform::Macos, "amd64", Form::Binary, None, None),
-        (Platform::Macos, "amd64", Form::Archive, None, None),
-        (Platform::Macos, "arm64", Form::Binary, Some(FORGEJO_SHA256_MACOS_ARM64), Some(RUNNER_SHA256_MACOS_ARM64)),
-        (
-            Platform::Macos,
-            "arm64",
-            Form::Archive,
-            Some(FORGEJO_BOTTLE_SHA256_MACOS_ARM64),
-            Some(RUNNER_BOTTLE_SHA256_MACOS_ARM64),
-        ),
+    for (platform, arch, forgejo, runner) in [
+        (Platform::Linux, "amd64", Some(FORGEJO_SHA256_LINUX_AMD64), Some(RUNNER_SHA256_LINUX_AMD64)),
+        (Platform::Linux, "arm64", Some(FORGEJO_SHA256_LINUX_ARM64), Some(RUNNER_SHA256_LINUX_ARM64)),
+        (Platform::Macos, "amd64", None, None),
+        (Platform::Macos, "arm64", Some(FORGEJO_SHA256_MACOS_ARM64), Some(RUNNER_SHA256_MACOS_ARM64)),
     ] {
         for (binary, expected) in [(Binary::Forgejo, forgejo), (Binary::Runner, runner)] {
-            assert_eq!(digest(binary, platform, arch, form), expected, "{binary:?} {platform:?} {arch:?} {form:?}");
+            assert_eq!(digest(binary, platform, arch), expected, "{binary:?} {platform:?} {arch:?}");
         }
     }
     for binary in [Binary::Forgejo, Binary::Runner] {
         for platform in [Platform::Linux, Platform::Macos] {
-            for form in [Form::Binary, Form::Archive] {
-                for arch in ["x86_64", "aarch64", "386", "AMD64", ""] {
-                    assert_eq!(digest(binary, platform, arch, form), None, "{binary:?} {platform:?} {arch:?} {form:?}");
-                }
+            for arch in ["x86_64", "aarch64", "386", "AMD64", ""] {
+                assert_eq!(digest(binary, platform, arch), None, "{binary:?} {platform:?} {arch:?}");
             }
         }
     }
@@ -44,9 +32,7 @@ fn pinned_digests_are_64_lowercase_hex_digits() {
         FORGEJO_SHA256_LINUX_ARM64,
         RUNNER_SHA256_LINUX_AMD64,
         RUNNER_SHA256_LINUX_ARM64,
-        FORGEJO_BOTTLE_SHA256_MACOS_ARM64,
         FORGEJO_SHA256_MACOS_ARM64,
-        RUNNER_BOTTLE_SHA256_MACOS_ARM64,
         RUNNER_SHA256_MACOS_ARM64,
     ] {
         assert_eq!(pinned.len(), 64, "{pinned}");

@@ -1,0 +1,4 @@
+recipe 1
+ctl project make Hello --key qa-hello-project
+check
+ctl project show Hello

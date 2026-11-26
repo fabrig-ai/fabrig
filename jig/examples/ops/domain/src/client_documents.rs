@@ -1,9 +1,10 @@
 //! Same-decision assembly of the application's client documents.
 use crate::domain::{Work, held};
-use crate::route::{ConnectorRequest, connector_out, core_out};
+use crate::route::{ConnectorRequest, connector_out, core_request};
 use crate::{ClientDocument, ClientMissing, ClientSubject, Domain, Limits, Output, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_views as views;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
@@ -107,13 +108,15 @@ pub(crate) fn document(
         Ok(document) => (views::Made::Ready, Some(document)),
         Err(why) => (views::Made::Gone { why }, None),
     };
-    let mut requests = core::step(
-        &mut domain.core,
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
         &env.with(env.limits.core),
-        core::Event::View(views::Event::Made { watcher, outcome }),
+        In::Core(core::Event::View(views::Event::Made { watcher, outcome })),
+        &mut out,
     );
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("document completion count");
+    for _ in 0..out.len() {
+        let Out::Core(request) = out.pop().expect("document completion count");
         match request {
             core::Request::Held(output) => match *output {
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
@@ -166,27 +169,16 @@ pub(crate) fn document(
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. }) => {
-                    forward(domain, env, decision, core::Request::Held(Box::new(output)), work);
+                    core_request(domain, env, decision, core::Request::Held(Box::new(output)), work);
                 }
             },
             request @ (core::Request::Now(_)
             | core::Request::Write(_)
             | core::Request::Ask { .. }
-            | core::Request::ProjectMade { .. }) => forward(domain, env, decision, request, work),
+            | core::Request::ProjectMade { .. }) => core_request(domain, env, decision, request, work),
         }
     }
     assert!(value.is_none(), "the core paced every ready document");
-}
-fn forward(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision<Write, Output>,
-    request: core::Request,
-    work: &mut Queue<Work>,
-) {
-    let mut requests = Queue::uncapped();
-    requests.push(request);
-    core_out(domain, env, decision, requests, work);
 }
 
 pub(crate) struct Reading {

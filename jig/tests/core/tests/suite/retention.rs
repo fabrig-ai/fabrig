@@ -5,6 +5,7 @@ use jig_core_world::{
     world::{Setup, World, fixture},
 };
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -347,18 +348,18 @@ fn restart_makes_retention_due_at_once_then_arms_an_hour_after_completion() {
     let record = finish(&mut w);
     pass(&mut w);
     let (now, wall) = w.clocks();
-    assert_ne!(w.domain.core().due(now, wall), Some(core::Timer::Retention));
+    assert_ne!(engine::due(w.domain.engine(), now, wall, Admit::All), Some(core::Timer::Retention));
     at(&mut w, &record, 15);
     w.restart(4006, false);
     let (now, wall) = w.clocks();
     // domain/testing-fakes.md 1.2: restart settles after firing the due retention pass.
     assert!(!places(&mut w, record.number));
-    assert_ne!(w.domain.core().due(now, wall), Some(core::Timer::Retention));
+    assert_ne!(engine::due(w.domain.engine(), now, wall, Admit::All), Some(core::Timer::Retention));
     pass(&mut w);
     assert!(!places(&mut w, record.number));
-    assert_ne!(w.domain.core().due(now, wall), Some(core::Timer::Retention));
+    assert_ne!(engine::due(w.domain.engine(), now, wall, Admit::All), Some(core::Timer::Retention));
     let later = now.saturating_add(Duration::from_secs(3600));
-    assert_eq!(w.domain.core().due(later, wall), Some(core::Timer::Retention));
+    assert_eq!(engine::due(w.domain.engine(), later, wall, Admit::All), Some(core::Timer::Retention));
 }
 
 #[test]

@@ -72,22 +72,28 @@ relies on.
   steps' process boundaries are checked in 13.4.
 - **The fetch's machine** (`owned.md`, 6), in temper-fetch, and in
   temper-forge-setup where a forge's setup gives its pins, given its URLs
-  and digests: each pin's URL and digest for each architecture, and
-  another architecture refused; another status or a redirect refused;
-  a body past `setup.fetch_bytes` refused, and one past its size; the
-  lines in order for an answer with a size and for one without. Its
-  host, temper-fetch-shell's, in that crate's step tests over the
-  cache's effects and scripted answers (`../../testing/shells.md`, 3.4):
-  a wrong digest, its part file removed and its refusal naming the URL
-  and both digests; the right one, made 0o755 and renamed; a file
+  and digests: each pin's URL, at fabrig.ai and at a mirror, and its
+  digest, for each of the three platforms, and another architecture
+  refused; another status or a redirect refused; a body past
+  `setup.fetch_bytes` refused, and one past its size; each of the
+  unpacking's verdicts, and an unpacked digest other than the pin's,
+  refused with its staging files removed; the lines in order for an
+  answer with a size and for one without. Its host, temper-fetch-shell's,
+  in that crate's step tests over the cache's effects and scripted
+  answers (`../../testing/shells.md`, 3.4), a fake site serving packed
+  files at the pins' paths: each platform's pair unpacked, made 0o755
+  and renamed, no staging file left; a damaged, a truncated and an
+  oversized file, one followed by other bytes and one whose unpacked
+  digest isn't its pin, each refused naming the URL and what's wrong,
+  with no staging file left and nothing under the binary's name; a file
   already there hashed, nothing asked when it matches, and a mismatch
-  refused, naming its path, the file left; a part file left by a fetch
+  refused, naming its path, the file left; staging files left by a fetch
   cut short written again; the lines reaching the host's writer in
   order, with a size and without, none for a file already there; each
   request's head. temper-forge-setup-shell's suite keeps its local file
   server over TLS, its root skein's test root named by `SSL_CERT_FILE`:
-  the right digest, a refused root, and a bottle's two hops with the
-  token on the first alone (`../../testing/shells.md`, 4).
+  a packed file fetched and unpacked into a real cache, and a refused
+  root (`../../testing/shells.md`, 4).
 - **Claude Code's pin and fetch** (`owned.md`, 6): in temper-fetch, each
   platform's digest and size against `owned.md`, 6's table, and each pin's URL. At
   its host, temper-fetch-shell's, in the same step tests: a missing build

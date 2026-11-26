@@ -108,9 +108,9 @@ file the site serves beside it (5.1). The site that links them is
   providers' and the forges', since no roots are embedded
   (`protocol/setup/owned.md`, 6).
 - **Fetched by the box:** Forgejo and its runner, at the versions and
-  digests skein pins, as `protocol/setup/owned.md` 6 fetches them (an
-  answer of 200 alone, no redirect followed, or a mirror's address
-  given), or given by absolute path.
+  digests skein pins, as `protocol/setup/owned.md` 6 fetches them
+  (packed, from fabrig.ai or a mirror's address given, and unpacked by
+  temper), or given by absolute path.
 - **Checked at the start, as the configuration needs them:** `temper
   box` checks what the configuration it runs needs now, before it
   starts anything: git, `/usr/bin/rg` and `/bin/sh` where a worker runs
@@ -220,6 +220,19 @@ release's: no tag names it, and the workflow writes no checksum.
   `<os>-<arch>/temper-box.zst`, stripped and packed by `zstd -19`, which
   `temper` unpacks itself (`client/box-binary.md`, 3;
   `draft/deployment-binaries.md`, section 2).
+- **The forge's files beside the box's:** the pinned Forgejo and
+  forgejo-runner (skein's `forge/dialects.md`, 1.3) at
+  `/temper/forgejo/VERSION/forgejo-VERSION-<os>-<arch>.zst` and
+  `/temper/forgejo-runner/RUNNER_VERSION/forgejo-runner-RUNNER_VERSION-<os>-<arch>.zst`,
+  for `linux-amd64`, `linux-arm64` and `darwin-arm64`, each the
+  project's own release binary, or Homebrew's build on macOS, packed
+  by `zstd -19` and otherwise unchanged, with a `SHA256SUMS` of the
+  unpacked binaries in each version's directory. The box's forge fetch
+  takes them in place of the projects' sites and holds each to its pin
+  (`protocol/setup/owned.md`, 6), so they are checked against the pins
+  before they are published, and a pin moves only once its version's
+  six files are there. Like the rest of the site, they are put there
+  outside the repository.
 
 ## 6. Proved on a fresh machine
 
@@ -251,6 +264,10 @@ release's: no tag names it, and the workflow writes no checksum.
   its checksum, and a Developer ID signature and notarization for a
   file a browser downloads. Default: the site's file alone, signed ad
   hoc on the runner after its strip.
+- **The forge's sources beside its files:** Forgejo and forgejo-runner
+  are GPL code the site distributes (5.1), whose terms ask that their
+  source be offered with them. Default: the site's host's to keep,
+  outside the repository, as the files are.
 - **The client and `temper ctl` showing the version** of the
   deployment they reach, which may differ from their own binary's: a
   field of the deployment's document. Default: `--version` alone.

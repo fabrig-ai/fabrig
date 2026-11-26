@@ -31,7 +31,7 @@ pub(crate) fn route(
             match phase {
                 Phase::LoadCore => held(decision, Output::Load { phase, range: Range::Core }),
                 Phase::LoadInbox => {
-                    let census = domain.core.census(&env.limits.core);
+                    let census = domain.engine.core_mut().census(&env.limits.core);
                     held(decision, Output::Load { phase, range: Range::Census(census) });
                 }
                 Phase::RestoreConnector { connector } => {
@@ -81,7 +81,7 @@ pub(crate) fn done(
     work: &mut Queue<Work>,
 ) {
     let mut out = Queue::uncapped();
-    let action = domain.core.start_done(&env.with(env.limits.core), phase, &mut out);
+    let action = domain.engine.core_mut().start_done(&env.with(env.limits.core), phase, &mut out);
     if phase == core::start::Phase::Wires {
         match &action {
             core::start::Action::Commit(_) => crate::domain::write(domain, decision, Write::Wires),
@@ -91,7 +91,7 @@ pub(crate) fn done(
             }
         }
     }
-    if domain.core.start_opened()
+    if domain.engine.core().start_opened()
         && let Some(bytes) = domain.start.fill.take()
     {
         work.push(Work::Core(core::Event::Fill { bytes }));
@@ -108,7 +108,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision<Write, 
         }
         let input = domain.start.sweep.pop().expect("queued sweep page rows");
         let mut out = Queue::uncapped();
-        let action = domain.core.start_sweep(&env.with(env.limits.core), input, &mut out);
+        let action = domain.engine.core_mut().start_sweep(&env.with(env.limits.core), input, &mut out);
         crate::route::core_out(domain, env, decision, out, work);
         match action {
             core::start::Action::Idle => {}
@@ -136,7 +136,7 @@ pub(crate) fn store(
 ) {
     match store {
         Store::Switched => {
-            if domain.core.stopping() {
+            if domain.engine.core().stopping() {
                 return;
             }
             work.push(Work::StartDone(core::start::Phase::Switch));
@@ -158,11 +158,13 @@ pub(crate) fn store(
             }));
         }
         Store::Restore(record) => {
-            if domain.start.state == crate::domain::StartState::Stopped || domain.core.start_failure().is_some() {
+            if domain.start.state == crate::domain::StartState::Stopped
+                || domain.engine.core().start_failure().is_some()
+            {
                 return;
             }
             let valid = match record {
-                Record::Core(row) => match domain.core.restore(&env.with(env.limits.core), row) {
+                Record::Core(row) => match domain.engine.core_mut().restore(&env.with(env.limits.core), row) {
                     core::Restore::Deployment { commits } => {
                         domain.restored_commits = Some(commits);
                         true
@@ -188,7 +190,7 @@ pub(crate) fn store(
                 }
             };
             if !valid {
-                assert!(domain.core.start_failure().is_some(), "a refused row records its start failure");
+                assert!(domain.engine.core().start_failure().is_some(), "a refused row records its start failure");
             }
         }
     }
@@ -200,7 +202,7 @@ fn restore_roles(domain: &mut Domain, env: &Env<Limits>, record: &infrastructure
     match record {
         infrastructure::Record::Rely { project, resources, .. } => {
             for named in resources {
-                valid &= domain.core.restore_resource_role(
+                valid &= domain.engine.core_mut().restore_resource_role(
                     &env.with(env.limits.core),
                     *project,
                     tasks::Name {

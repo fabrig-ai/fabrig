@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x1b, 0x89, 0x3f, 0xe8, 0x88, 0xce, 0x18, 0x00, 0x12, 0x1b, 0x95, 0x95, 0x80, 0x1a, 0x2a, 0x5b, 0x33, 0x67, 0xd3,
-    0xf4, 0xc8, 0xf6, 0xdd, 0x23, 0xe6, 0xea, 0xa8, 0x20, 0x84, 0x18, 0x6c, 0x7e,
+    0xa7, 0xbc, 0xc3, 0xc9, 0x1e, 0x2a, 0x73, 0xd8, 0x31, 0x24, 0xc1, 0x3a, 0x1e, 0xe0, 0x85, 0xda, 0xe2, 0x63, 0x42,
+    0x3c, 0x66, 0x65, 0xc2, 0x0e, 0xe6, 0x18, 0xf7, 0x65, 0x06, 0x04, 0xef, 0x9b,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -194,6 +194,7 @@ pub struct Limits {
     pub landing_row_asks: u32,
     pub landing_row_entries: u32,
     pub landing_row_flake_reruns: u32,
+    pub landing_row_gate_hold_some: u32,
     pub receipt_run_url: u32,
     pub failed_tests_tests: u32,
     pub tier_verification_tier: u32,
@@ -337,6 +338,8 @@ pub struct Limits {
     pub change_cold_body: u32,
     pub change_cold_report: u32,
     pub change_cold_close_some: u32,
+    pub runner_hold_words: u32,
+    pub runner_baseline_attempts: u32,
     pub change_hot_signed: u32,
     pub change_hot_repair_tasks: u32,
     pub change_hot_resolution_tasks: u32,
@@ -577,6 +580,7 @@ pub const CEILINGS: Limits = Limits {
     landing_row_asks: 64,
     landing_row_entries: 65_536,
     landing_row_flake_reruns: 65_536,
+    landing_row_gate_hold_some: 512,
     receipt_run_url: 2_048,
     failed_tests_tests: 1_024,
     tier_verification_tier: 32,
@@ -720,6 +724,8 @@ pub const CEILINGS: Limits = Limits {
     change_cold_body: 1_048_576,
     change_cold_report: 1_048_576,
     change_cold_close_some: 16_384,
+    runner_hold_words: 512,
+    runner_baseline_attempts: 1_024,
     change_hot_signed: 8,
     change_hot_repair_tasks: 1_024,
     change_hot_resolution_tasks: 1_024,
@@ -960,6 +966,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_row_asks",
     "landing_row_entries",
     "landing_row_flake_reruns",
+    "landing_row_gate_hold_some",
     "receipt_run_url",
     "failed_tests_tests",
     "tier_verification_tier",
@@ -1103,6 +1110,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_cold_body",
     "change_cold_report",
     "change_cold_close_some",
+    "runner_hold_words",
+    "runner_baseline_attempts",
     "change_hot_signed",
     "change_hot_repair_tasks",
     "change_hot_resolution_tasks",
@@ -1347,6 +1356,7 @@ impl Limits {
             self.landing_row_asks,
             self.landing_row_entries,
             self.landing_row_flake_reruns,
+            self.landing_row_gate_hold_some,
             self.receipt_run_url,
             self.failed_tests_tests,
             self.tier_verification_tier,
@@ -1490,6 +1500,8 @@ impl Limits {
             self.change_cold_body,
             self.change_cold_report,
             self.change_cold_close_some,
+            self.runner_hold_words,
+            self.runner_baseline_attempts,
             self.change_hot_signed,
             self.change_hot_repair_tasks,
             self.change_hot_resolution_tasks,
@@ -1735,6 +1747,7 @@ impl Limits {
             landing_row_asks: self.landing_row_asks.min(most),
             landing_row_entries: self.landing_row_entries.min(most),
             landing_row_flake_reruns: self.landing_row_flake_reruns.min(most),
+            landing_row_gate_hold_some: self.landing_row_gate_hold_some.min(most),
             receipt_run_url: self.receipt_run_url.min(most),
             failed_tests_tests: self.failed_tests_tests.min(most),
             tier_verification_tier: self.tier_verification_tier.min(most),
@@ -1878,6 +1891,8 @@ impl Limits {
             change_cold_body: self.change_cold_body.min(most),
             change_cold_report: self.change_cold_report.min(most),
             change_cold_close_some: self.change_cold_close_some.min(most),
+            runner_hold_words: self.runner_hold_words.min(most),
+            runner_baseline_attempts: self.runner_baseline_attempts.min(most),
             change_hot_signed: self.change_hot_signed.min(most),
             change_hot_repair_tasks: self.change_hot_repair_tasks.min(most),
             change_hot_resolution_tasks: self.change_hot_resolution_tasks.min(most),
@@ -2120,6 +2135,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_ROW_ASKS,
     paths::LANDING_ROW_ENTRIES,
     paths::LANDING_ROW_FLAKE_RERUNS,
+    paths::LANDING_ROW_GATE_HOLD,
     paths::RECEIPT_RUN_URL,
     paths::FAILED_TESTS_TESTS,
     paths::TIER_VERIFICATION_TIER,
@@ -2263,6 +2279,8 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_COLD_BODY,
     paths::CHANGE_COLD_REPORT,
     paths::CHANGE_COLD_CLOSE,
+    paths::RUNNER_HOLD_WORDS,
+    paths::RUNNER_BASELINE_ATTEMPTS,
     paths::CHANGE_HOT_SIGNED,
     paths::CHANGE_HOT_REPAIR_TASKS,
     paths::CHANGE_HOT_RESOLUTION_TASKS,
@@ -3397,6 +3415,7 @@ pub mod paths {
     pub const LANDING_ROW_ENTRIES: Path = Path::new("LandingRow.entries");
     pub const LANDING_ROW_FLAKE_RERUNS: Path = Path::new("LandingRow.flake_reruns");
     pub const LANDING_ROW_FOLLOWS: Path = Path::new("LandingRow.follows");
+    pub const LANDING_ROW_GATE_HOLD: Path = Path::new("LandingRow.gate_hold");
     pub const LANDING_ROW_TAIL: Path = Path::new("LandingRow (tail)");
     pub const RECEIPT_RUN_ID: Path = Path::new("ReceiptRun.id");
     pub const RECEIPT_RUN_NUMBER: Path = Path::new("ReceiptRun.number");
@@ -3633,6 +3652,9 @@ pub mod paths {
     pub const PROJECT_QUESTIONS_TAIL: Path = Path::new("ProjectQuestions (tail)");
     pub const SETTINGS_LANDING_WAY_TAG: Path = Path::new("SettingsLandingWay (tag)");
     pub const SETTINGS_LANDING_WAIT_TAG: Path = Path::new("SettingsLandingWait (tag)");
+    pub const SETTINGS_FLAKE_RERUN_PROCESSES: Path = Path::new("SettingsFlakeRerun.processes");
+    pub const SETTINGS_FLAKE_RERUN_TAIL: Path = Path::new("SettingsFlakeRerun (tail)");
+    pub const SETTINGS_FLAKES_TAG: Path = Path::new("SettingsFlakes (tag)");
     pub const SETTINGS_COMBINE_TAG: Path = Path::new("SettingsCombine (tag)");
     pub const NAMED_MODEL_MODEL: Path = Path::new("NamedModel.model");
     pub const NAMED_MODEL_EFFORT: Path = Path::new("NamedModel.effort");
@@ -3669,6 +3691,7 @@ pub mod paths {
     pub const PROJECT_LANDING_VERIFICATION_BOUND_MS: Path = Path::new("ProjectLanding.verification_bound_ms");
     pub const PROJECT_LANDING_WAIT: Path = Path::new("ProjectLanding.wait");
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
+    pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -4180,6 +4203,7 @@ pub mod paths {
     pub const CHANGE_COLD_TAIL: Path = Path::new("ChangeCold (tail)");
     pub const REGATE_RECEIPT: Path = Path::new("Regate.receipt");
     pub const REGATE_RUN: Path = Path::new("Regate.run");
+    pub const REGATE_TAKEN: Path = Path::new("Regate.taken");
     pub const REGATE_TAIL: Path = Path::new("Regate (tail)");
     pub const CLOSE_REFUSED_COUNTS: Path = Path::new("CloseRefused.counts");
     pub const CLOSE_REFUSED_TAIL: Path = Path::new("CloseRefused (tail)");
@@ -4197,13 +4221,23 @@ pub mod paths {
     pub const BEHIND_WAIT_UNTIL: Path = Path::new("BehindWait.until");
     pub const BEHIND_WAIT_EVIDENCE: Path = Path::new("BehindWait.evidence");
     pub const BEHIND_WAIT_TAIL: Path = Path::new("BehindWait (tail)");
+    pub const RUNNER_HOLD_WORDS: Path = Path::new("RunnerHold.words");
+    pub const RUNNER_HOLD_TAIL: Path = Path::new("RunnerHold (tail)");
+    pub const RUNNER_BASELINE_ATTEMPTS: Path = Path::new("RunnerBaseline.attempts");
+    pub const RUNNER_BASELINE_TAIL: Path = Path::new("RunnerBaseline (tail)");
+    pub const RUNNER_CI_TAG: Path = Path::new("RunnerCi (tag)");
+    pub const CI_RECHECK_JOB: Path = Path::new("CiRecheck.job");
+    pub const CI_RECHECK_TAKEN: Path = Path::new("CiRecheck.taken");
+    pub const CI_RECHECK_TAIL: Path = Path::new("CiRecheck (tail)");
     pub const CHANGE_HOT_BEHIND_WAIT: Path = Path::new("ChangeHot.behind_wait");
+    pub const CHANGE_HOT_RUNNER_CI: Path = Path::new("ChangeHot.runner_ci");
     pub const CHANGE_HOT_SETTLING: Path = Path::new("ChangeHot.settling");
     pub const CHANGE_HOT_CLOSE_AT: Path = Path::new("ChangeHot.close_at");
     pub const CHANGE_HOT_ROOM: Path = Path::new("ChangeHot.room");
     pub const CHANGE_HOT_DELEGATE_HEAD: Path = Path::new("ChangeHot.delegate_head");
     pub const CHANGE_HOT_DELEGATE_FLAKE: Path = Path::new("ChangeHot.delegate_flake");
     pub const CHANGE_HOT_DELEGATE_NO_TEST: Path = Path::new("ChangeHot.delegate_no_test");
+    pub const CHANGE_HOT_DELEGATE_WORDS: Path = Path::new("ChangeHot.delegate_words");
     pub const CHANGE_HOT_REGATE: Path = Path::new("ChangeHot.regate");
     pub const CHANGE_HOT_KEPT: Path = Path::new("ChangeHot.kept");
     pub const CHANGE_HOT_TASK_RELEASE: Path = Path::new("ChangeHot.task_release");
@@ -4237,6 +4271,7 @@ pub mod paths {
     pub const CHANGE_HOT_HISTORY: Path = Path::new("ChangeHot.history");
     pub const CHANGE_HOT_ASKS: Path = Path::new("ChangeHot.asks");
     pub const CHANGE_HOT_HANDED: Path = Path::new("ChangeHot.handed");
+    pub const CHANGE_HOT_CI_RECHECK: Path = Path::new("ChangeHot.ci_recheck");
     pub const CHANGE_HOT_TAIL: Path = Path::new("ChangeHot (tail)");
     pub const SUBSCRIBER_TASK: Path = Path::new("Subscriber.task");
     pub const SUBSCRIBER_NUMBER: Path = Path::new("Subscriber.number");
@@ -13359,6 +13394,8 @@ pub enum ChangeHold {
     Questions,
     Flake,
     NoTest,
+    Runner,
+    RedStands,
 }
 
 // Record: ChangeHold.
@@ -13378,7 +13415,9 @@ impl ChangeHold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -13422,6 +13461,8 @@ impl Record for ChangeHold {
             Self::Questions => field::put(out, &[11], paths::CHANGE_HOLD_TAG),
             Self::Flake => field::put(out, &[12], paths::CHANGE_HOLD_TAG),
             Self::NoTest => field::put(out, &[13], paths::CHANGE_HOLD_TAG),
+            Self::Runner => field::put(out, &[14], paths::CHANGE_HOLD_TAG),
+            Self::RedStands => field::put(out, &[15], paths::CHANGE_HOLD_TAG),
         }
     }
 
@@ -13442,7 +13483,9 @@ impl Record for ChangeHold {
             11 => Ok(Self::Questions),
             12 => Ok(Self::Flake),
             13 => Ok(Self::NoTest),
-            14..=u8::MAX => Err(Problem { path: paths::CHANGE_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            14 => Ok(Self::Runner),
+            15 => Ok(Self::RedStands),
+            16..=u8::MAX => Err(Problem { path: paths::CHANGE_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -23714,6 +23757,7 @@ pub struct LandingRow {
     pub entries: List<LandingEntry>,
     pub flake_reruns: List<LandingFlakeRerun>,
     pub follows: Option<LandingFollows>,
+    pub gate_hold: Option<Box<[u8]>>,
 }
 
 // Record: LandingRow.
@@ -23740,11 +23784,13 @@ impl LandingRow {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_flake_reruns), item: 17, size: size_of::<LandingFlakeRerun>() },
         skein_codec::bounds::Node::Named("LandingFollows"),
         skein_codec::bounds::Node::Option { item: 19 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_row_gate_hold_some) },
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20, 22] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 405;
+    pub const ENCODED_AT_ZERO: u64 = 410;
 }
 
 impl Record for LandingRow {
@@ -23780,6 +23826,7 @@ impl Record for LandingRow {
         field::write(field::Sequence { limit: limits.landing_row_entries.min(CEILINGS.landing_row_entries), minimum: 16, item: field::Nested }, &self.entries, limits, out, paths::LANDING_ROW_ENTRIES)?;
         field::write(field::Sequence { limit: limits.landing_row_flake_reruns.min(CEILINGS.landing_row_flake_reruns), minimum: 65, item: field::Nested }, &self.flake_reruns, limits, out, paths::LANDING_ROW_FLAKE_RERUNS)?;
         field::write(field::Optional { item: field::Nested }, &self.follows, limits, out, paths::LANDING_ROW_FOLLOWS)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.landing_row_gate_hold_some.min(CEILINGS.landing_row_gate_hold_some) } }, &self.gate_hold, limits, out, paths::LANDING_ROW_GATE_HOLD)?;
         Ok(())
     }
 
@@ -23796,6 +23843,7 @@ impl Record for LandingRow {
             entries: field::read(field::Sequence { limit: limits.landing_row_entries.min(CEILINGS.landing_row_entries), minimum: 16, item: field::Nested }, limits, reader, paths::LANDING_ROW_ENTRIES)?,
             flake_reruns: field::read(field::Sequence { limit: limits.landing_row_flake_reruns.min(CEILINGS.landing_row_flake_reruns), minimum: 65, item: field::Nested }, limits, reader, paths::LANDING_ROW_FLAKE_RERUNS)?,
             follows: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_ROW_FOLLOWS)?,
+            gate_hold: field::read(field::Optional { item: field::Bytes { limit: limits.landing_row_gate_hold_some.min(CEILINGS.landing_row_gate_hold_some) } }, limits, reader, paths::LANDING_ROW_GATE_HOLD)?,
         })
     }
 }
@@ -28003,6 +28051,113 @@ impl Record for SettingsLandingWait {
     }
 }
 
+// Type: SettingsFlakeRerun.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingsFlakeRerun {
+    pub processes: u32,
+}
+
+// Record: SettingsFlakeRerun.
+impl SettingsFlakeRerun {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for SettingsFlakeRerun {
+    type Limits = Limits;
+    const TAIL: Path = paths::SETTINGS_FLAKE_RERUN_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakeRerun")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakeRerun")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.processes, limits, out, paths::SETTINGS_FLAKE_RERUN_PROCESSES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            processes: field::read(field::U32, limits, reader, paths::SETTINGS_FLAKE_RERUN_PROCESSES)?,
+        })
+    }
+}
+
+// Type: SettingsFlakes.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SettingsFlakes {
+    Never,
+    Rerun(SettingsFlakeRerun),
+}
+
+// Record: SettingsFlakes.
+impl SettingsFlakes {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("SettingsFlakeRerun"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
+impl Record for SettingsFlakes {
+    type Limits = Limits;
+    const TAIL: Path = paths::SETTINGS_FLAKES_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakes")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakes")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Never => field::put(out, &[0], paths::SETTINGS_FLAKES_TAG),
+            Self::Rerun(value) => { field::put(out, &[1], paths::SETTINGS_FLAKES_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::SETTINGS_FLAKES_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Never),
+            1 => Ok(Self::Rerun(SettingsFlakeRerun::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::SETTINGS_FLAKES_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: SettingsCombine.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingsCombine {
@@ -28377,6 +28532,7 @@ pub struct ProjectLanding {
     pub verification_bound_ms: u64,
     pub wait: SettingsLandingWait,
     pub repairs: Option<RepairSettings>,
+    pub flakes: Option<SettingsFlakes>,
 }
 
 // Record: ProjectLanding.
@@ -28400,11 +28556,13 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Named("SettingsLandingWait"),
         skein_codec::bounds::Node::Named("RepairSettings"),
         skein_codec::bounds::Node::Option { item: 16 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17] },
+        skein_codec::bounds::Node::Named("SettingsFlakes"),
+        skein_codec::bounds::Node::Option { item: 18 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 104;
+    pub const ENCODED_AT_ZERO: u64 = 110;
 }
 
 impl Record for ProjectLanding {
@@ -28443,6 +28601,7 @@ impl Record for ProjectLanding {
         field::write(field::U64, &self.verification_bound_ms, limits, out, paths::PROJECT_LANDING_VERIFICATION_BOUND_MS)?;
         field::write(field::Nested, &self.wait, limits, out, paths::PROJECT_LANDING_WAIT)?;
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
+        field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
         Ok(())
     }
 
@@ -28462,6 +28621,7 @@ impl Record for ProjectLanding {
             verification_bound_ms: field::read(field::U64, limits, reader, paths::PROJECT_LANDING_VERIFICATION_BOUND_MS)?,
             wait: field::read(field::Nested, limits, reader, paths::PROJECT_LANDING_WAIT)?,
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
+            flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
         })
     }
 }
@@ -37140,6 +37300,7 @@ impl Record for ChangeCold {
 pub struct Regate {
     pub receipt: ReceiptKey,
     pub run: u64,
+    pub taken: Option<u64>,
 }
 
 // Record: Regate.
@@ -37147,11 +37308,13 @@ impl Regate {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("ReceiptKey"),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 55;
+    pub const ENCODED_AT_ZERO: u64 = 64;
 }
 
 impl Record for Regate {
@@ -37178,6 +37341,7 @@ impl Record for Regate {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.receipt, limits, out, paths::REGATE_RECEIPT)?;
         field::write(field::U64, &self.run, limits, out, paths::REGATE_RUN)?;
+        field::write(field::Optional { item: field::U64 }, &self.taken, limits, out, paths::REGATE_TAKEN)?;
         Ok(())
     }
 
@@ -37185,6 +37349,7 @@ impl Record for Regate {
         Ok(Self {
             receipt: field::read(field::Nested, limits, reader, paths::REGATE_RECEIPT)?,
             run: field::read(field::U64, limits, reader, paths::REGATE_RUN)?,
+            taken: field::read(field::Optional { item: field::U64 }, limits, reader, paths::REGATE_TAKEN)?,
         })
     }
 }
@@ -37490,16 +37655,235 @@ impl Record for BehindWait {
     }
 }
 
+// Type: RunnerHold.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RunnerHold {
+    pub words: Box<[u8]>,
+}
+
+// Record: RunnerHold.
+impl RunnerHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, runner_hold_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for RunnerHold {
+    type Limits = Limits;
+    const TAIL: Path = paths::RUNNER_HOLD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunnerHold")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunnerHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.runner_hold_words.min(CEILINGS.runner_hold_words) }, &self.words, limits, out, paths::RUNNER_HOLD_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            words: field::read(field::Bytes { limit: limits.runner_hold_words.min(CEILINGS.runner_hold_words) }, limits, reader, paths::RUNNER_HOLD_WORDS)?,
+        })
+    }
+}
+
+// Type: RunnerBaseline.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RunnerBaseline {
+    pub attempts: List<JobAttempt>,
+}
+
+// Record: RunnerBaseline.
+impl RunnerBaseline {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("JobAttempt"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, runner_baseline_attempts), item: 0, size: size_of::<JobAttempt>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for RunnerBaseline {
+    type Limits = Limits;
+    const TAIL: Path = paths::RUNNER_BASELINE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunnerBaseline")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunnerBaseline")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.runner_baseline_attempts.min(CEILINGS.runner_baseline_attempts), minimum: 52, item: field::Nested }, &self.attempts, limits, out, paths::RUNNER_BASELINE_ATTEMPTS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            attempts: field::read(field::Sequence { limit: limits.runner_baseline_attempts.min(CEILINGS.runner_baseline_attempts), minimum: 52, item: field::Nested }, limits, reader, paths::RUNNER_BASELINE_ATTEMPTS)?,
+        })
+    }
+}
+
+// Type: RunnerCi.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RunnerCi {
+    Held(RunnerHold),
+    Released,
+    Counting(RunnerBaseline),
+}
+
+// Record: RunnerCi.
+impl RunnerCi {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("RunnerHold"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("RunnerBaseline"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
+impl Record for RunnerCi {
+    type Limits = Limits;
+    const TAIL: Path = paths::RUNNER_CI_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunnerCi")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RunnerCi")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Held(value) => { field::put(out, &[0], paths::RUNNER_CI_TAG)?; value.write(limits, out) },
+            Self::Released => field::put(out, &[1], paths::RUNNER_CI_TAG),
+            Self::Counting(value) => { field::put(out, &[2], paths::RUNNER_CI_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::RUNNER_CI_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Held(RunnerHold::read(limits, reader)?)),
+            1 => Ok(Self::Released),
+            2 => Ok(Self::Counting(RunnerBaseline::read(limits, reader)?)),
+            3..=u8::MAX => Err(Problem { path: paths::RUNNER_CI_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: CiRecheck.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CiRecheck {
+    pub job: JobAttempt,
+    pub taken: Option<u32>,
+}
+
+// Record: CiRecheck.
+impl CiRecheck {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("JobAttempt"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 57;
+}
+
+impl Record for CiRecheck {
+    type Limits = Limits;
+    const TAIL: Path = paths::CI_RECHECK_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CiRecheck")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CiRecheck")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.job, limits, out, paths::CI_RECHECK_JOB)?;
+        field::write(field::Optional { item: field::U32 }, &self.taken, limits, out, paths::CI_RECHECK_TAKEN)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            job: field::read(field::Nested, limits, reader, paths::CI_RECHECK_JOB)?,
+            taken: field::read(field::Optional { item: field::U32 }, limits, reader, paths::CI_RECHECK_TAKEN)?,
+        })
+    }
+}
+
 // Type: ChangeHot.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
     pub behind_wait: Option<BehindWait>,
+    pub runner_ci: Option<RunnerCi>,
     pub settling: bool,
     pub close_at: Option<CloseAt>,
     pub room: Option<u64>,
     pub delegate_head: Option<[u8; 32]>,
     pub delegate_flake: bool,
     pub delegate_no_test: bool,
+    pub delegate_words: Option<ResultText>,
     pub regate: Option<Regate>,
     pub kept: Option<[u8; 32]>,
     pub task_release: Option<TaskRelease>,
@@ -37533,6 +37917,7 @@ pub struct ChangeHot {
     pub history: Option<ChangeHistory>,
     pub asks: List<LandingHanded>,
     pub handed: u32,
+    pub ci_recheck: Option<CiRecheck>,
 }
 
 // Record: ChangeHot.
@@ -37540,75 +37925,81 @@ impl ChangeHot {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("BehindWait"),
         skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Named("RunnerCi"),
+        skein_codec::bounds::Node::Option { item: 2 },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Named("CloseAt"),
-        skein_codec::bounds::Node::Option { item: 3 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 5 },
-        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 7 },
-        skein_codec::bounds::Node::Scalar(1),
-        skein_codec::bounds::Node::Scalar(1),
-        skein_codec::bounds::Node::Named("Regate"),
-        skein_codec::bounds::Node::Option { item: 11 },
         skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("ResultText"),
         skein_codec::bounds::Node::Option { item: 13 },
-        skein_codec::bounds::Node::Named("TaskRelease"),
+        skein_codec::bounds::Node::Named("Regate"),
         skein_codec::bounds::Node::Option { item: 15 },
-        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 17 },
-        skein_codec::bounds::Node::Named("SignOff"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 19, size: size_of::<SignOff>() },
-        skein_codec::bounds::Node::Named("ChangeEnding"),
+        skein_codec::bounds::Node::Named("TaskRelease"),
+        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Named("HistoryJobRecord"),
         skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Named("SignOff"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 23, size: size_of::<SignOff>() },
+        skein_codec::bounds::Node::Named("ChangeEnding"),
+        skein_codec::bounds::Node::Option { item: 25 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 23, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 27, size: size_of::<u64>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 25, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 29, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("ChangeResult"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Change"),
         skein_codec::bounds::Node::Named("ChangeCi"),
-        skein_codec::bounds::Node::Option { item: 31 },
-        skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 33 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 35 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 37 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 39 },
         skein_codec::bounds::Node::Named("EffectResult"),
         skein_codec::bounds::Node::Named("DelegateRef"),
-        skein_codec::bounds::Node::Option { item: 38 },
+        skein_codec::bounds::Node::Option { item: 42 },
         skein_codec::bounds::Node::Named("ChangeStatus"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("GateReport"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 43, size: size_of::<GateReport>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 47, size: size_of::<GateReport>() },
         skein_codec::bounds::Node::Named("GateRemark"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 45, size: size_of::<GateRemark>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 49, size: size_of::<GateRemark>() },
         skein_codec::bounds::Node::Named("ChangeHold"),
-        skein_codec::bounds::Node::Option { item: 47 },
+        skein_codec::bounds::Node::Option { item: 51 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 49 },
+        skein_codec::bounds::Node::Option { item: 53 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("EffectAccount"),
-        skein_codec::bounds::Node::Option { item: 52 },
+        skein_codec::bounds::Node::Option { item: 56 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_producer_failure_some) },
-        skein_codec::bounds::Node::Option { item: 54 },
+        skein_codec::bounds::Node::Option { item: 58 },
         skein_codec::bounds::Node::Named("Questions"),
         skein_codec::bounds::Node::Named("FollowCheckProgress"),
-        skein_codec::bounds::Node::Option { item: 57 },
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
-        skein_codec::bounds::Node::Option { item: 59 },
-        skein_codec::bounds::Node::Named("ChangeHistory"),
         skein_codec::bounds::Node::Option { item: 61 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
+        skein_codec::bounds::Node::Option { item: 63 },
+        skein_codec::bounds::Node::Named("ChangeHistory"),
+        skein_codec::bounds::Node::Option { item: 65 },
         skein_codec::bounds::Node::Named("LandingHanded"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 63, size: size_of::<LandingHanded>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 67, size: size_of::<LandingHanded>() },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 27, 28, 29, 30, 32, 34, 36, 37, 39, 40, 41, 42, 44, 46, 48, 50, 51, 53, 55, 56, 58, 60, 62, 64, 65] },
+        skein_codec::bounds::Node::Named("CiRecheck"),
+        skein_codec::bounds::Node::Option { item: 70 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 6, 8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 36, 38, 40, 41, 43, 44, 45, 46, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 68, 69, 71] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1613;
+    pub const ENCODED_AT_ZERO: u64 = 1699;
 }
 
 impl Record for ChangeHot {
@@ -37634,12 +38025,14 @@ impl Record for ChangeHot {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::Nested }, &self.behind_wait, limits, out, paths::CHANGE_HOT_BEHIND_WAIT)?;
+        field::write(field::Optional { item: field::Nested }, &self.runner_ci, limits, out, paths::CHANGE_HOT_RUNNER_CI)?;
         field::write(field::Boolean, &self.settling, limits, out, paths::CHANGE_HOT_SETTLING)?;
         field::write(field::Optional { item: field::Nested }, &self.close_at, limits, out, paths::CHANGE_HOT_CLOSE_AT)?;
         field::write(field::Optional { item: field::U64 }, &self.room, limits, out, paths::CHANGE_HOT_ROOM)?;
         field::write(field::Optional { item: field::Fixed::<32> }, &self.delegate_head, limits, out, paths::CHANGE_HOT_DELEGATE_HEAD)?;
         field::write(field::Boolean, &self.delegate_flake, limits, out, paths::CHANGE_HOT_DELEGATE_FLAKE)?;
         field::write(field::Boolean, &self.delegate_no_test, limits, out, paths::CHANGE_HOT_DELEGATE_NO_TEST)?;
+        field::write(field::Optional { item: field::Nested }, &self.delegate_words, limits, out, paths::CHANGE_HOT_DELEGATE_WORDS)?;
         field::write(field::Optional { item: field::Nested }, &self.regate, limits, out, paths::CHANGE_HOT_REGATE)?;
         field::write(field::Optional { item: field::Fixed::<32> }, &self.kept, limits, out, paths::CHANGE_HOT_KEPT)?;
         field::write(field::Optional { item: field::Nested }, &self.task_release, limits, out, paths::CHANGE_HOT_TASK_RELEASE)?;
@@ -37673,18 +38066,21 @@ impl Record for ChangeHot {
         field::write(field::Optional { item: field::Nested }, &self.history, limits, out, paths::CHANGE_HOT_HISTORY)?;
         field::write(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, &self.asks, limits, out, paths::CHANGE_HOT_ASKS)?;
         field::write(field::U32, &self.handed, limits, out, paths::CHANGE_HOT_HANDED)?;
+        field::write(field::Optional { item: field::Nested }, &self.ci_recheck, limits, out, paths::CHANGE_HOT_CI_RECHECK)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             behind_wait: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_BEHIND_WAIT)?,
+            runner_ci: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_RUNNER_CI)?,
             settling: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_SETTLING)?,
             close_at: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CLOSE_AT)?,
             room: field::read(field::Optional { item: field::U64 }, limits, reader, paths::CHANGE_HOT_ROOM)?,
             delegate_head: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::CHANGE_HOT_DELEGATE_HEAD)?,
             delegate_flake: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_DELEGATE_FLAKE)?,
             delegate_no_test: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_DELEGATE_NO_TEST)?,
+            delegate_words: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_DELEGATE_WORDS)?,
             regate: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_REGATE)?,
             kept: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::CHANGE_HOT_KEPT)?,
             task_release: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_TASK_RELEASE)?,
@@ -37718,6 +38114,7 @@ impl Record for ChangeHot {
             history: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_HISTORY)?,
             asks: field::read(field::Sequence { limit: limits.change_hot_asks.min(CEILINGS.change_hot_asks), minimum: 47, item: field::Nested }, limits, reader, paths::CHANGE_HOT_ASKS)?,
             handed: field::read(field::U32, limits, reader, paths::CHANGE_HOT_HANDED)?,
+            ci_recheck: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_CI_RECHECK)?,
         })
     }
 }
@@ -40029,7 +40426,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 105;
+    pub const ENCODED_AT_ZERO: u64 = 111;
 }
 
 impl Record for SettingValue {
@@ -40116,7 +40513,7 @@ impl SizedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 109;
+    pub const ENCODED_AT_ZERO: u64 = 115;
 }
 
 impl Record for SizedValue {
@@ -40172,7 +40569,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 116;
 }
 
 impl Record for SettingEdit {
@@ -40237,7 +40634,7 @@ impl SettingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 131;
+    pub const ENCODED_AT_ZERO: u64 = 137;
 }
 
 impl Record for SettingRow {
@@ -42767,7 +43164,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1614;
+    pub const ENCODED_AT_ZERO: u64 = 1700;
 }
 
 impl Record for Value {
@@ -42922,7 +43319,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1616;
+    pub const ENCODED_AT_ZERO: u64 = 1702;
 }
 
 impl Record for Row {
@@ -43032,6 +43429,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Check", nodes: Check::SHAPE },
     skein_codec::bounds::Declaration { name: "ChecksAnswer", nodes: ChecksAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "Ci", nodes: Ci::SHAPE },
+    skein_codec::bounds::Declaration { name: "CiRecheck", nodes: CiRecheck::SHAPE },
     skein_codec::bounds::Declaration { name: "CiState", nodes: CiState::SHAPE },
     skein_codec::bounds::Declaration { name: "CiTopic", nodes: CiTopic::SHAPE },
     skein_codec::bounds::Declaration { name: "ClassItem", nodes: ClassItem::SHAPE },
@@ -43471,6 +43869,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RuleGate", nodes: RuleGate::SHAPE },
     skein_codec::bounds::Declaration { name: "RulePattern", nodes: RulePattern::SHAPE },
     skein_codec::bounds::Declaration { name: "RunWriter", nodes: RunWriter::SHAPE },
+    skein_codec::bounds::Declaration { name: "RunnerBaseline", nodes: RunnerBaseline::SHAPE },
+    skein_codec::bounds::Declaration { name: "RunnerCi", nodes: RunnerCi::SHAPE },
+    skein_codec::bounds::Declaration { name: "RunnerHold", nodes: RunnerHold::SHAPE },
     skein_codec::bounds::Declaration { name: "Segment", nodes: Segment::SHAPE },
     skein_codec::bounds::Declaration { name: "Segments", nodes: Segments::SHAPE },
     skein_codec::bounds::Declaration { name: "SetReviewers", nodes: SetReviewers::SHAPE },
@@ -43482,6 +43883,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Settings", nodes: Settings::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsBranch", nodes: SettingsBranch::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsCombine", nodes: SettingsCombine::SHAPE },
+    skein_codec::bounds::Declaration { name: "SettingsFlakeRerun", nodes: SettingsFlakeRerun::SHAPE },
+    skein_codec::bounds::Declaration { name: "SettingsFlakes", nodes: SettingsFlakes::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsFollows", nodes: SettingsFollows::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsGate", nodes: SettingsGate::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsGateReport", nodes: SettingsGateReport::SHAPE },
@@ -43754,6 +44157,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_row_asks,
     CEILINGS.landing_row_entries,
     CEILINGS.landing_row_flake_reruns,
+    CEILINGS.landing_row_gate_hold_some,
     CEILINGS.receipt_run_url,
     CEILINGS.failed_tests_tests,
     CEILINGS.tier_verification_tier,
@@ -43897,6 +44301,8 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_cold_body,
     CEILINGS.change_cold_report,
     CEILINGS.change_cold_close_some,
+    CEILINGS.runner_hold_words,
+    CEILINGS.runner_baseline_attempts,
     CEILINGS.change_hot_signed,
     CEILINGS.change_hot_repair_tasks,
     CEILINGS.change_hot_resolution_tasks,

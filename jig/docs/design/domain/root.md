@@ -1,6 +1,6 @@
 # The application's root
 
-Provisional, 2026-10-07, revised 2026-11-05. What an application's
+Provisional, 2026-10-07, revised 2026-11-26. What an application's
 engine root is and does: the top-level domain every application on jig
 writes, which composes jig's core with the application's connectors and
 its own child domains. It says what the root carries, the one shape
@@ -49,7 +49,7 @@ are connectors.md. What is still open is listed in section 14.
 
 ```
 <application>-domain        the root: the journal, routing, translation, putting outputs together
-├── core                    jig's core (engine.md)
+├── core                    jig's engine over its core (engine/vocabulary.md, 2)
 ├── <connector>…            the application's connectors (connectors.md)
 ├── jig-domain-host         jig's hub, for runs on the engine's slots, if the application runs agents there (hosts.md)
 ├── smith-inline-agent      the hub's agent in the engine, smith's: its domains in this process (hosts/README.md, 5.2)
@@ -71,7 +71,10 @@ are connectors.md. What is still open is listed in section 14.
   it owns the link's values (hosts/hub.md, 1), the checked `SourceName`, `Worker`
   and the immutable configured-membership minter among them, which the fleet,
   the hub and accounts share. It knows no fleet, hub or accounts state, and
-  whoever reads its values names it: none of the three re-exports them. The core knows each connector
+  whoever reads its values names it: none of the three re-exports them.
+  `jig-domain-contract` is the other: the values the core and its
+  connectors exchange, below both and above `jig-domain-link` alone
+  (connectors.md, 2). The core knows each connector
   by a number the root gives it in configuration; each connector knows nothing
   of the core.
 - **No root above it.** In one process, an engine's root and its
@@ -111,6 +114,16 @@ iterate, after the step:
   The root keeps the mark: a held output goes to `d.push_held`, a now one to
   `journal.now`. The door for outputs that decide nothing and show
   nothing durable is one call, so review finds every use.
+- **The root holds the engine,** `jig-domain-core`'s `Engine`, and no
+  `Core` (engine/vocabulary.md, 2). It builds it with `Engine::new`,
+  steps it with an event as `In::Core` and fires its timers by the
+  engine's `step` and `fire`, and asks `due` and `next_deadline` under
+  its `Admit`. What comes back is `Out::Core`, a request whose mark the
+  root keeps as above, in the order the engine made it. What else it
+  reads or calls of the core, its children's state and its methods, it
+  reaches through the engine's access while the move runs
+  (engine/vocabulary.md, 2.3), and its own quiescence reads them as
+  before, so holding the engine moves no behaviour.
 - **Admission is all or nothing,** by a watermark (skein's
   programming-model.md, 7.1). New external work is admitted while the
   backlog, the journal's (`backlog()`) with the root's own work and

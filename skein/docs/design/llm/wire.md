@@ -388,8 +388,8 @@ bounds still hold.
 - **A compressed body.** An endpoint may say that
   it takes a request body in gzip (`Content-Encoding: gzip`, RFC 9110,
   8.4.1). The client then measures and renders the body as before,
-  compresses it whole with skein-http's gzip encoder (http.md, section
-  3.1) and sends the compressed bytes with their length. Every bound
+  compresses it whole into a gzip member at the fast level
+  (`../data/gzip.md`, 2) and sends the compressed bytes with their length. Every bound
   stays on the body as rendered; the compressed body is never larger
   than its worst case, which the encoder states from the rendered length.
   The compressed copy needs room at that worst case beside the rendered

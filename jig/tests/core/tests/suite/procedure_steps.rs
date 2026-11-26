@@ -2,11 +2,12 @@ use jig_core_world::fixtures::{CONNECTOR, PARTY, finish_chat, live_row, member};
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
 use jig_test_profile::fixtures::unchanged;
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{Queue, ReplyTo, Token};
 
 mod notices;
 
@@ -606,10 +607,11 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: world.wall_time(), limits: limits.core };
     let mut amendment = unchanged(b"remove prerequisite");
     amendment.dependencies = Some(Box::new([]));
-    let mut outputs = core::step(
-        world.domain.core_mut(),
+    let mut outputs = Queue::uncapped();
+    engine::step(
+        world.domain.engine_mut(),
         &env,
-        core::Event::Tasks(tasks::Event::Amend {
+        In::Core(core::Event::Tasks(tasks::Event::Amend {
             reads_project: false,
             operation: tasks::Amend {
                 funder: None,
@@ -621,11 +623,12 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
             reply_to: ReplyTo::new(Token::new(9900)),
             by: tasks::Party::Person(PARTY),
             places: Box::new([]),
-        }),
+        })),
+        &mut outputs,
     );
     let problem = tasks::Problem::naming(Some(procedure), tasks::Refusal::Dependencies, &[dependency]);
     let mut named = false;
-    while let Some(output) = outputs.pop() {
+    while let Some(Out::Core(output)) = outputs.pop() {
         if let core::Request::Now(now) = output
             && let core::Now::Link(core::LinkNow::RefusedPayload { problem: refused, .. }) = *now
         {

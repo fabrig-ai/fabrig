@@ -194,6 +194,27 @@ fn a_service_names_starting_after_a_second_of_refused_inputs() {
 }
 
 #[test]
+fn a_me_held_for_one_second_names_the_start_gate() {
+    use temper_engine_domain::{Event, PartyInput};
+    let mut service = super::fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.clients.early.push(Event::Party(PartyInput::Watch {
+        watcher: skein_lib::Token::new(72),
+        sign_in: 99,
+        subject: jig_domain_core::documents::Watched::Frame,
+        window: jig_domain_core::documents::Window { rows: 1, after: None },
+    }));
+    for ms in [0, 999] {
+        crate::engine::iterate(engine, at(ms), Wall::EPOCH);
+        assert!(engine.notes.is_empty(), "no line before one second");
+    }
+    crate::engine::iterate(engine, at(1000), Wall::EPOCH);
+    assert_eq!(engine.notes.pop(), Some(Note::CoreWaiting { why: CoreWait::Starting { step: Some(Phase::LoadCore) } }));
+    crate::engine::iterate(engine, at(2000), Wall::EPOCH);
+    assert!(engine.notes.is_empty(), "no second line for the same reason");
+}
+
+#[test]
 fn a_journal_stop_ends_the_service_with_its_reason() {
     let mut service = super::fixtures::ready();
     let engine = service.engine.as_mut().expect("engine");

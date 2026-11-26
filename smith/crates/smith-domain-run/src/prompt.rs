@@ -562,7 +562,7 @@ fn render_system(
                         );
                     }
                     Some(_) | None => {
-                        text.put(b". Every discovered writable check must pass the exclusive snapshot.");
+                        text.put(b". Every discovered writable check must pass the exclusive snapshot. With `checks-not-judged`, you may deliver the same tree again as it is.");
                     }
                 }
             }
@@ -725,7 +725,7 @@ fn render_finishing(text: &mut Text, spec: &OutcomeSpec, checks: bool) {
         render_fields(text, &rule.fields);
         if checks {
             if rule.checks_must_pass {
-                text.put(b"Checks run before the host receives the change. A failed check returns its output so you can fix it.\n");
+                text.put(b"Checks run before the host receives the change. `checks-failed` means the check refused it; with `checks-not-judged`, you may try finishing with the same tree again. Both return the check's output.\n");
             } else {
                 text.put(b"Checks run before the host receives the change. A failed check does not block delivery.\n");
             }

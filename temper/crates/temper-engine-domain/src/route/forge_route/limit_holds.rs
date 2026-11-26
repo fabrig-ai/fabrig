@@ -125,7 +125,7 @@ pub(crate) fn apply_hold(
     mut row: forge::LimitHold,
     words: Box<[u8]>,
 ) {
-    let Some(task) = domain.core.tasks.task(row.task) else { return };
+    let Some(task) = domain.engine.core().tasks.task(row.task) else { return };
     if task.placed.is_some() {
         return;
     }
@@ -146,7 +146,7 @@ pub(crate) fn apply_hold(
         }),
     );
     super::super::route_core_requests(domain, env, decision, requests);
-    let Some(task) = domain.core.tasks.task(row.task) else { return };
+    let Some(task) = domain.engine.core().tasks.task(row.task) else { return };
     let tasks::Phase::Held { source: Some(held), .. } = &task.phase else { return };
     if held.as_ref() != &source {
         return;
@@ -182,7 +182,7 @@ pub(crate) fn restore(domain: &mut Domain, row: forge::LimitHold) {
 }
 
 fn current(domain: &Domain, row: &forge::LimitHold) -> bool {
-    let Some(task) = domain.core.tasks.task(row.task) else { return false };
+    let Some(task) = domain.engine.core().tasks.task(row.task) else { return false };
     if task.revisions.hold != row.revision {
         return false;
     }
@@ -224,7 +224,7 @@ pub(crate) fn release(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     }
     let release = current(domain, &waiting.row);
     if release {
-        let project = domain.core.tasks.task(task).expect("current held task").project;
+        let project = domain.engine.core().tasks.task(task).expect("current held task").project;
         let requests = super::step_core(
             domain,
             env,

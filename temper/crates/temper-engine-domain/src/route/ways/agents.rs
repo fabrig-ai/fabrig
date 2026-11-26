@@ -10,19 +10,23 @@ use jig_domain_core::{
 use skein_lib::List;
 
 pub(super) fn agent(domain: &Domain, project: u32, party: u64, number: u32) -> Option<ways::Agent> {
-    let charter = domain.core.current.charter(number)?;
+    let charter = domain.engine.core().current.charter(number)?;
     let policy = &charter.policy;
-    let offer =
-        domain.core.offer(jig_domain_tasks::Payer::Party(party), project, allowed_models(domain, project, party));
+    let offer = domain.engine.core().offer(
+        jig_domain_tasks::Payer::Party(party),
+        project,
+        allowed_models(domain, project, party),
+    );
     let order = order(domain, charter);
     let (selected, usable) = select(order.as_slice(), offer.as_slice());
     let model = match selected {
-        Some(index) => domain.core.settings.models.get(usize::from(index)),
+        Some(index) => domain.engine.core().settings.models.get(usize::from(index)),
         None => None,
     };
     let name = match selected {
         Some(index) => {
-            let model = domain.core.settings.models.get(usize::from(index)).expect("selected configured model");
+            let model =
+                domain.engine.core().settings.models.get(usize::from(index)).expect("selected configured model");
             let number = u32::from(index).checked_add(1).expect("model number");
             Some(match row(domain, number) {
                 Some(row) => match &row.shown {
@@ -71,8 +75,8 @@ pub(super) fn agent(domain: &Domain, project: u32, party: u64, number: u32) -> O
 }
 
 fn allowed_models(domain: &Domain, project: u32, party: u64) -> jig_domain_tasks::Models {
-    if let Some(role) = domain.core.people.role(party, project)
-        && let Some(policy) = domain.core.authority.policy(project)
+    if let Some(role) = domain.engine.core().people.role(party, project)
+        && let Some(policy) = domain.engine.core().authority.policy(project)
     {
         for held in &policy.roles {
             if held.number == role.number() {
@@ -84,7 +88,7 @@ fn allowed_models(domain: &Domain, project: u32, party: u64) -> jig_domain_tasks
 }
 
 fn row(domain: &Domain, number: u32) -> Option<&CatalogueModel> {
-    match domain.core.current.value(Setting::Model(number)) {
+    match domain.engine.core().current.value(Setting::Model(number)) {
         Some(Value::Model(model)) => Some(model),
         Some(
             Value::Overlay(_)
@@ -104,7 +108,7 @@ fn row(domain: &Domain, number: u32) -> Option<&CatalogueModel> {
 fn order(domain: &Domain, charter: &Charter) -> List<u8> {
     let mut order = List::with_capacity(jig_domain_tasks::MODELS);
     for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
-        for (at, model) in domain.core.settings.models.iter().enumerate() {
+        for (at, model) in domain.engine.core().settings.models.iter().enumerate() {
             let index = u8::try_from(at).expect("configured model index");
             if model.name == named.name && available(domain, index) && !order.as_slice().contains(&index) {
                 order.push(index).expect("unique configured models");
@@ -112,7 +116,7 @@ fn order(domain: &Domain, charter: &Charter) -> List<u8> {
         }
     }
     if charter.rest {
-        for (at, _) in domain.core.settings.models.iter().enumerate() {
+        for (at, _) in domain.engine.core().settings.models.iter().enumerate() {
             let index = u8::try_from(at).expect("configured model index");
             if available(domain, index) && !order.as_slice().contains(&index) {
                 order.push(index).expect("unique configured models");
@@ -123,7 +127,7 @@ fn order(domain: &Domain, charter: &Charter) -> List<u8> {
 }
 
 fn available(domain: &Domain, index: u8) -> bool {
-    let model = domain.core.settings.models.get(usize::from(index)).expect("configured model");
+    let model = domain.engine.core().settings.models.get(usize::from(index)).expect("configured model");
     if model.is_hole() {
         return false;
     }

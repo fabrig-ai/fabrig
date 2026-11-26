@@ -393,6 +393,7 @@ pub struct SettingRow {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
     pub landing_members: u32,
+    pub rerun_processes: u32,
     pub repositories: u32,
     pub landing_gates: u32,
     pub tiers: u32,
@@ -1237,7 +1238,7 @@ pub mod agents;
 pub(crate) mod landing;
 mod repairs;
 pub use landing::{
-    CARRIER, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,
+    CARRIER, Flakes, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,
     landing_record,
 };
 pub use repairs::{

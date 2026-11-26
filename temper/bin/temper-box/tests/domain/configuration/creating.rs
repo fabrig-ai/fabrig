@@ -1,8 +1,9 @@
 //! Stock creation offers fit their receivers (jig/docs/design/client/domain/contract/documents.md, 3).
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core::{
-    Core, Record,
+    Record,
     documents::{self, Document, Frame},
+    engine::Engine,
 };
 use jig_domain_people as people;
 use skein_lib::{Env, Reader, Time, Wall, Writer};
@@ -56,14 +57,14 @@ fn stock_frame(engine: &jig_protocol_config::Engine) -> Frame {
         }),
     ]);
     let limits = engine.limits.core;
-    let mut core = Core::new(config, &limits).expect("stock core");
-    core.start_begin(false, Wall::EPOCH);
+    let mut jig = Engine::new(config, &limits).expect("stock core");
+    jig.core_mut().start_begin(false, Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     for row in rows {
-        assert!(!matches!(core.restore(&env, row), jig_domain_core::Restore::Refused));
+        assert!(!matches!(jig.core_mut().restore(&env, row), jig_domain_core::Restore::Refused));
     }
     let document = documents::make(
-        &core,
+        jig.core(),
         &limits,
         1,
         &documents::Subject::Frame { party: 1 },

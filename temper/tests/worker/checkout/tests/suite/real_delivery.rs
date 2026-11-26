@@ -24,6 +24,7 @@ fn store_token(remote: &[u8]) -> Token {
 
 fn delivery_spec(remote: &[u8], push: &[u8], start: checkout::Start) -> checkout::Spec {
     checkout::Spec {
+        rerun: None,
         key: b"delivery".as_slice().into(),
         repositories: Box::new([checkout::Repository {
             admit: false,
@@ -159,6 +160,7 @@ impl World {
         remote: &[u8],
     ) -> (Token, Box<[checkout::Conflicts]>) {
         let spec = checkout::Spec {
+            rerun: None,
             key: b"view".as_slice().into(),
             repositories: Box::new([checkout::Repository {
                 admit: false,
@@ -904,6 +906,7 @@ fn a_kept_one_directory_checkout_is_taken_on_without_running_its_filters() {
     fs::write(work_tree.join("README.md"), b"dirty kept README\n").expect("dirty tracked file");
     assert!(!world.root.join("gitdirs/0/specimen").exists());
     let spec = checkout::Spec {
+        rerun: None,
         key: b"kept".as_slice().into(),
         repositories: Box::new([checkout::Repository {
             admit: false,
@@ -1019,6 +1022,7 @@ fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
     world.run_git("seed", &["push", &remote_text, "main"]);
     let remote: Box<[u8]> = remote_text.as_bytes().into();
     let spec = checkout::Spec {
+        rerun: None,
         key: b"paged-merge".as_slice().into(),
         repositories: Box::new([checkout::Repository {
             admit: false,

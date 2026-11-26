@@ -2,6 +2,7 @@
 use super::super::{Domain, Env, Limits, List, append, commit_text, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 
+#[expect(clippy::too_many_lines, reason = "one hold account chooses among runner, repair and forge read evidence")]
 pub(in super::super) fn account(
     domain: &Domain,
     env: &Env<Limits>,
@@ -10,7 +11,12 @@ pub(in super::super) fn account(
     evidence: Option<&forge::ChangeEvidence>,
 ) -> Option<Box<[u8]>> {
     let row = domain.forge.change(task)?;
-    if why == change::Hold::Flake || why == change::Hold::NoTest {
+    if why == change::Hold::Runner
+        && let Some(forge::RunnerCi::Held { words }) = &row.runner_ci
+    {
+        return Some(words.clone());
+    }
+    if why == change::Hold::Flake || why == change::Hold::NoTest || why == change::Hold::RedStands {
         return row.producer_failure.clone();
     }
     let change::State::Held { was, .. } = &row.change.state else { return None };
@@ -124,6 +130,7 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
         &mut words,
         match why {
             change::Hold::Stalled => b"its forge wait exceeded the stall bound",
+            change::Hold::Runner => b"CI's runner ran out of re-runs; the change wasn't judged",
             change::Hold::Repairs => b"its repair allowance is spent; amend the allowance before releasing",
             change::Hold::Resolutions => {
                 b"its conflict resolution allowance is spent; resolve the conflict or amend the allowance"
@@ -134,6 +141,9 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
             change::Hold::PullClosed => b"its pull request closed without merging; release to reopen it",
             change::Hold::Retargeted => b"its pull request targets another base; release to restore its target",
             change::Hold::Failed => b"its delegate or forge effect failed without an account",
+            change::Hold::RedStands => {
+                b"its repair changed nothing and its red stands; release to ask a fresh repair, or cancel it"
+            }
             change::Hold::Flake => b"its repair found only flakes; release to run its gate once more",
             change::Hold::NoTest => b"its repair found no failed test; release to run its gate once more",
             change::Hold::Rejected => b"a person rejected its required gate; resolve the rejection before releasing",
@@ -163,7 +173,7 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
             append(&mut words, b" taken");
         }
     }
-    let revision = match domain.core.tasks.task(task) {
+    let revision = match domain.engine.core().tasks.task(task) {
         Some(row) => row.revisions.hold.saturating_add(1),
         None => 1,
     };

@@ -131,6 +131,7 @@ use temper_worker_domain::wire;
 #[must_use]
 pub fn one_repository() -> wire::Workspace {
     wire::Workspace {
+        rerun: None,
         repositories: Box::new([wire::Repository {
             admit: false,
             save: None,

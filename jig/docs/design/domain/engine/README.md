@@ -11,7 +11,7 @@ hosts ../hosts/README.md, LLM accounts ../accounts.md; what the application's ro
 does with all of it is ../root.md. The mechanics are those of skein's
 `../foundation/programming-model.md`. What is still open is listed in section 10.
 
-- [`vocabulary.md`](vocabulary.md): what crosses between the core and the root.
+- [`vocabulary.md`](vocabulary.md): what crosses between the core and the root, and the engine a root calls.
 - [`waits.md`](waits.md): a task's waits, each a record with its kind, since and bound.
 - [`decisions.md`](decisions.md): decisions, commits and the store.
 - [`world.md`](world.md): the core's domain world and its stories.
@@ -110,12 +110,14 @@ jig-domain-core             the core: routing among its children, runs, calls, t
 ├── jig-domain-notes        notes: scopes, entries, indexes
 └── jig-domain-views        parties' watches, level-triggered
 
+jig-domain-contract        the values the core and its connectors exchange, by capability, and the operations' (../connectors.md, 2)
 jig-domain-link            the link's values, shared by the fleet, the hub and accounts (../root.md, 2)
 ```
 
 ```
 jig-domain-core/src/
 ├── lib.rs          the core: its state, its configuration and construction
+├── engine.rs       the engine: the core behind the functions a root calls (vocabulary.md, 2)
 ├── vocabulary.rs   what crosses to the root: Event, Now, Request, Limits (section 4)
 ├── routing/        the step, the step helpers and flights; the routes by kind: party/, run/, task/, effect/, view/, settings/ (4.4)
 ├── start/          the start: load, restore, census, link, sweep, switch, open (section 6)
