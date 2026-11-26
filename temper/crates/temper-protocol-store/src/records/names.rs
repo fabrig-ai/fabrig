@@ -223,7 +223,7 @@ fn encode_train_refusals(values: &[d::TrainRefusal]) -> List<w::TrainRefusal> {
         let cause = match &refusal.cause {
             d::FormingRefusal::Landings => w::FormingRefusal::Landings,
             d::FormingRefusal::Jig { number, why, retry } => {
-                w::FormingRefusal::Jig(w::JigRefusal { number: *number, why: why.clone(), retry: retry.as_nanos() })
+                w::FormingRefusal::Jig(w::RefusedByJig { number: *number, why: why.clone(), retry: retry.as_nanos() })
             }
         };
         refusals
@@ -246,7 +246,7 @@ fn decode_train_refusals(values: List<w::TrainRefusal>) -> Result<Box<[d::TrainR
         }
         let cause = match cause {
             w::FormingRefusal::Landings => d::FormingRefusal::Landings,
-            w::FormingRefusal::Jig(w::JigRefusal { number, why, retry }) => {
+            w::FormingRefusal::Jig(w::RefusedByJig { number, why, retry }) => {
                 d::FormingRefusal::Jig { number: *number, why: why.clone(), retry: skein_lib::Wall::from_nanos(*retry) }
             }
         };

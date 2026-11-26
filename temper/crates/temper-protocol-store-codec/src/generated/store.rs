@@ -23,7 +23,7 @@ pub struct Limits {
     pub protection_branch: u32,
     pub protection_contexts: u32,
     pub settings_default_branch: u32,
-    pub jig_refusal_why: u32,
+    pub refused_by_jig_why: u32,
     pub train_refusal_branch: u32,
     pub adopted_contexts: u32,
     pub adopted_host: u32,
@@ -402,7 +402,7 @@ pub const CEILINGS: Limits = Limits {
     protection_branch: 1_048_576,
     protection_contexts: 2_097_152,
     settings_default_branch: 1_048_576,
-    jig_refusal_why: 256,
+    refused_by_jig_why: 256,
     train_refusal_branch: 4_096,
     adopted_contexts: 65_536,
     adopted_host: 4_096,
@@ -781,7 +781,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "protection_branch",
     "protection_contexts",
     "settings_default_branch",
-    "jig_refusal_why",
+    "refused_by_jig_why",
     "train_refusal_branch",
     "adopted_contexts",
     "adopted_host",
@@ -1164,7 +1164,7 @@ impl Limits {
             self.protection_branch,
             self.protection_contexts,
             self.settings_default_branch,
-            self.jig_refusal_why,
+            self.refused_by_jig_why,
             self.train_refusal_branch,
             self.adopted_contexts,
             self.adopted_host,
@@ -1548,7 +1548,7 @@ impl Limits {
             protection_branch: self.protection_branch.min(most),
             protection_contexts: self.protection_contexts.min(most),
             settings_default_branch: self.settings_default_branch.min(most),
-            jig_refusal_why: self.jig_refusal_why.min(most),
+            refused_by_jig_why: self.refused_by_jig_why.min(most),
             train_refusal_branch: self.train_refusal_branch.min(most),
             adopted_contexts: self.adopted_contexts.min(most),
             adopted_host: self.adopted_host.min(most),
@@ -1929,7 +1929,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PROTECTION_BRANCH,
     paths::PROTECTION_CONTEXTS,
     paths::SETTINGS_DEFAULT_BRANCH,
-    paths::JIG_REFUSAL_WHY,
+    paths::REFUSED_BY_JIG_WHY,
     paths::TRAIN_REFUSAL_BRANCH,
     paths::ADOPTED_CONTEXTS,
     paths::ADOPTED_HOST,
@@ -2361,10 +2361,10 @@ pub mod paths {
     pub const KINDS_BRANCH: Path = Path::new("Kinds.branch");
     pub const KINDS_TAIL: Path = Path::new("Kinds (tail)");
     pub const REPOSITORY_PROTECTION_TAG: Path = Path::new("RepositoryProtection (tag)");
-    pub const JIG_REFUSAL_NUMBER: Path = Path::new("JigRefusal.number");
-    pub const JIG_REFUSAL_WHY: Path = Path::new("JigRefusal.why");
-    pub const JIG_REFUSAL_RETRY: Path = Path::new("JigRefusal.retry");
-    pub const JIG_REFUSAL_TAIL: Path = Path::new("JigRefusal (tail)");
+    pub const REFUSED_BY_JIG_NUMBER: Path = Path::new("RefusedByJig.number");
+    pub const REFUSED_BY_JIG_WHY: Path = Path::new("RefusedByJig.why");
+    pub const REFUSED_BY_JIG_RETRY: Path = Path::new("RefusedByJig.retry");
+    pub const REFUSED_BY_JIG_TAIL: Path = Path::new("RefusedByJig (tail)");
     pub const FORMING_REFUSAL_TAG: Path = Path::new("FormingRefusal (tag)");
     pub const TRAIN_REFUSAL_BRANCH: Path = Path::new("TrainRefusal.branch");
     pub const TRAIN_REFUSAL_SINCE: Path = Path::new("TrainRefusal.since");
@@ -5385,19 +5385,19 @@ impl Record for RepositoryProtection {
     }
 }
 
-// Type: JigRefusal.
+// Type: RefusedByJig.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct JigRefusal {
+pub struct RefusedByJig {
     pub number: u64,
     pub why: Box<[u8]>,
     pub retry: u64,
 }
 
-// Record: JigRefusal.
-impl JigRefusal {
+// Record: RefusedByJig.
+impl RefusedByJig {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, jig_refusal_why) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, refused_by_jig_why) },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
     ];
@@ -5406,16 +5406,16 @@ impl JigRefusal {
     pub const ENCODED_AT_ZERO: u64 = 20;
 }
 
-impl Record for JigRefusal {
+impl Record for RefusedByJig {
     type Limits = Limits;
-    const TAIL: Path = paths::JIG_REFUSAL_TAIL;
+    const TAIL: Path = paths::REFUSED_BY_JIG_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JigRefusal")?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusedByJig")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JigRefusal")?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusedByJig")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -5428,17 +5428,17 @@ impl Record for JigRefusal {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::U64, &self.number, limits, out, paths::JIG_REFUSAL_NUMBER)?;
-        field::write(field::Bytes { limit: limits.jig_refusal_why.min(CEILINGS.jig_refusal_why) }, &self.why, limits, out, paths::JIG_REFUSAL_WHY)?;
-        field::write(field::U64, &self.retry, limits, out, paths::JIG_REFUSAL_RETRY)?;
+        field::write(field::U64, &self.number, limits, out, paths::REFUSED_BY_JIG_NUMBER)?;
+        field::write(field::Bytes { limit: limits.refused_by_jig_why.min(CEILINGS.refused_by_jig_why) }, &self.why, limits, out, paths::REFUSED_BY_JIG_WHY)?;
+        field::write(field::U64, &self.retry, limits, out, paths::REFUSED_BY_JIG_RETRY)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
-            number: field::read(field::U64, limits, reader, paths::JIG_REFUSAL_NUMBER)?,
-            why: field::read(field::Bytes { limit: limits.jig_refusal_why.min(CEILINGS.jig_refusal_why) }, limits, reader, paths::JIG_REFUSAL_WHY)?,
-            retry: field::read(field::U64, limits, reader, paths::JIG_REFUSAL_RETRY)?,
+            number: field::read(field::U64, limits, reader, paths::REFUSED_BY_JIG_NUMBER)?,
+            why: field::read(field::Bytes { limit: limits.refused_by_jig_why.min(CEILINGS.refused_by_jig_why) }, limits, reader, paths::REFUSED_BY_JIG_WHY)?,
+            retry: field::read(field::U64, limits, reader, paths::REFUSED_BY_JIG_RETRY)?,
         })
     }
 }
@@ -5447,14 +5447,14 @@ impl Record for JigRefusal {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum FormingRefusal {
     Landings,
-    Jig(JigRefusal),
+    Jig(RefusedByJig),
 }
 
 // Record: FormingRefusal.
 impl FormingRefusal {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Named("JigRefusal"),
+        skein_codec::bounds::Node::Named("RefusedByJig"),
         skein_codec::bounds::Node::Enum { variants: &[0, 1] },
     ];
 
@@ -5494,7 +5494,7 @@ impl Record for FormingRefusal {
         let tag = reader.u8().ok_or(Problem { path: paths::FORMING_REFUSAL_TAG, reason: skein_codec::Reason::Short })?;
         match tag {
             0 => Ok(Self::Landings),
-            1 => Ok(Self::Jig(JigRefusal::read(limits, reader)?)),
+            1 => Ok(Self::Jig(RefusedByJig::read(limits, reader)?)),
             2..=u8::MAX => Err(Problem { path: paths::FORMING_REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
@@ -41668,7 +41668,6 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ItemAnswer", nodes: ItemAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "ItemState", nodes: ItemState::SHAPE },
     skein_codec::bounds::Declaration { name: "ItemsAnswer", nodes: ItemsAnswer::SHAPE },
-    skein_codec::bounds::Declaration { name: "JigRefusal", nodes: JigRefusal::SHAPE },
     skein_codec::bounds::Declaration { name: "JobAnswer", nodes: JobAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "JobAttempt", nodes: JobAttempt::SHAPE },
     skein_codec::bounds::Declaration { name: "Judgement", nodes: Judgement::SHAPE },
@@ -41860,6 +41859,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RedRefused", nodes: RedRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "RedReply", nodes: RedReply::SHAPE },
     skein_codec::bounds::Declaration { name: "RedResult", nodes: RedResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "RefusedByJig", nodes: RefusedByJig::SHAPE },
     skein_codec::bounds::Declaration { name: "Regate", nodes: Regate::SHAPE },
     skein_codec::bounds::Declaration { name: "ReleaseEnding", nodes: ReleaseEnding::SHAPE },
     skein_codec::bounds::Declaration { name: "ReleaseRow", nodes: ReleaseRow::SHAPE },
@@ -41988,7 +41988,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.protection_branch,
     CEILINGS.protection_contexts,
     CEILINGS.settings_default_branch,
-    CEILINGS.jig_refusal_why,
+    CEILINGS.refused_by_jig_why,
     CEILINGS.train_refusal_branch,
     CEILINGS.adopted_contexts,
     CEILINGS.adopted_host,

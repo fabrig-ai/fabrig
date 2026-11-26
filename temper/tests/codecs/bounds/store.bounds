@@ -274,7 +274,6 @@ IssueRow: ceilings encoded=134475961 decoded=134529024; at_most(3) encoded=392 d
 ItemAnswer: ceilings encoded=7340080 decoded=7340032; at_most(3) encoded=63 decoded=15
 ItemState: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ItemsAnswer: ceilings encoded=2097166 decoded=2097152; at_most(3) encoded=17 decoded=3
-JigRefusal: ceilings encoded=276 decoded=256; at_most(3) encoded=23 decoded=3
 JobAnswer: ceilings encoded=2097218 decoded=2097152; at_most(3) encoded=72 decoded=6
 JobAttempt: ceilings encoded=52 decoded=0; at_most(3) encoded=52 decoded=0
 Judgement: ceilings encoded=8250 decoded=8192; at_most(3) encoded=64 decoded=6
@@ -466,6 +465,7 @@ RedRefusal: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 RedRefused: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 RedReply: ceilings encoded=2439 decoded=2368; at_most(3) encoded=86 decoded=15
 RedResult: ceilings encoded=1403 decoded=1344; at_most(3) encoded=71 decoded=12
+RefusedByJig: ceilings encoded=276 decoded=256; at_most(3) encoded=23 decoded=3
 Regate: ceilings encoded=87 decoded=32; at_most(3) encoded=58 decoded=3
 ReleaseEnding: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ReleaseRow: ceilings encoded=1114176 decoded=1114112; at_most(3) encoded=71 decoded=6
