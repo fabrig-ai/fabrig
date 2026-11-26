@@ -1145,6 +1145,22 @@ profile traps whatever the lint does not see, in lib and the shell.
   an assertion: a test sees what an assertion guards through the outcomes
   around it. A check whose job is to fail, such as a referee or a judge,
   returns its finding, and only its caller panics.
+- **Admission refuses; a use of a reservation asserts it.** A step
+  asked to reserve room, a cell, a slot or a credit the domain hasn't
+  got answers full, busy or refused, as a value its caller handles.
+  Taking reserved room, moving it, giving it back, or freeing a cell or
+  a slot is done only by the step that holds the reservation the domain
+  made, and that step asserts what it relies on: the room was reserved
+  for this taker, it is taken and not yet given back, the cell is held
+  by this owner. Each check is fail-stop, its `expect` naming the
+  invariant and the reservation's owner, and it sits at the use that
+  breaks it, never at a later sum or debit: a read started with no room
+  reserved for its result fails as it starts, naming the read and what
+  should have held its room, not when its result arrives, naming a
+  subtraction. A domain's total of what it reserved is the sum of its
+  holders' own records, so the holder is what each use checks. Tests
+  show each check's valid edge and the admission's refusal through the
+  outcomes around them, as above.
 - **Runtime checks stay on in production:** bounds checks, overflow
   checks, assertions. Safe Rust has no undefined behaviour left to trap;
   the ring adapter, the one place that could have some, is tested against
