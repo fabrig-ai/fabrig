@@ -612,19 +612,26 @@ budgets.
 - **Its jobs are held in the session's cells** (the tools' `jobs` in
   the world's limits): four in the calm settings and the stories, and
   from one to four in the noisy settings, drawn for each seed after
-  every other draw, so the earlier ones keep their sequence. So the
-  tools refuse at their entrance a yielding command while every cell is
-  held, and a `job` call naming a number its session doesn't hold
-  (section 5).
+  every other draw. The noisy settings also give their sessions room to
+  hold jobs side by side: tool rounds, a turn budget and yielded
+  commands' run times long enough that some session holds more jobs
+  than its seed's cells. So the tools refuse at their entrance a
+  yielding command while every cell is held, and a `job` call naming a
+  number its session doesn't hold (section 5).
   - **Why a drawn bound:** at the gate's 1000 seeds no noisy session
     holds more than two jobs at once, since its sessions are short and
     a drawn call is a yielding command at most one time in seven. So
     four cells never fill there. A drawn bound reaches the same refusal
     through the same code, with no seed added. It is a tiny limit for a
     count, as the worlds keep (`smith/docs/design/testing.md`, 6).
-    Turned down: more seeds, which are a budget, and a scripted world
-    inside the sweep, which would repeat the stories' check of four
-    held jobs and a fifth, not draw it.
+    The bound alone still left no cell full at those seeds, since the
+    few sessions that held two jobs drew bounds above one; so the noisy
+    sessions are given room to hold more. Turned down: more seeds,
+    which are a budget; a scripted world inside the sweep, which would
+    repeat the stories' check of four held jobs and a fifth, not draw
+    it; a bound weighted toward one cell, which still rests on those
+    few sessions; and full cells checked by the stories alone, which
+    drops what the sweep was asked to reach.
 - **Its referee takes a running job's answers.** A yielding command's
   `running` answer is what comes of it, naming its session's next job
   number, and a `job` call's answer names the job the call asked for.
