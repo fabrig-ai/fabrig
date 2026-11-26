@@ -1815,7 +1815,6 @@ fn resume_tools(
 /// the session rests on the ready list before it starts another, so that
 /// the runs it ended are reclaimed first, and what one step emits and the runs
 /// a session holds stay bounded ([`crate::limits`]).
-#[expect(clippy::too_many_lines, reason = "the batch schedules and records each call in block order")]
 fn advance(
     conversation: &mut Conversation,
     id: Id<Session>,
@@ -1828,14 +1827,11 @@ fn advance(
     if env.now >= conversation.expires {
         return finish_batch(OUT_OF_TIME, tools);
     }
-    let share = history::reserve_batch(conversation, tools.next, tools.failed.is_some(), &env.limits);
-    let message = conversation.transcript.last().expect("the assistant message is last while tooling");
-    let end = u32::try_from(message.content.len()).expect("a message whose calls were counted has its blocks counted");
     let begin = tools.next;
-    let mut batch: Option<Effect> = None;
-    let mut started: u32 = 0;
-    let mut next = end;
-    for index in tools.next..end {
+    let history::Batch { end, share } =
+        history::reserve_batch(conversation, begin, tools.failed.is_some(), &env.limits);
+    // An entrance refusal can suppress a later write, but cannot admit a read past it.
+    for index in begin..end {
         let block = current_block(conversation, index);
         if let Some(result) = restore::result(conversation, block) {
             batching::answered_next(&mut tools, block, &result);
@@ -1853,10 +1849,6 @@ fn advance(
         match &tool_call.call {
             Decoded::Owned { call } => {
                 let effect = tools::effect(call);
-                if !joins(batch, effect, started, env.limits.parallel_tools) {
-                    next = index;
-                    break;
-                }
                 let bounded = history::tool_env(call, share, env);
                 let credit = owned_credit(call, &bounded.limits).min(share);
                 let call = call.clone();
@@ -1873,8 +1865,6 @@ fn advance(
                 let heard =
                     tools_step(calls, &bounded, tools::Event::Call { kit, reply_to, observation, call, deadline }, out);
                 assert!(heard.kit.is_none(), "a call is news of no kit");
-                started = started.saturating_add(1);
-                batch = Some(effect);
                 // Answered at the tools' entrance, or running.
                 let Some((answered, result)) = heard.answer else {
                     batching::put_next(&mut tools, Slot::Running { run });
@@ -1887,19 +1877,14 @@ fn advance(
                 batching::answered_next(&mut tools, block, &result);
                 conversation.jobs.answered(&result, metadata);
                 calls.runs.retire(run);
-                // Refused at the entrance: its block and its id were counted
-                // when the message was recorded, and a refusal holds nothing
-                // more, so it fits, and the batch it is in goes on.
+                // Its block and id were counted when the message was recorded.
+                // Settle the result credit even when the tools answer at once.
                 receive_result(conversation, credit, &result, &env.limits);
                 let result = Block::ToolResult { id: call_id(conversation, index), result };
                 tell::result(conversation, &result, out);
                 batching::put_next(&mut tools, Slot::Done { result });
             }
             Decoded::Delegated { source, ticket, effect, descriptor: _ } => {
-                if !joins(batch, *effect, started, env.limits.parallel_tools) {
-                    next = index;
-                    break;
-                }
                 let credit = delegated_credit(&env.limits).min(share);
                 let deadline = env.now.saturating_add(env.limits.tools.tool_deadline).min(conversation.expires);
                 let metadata = tool_metadata(provider_id, name, input, *source, *effect, deadline);
@@ -1912,8 +1897,6 @@ fn advance(
                 out.push(Request::Delegate { owner: run.token(), opener, call, deadline, origin });
                 batching::put_next(&mut tools, Slot::Running { run });
                 tools.running = tools.running.saturating_add(1);
-                started = started.saturating_add(1);
-                batch = Some(*effect);
             }
             Decoded::Builtin { .. } => batching::next_slot(&mut tools),
             Decoded::Invalid { problem, .. } => {
@@ -1923,7 +1906,7 @@ fn advance(
             Decoded::Historical => {}
         }
     }
-    tools.next = next;
+    tools.next = end;
     batching::end_waits(conversation, calls, &tools, env, out);
     if tools.running > 0 {
         return State::Tooling { tools };
@@ -2018,20 +2001,6 @@ fn finish_tools(
             out.push(Request::Yielded { opener: conversation.opener, stop: Yield::Done, text: Box::default() });
             State::Yielded { tools: None }
         }
-    }
-}
-
-/// Whether a call with `effect` joins a batch of `batch` that has started
-/// `started` runs: a read joins reads while there is room, and a write runs
-/// alone.
-const fn joins(batch: Option<Effect>, effect: Effect, started: u32, parallel: u32) -> bool {
-    match batch {
-        None => true,
-        Some(Effect::Write) => false,
-        Some(Effect::Read) => match effect {
-            Effect::Read => started < parallel,
-            Effect::Write => false,
-        },
     }
 }
 

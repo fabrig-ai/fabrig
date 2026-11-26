@@ -100,6 +100,49 @@ fn an_invalid_read_stops_the_writes_after_it() {
 }
 
 #[test]
+fn an_unknown_job_does_not_widen_its_read_batch() {
+    const NEVER_STARTED_JOB: u32 = 7;
+    let limits = Limits { parallel_tools: 2, ..LIMITS };
+    let mut harness = Harness::new(&limits);
+    let mut selected = spec();
+    selected.authority.grants.shell = true;
+    let (owner, _) = harness.open_with(1, selected);
+    let credit = crate::session::provider_credit_for_test(&harness.domain, owner);
+    let content = Box::new([
+        tool_call(
+            b"job",
+            Call::Job {
+                job: tools::JobNumber(NEVER_STARTED_JOB),
+                wait: tools::Wait::Default,
+                output: tools::Budget::Default,
+                stop: false,
+            },
+        ),
+        tool_call(b"write", write(b"first")),
+        tool_call(b"read", cat(b"next")),
+    ]);
+    let request = harness.step(Event::Completed { owner, completion: completion(content, Stop::ToolUse) });
+    assert_eq!(request, None, "a read beyond the write cannot start in the job's entrance");
+    harness.domain.reclaim();
+    let (load, op) = running(harness.resume());
+    assert_eq!(loading(&op), place(b"next"));
+    let request = harness.step(ran(load, b"after"));
+    let (_, prompt) = calling(request);
+    assert_eq!(
+        prompt.messages.last().expect("settled results").content.as_ref(),
+        [
+            Block::ToolResult {
+                id: bytes(b"job"),
+                result: Returned::Invalid { problem: Problem::UnknownJob { job: NEVER_STARTED_JOB } },
+            },
+            not_run(b"write", 1),
+            result(b"read", read(b"after")),
+        ]
+    );
+    assert_eq!(crate::session::provider_credit_for_test(&harness.domain, owner), credit);
+}
+
+#[test]
 fn a_finish_after_a_failed_write_is_not_run() {
     let (harness, request) = after_edit(b"new", b"absent", delegated(b"finish", FINISH.ticket.raw(), Effect::Write));
     let prompt = settled(harness, request);

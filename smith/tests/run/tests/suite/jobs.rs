@@ -1,14 +1,20 @@
 //! Real run/session/tools jobs on the shared agent world and fake checkout.
 use skein_fake_checkout::Exit;
-use skein_fake_llm_domain::api::{Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Verdict;
-use smith_agent_world::{Job, Settings, World, scripted_charter};
-use smith_domain::{Fact, run, session, tools};
+use smith_agent_world::{Boundary, Job, Settings, World, scripted_charter};
+use smith_domain::session::llm::{Block, NotRun, Problem, Returned};
+use smith_domain::session::record::{PartKind, Resumed};
+use smith_domain::{Fact, Transcript, run, session, tools};
 use smith_tools_world::fixture::{Fixture, program};
 
 const QUICK_BUILD_MS: u64 = 2_000;
 const BUILD_OUTLASTING_THE_RUN_MS: u64 = 60_000;
+const CODE: &[u8] = b"pub fn answer() -> u32 { 43 }\n";
+const WAKE: &[u8] = b"Please read the source while checking that job.";
+const RESTART: &[u8] = b"Continue the pending read after the worker stopped.";
+const UNTIL_SETTLED: u32 = 20_000;
 
 #[derive(Clone, Copy)]
 struct Checkout {
@@ -17,16 +23,28 @@ struct Checkout {
     wind_down: bool,
 }
 
+fn tool(name: &[u8], arguments: &[u8]) -> Line {
+    Line::Call { name: name.into(), arguments: arguments.into() }
+}
+
 fn call(name: &[u8], arguments: &[u8]) -> Turn {
-    smith_agent_world::fixture::calls(Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]), 1)
+    smith_agent_world::fixture::calls(Box::new([tool(name, arguments)]), 1)
 }
 
 fn shell() -> Turn {
     call(b"shell", br#"{"command":"cargo build","yield_seconds":0}"#)
 }
 
+fn poll_arguments() -> &'static [u8] {
+    br#"{"job":1,"wait_seconds":5}"#
+}
+
 fn poll() -> Turn {
-    call(b"job", br#"{"job":1,"wait_seconds":5}"#)
+    call(b"job", poll_arguments())
+}
+
+fn wait() -> Turn {
+    call(b"wait", b"{}")
 }
 
 fn report() -> Turn {
@@ -41,14 +59,8 @@ fn script(cue: &[u8], turns: Vec<Turn>) -> Script {
     Script { cue: cue.into(), turns: turns.into() }
 }
 
-fn setup(settings: &Settings, turns: Vec<Turn>, children: Vec<Script>, checkout: Checkout) -> World {
-    let mut fixture = Fixture::new();
-    fixture.checkout.write(b"work/temper/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
-    fixture.checkout.program(b"cargo build", program(checkout.build_ms, b"Finished\n", Exit::Code(0), &[]));
-    if checkout.checks {
-        fixture.checkout.write(b"work/temper/.temper/pre-pr", b"#!checks\n");
-    }
-    let workspace = run::Workspace {
+fn workspace(fixture: &Fixture) -> run::Workspace {
+    run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
             host: b"/work/temper".as_slice().into(),
@@ -58,7 +70,22 @@ fn setup(settings: &Settings, turns: Vec<Turn>, children: Vec<Script>, checkout:
             git: true,
             conflicts: Box::default(),
         }]),
-    };
+    }
+}
+
+fn source_fixture() -> Fixture {
+    let mut fixture = Fixture::new();
+    fixture.checkout.write(b"work/temper/src/lib.rs", CODE);
+    fixture
+}
+
+fn setup(settings: &Settings, turns: Vec<Turn>, children: Vec<Script>, checkout: Checkout) -> World {
+    let mut fixture = source_fixture();
+    fixture.checkout.program(b"cargo build", program(checkout.build_ms, b"Finished\n", Exit::Code(0), &[]));
+    if checkout.checks {
+        fixture.checkout.write(b"work/temper/.temper/pre-pr", b"#!checks\n");
+    }
+    let workspace = workspace(&fixture);
     let mut charter = scripted_charter(settings);
     if checkout.wind_down {
         charter.reserve.turns = 1;
@@ -70,7 +97,7 @@ fn setup(settings: &Settings, turns: Vec<Turn>, children: Vec<Script>, checkout:
 
 fn run(settings: &Settings, turns: Vec<Turn>, children: Vec<Script>, checkout: Checkout) -> World {
     let mut world = setup(settings, turns, children, checkout);
-    world.run(20_000);
+    world.run(UNTIL_SETTLED);
     assert_eq!(world.judged().1, 1);
     let seen = world
         .facts()
@@ -266,64 +293,158 @@ fn a_wind_down_with_a_job_running_is_cancelled_by_the_finish_that_delivers() {
     );
 }
 
-fn resume(first: &World, settings: &Settings) -> World {
+fn stale_job_batch() -> Turn {
+    smith_agent_world::fixture::calls(
+        Box::new([
+            tool(b"job", poll_arguments()),
+            tool(b"edit", br#"{"path":"src/lib.rs","edits":[{"old":"43","new":"44"}]}"#),
+            tool(b"read", br#"{"path":"src/lib.rs"}"#),
+        ]),
+        1,
+    )
+}
+
+fn resume(first: &World, settings: &Settings, message: Token, text: &[u8]) -> World {
     let turn = first.turns().first().expect("main recorded its job");
-    let history = smith_domain::Transcript {
+    let history = Transcript {
         version: turn.version,
         endpoint: turn.endpoint,
         dialect: turn.dialect,
         turns: first.turns().into(),
     };
-    let mut fixture = Fixture::new();
-    fixture.checkout.write(b"work/temper/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
-    let workspace = run::Workspace {
-        directories: Box::new([run::Directory {
-            results: None,
-            host: b"/work/temper".as_slice().into(),
-            name: b"work".as_slice().into(),
-            root: fixture.repos[0].root,
-            writable: true,
-            git: true,
-            conflicts: Box::default(),
-        }]),
-    };
+    let fixture = source_fixture();
     let mut next = World::with_workspace_scripts(
         Settings { resume: true, ..*settings },
         Some(history),
-        Some(workspace),
+        Some(workspace(&fixture)),
         fixture.checkout,
-        Box::new([script(b"@waiting", vec![shell(), call(b"wait", b"{}"), poll(), call(b"wait", b"{}")])]),
+        Box::new([script(b"@waiting", vec![shell(), wait(), stale_job_batch(), wait()])]),
     );
-    next.run(20_000);
+    next.waking_messages(Box::new([run::Message {
+        finish_requested: false,
+        name: message,
+        label: b"host".as_slice().into(),
+        text: text.into(),
+    }]));
     next
+}
+
+fn park_with_a_job(settings: &Settings) -> World {
+    run(
+        settings,
+        vec![shell(), wait()],
+        vec![],
+        Checkout { checks: false, build_ms: BUILD_OUTLASTING_THE_RUN_MS, wind_down: false },
+    )
+}
+
+fn assert_resumed_batch(first: &World, next: &World) {
+    let wait_id = first
+        .turns()
+        .last()
+        .expect("parked turn")
+        .messages
+        .iter()
+        .flat_map(|message| &message.content)
+        .find_map(Block::tool_call)
+        .expect("withheld wait call")
+        .id
+        .as_ref();
+    let turn = next.turns().first().expect("settled batch");
+    let call_ids = turn
+        .messages
+        .iter()
+        .flat_map(|m| &m.content)
+        .filter_map(Block::tool_call)
+        .map(|call| call.id.as_ref())
+        .collect::<Vec<_>>();
+    let results = turn
+        .messages
+        .last()
+        .expect("settled result message")
+        .content
+        .iter()
+        .filter_map(|block| match block {
+            Block::ToolResult { id, result } => Some((id.as_ref(), result)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        matches!(results.as_slice(), [
+        (_, Returned::Invalid { problem: Problem::UnknownJob { job: 1 } }),
+        (_, Returned::NotRun { why: NotRun::AfterFailedWrite { call: 1 } }),
+        (_, Returned::Owned { outcome: tools::Outcome::Read { content, .. } }),
+    ] if content.as_ref() == CODE),
+        "batch results: {results:?}"
+    );
+    let io = next
+        .boundaries()
+        .iter()
+        .filter_map(|(_, boundary)| match boundary {
+            Boundary::Io { op } => Some(op),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(matches!(io.as_slice(), [tools::Op::Load { .. }]), "only the read reaches io: {io:?}");
+
+    let outputs = next
+        .prompts()
+        .last()
+        .expect("request after the batch")
+        .messages
+        .iter()
+        .flat_map(|message| &message.parts)
+        .filter_map(|part| match part {
+            Part::ToolOutput { id, output, is_error } => Some((id.as_ref(), output.as_ref(), *is_error)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    // The fake provider can reuse call IDs across turns. Identify the resumed wait by its waking text too.
+    let wakes =
+        outputs.iter().filter(|(_, output, _)| skein_lib::bytes::find(output, WAKE).is_some()).collect::<Vec<_>>();
+    assert!(matches!(wakes.as_slice(), [(id, _, false)] if *id == wait_id), "wait results: {wakes:?}");
+    assert!(
+        matches!(outputs.as_slice(), [.., (job, invalid, true), (edit, not_run, true), (read, file, false)]
+        if [*job, *edit, *read] == call_ids.as_slice()
+        && *invalid == b"Invalid { problem: UnknownJob { job: 1 } }"
+        && *not_run == b"NotRun { why: AfterFailedWrite { call: 1 } }"
+        && file.starts_with(b"Owned { outcome: Read {")),
+        "provider outputs: {outputs:?}"
+    );
+    assert_eq!(results.iter().map(|(id, _)| *id).collect::<Vec<_>>(), call_ids);
 }
 
 #[test]
 fn a_run_parked_with_a_job_running_tells_it_ended_and_a_later_job_call_is_invalid() {
     let settings = Settings { job: Job::Waiting, waiting: Duration::ZERO, ..Settings::calm(1007) };
-    let first = run(
-        &settings,
-        vec![shell(), call(b"wait", b"{}")],
-        vec![],
-        Checkout { checks: false, build_ms: BUILD_OUTLASTING_THE_RUN_MS, wind_down: false },
-    );
+    let first = park_with_a_job(&settings);
     assert_eq!(ends(&first), vec![tools::JobEnd::Cancelled]);
-    let next = resume(&first, &settings);
-    let problems = next
-        .turns()
-        .iter()
-        .flat_map(|turn| &turn.messages)
-        .flat_map(|message| &message.content)
-        .filter_map(|block| match block {
-            session::llm::Block::ToolResult { result: session::llm::Returned::Invalid { problem }, .. } => {
-                Some(problem.clone())
-            }
-            session::llm::Block::Refusal { .. }
-            | session::llm::Block::Text { .. }
-            | session::llm::Block::Opaque { .. }
-            | session::llm::Block::ToolCall(_)
-            | session::llm::Block::ToolResult { .. } => None,
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(problems, vec![session::llm::Problem::UnknownJob { job: 1 }]);
+    let mut next = resume(&first, &settings, Token::new(91), WAKE);
+    next.run(UNTIL_SETTLED);
+    assert_resumed_batch(&first, &next);
+}
+
+#[test]
+fn a_cut_answer_replays_the_stale_job_batch_before_completing() {
+    const CUT_ACTIVATION: u64 = 2;
+    let settings = Settings { job: Job::Waiting, waiting: Duration::ZERO, ..Settings::calm(1008) };
+    let first = park_with_a_job(&settings);
+    let mut cut = resume(&first, &settings, Token::new(91), WAKE);
+    cut.resume_parts(Box::default(), CUT_ACTIVATION);
+    // The crash leaves just the answer durable: no result part or whole turn.
+    cut.record_window(smith_domain::Window { turns: 1, bytes: u64::MAX });
+    while cut.parts().is_empty() {
+        assert!(!cut.drive(1));
+    }
+    let [(_, _, turn, part)] = cut.parts() else { panic!("only the answer part was kept") };
+    assert_eq!(part.kind, PartKind::Answer);
+    assert_eq!(cut.turns(), []);
+    let mut next = resume(&first, &settings, Token::new(92), RESTART);
+    next.resume_parts(
+        Box::new([Resumed { activation: CUT_ACTIVATION, turn: *turn, part: part.clone() }]),
+        CUT_ACTIVATION + 1,
+    );
+    next.run(UNTIL_SETTLED);
+    assert_eq!(next.completions().len(), 1, "only the request after results goes to the provider");
+    assert_resumed_batch(&first, &next);
 }
