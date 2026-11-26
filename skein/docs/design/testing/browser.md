@@ -110,6 +110,15 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     user's, which a browser whose `HOME` is a scratch directory cannot
     find (temper's `client/drive.md`, 2.2). A fresh profile has no
     secret to keep, and on other systems the flag does nothing;
+  - `--allow-file-access-from-files` where the owner asks for file
+    access, `command`'s `file_access` (`RawPump::start` passes it on),
+    and never otherwise: a `file:` document may then read other
+    `file://` URLs, the images and masks beside it among them, which
+    Chromium refuses it otherwise, each `file:` document being an
+    origin of its own (section 7). A page kept to files still sends
+    nothing outside `file://` (section 5). temper's render check asks
+    for it (`temper/docs/design/client/journey-writer.md`, 6.2, step
+    4); every other owner passes `false`;
   - `about:blank` as the first page.
 
   The environment is minimal, and it is the child's whole environment
@@ -596,8 +605,9 @@ sent. So that entry, one URL in both places, on a page whose
 words outside that wait, or naming two URLs, are the page's. Turned
 down: enabling `CSS` before a page navigates, which would only move the
 request to the blank page it opens at, unchecked; and letting `file:`
-pages read files (`--allow-file-access-from-files`), since a page kept
-to files must not read other local files.
+pages read files (`--allow-file-access-from-files`) to spare that
+refusal, since a page kept to files reads no other local file unless
+its owner asks for file access for a reason of its own (section 3).
 
 A log entry's `url` is the resource it names, cut to `Limits::text`,
 beside its text and never in it, so that a test's expected words are
@@ -633,6 +643,9 @@ named scenario ceiling with headroom.
   read, one past the limit), command encoding, bounded decoding, and
   operation transitions use synthetic CDP replies. The separate browser
   suite checks those assumptions against Chromium.
+- **The command's arguments,** step tests: with file access,
+  `--allow-file-access-from-files` once, before `about:blank`; without
+  it, none, the other arguments the same in both (section 3).
 - **A page's requests,** step tests on synthetic `Network` events: a
   page opened with `requests` enables `Network`, and one without
   enables nothing and reports none; `Sent` for the main frame's
