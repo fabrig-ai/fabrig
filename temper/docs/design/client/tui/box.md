@@ -452,8 +452,12 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   told, `started` giving its notice, the starting screen giving way to
   the launchpad or the welcome at `me` and never standing again, a
   first run never drawing it, Ctrl+C and `/quit` with and without work, while stopping, before
-  the box runs and after an end, `/log` sent, and the host back at the
-  start's address; of the run, with fakes for its children and pipes,
+  the box runs and after an end, `/log` sent, the host back at the
+  start's address, and the key's order against a chat's end: a chat
+  read working, then its work ended, then Ctrl+C stopping the box at
+  once; a chat parked on a live delegate asking, the head naming it; and
+  the key read first, the question standing through the chat's end, its
+  head then "Stop the box?" (section 7); of the run, with fakes for its children and pipes,
   for the configuration directory absent, empty and with an entry, the
   fetch's lines, `found` and its failure, the box's spawn and its
   descriptors, the link read and refused, the lines read, the life pipe
@@ -464,13 +468,33 @@ The header says "temper box" in its stead (`pages/README.md`, 3).
   from its handed link with no key, drawing the welcome; the printed
   link signing a browser in, which ticks "Signed in as the owner"; the
   playground started in the browser, in the TUI's header and quiet line;
-  and lines of the box's, its state and `/log`. The process tier, written
+  and lines of the box's, its state and `/log`. Fuzzy, seeded: a chat's
+  facts read in the order of its life (started, working, a tool's call,
+  its delegate live, parked waiting on it, the delegate ended, parked
+  with none) with Ctrl+C read at a seeded place among them, the
+  question standing exactly where the chat worked by section 7's
+  `work_runs` at the key's read and the box stopping at once elsewhere;
+  and, its delegate never ending, every key read after the chat was
+  first read working asking. The process tier, written
   and compiled, run after landing: `temper box` on a pseudo-terminal
   with a `temper-box` beside it, the local link on its pipe signing the
   TUI in, Ctrl+C with "Stop the box" stopping the box and `temper`
   exiting 0, and `temper` killed stopping the box, watched to its end on
   macOS by skein-world's walk, as the box is not in `temper`'s group
-  (`skein/docs/design/examples.md`, 6).
+  (`skein/docs/design/examples.md`, 6). The working sitting, which asks
+  the question, starts its box with every landing held
+  (`../../domain/landing-settings.md`, 1.3): the chat's delegated change
+  is made and checked and then waits, ready to land, so the chat works
+  by its live delegate until the box stops, and Ctrl+C, sent once the
+  chat is drawn working, meets the question on every run. Without the
+  hold, the playground's scripted model answers at once and the change
+  can land, and the chat park, before the TUI reads the key; the box
+  then stops at once, asking nothing (section 7), and the story waits
+  for a question that never comes. Turned down: taking either end
+  as a pass, which checks less; a slower model, which narrows the
+  window without closing it; a held reply, as the playground's model is
+  the box's own, with no hold a story reaches. The idle and killed
+  sittings need no hold: no work runs in them.
 - **`/web`'s tests** (*`/web`, temper in the browser*), focused: rows of
   the state for the printed link's life (a `link` line live; `linked`
   told false then true spending it; true told again spending nothing; a
