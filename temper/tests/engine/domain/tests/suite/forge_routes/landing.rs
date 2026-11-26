@@ -1293,8 +1293,7 @@ fn a_refused_prepare_holds_the_landing_with_authority_findings() {
     );
 }
 
-#[test]
-fn a_train_forms_after_its_due_readiness_steps_settle() {
+fn gating_pair() -> (World, [u64; 2], engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -1344,7 +1343,7 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
         assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "amended: {answer:?}");
         assert_eq!(live_task(&world, task).waiting_on.as_ref(), [latch]);
     }
-    world.slow_branch = producer_b.workspace.repositories[0].push.clone();
+    world.slow_branch.clone_from(&producer_b.workspace.repositories[0].push);
     world.slow_branch_latency = skein_lib::Duration::from_secs(1);
     finish_producer(&mut world, &producer_a, forge_world::REPO);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
@@ -1354,7 +1353,7 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
         world.tick();
         if [a, b].iter().all(|task| {
             matches!(
-                world.store.change(*task).unwrap().change.state,
+                world.store.change(*task).expect("stored change").change.state,
                 temper_engine_domain_forge_change::State::Gating { .. }
             ) && world.root.tasks().procedure_due(*task).is_none()
         }) {
@@ -1363,12 +1362,18 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     }
     for task in [a, b] {
         assert!(matches!(
-            world.store.change(task).unwrap().change.state,
+            world.store.change(task).expect("stored change").change.state,
             temper_engine_domain_forge_change::State::Gating { .. }
         ));
         assert!(world.root.tasks().procedure_due(task).is_none());
     }
     assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");
+    (world, [a, b], latch_run)
+}
+
+#[test]
+fn a_train_forms_after_its_due_readiness_steps_settle() {
+    let (mut world, [a, b], latch_run) = gating_pair();
     goal_landing::finish_run(
         &mut world,
         &latch_run,
@@ -1384,7 +1389,9 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     let rows = landing_rows(&world);
     assert_eq!(rows.len(), 1);
     let mut queue = [a, b];
-    queue.sort_by_key(|task| (world.store.change(*task).unwrap().change.ready_since.expect("ready"), *task));
+    queue.sort_by_key(|task| {
+        (world.store.change(*task).expect("stored change").change.ready_since.expect("ready"), *task)
+    });
     assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), queue);
 }
 

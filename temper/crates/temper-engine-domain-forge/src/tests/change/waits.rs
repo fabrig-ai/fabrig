@@ -365,6 +365,65 @@ fn queued_reports_the_change_that_owns_its_turn() {
 }
 
 #[test]
+fn a_ready_change_reports_the_first_four_settling_changes_of_its_free_train() {
+    let mut d = started();
+    assert!(d.project_landing(
+        5,
+        change::Way::Turn,
+        Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
+        AfterLanding {
+            wait: change::Wait::Cleared,
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+            },
+            bound: Duration::from_secs(7200),
+        },
+    ));
+    let since = env().wall;
+    let mut ready = opened(State::Ready { head: HEAD, ready_since: since });
+    ready.change.way = change::Way::Turn;
+    let mut out = Queue::uncapped();
+    // Install out of order, with the lowest task's release into another train.
+    for (task, base) in [
+        (CHILD + 5, b"main".as_slice()),
+        (CHILD, b"other".as_slice()),
+        (CHILD + 3, b"main".as_slice()),
+        (CHILD + 2, b"main".as_slice()),
+        (CHILD + 1, b"main".as_slice()),
+        (CHILD + 4, b"main".as_slice()),
+    ] {
+        let mut member = opened(State::Gating { head: HEAD, asked: Box::new([]) });
+        member.change.way = change::Way::Turn;
+        member.change.last_head = Some(HEAD);
+        member.change.task = task;
+        member.task = task;
+        member.base = base.into();
+        outputs(&mut d, Event::Change { row: member });
+        d.set_settling(task, true, &mut out);
+    }
+    let result = outputs(&mut d, Event::Change { row: ready });
+    assert_eq!(
+        wait_report(&result, CHANGE),
+        Some(
+            [step_wait(
+                code::CHANGE_READY,
+                since,
+                ReportedBound::None(Unbounded::Behind(CHILD + 1)),
+                &[
+                    wait_thing(code::THING_TASK, CHILD + 1),
+                    wait_thing(code::THING_TASK, CHILD + 2),
+                    wait_thing(code::THING_TASK, CHILD + 3),
+                    wait_thing(code::THING_TASK, CHILD + 4),
+                ]
+            )]
+            .as_slice()
+        )
+    );
+}
+
+#[test]
 fn landed_verification_gives_up_but_red_has_no_deadline() {
     const VERIFICATION: Duration = Duration::from_secs(7200); // Stock default (temper/docs/design/domain/after-landing.md, 6).
     let since = earlier();

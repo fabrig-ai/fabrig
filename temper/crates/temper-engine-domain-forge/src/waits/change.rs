@@ -170,7 +170,18 @@ fn step_wait(d: &Domain, env: &Env<Limits>, row: &ChangeRow, phase: u32, observe
         return behind(phase, since, if first == Some(row.task) { None } else { first });
     }
     if crate::landing::waiting(d, row) {
-        return behind(phase, since, d.train_holder(row.repository, &row.base));
+        if let Some(landing) = d.train_holder(row.repository, &row.base) {
+            return behind(phase, since, Some(landing));
+        }
+        let cohort = d.settling_changes(row.repository, &row.base, THINGS);
+        if let Some(first) = cohort.first() {
+            let mut things = List::with_capacity(THINGS);
+            for task in &cohort {
+                things.push(thing(code::THING_TASK, *task)).expect("bounded cohort report");
+            }
+            return record(phase, things, since, ReportedBound::None(Unbounded::Behind(*first)));
+        }
+        return behind(phase, since, None);
     }
     if let State::Red { since, .. } = row.change.state {
         return behind(phase, since, None);

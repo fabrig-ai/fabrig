@@ -1566,7 +1566,16 @@ pub(crate) fn revision_saved(
     };
     let mut out = Queue::uncapped();
     domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
+    landing_route::cohort_saved(domain, env, task, &mut out);
     outputs(domain, env, decision, &mut out);
+}
+
+pub(super) fn dependency_releases_change(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64) {
+    let mut out = Queue::uncapped();
+    landing_route::release(domain, env, task, None, &mut out);
+    if !out.is_empty() {
+        outputs(domain, env, decision, &mut out);
+    }
 }
 
 fn making_unavailable(domain: &Domain, task: u64) -> bool {
@@ -1910,6 +1919,7 @@ pub(super) fn start_recovered_change(
         }
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                settling: false,
                 room: None,
                 kept: None,
                 regate: None,
@@ -2056,6 +2066,11 @@ pub(super) fn start_recovered_change(
     retry_change_names(domain, env, task);
     if waits_word {
         let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
+        let mut out = Queue::uncapped();
+        domain.forge.set_settling(task, false, &mut out);
+        if !out.is_empty() {
+            domain.work.push(Work::ForgeSettings(out));
+        }
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
             task,
             step,
@@ -4070,6 +4085,9 @@ pub(crate) fn outputs(
     out: &mut Queue<forge::Request>,
 ) {
     while let Some(request) = out.pop() {
+        if let forge::Request::ChangeDecision { task, .. } | forge::Request::CloseDecision { task, .. } = &request {
+            domain.forge.set_settling(*task, false, out);
+        }
         match request {
             forge::Request::LoadHistory { load, range, after, most } => {
                 match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {

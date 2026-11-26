@@ -105,6 +105,15 @@ pub(crate) fn record(
                 Some(prior) => prior.commit != commit,
                 None => true,
             };
+            if let Some(task) = concerning
+                && let Some(row) = d.change(task)
+                && row.settling
+                && name.forge == row.repository.forge
+                && name.repository == row.repository.repository
+                && crate::items::branch_matches(&name, &row.branch)
+            {
+                crate::settling::head_seen(d, task, Some(commit), out);
+            }
             if changed {
                 crate::change_history::pushed(d, env.wall, &name, commit, out);
             }

@@ -225,6 +225,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        settling: false,
         room: None,
         source: None,
         kept: None,

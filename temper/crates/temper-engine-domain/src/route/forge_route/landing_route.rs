@@ -2,8 +2,8 @@
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 //! Task-first admission and refused trains follow domain/landing-forming.md, 2 and 3.
 use super::{
-    Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Recovery,
-    StepEnd, Work, append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
+    Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Queue,
+    Recovery, StepEnd, Work, append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
 };
 use forge::LandingHeadTrailers as HeadTrailers;
 use temper_engine_domain_translate::prepare::{self, PrepareMember, PrepareRequest};
@@ -35,6 +35,54 @@ pub(super) fn kept(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
         return true;
     }
     false
+}
+
+/// A saved task lifecycle can end a candidate's wait or release its parent
+/// by delivering the parent's final gate result.
+pub(super) fn cohort_saved(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: &tasks::TaskRecord,
+    out: &mut Queue<forge::Request>,
+) {
+    if let Some(change) = domain.forge.change(task.number)
+        && change.settling
+        && (!live(task) || kept(domain, env, task.number))
+    {
+        domain.forge.set_settling(task.number, false, out);
+    }
+    if let tasks::Phase::Ended(_) = task.phase
+        && let tasks::Party::Task(owner) = task.requester
+        && let Some(row) = domain.forge.change(owner)
+        && let Some((child, forge_change::Delegate::Gate { number, head })) = row.delegate
+        && child == task.number
+    {
+        release(domain, env, owner, Some((number, head)), out);
+    }
+}
+
+fn live(task: &tasks::TaskRecord) -> bool {
+    match task.phase {
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => task.placed.is_none(),
+        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
+    }
+}
+
+pub(super) fn release(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    gate: Option<(u64, skein_forge::api::Commit)>,
+    out: &mut Queue<forge::Request>,
+) {
+    let Some(row) = domain.forge.change(task) else { return };
+    let Some(owner) = domain.core.tasks.task(task) else { return };
+    if live(owner)
+        && forge::gates_settled(&domain.forge, row, gate, env.limits.forge.change_policy.gates)
+        && !kept(domain, env, task)
+    {
+        domain.forge.set_settling(task, true, out);
+    }
 }
 
 /// Pending dependencies in the task's dependency order (domain/forge/change/questions.md, 1).
@@ -102,6 +150,9 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    if !domain.forge.settling_changes(repository, branch, 1).is_empty() {
+        return false;
+    }
     if !domain.forge_refused.is_empty() {
         let train = (repository, Box::from(branch));
         if let Some((wall, _, judged)) = domain.forge_refused.get_mut(&train) {
@@ -111,32 +162,7 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
             *judged = true;
         }
     }
-    // Due ready changes join in queue order and never hold forming. Only a
-    // non-ready change whose gates and dependencies have settled holds this
-    // train, for one due step at that head (domain/landing-turn.md, 2).
     let mut excluded = List::with_capacity(env.limits.forge.changes);
-    for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
-        let Some(row) = domain.forge.change(task) else { continue };
-        if row.base.as_ref() == branch
-            && row.change.way == forge_change::Way::Turn
-            && domain.forge.landing_of(task).is_none()
-            && let Some((_, _, step)) = domain.core.tasks.procedure_due(task)
-        {
-            if let forge_change::State::Ready { .. } = row.change.state {
-                continue;
-            }
-            if forge::gates_settled(
-                &domain.forge,
-                row,
-                returned_gate(domain, row),
-                env.limits.forge.change_policy.gates,
-            ) && !kept(domain, env, task)
-                && domain.forge.hold_forming(task, step)
-            {
-                return false;
-            }
-        }
-    }
     let Some(repo) = domain.forge.repository(repository) else { return false };
     let project = repo.project;
     for (provider, base) in domain.forge.waiting_trains() {
@@ -191,33 +217,6 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
         return false;
     }
     create_landing(domain, env, members, project, branch)
-}
-
-/// The current gate's terminal can be in jig's retained task or its owner's
-/// inbox before the change step copies it into the row (domain/landing-turn.md, 2).
-fn returned_gate(domain: &Domain, row: &forge::ChangeRow) -> Option<(u64, skein_forge::api::Commit)> {
-    let (child, kind) = row.delegate?;
-    let gate = match kind {
-        forge_change::Delegate::Gate { number, head } => (number, head),
-        forge_change::Delegate::Produce
-        | forge_change::Delegate::Close
-        | forge_change::Delegate::Repair(_)
-        | forge_change::Delegate::Resolve { .. }
-        | forge_change::Delegate::Merge { .. } => return None,
-    };
-    if let Some(child) = domain.core.tasks.task(child) {
-        match child.phase {
-            tasks::Phase::Ended(_) => return Some(gate),
-            tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) => {}
-        }
-    }
-    let owner = domain.core.tasks.task(row.task)?;
-    for word in &owner.inbox {
-        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind, kind).is_some() {
-            return Some(gate);
-        }
-    }
-    None
 }
 
 fn create_landing(

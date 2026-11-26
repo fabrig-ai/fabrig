@@ -207,6 +207,19 @@ fn dev_cold_changes_default_person_goal_title_and_draft() {
     converts("change_cold", change_cold());
 }
 #[test]
+fn a_change_hot_round_trips_its_cohort_mark_and_defaults_it_for_dev() {
+    let (_, mut hot) =
+        fixtures::change_row(temper_engine_domain_forge_change::State::Gating { head: [7; 32], asked: Box::new([]) })
+            .split();
+    hot.settling = true;
+    let stored = d::Stored::ChangeHot(Box::new(hot.clone()));
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&stored), &bounds).unwrap(), stored);
+    hot.settling = false;
+    converts("change_hot", (stored, d::Stored::ChangeHot(Box::new(hot))));
+}
+
+#[test]
 fn dev_findings_default_blame_clearing_and_many() {
     converts("finding", finding());
 }

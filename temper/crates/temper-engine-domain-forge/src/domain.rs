@@ -332,8 +332,6 @@ pub struct Domain {
     pub(crate) sequence: u64,
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
-    /// Unstored step and head of each spent train hold (domain/landing-turn.md, 2).
-    pub(crate) forming_holds: Map<u64, (u64, skein_forge::api::Commit)>,
     /// The cold part last put, also held while restart collects the two parts.
     pub(crate) change_cold: Map<u64, crate::ChangeCold>,
     /// Progress parts awaiting the restore fit barrier.
@@ -1121,7 +1119,6 @@ impl Domain {
             sequence: 0,
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
-            forming_holds: Map::with_capacity(l.changes),
             change_cold: Map::with_capacity(l.changes),
             change_hot: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
@@ -5614,6 +5611,7 @@ fn step_read(
             match result {
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
                     pending.branch = Some(commit);
+                    crate::settling::head_seen(d, pending.task, Some(commit), out);
                     if let Some(read) = d.settling.get_mut(&pending.task) {
                         read.branch.present = true;
                     }
@@ -5631,7 +5629,10 @@ fn step_read(
                         );
                     }
                 }
-                Err(skein_forge::api::Error::Missing) => pending.branch = None,
+                Err(skein_forge::api::Error::Missing) => {
+                    pending.branch = None;
+                    crate::settling::head_seen(d, pending.task, None, out);
+                }
                 Ok(_) | Err(_) => {
                     unreachable!("fresh read answer checked");
                 }
@@ -10603,7 +10604,6 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         }
         Stored::Change(mut row) => {
             d.merge_withheld.remove(&row.task);
-            crate::settling::forget(d, &row);
             if row.frozen() {
                 row.room = None;
             }
@@ -11113,12 +11113,16 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
 }
 
 /// Remember the cold part last put: callers may already have replaced the in-memory row.
-pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, row: ChangeRow) {
+pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
+    if row.settling && crate::settling::settling_head(d.landing_of(row.task), &row).is_none() {
+        row.settling = false;
+        d.changes.get_mut(&row.task).expect("saved change").settling = false;
+        crate::settling::mark_train_waits(d, &row);
+    }
     crate::waits::changed(d, row.task);
     if row.frozen() {
         d.merge_withheld.remove(&row.task);
     }
-    crate::settling::forget(d, &row);
     let (cold, hot) = row.split();
     if d.change_cold.get(&cold.task) != Some(&cold) {
         d.change_cold.insert(cold.task, cold.clone()).expect("one cold part per change");

@@ -1006,6 +1006,7 @@ fn preservation_words_yield_to_the_current_request_and_answers() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        settling: false,
         room: None,
         source: None,
         kept: None,

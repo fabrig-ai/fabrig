@@ -1,8 +1,14 @@
-//! Only one readiness step at a gating head holds forming (domain/landing-turn.md, 2).
-use super::super::{Domain, Limits, forge, forge_change as change, tasks};
-use super::due_ready::{members, ready_changes, settle, wake};
+//! Cohort enrollment belongs to a release, not to being due (domain/landing-turn.md, 2).
+use super::super::{Domain, Limits, Work, forge, forge_change as change, tasks};
+use super::due_ready::{members, ready_changes, wake};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
+
+const WAITER: u64 = 7;
+const CANDIDATE: u64 = 8;
+const DEPENDENCY: u64 = 9;
+const GATE_TASK: u64 = 99;
+const NEXT_GATE_TASK: u64 = 100;
 
 fn restore(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
     forge::step(
@@ -56,7 +62,7 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
 }
 
 fn gating(domain: &mut Domain, env: &Env<Limits>, status: change::Status) {
-    let mut row = domain.forge.change(8).unwrap().clone();
+    let mut row = domain.forge.change(CANDIDATE).unwrap().clone();
     row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([1]) };
     row.change.last_head = Some(super::SHA1);
     row.change.gates = Box::new([change::Gate {
@@ -68,132 +74,172 @@ fn gating(domain: &mut Domain, env: &Env<Limits>, status: change::Status) {
     }]);
     row.verdicts = Box::new([change::GateReport { revision: 0, number: 1, head: super::SHA1, status }]);
     restore(domain, env, row);
-    wake(domain, env, 8);
+    wake(domain, env, CANDIDATE);
 }
 
 fn only_waiter_forms(domain: &mut Domain, env: &Env<Limits>) {
     super::judge_trains(domain, env);
-    let formed = domain.forge.landing_of(7).expect("the settled waiter forms at this judgement");
-    assert_eq!(members(domain, formed).as_ref(), [7]);
-    assert_eq!(domain.forge.landing_of(8), None);
-    assert!(domain.core.tasks.procedure_due(8).is_some());
+    let formed = domain.forge.landing_of(WAITER).expect("the settled waiter forms at this judgement");
+    assert_eq!(members(domain, formed).as_ref(), [WAITER]);
+    assert_eq!(domain.forge.landing_of(CANDIDATE), None);
+    assert!(domain.core.tasks.procedure_due(CANDIDATE).is_some());
 }
 
 #[test]
 fn a_due_checking_change_does_not_hold_its_train() {
-    let (mut domain, env) = ready_changes(&[7, 8], 3);
-    let mut row = domain.forge.change(8).unwrap().clone();
+    let (mut domain, env) = ready_changes(&[WAITER, CANDIDATE], 3);
+    let mut row = domain.forge.change(CANDIDATE).unwrap().clone();
     row.change.state = change::State::Checking { head: super::SHA1 };
     restore(&mut domain, &env, row);
-    wake(&mut domain, &env, 8);
+    wake(&mut domain, &env, CANDIDATE);
     only_waiter_forms(&mut domain, &env);
 }
 
 #[test]
-fn outstanding_blocking_gates_do_not_hold_a_due_changes_train() {
-    for status in [change::Status::Pending, change::Status::Unknown, change::Status::Failed] {
-        let (mut domain, env) = ready_changes(&[7, 8], 3);
-        gating(&mut domain, &env, status);
-        only_waiter_forms(&mut domain, &env);
-    }
-}
-
-#[test]
-fn a_due_gated_change_kept_by_a_dependency_does_not_hold_its_train() {
-    let (mut domain, env) = ready_changes(&[7, 8, 9], 3);
+fn a_due_gate_with_no_release_does_not_hold_its_train() {
+    let (mut domain, env) = ready_changes(&[WAITER, CANDIDATE], 3);
     gating(&mut domain, &env, change::Status::Passed);
-    let mut dependency = domain.forge.change(9).unwrap().clone();
-    dependency.change.state = change::State::Checking { head: super::SHA1 };
-    restore(&mut domain, &env, dependency);
-    let mut task = domain.core.tasks.task(8).unwrap().clone();
-    task.dependencies = Box::new([9]);
-    task.waiting_on = Box::new([9]);
-    restore_task(&mut domain, &env, task);
-    assert!(super::super::landing_route::kept(&domain, &env, 8));
     only_waiter_forms(&mut domain, &env);
 }
 
-#[test]
-fn a_gating_head_holds_for_one_step_only_even_when_woken_again() {
-    let (mut domain, env) = ready_changes(&[7, 8], 3);
-    gating(&mut domain, &env, change::Status::Passed);
-    let (_, _, first) = domain.core.tasks.procedure_due(8).unwrap();
-    for _ in 0_u8..2 {
-        super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.landing_of(7), None, "the same due step keeps holding");
-    }
-    settle(&mut domain, &env, 8);
-    wake(&mut domain, &env, 8);
-    assert_ne!(domain.core.tasks.procedure_due(8).unwrap().2, first);
-    only_waiter_forms(&mut domain, &env);
+fn release_gate(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    head: [u8; 32],
+    current: u64,
+    sender: u64,
+) -> Queue<forge::Request> {
+    let mut row = domain.forge.change(CANDIDATE).unwrap().clone();
+    row.delegate = Some((current, change::Delegate::Gate { number: 1, head }));
+    restore(domain, env, row);
+    let mut ended = domain.core.tasks.task(CANDIDATE).unwrap().clone();
+    ended.number = sender;
+    ended.requester = tasks::Party::Task(CANDIDATE);
+    ended.phase = tasks::Phase::Ended(tasks::Ending::Failed { reason: b"Gate failed".as_slice().into() });
+    let mut out = Queue::uncapped();
+    super::super::landing_route::cohort_saved(domain, env, &ended, &mut out);
+    out
+}
+
+fn finish_wait(domain: &mut Domain, env: &Env<Limits>) {
+    let mut out = Queue::uncapped();
+    out.push(forge::Request::ChangeDecision {
+        task: CANDIDATE,
+        decision: change::Decision::Wait { until: None },
+        entry: None,
+        evidence: None,
+    });
+    domain.work.push(Work::ForgeSettings(out));
+    super::judge_trains(domain, env);
 }
 
 #[test]
-fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
-    for moves in [false, true] {
-        let (mut domain, env) = ready_changes(&[7, 8], 3);
-        gating(&mut domain, &env, change::Status::Passed);
-        super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.landing_of(7), None);
-        settle(&mut domain, &env, 8);
-        // Leave no waiting unit while proving the old hold has been spent.
-        let ready_seven = domain.forge.change(7).unwrap().clone();
-        let mut checking = ready_seven.clone();
-        checking.change.state = change::State::Checking { head: super::SHA1 };
-        restore(&mut domain, &env, checking);
-        wake(&mut domain, &env, 7);
-        wake(&mut domain, &env, 8);
-        super::judge_trains(&mut domain, &env);
-        assert!(!domain.forge.hold_forming(8, domain.core.tasks.procedure_due(8).unwrap().2));
-        let mut row = domain.forge.change(8).unwrap().clone();
-        if moves {
-            row.change.state = change::State::Gating { head: super::SHA256, asked: Box::new([1]) };
-            row.change.last_head = Some(super::SHA256);
-            row.verdicts.first_mut().unwrap().head = super::SHA256;
-        } else {
-            row.change.state = change::State::Checking { head: super::SHA1 };
-            restore(&mut domain, &env, row.clone());
-            row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([1]) };
-        }
-        restore(&mut domain, &env, row);
-        restore(&mut domain, &env, ready_seven);
-        settle(&mut domain, &env, 7);
-        super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.landing_of(7), None, "the new gating episode settles again");
-        settle(&mut domain, &env, 8);
-        wake(&mut domain, &env, 8);
-        only_waiter_forms(&mut domain, &env);
-    }
-}
-
-#[test]
-fn a_returned_gate_terminal_holds_until_the_due_step_consumes_it() {
-    // The gate's task has ended and left jig's live arena; its owner's unread
-    // terminal still names the current delegate and the checked head.
-    for (head, sender, status, holds) in [
-        (super::SHA1, 99, change::Status::Pending, true),
-        (super::SHA256, 99, change::Status::Pending, false),
-        (super::SHA1, 98, change::Status::Pending, false),
-        (super::SHA256, 99, change::Status::Passed, true),
+fn only_the_current_last_blocking_gate_at_the_head_releases_the_change() {
+    for (head, sender, other, blocking, released) in [
+        (super::SHA1, GATE_TASK, change::Status::Passed, true, true),
+        (super::SHA256, GATE_TASK, change::Status::Passed, true, false),
+        (super::SHA1, NEXT_GATE_TASK, change::Status::Passed, true, false),
+        (super::SHA1, GATE_TASK, change::Status::Pending, true, false),
+        (super::SHA1, GATE_TASK, change::Status::Passed, false, false),
     ] {
-        let (mut domain, env) = ready_changes(&[7, 8], 3);
-        gating(&mut domain, &env, status);
-        let mut row = domain.forge.change(8).unwrap().clone();
-        row.delegate = Some((99, change::Delegate::Gate { number: 1, head }));
+        let (mut domain, env) = ready_changes(&[WAITER, CANDIDATE], 3);
+        gating(&mut domain, &env, change::Status::Pending);
+        let mut row = domain.forge.change(CANDIDATE).unwrap().clone();
+        let mut gate = *row.change.gates.first().unwrap();
+        gate.blocking = blocking;
+        row.change.gates = Box::new([gate, change::Gate { number: 2, blocking: true, ..gate }]);
+        row.verdicts = Box::new([change::GateReport { revision: 0, number: 2, head: super::SHA1, status: other }]);
         restore(&mut domain, &env, row);
-        let mut task = domain.core.tasks.task(8).unwrap().clone();
-        task.inbox = Box::new([tasks::Word {
-            number: 1,
-            from: tasks::Party::Task(sender),
-            kind: tasks::MessageKind::Result(tasks::ResultKind::Verdict { code: 1, fields: Box::new([]) }),
-            words: b"Passed".as_slice().into(),
-            at: env.wall,
-            hits: 1,
-            eligible: true,
-        }]);
-        restore_task(&mut domain, &env, task);
-        super::judge_trains(&mut domain, &env);
-        assert_eq!(domain.forge.landing_of(7).is_none(), holds, "only the current gate at the checked head settles");
-        assert_eq!(domain.forge.change(8).unwrap().verdicts.first().unwrap().status, status);
+        let out = release_gate(&mut domain, &env, head, GATE_TASK, sender);
+        assert_eq!(domain.forge.change(CANDIDATE).unwrap().settling, released);
+        let mut saved_mark = false;
+        for request in out.into_boxed() {
+            if let forge::Request::Save { record: forge::Stored::ChangeHot(hot), .. } = request
+                && hot.task == CANDIDATE
+                && hot.settling
+            {
+                saved_mark = true;
+            }
+        }
+        assert_eq!(saved_mark, released, "the release is saved in the decision that takes the result");
     }
+}
+
+#[test]
+fn a_change_that_waits_leaves_the_cohort_and_a_later_release_can_join_again() {
+    let (mut domain, env) = ready_changes(&[WAITER, CANDIDATE], 3);
+    gating(&mut domain, &env, change::Status::Pending);
+    let out = release_gate(&mut domain, &env, super::SHA1, GATE_TASK, GATE_TASK);
+    domain.work.push(Work::ForgeSettings(out));
+    super::judge_trains(&mut domain, &env);
+    assert!(domain.forge.landing_of(WAITER).is_none());
+
+    // The first decision waits (for example, for a sign-off); it didn't become ready.
+    // Keep forming withheld so the next release can be observed before it forms.
+    domain.hold_landings(true);
+    finish_wait(&mut domain, &env);
+    assert!(!domain.forge.change(CANDIDATE).unwrap().settling);
+    wake(&mut domain, &env, CANDIDATE);
+    assert!(!domain.forge.change(CANDIDATE).unwrap().settling, "a wake is not a release");
+
+    let mut row = domain.forge.change(CANDIDATE).unwrap().clone();
+    row.change.state = change::State::Gating { head: super::SHA256, asked: Box::new([1]) };
+    row.change.last_head = Some(super::SHA256);
+    restore(&mut domain, &env, row);
+    let out = release_gate(&mut domain, &env, super::SHA256, NEXT_GATE_TASK, NEXT_GATE_TASK);
+    domain.work.push(Work::ForgeSettings(out));
+    domain.hold_landings(false);
+    super::judge_trains(&mut domain, &env);
+    assert!(domain.forge.landing_of(WAITER).is_none(), "the newly released head settles");
+    finish_wait(&mut domain, &env);
+    let landing = domain.forge.landing_of(WAITER).expect("a change that did not become ready leaves the cohort");
+    assert_eq!(members(&domain, landing).as_ref(), [WAITER]);
+}
+
+fn gate_released_with_a_waiter() -> (Domain, Env<Limits>) {
+    let (mut domain, env) = ready_changes(&[WAITER, CANDIDATE, DEPENDENCY], 3);
+    gating(&mut domain, &env, change::Status::Pending);
+    let mut other = domain.forge.change(DEPENDENCY).unwrap().clone();
+    other.change.state = change::State::Checking { head: super::SHA1 };
+    restore(&mut domain, &env, other);
+    let out = release_gate(&mut domain, &env, super::SHA1, GATE_TASK, GATE_TASK);
+    domain.work.push(Work::ForgeSettings(out));
+    super::judge_trains(&mut domain, &env);
+    assert!(domain.forge.change(CANDIDATE).unwrap().settling, "the gate result released the candidate");
+    (domain, env)
+}
+
+fn candidate_left(domain: &mut Domain, env: &Env<Limits>, changed: &tasks::TaskRecord) {
+    let mut out = Queue::uncapped();
+    super::super::landing_route::cohort_saved(domain, env, changed, &mut out);
+    domain.work.push(Work::ForgeSettings(out));
+    super::judge_trains(domain, env);
+    assert!(!domain.forge.change(CANDIDATE).unwrap().settling, "the unavailable change left the cohort");
+    let landing = domain.forge.landing_of(WAITER).expect("an unavailable change holds no train");
+    assert_eq!(members(domain, landing).as_ref(), [WAITER]);
+}
+
+#[test]
+fn a_held_closing_or_ended_candidate_leaves_its_cohort() {
+    let ending = tasks::Ending::Failed { reason: b"Stopped".as_slice().into() };
+    for phase in [
+        tasks::Phase::Held { was: tasks::Was::Waiting, why: tasks::Hold::Stopped, source: None },
+        tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Effects, ending: ending.clone() }),
+        tasks::Phase::Ended(ending),
+    ] {
+        let (mut domain, env) = gate_released_with_a_waiter();
+        let mut task = domain.core.tasks.task(CANDIDATE).unwrap().clone();
+        task.phase = phase;
+        candidate_left(&mut domain, &env, &task);
+    }
+}
+
+#[test]
+fn a_new_pending_dependency_removes_a_candidate_from_its_cohort() {
+    let (mut domain, env) = gate_released_with_a_waiter();
+    let mut task = domain.core.tasks.task(CANDIDATE).unwrap().clone();
+    task.dependencies = Box::new([DEPENDENCY]);
+    task.waiting_on = Box::new([DEPENDENCY]);
+    restore_task(&mut domain, &env, task.clone());
+    candidate_left(&mut domain, &env, &task);
 }

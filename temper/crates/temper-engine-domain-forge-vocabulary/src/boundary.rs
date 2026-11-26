@@ -1074,7 +1074,10 @@ pub struct PreviousLink {
 
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the cohort mark is independent of the delegate and base flags")]
 pub struct ChangeRow {
+    /// A release into the train awaits its first change decision.
+    pub settling: bool,
     pub room: Option<u64>,
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
@@ -1198,6 +1201,7 @@ pub struct ChangeCold {
 /// A change's hot store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
+    pub settling: bool,
     pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
@@ -1249,6 +1253,7 @@ impl ChangeRow {
     #[expect(clippy::too_many_lines, reason = "each field is moved explicitly into its cold or hot store part")]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
+            settling,
             room,
             source,
             kept,
@@ -1336,6 +1341,7 @@ impl ChangeRow {
                 report,
             },
             ChangeHot {
+                settling,
                 room,
                 kept,
                 regate,
@@ -1407,6 +1413,7 @@ impl ChangeRow {
             report,
         } = cold;
         let ChangeHot {
+            settling,
             room,
             kept,
             regate,
@@ -1449,6 +1456,7 @@ impl ChangeRow {
         } = hot;
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
+            settling,
             room,
             source,
             kept,

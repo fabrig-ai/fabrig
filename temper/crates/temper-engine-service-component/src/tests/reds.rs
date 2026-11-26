@@ -93,6 +93,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
 fn check_change_row(task: u64) -> forge::ChangeRow {
     use temper_engine_domain_forge_change as change;
     forge::ChangeRow {
+        settling: false,
         room: None,
         source: None,
         kept: None,

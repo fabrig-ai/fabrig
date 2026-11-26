@@ -98,6 +98,69 @@ pub(super) fn pushed_change(world: &mut World, owner: &engine::Assignment, call:
     (change, producer)
 }
 
+#[test]
+fn a_restart_between_a_shared_release_and_its_steps_keeps_one_cohort() {
+    let (mut world, members @ [a, b], latch) = super::gating_pair();
+    world.drain_cut();
+    world.held_reads = Some(Vec::new());
+    world.hold_read_for = Some(b);
+    goal_landing::finish_run(
+        &mut world,
+        &latch,
+        tasks::TaskResult::Report { words: b"Release both".as_slice().into() },
+    );
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if members.iter().all(|task| world.store.change(*task).expect("stored member").settling) {
+            break;
+        }
+    }
+    for task in members {
+        let row = world.store.change(task).expect("stored member");
+        assert!(
+            row.settling,
+            "release stored before the step of {task}: {:?}; latch: {:?}",
+            row.change.state,
+            task_row(&world, latch.task).map(|row| &row.phase)
+        );
+    }
+    assert!(landing_rows(&world).is_empty(), "no landing before the restart");
+    // The store has committed the marks; abandon any reads of the old root.
+    world.crash_restart(71);
+    world.send(hello_prepare(4));
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+        if matches!(
+            world.root.forge().change(a).map(|row| &row.change.state),
+            Some(temper_engine_domain_forge_change::State::Ready { .. })
+        ) && world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty())
+        {
+            break;
+        }
+    }
+    let first = world.root.forge().change(a).expect("restored first member");
+    assert!(matches!(first.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
+    assert!(!first.settling, "the first member stepped");
+    assert!(world.root.forge().change(b).expect("restored second member").settling, "restart kept the mark");
+    assert!(landing_rows(&world).is_empty(), "ready member cannot form without the second decision");
+    world.hold_read_for = None;
+    for call in world.held_reads.take().expect("held reads from the new process") {
+        world.out.push(call);
+    }
+    world.collect();
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    let rows = landing_rows(&world);
+    let [row] = rows.as_slice() else {
+        panic!("one landing, got {rows:?}; second member: {:?}", world.root.forge().change(b));
+    };
+    assert_eq!(row.landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), members);
+}
+
 fn assert_unheld(world: &World) {
     for row in landing_rows(world) {
         assert!(!matches!(row.landing.phase, forge_top::LandingPhase::Held { .. }), "{row:?}");
