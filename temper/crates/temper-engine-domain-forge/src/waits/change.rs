@@ -181,6 +181,9 @@ fn step_wait(d: &Domain, env: &Env<Limits>, row: &ChangeRow, phase: u32, observe
             }
             return record(phase, things, since, ReportedBound::None(Unbounded::Behind(*first)));
         }
+        if let Some((refusal, holders)) = d.forming_refusal(row.repository, &row.base) {
+            return forming_wait(d, phase, since.max(refusal.since), &refusal.cause, &holders);
+        }
         return behind(phase, since, None);
     }
     if let State::Red { since, .. } = row.change.state {
@@ -206,6 +209,35 @@ fn step_wait(d: &Domain, env: &Env<Limits>, row: &ChangeRow, phase: u32, observe
         after(since, limits.stall)
     };
     at(phase, step_things(row, clock), since, end, AtBound::Hold)
+}
+
+fn forming_wait(d: &Domain, step: u32, since: Wall, cause: &crate::FormingRefusal, holders: &[u64]) -> Reported {
+    let mut things = List::with_capacity(THINGS);
+    match cause {
+        crate::FormingRefusal::Jig { number, .. } => {
+            things.push(thing(code::THING_LANDING_MAKE, *number)).expect("one refused make");
+            record(step, things, since, ReportedBound::None(Unbounded::NoDeadline))
+        }
+        crate::FormingRefusal::Landings => {
+            things.push(thing(code::THING_LANDINGS, u64::from(d.landing.limits.landings))).expect("a table figure");
+            for holder in holders {
+                if things.room() == 0 {
+                    break;
+                }
+                things.push(thing(code::THING_TASK, *holder)).expect("at most three holders");
+            }
+            let bound = match d.oldest_landing_holder(holders) {
+                Some(holder) => Unbounded::Behind(holder),
+                None => Unbounded::NoDeadline,
+            };
+            Reported {
+                kind: WaitKind::Room,
+                object: WaitObject::Procedure { step, things },
+                since,
+                bound: ReportedBound::None(bound),
+            }
+        }
+    }
 }
 
 fn execution_clock(row: &ChangeRow) -> Option<change::Clock> {

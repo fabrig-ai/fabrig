@@ -165,19 +165,11 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             } else if matches!(row.change.state, State::Ready { .. }) && !cohort_wakes(view, row, &mut wakes) {
                 if view.forge.landing_held() {
                     wakes.push(Wake::Party("operator restart".into()));
-                }
-                if let Some(due) = view.root.and_then(|root| root.inspection_forming_retry(row.task)) {
-                    wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
-                }
-                let full = view.forge.inspection_landings().len() >= view.forge.inspection_landings().capacity();
-                for (task, landing) in view.forge.inspection_landings() {
-                    let same_train = landing.landing.branch == row.base
-                        && landing.landing.members.iter().any(|member| {
-                            member.repository.forge == row.repository.forge
-                                && member.repository.repository == row.repository.repository
-                        });
-                    if !landing_ended(&landing.landing.phase) && (full || same_train) {
-                        wakes.push(view.waiter(*task));
+                } else if row.change.way == temper_engine_domain_forge_change::Way::Turn {
+                    if let Some(task) = view.forge.train_holder(row.repository, &row.base) {
+                        wakes.push(view.waiter(task));
+                    } else {
+                        refused_train(view, row, &mut wakes);
                     }
                 }
             }
@@ -225,6 +217,28 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
         }
     }
     wakes
+}
+
+fn refused_train(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow, wakes: &mut Vec<Wake>) {
+    use temper_engine_domain_forge::FormingRefusal;
+    let Some((refusal, holders)) = view.forge.forming_refusal(row.repository, &row.base) else { return };
+    match refusal.cause {
+        FormingRefusal::Jig { retry, .. } => wakes.push(Wake::Timer(Time::from_nanos(retry.as_nanos()))),
+        FormingRefusal::Landings => {
+            let entries = view.forge.inspection_entries();
+            for task in holders {
+                if view.ended(task) {
+                    for number in &entries {
+                        if view.forge.inspection_entry(*number).is_some_and(|entry| entry.task == task) {
+                            wakes.push(Wake::Party(format!("forge: entry {number}")));
+                        }
+                    }
+                } else {
+                    wakes.push(view.waiter(task));
+                }
+            }
+        }
+    }
 }
 
 // A gate can displace the current delegate without ending a pushing child.

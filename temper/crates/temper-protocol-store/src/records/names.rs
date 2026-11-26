@@ -152,6 +152,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
         settings,
         workflows,
         landing,
+        refusals,
     } = value;
     w::Adopted {
         project: *project,
@@ -170,6 +171,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
         settings: encode_settings(settings),
         workflows: encode_workflows(workflows),
         landing: landing.clone(),
+        refusals: encode_train_refusals(refusals),
     }
 }
 pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Repository, Undecodable> {
@@ -190,6 +192,7 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
         settings,
         workflows,
         landing,
+        refusals,
     } = value;
     let settings = decode_settings(settings);
     let landing = if landing.is_empty() { settings.default_branch.clone() } else { landing };
@@ -210,7 +213,48 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
         settings,
         workflows: workflows.into_boxed(),
         landing,
+        refusals: decode_train_refusals(refusals)?,
     })
+}
+
+fn encode_train_refusals(values: &[d::TrainRefusal]) -> List<w::TrainRefusal> {
+    let mut refusals = List::with_capacity(u32::try_from(values.len()).expect("admitted train count"));
+    for refusal in values {
+        let cause = match &refusal.cause {
+            d::FormingRefusal::Landings => w::FormingRefusal::Landings,
+            d::FormingRefusal::Jig { number, why, retry } => {
+                w::FormingRefusal::Jig(w::JigRefusal { number: *number, why: why.clone(), retry: retry.as_nanos() })
+            }
+        };
+        refusals
+            .push(w::TrainRefusal { branch: refusal.branch.clone(), since: refusal.since.as_nanos(), cause })
+            .expect("same count");
+    }
+    refusals
+}
+
+fn decode_train_refusals(values: List<w::TrainRefusal>) -> Result<Box<[d::TrainRefusal]>, Undecodable> {
+    let mut refusals: List<d::TrainRefusal> = List::with_capacity(values.len());
+    for w::TrainRefusal { branch, since, cause } in &values {
+        if branch.is_empty() {
+            return Err(Undecodable::Malformed);
+        }
+        if let Some(last) = refusals.last()
+            && last.branch >= *branch
+        {
+            return Err(Undecodable::Malformed);
+        }
+        let cause = match cause {
+            w::FormingRefusal::Landings => d::FormingRefusal::Landings,
+            w::FormingRefusal::Jig(w::JigRefusal { number, why, retry }) => {
+                d::FormingRefusal::Jig { number: *number, why: why.clone(), retry: skein_lib::Wall::from_nanos(*retry) }
+            }
+        };
+        refusals
+            .push(d::TrainRefusal { branch: branch.clone(), since: skein_lib::Wall::from_nanos(*since), cause })
+            .expect("same count");
+    }
+    Ok(refusals.into_boxed())
 }
 
 pub(super) fn encode_hold(value: &d::Hold) -> w::Hold {

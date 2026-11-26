@@ -676,6 +676,9 @@ impl jig::render::Parts for Parts {
         let name = waits::thing_name(code)?;
         Some((name, if code == waits::THING_PULL { b" #" } else { b" " }))
     }
+    fn wait_thing_suffix(&self, code: u32) -> &'static [u8] {
+        waits::thing_suffix(code)
+    }
     fn task_next(&self, task: &jig_client::contract::Task, out: &mut jig::render::Text) {
         if let jig_client::contract::TaskContractDocument::Change { connector, kind: 1, .. } = task.result_contract
             && connector == temper_client_protocol_wire::FORGE

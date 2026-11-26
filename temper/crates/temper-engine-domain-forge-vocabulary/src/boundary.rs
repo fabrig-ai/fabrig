@@ -134,7 +134,25 @@ pub struct Repository {
     pub landing: Box<[u8]>,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 11).
     pub workflows: Box<[Box<[u8]>]>,
+    pub refusals: Box<[TrainRefusal]>,
 }
+
+/// A train's forming episode (temper/docs/design/domain/landing-forming.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TrainRefusal {
+    pub branch: Box<[u8]>,
+    pub since: skein_lib::Wall,
+    pub cause: FormingRefusal,
+}
+
+pub const FORMING_REASON_BYTES: u32 = 256;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FormingRefusal {
+    Landings,
+    Jig { number: u64, why: Box<[u8]>, retry: skein_lib::Wall },
+}
+
 impl Repository {
     /// This project's adoption role (domain/forge/follows.md, 8).
     #[must_use]
@@ -2370,6 +2388,12 @@ pub enum Event {
     },
     Landing {
         row: LandingRow,
+    },
+    /// Replace a train's refused cause, or clear its episode.
+    TrainRefusal {
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        cause: Option<FormingRefusal>,
     },
     /// An uncommitted merge waits for authority: give up its number, not the turn.
     DeferLandingMerge {

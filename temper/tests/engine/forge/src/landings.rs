@@ -284,7 +284,12 @@ pub struct Trains {
 }
 impl Trains {
     pub fn judge(&mut self, world: &mut World) {
-        for (repository, branch) in world.top.waiting_trains() {
+        let waiting = world.top.waiting_trains();
+        for _ in 0..world.top.inspection_limits().changes {
+            let Some((repository, branch)) = world.top.empty_refused_train(&waiting) else { break };
+            world.event(top::Event::TrainRefusal { repository, branch, cause: None });
+        }
+        for (repository, branch) in waiting {
             loop {
                 let held: Vec<_> = self.held.iter().map(|(task, _)| *task).collect();
                 let units = world.top.waiting_units(repository, &branch, &held, &self.dependencies, world.wall());
@@ -296,6 +301,26 @@ impl Trains {
                 }
                 if selection.take.is_empty() {
                     break;
+                }
+                let selected: Vec<u64> =
+                    selection.take.iter().flat_map(|index| units[*index as usize].changes.iter().copied()).collect();
+                match world.top.landing_admits(PROJECT, &selected) {
+                    Ok(()) => {}
+                    Err(top::LandingRefusal::Landings) => {
+                        if !world
+                            .top
+                            .forming_refusal(repository, &branch)
+                            .is_some_and(|(refusal, _)| refusal.cause == top::FormingRefusal::Landings)
+                        {
+                            world.event(top::Event::TrainRefusal {
+                                repository,
+                                branch: branch.clone(),
+                                cause: Some(top::FormingRefusal::Landings),
+                            });
+                        }
+                        break;
+                    }
+                    Err(_) => break,
                 }
                 self.next = self.next.max(LANDING);
                 let task = units[selection.take[0] as usize].changes[0];

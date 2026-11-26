@@ -7093,6 +7093,7 @@ name = "temper-engine-forge-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
+ "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-tasks-kit",

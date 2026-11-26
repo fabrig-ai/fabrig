@@ -178,6 +178,7 @@ pub struct World {
     history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
     observe_entry_saves: bool,
+    observe_waits: bool,
     serial: u64,
     generation: u64,
     seed: u64,
@@ -707,6 +708,11 @@ impl World {
         self.observe_entry_saves = true;
     }
 
+    /// Include replacement wait reports in the scripted root's observations.
+    pub fn observe_waits(&mut self) {
+        self.observe_waits = true;
+    }
+
     /// Put a durable record in the snapshot before the next restart.
     pub fn store_before_restart(&mut self, record: top::Stored) {
         self.store_record(record);
@@ -907,6 +913,7 @@ impl World {
             history_held: Vec::new(),
             seen: List::with_capacity(256),
             observe_entry_saves: false,
+            observe_waits: false,
             serial: 0,
             generation: 1,
             seed,
@@ -2033,8 +2040,12 @@ impl World {
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges
                 | top::Request::MilestoneMarked { .. }
-                | top::Request::Waits { .. }
                 | top::Request::Marked { .. } => {}
+                wait @ top::Request::Waits { .. } => {
+                    if self.observe_waits {
+                        self.seen.push(wait).expect("world output capacity");
+                    }
+                }
                 top::Request::ApplicationAgain { .. } => panic!("application capacity available"),
                 top::Request::Adopted { reply_to, result } => {
                     let outcome = match &result {

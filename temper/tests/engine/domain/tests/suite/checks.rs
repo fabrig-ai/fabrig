@@ -571,7 +571,8 @@ fn a_ready_change_waits_for_its_refused_trains_retry() {
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
     assert_eq!(world.root.forge().landing_of(row.task), None);
     assert!(world.root.forge().inspection_landings().is_empty());
-    let due = world.root.inspection_forming_retry(change).expect("refused train has a retry");
+    let (refusal, _) = world.root.forge().forming_refusal(row.repository, &row.base).expect("stored refusal");
+    let forge::FormingRefusal::Jig { retry: due, .. } = refusal.cause else { panic!("jig refusal") };
     assert!(due > world.env.wall);
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
@@ -597,7 +598,8 @@ fn a_ready_change_has_no_retry_from_another_refused_train() {
         world.root.forge().change(change).expect("ready change").change.state,
         temper_engine_domain_forge_change::State::Ready { .. }
     ));
-    assert_eq!(world.root.inspection_forming_retry(change), None);
+    let row = world.root.forge().change(change).expect("ready change");
+    assert_eq!(world.root.forge().forming_refusal(row.repository, &row.base), None);
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
     assert_eq!(wait.kind, "change: ready");

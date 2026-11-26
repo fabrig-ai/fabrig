@@ -197,6 +197,7 @@ fn procedure(step: u32, things: &skein_lib::List<c::Thing>, vocabulary: &dyn Par
             out.put(b" ");
         }
         out.number(thing.number);
+        out.put(vocabulary.wait_thing_suffix(thing.what));
         if let Some(owner) = thing.owner {
             out.put(b" of ");
             task_text(owner, out);

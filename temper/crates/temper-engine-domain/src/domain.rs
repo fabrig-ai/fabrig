@@ -138,10 +138,8 @@ pub struct Domain {
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     /// One forming drains its make before admission (domain/landing-forming.md, 2).
     pub(crate) forge_forming: Option<(u64, Option<jig_domain_tasks::Refusal>)>,
-    /// Refusal time, last reason and whether expiry was judged (domain/landing-forming.md, 3).
-    #[expect(clippy::type_complexity, reason = "a train maps directly to its unstored refusal time and reason")]
-    pub(crate) forge_refused:
-        Map<(skein_forge::api::Repository, Box<[u8]>), (Wall, Option<jig_domain_tasks::Refusal>, bool)>,
+    /// The last quiet forming pass consumes retries at or before its wall time.
+    pub(crate) forming_judged: Option<Wall>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,
@@ -183,20 +181,6 @@ impl Domain {
     pub fn hold_landings(&mut self, held: bool) {
         self.forge.hold_landings(held);
     }
-    /// The armed retry of this change's refused train (testing/engine-checks.md, 2.2).
-    #[must_use]
-    pub fn inspection_forming_retry(&self, task: u64) -> Option<Wall> {
-        if self.forge.landing_held() {
-            return None;
-        }
-        let row = self.forge.change(task)?;
-        let (at, _, judged) = self.forge_refused.get(&(row.repository, row.base.clone()))?;
-        if *judged {
-            return None;
-        }
-        Some(Wall::from_nanos(at.as_nanos().saturating_add(self.limits.forge.queue_window.as_nanos())))
-    }
-
     /// Whether this child's contract pushes for its change (testing/engine-checks.md, 2.2).
     #[must_use]
     pub fn inspection_pushing_child(&self, child: u64) -> bool {
@@ -708,7 +692,7 @@ impl Domain {
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
             forge_forming: None,
-            forge_refused: Map::with_capacity(limits.forge.changes),
+            forming_judged: None,
             closer_reports: Map::uncapped(),
             closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),

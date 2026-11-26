@@ -134,6 +134,7 @@ fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {
     d::Stored::Repository(d::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::default(),
         project: 1,
         home: true,

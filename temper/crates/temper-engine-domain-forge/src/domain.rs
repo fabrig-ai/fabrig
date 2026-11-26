@@ -1940,6 +1940,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
+        Event::TrainRefusal { repository, branch, cause } => {
+            crate::train_refusal::replace(d, out, repository, branch, cause, env.wall);
+        }
         Event::VetoLanding { task, entry } => crate::landing::veto(d, env, task, entry, out),
         Event::DeferLandingMerge { task, entry } => crate::landing::defer_merge(d, env, task, entry, out),
         Event::StepLanding { task, entry, heard } => {
@@ -2278,7 +2281,12 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::ReleaseProject { project, request } => adoption::release(d, env, project, request, out),
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::ForgetAdoption { repository, restore } => match restore {
-            Some(previous) => {
+            Some(mut previous) => {
+                if let Some(current) = d.repository(repository)
+                    && current.project == previous.project
+                {
+                    previous.refusals.clone_from(&current.refusals);
+                }
                 d.repositories.insert(repository, Box::new(previous.clone())).expect("restores an admitted repository");
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(previous) });
                 emit(out, Request::MarkedForges);

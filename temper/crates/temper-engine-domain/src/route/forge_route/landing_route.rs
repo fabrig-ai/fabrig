@@ -129,15 +129,19 @@ pub(super) fn pending(
 /// restart work has settled. One queued decision is committed before judging again
 /// so neither a train nor the live-row bound can be reserved twice (domain/landing-turn.md, 2).
 pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
-    if domain.forge.landing_held() {
-        return false;
+    let trains = domain.forge.waiting_trains();
+    if let Some((repository, branch)) = domain.forge.empty_refused_train(&trains) {
+        domain.work.push(Work::Forge(forge::Event::TrainRefusal { repository, branch, cause: None }));
+        return true;
     }
-    forget_empty_trains(domain, env);
-    for (repository, branch) in domain.forge.waiting_trains() {
-        if domain.forge.repository_fresh(repository) && form_train(domain, env, repository, &branch) {
-            return true;
+    if !domain.forge.landing_held() {
+        for (repository, branch) in &trains {
+            if domain.forge.repository_fresh(*repository) && form_train(domain, env, *repository, branch) {
+                return true;
+            }
         }
     }
+    domain.forming_judged = Some(env.wall);
     false
 }
 
@@ -153,13 +157,13 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
     if !domain.forge.settling_changes(repository, branch, 1).is_empty() {
         return false;
     }
-    if !domain.forge_refused.is_empty() {
-        let train = (repository, Box::from(branch));
-        if let Some((wall, _, judged)) = domain.forge_refused.get_mut(&train) {
-            if env.wall.as_nanos().saturating_sub(wall.as_nanos()) < env.limits.forge.queue_window.as_nanos() {
+    if let Some((refusal, _)) = domain.forge.forming_refusal(repository, branch) {
+        match refusal.cause {
+            // A saturated retry cannot establish that its queue window has passed.
+            forge::FormingRefusal::Jig { retry, .. } if env.wall < retry || retry.as_nanos() == u64::MAX => {
                 return false;
             }
-            *judged = true;
+            forge::FormingRefusal::Jig { .. } | forge::FormingRefusal::Landings => {}
         }
     }
     let mut excluded = List::with_capacity(env.limits.forge.changes);
@@ -213,10 +217,16 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
             changes.push(*task).expect("selected members");
         }
     }
-    if domain.forge.landing_admits(project, changes.as_slice()).is_err() {
-        return false;
+    match domain.forge.landing_admits(project, changes.as_slice()) {
+        Ok(()) => create_landing(domain, env, members, project, branch),
+        Err(forge::LandingRefusal::Landings) => refuse_table(domain, env, repository, branch, changes.into_boxed()),
+        Err(
+            forge::LandingRefusal::Way
+            | forge::LandingRefusal::Members
+            | forge::LandingRefusal::Repository
+            | forge::LandingRefusal::Train,
+        ) => false,
     }
-    create_landing(domain, env, members, project, branch)
 }
 
 fn create_landing(
@@ -324,9 +334,7 @@ pub(crate) fn admission(
     let first = row.landing.members.first().expect("a landing has members");
     let repository =
         skein_forge::api::Repository { forge: first.repository.forge, repository: first.repository.repository };
-    let train = (repository, row.landing.branch.clone());
     if domain.core.tasks.task(number).is_some() {
-        domain.forge_refused.remove(&train);
         super::super::forge_event(domain, env, decision, forge::Event::Landing { row });
         for name in names {
             super::super::forge_event(
@@ -338,12 +346,24 @@ pub(crate) fn admission(
         }
         return;
     }
-    let log = match domain.forge_refused.get(&train) {
-        Some((_, previous, _)) => *previous != why,
+    let words = refusal_words(why);
+    let branch = row.landing.branch;
+    let log = match domain.forge.forming_refusal(repository, &branch) {
+        Some((previous, _)) => match &previous.cause {
+            forge::FormingRefusal::Jig { why, .. } => why.as_ref() != words,
+            forge::FormingRefusal::Landings => true,
+        },
         None => true,
     };
-    domain.forge_refused.raise(env.limits.forge.changes);
-    domain.forge_refused.insert(train, (env.wall, why, false)).expect("one refused train per live change");
+    let retry =
+        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.forge.queue_window.as_nanos()));
+    let cause = forge::FormingRefusal::Jig { number, why: Box::from(words), retry };
+    super::super::forge_event(
+        domain,
+        env,
+        decision,
+        forge::Event::TrainRefusal { repository, branch: branch.clone(), cause: Some(cause) },
+    );
     if log {
         let mut changes = List::with_capacity(env.limits.forge.landing_members);
         for member in &row.landing.members {
@@ -354,57 +374,107 @@ pub(crate) fn admission(
             crate::Fact::LandingRefused {
                 task: number,
                 repository,
-                branch: row.landing.branch,
-                why,
+                branch,
+                why: Box::from(words),
                 changes: changes.into_boxed(),
             },
         );
     }
 }
 
-/// An idle engine judges each refused train when its queue window expires.
-/// Once judged, other changes in eligibility wake forming as ever.
-pub(crate) fn refusal_deadline(domain: &Domain, env: &Env<Limits>) -> Option<skein_lib::Wall> {
-    if domain.forge_refused.is_empty() || domain.forge.landing_held() {
-        return None;
+fn refuse_table(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    repository: skein_forge::api::Repository,
+    branch: &[u8],
+    changes: Box<[u64]>,
+) -> bool {
+    if let Some((refusal, _)) = domain.forge.forming_refusal(repository, branch)
+        && refusal.cause == forge::FormingRefusal::Landings
+    {
+        return false;
     }
-    let trains = domain.forge.waiting_trains();
-    let mut next: Option<skein_lib::Wall> = None;
-    for (train, (wall, _, judged)) in &domain.forge_refused {
-        if *judged || !trains.contains(train) {
-            continue;
-        }
-        let until =
-            skein_lib::Wall::from_nanos(wall.as_nanos().saturating_add(env.limits.forge.queue_window.as_nanos()));
-        next = Some(match next {
-            Some(prior) => prior.min(until),
-            None => until,
-        });
-    }
-    next
+    let holders = domain.forge.landing_room_holders();
+    domain.work.push(Work::Forge(forge::Event::TrainRefusal {
+        repository,
+        branch: Box::from(branch),
+        cause: Some(forge::FormingRefusal::Landings),
+    }));
+    super::super::diagnostics::emit(
+        domain,
+        crate::Fact::LandingTableRefused {
+            repository,
+            branch: Box::from(branch),
+            limit: env.limits.forge.landings,
+            holders,
+            changes,
+        },
+    );
+    true
 }
 
-/// Keep refusal memory bounded by live changes, including trains not ready at this judgement.
-fn forget_empty_trains(domain: &mut Domain, env: &Env<Limits>) {
-    if domain.forge_refused.is_empty() {
-        return;
+/// Retry an idle train from its stored time, not from the current queue window.
+pub(crate) fn refusal_deadline(domain: &Domain) -> Option<skein_lib::Wall> {
+    if domain.forge.landing_held() {
+        return None;
     }
-    let mut gone = List::with_capacity(env.limits.forge.changes);
-    for (train, _) in &domain.forge_refused {
-        let mut live = false;
-        for task in domain.forge.changes_for(train.0, env.limits.forge.changes) {
-            if let Some(change) = domain.forge.change(task)
-                && change.base == train.1
-            {
-                live = true;
-            }
-        }
-        if !live {
-            gone.push(train.clone()).expect("bounded refused trains");
-        }
-    }
-    for train in &gone {
-        domain.forge_refused.remove(train);
+    domain.forge.forming_retry_after(domain.forming_judged)
+}
+
+/// Bounded refusal names for the sans-I/O domain (temper/docs/design/domain/landing-forming.md, 3).
+fn refusal_words(why: Option<tasks::Refusal>) -> &'static [u8] {
+    match why {
+        Some(tasks::Refusal::Concluded { .. }) => b"Concluded",
+        Some(tasks::Refusal::NotStanding) => b"NotStanding",
+        Some(tasks::Refusal::TalkOpen { .. }) => b"TalkOpen",
+        Some(tasks::Refusal::NoTalk) => b"NoTalk",
+        Some(tasks::Refusal::Placed { .. }) => b"Placed",
+        Some(tasks::Refusal::HoldOwner { .. }) => b"HoldOwner",
+        Some(tasks::Refusal::HoldRevision { .. }) => b"HoldRevision",
+        Some(tasks::Refusal::Account { .. }) => b"Account",
+        Some(tasks::Refusal::Grace) => b"Grace",
+        Some(tasks::Refusal::Goals) => b"Goals",
+        Some(tasks::Refusal::Unproposable) => b"Unproposable",
+        Some(tasks::Refusal::PersonRevision { .. }) => b"PersonRevision",
+        Some(tasks::Refusal::ResourceUnavailable) => b"ResourceUnavailable",
+        Some(tasks::Refusal::Unreported) => b"Unreported",
+        Some(tasks::Refusal::NotReady) => b"NotReady",
+        Some(tasks::Refusal::Unknown) => b"Unknown",
+        Some(tasks::Refusal::Busy) => b"Busy",
+        Some(tasks::Refusal::Duplicate) => b"Duplicate",
+        Some(tasks::Refusal::Empty) => b"Empty",
+        Some(tasks::Refusal::Batch) => b"Batch",
+        Some(tasks::Refusal::Live) => b"Live",
+        Some(tasks::Refusal::Project) => b"Project",
+        Some(tasks::Refusal::Tree) => b"Tree",
+        Some(tasks::Refusal::Depth) => b"Depth",
+        Some(tasks::Refusal::Delegates) => b"Delegates",
+        Some(tasks::Refusal::Reference) => b"Reference",
+        Some(tasks::Refusal::Subscription) => b"Subscription",
+        Some(tasks::Refusal::Dependencies) => b"Dependencies",
+        Some(tasks::Refusal::Circle { .. }) => b"Circle",
+        Some(tasks::Refusal::DependencyEnded { .. }) => b"DependencyEnded",
+        Some(tasks::Refusal::Kept) => b"Kept",
+        Some(tasks::Refusal::KeptQuestion { .. }) => b"KeptQuestion",
+        Some(tasks::Refusal::QuestionAnswered { .. }) => b"QuestionAnswered",
+        Some(tasks::Refusal::PersonAnswers { .. }) => b"PersonAnswers",
+        Some(tasks::Refusal::Executor) => b"Executor",
+        Some(tasks::Refusal::Spec) => b"Spec",
+        Some(tasks::Refusal::Contract) => b"Contract",
+        Some(tasks::Refusal::AuthorityShape) => b"AuthorityShape",
+        Some(tasks::Refusal::Inputs) => b"Inputs",
+        Some(tasks::Refusal::State) => b"State",
+        Some(tasks::Refusal::Attempt) => b"Attempt",
+        Some(tasks::Refusal::LiveDelegates) => b"LiveDelegates",
+        Some(tasks::Refusal::Restore) => b"Restore",
+        Some(tasks::Refusal::Read) => b"Read",
+        Some(tasks::Refusal::Turn) => b"Turn",
+        Some(tasks::Refusal::Funding) => b"Funding",
+        Some(tasks::Refusal::HoldKind) => b"HoldKind",
+        Some(tasks::Refusal::HoldTaken) => b"HoldTaken",
+        Some(tasks::Refusal::Holds) => b"Holds",
+        Some(tasks::Refusal::Llm { .. }) => b"Llm",
+        None => b"unknown",
     }
 }
 

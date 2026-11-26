@@ -69,6 +69,16 @@ impl Dev {
     }
 }
 
+#[test]
+fn a_deployed_repository_has_no_train_refusals() {
+    let mut dev = Dev::new();
+    let repository = fixtures::adopted(d::Protection::Absent);
+    let old = dev.row(&repository, "repository");
+    let d::Stored::Repository(restored) = dev.read(&old, "repository") else { panic!("repository") };
+    assert!(restored.refusals.is_empty());
+    assert_eq!(d::Stored::Repository(restored), repository);
+}
+
 pub(super) fn landing_log() -> (d::Stored, d::Stored) {
     let log = d::LandingLog {
         repository: fixtures::REPO,

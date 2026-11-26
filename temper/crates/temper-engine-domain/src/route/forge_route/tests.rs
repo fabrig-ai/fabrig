@@ -43,6 +43,7 @@ fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
+        refusals: Box::default(),
         workflows: Box::default(),
         project: 5,
         home: forge == 1,

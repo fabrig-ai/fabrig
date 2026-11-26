@@ -36,6 +36,7 @@ temper-blame = { path = "../../../testing/temper-blame" }
 
 
 [dev-dependencies]
+jig-domain-core-vocabulary.workspace = true
 temper-workload.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

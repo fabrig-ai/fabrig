@@ -15,9 +15,17 @@ pub(crate) struct State {
     dirty: Set<u64>,
     changes: Map<u64, change::Observed>,
     holders: Option<room::Holders>,
+    forming_room: Option<FormingRoom>,
+    forming_waiters: Set<u64>,
     catch_up_tasks: Option<List<u64>>,
     catch_up_at: Option<Wall>,
     refusal: Option<(u64, ReportRefusal)>,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+struct FormingRoom {
+    holders: Box<[u64]>,
+    oldest: Option<u64>,
 }
 
 impl State {
@@ -27,6 +35,8 @@ impl State {
             dirty: Set::with_capacity(u32::MAX),
             changes: Map::uncapped(),
             holders: None,
+            forming_room: None,
+            forming_waiters: Set::with_capacity(u32::MAX),
             catch_up_tasks: None,
             catch_up_at: None,
             refusal: None,
@@ -153,6 +163,7 @@ pub(crate) fn change_forge(d: &mut Domain, forge: u16) {
 
 pub(crate) fn forget(d: &mut Domain, task: u64) {
     d.wait_reports.last.remove(&task);
+    d.wait_reports.forming_waiters.remove(&task);
     d.wait_reports.dirty.remove(&task);
     d.wait_reports.changes.remove(&task);
     for waiter in [room::Waiter::Change(task), room::Waiter::Landing(task), room::Waiter::Release(task)] {
@@ -223,11 +234,47 @@ pub(crate) fn flush(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             }
         }
     }
+    refresh_forming_room(d);
     for _ in 0..d.wait_reports.dirty.len() {
         let task = d.wait_reports.dirty.pop_first().expect("counted pending reports");
         report(d, env, task, out);
     }
     room::refresh_deadline(d, &env.limits);
+}
+
+fn refresh_forming_room(d: &mut Domain) {
+    if d.wait_reports.forming_waiters.is_empty() {
+        d.wait_reports.forming_room = None;
+        return;
+    }
+    let holders = d.landing_room_holders();
+    let oldest = d.oldest_landing_holder(&holders);
+    let room = FormingRoom { holders, oldest };
+    if d.wait_reports.forming_room.as_ref() != Some(&room) {
+        d.wait_reports.forming_room = Some(room);
+        for task in &d.wait_reports.forming_waiters {
+            d.wait_reports.dirty.insert(*task).expect("one pending report per task");
+        }
+    }
+}
+
+fn waits_for_landings(waits: &List<Reported>) -> bool {
+    use jig_domain_core_vocabulary::waits::WaitObject;
+    let Some(wait) = waits.as_slice().first() else { return false };
+    match &wait.object {
+        WaitObject::Procedure { things, .. } => {
+            if let Some(first) = things.as_slice().first() {
+                return first.what == temper_client_protocol_wire::waits::THING_LANDINGS;
+            }
+            false
+        }
+        WaitObject::Entry { .. }
+        | WaitObject::Question { .. }
+        | WaitObject::Task(_)
+        | WaitObject::Resource { .. }
+        | WaitObject::Run(_)
+        | WaitObject::News { .. } => false,
+    }
 }
 
 /// Compute the task's replacement report, suppressing an unchanged list.
@@ -246,6 +293,11 @@ fn publish(d: &mut Domain, env: &Env<Limits>, task: u64, force: bool, out: &mut 
     } else {
         List::with_capacity(0)
     };
+    if waits_for_landings(&waits) {
+        d.wait_reports.forming_waiters.insert(task).expect("one landing room wait per task");
+    } else {
+        d.wait_reports.forming_waiters.remove(&task);
+    }
     let same = match d.wait_reports.last.get(&task) {
         Some(last) => last == &waits,
         None => waits.is_empty(),

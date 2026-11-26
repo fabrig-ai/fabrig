@@ -299,6 +299,10 @@ pub trait Parts: core::fmt::Debug {
     fn wait_thing(&self, _code: u32) -> Option<(&'static [u8], &'static [u8])> {
         None
     }
+    /// Words after a known procedure thing's number, if any.
+    fn wait_thing_suffix(&self, _code: u32) -> &'static [u8] {
+        b""
+    }
     fn task_next(&self, task: &contract::Task, out: &mut Text);
     fn owner_part(&self, part: &contract::Part, out: &mut Text);
     fn part(&self, part: &contract::ApplicationPart, out: &mut Text);

@@ -1,5 +1,5 @@
 Address: ceilings encoded=521 decoded=510; at_most(3) encoded=17 decoded=6
-Adopted: ceilings encoded=4485248 decoded=4485360; at_most(3) encoded=149 decoded=105
+Adopted: ceilings encoded=291860612 decoded=293368048; at_most(3) encoded=270 decoded=291
 AgentEndpointLimits: ceilings encoded=97 decoded=64; at_most(3) encoded=36 decoded=3
 AgentFigure: ceilings encoded=76 decoded=64; at_most(3) encoded=15 decoded=3
 AgentFigures: ceilings encoded=15973 decoded=18432; at_most(3) encoded=190 decoded=234
@@ -196,6 +196,7 @@ ForgeReason: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ForgeRefused: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ForgeState: ceilings encoded=3 decoded=0; at_most(3) encoded=3 decoded=0
 ForgeWriter: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+FormingRefusal: ceilings encoded=277 decoded=256; at_most(3) encoded=24 decoded=3
 Freshness: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Gate: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 GateFailure: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
@@ -273,6 +274,7 @@ IssueRow: ceilings encoded=134475961 decoded=134529024; at_most(3) encoded=392 d
 ItemAnswer: ceilings encoded=7340080 decoded=7340032; at_most(3) encoded=63 decoded=15
 ItemState: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ItemsAnswer: ceilings encoded=2097166 decoded=2097152; at_most(3) encoded=17 decoded=3
+JigRefusal: ceilings encoded=276 decoded=256; at_most(3) encoded=23 decoded=3
 JobAnswer: ceilings encoded=2097218 decoded=2097152; at_most(3) encoded=72 decoded=6
 JobAttempt: ceilings encoded=52 decoded=0; at_most(3) encoded=52 decoded=0
 Judgement: ceilings encoded=8250 decoded=8192; at_most(3) encoded=64 decoded=6
@@ -565,6 +567,7 @@ TierVerdict: ceilings encoded=1052686 decoded=1064960; at_most(3) encoded=35 dec
 TierVerification: ceilings encoded=1052797 decoded=1064992; at_most(3) encoded=117 decoded=60
 ToBegin: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 Topic: ceilings encoded=4107 decoded=4096; at_most(3) encoded=39 decoded=3
+TrainRefusal: ceilings encoded=4385 decoded=4352; at_most(3) encoded=39 decoded=6
 UnderPrefix: ceilings encoded=3084 decoded=3072; at_most(3) encoded=21 decoded=9
 UpdateCondition: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
 UpdateStyle: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

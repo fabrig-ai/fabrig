@@ -1539,18 +1539,62 @@ fn a_ready_change_reports_the_landing_holding_its_train() {
 
 #[test]
 fn a_ready_change_without_landing_room_has_no_deadline() {
-    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded, WaitKind};
     use temper_client_protocol_wire::waits as code;
     const FIRST_OTHER_LANDING: u64 = 70;
     let mut d = active_train();
     for task in FIRST_OTHER_LANDING..FIRST_OTHER_LANDING.saturating_add(u64::from(LIMITS.landings)) {
         d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("one live landing per place");
     }
-    let report = ready_train_waiter(&mut d);
+    ready_train_waiter(&mut d);
+    let report = refuse_train_of_waiter(&mut d, FormingRefusal::Landings);
+    let mut wait = step_wait(
+        code::CHANGE_READY,
+        env().wall,
+        ReportedBound::None(Unbounded::Behind(FIRST_OTHER_LANDING)),
+        &[
+            wait_thing(code::THING_LANDINGS, u64::from(LIMITS.landings)),
+            wait_thing(code::THING_TASK, FIRST_OTHER_LANDING),
+            wait_thing(code::THING_TASK, FIRST_OTHER_LANDING + 1),
+            wait_thing(code::THING_TASK, FIRST_OTHER_LANDING + 2),
+        ],
+    );
+    wait.kind = WaitKind::Room;
+    assert_eq!(wait_report(&report, TRAIN_WAITER), Some([wait].as_slice()));
+}
+
+#[test]
+fn a_ready_change_names_the_landing_make_jig_refused() {
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits as code;
+    const REFUSED: u64 = 80;
+    let mut d = active_train();
+    ready_train_waiter(&mut d);
+    let report = refuse_train_of_waiter(
+        &mut d,
+        FormingRefusal::Jig {
+            number: REFUSED,
+            why: Box::from(b"Live".as_slice()),
+            retry: advanced_wall(env().wall, LIMITS.queue_window),
+        },
+    );
     assert_eq!(
         wait_report(&report, TRAIN_WAITER),
-        Some([step_wait(code::CHANGE_READY, env().wall, ReportedBound::None(Unbounded::NoDeadline), &[],)].as_slice())
+        Some(
+            [step_wait(
+                code::CHANGE_READY,
+                env().wall,
+                ReportedBound::None(Unbounded::NoDeadline),
+                &[wait_thing(code::THING_LANDING_MAKE, REFUSED)],
+            )]
+            .as_slice()
+        )
     );
+}
+
+fn refuse_train_of_waiter(d: &mut Domain, cause: FormingRefusal) -> Box<[Request]> {
+    let row = d.change(TRAIN_WAITER).expect("ready change");
+    outputs(d, Event::TrainRefusal { repository: row.repository, branch: row.base.clone(), cause: Some(cause) })
 }
 
 #[test]

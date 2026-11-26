@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn waiting_on_cohort_member() -> (World, u64, u64) {
     // Restore a cohort member between release and its first decision. Hold
     // that step's read while the first landing ends and gives the train room.
-    let (mut world, ready, blocking) = full_landing_room();
+    let (mut world, ready, blocking) = ready_behind_landing(1);
     let chat = world.assigned[0].clone();
     let (settling, producer) = make_change(&mut world, &chat, 102, b"org/repo");
     push_change(&mut world, &producer, b"org/repo");

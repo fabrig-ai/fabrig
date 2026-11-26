@@ -126,6 +126,7 @@ pub use follows::{
     FollowSkip, FollowState, FollowVerdict, followed,
 };
 mod forming;
+mod train_refusal;
 pub use forming::{Selection, WaitingUnit, select_units};
 mod close;
 mod job_history;

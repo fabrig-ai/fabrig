@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x42, 0xed, 0xac, 0x2d, 0xbc, 0xfb, 0x9a, 0xe0, 0x23, 0x13, 0x3d, 0xb1, 0x7d, 0x0b, 0xb6, 0x07, 0x89, 0x5f, 0x1c,
-    0x6f, 0xd0, 0x90, 0xe5, 0xbe, 0xcc, 0xeb, 0x60, 0x63, 0x9d, 0xac, 0xc4, 0x59,
+    0x48, 0xfb, 0x7a, 0xfd, 0x39, 0x9e, 0x3a, 0xec, 0x38, 0xcf, 0x24, 0x6d, 0xc3, 0xa8, 0xc9, 0xea, 0x0a, 0x89, 0x34,
+    0x12, 0x7c, 0xc0, 0x32, 0x8c, 0x29, 0x90, 0xd6, 0x18, 0x45, 0xa2, 0x79, 0xef,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -23,6 +23,8 @@ pub struct Limits {
     pub protection_branch: u32,
     pub protection_contexts: u32,
     pub settings_default_branch: u32,
+    pub jig_refusal_why: u32,
+    pub train_refusal_branch: u32,
     pub adopted_contexts: u32,
     pub adopted_host: u32,
     pub adopted_owner: u32,
@@ -32,6 +34,7 @@ pub struct Limits {
     pub adopted_workflows: u32,
     pub adopted_workflows_item: u32,
     pub adopted_landing: u32,
+    pub adopted_refusals: u32,
     pub retargeted_before: u32,
     pub retargeted_after: u32,
     pub hold_design_writers: u32,
@@ -399,6 +402,8 @@ pub const CEILINGS: Limits = Limits {
     protection_branch: 1_048_576,
     protection_contexts: 2_097_152,
     settings_default_branch: 1_048_576,
+    jig_refusal_why: 256,
+    train_refusal_branch: 4_096,
     adopted_contexts: 65_536,
     adopted_host: 4_096,
     adopted_owner: 4_096,
@@ -408,6 +413,7 @@ pub const CEILINGS: Limits = Limits {
     adopted_workflows: 16,
     adopted_workflows_item: 255,
     adopted_landing: 4_096,
+    adopted_refusals: 65_536,
     retargeted_before: 4_096,
     retargeted_after: 4_096,
     hold_design_writers: 65_536,
@@ -775,6 +781,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "protection_branch",
     "protection_contexts",
     "settings_default_branch",
+    "jig_refusal_why",
+    "train_refusal_branch",
     "adopted_contexts",
     "adopted_host",
     "adopted_owner",
@@ -784,6 +792,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "adopted_workflows",
     "adopted_workflows_item",
     "adopted_landing",
+    "adopted_refusals",
     "retargeted_before",
     "retargeted_after",
     "hold_design_writers",
@@ -1155,6 +1164,8 @@ impl Limits {
             self.protection_branch,
             self.protection_contexts,
             self.settings_default_branch,
+            self.jig_refusal_why,
+            self.train_refusal_branch,
             self.adopted_contexts,
             self.adopted_host,
             self.adopted_owner,
@@ -1164,6 +1175,7 @@ impl Limits {
             self.adopted_workflows,
             self.adopted_workflows_item,
             self.adopted_landing,
+            self.adopted_refusals,
             self.retargeted_before,
             self.retargeted_after,
             self.hold_design_writers,
@@ -1536,6 +1548,8 @@ impl Limits {
             protection_branch: self.protection_branch.min(most),
             protection_contexts: self.protection_contexts.min(most),
             settings_default_branch: self.settings_default_branch.min(most),
+            jig_refusal_why: self.jig_refusal_why.min(most),
+            train_refusal_branch: self.train_refusal_branch.min(most),
             adopted_contexts: self.adopted_contexts.min(most),
             adopted_host: self.adopted_host.min(most),
             adopted_owner: self.adopted_owner.min(most),
@@ -1545,6 +1559,7 @@ impl Limits {
             adopted_workflows: self.adopted_workflows.min(most),
             adopted_workflows_item: self.adopted_workflows_item.min(most),
             adopted_landing: self.adopted_landing.min(most),
+            adopted_refusals: self.adopted_refusals.min(most),
             retargeted_before: self.retargeted_before.min(most),
             retargeted_after: self.retargeted_after.min(most),
             hold_design_writers: self.hold_design_writers.min(most),
@@ -1914,6 +1929,8 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PROTECTION_BRANCH,
     paths::PROTECTION_CONTEXTS,
     paths::SETTINGS_DEFAULT_BRANCH,
+    paths::JIG_REFUSAL_WHY,
+    paths::TRAIN_REFUSAL_BRANCH,
     paths::ADOPTED_CONTEXTS,
     paths::ADOPTED_HOST,
     paths::ADOPTED_OWNER,
@@ -1923,6 +1940,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::ADOPTED_WORKFLOWS,
     paths::ADOPTED_WORKFLOWS,
     paths::ADOPTED_LANDING,
+    paths::ADOPTED_REFUSALS,
     paths::RETARGETED_BEFORE,
     paths::RETARGETED_AFTER,
     paths::HOLD_DESIGN_WRITERS,
@@ -2343,6 +2361,15 @@ pub mod paths {
     pub const KINDS_BRANCH: Path = Path::new("Kinds.branch");
     pub const KINDS_TAIL: Path = Path::new("Kinds (tail)");
     pub const REPOSITORY_PROTECTION_TAG: Path = Path::new("RepositoryProtection (tag)");
+    pub const JIG_REFUSAL_NUMBER: Path = Path::new("JigRefusal.number");
+    pub const JIG_REFUSAL_WHY: Path = Path::new("JigRefusal.why");
+    pub const JIG_REFUSAL_RETRY: Path = Path::new("JigRefusal.retry");
+    pub const JIG_REFUSAL_TAIL: Path = Path::new("JigRefusal (tail)");
+    pub const FORMING_REFUSAL_TAG: Path = Path::new("FormingRefusal (tag)");
+    pub const TRAIN_REFUSAL_BRANCH: Path = Path::new("TrainRefusal.branch");
+    pub const TRAIN_REFUSAL_SINCE: Path = Path::new("TrainRefusal.since");
+    pub const TRAIN_REFUSAL_CAUSE: Path = Path::new("TrainRefusal.cause");
+    pub const TRAIN_REFUSAL_TAIL: Path = Path::new("TrainRefusal (tail)");
     pub const ADOPTED_PROJECT: Path = Path::new("Adopted.project");
     pub const ADOPTED_CONTEXTS: Path = Path::new("Adopted.contexts");
     pub const ADOPTED_HOME: Path = Path::new("Adopted.home");
@@ -2359,6 +2386,7 @@ pub mod paths {
     pub const ADOPTED_SETTINGS: Path = Path::new("Adopted.settings");
     pub const ADOPTED_WORKFLOWS: Path = Path::new("Adopted.workflows");
     pub const ADOPTED_LANDING: Path = Path::new("Adopted.landing");
+    pub const ADOPTED_REFUSALS: Path = Path::new("Adopted.refusals");
     pub const ADOPTED_TAIL: Path = Path::new("Adopted (tail)");
     pub const RUN_WRITER_TASK: Path = Path::new("RunWriter.task");
     pub const RUN_WRITER_ATTEMPT: Path = Path::new("RunWriter.attempt");
@@ -5357,6 +5385,179 @@ impl Record for RepositoryProtection {
     }
 }
 
+// Type: JigRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct JigRefusal {
+    pub number: u64,
+    pub why: Box<[u8]>,
+    pub retry: u64,
+}
+
+// Record: JigRefusal.
+impl JigRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, jig_refusal_why) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for JigRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::JIG_REFUSAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JigRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "JigRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.number, limits, out, paths::JIG_REFUSAL_NUMBER)?;
+        field::write(field::Bytes { limit: limits.jig_refusal_why.min(CEILINGS.jig_refusal_why) }, &self.why, limits, out, paths::JIG_REFUSAL_WHY)?;
+        field::write(field::U64, &self.retry, limits, out, paths::JIG_REFUSAL_RETRY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            number: field::read(field::U64, limits, reader, paths::JIG_REFUSAL_NUMBER)?,
+            why: field::read(field::Bytes { limit: limits.jig_refusal_why.min(CEILINGS.jig_refusal_why) }, limits, reader, paths::JIG_REFUSAL_WHY)?,
+            retry: field::read(field::U64, limits, reader, paths::JIG_REFUSAL_RETRY)?,
+        })
+    }
+}
+
+// Type: FormingRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FormingRefusal {
+    Landings,
+    Jig(JigRefusal),
+}
+
+// Record: FormingRefusal.
+impl FormingRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("JigRefusal"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
+impl Record for FormingRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::FORMING_REFUSAL_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "FormingRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "FormingRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Landings => field::put(out, &[0], paths::FORMING_REFUSAL_TAG),
+            Self::Jig(value) => { field::put(out, &[1], paths::FORMING_REFUSAL_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::FORMING_REFUSAL_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Landings),
+            1 => Ok(Self::Jig(JigRefusal::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::FORMING_REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: TrainRefusal.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TrainRefusal {
+    pub branch: Box<[u8]>,
+    pub since: u64,
+    pub cause: FormingRefusal,
+}
+
+// Record: TrainRefusal.
+impl TrainRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, train_refusal_branch) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("FormingRefusal"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 33;
+}
+
+impl Record for TrainRefusal {
+    type Limits = Limits;
+    const TAIL: Path = paths::TRAIN_REFUSAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TrainRefusal")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TrainRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.train_refusal_branch.min(CEILINGS.train_refusal_branch) }, &self.branch, limits, out, paths::TRAIN_REFUSAL_BRANCH)?;
+        field::write(field::U64, &self.since, limits, out, paths::TRAIN_REFUSAL_SINCE)?;
+        field::write(field::Nested, &self.cause, limits, out, paths::TRAIN_REFUSAL_CAUSE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            branch: field::read(field::Bytes { limit: limits.train_refusal_branch.min(CEILINGS.train_refusal_branch) }, limits, reader, paths::TRAIN_REFUSAL_BRANCH)?,
+            since: field::read(field::U64, limits, reader, paths::TRAIN_REFUSAL_SINCE)?,
+            cause: field::read(field::Nested, limits, reader, paths::TRAIN_REFUSAL_CAUSE)?,
+        })
+    }
+}
+
 // Type: Adopted.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Adopted {
@@ -5376,6 +5577,7 @@ pub struct Adopted {
     pub settings: Settings,
     pub workflows: List<Box<[u8]>>,
     pub landing: Box<[u8]>,
+    pub refusals: List<TrainRefusal>,
 }
 
 // Record: Adopted.
@@ -5400,11 +5602,13 @@ impl Adopted {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, adopted_workflows_item) },
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, adopted_workflows), item: 16, size: size_of::<Box<[u8]>>() },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, adopted_landing) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18] },
+        skein_codec::bounds::Node::Named("TrainRefusal"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, adopted_refusals), item: 19, size: size_of::<TrainRefusal>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 80;
+    pub const ENCODED_AT_ZERO: u64 = 84;
 }
 
 impl Record for Adopted {
@@ -5445,6 +5649,7 @@ impl Record for Adopted {
         field::write(field::Nested, &self.settings, limits, out, paths::ADOPTED_SETTINGS)?;
         field::write(field::Sequence { limit: limits.adopted_workflows.min(CEILINGS.adopted_workflows), minimum: 4, item: field::Bytes { limit: limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item) } }, &self.workflows, limits, out, paths::ADOPTED_WORKFLOWS)?;
         field::write(field::Bytes { limit: limits.adopted_landing.min(CEILINGS.adopted_landing) }, &self.landing, limits, out, paths::ADOPTED_LANDING)?;
+        field::write(field::Sequence { limit: limits.adopted_refusals.min(CEILINGS.adopted_refusals), minimum: 13, item: field::Nested }, &self.refusals, limits, out, paths::ADOPTED_REFUSALS)?;
         Ok(())
     }
 
@@ -5466,6 +5671,7 @@ impl Record for Adopted {
             settings: field::read(field::Nested, limits, reader, paths::ADOPTED_SETTINGS)?,
             workflows: field::read(field::Sequence { limit: limits.adopted_workflows.min(CEILINGS.adopted_workflows), minimum: 4, item: field::Bytes { limit: limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item) } }, limits, reader, paths::ADOPTED_WORKFLOWS)?,
             landing: field::read(field::Bytes { limit: limits.adopted_landing.min(CEILINGS.adopted_landing) }, limits, reader, paths::ADOPTED_LANDING)?,
+            refusals: field::read(field::Sequence { limit: limits.adopted_refusals.min(CEILINGS.adopted_refusals), minimum: 13, item: field::Nested }, limits, reader, paths::ADOPTED_REFUSALS)?,
         })
     }
 }
@@ -41384,6 +41590,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ForgeRefused", nodes: ForgeRefused::SHAPE },
     skein_codec::bounds::Declaration { name: "ForgeState", nodes: ForgeState::SHAPE },
     skein_codec::bounds::Declaration { name: "ForgeWriter", nodes: ForgeWriter::SHAPE },
+    skein_codec::bounds::Declaration { name: "FormingRefusal", nodes: FormingRefusal::SHAPE },
     skein_codec::bounds::Declaration { name: "Freshness", nodes: Freshness::SHAPE },
     skein_codec::bounds::Declaration { name: "Gate", nodes: Gate::SHAPE },
     skein_codec::bounds::Declaration { name: "GateFailure", nodes: GateFailure::SHAPE },
@@ -41461,6 +41668,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ItemAnswer", nodes: ItemAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "ItemState", nodes: ItemState::SHAPE },
     skein_codec::bounds::Declaration { name: "ItemsAnswer", nodes: ItemsAnswer::SHAPE },
+    skein_codec::bounds::Declaration { name: "JigRefusal", nodes: JigRefusal::SHAPE },
     skein_codec::bounds::Declaration { name: "JobAnswer", nodes: JobAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "JobAttempt", nodes: JobAttempt::SHAPE },
     skein_codec::bounds::Declaration { name: "Judgement", nodes: Judgement::SHAPE },
@@ -41753,6 +41961,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "TierVerification", nodes: TierVerification::SHAPE },
     skein_codec::bounds::Declaration { name: "ToBegin", nodes: ToBegin::SHAPE },
     skein_codec::bounds::Declaration { name: "Topic", nodes: Topic::SHAPE },
+    skein_codec::bounds::Declaration { name: "TrainRefusal", nodes: TrainRefusal::SHAPE },
     skein_codec::bounds::Declaration { name: "UnderPrefix", nodes: UnderPrefix::SHAPE },
     skein_codec::bounds::Declaration { name: "UpdateCondition", nodes: UpdateCondition::SHAPE },
     skein_codec::bounds::Declaration { name: "UpdateStyle", nodes: UpdateStyle::SHAPE },
@@ -41779,6 +41988,8 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.protection_branch,
     CEILINGS.protection_contexts,
     CEILINGS.settings_default_branch,
+    CEILINGS.jig_refusal_why,
+    CEILINGS.train_refusal_branch,
     CEILINGS.adopted_contexts,
     CEILINGS.adopted_host,
     CEILINGS.adopted_owner,
@@ -41788,6 +41999,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.adopted_workflows,
     CEILINGS.adopted_workflows_item,
     CEILINGS.adopted_landing,
+    CEILINGS.adopted_refusals,
     CEILINGS.retargeted_before,
     CEILINGS.retargeted_after,
     CEILINGS.hold_design_writers,
