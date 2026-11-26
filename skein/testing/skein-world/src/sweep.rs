@@ -3,8 +3,13 @@
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::{format, string::String, vec::Vec};
+use core::fmt;
 
 use crate::faults::{FaultLedger, Kind};
+use crate::test_env::{Mode, mode};
+
+pub(crate) mod cases;
+pub use cases::{Case, Test, cases, gate};
 
 /// Judge each seed in a range, then record the completed sweep.
 pub fn each_seed<F: FnMut(u64)>(seeds: core::ops::Range<u64>, mut check: F) {
@@ -48,7 +53,7 @@ pub struct Sweep {
     name: &'static str,
     configured: BTreeSet<Kind>,
     exclusions: Vec<Exclusion>,
-    fell: BTreeSet<Kind>,
+    fell: BTreeMap<Kind, u64>,
     seeds: u64,
     left_out: BTreeMap<&'static str, u64>,
 }
@@ -60,7 +65,7 @@ impl Sweep {
             name,
             configured: BTreeSet::new(),
             exclusions: Vec::new(),
-            fell: BTreeSet::new(),
+            fell: BTreeMap::new(),
             seeds: 0,
             left_out: BTreeMap::new(),
         }
@@ -110,10 +115,13 @@ impl Sweep {
         })
     }
 
-    /// Folds one seed's ledger: what fell, and what its exclusions left out.
+    /// Folds one seed's ledger: one more case for each kind that fell, and what its exclusions left out.
     pub fn ran(&mut self, ledger: &FaultLedger) {
         self.seeds = self.seeds.checked_add(1).expect("a sweep's seed count fits u64");
-        self.fell.extend(ledger.fell());
+        for kind in ledger.fell() {
+            let count = self.fell.entry(kind).or_default();
+            *count = count.checked_add(1).expect("a fault's case count fits u64");
+        }
         for (scenario, _, _) in ledger.left_out_draws() {
             let count = self.left_out.entry(scenario).or_default();
             *count = count.checked_add(1).expect("a sweep's left-out draw count fits u64");
@@ -121,12 +129,24 @@ impl Sweep {
         skein_checks::count("seed", 1);
     }
 
-    /// Each configured fault fell in at least one seed folded.
+    /// At the gate, each configured fault fell in at least one seed folded.
+    /// Outside it, passes and writes how many cases each configured fault fell in.
     pub fn check_fell(&self) -> Result<(), String> {
+        self.check_fell_in(mode(), cases::stderr)
+    }
+
+    pub(crate) fn check_fell_in<R: FnMut(fmt::Arguments<'_>)>(&self, mode: Mode, mut report: R) -> Result<(), String> {
         let mut findings = Vec::new();
-        for kind in self.configured.difference(&self.fell) {
-            findings
-                .push(format!("sweep {}: {}/{} never fell in {} seeds", self.name, kind.family, kind.name, self.seeds));
+        for kind in &self.configured {
+            let count = self.fell.get(kind).copied().unwrap_or(0);
+            if !mode.gate() {
+                report(format_args!("fuzzy reach: {} {}/{} {count}", self.name, kind.family, kind.name));
+            } else if count == 0 {
+                findings.push(format!(
+                    "sweep {}: {}/{} never fell in {} seeds",
+                    self.name, kind.family, kind.name, self.seeds
+                ));
+            }
         }
         if findings.is_empty() { Ok(()) } else { Err(findings.join("\n")) }
     }

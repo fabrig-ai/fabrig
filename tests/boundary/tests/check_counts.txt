@@ -18,6 +18,7 @@ jig/tests/core/src/agents_tools.rs
 jig/tests/core/tests/support/amendment_funding.rs
 skein/testing/skein-json-kit/src/generate.rs
 skein/testing/skein-world/src/sweep.rs
+skein/testing/skein-world/src/sweep/cases.rs
 skein/tests/conformance/sim/src/lib.rs
 skein/tests/forge/dialect/tests/common/mod.rs
 skein/tests/forge/machine/tests/suite/fuzzy/machine/sweep.rs

@@ -56,11 +56,11 @@ const fn tag(stream: Stream) -> u64 {
     }
 }
 
-fn mix(seed: u64) -> u64 {
+pub(crate) fn mix(seed: u64) -> u64 {
     Rng::new(seed).next_u64()
 }
 
-fn fnv(part: &str) -> u64 {
+pub(crate) fn fnv(part: &str) -> u64 {
     let mut hash = 0xcbf2_9ce4_8422_2325_u64;
     for byte in part.as_bytes() {
         hash ^= u64::from(*byte);

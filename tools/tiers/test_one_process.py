@@ -2274,6 +2274,18 @@ class RunnerTests(RunnerFixture):
             'RELATIVE={value="relative",relative=true}\n')
         self.assertEqual([t['outcome'] for t in self.invoke()['tests']], ['passed'] * 3)
 
+    def test_fuzzy_variables_are_absent_from_every_process(self):
+        self.env.update(FIXTURE_CASE='crash-with-fuzzy-env', FIXTURE_KEPT='caller',
+                        SKEIN_TEST_FUZZY_CAMPAIGN='0123456789abcdef',
+                        SKEIN_TEST_FUZZY_CASE='000000000000002a')
+        result = self.invoke()
+        self.assertEqual([(t['test_name'], t['outcome']) for t in result['tests']],
+                         [('a', 'passed'), ('b', 'crashed'), ('c', 'passed')])
+        self.assertEqual({p['kind'] for p in result['processes']}, {'tests', 'fresh', 'alone'})
+        # Both invocations of b passed the environment check before crashing.
+        output = (self.directory / 'command-output.txt').read_text()
+        self.assertEqual(output.count('crash output'), 2)
+
     def test_wall_hard_and_session_cleanup(self):
         self.env['FIXTURE_CASE'] = 'hang'
         result = self.invoke({'default': {'wall_hard_s': 0.5}})

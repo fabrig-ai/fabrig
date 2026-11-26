@@ -23,7 +23,14 @@ static BEFORE: extern "C" fn() = {
 };
 
 fn scenario() -> String {
-    std::env::var("FIXTURE_CASE").unwrap_or_default()
+    let case = std::env::var("FIXTURE_CASE").unwrap_or_default();
+    if case == "crash-with-fuzzy-env" {
+        assert!(std::env::var_os("SKEIN_TEST_FUZZY_CAMPAIGN").is_none());
+        assert!(std::env::var_os("SKEIN_TEST_FUZZY_CASE").is_none());
+        assert_eq!(std::env::var("FIXTURE_KEPT").as_deref(), Ok("caller"));
+        return "crash".into();
+    }
+    case
 }
 
 #[test]
