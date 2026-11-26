@@ -1,8 +1,11 @@
 # repairs: status
 
-2026-11-19. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-26. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
 A stall's gaps are `stalls.status.md`'s.
+
+- **Not yet:** 1, *A repair that changes nothing is checked once more*, at a landing: a plain no-change landing repair holds `Failed` and its release asks a fresh repair, and a flake or no-test verdict holds `Flake` or `NoTest` until a person's release regates once; no regate's identity says which receipt took it, and no `RedStands` cause holds a red that stands. Also *Its record* (`Regate`'s `taken`, `ChangeHold`'s `red_stands`), *A landing repair's verdicts* (their lines still say a person releases the change) and *The previous build's holds* (`temper-engine-domain-forge-change/src/domain.rs`, `delegated`; `temper-engine-domain-forge/src/domain.rs`, `delegate_result`) [in flight: change 19128].
+- **Not yet:** 1, *A repair that changes nothing is checked once more*, at CI: a no-change CI repair's rerun keeps no identity, a red after it asks the next repair up to the allowance, and where no job reruns the change updates onto its base. Also *Its record*'s `ci_recheck` (`temper-engine-domain-forge-change/src/domain.rs`, `repairing`) [in flight: change 19130].
 
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
 
