@@ -205,11 +205,14 @@ fn push_admission_keeps_the_wire_version_and_defaults_old_items() {
     assert_eq!(v1::Items::decode(&fixtures::limits(), &mut reader).unwrap(), value);
     assert!(reader.is_empty());
 
+    out.clear();
     value.repositories.get_mut(0).unwrap().admit = true;
     let bytes = crate::items(&value);
     assert_eq!(v1::Items::decode(&fixtures::limits(), &mut skein_lib::Reader::new(&bytes)).unwrap(), value);
     let problem = peer.down(root, &bytes, &mut out).expect_err("old worker cannot keep requested admission");
     assert_eq!(problem.cause, Cause::Field);
+    assert_eq!(&*problem.kept(), b"the worker's layout cannot keep temper-worker-wire Repository.admit: field");
+    assert_eq!(out.as_slice(), []);
 }
 
 #[test]

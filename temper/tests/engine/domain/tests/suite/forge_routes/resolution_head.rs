@@ -45,7 +45,7 @@ fn moved_head(conflict: bool) {
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"other", b"another push", 2)
             .expect("branch advanced while resolution prepares")
     } else {
-        super::merge_job::push_merge(&mut world, change, head, base)
+        super::merge_job::outside_merge(&mut world, change, head, base)
     };
     let moved_commit = translate::commit(moved);
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
@@ -104,7 +104,7 @@ fn moved_head(conflict: bool) {
     }));
     if conflict {
         let fresh = fresh_resolution(&mut world, change, resolution, moved_commit);
-        let resolved = super::merge_job::push_merge(&mut world, change, moved, base);
+        let resolved = super::merge_job::push_merge(&mut world, super::merge_job::Writer::Run(&fresh), moved, base);
         super::merge_job::finish_resolution(&mut world, &fresh);
         super::merge_job::landed(&mut world, change, resolved);
     } else {

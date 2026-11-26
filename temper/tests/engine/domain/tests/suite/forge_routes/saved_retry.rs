@@ -42,8 +42,11 @@ impl Remote for Git<'_> {
         let raw::Answer::Cloned { branches, .. } = self.call(raw::Git::Clone) else { panic!("clone") };
         Ok(branches.iter().map(|head| head.commit).collect())
     }
-    fn fetch(&mut self, _: &[u8], want: Want<'_>) -> Result<u64, Fault> {
+    fn fetch(&mut self, remote: &[u8], want: Want<'_>) -> Result<u64, Fault> {
         let want = match want {
+            Want::Branch(branch) if self.0.fake.branch(remote, branch).is_none() => {
+                return Err(Fault::Missing(temper_fake_checkout::git::What::Branch));
+            }
             Want::Branch(branch) => raw::Want::Branch(branch.into()),
             Want::Commit(commit) => raw::Want::Commit(commit),
             Want::Default => raw::Want::Default,
@@ -133,7 +136,7 @@ impl Workspace {
             hold: None,
         }
     }
-    fn finish(&mut self, world: &mut World, mut event: checkout::Event) -> checkout::Request {
+    fn finish(&mut self, world: &mut World, run: &engine::Assignment, mut event: checkout::Event) -> checkout::Request {
         let mut pending = Queue::uncapped();
         let mut terminal = None;
         for _ in 0..ITERATIONS {
@@ -146,6 +149,23 @@ impl Workspace {
                     checkout::Request::Io { owner, op, .. } => {
                         let done = checkout_io::perform(&mut Git(world), &mut self.disk, op);
                         pending.push(checkout::Event::Done { owner, done });
+                    }
+                    checkout::Request::AdmitPush { hold, repository, branch, expected, commit, .. } => {
+                        use temper_protocol_worker_wire::v1::Answer;
+                        use temper_worker_checkout_world::translate::fake;
+                        let item = &run.workspace.repositories[usize::try_from(repository).expect("repository index")];
+                        let answer = match world.ask_push(
+                            (CHANNEL, run.task, run.attempt),
+                            item.tag,
+                            &branch,
+                            expected.map(fake),
+                            fake(commit),
+                        ) {
+                            Some(Answer::Admitted) => Ok(()),
+                            Some(Answer::Unadmitted(value)) => Err(value.words),
+                            other => panic!("push answer: {other:?}"),
+                        };
+                        pending.push(checkout::Event::PushAdmission { hold, answer });
                     }
                     checkout::Request::Cancel { .. } => panic!("no cancellation"),
                     answer => {
@@ -187,7 +207,7 @@ impl Workspace {
         let spec = checkout::Spec {
             key: run.workstream.to_be_bytes().into(),
             repositories: Box::new([checkout::Repository {
-                admit: false,
+                admit: repository.push.is_some() || !repository.prefixes.is_empty(),
                 name: repository.name.clone(),
                 remote: b"org/repo".as_slice().into(),
                 git: None,
@@ -204,7 +224,7 @@ impl Workspace {
             }]),
         };
         let checkout::Request::Prepared { prepared: checkout::Prepared::Ready { workspace, .. }, .. } =
-            self.finish(world, checkout::Event::Prepare { client: CLIENT, spec })
+            self.finish(world, run, checkout::Event::Prepare { client: CLIENT, spec })
         else {
             panic!("prepared")
         };
@@ -222,7 +242,7 @@ impl Workspace {
         let message = checkout::Message { title: b"Repair CI".as_slice().into(), body: Box::new([]) };
         let event =
             if unfinished { checkout::Event::Save { hold, message } } else { checkout::Event::Push { hold, message } };
-        let outcome = match self.finish(world, event) {
+        let outcome = match self.finish(world, run, event) {
             checkout::Request::Saved { outcome, .. } | checkout::Request::Pushed { outcome, .. } => outcome,
             answer => panic!("write terminal: {answer:?}"),
         };
@@ -237,7 +257,7 @@ impl Workspace {
                 preparation: None,
             }
         };
-        self.finish(world, checkout::Event::Release { hold });
+        self.finish(world, run, checkout::Event::Release { hold });
         assert_eq!(self.domain.holds(), 0);
         parts
     }
@@ -251,7 +271,7 @@ pub(super) fn inspect(world: &mut World, run: &engine::Assignment) -> (Checkout,
     let path = checkout_io::path(&checkout::git::Place { git: None, workspace, repository: repository.name.clone() });
     let root = Token::new(checkout.disk.root(&path));
     let hold = checkout.hold.take().expect("prepared checkout held");
-    checkout.finish(world, checkout::Event::Release { hold });
+    checkout.finish(world, run, checkout::Event::Release { hold });
     let workspace = smith_domain_run::Workspace {
         directories: Box::new([smith_domain_run::Directory {
             results: None,

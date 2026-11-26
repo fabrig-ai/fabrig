@@ -38,8 +38,18 @@ pub enum Ask {
     Landed { head: [u8; 32] },
 }
 
-#[derive(PartialEq, Eq, Debug)]
+/// The route of an application ask already fenced by the fleet.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Asking {
+    pub channel: Token,
+    pub run: Token,
+    pub attempt: Token,
+    pub number: u64,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    Admitted,
     Kept,
     Landed,
     Unlanded,
@@ -66,7 +76,7 @@ pub fn answer(domain: &Domain, task: u64, attempt: u64, ask: Ask) -> Answer {
     match ask {
         Ask::Reds => Answer::Reds { reds: reds_for_run(domain, task, attempt) },
         Ask::Results(_) => Answer::Kept,
-        Ask::Admit { .. } => Answer::Unadmitted { words: b"the engine admits no pushes yet".as_slice().into() },
+        Ask::Admit { .. } => Answer::Unadmitted { words: b"push admission requires a decision".as_slice().into() },
         Ask::Landed { head } => {
             if landed_for_run(domain, task, attempt, &head) {
                 Answer::Landed

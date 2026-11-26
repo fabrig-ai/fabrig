@@ -98,6 +98,7 @@ pub struct Domain {
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::boundary::JobWorkspace>,
+    pub(crate) push_claims: Map<u64, forge_route::push_admission::Claim>,
     pub(crate) forge: forge::Domain,
     pub(crate) forge_limit_holds: Map<u64, forge_route::limit_holds::Waiting>,
     /// Last saved unavailable phase, without retaining ended tasks (domain/landing-liveness.md, 4).
@@ -650,6 +651,7 @@ impl Domain {
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             job_workspaces: Map::with_capacity(limits.tasks.tasks),
+            push_claims: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
             kinds: Box::default(),

@@ -101,7 +101,8 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                 },
             ..
         } => true,
-        WorkerInput::CheckResults { .. }
+        WorkerInput::Admit { .. }
+        | WorkerInput::CheckResults { .. }
         | WorkerInput::Asked { .. }
         | WorkerInput::Opened { .. }
         | WorkerInput::ResultRead { .. }
@@ -326,7 +327,15 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
     assert!(out.len() == 1, "one delivery per link hand-out");
     match out.pop().expect("link delivery") {
         hub::Request::Assigned { channel, assignment: value } => {
-            crate::Delivery::Assigned { channel, assignment: assignment(domain, value) }
+            let assignment = assignment(domain, value);
+            crate::route::forge_route::push_admission::keep(
+                domain,
+                assignment.task,
+                assignment.attempt,
+                &assignment.workspace,
+                assignment.run.policy.resume,
+            );
+            crate::Delivery::Assigned { channel, assignment }
         }
         hub::Request::AssignedJob { channel, job } => {
             // Every offer of the attempt carries its items, a busy refusal's next one included.
@@ -339,6 +348,9 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
                 None => None,
             };
             assert_eq!(workspace.is_some(), job.workspace.is_some(), "prepared job items");
+            if let Some(workspace) = &workspace {
+                crate::route::forge_route::push_admission::keep(domain, job.task, job.attempt, workspace, false);
+            }
             crate::Delivery::AssignedJob { channel, workspace, job: hub::job_assignment(job) }
         }
         hub::Request::Message { channel, run, attempt, word } => {

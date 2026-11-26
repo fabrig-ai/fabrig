@@ -307,7 +307,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Lost { task, attempt } => {
             if connector == domain.config.forge_connector {
-                match domain.forge_left.remove(&(task, attempt)) {
+                forge_route::push_admission::forget(domain, task, attempt);
+                let pushed = domain.forge_left.remove(&(task, attempt));
+                domain.work.push(Work::Forge(forge::Event::Finished { task, attempt, lost: pushed.is_none() }));
+                match pushed {
                     Some(pushed) if !pushed.is_empty() => {
                         forge_route::left(domain, env, task, attempt, pushed);
                     }

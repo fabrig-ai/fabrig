@@ -148,6 +148,22 @@ fn advance(row: &mut Writes) {
 }
 
 impl Domain {
+    /// Admit a push to a destination already authorized by the assignment.
+    pub fn admit_push(
+        &mut self,
+        limits: &Limits,
+        name: &Name,
+        expected: Option<Commit>,
+        commit: Commit,
+        sender: Sender,
+        out: &mut Queue<Request>,
+    ) -> Result<(), Box<[u8]>> {
+        match self.admit(name, Operation::Push { before: expected, after: commit }, sender, out) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(room_account(self, limits, name)),
+        }
+    }
+
     /// Admit one branch write in the caller's decision, before it can be sent.
     pub fn admit(
         &mut self,

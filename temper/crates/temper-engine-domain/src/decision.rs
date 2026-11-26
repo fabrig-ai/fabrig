@@ -917,6 +917,16 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
 
 fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
     match host {
+        crate::HostDelivery::Asked { answer, .. } => match answer {
+            crate::wire::Answer::Admitted => true,
+            crate::wire::Answer::Unadmitted { words } => {
+                words.len() <= skein_lib::usize_of(temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES)
+            }
+            crate::wire::Answer::Kept
+            | crate::wire::Answer::Landed
+            | crate::wire::Answer::Unlanded
+            | crate::wire::Answer::Reds { .. } => false,
+        },
         // The core admits these with the same document bounds as Delivery::Read.
         // Their held-output payload is priced by core reads::answer_bound.
         crate::HostDelivery::Settings { .. } => true,

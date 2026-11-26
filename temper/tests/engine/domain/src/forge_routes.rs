@@ -16,7 +16,7 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
-use temper_protocol_worker_wire::v1::Record as WorkerRecord;
+use temper_protocol_worker_wire::v1::{self as worker_wire, Record as WorkerRecord};
 
 #[path = "restarts.rs"]
 pub mod restarts;
@@ -155,6 +155,7 @@ pub struct World {
     /// Assignments queued at the engine boundary, not yet received by a worker.
     pub held_assignments: Option<Vec<engine::Assignment>>,
     pub jobs: Vec<host::JobAssignment>,
+    push_answers: BTreeMap<u64, host::AskAnswer>,
     pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
     pub delivered_messages: BTreeMap<(u64, u64), Vec<u64>>,
@@ -1827,6 +1828,7 @@ impl World {
             assigned: Vec::new(),
             held_assignments: None,
             jobs: Vec::new(),
+            push_answers: BTreeMap::new(),
             job_workspaces: BTreeMap::new(),
             auto_prepare: turn,
             delivered_messages: BTreeMap::new(),
@@ -2119,6 +2121,7 @@ impl World {
     /// Push the worker's prefixes without answering, for a lost or delayed answer.
     pub fn push_prepare(&mut self) -> Box<[u8]> {
         let job = self.jobs.iter().find(|job| job.kind == jig_domain_link::JobKind(1)).expect("prepare job");
+        let attempt = (Token::new(7), job.run.raw(), job.attempt.raw());
         let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
         let item = &workspace.repositories[0];
         let landing = job.workspace.as_ref().expect("prepare workspace").workstream;
@@ -2196,19 +2199,102 @@ impl World {
                 assert!(squash || self.fake.is_ancestor(head, existing), "merge prefix contains the member");
                 base = existing;
             } else {
-                assert_eq!(
-                    self.external_at(
-                        repository,
-                        1,
-                        raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
-                    ),
-                    raw::Answer::PushNew { existing: None }
-                );
+                self.worker_push(attempt, item, &saved.branch, candidate, 1);
                 base = candidate;
             }
             combined.push(serde_json::json!({"member": position + 1, "by": if squash { "squash" } else { "merge" }}));
         }
         serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result").into()
+    }
+
+    /// Let the engine commit the ask before this scripted worker moves a branch.
+    pub fn ask_push(
+        &mut self,
+        attempt: (Token, u64, u64),
+        tag: u64,
+        branch: &[u8],
+        expected: Option<u64>,
+        commit: u64,
+    ) -> Option<worker_wire::Answer> {
+        let (number, event) = self.protocol.admit(
+            attempt,
+            worker_wire::Admit {
+                tag,
+                branch: branch.into(),
+                expected: expected.map(translate::commit),
+                commit: translate::commit(commit),
+            },
+        );
+        self.send(event);
+        for _ in 0..STEPS {
+            if let Some(answer) = self.push_answers.remove(&number) {
+                return match answer {
+                    host::AskAnswer::Bytes(bytes) => Some(
+                        worker_wire::Answer::decode(&worker_wire::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+                            .expect("encoded push answer"),
+                    ),
+                    host::AskAnswer::Refused => None,
+                };
+            }
+            // Drain the ready store and link steps without moving the clock or
+            // re-entering the prepare job that may be waiting on this answer.
+            self.iteration += 1;
+            self.changed_tasks.clear();
+            self.tick_at_now(None, true, false);
+        }
+        panic!("push ask {number} for {attempt:?} to {branch:?} did not answer");
+    }
+
+    /// A worker push is leased on the head it just read, including absence.
+    pub fn worker_push(
+        &mut self,
+        attempt: (Token, u64, u64),
+        item: &engine::ForgeRepository,
+        branch: &[u8],
+        commit: u64,
+        user: u64,
+    ) {
+        let repository = skein_lib::bytes::concat(&[&item.owner, b"/", &item.name]);
+        let expected = self.fake.branch(&repository, branch);
+        assert_eq!(self.ask_push(attempt, item.tag, branch, expected, commit), Some(worker_wire::Answer::Admitted));
+        let op = if expected.is_some() {
+            raw::Git::Push { branch: branch.into(), commit, expected }
+        } else {
+            raw::Git::PushNew { branch: branch.into(), commit }
+        };
+        let answer = self.external_at(&repository, user, raw::Op::Git(op));
+        assert_eq!(
+            answer,
+            if expected.is_some() {
+                raw::Answer::Pushed(raw::Pushed::Pushed)
+            } else {
+                raw::Answer::PushNew { existing: None }
+            }
+        );
+    }
+
+    /// Push to the named branch of this run's only checkout.
+    pub fn run_push(&mut self, run: &engine::Assignment, branch: &[u8], commit: u64, user: u64) {
+        self.worker_push((Token::new(7), run.task, run.attempt), &run.workspace.repositories[0], branch, commit, user);
+    }
+
+    /// The hosted job's only writable repository, from its assignment.
+    pub fn job_push(&mut self, channel: Token, job: &host::JobAssignment, branch: &[u8], commit: u64, user: u64) {
+        let item = self.job_workspaces.get(&job.run.raw()).expect("job items").repositories[0].clone();
+        self.worker_push((channel, job.run.raw(), job.attempt.raw()), &item, branch, commit, user);
+    }
+
+    /// Store a commit as checkout does before asking to move its destination.
+    pub fn worker_commit(&mut self, parent: u64, path: &[u8], content: &[u8]) -> u64 {
+        let tree = &self.fake.object(parent).expect("parent of the delivery").tree;
+        let mut files: Vec<raw::File> = tree
+            .iter()
+            .filter(|(name, _)| name.as_ref() != path)
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: path.into(), content: content.into() });
+        fake::commit_tree(&mut self.fake, &self.fake_env.limits, parent, None, files.into_boxed_slice(), b"added")
+            .expect("worker commit fits")
     }
 
     /// Configure the project's delivery checks' bound before startup.
@@ -2963,6 +3049,9 @@ impl World {
                     Delivery::Document { watcher, document } => self.documents.push((watcher, *document)),
                     Delivery::ForgeRead { answer: engine::ForgeReadAnswer::Milestone(totals), .. } => {
                         self.milestone_reads.push(totals);
+                    }
+                    Delivery::Link { down: host::LinkDown::Asked { number, answer, .. }, .. } => {
+                        assert!(self.push_answers.insert(number, answer).is_none(), "one answer per ask");
                     }
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());

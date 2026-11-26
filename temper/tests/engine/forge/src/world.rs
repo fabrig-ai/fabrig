@@ -1621,6 +1621,59 @@ impl World {
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
         self.record_wrong_candidate(self.branch(branch));
     }
+    /// The scripted root admits a hosted push before giving the forge its lease.
+    fn admit_attempt(&mut self, name: &top::Name, (task, attempt): (u64, u64), expected: Option<u64>, commit: u64) {
+        self.top
+            .admit_push(
+                &self.env.limits,
+                name,
+                expected.map(translate::commit),
+                translate::commit(commit),
+                top::Sender::Attempt { task, attempt },
+                &mut self.top_out,
+            )
+            .expect("scripted write admitted");
+        self.take_top();
+    }
+
+    /// Unlike an outside move, this delivery belongs to a scripted attempt.
+    pub fn push_attempt(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        path: &[u8],
+        content: &[u8],
+    ) -> skein_forge::api::Commit {
+        let expected = self.branch(branch);
+        let mut files: Vec<_> = self
+            .forge
+            .object(expected)
+            .expect("branch tip")
+            .tree
+            .iter()
+            .filter(|(key, _)| key.as_ref() != path)
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: path.into(), content: content.into() });
+        let commit = forge::commit_tree(
+            &mut self.forge,
+            &self.forge_env.limits,
+            expected,
+            None,
+            files.into_boxed_slice(),
+            b"delivery",
+        )
+        .expect("scripted delivery commit");
+        self.admit_attempt(name, attempt, Some(expected), commit);
+        assert_eq!(
+            self.external(raw::Op::Git(raw::Git::Push { branch: branch.into(), commit, expected: Some(expected) }), 1),
+            raw::Answer::Pushed(raw::Pushed::Pushed)
+        );
+        self.record_wrong_candidate(commit);
+        translate::commit(commit)
+    }
+
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
         self.external(
             raw::Op::Write(raw::Write::Status {
@@ -1766,6 +1819,16 @@ impl World {
             };
             let adopted = self.top.repository(provider).expect("train repository");
             let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
+            if let Some(job) = &row.job
+                && job.step.outcome.is_none()
+            {
+                let name = top::Name {
+                    forge: provider.forge,
+                    repository: provider.repository,
+                    what: top::What::Branch(member.branch.split(|byte| *byte == b'/').map(Box::from).collect()),
+                };
+                self.admit_attempt(&name, (job.step.task, u64::from(job.step.attempt)), None, candidate);
+            }
             let answer = self.external_repository(
                 &repository,
                 raw::Op::Git(raw::Git::PushNew { branch: member.branch.clone(), commit: candidate }),
@@ -2581,6 +2644,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Milestone(row) => top::Key::Milestone(row.task),
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
+        top::Stored::Writes(row) => top::Key::Writes(row.name.clone()),
     }
 }
 

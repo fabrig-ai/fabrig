@@ -2336,6 +2336,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             }
         }
         Event::Answered { task, attempt, pushed } => answered(d, env, task, attempt, &pushed, out),
+        Event::Finished { task, attempt, lost } => d.finished(task, attempt, lost, out),
         Event::Lost { task, attempt } => lost(d, env, task, attempt, out),
         Event::KeepProposedEffect { row } => {
             assert!(

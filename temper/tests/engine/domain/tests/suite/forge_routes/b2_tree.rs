@@ -405,12 +405,8 @@ fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &
     else {
         panic!("landing branch head")
     };
-    assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base })),
-        raw::Answer::Branch(raw::Created::Created)
-    ));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"first version", 1)
-        .expect("producer pushes");
+    let head = world.worker_commit(base, b"file", b"first version");
+    world.run_push(&producer, &branch, head, 1);
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {
@@ -424,8 +420,8 @@ fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &
     pushed(world, &producer, PRODUCER_TURNS, head);
     let repair_task = next_child(world, change, producer_task);
     let repair = admitted(world, repair_task);
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired", 1)
-        .expect("repair pushes");
+    let head = world.worker_commit(head, b"file", b"repaired");
+    world.run_push(&repair, &branch, head, 1);
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {
@@ -948,10 +944,7 @@ fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
     else {
         panic!("base head")
     };
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch, commit: head })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
+    world.run_push(&work, &branch, head, 2);
     answer_parts(
         &mut world,
         &work,

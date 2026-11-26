@@ -212,12 +212,8 @@ fn a_close_job_that_pushed_opens_and_lands_its_change() {
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
     let job = next_job(&mut world, task);
     let own = change_row(&world, task).branch.clone();
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, b"status", b"settled", 2)
-        .expect("close job pushed");
+    let head = world.worker_commit(tip, b"status", b"settled");
+    world.job_push(CHANNEL, &job, &own, head, 2);
     finish_job(&mut world, &job);
     let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
     for _ in 0..STEPS {
@@ -432,12 +428,8 @@ fn a_fresh_close_jobs_push_opens_and_lands_its_change() {
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
     let own = change_row(&world, task).branch.clone();
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, b"status", b"settled", 2)
-        .expect("fresh close pushed");
+    let head = world.worker_commit(tip, b"status", b"settled");
+    world.job_push(CHANNEL, &retry, &own, head, 2);
     finish_job(&mut world, &retry);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::Change { .. })));
     assert!(matches!(change_row(&world, task).change.state, change::State::Landed { .. }));

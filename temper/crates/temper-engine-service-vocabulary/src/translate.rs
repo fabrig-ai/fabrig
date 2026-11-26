@@ -55,6 +55,7 @@ pub(crate) fn head_to_record(head: &[u8]) -> Result<Box<[u8]>, Reason> {
 /// Encode the root's goal-local snapshot within the engine's bounds.
 pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
     let value = match answer {
+        engine::wire::Answer::Admitted => v1::Answer::Admitted,
         engine::wire::Answer::Kept => v1::Answer::Kept,
         engine::wire::Answer::Landed => v1::Answer::Landed,
         engine::wire::Answer::Unlanded => v1::Answer::Unlanded,
@@ -70,6 +71,17 @@ pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[
         }
     };
     value.encode(limits)
+}
+
+/// Return a typed application answer through the fleet's ask fence.
+#[must_use]
+pub fn asked(asking: engine::wire::Asking, value: engine::wire::Answer, limits: &v1::Limits) -> engine::WorkerInput {
+    let engine::wire::Asking { channel, run, attempt, number } = asking;
+    let answer = match answer(value, limits) {
+        Ok(bytes) => jig_domain_link::AskAnswer::Bytes(bytes),
+        Err(_) => jig_domain_link::AskAnswer::Refused,
+    };
+    engine::WorkerInput::Asked { channel, run, attempt, number, answer }
 }
 
 /// A workspace's remotes and programs, made from each configured forge.
@@ -138,7 +150,7 @@ fn repository_item(
         v1::Access::Prefixes(v1::Prefixes { branches })
     };
     Ok(v1::Repository {
-        admit: false,
+        admit: repository.push.is_some() || !repository.prefixes.is_empty(),
         save: if save { repository.save.clone() } else { None },
         tag: repository.tag,
         name: repository.name.clone(),
@@ -365,6 +377,23 @@ mod tests {
             assert_eq!(value.expected, None);
             assert_eq!(value.landing, None);
         }
+    }
+
+    #[test]
+    fn repository_items_ask_admission_only_for_writable_access() {
+        use crate::tests::fixtures;
+        let limits = fixtures::wire_limits();
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        let mut repository = fixtures::repository(7, b"acme", b"shop");
+        let writable = repository_item(&repository, false, &forges, &tokens, &limits).unwrap();
+        assert!(writable.admit);
+        repository.push = None;
+        let readonly = repository_item(&repository, false, &forges, &tokens, &limits).unwrap();
+        assert!(!readonly.admit);
+        repository.prefixes = Box::new([b"landing/7".as_slice().into()]);
+        let prefixes = repository_item(&repository, false, &forges, &tokens, &limits).unwrap();
+        assert!(prefixes.admit);
     }
 
     #[test]

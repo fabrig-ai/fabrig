@@ -386,6 +386,13 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::Admit { asking, tag, branch, expected, commit }) => {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            forge_route::push_admission::ask(domain, env, &mut decision, asking, tag, &branch, expected, commit);
+            route_into(domain, env, &mut decision);
+            close(domain, env, decision, out);
+            return;
+        }
         Event::Worker(crate::WorkerInput::CheckResults { run, attempt, results }) => {
             domain.work.push(Work::CheckResults { task: run.raw(), attempt: attempt.raw(), results });
         }

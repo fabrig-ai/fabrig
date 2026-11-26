@@ -384,6 +384,8 @@ pub enum Fact {
 
 #[derive(Hash, Debug)]
 pub enum WorkerInput {
+    /// A decoded push admission ask from jig's live attempt fence.
+    Admit { asking: crate::wire::Asking, tag: u64, branch: Box<[u8]>, expected: Option<[u8; 32]>, commit: [u8; 32] },
     /// A decoded check report from a fenced worker ask (domain/forge/reds.md, 5.6).
     CheckResults { run: Token, attempt: Token, results: crate::wire::CheckResults },
     /// The protocol encoded the root's application answer, sent through the fleet's fence.

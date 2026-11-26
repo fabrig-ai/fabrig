@@ -279,10 +279,7 @@ fn saving_repair_rebriefs(reported: bool) {
     )
     .expect("the worker commits its unchecked repair")
     .expect("the repair changed the tree");
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: saved, expected: Some(head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&repair, &branch, saved, 2);
     let question = questions::ask(&mut world, &repair, landing);
     let pull_number = row(&world, landing).pull;
     let writes = world.writes.len();

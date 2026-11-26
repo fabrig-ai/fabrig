@@ -2631,6 +2631,12 @@ pub enum Event {
         attempt: u64,
         pushed: Box<[(Name, skein_forge::api::Commit, bool)]>,
     },
+    /// Settle an attempt's admitted pushes, independent of its reported heads.
+    Finished {
+        task: u64,
+        attempt: u64,
+        lost: bool,
+    },
     /// Read a lost writer's resource afresh before making its slot available.
     Lost {
         task: u64,

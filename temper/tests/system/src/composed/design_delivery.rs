@@ -68,6 +68,16 @@ fn a_design_delivery_runs_the_repository_pre_pr_before_pushing() {
     assert_eq!(world.agent().checked(), [true], "the repository's check ran");
     assert_eq!(world.agent().delivery_submissions().len(), 1);
     let head = world.forge.branch(b"org/repo", repository.push.as_ref().expect("g")).expect("delivered branch");
+    let [(run, attempt, number, ask)] = world.observed.push_asks.as_slice() else {
+        panic!("one design delivery admission: {:?}", world.observed.push_asks);
+    };
+    assert_eq!(run.raw(), task);
+    assert_eq!(attempt.raw(), world.assignment().attempt);
+    assert_eq!(ask.tag, repository.tag);
+    assert_eq!(ask.branch.as_ref(), goal_branch);
+    assert_eq!(ask.expected, Some(temper_worker_checkout_world::translate::commit(main).raw()));
+    assert_eq!(ask.commit, temper_worker_checkout_world::translate::commit(head).raw());
+    assert_eq!(world.observed.push_answers.as_slice(), [(*run, *attempt, *number)]);
     assert_eq!(world.forge.tree(head).get(b"README.md".as_slice()), Some(&EDITED.to_vec()));
     assert_eq!(world.forge.branch(b"org/repo", b"main"), Some(main), "the landing branch did not move");
     assert_eq!(world.forge.tree(main).get(b"README.md".as_slice()), Some(&README.to_vec()));

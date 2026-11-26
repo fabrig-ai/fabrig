@@ -145,10 +145,10 @@ fn a_whole_goals_words_only_child_lands_into_its_goal_branch() {
     settle_scope_question(&mut world, &goal, child, &producer, 110, b"May I commit the source draft?", false);
     settle_scope_question(&mut world, &goal, child, &producer, 120, b"May I commit the product document?", true);
     let change_branch = row(&world, child).branch.clone();
-    push_goal_child(&mut world, child, &branch, b"draft.md", b"");
-    let head =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &change_branch, b"product.md", b"design", 1)
-            .expect("producer pushes the product document");
+    push_goal_child(&mut world, &producer, &branch, b"draft.md", b"");
+    let draft = branch_tip(&mut world, &change_branch);
+    let head = world.worker_commit(draft, b"product.md", b"design");
+    world.run_push(&producer, &change_branch, head, 1);
     status(&mut world, head, raw::Check::Passed);
     finish_goal_change(&mut world, child, &producer);
     let number = row(&world, child).pull.expect("child pull");
@@ -369,7 +369,7 @@ fn a_whole_goals_batched_omissions_stay_on_its_goal_branch() {
                 .parameters
                 .contains(&tasks::Parameter::Bytes { name: 2, value: branch.clone() })
         );
-        push_goal_child(&mut world, child.task, &branch, &child.task.to_be_bytes(), b"");
+        push_goal_child(&mut world, producer, &branch, &child.task.to_be_bytes(), b"");
         finish_goal_change(&mut world, child.task, producer);
     }
     finish_goal(&mut world, &goal);
@@ -413,7 +413,7 @@ fn a_whole_goals_subtree_inherits_its_landing_and_refuses_the_base() {
     );
     let child = made[0].task;
     let producer = questions::next_producer(&mut world, child);
-    push_goal_child(&mut world, child, &branch, b"subtree", b"");
+    push_goal_child(&mut world, &producer, &branch, b"subtree", b"");
     finish_goal_change(&mut world, child, &producer);
     finish_run(&mut world, &coordinator, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
     for _ in 0..STEPS {
@@ -539,33 +539,24 @@ pub(super) fn producing_into_goal_with_message(
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("goal change admitted: {answer:?}") };
     let change = made[0].task;
     let producer = reviews::next_assignment(world, assigned);
-    push_goal_child(world, change, branch, file, message);
+    push_goal_child(world, &producer, branch, file, message);
     (change, producer)
 }
 
-fn push_goal_child(world: &mut World, change: u64, branch: &[u8], file: &[u8], message: &[u8]) {
-    let change_branch = row(world, change).branch.clone();
+fn push_goal_child(world: &mut World, producer: &engine::Assignment, branch: &[u8], file: &[u8], message: &[u8]) {
+    let change_branch = producer.workspace.repositories[0].push.as_ref().expect("producer branch");
     let base = branch_tip(world, branch);
     let head = if message.is_empty() {
-        assert_eq!(
-            world.external(1, raw::Op::Git(raw::Git::Create { branch: change_branch.clone(), commit: base })),
-            raw::Answer::Branch(raw::Created::Created)
-        );
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &change_branch, file, b"added", 1)
-            .expect("producer pushes its change")
+        world.worker_commit(base, file, b"added")
     } else {
         let mut tree = world.fake.object(base).expect("goal base").tree.clone();
         tree.insert(file.into(), b"added".as_slice().into()).expect("room for the producer's file");
         let files = tree.iter().map(|(path, content)| raw::File { path: path.clone(), content: content.clone() });
-        let head = fake::commit(&mut world.fake, &world.fake_env.limits, base, files.collect(), message)
+        fake::commit(&mut world.fake, &world.fake_env.limits, base, files.collect(), message)
             .expect("producer's commit fits")
-            .expect("producer changed the tree");
-        assert_eq!(
-            world.external(1, raw::Op::Git(raw::Git::PushNew { branch: change_branch, commit: head })),
-            raw::Answer::PushNew { existing: None }
-        );
-        head
+            .expect("producer changed the tree")
     };
+    world.run_push(producer, change_branch, head, 1);
     status(world, head, raw::Check::Passed);
 }
 
