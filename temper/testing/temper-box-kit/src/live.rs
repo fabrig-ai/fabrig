@@ -428,16 +428,43 @@ pub fn check_completions(directory: &Path) -> Result<u32, String> {
     count_completions(directory, &super::configuration::directories(directory))
 }
 
-/// Count this story's committed turns through ctl, including restarted
+/// Committed transcript turns, grouped by task and attempt (temper/docs/design/testing/live-tier.md, 2).
+#[derive(Default)]
+pub struct CompletionTurns(std::collections::BTreeMap<(u64, u64), std::collections::BTreeSet<u64>>);
+
+impl CompletionTurns {
+    pub fn read(&mut self, task: u64, activity: &Value) -> Result<(), String> {
+        for row in activity["rows"].as_array().ok_or("completion rows missing")? {
+            let Some(turn) = row.pointer("/event/owner/source/line/turn") else { continue };
+            let attempt = turn["attempt"].as_u64().ok_or("completion attempt missing")?;
+            let number = turn["turn"].as_u64().ok_or("completion turn missing")?;
+            self.0.entry((task, attempt)).or_default().insert(number);
+        }
+        Ok(())
+    }
+
+    pub fn summary(&self, chat: u64, change: u64) -> Result<(u32, String), String> {
+        let mut count = 0u32;
+        let mut groups = Vec::new();
+        for ((task, attempt), turns) in &self.0 {
+            let size = u32::try_from(turns.len()).map_err(|_| "completion count overflow")?;
+            count = count.checked_add(size).ok_or("completion count overflow")?;
+            groups.push(format!("{task}/{attempt}:{size}"));
+        }
+        Ok((count, format!("COMPLETIONS chat={chat} change={change} count={count} turns={}", groups.join(" "))))
+    }
+}
+
+/// Read this story's committed turns through ctl, including restarted
 /// attempts. Each source turn names one transcript frame, as the fresh
 /// story's file counter does, without opening any kept deployment file.
-pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
-    let mut turns = std::collections::BTreeSet::new();
+pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<CompletionTurns, String> {
+    let mut turns = CompletionTurns::default();
     for task in tasks {
-        let task = task.to_string();
+        let number = task.to_string();
         let mut before = None::<String>;
         for page in 0..32 {
-            let mut args = vec!["task", "activity", &task, "--limit", "32", "--json"];
+            let mut args = vec!["task", "activity", &number, "--limit", "32", "--json"];
             if let Some(before) = &before {
                 args.extend(["--before", before]);
             }
@@ -446,14 +473,7 @@ pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
                 return Err("completion read failed".into());
             }
             let activity: Value = serde_json::from_slice(&read.stdout).map_err(|error| error.to_string())?;
-            for row in activity["rows"].as_array().ok_or("completion rows missing")? {
-                let Some(turn) = row.pointer("/event/owner/source/line/turn") else { continue };
-                turns.insert((
-                    task.clone(),
-                    turn["attempt"].as_u64().ok_or("completion attempt missing")?,
-                    turn["turn"].as_u64().ok_or("completion turn missing")?,
-                ));
-            }
+            turns.read(*task, &activity)?;
             before = activity["before"]["value"].as_str().map(str::to_owned);
             if before.is_none() {
                 break;
@@ -463,7 +483,7 @@ pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
             }
         }
     }
-    u32::try_from(turns.len()).map_err(|_| "completion count overflow".into())
+    Ok(turns)
 }
 
 fn count_completions(config: &Path, directories: &temper_box_shell::directories::Directories) -> Result<u32, String> {

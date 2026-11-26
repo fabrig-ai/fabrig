@@ -6,7 +6,7 @@ use temper_box_kit::forge_land::{LiveModel, LiveProfile, live_apply, live_settin
 
 type ClientWorld = jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>;
 
-/// The live deployment's stock catalogue, endpoints, providers and charters 1 and 2
+/// The live deployment's stock catalogue, endpoints, providers and charters 1, 2 and 4
 /// on the joined client world's engine (temper/docs/design/testing/live-tier.md and temper/docs/design/testing/checks.md, 3).
 fn live_model_world(model: LiveModel<'_>) -> ClientWorld {
     use jig_client_kit::harness::{Settings, World};
@@ -28,7 +28,7 @@ fn live_model_world(model: LiveModel<'_>) -> ClientWorld {
     limits.fleet.grants = 4;
     // Init's OpenAI provider can read a list for the world's fixture accounts.
     limits.fleet.reads = limits.accounts.accounts;
-    limits.tasks.charters = 2;
+    limits.tasks.charters = 3;
     limits.templates = 3;
     limits.documents.text_bytes = 8192;
     limits.journal.run_bytes = engine.limits.core.run_bytes;
@@ -44,7 +44,7 @@ fn live_model_world(model: LiveModel<'_>) -> ClientWorld {
             jig_domain_people::InitialOwner { project: 0, identity: config.core.owners[0].identity.clone() },
         ]);
         config.core.defaults.models.clone_from(&stock.models);
-        config.core.defaults.charters = stock.charters.iter().take(2).cloned().collect();
+        config.core.defaults.charters = stock.charters.iter().take(3).cloned().collect();
         let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
         config.core.defaults.providers = core.defaults.providers;
         config.core.fixed_providers = core.fixed_providers;
@@ -108,13 +108,14 @@ fn assert_live_settings(model: LiveModel<'_>) {
     let charters = [
         read(&mut world, &[b"settings", b"show", b"charter", b"1", b"--json"]),
         read(&mut world, &[b"settings", b"show", b"charter", b"2", b"--json"]),
+        read(&mut world, &[b"settings", b"show", b"charter", b"4", b"--json"]),
     ];
     let row = read(&mut world, &[b"settings", b"show", b"model", b"3", b"--json"]);
-    let changes = live_settings(model, &inventory, [&charters[0], &charters[1]], &row).expect("live settings");
+    let changes = live_settings(model, &inventory, charters.each_ref(), &row).expect("live settings");
     let claude = live_settings(
         LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
         &inventory,
-        [&charters[0], &charters[1]],
+        charters.each_ref(),
         &row,
     )
     .expect("Claude Code settings");
@@ -137,12 +138,19 @@ fn assert_live_settings(model: LiveModel<'_>) {
     assert_eq!(value["estimated"], true);
     assert_eq!(value["model"]["effort"], "low");
     assert!(value["model"]["efforts"].as_array().expect("offered efforts").contains(&json!("low")));
-    for number in [b"1".as_slice(), b"2"] {
+    // temper/docs/design/testing/live-tier.md, 2: the three per-activation bounds and stock reserve.
+    for (number, turns) in [(b"1".as_slice(), 5), (b"2", 10), (b"4", 4)] {
         let charter = read(&mut world, &[b"settings", b"show", b"charter", number, b"--json"]);
         let value = &charter["value"];
-        assert_eq!(value["model"]["name"], "claude-haiku-5-5");
-        assert_eq!(value["model"]["effort"], "low");
-        assert_eq!(value["alternatives"], json!([]));
-        assert_eq!(value["rest"], false);
+        assert_eq!(value["turns"], turns);
+        assert_eq!(value["reserve_turns"], 1);
+        if number == b"4" {
+            assert_eq!(value["model"], charters[2]["value"]["model"]);
+        } else {
+            assert_eq!(value["model"]["name"], "claude-haiku-5-5");
+            assert_eq!(value["model"]["effort"], "low");
+            assert_eq!(value["alternatives"], json!([]));
+            assert_eq!(value["rest"], false);
+        }
     }
 }
