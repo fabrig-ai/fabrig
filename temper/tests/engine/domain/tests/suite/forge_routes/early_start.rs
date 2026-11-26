@@ -713,10 +713,7 @@ fn a_failed_early_producer_waits_and_the_next_merges_the_landing_tip() {
         engine::ForgeStart::Merge { branch: c6_branch.clone(), base: translate::commit(tip) }
     );
     let merged = merged_start(&mut world, c6_head, tip);
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Push { branch: c6_branch, commit: merged, expected: Some(c6_head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&next, &c6_branch, merged, 2);
     finish(&mut world, &next, b"Add C6");
     landed(&mut world, c6);
     stop(&mut world, &goal);

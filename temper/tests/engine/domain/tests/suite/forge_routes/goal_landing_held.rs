@@ -97,9 +97,7 @@ fn repair(world: &mut World, goal: u64, branch: &[u8], landing: u64, head: u64, 
     assert_eq!(writer(world, branch), Some(tasks::Writer::Run { task: repair.task, attempt: repair.attempt }));
     assert_goal_holds(world, goal, branch);
     assert_eq!(branch_tip(world, branch), head, "the repair starts at g's current head");
-    let next =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"repair", &number.to_be_bytes(), 1)
-            .expect("L's repair pushes g under G's hold");
+    let next = world.run_push_edit(&repair, branch, b"repair", &number.to_be_bytes(), 1);
     assert_ne!(next, head);
     assert_goal_holds(world, goal, branch);
     assert_eq!(writer(world, branch), Some(tasks::Writer::Run { task: repair.task, attempt: repair.attempt }));

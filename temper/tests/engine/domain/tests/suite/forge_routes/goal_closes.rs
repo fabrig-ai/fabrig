@@ -1073,8 +1073,7 @@ fn held_landing_with_attempts(attempts: u8) -> (World, engine::Assignment, Box<[
     status(&mut world, head, raw::Check::Failed);
     let repair = reviews::next_assignment(&mut world, before);
     assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(landing));
-    let next = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"first repair", 1)
-        .expect("repair pushed");
+    let next = world.run_push_edit(&repair, &branch, b"repair", b"first repair", 1);
     status(&mut world, next, raw::Check::Pending);
     finish_run(
         &mut world,

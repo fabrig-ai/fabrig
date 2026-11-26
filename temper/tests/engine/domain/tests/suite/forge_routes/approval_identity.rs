@@ -759,8 +759,7 @@ fn repaired_request_waits_for_approval(world: &mut World, change: u64, repair: &
     let branch = row.branch.clone();
     let assigned = world.assigned.len();
     // A repair's new head asks the gate and the person's approval afresh.
-    let new = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired edge", 2)
-        .expect("repair push");
+    let new = world.run_push_edit(repair, &branch, b"file", b"repaired edge", 2);
     assert_ne!(translate::commit(new), head);
     reviews::finish_review(
         world,

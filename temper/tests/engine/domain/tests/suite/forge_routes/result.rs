@@ -67,8 +67,7 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
         core::str::from_utf8(&head[..12]).expect("hexadecimal head")
     );
     assert!(cut.starts_with(expected.as_bytes()), "client's cut repair words: {cut:?}");
-    let h2 = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"src/main.rs", CSV, 1)
-        .expect("repair pushed the CSV source");
+    let h2 = world.run_push_edit(&repair, &branch, b"src/main.rs", CSV, 1);
     finish(&mut world, &repair, change_result());
     let review = next(&mut world, 3);
     finish(
@@ -334,7 +333,7 @@ fn repaired_story(path: &[u8], producer_words: &[u8], repair_words: &[u8]) {
     let repair = next(&mut world, 2);
     assert!(contains(ci_words(&repair), b"Failed check: / changes (pull_request)"));
     let note = opened_note(&mut world, number);
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, &note, 1).expect("repair note");
+    world.run_push_edit(&repair, &branch, path, &note, 1);
     finish_report(&mut world, &repair, repair_words);
     finish_repaired_story(world, &chat, change, path, producer_words, repair_words, note);
 }

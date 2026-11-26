@@ -82,10 +82,15 @@ fn fail_delegate(world: &mut World, task: u64, merge_job: bool, head: u64, base:
     )
     .expect("saved merge contains its inputs");
     let branch = row(world, task).branch.clone();
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch, commit: saved, expected: Some(head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    if merge_job {
+        let index = world.jobs.iter().position(|job| job.run.raw() == child).expect("merge job assigned");
+        let job = world.jobs.remove(index);
+        world.job_push(CHANNEL, &job, &branch, saved, 1);
+        world.jobs.insert(index, job);
+    } else {
+        let resolver = world.assigned.iter().find(|run| run.task == child).expect("resolver assigned").clone();
+        world.run_push(&resolver, &branch, saved, 1);
+    }
     status(world, saved, raw::Check::Passed);
     let reason = format!(
         "delivery refused at saved head {}",

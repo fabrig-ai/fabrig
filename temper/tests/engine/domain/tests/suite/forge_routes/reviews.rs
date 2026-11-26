@@ -2040,8 +2040,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
     assert!(row.verdicts.is_empty());
     assert!(row.change.gate_failures.is_empty(), "cancellation uses no failed-review retry");
     assert_eq!(live_task(&world, change).made, 4, "producer, cancelled review and repair each count as made");
-    let second_head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, FILE, b"repaired", 1)
-        .expect("repair pushed H2");
+    let second_head = world.run_push_edit(&repair, &branch, FILE, b"repaired", 1);
     assert_ne!(second_head, first_head);
     let event = world.protocol.answer(
         CHANNEL,
@@ -2514,8 +2513,9 @@ fn third_append_conflict() -> (World, u64, Box<[u8]>) {
     let (mut world, _, producer, branch) = change_world_with_gate(false, 1000, None, true);
     let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\n", 1)
         .expect("original blank line");
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
-    push_append(&mut world, &producer, &branch, THIRD_APPEND);
+    let head = world.worker_commit(base, FILE, THIRD_APPEND);
+    world.run_push(&producer, &branch, head, 1);
+    super::delegates::fixtures::answer_producer(&mut world, &producer);
     let review = next_assignment(&mut world, 2);
     let change = requester(&world, review.task);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\nBREAK the slow check\n", 1)
@@ -2557,8 +2557,7 @@ fn reject_lost_content(world: &mut World, run: &engine::Assignment, words: &[u8]
 }
 
 fn push_append(world: &mut World, run: &engine::Assignment, branch: &[u8], content: &[u8]) {
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, content, 1)
-        .expect("scripted worker push");
+    world.run_push_edit(run, branch, FILE, content, 1);
     super::delegates::fixtures::answer_producer(world, run);
 }
 
@@ -2574,9 +2573,6 @@ fn resolve_append(world: &mut World, run: &engine::Assignment, branch: &[u8], co
         b"Resolve conflict",
     )
     .expect("scripted resolution");
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch: branch.into(), commit: merge, expected: Some(old) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(run, branch, merge, 1);
     super::delegates::fixtures::answer_producer(world, run);
 }

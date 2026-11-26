@@ -2278,6 +2278,23 @@ impl World {
         self.worker_push((Token::new(7), run.task, run.attempt), &run.workspace.repositories[0], branch, commit, user);
     }
 
+    /// Edit one file at the tip of an existing branch and push it as this run.
+    pub fn run_push_edit(
+        &mut self,
+        run: &engine::Assignment,
+        branch: &[u8],
+        path: &[u8],
+        content: &[u8],
+        user: u64,
+    ) -> u64 {
+        let item = &run.workspace.repositories[0];
+        let repository = skein_lib::bytes::concat(&[&item.owner, b"/", &item.name]);
+        let parent = self.fake.branch(&repository, branch).expect("branch to edit");
+        let commit = self.worker_commit(parent, path, content);
+        self.run_push(run, branch, commit, user);
+        commit
+    }
+
     /// The hosted job's only writable repository, from its assignment.
     pub fn job_push(&mut self, channel: Token, job: &host::JobAssignment, branch: &[u8], commit: u64, user: u64) {
         let item = self.job_workspaces.get(&job.run.raw()).expect("job items").repositories[0].clone();

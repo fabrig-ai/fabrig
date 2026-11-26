@@ -839,8 +839,7 @@ fn check_gate_repair(no_ci: bool) {
         "review remarks in repair brief: {:?}",
         repair.sections
     );
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"safe revision", 1)
-        .expect("repair pushed second head");
+    world.run_push_edit(&repair, &branch, b"file", b"safe revision", 1);
     let event = world.protocol.answer(
         Token::new(7),
         repair.task,
@@ -1568,7 +1567,6 @@ fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one conflict, its resolution and cold restart/readback")]
 fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
     let (mut world, _chat, producer, branch) = change_world(false, 1000, None);
     assert!(matches!(
@@ -1631,10 +1629,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         b"Resolve conflict",
     )
     .expect("resolved merge commit");
-    assert!(matches!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: merge, expected: Some(old) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    ));
+    world.run_push(&resolver, &branch, merge, 1);
     let event = world.protocol.answer(
         Token::new(7),
         resolver.task,
@@ -1844,8 +1839,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         ),
         raw::Answer::Reviewed(_)
     ));
-    let repaired = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired", 1)
-        .expect("repair pushed new head");
+    let repaired = world.run_push_edit(&repair, &branch, b"file", b"repaired", 1);
     world.advance_ticks(5);
     world.external(
         1,
@@ -1927,12 +1921,9 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
 #[test]
 fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_twice() {
     let (mut world, chat, producer, branch) = change_world(false, 1000, None);
-    assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
-        raw::Answer::Branch(raw::Created::Created)
-    ));
-    let pushed = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"already pushed", 1)
-        .expect("worker pushed before freezing");
+    assert!(world.fake.branch(b"org/repo", &branch).is_none(), "new change branch");
+    let pushed = world.worker_commit(1, b"file", b"already pushed");
+    world.run_push(&producer, &branch, pushed, 1);
     world.send(protocol::lost(Token::new(7)));
     world.send(protocol::hello_slots(Token::new(8), 2, Box::new([])));
     for _ in 0..150 {
