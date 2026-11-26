@@ -1055,6 +1055,16 @@ fn a_merge_waiting_on_authority_retries_without_spending_a_send() {
     }
 }
 
+// A turn's writes have a pull branch and pinned base from the landing, not from the outbox task.
+fn admit_turn_merge(d: &mut Domain, entry: skein_forge_client::Entry, branch: &[u8]) {
+    use crate::domain::writes::outbox::{Pin, plan};
+    let pin = Pin { head: Some(fixtures::HEAD), base: Some(fixtures::BASE) };
+    let plan = plan(d, &env().limits, &entry, Some(branch), pin).expect("merge names");
+    let mut out = Queue::uncapped();
+    plan.admit(d, &entry, &mut out);
+    domain::keep_entry(d, entry, None, &mut out);
+}
+
 #[test]
 fn a_record_waiting_on_authority_is_unknown_not_failed() {
     let mut d = turn_fixture();
@@ -1064,8 +1074,9 @@ fn a_record_waiting_on_authority_is_unknown_not_failed() {
         head: fixtures::HEAD,
         how: skein_forge::api::MergeHow::Recorded { commit: fixtures::HEAD },
     };
-    entry.effect.condition = skein_forge_client::Condition::Merge { base: b"main".as_slice().into() };
-    outputs(&mut d, Event::Enqueue { entry });
+    let pull = fixtures::open_pull();
+    entry.effect.condition = skein_forge_client::Condition::Merge { base: pull.base };
+    admit_turn_merge(&mut d, entry, &pull.head);
     d.landing.rows.get_mut(&61).unwrap().entries = Box::new([LandingEntry {
         entry: 91,
         member: 0,
@@ -1667,6 +1678,44 @@ fn a_ready_change_joined_during_its_gather_keeps_its_landing_at_the_same_head() 
     assert_eq!(members[0].left, None);
 }
 
+fn owner_turn_pull(d: &mut Domain, task: u64) -> skein_forge::api::Pull {
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
+        AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
+            bound: Duration::from_millis(7_200_000)
+        }
+    ));
+    member_landing(d);
+    let row = d.landing.rows.get_mut(&task).expect("landing");
+    row.landing.phase = policy::Phase::Turn { at: env().wall };
+    let member = row.landing.members.get_mut(0).expect("member");
+    member.head = Some(fixtures::HEAD);
+    member.base = Some(fixtures::BASE);
+    member.candidate = Some(fixtures::HEAD);
+    row.entries = Box::new([LandingEntry {
+        run: None,
+        preparation: None,
+        base: None,
+        entry: 91,
+        member: 0,
+        gate: 0,
+        operation: Operation::Merge,
+    }]);
+    skein_forge::api::Pull {
+        number: row.landing.round.pull.expect("round pull"),
+        head: row.landing.round.branch.clone(),
+        ..fixtures::open_pull()
+    }
+}
+
 fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
     use skein_forge::api::{Answer, Op, Read, Write};
     let mut d = domain();
@@ -1681,38 +1730,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
         if turn { temper_engine_domain_forge_change::Way::Turn } else { temper_engine_domain_forge_change::Way::Queue };
     d.changes.insert(fixtures::CHANGE, change).expect("member change");
     let task = if turn { 61 } else { fixtures::CHANGE };
-    if turn {
-        assert!(d.project_landing(
-            5,
-            temper_engine_domain_forge_change::Way::Turn,
-            Box::new([]),
-            temper_engine_domain_forge_landing::Project::DEFAULT,
-            AfterLanding {
-                wait: temper_engine_domain_forge_change::Wait::Cleared,
-                verdict: temper_engine_domain_forge_tiers::Settings {
-                    retries: 2,
-                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
-                },
-                bound: Duration::from_millis(7_200_000)
-            }
-        ));
-        member_landing(&mut d);
-        let row = d.landing.rows.get_mut(&task).expect("landing");
-        row.landing.phase = policy::Phase::Turn { at: env().wall };
-        let member = row.landing.members.get_mut(0).expect("member");
-        member.head = Some(fixtures::HEAD);
-        member.base = Some(fixtures::BASE);
-        member.candidate = Some(fixtures::HEAD);
-        row.entries = Box::new([LandingEntry {
-            run: None,
-            preparation: None,
-            base: None,
-            entry: 91,
-            member: 0,
-            gate: 0,
-            operation: Operation::Merge,
-        }]);
-    }
+    let pull = if turn { owner_turn_pull(&mut d, task) } else { fixtures::open_pull() };
     let mut entry = held_issue();
     entry.number = 91;
     entry.task = task;
@@ -1721,25 +1739,29 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
     entry.failures = 0;
     entry.effect = skein_forge_client::Effect {
         write: Write::Merge {
-            number: 1,
+            number: pull.number,
             head: fixtures::HEAD,
             how: if turn { skein_forge::api::MergeHow::FastForwardOnly } else { skein_forge::api::MergeHow::Style },
         },
-        condition: skein_forge_client::Condition::Merge { base: Box::from(b"main".as_slice()) },
+        condition: skein_forge_client::Condition::Merge { base: pull.base.clone() },
     };
-    outputs(&mut d, Event::Enqueue { entry });
+    if turn {
+        admit_turn_merge(&mut d, entry, &pull.head);
+    } else {
+        outputs(&mut d, Event::Enqueue { entry });
+    }
     outputs(&mut d, Event::Committed { entry: 91 });
     let mut merged = false;
     for _ in 0..8_u32 {
         let (call, op) = fixtures::next_call(&mut d);
         let answer = match op {
-            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"main" => Answer::Commit(fixtures::BASE),
-            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
+            Op::Read(Read::Branch { branch }) if branch == pull.base => Answer::Commit(fixtures::BASE),
+            Op::Read(Read::Branch { branch }) if branch == pull.head => Answer::Commit(fixtures::HEAD),
             Op::Read(Read::Items { .. }) => {
                 Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
             }
-            Op::Read(Read::Pull { number: 1, ci: false }) => {
-                let mut pull = fixtures::open_pull();
+            Op::Read(Read::Pull { number, ci: false }) if number == pull.number => {
+                let mut pull = pull.clone();
                 if merged {
                     pull.state = skein_forge::api::State::Closed;
                     pull.merged = Some(fixtures::HEAD);
@@ -2217,7 +2239,7 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
 fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_panel() {
     use crate::settings::{Asked, Edit, RuleApproval, SizedValue, Value};
     use jig_domain_people::ApplicationScope;
-    use skein_forge::api::Write;
+    use skein_forge::api::{MergeHow, Write};
     for (turn, merge) in [(false, false), (true, false), (false, true), (true, true)] {
         let mut d = landing_fixture();
         if turn {
@@ -2275,10 +2297,24 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         entry.start = None;
         entry.attempt = None;
         if merge {
-            entry.effect.write =
-                Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style };
+            let pull = fixtures::open_pull();
+            let (number, how) = if turn {
+                let round = &d.landing(61).expect("landing").landing.round;
+                (round.pull.expect("round pull"), MergeHow::FastForwardOnly)
+            } else {
+                (pull.number, MergeHow::Style)
+            };
+            entry.effect = skein_forge_client::Effect {
+                write: Write::Merge { number, head: fixtures::HEAD, how },
+                condition: skein_forge_client::Condition::Merge { base: pull.base },
+            };
         }
-        outputs(&mut d, Event::Enqueue { entry });
+        if turn && merge {
+            let branch = d.landing(61).expect("landing").landing.round.branch.clone();
+            admit_turn_merge(&mut d, entry, &branch);
+        } else {
+            outputs(&mut d, Event::Enqueue { entry });
+        }
         let requests = outputs(&mut d, Event::Committed { entry: 91 });
         let mark = Request::Marked { tasks: Box::new([APPROVALS_SUBJECT, fixtures::CHANGE]) };
         assert_eq!(requests.contains(&mark), merge, "turn={turn}, merge={merge}: {requests:?}");

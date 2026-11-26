@@ -8,6 +8,14 @@ pub fn connected_domain() -> Domain {
     d
 }
 
+pub fn adopted_domain() -> Domain {
+    let mut d = connected_domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    d
+}
+
 pub fn connect(d: &mut Domain) {
     outputs(d, Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } });
 }
@@ -211,10 +219,7 @@ pub fn opening() -> (Domain, Token) {
 }
 
 pub fn opening_with(row: ChangeRow) -> (Domain, Token) {
-    let mut d = connected_domain();
-    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::CatchUp);
+    let mut d = adopted_domain();
 
     let entry = skein_forge_client::Entry {
         number: OPEN,
