@@ -81,7 +81,9 @@ child domain `smith-domain-session`, whose own child is the tools domain
   and closes the session without giving, as a run parks with its `wait`
   withheld: the last turn is told with that call unanswered, and the
   opener answers it when it opens the conversation again (run-messages.md,
-  section 1). A turn's messages are those new since the turn before, so
+  section 1). Withheld, the call gives back the room it held for its
+  result (section 5), so a closed session holds no call's room. A turn's
+  messages are those new since the turn before, so
   each message is told once and an ordinary turn's prompt is its
   transcript up to it. A trace records prompts the same way
   (protocol/events.md).
@@ -137,7 +139,9 @@ child domain `smith-domain-session`, whose own child is the tools domain
   the waking prompt (run-messages.md, section 1). The opener names in its opening
   the one call it may have withheld, by its tool's name, and the session
   restores that call alone as withheld: it knows none of its opener's
-  tools by name.
+  tools by name. That answer is history, counted once with the waking
+  prompt, never a call's result: a resumed session holds no call open
+  from the activation before it, and none of its jobs (section 5).
 - **Refused transcripts.** Another version, a malformed, unresolved or
   oversized history are distinct refusals; the run treats every one as
   a transient failure (run-messages.md, section 1).
@@ -336,6 +340,27 @@ child domain `smith-domain-session`, whose own child is the tools domain
     whatever it is but `invalid`, an exit that is not zero and
     `timed_out` included; a host tool's `error`; a sub-agent's answer; a
     call not run or withdrawn.
+- **A call holds its result's room from its start to its result.**
+  Before a batch starts, the session reserves in its history the room
+  for each of the batch's calls' results, at its tool's caps or the
+  batch's share (`session-context.md`, section 1.1). A call's result
+  takes its place in that room, and the rest goes back. A call answered
+  at the tools' entrance holds it until that answer; a delegated call
+  its opener withholds gives it back as it is withheld (section 3). So
+  no room goes back twice and no result takes room that was not
+  reserved for it; the session checks this at every result, and a
+  breach is a fault that stops the agent.
+  - **A batch's calls are fixed when it starts.** It starts only the
+    calls it reserved room for, in call order. An answer at the tools'
+    entrance that fails a write answers the writes after it as not run
+    (above), but does not widen its batch: the reads past the write
+    that ended it wait for the next batch, which reserves its own room.
+    The usual such answer is the `invalid` a `job` call gets for a job
+    the session does not have, such as one of an earlier activation,
+    which a resumed session's LLM may still name (tools.md, section 5).
+  - **Why fixed, not widened:** the share each call's result gets is
+    the batch's room over its calls, known only once the batch is, so
+    a call joining it later would take room the others were given.
 - **Jobs run beside the turns.** A `shell` call stays a write until it
   answers, `running` or ended. A job that is running holds no place in
   any later batch: the session's later reads, writes and commands run by

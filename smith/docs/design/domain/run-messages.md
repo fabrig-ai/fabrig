@@ -82,7 +82,10 @@
   took is sent, and it answers parked. A run whose ordinary time runs out
   while it waits parks too: it has nothing to finish, so it does not
   wind down (`budget.md`, 1). Its state is its transcript, which the host already
-  has, so it hands over nothing else. A run that parks while its `wait`
+  has, so it hands over nothing else. Parking closes main's session,
+  which ends its jobs before the run answers (session.md, section 5): a
+  parked run has nothing of its own still running, so a host that knows
+  of nothing else to come may say so in the message that wakes it. A run that parks while its `wait`
   is withheld tells its last turn without that call's result. Resumed, it
   supplies that result in its first request, with the messages that wake
   it, as a live `wait` is answered, just as it supplies the answers its
