@@ -107,6 +107,7 @@ fn source_read(what: &c::Read) -> reads::Read {
         | c::Read::Revision(_)
         | c::Read::Revisions(_)
         | c::Read::Tasks { .. }
+        | c::Read::Waits { .. }
         | c::Read::Me
         | c::Read::Turn { .. }
         | c::Read::TaskText { .. }
