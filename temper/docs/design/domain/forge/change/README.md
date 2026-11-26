@@ -493,8 +493,10 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    remains, while its unresolved-work statements describe the producing
    head, before those repairs. The repair accounts precede those caveats
    so a long producer report cannot spend their result space. Failed,
-   cancelled, no-change and unrelated children supply no successful
-   repair account. Only production sets the pull request's title (1).
+   cancelled and unrelated children supply no successful repair account,
+   nor does a no-change but a CI or a landing repair's, which is kept
+   as one (`repairs.md`, 1, *A repair that changes nothing is checked
+   once more*). Only production sets the pull request's title (1).
    Then what the landing passed, as facts the change itself saw: each
    check at the landed head with its conclusion, and the attempt it
    concluded at where its job ran again (`ci/test passed at attempt 2`,

@@ -238,11 +238,12 @@
     can run again` or `the landing no longer keeps its failed receipt`.
     The update onto its base that a CI repair which changed nothing once
     got where no job could run again is gone: it checks other content.
+  - **Its verdict is kept.** The repair's words are kept with the change
+    as a successful repair's are, in its result (`README.md`, 2, step 7),
+    opening `changed nothing (VERDICT): `, VERDICT `no change`, `flake` or
+    `no failed test`, in the step that reads the unchanged head.
   - **Green, it goes on.** Its measurement passed, the change goes on as
-    at any green head or green gate, and the repair's words are kept as a
-    successful repair's in its result (`README.md`, 2, step 7), opening
-    `changed nothing (VERDICT), and the same content passed at HEAD: `,
-    VERDICT `no change`, `flake` or `no failed test`.
+    at any green head or green gate.
   - **Red again, it holds.** Its measurement refused
     (`../judgement.md`, 2), the change holds, its cause `RedStands`, its
     account `its red at HEAD stands: repair task R changed nothing, and
