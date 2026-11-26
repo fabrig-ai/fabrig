@@ -589,10 +589,48 @@ budgets.
   `TOKEN_BYTES`, so that the appended count's error reaches its bounds
   both ways. It applies the guard as the protocol layer does, from that
   rendered size (`session-context.md`, 1.1).
+- **Its drawn calls name every tool the session offers.** The world's
+  translator offers `job` beside `shell`, under the shell grant, and
+  decodes a `job` call and a `shell` call's `yield_seconds` as
+  `smith-protocol-llm` does: the same call, or the same problem, for
+  every body of the menu (`smith/docs/design/testing.md`, 4) and each
+  cut prefix of one, which `smith-protocol-llm-world`'s
+  `the_session_fake_decodes_like_the_protocol` compares.
+- **A yielding command outlasts its yield on the world's clock.** A
+  command's end is drawn from `Settings::tool`, as every operation's is,
+  and nothing really sleeps. One whose end comes after its yield is held
+  as a job once its yield passes: io answers it `Held`, with nothing
+  written yet, and runs it on to its drawn end, when it writes its
+  output whole, or to its deadline, when it has written nothing. One
+  that ends within its yield is answered as a command without one. io
+  answers each act on a held job as the tools ask (`tools.md`, 5): a
+  read once the job ends or its wait passes, whichever is first, with
+  the output not yet read; a hastened read at once; a stop `stopped`, or
+  with its end if it had ended; a cancel `cancelled`, or with its end if
+  that won the race. A held job takes no place in any batch and keeps no
+  session from yielding. A session's close ends it.
+- **Its jobs are held in the session's four cells** (the tools' `jobs`
+  in the world's limits), so the tools refuse at their entrance a
+  yielding command while four jobs are held, and a `job` call naming a
+  number its session doesn't hold (section 5).
+- **Its referee takes a running job's answers.** A yielding command's
+  `running` answer is what comes of it, naming its session's next job
+  number, and a `job` call's answer names the job the call asked for.
 - **The fuzzy suite** draws usage, appended sizes, rendered sizes and
   those ratios, and checks that no request's bound or reported size
   exceeds its window, that none sent passes the line, and that no
   session ends for its history's length.
+  - **It counts three shapes over its seeds.** First, a completion in
+    which the tools refuse a call at their entrance, before a write,
+    with a read after it. Its outcome is counted with it: the write
+    answered not run, naming the refused call, and the read answered by
+    what came of it, having started in the next batch, which reserved
+    its own room (section 5). The session's check at the read's result
+    stops the world where it started without. Second, the `job` calls
+    answered as naming an unknown job. Third, the yielding commands
+    refused because four jobs were held.
+  - **Its reach check asks for all three** at the gate's seeds, beside
+    the ends, stops, failures and races it already asks for.
 
 ## 11. Open questions
 

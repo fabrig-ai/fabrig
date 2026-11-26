@@ -132,6 +132,15 @@ Every component's files and processes go through it:
   domain worlds. Its protocol face serves bytes to the protocol worlds.
   As a service on io, it listens on loopback for the simulated worlds and
   the real loop. Its recorded exchanges are skein's.
+- **The menu:** the argument bodies the fake copies into the calls it
+  draws, `smith-session-world`'s `provider::menu`, which the session,
+  agent, host and local worlds share. The fake draws a tool and a body
+  apart, so each body carries the fields of every tool: a path, a
+  content, a command, a pattern and edits, and in some of them `job`'s
+  number, 1, and a shell's `yield_seconds`, 0. A drawn call reads its
+  own tool's fields, so a `job`, `shell`, `read` or `write` call takes
+  its own from any body. Its invalid entries are an unknown tool's name,
+  a cut object and an empty one.
 - **The OAuth issuer:** skein's fake issuer, with the same three faces
   (skein's `oauth/README.md`, section 5), reached through a `sign_in` account's
   moved addresses (shell/credentials.md, 1), so that smith's own registration is
