@@ -1,32 +1,41 @@
 //! A changed overlay rule touches the elements it styles (temper/docs/design/client/journey-writer.md, 6.2).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+
+use skein_browser::boundary::Node;
 
 use crate::{
     host::Host,
     look_compare::{
         Side,
-        css::{chunk, opaque, overlay},
+        css::{Declarations, chunk, opaque, overlay},
         request::Request,
     },
 };
 
-pub(super) fn selectors(host: &mut Host, request: &Request, side: Side) -> Result<BTreeSet<String>, String> {
+pub(super) type Selectors = BTreeMap<String, BTreeSet<String>>;
+pub(super) type Names<'a> = BTreeSet<&'a str>;
+pub(super) type Selected<'a> = BTreeMap<Node, Names<'a>>;
+
+pub(super) fn selectors(host: &mut Host, request: &Request, side: Side) -> Result<Selectors, String> {
     let path = format!("{}/overlay.css", side.root());
     let from = overlay(host, &request.parent, &path)?;
     let to = overlay(host, &request.commit, &path)?;
-    let mut selectors = BTreeSet::new();
-    for (key, declarations) in &to.rules {
-        if from.rules.get(key) != Some(declarations) {
-            selectors.insert(without_states(&key.prelude)?);
-        }
-    }
-    for key in from.rules.keys() {
-        if !to.rules.contains_key(key) {
-            selectors.insert(without_states(&key.prelude)?);
+    let mut selectors = Selectors::new();
+    for (sheet, other) in [(&to, &from), (&from, &to)] {
+        for (key, declarations) in &sheet.rules {
+            if other.rules.get(key) != Some(declarations) {
+                add(&mut selectors, &key.prelude, declarations)?;
+            }
         }
     }
     Ok(selectors)
+}
+
+fn add(selectors: &mut Selectors, prelude: &str, declarations: &Declarations) -> Result<(), String> {
+    let names = selectors.entry(without_states(prelude)?).or_default();
+    names.extend(declarations.keys().cloned());
+    Ok(())
 }
 
 fn without_states(source: &str) -> Result<String, String> {

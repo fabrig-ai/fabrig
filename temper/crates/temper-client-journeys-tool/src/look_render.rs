@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use skein_browser::boundary::{Element, Node};
+use skein_browser::boundary::Element;
 use skein_lib::Token;
 
 use crate::{
@@ -20,9 +20,10 @@ use crate::{
 use self::{
     browser::{Browser, PERSON},
     copies::{Copy, Page, file_url},
-    gallery::Gallery,
-    measurement::Matched,
+    gallery::{Drawing, Gallery},
+    measurement::{Matched, Properties},
     report::{PageReport, Report},
+    rules::{Selected, Selectors},
 };
 
 mod browser;
@@ -57,8 +58,14 @@ fn diagnostic(host: &mut Host, code: u8, why: &str) -> u8 {
 }
 
 enum Candidate {
-    HandMade,
+    Uncompared(&'static str),
     Gallery(String),
+    Journey { edited: bool },
+}
+
+#[derive(Clone, Copy)]
+enum Kind {
+    Gallery,
     Journey { edited: bool },
 }
 
@@ -68,7 +75,7 @@ struct Plan {
     printed: Copy,
     gallery: Gallery,
     pages: BTreeMap<Page, Candidate>,
-    rules: BTreeMap<Side, BTreeSet<String>>,
+    rules: BTreeMap<Side, Selectors>,
     scratch: PathBuf,
     diff: PathBuf,
 }
@@ -90,7 +97,7 @@ impl Plan {
         let pages = candidates(host, &root, &request, &changes, &requested, &rules)?;
         let states = pages.values().filter_map(|candidate| match candidate {
             Candidate::Gallery(state) => Some(state.as_str()),
-            Candidate::HandMade | Candidate::Journey { .. } => None,
+            Candidate::Uncompared(_) | Candidate::Journey { .. } => None,
         });
         let gallery = Gallery::prepare(host, &root, &scratch, states.collect())?;
         let diff = scratch.join("diff");
@@ -115,11 +122,11 @@ impl Plan {
         for (page, candidate) in &self.pages {
             browser.item = page.item();
             let result = match candidate {
-                Candidate::HandMade => ResultForPage::Uncompared("hand-made"),
-                Candidate::Gallery(state) => self.page(browser, page, self.gallery.page(state), true)?,
+                Candidate::Uncompared(why) => ResultForPage::Uncompared(why),
+                Candidate::Gallery(state) => self.page(browser, page, self.gallery.page(state), Kind::Gallery)?,
                 Candidate::Journey { edited } => {
                     let print = self.printed.pages.get(page).map(|source| (self.printed.path(page), source.as_str()));
-                    self.page(browser, page, print, *edited)?
+                    self.page(browser, page, print, Kind::Journey { edited: *edited })?
                 }
             };
             match result {
@@ -136,9 +143,10 @@ impl Plan {
         browser: &mut Browser<'_>,
         page: &Page,
         print: Option<(PathBuf, &str)>,
-        edited: bool,
+        kind: Kind,
     ) -> Result<ResultForPage, String> {
-        if print.is_none() && edited {
+        let edited = matches!(kind, Kind::Journey { edited: true });
+        if print.is_none() && (edited || matches!(kind, Kind::Gallery)) {
             return Ok(ResultForPage::Uncompared(MISSING));
         }
         let request = browser.open(file_url(&self.requested.path(page)))?;
@@ -147,7 +155,7 @@ impl Plan {
             ResultForPage::Untouched
         } else if let Some((path, print)) = print {
             let right = browser.open(file_url(&path))?;
-            let result = self.compare(browser, page, [request, right], print, edited, &selected)?;
+            let result = self.compare(browser, page, [request, right], print, kind, &selected)?;
             browser.done(Command::Close { page: right })?;
             result
         } else {
@@ -157,12 +165,14 @@ impl Plan {
         Ok(result)
     }
 
-    fn select(&self, browser: &mut Browser<'_>, side: Side, page: Token) -> Result<BTreeSet<Node>, String> {
-        let mut selected = BTreeSet::new();
+    fn select(&self, browser: &mut Browser<'_>, side: Side, page: Token) -> Result<Selected<'_>, String> {
+        let mut selected = Selected::new();
         if let Some(rules) = self.rules.get(&side) {
-            for selector in rules {
+            for (selector, names) in rules {
                 let (elements, _) = browser.elements(page, Some(selector))?;
-                selected.extend(elements.into_iter().map(|element| element.node));
+                for element in elements {
+                    selected.entry(element.node).or_default().extend(names.iter().map(String::as_str));
+                }
             }
         }
         Ok(selected)
@@ -174,8 +184,8 @@ impl Plan {
         page: &Page,
         opened: [Token; 2],
         print: &str,
-        edited: bool,
-        selected: &BTreeSet<Node>,
+        kind: Kind,
+        selected: &Selected<'_>,
     ) -> Result<ResultForPage, String> {
         let request = &self.requested.pages[page];
         let tags = html::tags(request);
@@ -185,27 +195,35 @@ impl Plan {
         if !as_written(&tags, &left.0, left.1) || !as_written(&print_tags, &right.0, right.1) {
             return Ok(ResultForPage::Uncompared("its markup doesn't parse as written"));
         }
-        let mut touched = left.0.iter().map(|element| selected.contains(&element.node)).collect::<Vec<_>>();
         let comparable = html::comparable(request);
         let comparable_tags = html::tags(&comparable);
-        if edited {
-            if let Some(parent) = blob(browser.host, &self.request.parent, &page.path())? {
-                let parent = text(&parent, &format!("{} in the request's parent", page.path()))?;
-                let edits = diff::between(browser.host, &self.diff, &html::comparable(parent), &comparable)?;
-                diff::edited(&comparable_tags, &edits, &mut touched);
-            } else {
-                touched.fill(true);
+        let touched: Vec<_> = match kind {
+            Kind::Gallery => {
+                left.0.iter().map(|element| selected.get(&element.node).map(Properties::Declared)).collect()
             }
-        }
-        if !touched.contains(&true) {
+            Kind::Journey { edited } => {
+                let mut touched = left.0.iter().map(|element| selected.contains_key(&element.node)).collect::<Vec<_>>();
+                if edited {
+                    if let Some(parent) = blob(browser.host, &self.request.parent, &page.path())? {
+                        let parent = text(&parent, &format!("{} in the request's parent", page.path()))?;
+                        let edits = diff::between(browser.host, &self.diff, &html::comparable(parent), &comparable)?;
+                        diff::edited(&comparable_tags, &edits, &mut touched);
+                    } else {
+                        touched.fill(true);
+                    }
+                }
+                descendants(&left.0, &mut touched);
+                touched.into_iter().map(|marked| marked.then_some(Properties::Journey)).collect()
+            }
+        };
+        if !touched.iter().any(Option::is_some) {
             return Ok(ResultForPage::Untouched);
         }
-        descendants(&left.0, &mut touched);
         let landed = html::comparable(print);
         let alignment = diff::between(browser.host, &self.diff, &comparable, &landed)?;
         let pairs = diff::pairs(&comparable_tags, &html::tags(&landed), &alignment)?;
         let matched = Matched { requested: &left.0, landed: &right.0, tags: &tags, pairs: &pairs, touched: &touched };
-        Ok(ResultForPage::Compared(matched.compare(browser, opened)?))
+        Ok(matched.compare(browser, opened)?.map_or(ResultForPage::Uncompared(MISSING), ResultForPage::Compared))
     }
 }
 
@@ -243,24 +261,28 @@ fn candidates(
     request: &Request,
     changes: &Changes,
     requested: &Copy,
-    rules: &BTreeMap<Side, BTreeSet<String>>,
+    rules: &BTreeMap<Side, Selectors>,
 ) -> Result<BTreeMap<Page, Candidate>, String> {
     let mut pages = BTreeMap::new();
     let hand_made = hand_made_paths(host, root, request, changes)?;
-    let mut states = BTreeMap::new();
+    let mut drawings = BTreeMap::new();
     for page in requested.pages.keys() {
         let Some(journey) = page.journey() else { continue };
         let path = page.path();
         if hand_made.contains(&path) {
             let candidate = if page.side == Side::Web {
-                let (directory, _) = path.rsplit_once('/').expect("a page in a directory");
-                let state = match states.entry(directory.to_owned()) {
+                let (directory, file) = path.rsplit_once('/').expect("a page in a directory");
+                let drawing = match drawings.entry(directory.to_owned()) {
                     Entry::Occupied(entry) => entry.into_mut(),
-                    Entry::Vacant(entry) => entry.insert(gallery::named_state(host, request, directory)?),
+                    Entry::Vacant(entry) => entry.insert(Drawing::read(host, request, directory)?),
                 };
-                state.clone().map_or(Candidate::HandMade, Candidate::Gallery)
+                match drawing {
+                    Some(drawing) if drawing.requests(file) => Candidate::Gallery(drawing.state.clone()),
+                    Some(_) => Candidate::Uncompared("not the requested look"),
+                    None => Candidate::Uncompared("hand-made"),
+                }
             } else {
-                Candidate::HandMade
+                Candidate::Uncompared("hand-made")
             };
             pages.insert(page.clone(), candidate);
         } else if page.numbered() && requested.walks.contains(&journey) {
