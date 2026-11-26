@@ -1,0 +1,1 @@
+turn-landing with the first turn goal A started (goal task 1, budget 1000.00) and at idle. Its person-task latch L is task 2, Release the turn landing latch; its change C1 is task 3, @turn-code-a Write turn-a.txt., held on its budget (128 left, below a run's reserve). Read the numbers again with ctl task show 1 --tree.

@@ -1,0 +1,1 @@
+Hello is made by ctl on a fresh box with two goals: S1 (task 1), held at once for budget with an escalation at the person, and S2 (task 2) started --after S1, so the project's waits list S2's dependency wait on task 1 beside S1's party wait. Its check reads Hello and its dependency waits.

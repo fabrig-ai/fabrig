@@ -1,0 +1,1 @@
+From ctl-hello: work/hello re-adopted into Hello by ctl with --landing main, and change 1, opened by ctl change open from the pushed branch qa-landing-check (one commit adding notes/landing.md) with no --into, landed into main by Hello's stock rule after an approving scripted review. Its check waits for change 1 to land and reads its landing history.
