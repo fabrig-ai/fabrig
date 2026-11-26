@@ -301,6 +301,29 @@ fn cancellation_and_the_last_departure_record_the_landings_end() {
 }
 
 #[test]
+fn failed_landing_closes_its_round_and_history_as_cancelled() {
+    // One member has one open round at proof.
+    const MEMBERS: u64 = 1;
+    const ROUND: u16 = 1;
+    let mut world = batch(MEMBERS);
+    proving(&mut world);
+    world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Failed });
+    let endings: Vec<_> = world
+        .landing_history(LANDING)
+        .into_iter()
+        .filter(|event| matches!(event.what, h::What::RoundEnded { .. } | h::What::LandingEnded { .. }))
+        .map(|event| (event.landing.expect("landing history").round, event.what))
+        .collect();
+    assert_eq!(
+        endings,
+        [
+            (ROUND, h::What::RoundEnded { cause: h::RoundCause::Cancelled }),
+            (ROUND, h::What::LandingEnded { outcome: h::LandingOutcome::Cancelled }),
+        ]
+    );
+}
+
+#[test]
 fn recovery_of_partial_preparation_and_each_phase_never_repeats_history() {
     for checkpoint in ["preparing", "proving", "turn", "recording", "ended"] {
         let mut world = batch(3);

@@ -13,7 +13,7 @@ use temper_engine_forge_world::{
 pub(crate) fn batch(count: u64) -> World {
     batch_root(count).0
 }
-fn batch_root(count: u64) -> (World, Trains) {
+pub(super) fn batch_root(count: u64) -> (World, Trains) {
     let mut world = landings::turn_in(World::batch_turn(11, None));
     world.batch(u16::try_from(count).expect("small batch"));
     for index in 0..count {

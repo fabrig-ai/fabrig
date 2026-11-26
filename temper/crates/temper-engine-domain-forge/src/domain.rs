@@ -8185,7 +8185,7 @@ fn settle_effects(
         return;
     }
     crate::room::release_started(d, task, env.wall);
-    if ending == ReleaseEnding::Cancelled || (ending == ReleaseEnding::Done && d.landing.rows.contains_key(&task)) {
+    if ending == ReleaseEnding::Cancelled || d.landing.rows.contains_key(&task) {
         withdraw_unsent(d, env, task, out);
     }
     settle_prior_effects(d, env, task, out);

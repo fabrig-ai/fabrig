@@ -5876,7 +5876,7 @@ fn matches_entry(d: &Domain, task: u64, entry: u64) -> bool {
     }
 }
 
-/// Cancellation removes a member; cancelling a landing leaves its changes live.
+/// Ending a landing leaves its changes live; cancelling a change removes it from its landing.
 pub(crate) fn closing(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -5884,60 +5884,14 @@ pub(crate) fn closing(
     ending: crate::ReleaseEnding,
     out: &mut Queue<Request>,
 ) {
+    if d.landing.rows.contains_key(&task) {
+        end_row(d, env, task, out);
+        return;
+    }
     if ending != crate::ReleaseEnding::Cancelled {
         return;
     }
-    if let Some(mut row) = d.landing.rows.get(&task).cloned() {
-        let prior = row.clone();
-        let mut told = List::with_capacity(env.limits.landing_members);
-        for (index, member) in row.landing.members.iter_mut().enumerate() {
-            if member.landed.is_some() && !member.told {
-                member.told = true;
-                told.push(u16::try_from(index).expect("member")).expect("bounded news");
-            }
-        }
-        row.landing.round.told |= !told.is_empty();
-        row.landing.phase = policy::Phase::Cancelled;
-        row.read_hold = None;
-        read_wait::clear(d, task);
-        if prior.landing.phase != policy::Phase::Cancelled {
-            saved_follow::cancelled(d, &mut row, out);
-        }
-        d.landing.due.remove(&task);
-        for member in &row.landing.members {
-            if member.left.is_none()
-                && d.landing_of(member.change) == Some(task)
-                && let Some(change) = d.changes.get_mut(&member.change)
-            {
-                let prior = change.change.clone();
-                if let Some(merge) = member.landed {
-                    if let Some(change::Handed { ask: change::Ask::Landed { .. }, .. }) = members::head(change) {
-                        // The change's step will record the landed prefix.
-                    } else {
-                        change.change.state = change::State::Landed { merge, since: env.wall };
-                    }
-                } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
-                    change.change.state = change::State::Ready { head, ready_since };
-                }
-                let mut changed = change.clone();
-                if crate::domain::landed_commit(&prior.state).is_none()
-                    && crate::domain::landed_commit(&changed.change.state).is_some()
-                {
-                    crate::domain::reds::landed(d, &env.limits, &changed, out);
-                }
-                crate::change_history::advanced(d, env.wall, &mut changed, &prior, out);
-                d.changes.insert(member.change, changed.clone()).expect("retained member");
-                crate::domain::save_change_parts(d, out, changed);
-                emit(out, Request::WakeProcedure { task: member.change });
-            }
-        }
-        crate::landing_history::transition(d, env.wall, &prior, &row, out);
-        save(d, env, row, out);
-        for member in told.into_boxed() {
-            emit(out, Request::LandingNews { task, member, step: crate::LandingNews::Landed });
-        }
-        wake_train_ready(d, task, out);
-    } else if let Some(landing) = d.landing_of(task) {
+    if let Some(landing) = d.landing_of(task) {
         let Some(mut row) = d.landing.rows.get(&landing).cloned() else { return };
         if matches_terminal(&row.landing.phase) {
             return;
@@ -5949,6 +5903,65 @@ pub(crate) fn closing(
         save(d, env, row, out);
         emit(out, Request::WakeProcedure { task: landing });
     }
+}
+
+/// Ends a live landing row as its task's closing does (landing-liveness.md, 5):
+/// phase `Cancelled`, members told or left ready, index entries and own
+/// asks gone, runs no longer followed, train woken, history closed. A row
+/// already ended is left as it is.
+pub(crate) fn end_row(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(row) = d.landing.rows.get(&task) else { return };
+    if matches_terminal(&row.landing.phase) {
+        return;
+    }
+    let prior = row.clone();
+    let mut row = prior.clone();
+    let mut told = List::with_capacity(env.limits.landing_members);
+    for (index, member) in row.landing.members.iter_mut().enumerate() {
+        if member.landed.is_some() && !member.told {
+            member.told = true;
+            told.push(u16::try_from(index).expect("member")).expect("bounded news");
+        }
+    }
+    row.landing.round.told |= !told.is_empty();
+    row.landing.phase = policy::Phase::Cancelled;
+    row.read_hold = None;
+    read_wait::clear(d, task);
+    saved_follow::cancelled(d, &mut row, out);
+    d.landing.due.remove(&task);
+    for member in &row.landing.members {
+        if member.left.is_none()
+            && d.landing_of(member.change) == Some(task)
+            && let Some(change) = d.changes.get_mut(&member.change)
+        {
+            let prior = change.change.clone();
+            if let Some(merge) = member.landed {
+                if let Some(change::Handed { ask: change::Ask::Landed { .. }, .. }) = members::head(change) {
+                    // The change's step will record the landed prefix.
+                } else {
+                    change.change.state = change::State::Landed { merge, since: env.wall };
+                }
+            } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
+                change.change.state = change::State::Ready { head, ready_since };
+            }
+            let mut changed = change.clone();
+            if crate::domain::landed_commit(&prior.state).is_none()
+                && crate::domain::landed_commit(&changed.change.state).is_some()
+            {
+                crate::domain::reds::landed(d, &env.limits, &changed, out);
+            }
+            crate::change_history::advanced(d, env.wall, &mut changed, &prior, out);
+            d.changes.insert(member.change, changed.clone()).expect("retained member");
+            crate::domain::save_change_parts(d, out, changed);
+            emit(out, Request::WakeProcedure { task: member.change });
+        }
+    }
+    crate::landing_history::transition(d, env.wall, &prior, &row, out);
+    save(d, env, row, out);
+    for member in told.into_boxed() {
+        emit(out, Request::LandingNews { task, member, step: crate::LandingNews::Landed });
+    }
+    wake_train_ready(d, task, out);
 }
 
 // An ending landing frees only its repository and branch (domain/landing.md, 4.2, and domain/landing-turn.md, 2).

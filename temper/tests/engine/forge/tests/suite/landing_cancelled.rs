@@ -18,12 +18,16 @@ fn start() -> World {
 }
 
 fn start_with_room(bound: Option<u32>) -> (World, Trains) {
+    start_with_limits(bound.map(|landings| (1, landings)))
+}
+
+fn start_with_limits(room: Option<(u32, u32)>) -> (World, Trains) {
     let mut workflow = super::landing_batches::workflow(false);
     workflow.latency_min = Duration::from_secs(300);
     workflow.latency_max = workflow.latency_min;
     let mut world = World::batch_turn(31, Some(workflow));
-    if let Some(landings) = bound {
-        world.limit_entries(1);
+    if let Some((entries, landings)) = room {
+        world.limit_entries(entries);
         world.limit_landings(landings);
     }
     let mut world = landings::turn_in(world);
@@ -55,17 +59,7 @@ const WAITING_ENTRY: u64 = 400;
 
 fn dispatch_in_flight(world: &mut World) -> u64 {
     for entry in 100..160 {
-        let heard = top::LandingHeard {
-            job: None,
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
-            held: Box::new([]),
-            failure: Box::new([]),
-            preparation: Some(landing::Preparation::Idle),
-            released: false,
-            cancelled: false,
-            kept: Box::new([]),
-        };
+        let heard = super::landing_batches::heard(landing::Preparation::Idle, b"");
         let step = landings::read_landing_step(world, LANDING, entry, heard);
         if matches!(step.decision, landing::Decision::Dispatch { .. }) {
             assert_eq!(step.entry, Some(entry));
@@ -167,6 +161,44 @@ fn cancelled_landing_frees_its_write_entries() {
     assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
     assert!(world.landing(LANDING).entries.is_empty());
     assert_eq!(world.landing(LANDING).follows(), []);
+    trains.judge(&mut world);
+    assert_eq!(world.landing_of(CHANGE), Some(LANDING + 1));
+    assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
+}
+
+#[test]
+fn failed_landing_withdraws_unsent_writes_and_awaits_sent_writes() {
+    // The dispatch and its pending status fill the outbox; only the dispatch is committed.
+    const WRITES: u32 = 2;
+    const LANDINGS: u32 = 1;
+    const UNSENT: u64 = WAITING_ENTRY + 2;
+    let (mut world, mut trains) = start_with_limits(Some((WRITES, LANDINGS)));
+    let dispatch = dispatch_in_flight(&mut world);
+    let heard = super::landing_batches::heard(landing::Preparation::Idle, b"");
+    let unsent = landings::read_landing_step(&mut world, LANDING, UNSENT, heard).entry.expect("pending status entry");
+    world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Failed });
+    let closing = world.take_seen();
+    assert!(closing.iter().any(|request| matches!(request, top::Request::Outcome {
+        task: LANDING, entry, outcome: skein_forge_client::Outcome::Withdrawn, ..
+    } if *entry == unsent)));
+    assert!(!world.stored().contains_key(&top::Key::Entry(unsent)));
+    assert!(world.stored().contains_key(&top::Key::Flight { task: LANDING, entry: dispatch }));
+    assert!(!closing.iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    trains.judge(&mut world);
+    assert_eq!(world.landing_of(CHANGE), None, "a sent write still keeps the row's place");
+
+    world.run_for(5); // The dispatch's delayed reply arrives, while the workflow keeps running.
+    let settled = world.take_seen();
+    assert!(settled.iter().any(|request| matches!(request, top::Request::Outcome {
+        task: LANDING, entry, outcome: skein_forge_client::Outcome::Made { .. }, ..
+    } if *entry == dispatch)));
+    assert!(settled.iter().any(|request| matches!(request, top::Request::ContinueRelease { task: LANDING })));
+    world.event(top::Event::ContinueRelease { task: LANDING, entry: 0 });
+    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: LANDING })));
+    assert!(!world.stored().contains_key(&top::Key::Entry(dispatch)));
+    assert!(world.landing(LANDING).entries.is_empty());
+    assert_eq!(world.landing(LANDING).follows(), []);
+    assert_eq!(runs(&world)[0].state, raw::RunState::Running);
     trains.judge(&mut world);
     assert_eq!(world.landing_of(CHANGE), Some(LANDING + 1));
     assert!(!world.stored().contains_key(&top::Key::Landing(LANDING)));
