@@ -140,8 +140,8 @@ An ask a landing hands a member's change, kept on the change's row:
 - **A member that leaves** keeps what the leave hands it (`landing.md`,
   4.3: a resolve or a repair), queued on its change; its index entry
   goes in the same decision.
-- **A landing that ends,** landed, cancelled or ended unmade
-  (`landing-forming.md`, 4), removes its members' entries, and removes
+- **A landing that ends,** landed, cancelled, failed or ended at start
+  for want of a task (`landing-liveness.md`, 5 and 6.2), removes its members' entries, and removes
   from their queues the `prepare` and `judge` asks of its own still
   queued: no landing is left to answer. Its `landed`, `resolve` and
   `repair` asks stay until taken.

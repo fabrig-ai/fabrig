@@ -1,14 +1,10 @@
 # landing-liveness: status
 
-2026-11-24. Where the design lags or departs from [landing-liveness.md](landing-liveness.md).
+2026-11-26. Where the design lags or departs from [landing-liveness.md](landing-liveness.md).
 
 - **Design lags:**
-  - 3: a change stores its landing's number and one handed-over ask, beside the landing's own members (`../domain/landing.md`, 4), and the start repairs stale links.
-  - 4: forming reads jig's due flag and a settling memory, and judges "made ready by one event" from scheduling state (`../domain/landing-forming.md`, 2; `../domain/landing-turn.md`, 2). A full `landings` table is not named on the train (`../domain/landing-forming.md`, 3).
-  - 5: no check of a live landing as a whole, at its steps or at start; a person's hold of a member is seen only when the landing next steps (`../domain/landing.md`, 4.3).
-  - 6: only a cancelled landing has its own ending path; a failed one goes through generic settlement (`../domain/landing.md`, 4.2).
-  - 7: local release failures carry no account, so their hold reads "could not release this task's resources".
-  - 8: no design says how the previous build's links and single asks read.
-  - 11: the landing policy's fuzzy checks that each wait names its wake, not the check of 5.1 (`../domain/landing-waits.md`, 3).
-- **Design departs:** none.
+  - 4.3: a train's refusal is stored on its train and named in its changes' waits and the engine's log, but not in `landing list` or a waits view (`../domain/landing-forming.md`, 6), which bounded waits' views carry (`bounded-waits.md`, 9).
+  - 5.2: a held member's words say `member change C is held`, not yet naming the party whose hold it is (`../domain/landing-liveness.md`, 9).
+- **Design departs:**
+  - 5.1: a held landing is not checked, whoever holds it, not only a person: a held task takes no step, its hold names its way out, and the step after its release checks it (`../domain/landing-liveness.md`, 2.2). The goal's designer, 2026-11-26: the hold, a person's or one with its own bound, already says how it ends, and the check never overrides it.
 - **Open:** none.

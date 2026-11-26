@@ -168,7 +168,8 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
   release; a refused close or deletion holds the landing `cleanup` at
   its next decision, and is decided again only after a release
   (`landing-prepare.md`, 1.1); and every landing reaches landed,
-  cancelled or held within a bound of steps.
+  cancelled or held within a bound of steps. It holds the check of
+  `landing-liveness.md`, 2 too, as that document's section 8 says.
 
 ## 4. What a person reads
 

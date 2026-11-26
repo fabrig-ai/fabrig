@@ -15,6 +15,19 @@ One milestone, *a landing train that always moves*. Its goals land into main one
 
 L1 and L2 run side by side once bounded waits' goal for temper's procedures has landed: L1 owns the landing rows, the index and the asks; L2 owns cleanup's outcomes; L4 owns the closing hook they meet in. L3 follows L1 and bounded waits' goal for held answers and `after`, whose dependency facts forming reads. L4 follows the rest and bounded waits' stuck detection, which owns jig's hold and wake paths that a member's hold reaching its landing may need.
 
+### 1.1 What the milestone carried
+
+All four goals have run, 2026-11-26. Where the design now holds each part of the draft:
+
+| Goal | Draft parts | Design |
+|---|---|---|
+| L1 | 3, 8 | `../domain/landing-members.md`: the row as the one record, the derived index and the claim check at start (2), the ask queue with its kinds, taking by number and what is dropped (3), the conversion of the previous build's links and asks (4) |
+| L2 | 7 | `../domain/forge/releases.md`: a release that finds the resource and its owner first (1), and its account on every path (2); a round's cleanup holding with it (`../domain/landing-prepare.md`, 1.1); P88's scenario active (`../testing/engine-checks.md`, 5.1) |
+| L3 | 4 | `../domain/landing-turn.md`, 2: who may join from stored state, and the cohort; `../domain/landing-forming.md`, 3: a refusal that may pass stored on its train |
+| L4 | 5, 6, 11 | `../domain/landing-liveness.md`: the check at every step and at start (2, 6), a landing that can't move ended or held (3), a member's hold or end waking its landing (4), every ending's settling (5), and the check as a property (8) |
+
+What still lags, and where the design departs, is the draft's status, [landing-liveness.status.md](landing-liveness.status.md).
+
 ## 2. Keeping this file and the status
 
 As in `bounded-waits.execution.md`, 2: only L4, the last, updates this file and the draft's status file, from the milestone's results. L1 to L3 leave both alone, record their design in the design documents they change, with their status files, and say in their results what of the draft they carried.

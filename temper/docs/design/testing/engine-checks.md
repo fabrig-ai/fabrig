@@ -233,6 +233,15 @@ change's due step.
   waits on one another in a cycle, with no deadline armed; a room wait
   behind an outbox whose every entry outlived its owner, past its bound
   and not held (the draft's P124).
+- **A landing that can't move** (`../domain/landing-liveness.md`, 2.1),
+  at each quiet point, is a finding too: a live landing, not held, whose
+  task is not live, a member of which, neither left nor landed, has a
+  task closing, ended, gone or held, or is another landing's by the
+  index, or whose train another live landing holds. `inspect` reads
+  jig's tasks for the tasks and holds; `forge` reads the forge's change
+  rows, with the script's own landing tasks as live. A landing due to
+  step, its wake given and its step not yet taken or its step's reads in
+  flight, is passed over until that step.
 
 ### 2.3 Tables
 
@@ -502,7 +511,9 @@ wants of that symptom.
   coordinator, 2026-11-22).
 - **S7's and P120's handling holds already:** a landing whose prepare
   child is cancelled, with a member held by a person, ends or holds with
-  words once released; and a held change amended twice, its first
+  words, with no person's release of the landing: the member's hold
+  wakes it, and the member leaves (`../domain/landing-liveness.md`, 4);
+  and a held change amended twice, its first
   resolver failed, is resolved from its newest spec, the resolution's
   brief built from the live task's current spec and its rulings. Both
   scenarios run, not ignored, and take no exclusion (the last bullet; the
