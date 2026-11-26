@@ -30,6 +30,7 @@ temper-engine-domain-forge-issues.workspace = true
 temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
 
 [dev-dependencies]
+jig-tasks-kit.workspace = true
 jig-protocol-config-fixtures.workspace = true
 jig-protocol-config.workspace = true
 skein-fake-machine.workspace = true

@@ -104,9 +104,9 @@ fn hold_and_release(d: &mut Domain, key: &ReceiptKey) {
     assert_eq!(row.repair_tasks.as_ref(), [52]);
     assert_eq!(row.delegate, None);
     // Form the released ready member into the fixture's new landing.
-    let mut row = d.landing.rows.remove(&61).unwrap();
+    let mut row = landing_routes::erase_landing(d, 61);
     row.entries = Box::new([]);
-    row.asks = Box::new([None]);
+
     row.landing.phase = landing::Phase::Proving;
     row.landing.last_left = None;
     row.landing.round = landing::Round::new(b"temper/1/l61".as_slice().into());

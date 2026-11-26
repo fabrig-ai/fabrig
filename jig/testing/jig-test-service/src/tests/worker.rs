@@ -269,6 +269,7 @@ fn start_on_pipes(service: &mut Service, form: jig_domain_link::Form) -> Box<[u8
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
                 | io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }
                 | io::Request::Abort { .. }) => panic!("opening request: {other:?}"),
             }
         }

@@ -181,8 +181,9 @@ otherwise, the scenarios, works and conditions unchanged:
 | `forge` / `a starved gate` | `temper_blame::STARVED`: the same fault, the CI family's kind |
 | `state` / `a path deleted on the base` | `stale` / `a path deleted on the base`, a constant of `open` |
 
-`open`'s `runs` kinds and `forge` / `a write refused` stay as they are:
-their families are their works'.
+`open`'s `runs` kinds stay as they are: their families are their
+works'. P88's scenario runs active with no exclusion (`engine-checks.md`,
+5.1), so `open` names no `forge` kind.
 
 ## 3. The workload kit
 

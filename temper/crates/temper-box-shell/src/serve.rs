@@ -823,20 +823,23 @@ pub(crate) struct BoxInputs {
     pipes: Option<(Fd, Fd)>,
 }
 fn box_inputs(boxed: bool, listeners: usize) -> Result<BoxInputs, String> {
-    box_inputs_with(boxed, listeners, cfg!(target_os = "linux").then_some(pipe_kind), || {
-        given_secret(&mut std::io::stdin().lock())
-    })
+    #[cfg(target_os = "linux")]
+    const DESCRIPTORS: &str = "/proc/self/fd";
+    #[cfg(not(target_os = "linux"))]
+    const DESCRIPTORS: &str = "/dev/fd";
+    box_inputs_with(boxed, listeners, |fd| pipe_kind(DESCRIPTORS, fd), || given_secret(&mut std::io::stdin().lock()))
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PipeKind {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PipeKind {
     Open,
     Absent,
     Other,
 }
 
-fn pipe_kind(fd: i32) -> PipeKind {
-    match std::fs::metadata(format!("/proc/self/fd/{fd}")) {
+#[must_use]
+pub fn pipe_kind(directory: &str, fd: i32) -> PipeKind {
+    match std::fs::metadata(format!("{directory}/{fd}")) {
         Ok(metadata) if metadata.file_type().is_fifo() => PipeKind::Open,
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => PipeKind::Absent,
         Ok(_) | Err(_) => PipeKind::Other,
@@ -846,7 +849,7 @@ fn pipe_kind(fd: i32) -> PipeKind {
 pub(crate) fn box_inputs_with(
     boxed: bool,
     listeners: usize,
-    probe: Option<impl FnMut(i32) -> PipeKind>,
+    mut probe: impl FnMut(i32) -> PipeKind,
     stdin: impl FnOnce() -> Result<(Option<Secret>, Option<Secret>), String>,
 ) -> Result<BoxInputs, String> {
     if !boxed {
@@ -854,11 +857,9 @@ pub(crate) fn box_inputs_with(
     }
     let requests = 3 + i32::try_from(listeners).expect("bounded inherited listeners");
     let answers = requests + 1;
-    if let Some(mut probe) = probe {
-        for fd in [requests, answers] {
-            if probe(fd) != PipeKind::Open {
-                return Err(format!("--box: fd {fd} is not an open pipe"));
-            }
+    for fd in [requests, answers] {
+        if probe(fd) != PipeKind::Open {
+            return Err(format!("--box: fd {fd} is not an open pipe"));
         }
     }
     let (link, local) = stdin()?;

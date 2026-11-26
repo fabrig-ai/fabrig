@@ -154,6 +154,7 @@ exec "$LOOK_REFRESH_BINARY" "$@"
     }
 
     fn advance_main(&self, message: &str, page: Option<&str>) -> String {
+        let old = self.git(&self.person, &["rev-parse", "origin/main"]);
         self.git(&self.person, &["checkout", "--quiet", "main"]);
         if let Some(page) = page {
             self.write(page, "<p>Reprinted on main</p>\n");
@@ -161,10 +162,11 @@ exec "$LOOK_REFRESH_BINARY" "$@"
             self.write("unrelated", "A main change\n");
         }
         let head = self.commit(message);
-        // Push by path so the person's origin/main stays stale until the
-        // script fetches it, as when main advances in somebody else's clone.
-        self.git(&self.person, &["push", "--quiet", self.origin.to_str().expect("scratch path"), "main"]);
+        self.git(&self.person, &["push", "--quiet", "origin", "main"]);
+        // Restore the tracking ref to model main advancing in another clone.
+        self.git(&self.person, &["update-ref", "refs/remotes/origin/main", &old]);
         self.git(&self.person, &["checkout", "--quiet", self.branch]);
+        assert_eq!(self.git(&self.person, &["rev-parse", "origin/main"]), old, "stale until fetched");
         head
     }
 

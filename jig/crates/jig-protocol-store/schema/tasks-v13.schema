@@ -417,7 +417,7 @@ record HotDefinition {
     waiting_on: list 64 Number
     added: list 64 Added
 }
-record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool dropped question_woken: u64 = 0 talk: option Talk concluded: option Concluded = none words_woken: u64 = 0 held_since: option u64 = none }
+record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool dropped question_woken: u64 = 0 talk: option Talk concluded: option Concluded = none words_woken: u64 = 0 held_since: option u64 = none parked_result: option TaskResult = none }
 record LiveCold { spec: Spec contract: Contract authority: Authority instructions: option bytes 524288 }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }

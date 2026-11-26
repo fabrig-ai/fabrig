@@ -4,7 +4,8 @@ use crate::{
     EnvironmentEntry, TABLE,
     host::Host,
     table::{
-        CAUTION, DRIVE, JOURNEY_WALK, LOOK_COMPARE, LOOK_REFRESH, PRINT, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, WRITER,
+        CAUTION, DRIVE, JOURNEY_WALK, LOOK_COMPARE, LOOK_REFRESH, LOOK_RENDER, PRINT, RECIPE_HASH, RECIPE_LIST,
+        RECIPE_WALK, WRITER,
     },
 };
 use skein_shell::{Front, Table};
@@ -59,6 +60,8 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                 ));
             } else if *command == LOOK_COMPARE {
                 return ExitCode::from(crate::look_compare::run(rest, &mut Host::real(environment)));
+            } else if *command == LOOK_RENDER {
+                return ExitCode::from(crate::look_render::run(rest, &mut Host::real(environment)));
             } else if *command == PRINT {
                 print_command(
                     rest,

@@ -2,21 +2,23 @@ use std::path::{Path, PathBuf};
 
 use crate::host::{Answer, Ask, Gathered, Host, Program, Ran, Step, Stream};
 
+use crate::look_git::{look_step_tests, record};
+
 use super::run;
 
-const NAME: &str = "look-request";
-const TIP: &str = "abcdef0123456789abcdef0123456789abcdef01";
-const PARENT: &str = "0123456789abcdef0123456789abcdef01234567";
-const SHORT: &str = "abcdef0";
-const ROOT: &str = "/landing tree";
+pub(crate) const NAME: &str = "look-request";
+pub(crate) const TIP: &str = "abcdef0123456789abcdef0123456789abcdef01";
+pub(crate) const PARENT: &str = "0123456789abcdef0123456789abcdef01234567";
+pub(crate) const SHORT: &str = "abcdef0";
+pub(crate) const ROOT: &str = "/landing tree";
 const SCRATCH: &str = "/landing tree/.git/look-compare";
 const PRINT: &str = "/landing tree/.git/look-compare/print";
-const WEB: &str = "temper/docs/design/client/web/journeys";
-const TUI: &str = "temper/docs/design/client/tui/journeys";
-const SHELL_WEB: &str = "temper/crates/temper-client-shell-web";
-const ON_DISK_WALK: &str = "walk 2\nweb mark\n";
+pub(crate) const WEB: &str = "temper/docs/design/client/web/journeys";
+pub(crate) const TUI: &str = "temper/docs/design/client/tui/journeys";
+pub(crate) const SHELL_WEB: &str = "temper/crates/temper-client-shell-web";
+pub(crate) const ON_DISK_WALK: &str = "walk 2\nweb mark\n";
 const SIGN_IN: &str = "sign-in";
-const SIGN_IN_PAGE: &str = "temper/docs/design/client/web/journeys/sign-in/02.html";
+pub(crate) const SIGN_IN_PAGE: &str = "temper/docs/design/client/web/journeys/sign-in/02.html";
 const SIGN_IN_SCRATCH: &str = "/landing tree/.git/look-compare/web--sign-in--02.html";
 const SIGN_IN_P: &str = "a\nb\nc\n";
 const SIGN_IN_C: &str = "a\nB\nc\n";
@@ -24,18 +26,18 @@ const HEADER: &str = "| Item | Result |\n|---|---|\n";
 const FILL: &str = "| each state the message names in words | to fill, a row each |\n";
 
 #[derive(Default)]
-struct Steps(Vec<Step>);
+pub(crate) struct Steps(pub(crate) Vec<Step>);
 
 impl Steps {
-    fn step(&mut self, ask: Ask, answer: Answer) {
+    pub(crate) fn step(&mut self, ask: Ask, answer: Answer) {
         self.0.push(Step { ask, answer });
     }
 
-    fn git(&mut self, args: &[&str], directory: Option<&str>, stdout: &str) {
+    pub(crate) fn git(&mut self, args: &[&str], directory: Option<&str>, stdout: &str) {
         self.git_reply(args, directory, 0, stdout, "");
     }
 
-    fn git_reply(&mut self, args: &[&str], directory: Option<&str>, code: i32, stdout: &str, stderr: &str) {
+    pub(crate) fn git_reply(&mut self, args: &[&str], directory: Option<&str>, code: i32, stdout: &str, stderr: &str) {
         let mut program = Program::new(b"git", &args.iter().map(|arg| arg.as_bytes()).collect::<Vec<_>>());
         program.directory = directory.map(PathBuf::from);
         program.stderr = Stream::Keep;
@@ -45,24 +47,38 @@ impl Steps {
         );
     }
 
-    fn fetch(&mut self, tip: &str) {
-        self.git(
-            &[
-                "fetch",
-                "--no-tags",
-                "--no-recurse-submodules",
-                "--refmap=",
-                "origin",
-                "refs/heads/docs/look/look-request",
-            ],
-            None,
-            "",
-        );
+    pub(crate) fn fetch(&mut self, tip: &str) {
+        self.list_remotes("origin\n");
+        self.fetch_from(&["origin"], tip);
+    }
+
+    pub(crate) fn local_request(&mut self) {
+        self.lookup(0, &format!("{TIP}\n"), "");
+    }
+
+    fn lookup(&mut self, code: i32, stdout: &str, stderr: &str) {
+        self.git_reply(&["rev-parse", "--verify", "--quiet", "abcdef0^{commit}"], None, code, stdout, stderr);
+    }
+
+    fn list_remotes(&mut self, remotes: &str) {
+        self.lookup(1, "", "");
+        self.git(&["remote"], None, remotes);
+    }
+
+    fn fetch_from(&mut self, remote_args: &[&str], tip: &str) {
+        let mut args = vec!["fetch", "--no-tags", "--no-recurse-submodules", "--refmap="];
+        args.extend_from_slice(remote_args);
+        args.push("refs/heads/docs/look/look-request");
+        self.git(&args, None, "");
         self.git(&["rev-parse", "--verify", "FETCH_HEAD^{commit}"], None, &format!("{tip}\n"));
     }
 
     fn request(&mut self, paths: &[&str]) {
         self.fetch(TIP);
+        self.request_changes(paths);
+    }
+
+    fn request_changes(&mut self, paths: &[&str]) {
         self.git(&["show", "-s", "--format=%P", TIP], None, &format!("{PARENT}\n"));
         self.git(
             &["show", "-s", "--format=%(trailers:key=Look-request,unfold)", TIP],
@@ -89,7 +105,7 @@ impl Steps {
         self.step(Ask::Directory(SCRATCH.into()), Answer::Done);
     }
 
-    fn blob(&mut self, commit: &str, path: &str, bytes: Option<&str>) {
+    pub(crate) fn blob(&mut self, commit: &str, path: &str, bytes: Option<&str>) {
         const OBJECT: &str = "aaaaabbbbbcccccdddddeeeeefffff0000011111";
         let tree = if bytes.is_some() { format!("100644 blob {OBJECT}\t{path}\0") } else { String::new() };
         self.git(&["--literal-pathspecs", "ls-tree", "--full-tree", "-z", commit, "--", path], None, &tree);
@@ -98,12 +114,12 @@ impl Steps {
         }
     }
 
-    fn read(&mut self, path: &str, bytes: Option<&str>) {
+    pub(crate) fn read(&mut self, path: &str, bytes: Option<&str>) {
         let answer = bytes.map_or(Answer::Missing, |bytes| Answer::Bytes(bytes.as_bytes().into()));
         self.step(Ask::Read(path.into()), answer);
     }
 
-    fn write(&mut self, directory: &str, leaf: &str, content: &str) {
+    pub(crate) fn write(&mut self, directory: &str, leaf: &str, content: &str) {
         self.step(Ask::Write(Path::new(directory).join(leaf), content.as_bytes().into()), Answer::Done);
     }
 
@@ -178,7 +194,7 @@ impl Steps {
         self.write(directory, "merged", merged);
     }
 
-    fn diff(&mut self, directory: &str, expected: &str, patch: &str) {
+    pub(crate) fn diff(&mut self, directory: &str, expected: &str, patch: &str) {
         self.git_reply(
             &[
                 "diff",
@@ -218,11 +234,57 @@ impl Steps {
 }
 
 fn check(steps: Steps, args: &[Box<[u8]>], code: u8, stdout: &str, stderr: &str) {
+    record(&steps.0);
     let mut host = Host::canned(steps.0);
     assert_eq!(run(args, &mut host), code, "exit with {args:?}");
     let Gathered { stdout: out, stderr: err } = host.finish();
     assert_eq!(String::from_utf8(out).expect("table is text"), stdout);
     assert_eq!(String::from_utf8(err).expect("details are text"), stderr);
+}
+
+fn check_hand_made_request(mut steps: Steps) {
+    steps.request_changes(&[&format!("{WEB}/mockup/01.html")]);
+    steps.blob(TIP, &format!("{WEB}/mockup/walk"), None);
+    steps.check(0, &format!("{HEADER}| `web/journeys/mockup` | not compared: hand-made |\n{FILL}"), "");
+}
+
+look_step_tests! {
+#[test]
+fn a_locally_held_request_is_compared_without_fetching() {
+    let mut steps = Steps::default();
+    steps.local_request();
+    check_hand_made_request(steps);
+}
+
+#[test]
+fn a_missing_request_prefers_forge_then_origin_then_the_only_remote() {
+    for (remotes, chosen) in [
+        ("forge\norigin\n", &["forge"][..]),
+        ("origin\nupstream\n", &["origin"]),
+        ("upstream\n", &["upstream"]),
+        ("-upstream\n", &["--", "-upstream"]),
+    ] {
+        let mut steps = Steps::default();
+        steps.list_remotes(remotes);
+        steps.fetch_from(chosen, TIP);
+        check_hand_made_request(steps);
+    }
+}
+
+#[test]
+fn a_missing_request_without_a_preferred_or_sole_remote_is_refused() {
+    for (remotes, listed) in [("", "none"), ("a\nb\n", "a, b")] {
+        let mut steps = Steps::default();
+        steps.list_remotes(remotes);
+        steps.check(2, "", &format!("look-compare: no remote chosen (remotes: {listed})\n"));
+    }
+}
+
+#[test]
+fn a_failed_commit_lookup_does_not_fetch() {
+    let mut steps = Steps::default();
+    steps.lookup(128, "", "fatal: not a git repository\n");
+    steps.check(2, "", &format!("look-compare: cannot look up commit {SHORT}\n"));
 }
 
 #[test]
@@ -454,4 +516,5 @@ fn a_web_walk_shadowing_the_tui_refuses_before_print() {
         "",
         "look-compare: tui/journeys/sign-in is shadowed by a walk in web/journeys/sign-in; rename one directory\n",
     );
+}
 }

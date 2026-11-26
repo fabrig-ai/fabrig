@@ -188,7 +188,7 @@ impl AgentPeer {
                 assert_eq!(stream, AGENT_INPUT);
                 self.input_finishes = self.input_finishes.checked_add(1).unwrap();
             }
-            io::Request::Close { entity } => {
+            io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } => {
                 assert_eq!(entity, AGENT_OUTPUT);
                 self.output_closes = self.output_closes.checked_add(1).unwrap();
             }

@@ -217,7 +217,7 @@ pub(crate) fn activation(
         | End::Recheck => true,
     };
     let kept = crate::run::ends::kept(domain, number);
-    let parked = kept.discards(&end) || valid && kept.run_parks(&end);
+    let parked = kept.discards(&end) || valid && (kept.run_parks(&end) || kept.parks_for_closer(&end));
     let admitted_end = if parked { End::Parked } else { end.clone() };
     match &admitted_end {
         End::Finished { result, cancel_delegates } => {

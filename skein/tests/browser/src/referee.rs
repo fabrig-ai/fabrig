@@ -78,11 +78,15 @@ impl Referee {
             | Event::Refused { .. }
             | Event::Address { .. }
             | Event::Tabs { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
             | Event::Downloaded { .. }
             | Event::Trouble { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => None,
         };
         if page.is_some_and(|page| self.closed_persons.contains(&page)) {
@@ -111,11 +115,15 @@ impl Referee {
             | Event::Refused { .. }
             | Event::Address { .. }
             | Event::Tabs { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
             | Event::Downloaded { .. }
             | Event::Trouble { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => {}
         }
         Ok(())
@@ -159,6 +167,9 @@ impl Referee {
             | Event::Missed { op, .. }
             | Event::Done { op }
             | Event::Refused { op, .. }
+            | Event::Elements { op, .. }
+            | Event::Style { op, .. }
+            | Event::Rect { op, .. }
             | Event::Attribute { op, .. }
             | Event::Tabs { op, .. }
             | Event::Address { op, .. }
@@ -171,6 +182,7 @@ impl Referee {
             | Event::Ready { .. }
             | Event::Opened { .. }
             | Event::Trouble { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => None,
         };
         if let Some(op) = op

@@ -83,6 +83,7 @@ pub(crate) fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::
 }
 
 pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
+    use temper_protocol_worker_wire::v1::{self, Record};
     assert_eq!(job.kind, JobKind(forge_top::MERGE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
     let workspace = job.workspace.as_ref().expect("job workspace");
@@ -99,18 +100,15 @@ pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, hea
     assert_eq!(row.requester, tasks::Party::Task(task));
     assert_eq!(row.executor, tasks::Executor::Job { kind: 3 });
     assert!(row.spec.words.is_empty() && row.spec.parameters.is_empty() && row.spec.inputs.is_empty());
-    let mut reader = skein_lib::Reader::new(&job.spec);
-    let command_length = reader.u32().expect("command length");
-    assert_eq!(reader.bytes(command_length), Some(b"repo/.temper/merge".as_slice()));
-    let request_length = reader.u32().expect("request length");
-    let request = reader.bytes(request_length).expect("request");
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/merge");
+    assert!(!spec.refusal);
     let expected = format!(
         "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
         core::str::from_utf8(&forge_top::commit_text(&translate::commit(head))).expect("head text"),
         core::str::from_utf8(&forge_top::commit_text(&translate::commit(base))).expect("base text")
     );
-    assert_eq!(request, expected.as_bytes());
-    assert!(reader.is_empty());
+    assert_eq!(spec.request.as_ref(), expected.as_bytes());
     assert_eq!(change_row(world, task).change.resolutions, 1);
 }
 

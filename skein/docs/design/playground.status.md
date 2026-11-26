@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-20. Where skein's code lags or departs from [playground.md](playground.md).
+2026-11-26. Where skein's code lags or departs from [playground.md](playground.md).
 
 Section 6.2's *What a difference says* has no known gap: `replay`'s
 `Differs` names the line's input by `log::input_text`, none on the last

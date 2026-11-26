@@ -2,7 +2,6 @@
 use skein_lib::sha256::Sha256;
 use std::{
     fs,
-    io::Write,
     os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::{Path, PathBuf},
 };
@@ -30,10 +29,8 @@ pub fn digest(bytes: &[u8]) -> [u8; 32] {
 }
 
 #[must_use]
-pub fn gzip(bytes: &[u8]) -> Vec<u8> {
-    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-    encoder.write_all(bytes).expect("encode fixture bytes");
-    encoder.finish().expect("finish the gzip fixture")
+pub fn zstd(bytes: &[u8]) -> Vec<u8> {
+    ruzstd::encoding::compress_to_vec(bytes, ruzstd::encoding::CompressionLevel::Fastest)
 }
 
 #[must_use]

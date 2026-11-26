@@ -342,6 +342,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     crate::person_proposals::ended(domain, env, number, out);
     crate::funders::end(domain, env, number, out);
     ended.phase = Phase::Ended(ending.clone());
+    ended.parked_result = None;
     end_milestone(&mut ended, env.wall, out);
     ended.ended_at = Some(env.wall);
     ended.changed = env.wall;
@@ -441,6 +442,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
             publish(domain, env, dependent, out);
         }
     }
+    let mut wake = true;
     match requester {
         Party::Task(parent) => {
             out.push(Request::Save { record: Stored::EndedDelegate(crate::Edge { requester: parent, task: number }) });
@@ -455,6 +457,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
             task.record.ended_below.add(endings);
             task.record.ended_delegates = task.record.ended_delegates.ended(status);
             task.record.last_activity = env.wall;
+            wake = crate::closer::wake_for_delegate(&task.record, number, &ending);
             crate::closer::ended(domain, env, parent, number, &ending, out);
             publish(domain, env, parent, out);
         }
@@ -474,7 +477,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     };
     let words = ending_words(&ending);
     crate::subscriptions::notify_state(domain, number, state, words, out);
-    out.push(Request::Ended { task: number, requester, ending });
+    out.push(Request::Ended { task: number, requester, ending, wake });
     fact(domain, Fact::Ended { task: number, status });
 }
 

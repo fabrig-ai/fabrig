@@ -114,7 +114,9 @@ impl Layer {
                         self.up(io::Event::Stream { owner: stream, up: Up::Room });
                     }
                 }
-                io::Request::Close { entity } => self.up(io::Event::Closed { owner: entity }),
+                io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } => {
+                    self.up(io::Event::Closed { owner: entity });
+                }
                 io::Request::Spawn { .. }
                 | io::Request::SpawnAlone { .. }
                 | io::Request::Listen { .. }
@@ -212,7 +214,7 @@ impl Layer {
                 }
                 Down::Demand { .. } => panic!("one stream direction"),
             },
-            io::Request::Close { entity } => {
+            io::Request::Close { entity } | io::Request::CloseAfterFlush { entity } => {
                 let owner = if entity == Token::new(200) { self.owner.expect("spawn owner") } else { entity };
                 self.up(io::Event::Closed { owner });
             }

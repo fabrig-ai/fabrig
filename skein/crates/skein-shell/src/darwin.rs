@@ -11,7 +11,7 @@
 //! sockets are closed on configuration failure; the loop also owns spawning,
 //! so no spawn can intervene before close-on-exec is set. Other cases are
 //! documented beside the files, listing, process, signals and terminal calls.
-//! F_GETPATH writes a NUL-terminated path into an exclusive MAXPATHLEN-byte
+//! `F_GETPATH` writes a NUL-terminated path into an exclusive `MAXPATHLEN`-byte
 //! buffer, borrowed only until fcntl returns.
 
 #![expect(unsafe_code, reason = "Darwin's synchronous calls retain no borrowed buffers (runtime/readiness.md, 5)")]

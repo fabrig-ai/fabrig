@@ -23,6 +23,51 @@ fn reuse_of(request: &[u8], response: Response) -> (Reuse, bool) {
 }
 
 #[test]
+fn read_whole_distinguishes_an_idle_connection_from_a_partial_head() {
+    let mut machine = Machine::new(LIMITS);
+    assert!(machine.server.request_read_whole());
+    machine.ready();
+    assert!(machine.server.request_read_whole(), "a demand for a first line is not a request");
+    machine.bytes(b"GET / HTTP/1.1\r\n");
+    assert!(!machine.server.request_read_whole());
+    machine.bytes(b"Host: h\r\n");
+    machine.bytes(b"\r\n");
+    assert!(machine.server.request_read_whole(), "the whole request had no body");
+    machine.down(Request::Respond(Response { close: true, ..response(204, Body::None) }));
+    assert!(machine.server.request_read_whole(), "the answer did not change that it was read");
+}
+
+#[test]
+fn read_whole_requires_the_bodys_end_even_when_discarding() {
+    for discard in [false, true] {
+        let mut machine = Machine::new(LIMITS);
+        machine.call(POST);
+        assert!(!machine.server.request_read_whole());
+        machine.down(if discard {
+            Request::Discard
+        } else {
+            Request::Body(Down::Demand { read: Read::Fill(4), room: 0 })
+        });
+        machine.bytes(b"1234");
+        assert!(!machine.server.request_read_whole(), "some of the body is still coming");
+        if !discard {
+            machine.down(Request::Body(Down::Demand { read: Read::Fill(4), room: 0 }));
+        }
+        machine.bytes(b"5678");
+        assert!(machine.server.request_read_whole(), "the body reached its end below");
+    }
+}
+
+#[test]
+fn giving_up_the_body_to_reply_early_does_not_count_as_read_whole() {
+    let mut machine = Machine::new(LIMITS);
+    machine.call(POST);
+    let (events, _) = machine.down(Request::Respond(response(413, Body::None)));
+    assert!(events.contains(&Event::Done(Reuse::Close)), "the answer is already queued");
+    assert!(!machine.server.request_read_whole(), "the body was given up unread");
+}
+
+#[test]
 fn a_connection_carries_one_exchange_after_another() {
     let mut machine = Machine::new(LIMITS);
     for _ in 0..4_u8 {

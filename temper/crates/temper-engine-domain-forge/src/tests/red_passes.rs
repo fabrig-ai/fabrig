@@ -116,56 +116,61 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
             let mut d = carrying();
             rerecord(&mut d, again);
             d.changes.get_mut(&CHANGE).unwrap().change.way = change::Way::Turn;
-            d.changes.get_mut(&CHANGE).unwrap().change.landing = Some(61);
+            if !cancelled {
+                let row = d.changes.get_mut(&CHANGE).unwrap();
+                row.handed = 1;
+                row.asks = Box::new([change::Handed {
+                    number: 1,
+                    landing: 61,
+                    round: 1,
+                    ask: change::Ask::Landed { prefix: FIRST },
+                }]);
+            }
             d.landing
-                .rows
-                .insert(
-                    61,
-                    LandingRow {
-                        read_hold: None,
-                        last_event: None,
-                        turn_since: None,
-                        waiting: None,
-                        follows: None,
-                        flake_reruns: Box::new([]),
-                        room: None,
-                        job: None,
-                        landing: landing::Landing {
-                            task: 61,
-                            project: PROJECT,
-                            phase: landing::Phase::Landed,
-                            round: landing::Round::new(Box::default()),
-                            last_left: None,
-                            searched: None,
-                            branch: b"temper/7/g7".as_slice().into(),
-                            preparation: 0,
-                            stale_proofs: 0,
-                            last_prepare: None,
-                            members: Box::new([landing::Member {
-                                round: None,
-                                change: CHANGE,
-                                repository: landing::Repository { forge: REPO.forge, repository: REPO.repository },
-                                pull: 1,
-                                head: Some(HEAD),
-                                base: None,
-                                candidate: Some(FIRST),
-                                gates: Box::new([]),
-                                asked: None,
-                                landed: Some(FIRST),
-                                left: None,
-                                unit: 0,
-                                branch: b"temper/51".as_slice().into(),
-                                combined: None,
-                                recorded: true,
-                                told: false,
-                                judging: false,
-                                leave_told: false,
-                            }]),
-                        },
-                        asks: Box::new([None]),
-                        entries: Box::new([]),
+                .remember(LandingRow {
+                    read_hold: None,
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
+                    follows: None,
+                    flake_reruns: Box::new([]),
+                    room: None,
+                    job: None,
+                    landing: landing::Landing {
+                        task: 61,
+                        project: PROJECT,
+                        phase: if cancelled { landing::Phase::Turn { at: env().wall } } else { landing::Phase::Landed },
+                        round: landing::Round::new(Box::default()),
+                        last_left: None,
+                        searched: None,
+                        branch: b"temper/7/g7".as_slice().into(),
+                        preparation: 0,
+                        stale_proofs: 0,
+                        last_prepare: None,
+                        members: Box::new([landing::Member {
+                            round: None,
+                            change: CHANGE,
+                            repository: landing::Repository { forge: REPO.forge, repository: REPO.repository },
+                            pull: 1,
+                            head: Some(HEAD),
+                            base: None,
+                            candidate: Some(FIRST),
+                            gates: Box::new([]),
+                            asked: None,
+                            landed: Some(FIRST),
+                            left: None,
+                            unit: 0,
+                            branch: b"temper/51".as_slice().into(),
+                            combined: None,
+                            recorded: true,
+                            told: false,
+                            judging: false,
+                            leave_told: false,
+                        }]),
                     },
-                )
+                    previous_asks: Box::new([]),
+                    entries: Box::new([]),
+                })
                 .unwrap();
             let mut out = Queue::uncapped();
             if cancelled {

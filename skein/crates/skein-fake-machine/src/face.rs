@@ -103,9 +103,19 @@ fn program_of(program: &[u8], args: &[Box<[u8]>], pipes: &[Pipe]) -> Result<Prog
     };
     match name {
         b"echo" | b"skein-echo" => {
-            let input = pipes.iter().find(|pipe| pipe.way == Way::In).ok_or(Error::InvalidArgument)?;
             let output = pipes.iter().find(|pipe| pipe.way == Way::Out).ok_or(Error::InvalidArgument)?;
-            Ok(Program::Echo { input: input.child, output: output.child })
+            if let Some(input) = pipes.iter().find(|pipe| pipe.way == Way::In) {
+                return Ok(Program::Echo { input: input.child, output: output.child });
+            }
+            if let [input, target] = args
+                && let Some(input) = descriptor(input)
+                && descriptor(target) == Some(output.child)
+                && pipes.iter().any(|pipe| pipe.child == input && pipe.way == Way::Null)
+            {
+                // The fixture reads EOF and exits without writing to its output.
+                return Ok(Program::Exit(0));
+            }
+            Err(Error::InvalidArgument)
         }
         b"exit" | b"skein-exit" => {
             let code = match args.first() {
@@ -122,6 +132,10 @@ fn program_of(program: &[u8], args: &[Box<[u8]>], pipes: &[Pipe]) -> Result<Prog
         b"never" | b"skein-never" => Ok(Program::Never),
         _ => Err(Error::NotFound),
     }
+}
+
+fn descriptor(bytes: &[u8]) -> Option<u32> {
+    core::str::from_utf8(bytes).ok()?.parse().ok()
 }
 
 /// What a world does once a process has submitted: every call the

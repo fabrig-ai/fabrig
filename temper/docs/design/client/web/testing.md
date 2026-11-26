@@ -189,6 +189,27 @@ real key in that restored form.
   each step presses and the reply each step reads rest on them.
   The ordinary binary bundle and the journeys'
   never turn it on, and a long chat at the whole bound is read by hand.
+- **A story's settings** are committed before its first start, in sittings
+  hosted in the test's own process: the deployment's (its agents,
+  providers, both kinds of limits and the stock models bound to the
+  world's endpoints) and the scripted model's (its provider, its model,
+  the story's limits and a parked charter's). A sitting is the box's
+  service as `temper-box serve` prepares and serves it, and ctl's one-shot
+  commands one after another, `sign-in -` on the printed link,
+  `settings show`, `settings apply` against the revision read and
+  `sign-out`, all on one real loop on the story's scratch directories: no
+  box, serve or ctl process starts for it. It is the shipped service, so
+  what the story's first start takes is what an owner's apply leaves: the
+  deployment's first start, the owner's admission of the change, and the
+  startup copies the service's handover writes (`providers.setting`,
+  `agents.setting`, `local.setting`), which a store written before start
+  would skip. The sitting ends as serve's first signal ends it, drained,
+  and a call that fails or a service that ends early fails the story with
+  the call's words or the ending. The box kit keeps its sittings of
+  processes for the tiers that prove a process's boundary. Ten of the
+  twelve stories hold one sitting or two, and each started a box, its
+  serve and three or four ctl processes: a process start costs most on
+  the slowest machines the cap below names.
 - **A chat's history:** what a reading story reads is made through
   `temper ctl` before a page opens on it: `playground start`, `chat start`
   and `task message`, each answer waited for with

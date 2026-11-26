@@ -296,7 +296,7 @@ fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
         "{:?}",
         world.change(CHANGE).change.state
     );
-    assert_eq!(world.change(CHANGE).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE), None);
     let writes = world.take_calls();
     assert!(writes.iter().any(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))));
     assert!(writes.iter().any(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. }))));
@@ -344,7 +344,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
         }
     }
     assert!(matches!(world.change(CHANGE).change.state, change::State::Ready { .. }));
-    assert_eq!(world.change(CHANGE).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE), None);
     let mut row = landings::landing_row(world.change(CHANGE));
     row.landing.task = 62;
     row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
@@ -366,7 +366,7 @@ fn cancelling_after_the_prefix_is_recorded_tells_the_change_landed_as_its_pull_s
     world.take_calls();
     world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Cancelled });
     assert!(matches!(world.change(CHANGE).change.state, change::State::Landed { merge, .. } if merge == prefix));
-    assert_eq!(world.change(CHANGE).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE), None);
     assert_eq!(world.inspect(&raw::Read::Pull { number: pull }), before);
     assert!(world.take_seen().iter().any(|request| matches!(
         request,

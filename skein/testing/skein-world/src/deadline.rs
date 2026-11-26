@@ -408,6 +408,7 @@ impl Deadline {
         (tree_waited, kind)
     }
 
+    #[cfg_attr(target_os = "macos", expect(clippy::unused_self, reason = "pressure sampling is Linux's"))]
     fn sample_pressure(&self) {
         #[cfg(target_os = "linux")]
         self.sample_pressure_with(pressure);
@@ -439,6 +440,7 @@ pub(crate) fn starved(patience: Duration, waited: u64) -> bool {
 }
 
 impl TreeWatch {
+    #[cfg_attr(target_os = "macos", expect(clippy::unnecessary_wraps, reason = "Linux also has cgroup watches"))]
     fn processes(&self) -> Option<&Processes> {
         match self {
             #[cfg(target_os = "linux")]

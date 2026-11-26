@@ -245,7 +245,7 @@ impl Net {
                 }
                 None
             }
-            Request::Close { entity } | Request::Abort { entity } => {
+            Request::Close { entity } | Request::CloseAfterFlush { entity } | Request::Abort { entity } => {
                 let socket = self.sockets.get_mut(&entity).expect("owned socket");
                 socket.closed = true;
                 socket.shell.eof = true;

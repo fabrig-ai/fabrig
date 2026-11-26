@@ -61,7 +61,8 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
         return;
     }
     for fixed in [false, true] {
-        let scratch = Scratch::new("qa-holder-watch");
+        // The drive.sock path is 98 bytes with a 56-byte temp root, five-digit PID and one-digit suffix.
+        let scratch = Scratch::new("qa-hold");
         let mut config = serde_json::json!({"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low","pass":"high"},"request":{"command":["file"]}});
         if fixed {
             config["places"] = serde_json::json!([{"directory":"places/1", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);

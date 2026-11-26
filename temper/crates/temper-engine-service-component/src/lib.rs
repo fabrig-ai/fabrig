@@ -232,6 +232,16 @@ pub enum Note {
     },
     LandingRead(temper_engine_domain_forge::LandingReadNote),
     /// Start's Link repairs (domain/landing-forming.md, 4).
+    LinkDisagreed {
+        change: u64,
+        named: u64,
+        landing: Option<u64>,
+    },
+    ConversionAskDropped {
+        change: u64,
+        landing: u64,
+        kind: &'static str,
+    },
     LandingUnmade {
         task: u64,
         repository: skein_forge::api::Repository,

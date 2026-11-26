@@ -275,6 +275,7 @@ pub struct Rig {
     tabs_cut: Option<u64>,
     tab_wait: Option<TabWait>,
     requests: requests::State,
+    rendering: viewport::Rendering,
 }
 
 impl Rig {
@@ -332,6 +333,7 @@ impl Rig {
             tabs_cut: None,
             tab_wait: None,
             requests: requests::State::default(),
+            rendering: viewport::Rendering::new(profile.join("rendering")),
             context_ready: false,
             exception_seen: false,
             csp_log_seen: false,
@@ -572,6 +574,7 @@ impl Rig {
             page: PAGE,
             url: url.into_bytes().into_boxed_slice(),
             requests: matches!(self.scenario, Scenario::Requests),
+            files: false,
         });
     }
 

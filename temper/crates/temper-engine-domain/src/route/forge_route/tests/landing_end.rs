@@ -45,7 +45,7 @@ fn ending_wakes(choice: landing::Decision) {
         &mut Queue::uncapped(),
     );
     // A member that left is unlinked and ready again when the end is routed.
-    assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
+    assert_eq!(domain.forge.landing_of(7), None);
     landing_route::landing_decision(&mut domain, &env, task, choice);
     let mut wakes = List::uncapped();
     while let Some(work) = domain.work.pop() {

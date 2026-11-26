@@ -372,6 +372,12 @@ impl Engine {
                     });
                 }
                 root::Fact::LandingRead(note) => self.notes.push(crate::Note::LandingRead(note)),
+                root::Fact::LinkDisagreed { change, named, landing } => {
+                    self.notes.push(crate::Note::LinkDisagreed { change, named, landing });
+                }
+                root::Fact::ConversionAskDropped { change, landing, kind } => {
+                    self.notes.push(crate::Note::ConversionAskDropped { change, landing, kind });
+                }
                 root::Fact::LandingUnmade { task, repository, branch, changes } => {
                     self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
                 }

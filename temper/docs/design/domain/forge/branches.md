@@ -228,7 +228,10 @@ judge, jig makes the closer as the goal's own delegate, and the closer
 does with no model what a goal's run did once its plan's changes had
 ended: it settles the goal's branch, lands it, and reports. The goal's
 agent wakes for judgement alone (`../../draft/archive/goal-runs-itself.md`,
-section 6).
+section 6). A goal's run that calls `finish` rather than `wait` parks
+all the same, its result kept on the goal's record, so its closer
+comes and lands its branch, and the report carries what the run said
+(jig's `domain/tasks/lifecycle-endings.md`, 3, *A finish parks it*).
 
 - **The forge's procedure 6,** the goal closer, beside the change (2),
   the landing (3), the after-landing (4) and the status (5) procedures.
@@ -250,7 +253,9 @@ section 6).
      changes left out; its words `Settle goal G's status.` The change
      makes its branch at the goal's branch's tip, its producer the job,
      no agent, and lands as any change into the branch does; nothing
-     staged ends it with no change. Where the project names none, or the
+     staged ends it with no change. A refusal of the close's check holds
+     it at once, and a check that broke holds it once its job's tries are
+     spent (`change/repairs-releases.md`, 1). Where the project names none, or the
      goal holds no goal branch, this step is skipped.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
@@ -577,6 +582,9 @@ Left by the goal: WORDS
 The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
 CI selection:
 - pull request #P: LINE
+The goal's finish:
+  LINE
+  LINE
 ```
 
 - **The heading:** the goal's task number and title, the first line of
@@ -616,12 +624,21 @@ CI selection:
   one gives it; `unknown` where no job's log reads one, a log not read,
   a job with no identity, or a forge that names no job among them. The
   part is left out where no pull landed into the base.
+- **What the goal's run finished with:** the goal's parked result
+  (jig's `domain/tasks/lifecycle-endings.md`, 3, *Its parked result is
+  its closer's to report*), read from the goal's record as the closer
+  reports, so a later finish's stands: its words, each line indented
+  two spaces as a change's `Left` section's are; a failure's reason
+  after `failed: `; an approval's words where it has any, and a job's
+  none. The part is left out where the goal's record keeps none, as
+  for a goal whose runs only parked, or its words are empty.
 - **Cut to the contract's bound** as any report is: where the whole
   passes the contract's words bound, the changes' `Left` sections are
   cut first, from the last change's back, each cut one replaced by `  Left: [N
   bytes cut]`, the goal's own line never among them; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
-  N what it dropped.
+  N what it dropped, so that the goal's finish, the last part, loses
+  its end first.
 
 ## 3. A goal's design writers
 

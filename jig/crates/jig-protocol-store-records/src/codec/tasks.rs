@@ -495,7 +495,7 @@ pub fn decode_live(
             return Err(wire::Problem { path: wire::paths::ROW_VALUE, reason: skein_codec::Reason::Bound });
         }
     };
-    let record = record::read_task_record(record::join(hot, cold), limits)?;
+    let record = record::read_live(hot, cold, limits)?;
     let models = record.authority.models.remap(&models::moves(&cold_names, names));
     let mut row = domain::Stored::Live(Box::new(record));
     row.remap_models(&models::moves(&hot_names, names));

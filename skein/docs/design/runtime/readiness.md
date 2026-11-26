@@ -334,7 +334,7 @@ other module is safe Rust, the same on both systems.
 - **Linux's own is built for Linux alone:** the ring adapter and
   `Running`'s ring arm; cgroups (`open_cgroup`, `start_binary_in_cgroup`,
   `wait_cgroup_change`); the subreaper (`make_subreaper`, `subreaper`,
-  `set_subreaper`); and the pidfd helpers (`open_pidfd`, `pidfd_exited`).
+  `set_subreaper`); and `open_pidfd`, a pidfd for a pid with no parent named.
   `Backend::Ring` itself is on both, so a match on it downstream stays
   exhaustive on both: `open_on(.., Backend::Ring)` on macOS is
   `OpenError::Unsupported`, and `Kernel::open` there never tries the
@@ -345,8 +345,22 @@ other module is safe Rust, the same on both systems.
   group still has a member (`kill` of its negative with no signal, `ESRCH`
   for none). `process_live` probes a positive pid with no signal, counting
   an unreaped zombie as live and refusing 0, 1 and values beyond `pid_t`.
-  These calls name processes and groups by number, as no record does,
-  and are for the harness alone.
+  `process_children` lists the pids a process's children have now,
+  zombies among them (`/proc/PID/task/*/children` on Linux, libproc's
+  `PROC_PPID_ONLY` on Darwin). `open_child_pidfd(pid, parent)` keeps one
+  of them, found below a parent the caller holds unended: a pidfd on
+  Linux; on Darwin a kqueue holding the child's `EVFILT_PROC` with
+  `NOTE_EXIT`, its parent read after (`proc_pidinfo`'s `pbi_ppid`). Both
+  answer alike: `InvalidArgument` for a pid or a parent of 0, 1 or
+  beyond `pid_t`, `ESRCH` for a process gone before it was bound, and
+  `NotFound` for another parent or an exit already posted.
+  `pidfd_exited` says whether such a handle's process has exited, by
+  polling the handle for reading, which leaves the exit posted. On
+  Darwin a kept handle is not the caller's child: `signal_kept_child`
+  reaches its process by its pid, `Target::Child` alone, while its exit
+  has not posted, `ESRCH` once it has; `poll_child` refuses it; and
+  `close_keeper_fd` forgets it. These calls name processes and groups by
+  number, as no record does, and are for the harness alone.
 - **What a harness alone needs is fenced in `skein_shell::keeper`,** a
   public module no service has a use for: the tree keeper's calls; a
   kept child's start, handle, signal, status and abandonment

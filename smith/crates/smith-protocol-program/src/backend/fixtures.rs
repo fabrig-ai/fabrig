@@ -201,6 +201,7 @@ pub(super) fn connect_server(backend: &mut Backend) {
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
                 | io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }
                 | io::Request::Abort { .. } => None,
             }
         })
@@ -260,6 +261,7 @@ pub(super) fn server_reply(backend: &mut Backend, below: &mut Queue<Below>) -> s
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
                 | io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }
                 | io::Request::Abort { .. } => {}
             }
         }

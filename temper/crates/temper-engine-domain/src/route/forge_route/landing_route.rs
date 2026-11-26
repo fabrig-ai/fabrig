@@ -26,10 +26,7 @@ pub(super) fn kept(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
         return false;
     }
     let joined = changes(domain, env, task);
-    let formed = match domain.forge.change(task) {
-        Some(change) => change.change.landing.is_some(),
-        None => false,
-    };
+    let formed = domain.forge.landing_of(task).is_some();
     for dependency in &row.waiting_on {
         if joined.contains(dependency) || formed {
             continue;
@@ -121,14 +118,18 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
         let Some(row) = domain.forge.change(task) else { continue };
         if row.base.as_ref() == branch
             && row.change.way == forge_change::Way::Turn
-            && row.change.landing.is_none()
+            && domain.forge.landing_of(task).is_none()
             && let Some((_, _, step)) = domain.core.tasks.procedure_due(task)
         {
             if let forge_change::State::Ready { .. } = row.change.state {
                 continue;
             }
-            if forge::gates_settled(row, returned_gate(domain, row), env.limits.forge.change_policy.gates)
-                && !kept(domain, env, task)
+            if forge::gates_settled(
+                &domain.forge,
+                row,
+                returned_gate(domain, row),
+                env.limits.forge.change_policy.gates,
+            ) && !kept(domain, env, task)
                 && domain.forge.hold_forming(task, step)
             {
                 return false;
@@ -233,10 +234,6 @@ fn create_landing(
     let room = skein_lib::usize_of(words.capacity().saturating_sub(words.len()));
     let title = temper_engine_domain_forge_issues::text::fit(&change.title, room, "…".as_bytes());
     append(&mut words, &title);
-    let mut asks = List::with_capacity(env.limits.forge.landing_members);
-    for _ in &members {
-        asks.push(None).expect("selected members");
-    }
     let Some(seed) = domain.core.procedure_seed(project) else { return false };
     let number = seed.number();
     let provider = domain.forge.change(task).expect("member").repository;
@@ -289,7 +286,7 @@ fn create_landing(
             branch: Box::from(branch),
             members: members.into_boxed(),
         },
-        asks: asks.into_boxed(),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     };
     domain.forge_forming = Some((number, None));
@@ -852,9 +849,13 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
 }
 pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, member: u16, step: forge::LandingNews) {
     let Some((change, words)) = domain.forge.landing_news_words(task, member, step) else { return };
+    tell_change(domain, env, change, &words);
+}
+
+pub(super) fn tell_change(domain: &mut Domain, env: &Env<Limits>, change: u64, words: &[u8]) {
     let Some(row) = domain.forge.change(change) else { return };
     let Some(goal) = row.goal else { return };
-    let words = forge::text::fit(&words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
+    let words = forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
     if let Some(event) = domain.core.connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
         domain.work.push(Work::Tasks(event));
     }

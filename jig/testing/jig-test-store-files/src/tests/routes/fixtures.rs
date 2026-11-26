@@ -234,6 +234,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         talk: None,
         activation_open: false,
         closer: None,
+        parked_result: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         started_from: Box::new([]),

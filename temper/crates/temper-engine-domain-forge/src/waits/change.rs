@@ -169,7 +169,7 @@ fn step_wait(d: &Domain, env: &Env<Limits>, row: &ChangeRow, phase: u32, observe
         let first = first_in_queue(d, row, env.wall, &env.limits);
         return behind(phase, since, if first == Some(row.task) { None } else { first });
     }
-    if crate::landing::waiting(row) {
+    if crate::landing::waiting(d, row) {
         return behind(phase, since, d.train_holder(row.repository, &row.base));
     }
     if let State::Red { since, .. } = row.change.state {

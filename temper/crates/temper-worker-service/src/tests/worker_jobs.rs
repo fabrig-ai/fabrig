@@ -270,7 +270,7 @@ fn a_result_file_shorter_than_its_bound_reads_exact_bytes() {
 #[test]
 fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
     use temper_protocol_worker_wire::v1::{self, Record};
-    let valid = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into() };
+    let valid = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: true };
     let valid = valid.encode(&v1::CEILINGS).unwrap();
     let mut trailing = Writer::new(valid.len().checked_add(1).unwrap());
     trailing.put(&valid).unwrap();
@@ -307,7 +307,11 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         assert_eq!(
             spec,
             if good {
-                Ok(root::wire::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into() })
+                Ok(root::wire::JobSpec {
+                    command: b"tool".as_slice().into(),
+                    request: b"{}".as_slice().into(),
+                    refusal: true,
+                })
             } else {
                 Err(root::wire::Undecodable)
             }

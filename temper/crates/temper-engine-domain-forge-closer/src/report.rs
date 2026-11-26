@@ -18,6 +18,13 @@ pub struct Report {
     pub goal_left: Option<Box<[u8]>>,
     pub landing: Landing,
     pub selections: Box<[Selection]>,
+    pub goal_finish: Option<GoalFinish>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GoalFinish {
+    Words(Box<[u8]>),
+    Failed(Box<[u8]>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -222,6 +229,34 @@ fn landing(output: &mut Output, landing: &Landing) {
     output.put(b".\n");
 }
 
+fn indented(output: &mut Output, words: &[u8], mut prefix: &[u8]) {
+    let mut rest = words;
+    for _ in 0..=words.len() {
+        let end = find(rest, b"\n").unwrap_or(rest.len());
+        output.put(b"  ");
+        output.put(prefix);
+        output.put(rest.get(..end).expect("line ends inside the words"));
+        output.put(b"\n");
+        if end == rest.len() {
+            break;
+        }
+        rest = rest.get(end.saturating_add(1)..).expect("the newline has a following suffix");
+        prefix = b"";
+    }
+}
+
+fn goal_finish(output: &mut Output, finish: &GoalFinish) {
+    let (words, prefix) = match finish {
+        GoalFinish::Words(words) => (words.as_ref(), b"".as_slice()),
+        GoalFinish::Failed(reason) => (reason.as_ref(), b"failed: ".as_slice()),
+    };
+    if words.is_empty() && prefix.is_empty() {
+        return;
+    }
+    output.put(b"The goal's finish:\n");
+    indented(output, words.strip_suffix(b"\n").unwrap_or(words), prefix);
+}
+
 fn render(output: &mut Output, report: &Report) -> List<Left> {
     let mut lefts = List::uncapped();
     output.put(b"Goal T");
@@ -245,17 +280,7 @@ fn render(output: &mut Output, report: &Report) -> List<Left> {
         let start = output.length;
         match &change.left {
             Some(section) => {
-                let mut rest = section.as_ref();
-                for _ in 0..=section.len() {
-                    let end = find(rest, b"\n").unwrap_or(rest.len());
-                    output.put(b"  ");
-                    output.put(rest.get(..end).expect("line ends inside the section"));
-                    output.put(b"\n");
-                    if end == rest.len() {
-                        break;
-                    }
-                    rest = rest.get(end.saturating_add(1)..).expect("the newline has a following suffix");
-                }
+                indented(output, section, b"");
                 let end = output.length;
                 lefts.push(Left { start, end }).expect("the report's Left count fits a list");
             }
@@ -292,6 +317,9 @@ fn render(output: &mut Output, report: &Report) -> List<Left> {
             None => output.put(b"unknown"),
         }
         output.put(b"\n");
+    }
+    if let Some(finish) = &report.goal_finish {
+        goal_finish(output, finish);
     }
     lefts
 }

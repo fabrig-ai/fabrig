@@ -81,7 +81,7 @@ fn site(
                 }
                 assert!(head.len() <= 4096, "bounded request");
             }
-            let name = if request % 2 == 0 { "SHA256SUMS".into() } else { format!("{}/temper-box", platform()) };
+            let name = if request % 2 == 0 { "SHA256SUMS".into() } else { format!("{}/temper-box.zst", platform()) };
             assert!(
                 head.starts_with(format!("GET {prefix}/{name} HTTP/1.1\r\n").as_bytes()),
                 "{}",
@@ -160,10 +160,8 @@ fn temper_box_fetches_from_its_site_and_execs_after_an_interrupted_download() {
     let script = format!(
         "#!/bin/sh\nif [ \"$1\" = --version ]; then printf 'temper-box {version} ({commit})\\n'; exit 0; fi\nprintf 'pid=%s\\n' \"$$\"\nprintf '<%s>\\n' \"$@\"\nexit 23\n"
     );
-    let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-    gzip.write_all(script.as_bytes()).expect("gzip fixture");
-    let compressed = gzip.finish().expect("gzip end");
-    let sums = format!("{}  {}/temper-box\n", digest(&compressed), platform()).into_bytes();
+    let compressed = temper_fetch_shell::testing::zstd(script.as_bytes());
+    let sums = format!("{}  {}/temper-box.zst\n", digest(&compressed), platform()).into_bytes();
     support::fetch::roots(&root.join("root.pem"));
     let listener = TcpListener::bind("127.0.0.1:0").expect("loopback site");
     let origin = format!("https://{}", listener.local_addr().expect("site address"));
@@ -171,7 +169,7 @@ fn temper_box_fetches_from_its_site_and_execs_after_an_interrupted_download() {
     let resume = root.join("resume-site");
     let server = site(listener, prefix, sums, compressed, resume.clone());
     let directory = root.join(format!("cache/bin/{commit}/{}", platform()));
-    let stage = directory.join("temper-box.gz.part");
+    let stage = directory.join("temper-box.zst.part");
     let file = directory.join("temper-box");
     let mut first = support::parent::Guard::new(
         command(&client, root, &origin)
@@ -237,7 +235,7 @@ fn temper_box_fetches_from_its_site_and_execs_after_an_interrupted_download() {
     for directory in [root.join("cache/bin"), root.join(format!("cache/bin/{commit}")), directory.clone()] {
         assert_eq!(fs::metadata(directory).expect("cache directory").permissions().mode() & 0o777, 0o700);
     }
-    for name in ["temper-box.gz.part", "temper-box.part", "temper-box.sha256.part"] {
+    for name in ["temper-box.zst.part", "temper-box.part", "temper-box.sha256.part"] {
         assert!(!directory.join(name).exists(), "{name} removed");
     }
     let reused = support::story_command::standalone(

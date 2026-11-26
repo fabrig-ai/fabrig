@@ -3,15 +3,17 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 
 const READING_INTERVAL: Duration = Duration::from_secs(5 * 60);
-const READING_HORIZON: Duration = Duration::from_secs(60 * 60);
-const ROLLING_SPAN: Duration = Duration::from_secs(30 * 60);
-const READINGS: u32 = 13;
+const READING_HORIZON: Duration = Duration::from_secs(3 * 60 * 60 + 5 * 60);
+const ROLLING_SPAN: Duration = Duration::from_secs(3 * 60 * 60);
+const READINGS: u32 = 2 * 38;
 const HOUR: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct WindowReading {
     pub at: Wall,
     pub share: u16,
+    pub origin: u16,
+    pub resets: Option<Wall>,
 }
 
 #[derive(Hash, Debug)]
@@ -21,24 +23,13 @@ pub(crate) struct Window {
     pub(crate) rate: Option<u32>,
 }
 
-pub(crate) fn report(domain: &mut crate::Domain, account: u32, label: &[u8], wall: Wall) {
-    let mut value = None;
-    for fact in domain.account_facts(account) {
-        if fact.kind == crate::KIND_USAGE && fact.label.as_ref() == label {
-            match fact.value {
-                crate::FactValue::Window(window) => value = Some(window),
-                crate::FactValue::Text(_)
-                | crate::FactValue::Count(_)
-                | crate::FactValue::Instant(_)
-                | crate::FactValue::Span(_)
-                | crate::FactValue::Share(_) => {}
-            }
-        }
-    }
-    let Some(value) = value else { return };
-    if value.used.is_none() {
-        return;
-    }
+pub(crate) fn report(
+    domain: &mut crate::Domain,
+    account: u32,
+    label: &[u8],
+    reading: WindowReading,
+    value: crate::FactWindow,
+) {
     if !domain.rates.contains_key(&account) {
         assert!(
             domain.rates.insert(account, List::with_capacity(crate::FACTS)).is_ok(),
@@ -48,48 +39,80 @@ pub(crate) fn report(domain: &mut crate::Domain, account: u32, label: &[u8], wal
     let windows = domain.rates.get_mut(&account).expect("rates record admitted");
     for window in windows.iter_mut() {
         if window.label.as_ref() == label {
-            if update(window, value, wall) {
+            if update(window, reading, value) {
                 domain.rates_changed = Some(account);
             }
             return;
         }
     }
     let mut window = Window { label: label.into(), readings: List::with_capacity(READINGS), rate: None };
-    if update(&mut window, value, wall) {
+    if update(&mut window, reading, value) {
         domain.rates_changed = Some(account);
     }
     windows.push(window).expect("only held facts have readings");
 }
 
-fn update(window: &mut Window, value: crate::FactWindow, wall: Wall) -> bool {
-    let Some(share) = value.used else { return false };
-    if let Some(newest) = window.readings.last() {
-        if share < newest.share {
-            window.readings.clear();
-        } else if wall.as_nanos().saturating_sub(newest.at.as_nanos()) < READING_INTERVAL.as_nanos() {
-            return false;
+fn update(window: &mut Window, reading: WindowReading, value: crate::FactWindow) -> bool {
+    if let Some(newest) = window.readings.last()
+        && reading.at < newest.at
+    {
+        return false;
+    }
+    let mut reset = false;
+    for prior in window.readings.iter().rev() {
+        if prior.origin == reading.origin {
+            reset = reading.share < prior.share
+                || (reading.resets.is_some() && prior.resets.is_some() && reading.resets != prior.resets);
+            if !reset && age(reading, *prior) < READING_INTERVAL.as_nanos() {
+                return false;
+            }
+            break;
         }
     }
-    let mut readings = List::with_capacity(READINGS);
-    for reading in &window.readings {
-        if wall.as_nanos().saturating_sub(reading.at.as_nanos()) <= READING_HORIZON.as_nanos() {
-            readings.push(*reading).expect("kept readings fit");
-        }
-    }
-    readings.push(WindowReading { at: wall, share }).expect("five-minute readings in one hour fit");
-    window.readings = readings;
-    let rate = rate(window, value);
+    keep_readings(&mut window.readings, reading, reset);
+    window.readings.push(reading).expect("five-minute readings fit the horizon for both origins");
+    let rate = rate(&window.readings, reading, value);
     let changed = rate != window.rate;
     window.rate = rate;
     changed
 }
 
-fn rate(window: &Window, value: crate::FactWindow) -> Option<u32> {
-    let oldest = window.readings.get(0)?;
-    let newest = window.readings.last()?;
-    let span = newest.at.as_nanos().saturating_sub(oldest.at.as_nanos());
-    let (share, span) = if span >= ROLLING_SPAN.as_nanos() {
-        (newest.share.saturating_sub(oldest.share), u128::from(span))
+fn age(newest: WindowReading, prior: WindowReading) -> u64 {
+    newest.at.as_nanos().saturating_sub(prior.at.as_nanos())
+}
+
+fn keep_readings(readings: &mut List<WindowReading>, newest: WindowReading, reset: bool) {
+    let mut kept = 0_u32;
+    for index in 0..readings.len() {
+        let prior = *readings.get(index).expect("held reading index");
+        if (reset && prior.origin == newest.origin) || age(newest, prior) > READING_HORIZON.as_nanos() {
+            continue;
+        }
+        if kept != index {
+            *readings.get_mut(kept).expect("retained readings fit") = prior;
+        }
+        kept = kept.saturating_add(1);
+    }
+    readings.truncate(kept);
+}
+
+fn rate(readings: &List<WindowReading>, newest: WindowReading, value: crate::FactWindow) -> Option<u32> {
+    let mut best = None;
+    let mut distance = u64::MAX;
+    for prior in readings {
+        let span = age(newest, *prior);
+        if prior.origin != newest.origin || span < HOUR.as_nanos() {
+            continue;
+        }
+        let away = span.abs_diff(ROLLING_SPAN.as_nanos());
+        // Readings are in wall order, so a tie replaces the older reading.
+        if away <= distance {
+            best = Some(*prior);
+            distance = away;
+        }
+    }
+    let (share, span) = if let Some(prior) = best {
+        (newest.share.saturating_sub(prior.share), u128::from(age(newest, prior)))
     } else {
         // Subtract the reset after adding the length: the opening can precede the epoch.
         let span = u128::from(newest.at.as_nanos())

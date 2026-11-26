@@ -1,6 +1,6 @@
 //! Decisions made before startup inspects inherited descriptors.
 
-use super::{NO_ACCEPTCONN, listening, refused};
+use super::{listening, refused};
 use crate::listeners::count;
 use crate::{ListenerCheck, ListenersRefusal, MAX_INHERITED_LISTENERS};
 use skein_io::kernel::Fd;
@@ -9,7 +9,7 @@ use skein_io::kernel::Fd;
 fn listening_answers() {
     #[cfg(target_os = "linux")]
     const {
-        assert!(!NO_ACCEPTCONN, "Linux keeps its listening check");
+        assert!(!super::NO_ACCEPTCONN, "Linux keeps its listening check");
     };
     for (answer, no_option, expected) in [
         (Ok(0), false, Ok(false)),

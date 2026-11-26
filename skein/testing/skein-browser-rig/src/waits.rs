@@ -104,6 +104,9 @@ impl Rig {
             Request::Viewport { op, .. } => (*op, "Chromium Viewport", answer, None),
             Request::Address { op, .. } => (*op, "Chromium Address", answer, None),
             Request::Tabs { op, .. } if self.tab_wait.is_none() => (*op, "Chromium Tabs", answer, None),
+            Request::Elements { op, .. } => (*op, "Chromium Elements", answer, None),
+            Request::Style { op, .. } => (*op, "Chromium Style", answer, None),
+            Request::Rect { op, .. } => (*op, "Chromium Rect", answer, None),
             Request::Attribute { op, .. } => (*op, "Chromium Attribute", answer, None),
             Request::Snapshot { op, .. } => (*op, "Chromium Snapshot", answer, None),
             Request::Screenshot { op, .. } => (*op, "Chromium Screenshot", answer, None),
@@ -123,6 +126,9 @@ impl Rig {
             | Event::Refused { op, .. }
             | Event::Address { op, .. }
             | Event::Tabs { op, .. }
+            | Event::Elements { op, .. }
+            | Event::Style { op, .. }
+            | Event::Rect { op, .. }
             | Event::Attribute { op, .. }
             | Event::Snapshot { op, .. }
             | Event::Screenshot { op, .. } => Some(*op),

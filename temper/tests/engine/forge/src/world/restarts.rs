@@ -262,7 +262,7 @@ pub fn synthetic_cancelled_landing(entries: &[u64]) -> top::LandingRow {
             round: landing::Round::new(b"temper/63/l63".as_slice().into()),
             last_prepare: None,
         },
-        asks: Box::new([]),
+        previous_asks: Box::new([]),
         entries: entries
             .iter()
             .map(|entry| top::LandingEntry {

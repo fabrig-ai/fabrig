@@ -411,7 +411,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     memory. The kit settles and counts the binary's whole tree, one of
     three ways, and the test's result says which ran (`Method`): on Linux
     a cgroup where the machine delegates one and a walk otherwise, on
-    macOS a process group. A test asks for one by its `Containment`
+    macOS a process group, or a walk where the test asks for one. A test asks for one by its `Containment`
     (`Binary::start_contained`): the best the machine has, the walk, or
     the group, which Linux runs too so that its tests run on our
     machines; one the machine cannot run fails the start, saying so.
@@ -465,11 +465,31 @@ processes, each a host of an `iterate` (a service, or a fake client):
     settles, CPU over the binary and what it reaped, and the largest one
     process's peak. It cannot see a descendant that leaves the group (a
     session or a group of its own), nor name a member but the binary: a
-    test that needs either stays Linux's (runtime/shell.md, 8), and the group's
-    pid lists (`TreeStatus`) hold the binary's alone.
+    test that needs either asks for macOS's walk (below) or stays Linux's
+    (runtime/shell.md, 8), and the group's pid lists (`TreeStatus`) hold
+    the binary's alone.
+  - **A walk, on macOS,** where a test asks for it (`Containment::Walk`):
+    the group, and the processes the kit keeps below the binary, since no
+    subreaper hands it an orphan. At each poll while the tree runs, the
+    kit lists the children of the binary and of each process it keeps
+    (libproc's `PROC_PPID_ONLY`) and keeps each new one by a handle its
+    exit posts on (kqueue's `EVFILT_PROC`, `NOTE_EXIT`), admitted only
+    while that process's parent is still the one listed, which the kit
+    holds unended (runtime/readiness.md, 5). It waits on none, as launchd
+    reaps an orphan: a kept process is live until its handle has its
+    exit. The tree has settled once the binary is reaped, its group has no
+    member, and every kept process has exited; a signal to the tree, and
+    the end, reach each kept process still live, by its pid, before the
+    group. Its counts are the group's, and its pid lists name the binary
+    and what it keeps. It misses a process that leaves the group and is
+    orphaned between two polls, a double fork's child. `Containment::Best`
+    stays the group on macOS, so that the tests that pass there keep their
+    settlement: a test asks for the walk where a child of its binary
+    leaves the group and must be seen to end, as one that kills its binary
+    outright and waits for that child to stop by itself does.
   - **The end.** Once the binary has exited and the test is done with
     it, or at the test's deadline, the kit kills what is left of the tree
-    (`cgroup.kill`, or each pidfd it holds and the binary's group, or the
+    (`cgroup.kill`, or each process it holds and the binary's group, or the
     group), waits for it to settle (the group's: the binary reaped, then
     its group probed until empty, by the same deadline), then reads the
     counts and removes the cgroup. A

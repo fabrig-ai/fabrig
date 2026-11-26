@@ -115,7 +115,7 @@ impl ForgeFace {
                 io::Request::Listen { owner, addr } => {
                     assert!(engine.clients.up(io::Event::Listening { owner, listener: Token::new(77), addr }));
                 }
-                io::Request::Close { .. } | io::Request::Abort { .. } => {
+                io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
                     assert!(engine.clients.up(io::Event::Closed { owner: Token::new(crate::tokens::CLIENTS) }));
                 }
                 io::Request::Connect { .. }
@@ -140,7 +140,7 @@ impl ForgeFace {
                         &mut engine.events
                     ));
                 }
-                io::Request::Close { .. } | io::Request::Abort { .. } => {
+                io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
                     assert!(engine.workers.up(
                         self.now,
                         io::Event::Closed { owner: self.worker_owner.unwrap() },
@@ -204,7 +204,9 @@ impl ForgeFace {
                     }
                     self.peers.get_mut(&owner.expect("stream peer")).unwrap().wire.take(down);
                 }
-                io::Request::Close { entity } | io::Request::Abort { entity } => {
+                io::Request::Close { entity }
+                | io::Request::CloseAfterFlush { entity }
+                | io::Request::Abort { entity } => {
                     if let Some((owner, listener)) = self.hooks
                         && entity == listener
                     {
@@ -312,6 +314,7 @@ pub fn hook(service: &mut crate::Service) -> skein_forge_connection::hooks::Hint
                 io::Request::Stream { stream, down } if stream == Token::new(89) => wire.take(down),
                 io::Request::Listen { .. } | io::Request::Connect { .. } | io::Request::Stream { .. } => {}
                 io::Request::Close { .. }
+                | io::Request::CloseAfterFlush { .. }
                 | io::Request::Abort { .. }
                 | io::Request::Reject { .. }
                 | io::Request::Output { .. }

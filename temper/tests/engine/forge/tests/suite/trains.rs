@@ -49,11 +49,11 @@ fn one_train_forms_one_landing_and_its_next_without_a_new_ready_event() {
     root.ready(&mut world, CHANGE, b"temper/51");
     world.produce(b"temper/52");
     root.ready(&mut world, 52, b"temper/52");
-    assert_eq!(world.change(CHANGE).change.landing, Some(LANDING));
+    assert_eq!(world.landing_of(CHANGE), Some(LANDING));
     assert_eq!(world.landing(LANDING).landing.members.len(), 1);
-    assert_eq!(world.change(52).change.landing, None);
+    assert_eq!(world.landing_of(52), None);
     root.land(&mut world, LANDING);
-    assert_eq!(world.change(52).change.landing, Some(LANDING + 1));
+    assert_eq!(world.landing_of(52), Some(LANDING + 1));
     root.land(&mut world, LANDING + 1);
     assert_eq!(world.landing(LANDING + 1).landing.phase, landing::Phase::Landed);
 }
@@ -65,8 +65,8 @@ fn a_goals_branch_and_main_take_their_turns_side_by_side() {
     landings::ready_on(&mut world, CHANGE, b"temper/51", b"temper/g1");
     landings::ready_on(&mut world, 52, b"temper/52", b"main");
     root.judge(&mut world);
-    let goal = world.change(CHANGE).change.landing.expect("goal train");
-    let main = world.change(52).change.landing.expect("main train");
+    let goal = world.landing_of(CHANGE).expect("goal train");
+    let main = world.landing_of(52).expect("main train");
     assert_ne!(goal, main);
     assert_eq!(world.landing(goal).landing.branch.as_ref(), b"temper/g1");
     prove(&mut world, goal);
@@ -83,8 +83,8 @@ fn two_repositories_mains_take_their_turns_side_by_side() {
     public::ready(&mut world, public::CHANGE, public::BRANCH);
     public::ready(&mut world, public::SECOND, public::OTHER_BRANCH);
     root.judge(&mut world);
-    let first = world.change(public::CHANGE).change.landing.expect("first train");
-    let second = world.change(public::SECOND).change.landing.expect("second train");
+    let first = world.landing_of(public::CHANGE).expect("first train");
+    let second = world.landing_of(public::SECOND).expect("second train");
     assert_ne!(first, second);
     prove(&mut world, first);
     prove(&mut world, second);
@@ -98,11 +98,11 @@ fn a_restart_forms_a_free_train_from_its_waiting_change() {
     let mut world = batched();
     let mut root = Trains::default();
     waiting(&mut world, 3, b"main");
-    assert_eq!(world.change(CHANGE).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE), None);
     root.restart(&mut world);
-    assert_eq!(world.change(CHANGE).change.landing, Some(LANDING));
+    assert_eq!(world.landing_of(CHANGE), Some(LANDING));
     root.restart(&mut world);
-    assert_eq!(world.change(CHANGE).change.landing, Some(LANDING));
+    assert_eq!(world.landing_of(CHANGE), Some(LANDING));
     assert_eq!(world.landing(LANDING).landing.branch.as_ref(), b"main");
     assert_eq!(members(&world, LANDING), [CHANGE, CHANGE + 1, CHANGE + 2]);
 }
@@ -114,8 +114,8 @@ fn a_joined_unit_is_held_again_on_release_and_the_train_goes_on() {
     public::ready(&mut world, public::SECOND, public::OTHER_BRANCH);
     root.dependencies.push(top::ChangeDependencies { change: public::CHANGE, pending: Box::new([public::SECOND]) });
     root.judge(&mut world);
-    assert_eq!(world.change(public::CHANGE).change.landing, None);
-    assert_eq!(world.change(public::SECOND).change.landing, None);
+    assert_eq!(world.landing_of(public::CHANGE), None);
+    assert_eq!(world.landing_of(public::SECOND), None);
     let words = root.held.iter().find(|(task, _)| *task == public::CHANGE).expect("first change held").1.clone();
     let words = String::from_utf8(words.into_vec()).expect("hold text");
     assert!(words.starts_with("unit of 2 changes: C"));
@@ -124,10 +124,10 @@ fn a_joined_unit_is_held_again_on_release_and_the_train_goes_on() {
     assert!(words.ends_with("(temper/docs/design/draft/merge-queue.md, 13)"));
     root.release(&mut world, public::CHANGE);
     assert!(root.held.iter().any(|(task, _)| *task == public::CHANGE));
-    assert_eq!(world.change(public::CHANGE).change.landing, None);
+    assert_eq!(world.landing_of(public::CHANGE), None);
     landings::ready_on(&mut world, 53, b"temper/53", b"main");
     root.judge(&mut world);
-    assert!(world.change(53).change.landing.is_some(), "refused unit does not block its train");
+    assert!(world.landing_of(53).is_some(), "refused unit does not block its train");
 }
 #[test]
 fn a_dependency_given_after_forming_does_not_join_anything() {
@@ -135,13 +135,13 @@ fn a_dependency_given_after_forming_does_not_join_anything() {
     let mut root = Trains::default();
     public::ready(&mut world, public::CHANGE, public::BRANCH);
     root.judge(&mut world);
-    let first = world.change(public::CHANGE).change.landing.expect("formed");
+    let first = world.landing_of(public::CHANGE).expect("formed");
     let before = world.landing(first).clone();
     public::ready(&mut world, public::SECOND, public::OTHER_BRANCH);
     root.dependencies.push(top::ChangeDependencies { change: public::CHANGE, pending: Box::new([public::SECOND]) });
     root.judge(&mut world);
     assert_eq!(world.landing(first), &before);
-    let second = world.change(public::SECOND).change.landing.expect("its own sealed unit");
+    let second = world.landing_of(public::SECOND).expect("its own sealed unit");
     assert_ne!(second, first);
     assert_eq!(root.held, Vec::<(u64, Box<[u8]>)>::new());
 }
@@ -159,10 +159,10 @@ fn full_live_slots_wait_without_holding_and_form_when_a_slot_frees() {
         landings::ready_on(&mut world, task, branch, base);
         root.judge(&mut world);
     }
-    assert_eq!(world.change(53).change.landing, None);
+    assert_eq!(world.landing_of(53), None);
     assert_eq!(root.held, Vec::<(u64, Box<[u8]>)>::new());
     root.land(&mut world, LANDING);
-    assert_eq!(world.change(53).change.landing, Some(LANDING + 2));
+    assert_eq!(world.landing_of(53), Some(LANDING + 2));
     assert_eq!(root.held, Vec::<(u64, Box<[u8]>)>::new());
 }
 
@@ -179,11 +179,11 @@ fn an_aged_low_priority_change_is_next_ahead_of_a_later_high_priority_change() {
     landings::ready_on(&mut world, 53, b"temper/53", b"main");
     world.event(top::Event::Priority { task: 53, priority: 0 });
     root.judge(&mut world);
-    assert_eq!(world.change(52).change.landing, None);
-    assert_eq!(world.change(53).change.landing, None);
+    assert_eq!(world.landing_of(52), None);
+    assert_eq!(world.landing_of(53), None);
     root.land(&mut world, LANDING);
-    assert_eq!(world.change(52).change.landing, Some(LANDING + 1));
-    assert_eq!(world.change(53).change.landing, None);
+    assert_eq!(world.landing_of(52), Some(LANDING + 1));
+    assert_eq!(world.landing_of(53), None);
 }
 
 fn batched() -> World {
@@ -228,8 +228,8 @@ fn a_batch_takes_three_in_queue_order_and_the_next_takes_the_rest() {
         };
         assert_eq!(world.hold(&name).expect("held from making").task, LANDING);
     }
-    assert_eq!(world.change(CHANGE + 3).change.landing, None);
-    assert_eq!(world.change(CHANGE + 4).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE + 3), None);
+    assert_eq!(world.landing_of(CHANGE + 4), None);
     // Forming observes a terminal landing; running its batch is a separate rule.
     world.ended_landing_fixture(LANDING);
     root.judge(&mut world);
@@ -243,7 +243,7 @@ fn a_goal_train_takes_one_unit_even_with_batch_three() {
     waiting(&mut world, 3, b"temper/g1");
     root.judge(&mut world);
     assert_eq!(members(&world, LANDING), [CHANGE]);
-    assert_eq!(world.change(CHANGE + 1).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE + 1), None);
 }
 #[test]
 fn a_formed_batch_is_sealed_against_a_later_ready_change() {
@@ -254,7 +254,7 @@ fn a_formed_batch_is_sealed_against_a_later_ready_change() {
     landings::ready_on(&mut world, CHANGE + 2, b"temper/later", b"main");
     root.judge(&mut world);
     assert_eq!(members(&world, LANDING), [CHANGE, CHANGE + 1]);
-    assert_eq!(world.change(CHANGE + 2).change.landing, None);
+    assert_eq!(world.landing_of(CHANGE + 2), None);
     world.ended_landing_fixture(LANDING);
     root.judge(&mut world);
     assert_eq!(members(&world, LANDING + 1), [CHANGE + 2]);

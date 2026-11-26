@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1162927908 decoded=1163242976; at_most(3) encoded=3225 decoded=2235
+ChangeHot: ceilings encoded=1163060191 decoded=1163376096; at_most(3) encoded=3676 decoded=2763
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeReply: ceilings encoded=533 decoded=512; at_most(3) encoded=24 decoded=3
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
@@ -72,7 +72,8 @@ ClassItem: ceilings encoded=127 decoded=120; at_most(3) encoded=10 decoded=3
 ClassSubject: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 ClientRow: ceilings encoded=10555703 decoded=11014688; at_most(3) encoded=480 decoded=733
 ClientValue: ceilings encoded=10555703 decoded=11014688; at_most(3) encoded=480 decoded=733
-CloseAt: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
+CloseAt: ceilings encoded=99 decoded=0; at_most(3) encoded=99 decoded=0
+CloseRefused: ceilings encoded=33 decoded=0; at_most(3) encoded=33 decoded=0
 Closer: ceilings encoded=3224948868 decoded=3225075712; at_most(3) encoded=1080 decoded=1260
 ClosingAsked: ceilings encoded=1048599 decoded=1048576; at_most(3) encoded=26 decoded=3
 ClosingForm: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
@@ -290,6 +291,7 @@ LandingAwaited: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 LandingBelow: ceilings encoded=102 decoded=64; at_most(3) encoded=86 decoded=48
 LandingBlamed: ceilings encoded=74 decoded=0; at_most(3) encoded=74 decoded=0
 LandingByTest: ceilings encoded=67424584 decoded=68225024; at_most(3) encoded=125 decoded=315
+LandingClaimed: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 LandingCombine: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 LandingEntry: ceilings encoded=149 decoded=0; at_most(3) encoded=149 decoded=0
 LandingFallback: ceilings encoded=34 decoded=0; at_most(3) encoded=34 decoded=0
@@ -299,6 +301,7 @@ LandingFollow: ceilings encoded=13900809 decoded=14162997; at_most(3) encoded=40
 LandingFollows: ceilings encoded=2097156 decoded=2097152; at_most(3) encoded=7 decoded=3
 LandingGateFailed: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 LandingGateRefused: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+LandingHanded: ceilings encoded=8265 decoded=8192; at_most(3) encoded=136 decoded=48
 LandingLastPrepare: ceilings encoded=209 decoded=128; at_most(3) encoded=87 decoded=6
 LandingLeave: ceilings encoded=75 decoded=0; at_most(3) encoded=75 decoded=0
 LandingLeftChange: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
@@ -316,9 +319,9 @@ LandingRepair: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 LandingRepairAsk: ceilings encoded=137 decoded=64; at_most(3) encoded=121 decoded=48
 LandingRepairAt: ceilings encoded=137 decoded=64; at_most(3) encoded=121 decoded=48
 LandingResolve: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
-LandingRound: ceilings encoded=67436942 decoded=68237312; at_most(3) encoded=201 decoded=321
+LandingRound: ceilings encoded=67437459 decoded=68237824; at_most(3) encoded=209 decoded=324
 LandingRoundEnd: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-LandingRow: ceilings encoded=157934800 decoded=169375232; at_most(3) encoded=3217 decoded=3672
+LandingRow: ceilings encoded=157935317 decoded=169375744; at_most(3) encoded=3225 decoded=3675
 LandingRule: ceilings encoded=70622 decoded=70918; at_most(3) encoded=78 decoded=69
 LandingRun: ceilings encoded=99 decoded=0; at_most(3) encoded=99 decoded=0
 LandingSearch: ceilings encoded=67424589 decoded=68225024; at_most(3) encoded=130 decoded=315
@@ -326,7 +329,7 @@ LandingSearchTests: ceilings encoded=67424585 decoded=68225024; at_most(3) encod
 LandingSearched: ceilings encoded=581 decoded=512; at_most(3) encoded=93 decoded=24
 LandingSelectedGate: ceilings encoded=1052677 decoded=1064960; at_most(3) encoded=26 decoded=57
 LandingSelection: ceilings encoded=1052676 decoded=1064960; at_most(3) encoded=25 decoded=57
-LandingState: ceilings encoded=67884000 decoded=68704384; at_most(3) encoded=1569 decoded=1695
+LandingState: ceilings encoded=67884517 decoded=68704896; at_most(3) encoded=1577 decoded=1698
 LandingTimeout: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 LandingWaitGate: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 LandingWaitMember: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
@@ -489,7 +492,7 @@ Review: ceilings encoded=2097228 decoded=2097152; at_most(3) encoded=82 decoded=
 ReviewsAnswer: ceilings encoded=2097158 decoded=2097152; at_most(3) encoded=9 decoded=3
 Role: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Route: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Row: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3649 decoded=6518
+Row: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3679 decoded=6518
 RuleApproval: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 RuleGate: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 RulePattern: ceilings encoded=69641 decoded=69632; at_most(3) encoded=15 decoded=6
@@ -567,7 +570,7 @@ UpdateCondition: ceilings encoded=64 decoded=0; at_most(3) encoded=64 decoded=0
 UpdateStyle: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 UpdateWrite: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Updating: ceilings encoded=72 decoded=0; at_most(3) encoded=72 decoded=0
-Value: ceilings encoded=3224948869 decoded=3225075712; at_most(3) encoded=3647 decoded=6518
+Value: ceilings encoded=3224948869 decoded=3225075712; at_most(3) encoded=3677 decoded=6518
 Verdict: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 VerdictFiling: ceilings encoded=473354 decoded=710608; at_most(3) encoded=436 decoded=624
 Verification: ceilings encoded=34213838 decoded=34608640; at_most(3) encoded=421 decoded=636
@@ -579,4 +582,4 @@ Welcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 What: ceilings encoded=65541 decoded=65536; at_most(3) encoded=9 decoded=3
 Write: ceilings encoded=10492754 decoded=10492981; at_most(3) encoded=74 decoded=120
 Writer: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
-family: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3649 decoded=6518
+family: ceilings encoded=3224948871 decoded=3225075712; at_most(3) encoded=3679 decoded=6518

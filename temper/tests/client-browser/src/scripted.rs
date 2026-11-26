@@ -152,8 +152,8 @@ fn spawn_model(command: &mut Command) -> std::io::Result<std::process::Child> {
 /// A no-task sitting commits the settings; the story's start takes the provider.
 fn bootstrap(directory: &Path, settings: Value, charter: Option<u32>) {
     use temper_box_kit::{
-        boxed,
         ctl::{Call, Step},
+        hosted,
     };
     let file = directory.join("browser-model-settings.json");
     let mut settings_calls = vec![Step::Run(Call::sign_in())];
@@ -168,9 +168,8 @@ fn bootstrap(directory: &Path, settings: Value, charter: Option<u32>) {
     }
     settings_calls.push(Step::Run(Call::new(&["sign-out"])));
     let count = settings_calls.len();
-    let flags =
-        configuration::flags(directory).into_iter().map(|word| word.into_string().expect("directory flag")).collect();
-    let outcome = boxed::run_ctl(directory, flags, directory, settings_calls, boxed::BOX_DEADLINE, |_| ());
+    let outcome = hosted::run_ctl(directory, configuration::flags(directory), directory, settings_calls)
+        .unwrap_or_else(|why| panic!("scripted setup: {why}"));
     for call in &outcome.calls {
         assert_eq!(
             call.exit,
@@ -182,11 +181,11 @@ fn bootstrap(directory: &Path, settings: Value, charter: Option<u32>) {
     assert_eq!(outcome.calls.len(), count, "every bootstrap call ran");
     assert_eq!(
         outcome.exit,
-        Some(skein_io::kernel::Exit::Code(0)),
+        skein_io::kernel::Exit::Code(0),
         "{}",
-        temper_box_kit::without_secrets(&outcome.stderr)
+        temper_box_kit::without_secrets(outcome.ending.as_bytes())
     );
-    assert_eq!(outcome.left, Some(Vec::new()), "scripted setup drained");
+    assert_eq!(outcome.left, 0, "no scripted setup call left unrun");
     let held = directory.join("limits-held");
     if held.is_file() {
         fs::remove_file(held).expect("release browser limit settings");

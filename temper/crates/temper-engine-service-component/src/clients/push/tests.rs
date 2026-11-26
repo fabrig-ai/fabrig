@@ -92,7 +92,8 @@ fn each_status_is_told_once_and_never_retried() {
                     | Request::Signal { .. }
                     | Request::Usage { .. }
                     | Request::Window { .. }
-                    | Request::Close { .. }) => panic!("no second connection: {other:?}"),
+                    | Request::Close { .. }
+                    | Request::CloseAfterFlush { .. }) => panic!("no second connection: {other:?}"),
                 }
             }
             if !replied && wire.received.windows(4).any(|part| part == b"\r\n\r\n") {

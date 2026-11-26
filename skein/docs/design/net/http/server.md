@@ -249,6 +249,14 @@ pub enum Error { Rejected(Rejection), Truncated, Stream(Fault), ChunkSize, Chunk
   or its framing), `Above` (the side above must respond, demand, discard,
   send or finish), `Close` (the connection is not to be used again, or
   the side above withdrew the reply and closes next) and `Nothing`.
+- **Whether its last request was read whole,** a read-only answer of
+  its state, so that the connection's owner, closing it, knows whether
+  the peer may still be sending, for io's close without the wait
+  (`../../runtime/io/sockets.md`, 3). Yes when idle with no request begun, or once the
+  last request's head had no body or its body reached its end below,
+  whether the side above read or discarded it. No while a request is
+  begun and not all read, or once a response given first gave the rest
+  of the body up.
 
 ## 6. Limits and their validity
 

@@ -90,6 +90,31 @@ impl Directory {
         serve(&mut self.machine, &mut self.sim);
         self.sim.reap(self.pid, service.completions());
     }
+    /// Connect a separate peer that neither sends HTTP bytes nor half-closes.
+    pub fn idle_client(&mut self) -> (Pid, skein_io::kernel::Fd) {
+        use skein_io::kernel::{Done, Family, Op};
+        let peer = self.sim.spawn_process();
+        let addr = super::http::address().socket().expect("TCP client listener");
+        let Done::Fd(fd) = self.peer_operation(peer, Token::new(1), Op::Socket { family: Family::of(&addr) }) else {
+            panic!("peer socket")
+        };
+        assert_eq!(self.peer_operation(peer, Token::new(2), Op::Connect { fd, addr }), Done::Nothing);
+        (peer, fd)
+    }
+    pub fn close_idle_client(&mut self, peer: Pid, fd: skein_io::kernel::Fd) {
+        use skein_io::kernel::{Done, Op};
+        assert_eq!(self.peer_operation(peer, Token::new(3), Op::Close { fd }), Done::Nothing);
+    }
+    fn peer_operation(&mut self, peer: Pid, op: Token, kind: skein_io::kernel::Op) -> skein_io::kernel::Done {
+        let mut submissions = Queue::with_capacity(1);
+        submissions.push(skein_io::kernel::Submit { op, kind });
+        self.sim.submit(peer, &mut submissions);
+        let mut completions = Queue::with_capacity(1);
+        self.sim.reap(peer, &mut completions);
+        let completion = completions.pop().expect("calm socket operation completes");
+        assert_eq!(completion.op, op);
+        completion.result.expect("calm socket operation succeeds")
+    }
     pub fn turn(&mut self, service: &mut Service) {
         let engine = service.engine.as_mut().expect("engine");
         crate::engine::iterate(engine, Time::from_nanos(1), Wall::from_nanos(1));

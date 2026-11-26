@@ -15,6 +15,8 @@ use skein_ui_web::{
 
 const SEEDS: [u64; 5] = [1, 7, 19, 97, u64::MAX];
 const BUILD: &[u8] = b"another-build";
+// Room for all eight inputs and the longest end line.
+const LOG_BOUND: u32 = 64 * 1024;
 
 struct Recorded {
     log: log::Read,
@@ -30,10 +32,15 @@ fn draw(random: &mut Rng, bound: u64) -> u64 {
 }
 
 fn record(seed: u64, build: Option<&[u8]>) -> Recorded {
-    record_bounded(seed, build, 64 * 1024)
+    record_bounded(seed, build, LOG_BOUND, |_, _| {})
 }
 
-fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
+fn record_bounded(
+    seed: u64,
+    build: Option<&[u8]>,
+    bound: u32,
+    mut on_post: impl FnMut(&log::Log, &ToPage),
+) -> Recorded {
     let start = bridge::Start { story: Box::from([]), seed, start: Wall::from_nanos(seed) };
     let (world, reach) = site::world(seed, start.start);
     let mut random = Rng::new(seed);
@@ -83,6 +90,7 @@ fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
         slices.slice(browser, &mut posts);
         for post in &posts {
             log.heard(post);
+            on_post(&log, post);
             match post {
                 ToPage::Report(report) => reports.push(report.clone()),
                 ToPage::Printed(line) => printed.push(line.clone()),
@@ -178,6 +186,29 @@ fn a_log_recorded_in_slices_replays() {
     }
 }
 
+#[test]
+fn a_snapshot_after_each_message_replays() {
+    let empty = log::Saying::new().said();
+    for seed in SEEDS {
+        let mut saw_stamp_after_output = false;
+        record_bounded(seed, None, LOG_BOUND, |log, post| {
+            let snapshot =
+                log::read(&log.text()).unwrap_or_else(|error| panic!("seed {seed} after {post:?}: {error:?}"));
+            run(&snapshot).unwrap_or_else(|error| panic!("seed {seed} after {post:?}: {error:?}"));
+            if let ToPage::Stamp(stamp) = post {
+                let entry = snapshot.entries.last().expect("the stamp keeps an input");
+                assert_eq!(
+                    snapshot.end,
+                    log::End::At { step: stamp.step, instant: stamp.instant, said: empty },
+                    "seed {seed}: the snapshot ends at the stamp with nothing said since it"
+                );
+                saw_stamp_after_output |= entry.said != empty;
+            }
+        });
+        assert!(saw_stamp_after_output, "seed {seed}: a stamp followed a nonempty fold");
+    }
+}
+
 fn differs(log: &log::Read) -> Differs {
     match run(log) {
         Ok(_) => panic!("seed {}: the changed log replayed", log.seed),
@@ -242,7 +273,7 @@ fn a_replay_of_another_build_goes_on() {
 fn a_cut_log_replays_to_its_last_input() {
     for seed in SEEDS {
         let recorded = record(seed, None);
-        let cut = record_bounded(seed, None, 512).log;
+        let cut = record_bounded(seed, None, 512, |_, _| {}).log;
         assert_eq!(cut.end, log::End::Cut, "seed {seed}: the text bound cuts the log");
         assert!(!cut.entries.is_empty() && cut.entries.len() < recorded.log.entries.len(), "seed {seed}: kept prefix");
         assert!(recorded.log.entries.starts_with(&cut.entries), "seed {seed}: all kept digests agree");

@@ -49,8 +49,8 @@ The journeys' rule knows the files the journeys' writer alone writes
 `temper/docs/design/client/web/journeys/` or
 `temper/docs/design/client/tui/journeys/`, a journey directory's
 `recording` and its pages, `NN.html` or `NN.txt` with two digits or
-more, and at either root `skein-ui.css`, `journey.js`, `theme.css` and
-`tui-journey.js`. A conflicted path among them is settled with the
+more, and at either root `skein-ui.css`, `journey.js`, `theme.css`,
+`tui-journey.js` and `looks.html`. A conflicted path among them is settled with the
 base's copy, the commit merged in, the landing branch's, read from that
 commit at that path: where it holds the path, its bytes and mode are
 written and staged; where it does not, the path is removed from the

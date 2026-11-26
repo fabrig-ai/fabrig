@@ -55,17 +55,18 @@ impl Domain {
     }
 
     fn end_unmade(&mut self, task: u64, env: &Env<Limits>, out: &mut Queue<Request>) {
-        let row = self.landing.rows.remove(&task).expect("selected unmade landing");
+        let row = self.landing.erase(task).expect("selected unmade landing");
+        crate::landing::members::end(self, &row, out);
         self.landing.due.remove(&task);
         crate::landing::forget_progress(self, task);
         crate::room::leave(self, crate::room::Waiter::Landing(task));
         let mut members = List::with_capacity(env.limits.landing_members);
         for member in &row.landing.members {
             members.push(member.change).expect("bounded landing members");
-            if let Some(change) = self.changes.get_mut(&member.change)
-                && change.change.landing == Some(task)
+            if member.left.is_none()
+                && self.landing_of(member.change).is_none()
+                && let Some(change) = self.changes.get_mut(&member.change)
             {
-                change.change.landing = None;
                 if let Some(merge) = member.landed {
                     if crate::domain::landed_commit(&change.change.state).is_none() {
                         change.change.state = change::State::Landed { merge, since: env.wall };

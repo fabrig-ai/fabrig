@@ -125,7 +125,7 @@ fn a_deployment_fails_idle_or_running_agents_and_cancels_their_tree_and_closer()
         assert_eq!(ending(&h, TASK), &Ending::Failed { reason: REASON.into() });
         let mut heard = false;
         for request in out {
-            if let Request::Ended { task: TASK, requester, ending } = request {
+            if let Request::Ended { task: TASK, requester, ending, .. } = request {
                 assert_eq!(requester, Party::Person(9));
                 assert_eq!(ending, Ending::Failed { reason: REASON.into() });
                 heard = true;
@@ -159,7 +159,7 @@ fn ancestors_may_fail_a_task_but_people_self_siblings_and_other_projects_may_not
             assert_eq!(ending(&h, 3), &Ending::Failed { reason: REASON.into() });
             let mut heard = false;
             for request in out {
-                if let Request::Ended { task: 3, requester, ending } = request {
+                if let Request::Ended { task: 3, requester, ending, .. } = request {
                     assert_eq!(requester, Party::Task(2));
                     assert_eq!(ending, Ending::Failed { reason: REASON.into() });
                     heard = true;

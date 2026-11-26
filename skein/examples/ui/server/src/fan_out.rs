@@ -158,7 +158,7 @@ impl Streams {
                 Request::Bind { socket, owner } => {
                     self.peers.get_mut(&socket).expect("accepted peer").owner = Some(owner);
                 }
-                Request::Close { entity } => {
+                Request::Close { entity } | Request::CloseAfterFlush { entity } => {
                     let peer = self.peers.get_mut(&entity).expect("closing peer");
                     peer.closed = true;
                     self.server.event(io::Event::Closed { owner: peer.owner.expect("bound peer") });

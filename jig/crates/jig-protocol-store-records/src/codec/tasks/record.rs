@@ -490,6 +490,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
             None => None,
         },
         closer,
+        parked_result: None,
         offered,
         reasons,
         asked_requester,
@@ -695,6 +696,7 @@ pub fn live_hot(
         session,
         activation_open,
         closer,
+        parked_result,
         reasons,
         offered,
         placed,
@@ -896,6 +898,10 @@ pub fn live_hot(
             None => None,
         },
         closer: *closer,
+        parked_result: match parked_result {
+            Some(result) => Some(super::task_result_to_record(result, context)?),
+            None => None,
+        },
         asked_requester: *asked_requester,
         words_woken: *words_woken,
         held_since: value::wall(*held_since),
@@ -949,10 +955,13 @@ fn hot_added(source: &[domain::Added], limits: &wire::Limits) -> Result<List<wir
     Ok(rows)
 }
 
-/// Join all stored fields before translating the whole record (protocol/store/parts.md, 2).
+/// Join the hot and cold fields, then translate the live record (protocol/store/parts.md, 2).
 #[expect(clippy::too_many_lines, reason = "every hot and cold field is named in the whole record join")]
-#[must_use]
-pub fn join(hot: wire::LiveHot, cold: wire::LiveCold) -> wire::TaskRecord {
+pub fn read_live(
+    hot: wire::LiveHot,
+    cold: wire::LiveCold,
+    limits: &wire::Limits,
+) -> Result<domain::TaskRecord, wire::Problem> {
     let wire::LiveHot {
         concluded,
         activation_open,
@@ -968,6 +977,7 @@ pub fn join(hot: wire::LiveHot, cold: wire::LiveCold) -> wire::TaskRecord {
         words_woken,
         held_since,
         talk,
+        parked_result,
     } = hot;
     let wire::LiveCold { spec, contract, authority, instructions } = cold;
     let wire::HotHistory {
@@ -1066,7 +1076,12 @@ pub fn join(hot: wire::LiveHot, cold: wire::LiveCold) -> wire::TaskRecord {
         words_woken,
         held_since,
     };
-    wire::TaskRecord { record, talk, concluded }
+    let mut row = read_task_record(wire::TaskRecord { record, talk, concluded }, limits)?;
+    row.parked_result = match parked_result {
+        Some(result) => Some(super::task_result_to_domain(result, &Context::new(limits, None))?),
+        None => None,
+    };
+    Ok(row)
 }
 
 fn concluded(source: Option<domain::Concluded>) -> Option<wire::Concluded> {
