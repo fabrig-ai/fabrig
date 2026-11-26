@@ -98,13 +98,26 @@ fn with_no_clients_member_party_outputs_go_to_the_port() {
     assert!(engine.outputs.is_empty());
 }
 
+const PEER_SOCKET: Token = Token::new(100);
+
 struct Peer {
+    socket: Token,
     wire: skein_world::stream::Wire,
     owner: Option<Token>,
     closed: u32,
 }
 impl Peer {
     fn new(engine: &mut crate::Engine, method: &[u8], path: &[u8], body: &[u8], bearer: Option<&[u8]>) -> Self {
+        Self::at(engine, PEER_SOCKET, method, path, body, bearer)
+    }
+    fn at(
+        engine: &mut crate::Engine,
+        socket: Token,
+        method: &[u8],
+        path: &[u8],
+        body: &[u8],
+        bearer: Option<&[u8]>,
+    ) -> Self {
         let header = match bearer {
             Some(value) => f::join(&[b"Authorization: Bearer ", value, b"\r\n"]),
             None => Box::default(),
@@ -121,18 +134,17 @@ impl Peer {
             b"\r\n\r\n",
             body,
         ]);
-        Self::request(engine, &bytes)
+        Self::accept(engine, socket, &bytes)
     }
     fn request(engine: &mut crate::Engine, bytes: &[u8]) -> Self {
+        Self::accept(engine, PEER_SOCKET, bytes)
+    }
+    fn accept(engine: &mut crate::Engine, socket: Token, bytes: &[u8]) -> Self {
         let mut wire = skein_world::stream::Wire::new(7);
         wire.write(bytes);
         let clients = engine.clients.as_mut().expect("clients configured");
-        assert!(clients.up(io::Event::Accepted {
-            owner: Token::new(4_u64 << 60),
-            socket: Token::new(100),
-            peer: address()
-        }));
-        Self { wire, owner: None, closed: 0 }
+        assert!(clients.up(io::Event::Accepted { owner: Token::new(4_u64 << 60), socket, peer: address() }));
+        Self { socket, wire, owner: None, closed: 0 }
     }
     fn pump(&mut self, engine: &mut crate::Engine) {
         let clients = engine.clients.as_mut().expect("clients configured");
@@ -144,11 +156,11 @@ impl Peer {
                         assert!(clients.up(io::Event::Listening { owner, listener: Token::new(99), addr }));
                     }
                     io::Request::Bind { socket, owner } => {
-                        assert_eq!(socket, Token::new(100));
+                        assert_eq!(socket, self.socket);
                         self.owner = Some(owner);
                     }
                     io::Request::Stream { stream, down } => {
-                        assert_eq!(stream, Token::new(100));
+                        assert_eq!(stream, self.socket);
                         self.wire.take(down);
                     }
                     io::Request::Close { .. } | io::Request::CloseAfterFlush { .. } | io::Request::Abort { .. } => {
@@ -375,6 +387,9 @@ fn started(clients: bool) -> crate::Service {
     service
 }
 fn prepared(clients: bool) -> crate::Service {
+    prepared_over(clients, None)
+}
+fn prepared_over(clients: bool, stores: Option<jig_protocol_store::Stores>) -> crate::Service {
     let (mut config, [first, second]) = crate::startup::fixture_connectors(&f::engine_document());
     let core = &mut config.limits.core;
     core.tasks.tasks = 2;
@@ -441,7 +456,10 @@ fn prepared(clients: bool) -> crate::Service {
     );
     let children = engine::Children { accounts: None, workers: None, clients };
     let mut engine = crate::Engine::new(root, &limits.root, systems, children, values, store);
-    f::memory_store(&mut engine);
+    match stores {
+        Some(stores) => f::open_memory_store(&mut engine, stores),
+        None => f::memory_store(&mut engine),
+    }
     crate::Service::new(Some(engine), skein_lib::List::with_capacity(0), limits.io, 512)
 }
 
@@ -527,6 +545,163 @@ fn sign_in_is_not_ready_until_restart_decisions_open() {
     };
 }
 
+fn before_wires_ack()
+-> (crate::Service, jig_client_protocol_wire::SignedIn, skein_lib::Queue<jig_protocol_store::Event>) {
+    use jig_client_protocol_wire as w;
+    let mut first = started(true);
+    let engine = ready_decisions(&mut first);
+    let body = link_body(engine);
+    let mut peer = Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    for _ in 0..RESTART_TURNS {
+        tick_peer(engine, &mut peer);
+    }
+    let w::SignInAnswer::SignedIn(signed_in) = sign_in_answer(engine, &peer) else { panic!("durable sign-in") };
+    let stores = engine.store.host.component.fork_memory().expect("copy of the durable stores");
+    let mut restart = prepared_over(true, Some(stores));
+    restart.clock(Time::ZERO, Wall::EPOCH);
+    let engine = ready_client(&mut restart);
+    let _printed = engine.clients.as_mut().expect("clients").links.pop().expect("printed link");
+    for _ in 0..RESTART_TURNS {
+        // The digest can be checked once Wires is durable. The root still
+        // needs its commit terminal to finish the restart.
+        engine.store.iterate();
+        if engine.store.host.mark_durable() {
+            assert!(!engine.domain.ready());
+            let mut held = skein_lib::Queue::uncapped();
+            withhold_store(engine, &mut held);
+            assert!(!held.is_empty(), "the root still needs the Wires acknowledgement");
+            return (restart, signed_in, held);
+        }
+        engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    }
+    panic!("restart made its Wires commit durable");
+}
+
+fn resume_restart(engine: &mut crate::Engine, mut held: skein_lib::Queue<jig_protocol_store::Event>) {
+    while let Some(event) = held.pop() {
+        engine.store.host.above.push(event);
+    }
+    decisions_open(engine);
+}
+
+fn versioned_stream(engine: &mut crate::Engine, bearer: &[u8]) -> Peer {
+    let version = f::decimal(u64::from(jig_client_protocol_wire::VERSION));
+    let path = f::join(&[b"/jig/v1/stream?version=", &version]);
+    let mut peer = Peer::new(engine, b"GET", &path, &[], Some(bearer));
+    tick_peer(engine, &mut peer);
+    peer
+}
+
+fn tick_peer(engine: &mut crate::Engine, peer: &mut Peer) {
+    peer.pump(engine);
+    engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    peer.pump(engine);
+}
+
+fn first_stream_event(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wire::StreamEvent {
+    use skein_lib::base64::{self, Alphabet};
+    assert!(peer.wire.received.starts_with(b"HTTP/1.1 200 "), "HTTP answer: {:?}", peer.wire.received);
+    let body = response_body(peer);
+    let at = skein_lib::bytes::find(body, b"data: ").expect("first event");
+    let data = body.get(at.saturating_add(b"data: ".len())..).expect("event data");
+    let end = skein_lib::bytes::find(data, b"\n\n").expect("complete event");
+    let limits = &engine.clients.as_ref().expect("clients").env.limits;
+    let record = base64::decode(Alphabet::Standard, data.get(..end).expect("base64 line"), limits.message_bytes)
+        .expect("event record");
+    jig_client_protocol_wire::StreamEvent::decode(&limits.wire, &mut skein_lib::Reader::new(&record))
+        .expect("decoded first event")
+}
+
+#[test]
+fn a_stream_waits_for_decisions_then_opens_with_me() {
+    use jig_client_protocol_wire as w;
+    let (mut service, signed_in, held) = before_wires_ack();
+    let engine = f::engine(&mut service);
+    let bearer = bearer(signed_in.token.as_ref().expect("native token").expose());
+    let mut peer = versioned_stream(engine, &bearer);
+    for _ in 0..RESTART_TURNS {
+        if !engine.clients.as_ref().expect("clients").work_pending(Time::ZERO) {
+            break;
+        }
+        tick_peer(engine, &mut peer);
+    }
+    assert!(!engine.domain.ready());
+    assert!(peer.wire.received.is_empty(), "no response before decisions open: {:?}", peer.wire.received);
+    assert_eq!(peer.closed, 0, "the opening stream stays connected");
+    assert!(!engine.clients.as_ref().expect("clients").work_pending(Time::ZERO), "a held watch alone is not runnable");
+
+    resume_restart(engine, held);
+    assert!(engine.work_pending(Time::ZERO), "decisions opening wakes the held watch");
+    for _ in 0..RESTART_TURNS {
+        tick_peer(engine, &mut peer);
+    }
+    let w::StreamEvent::Opened(opened) = first_stream_event(engine, &peer) else { panic!("hello with me") };
+    let limits = &engine.clients.as_ref().expect("clients").env.limits.wire;
+    let value = w::DeliveryValue::decode(limits, &mut skein_lib::Reader::new(&opened.me.record)).expect("me record");
+    let w::DeliveryValue::Me(me) = value else { panic!("me document") };
+    assert_eq!(me.party.number, signed_in.party);
+    assert_eq!(me.sign_in_expires, signed_in.expires);
+}
+
+#[test]
+fn a_stream_gone_at_restart_never_submits_its_watch() {
+    let (mut service, signed_in, held) = before_wires_ack();
+    let engine = f::engine(&mut service);
+    let bearer = bearer(signed_in.token.as_ref().expect("native token").expose());
+    let mut peer = versioned_stream(engine, &bearer);
+    tick_peer(engine, &mut peer);
+    let clients = engine.clients.as_mut().expect("clients");
+    let Some(root::Event::Core(core::Event::Watch { .. })) = clients.startup_frames.iter().next() else {
+        panic!("the opening watch is waiting at the gate");
+    };
+    assert!(clients.up(io::Event::Stream {
+        owner: peer.owner.expect("bound stream"),
+        up: skein_lib::stream::Up::Failed(skein_lib::stream::Fault::Other),
+    }));
+    peer.pump(engine);
+    assert_eq!(peer.closed, 1, "the peer went away while decisions were closed");
+    assert!(!engine.domain.ready());
+    let clients = engine.clients.as_ref().expect("clients");
+    assert!(clients.startup_frames.is_empty(), "the gone peer's watch is no longer held");
+    assert!(clients.early.is_empty(), "the matching unwatch was consumed, not staged");
+    assert!(engine.events.is_empty(), "neither input was queued for the root");
+
+    resume_restart(engine, held);
+    engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    assert_eq!(engine.domain.core().views.watchers(), 0, "no watch left in the core");
+}
+
+#[test]
+fn a_non_frame_watch_is_refused_busy_while_starting() {
+    use jig_client_protocol_wire as w;
+    const WATCH_SOCKET: Token = Token::new(101);
+    const WATCH_NAME: u64 = 1;
+    let (mut service, signed_in, _held) = before_wires_ack();
+    let engine = f::engine(&mut service);
+    let bearer = bearer(signed_in.token.as_ref().expect("native token").expose());
+    let mut stream = Peer::new(engine, b"GET", b"/jig/v1/stream", &[], Some(&bearer));
+    tick_peer(engine, &mut stream);
+    let w::StreamEvent::Hello(hello) = first_stream_event(engine, &stream) else { panic!("legacy hello") };
+    let limits = engine.clients.as_ref().expect("clients").env.limits.wire;
+    let value = w::Open {
+        stream: hello.stream,
+        watch: WATCH_NAME,
+        subject: w::Owned {
+            owner: w::Owner::Jig,
+            version: w::VERSION,
+            record: w::Subject::Deployment.encode(&limits).expect("deployment subject"),
+        },
+    };
+    let body = value.encode(&limits).expect("watch request");
+    let mut peer = Peer::at(engine, WATCH_SOCKET, b"POST", b"/jig/v1/watch", &body, Some(&bearer));
+    tick_peer(engine, &mut peer);
+    tick_peer(engine, &mut peer);
+    assert!(!engine.domain.ready());
+    let answer =
+        w::OpenAnswer::decode(&limits, &mut skein_lib::Reader::new(response_body(&peer))).expect("watch answer");
+    assert_eq!(answer, w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Busy }));
+}
+
 fn waiting_workers(engine: &mut crate::Engine) {
     let config = f::config();
     assert!(engine.events.is_empty());
@@ -542,10 +717,7 @@ fn waiting_workers(engine: &mut crate::Engine) {
 }
 
 fn credential() -> (Box<[u8]>, jig_protocol_engine_clients::Kept) {
-    use skein_lib::{
-        Secret, Writer,
-        base64::{self, Alphabet},
-    };
+    use skein_lib::{Secret, Writer};
     let mut token = Writer::new(40);
     token.put(&41_u64.to_be_bytes()).expect("number");
     token.put(&[7; 32]).expect("random bytes");
@@ -554,13 +726,19 @@ fn credential() -> (Box<[u8]>, jig_protocol_engine_clients::Kept) {
     for word in io::digest::digest(&token).0 {
         digest.put(&word.to_be_bytes()).expect("digest word");
     }
-    let mut bearer =
-        Writer::new(skein_lib::length::usize_of(base64::encoded_len(Alphabet::Url, 40).expect("encoded bearer size")));
-    base64::encode(Alphabet::Url, &token, &mut bearer).expect("bearer bytes");
     (
-        bearer.finish(),
+        bearer(&token),
         jig_protocol_engine_clients::Kept { digest: Secret::new(digest.finish()), expires: Wall::from_nanos(100) },
     )
+}
+
+fn bearer(token: &[u8]) -> Box<[u8]> {
+    use skein_lib::base64::{self, Alphabet};
+    let size = u32::try_from(token.len()).expect("token size");
+    let encoded = base64::encoded_len(Alphabet::Url, size).expect("encoded bearer size");
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(encoded));
+    base64::encode(Alphabet::Url, token, &mut out).expect("bearer bytes");
+    out.finish()
 }
 
 fn authenticate(engine: &mut crate::Engine, peer: &mut Peer, kept: jig_protocol_engine_clients::Kept) {
