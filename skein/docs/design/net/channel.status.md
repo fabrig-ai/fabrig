@@ -2,9 +2,6 @@
 
 2026-11-26. Where skein's code lags or departs from [channel.md](channel.md).
 
-- **Not yet:** 11: the protocol world's two directed tests run in the fuzzy
-  suite too, `generic_protocol.rs` registered again through `#[path]` under
-  `skein/tests/channel/tests/suite/fuzzy/channel.rs`. [in flight: change 19458]
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
   owner hears closed once, with why" or "closing stops now", because the
   request of 2026-11-05 held the machine's behaviour still while its flags
