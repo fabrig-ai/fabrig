@@ -9,11 +9,6 @@
   `temper-service/src/clients/translation.rs`, `not_ready`, still refuses
   watches as `Busy`. The sign-in line is present, but other calls can
   still claim all watches are in use while the gate is shut.
-- **Not yet:** 1.2: a stream's `me` waiting for the gate.
-  `temper-engine-service-component`'s `engine.rs`, `iterate`, answers
-  it with `translation::not_ready`'s `Busy` like any other watch, so a
-  stream opened while the gate is shut ends before its hello, a `409`.
-  [in flight: change 19330]
 
 `binaries.md`, section 5's `temper-worker` is present on `temper-worker-shell` and
 `temper-service-shell`, with its step test (`bin/temper-worker/tests/suite/main.rs`).
