@@ -4462,7 +4462,8 @@ impl World {
             range:
                 range @ (engine_store::Range::Read(_)
                 | engine_store::Range::Record(_)
-                | engine_store::Range::Proposal { .. }),
+                | engine_store::Range::Proposal { .. }
+                | engine_store::Range::Notes(_)),
         })) = request
         {
             let result = self.store.load(range);

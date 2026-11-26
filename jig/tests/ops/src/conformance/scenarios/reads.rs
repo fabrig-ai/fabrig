@@ -106,7 +106,9 @@ pub(crate) fn point(store: &Store, range: &engine_store::Range) -> engine_store:
                 _ => None,
             }
         }
-        engine_store::Range::Read(_) | engine_store::Range::Window { .. } => unreachable!("not a point load"),
+        engine_store::Range::Read(_) | engine_store::Range::Window { .. } | engine_store::Range::Notes(_) => {
+            unreachable!("not a point load")
+        }
     };
     let record = key.and_then(|key| match store.rows.get(&root::Key::Core(key)) {
         Some(root::Record::Core(row)) => Some(row.clone()),
@@ -149,7 +151,10 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::Read { .. }
         | root::Output::Agent(_)
         | root::Output::ToChild(_)
-        | root::Output::Store(engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. })
+        | root::Output::Store(engine_store::Out::Load {
+            range: engine_store::Range::Window { .. } | engine_store::Range::Notes(_),
+            ..
+        })
         | root::Output::Stop => None,
     }
 }

@@ -148,7 +148,7 @@ fn dependencies_and_inputs_load_in_order_before_the_notes() {
     let mut notes_loaded = false;
     for request in &out {
         if let Request::Held(held) = request
-            && let Held::NotesLoad { .. } = held.as_ref()
+            && let Held::Store(engine_store::Out::Load { range: engine_store::Range::Notes(_), .. }) = held.as_ref()
         {
             notes_loaded = true;
         }

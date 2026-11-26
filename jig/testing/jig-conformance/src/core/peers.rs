@@ -3,9 +3,8 @@
 use jig_domain_accounts as accounts;
 use jig_domain_core_vocabulary as core;
 use jig_domain_link::{Form, Scheme};
-use jig_domain_notes as notes;
 use jig_protocol_tools as tools;
-use skein_lib::{Duration, List, Token};
+use skein_lib::Duration;
 use std::collections::BTreeMap;
 
 /// Answer the scripted account component's shared request vocabulary.
@@ -43,12 +42,6 @@ pub fn restart_position(phase: core::start::Phase, _connectors: u16) -> Option<u
         | Phase::AdoptRuns
         | Phase::Open => None,
     }
-}
-
-/// Return the notes page supplied by the adapter's durable store.
-#[must_use]
-pub fn notes_loaded(owner: Token, records: List<notes::Record>, more: bool) -> core::Event {
-    core::Event::Notes(notes::Event::Loaded { owner, rows: notes::Rows { records }, more })
 }
 
 /// Load a committed transcript window in attempt/turn order.

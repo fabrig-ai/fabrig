@@ -224,7 +224,6 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Refuse { .. }
         | root::Delivery::PartBusy { .. }
         | root::Delivery::TurnBusy { .. }
-        | root::Delivery::NotesLoad { .. }
         | root::Delivery::Start(_)
         | root::Delivery::Load { .. } => None,
     }

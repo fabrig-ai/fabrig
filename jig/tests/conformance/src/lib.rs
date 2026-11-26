@@ -661,10 +661,6 @@ impl Application for Testing {
                     logins: Box::new([]),
                 })))]
             }
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                store.ask(StoreOut::NotesLoad { owner, range });
-                Vec::new()
-            }
             root::Delivery::Store(load) => {
                 store.ask(StoreOut::Engine(load));
                 Vec::new()
@@ -699,13 +695,6 @@ impl Application for Testing {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
-                Up::Root(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                    owner,
-                    rows,
-                    more,
-                }))) => {
-                    events.push(Input::Event(root::Event::Core(peers::notes_loaded(owner, rows.records, more))));
-                }
                 Up::Root(event) => {
                     events.push(Input::Event(event));
                 }

@@ -393,15 +393,13 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
                 Output::ToChild(value) => step(domain, env, Event::Released(value)),
                 Output::Load { phase, .. } => step(domain, env, Event::Store(Store::Restored(phase))),
                 Output::Switch => step(domain, env, Event::Store(Store::Switched)),
-                Output::Core(core::Held::NotesLoad { owner, .. }) => step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                        owner,
-                        rows: jig_domain_notes::Rows { records: List::with_capacity(env.limits.core.notes.load_rows) },
+                Output::Store(core::engine::store::Out::Load { load, range: core::engine::store::Range::Notes(_) }) => {
+                    let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                        records: Box::new([]),
                         more: false,
-                    })),
-                ),
+                    });
+                    step(domain, env, Event::Store(Store::Engine(core::engine::store::In::Loaded { load, result })));
+                }
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
                 | Output::Store(_)

@@ -79,6 +79,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     }
     core.stopping = true;
     crate::loads::discard_waiting_points(core);
+    core.loads.cancel_notes_retry();
     core.draining = Some(true);
     if !core.start_opened() {
         drained(core, &mut out);

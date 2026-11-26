@@ -538,11 +538,6 @@ pub enum Held {
         task: u64,
         attempt: u64,
     },
-    /// Store page requested by the notes child after earlier commits.
-    NotesLoad {
-        owner: Token,
-        range: notes::Range,
-    },
     /// A note write's accepted revision.
     NotesWritten {
         owner: Token,
@@ -1844,14 +1839,15 @@ fn view_new_work(event: &views::Event) -> bool {
 }
 
 fn notes_new_work(event: &notes::Event) -> bool {
-    match event {
-        notes::Event::Index { .. }
-        | notes::Event::Recall { .. }
-        | notes::Event::Write { .. }
-        | notes::Event::WriteLines { .. }
-        | notes::Event::Edit { .. } => true,
-        notes::Event::DropProject { .. } | notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
+    if let notes::Event::Index { .. }
+    | notes::Event::Recall { .. }
+    | notes::Event::Write { .. }
+    | notes::Event::WriteLines { .. }
+    | notes::Event::Edit { .. } = event
+    {
+        return true;
     }
+    false
 }
 
 #[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]

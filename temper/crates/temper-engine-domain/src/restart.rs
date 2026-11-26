@@ -1,6 +1,6 @@
 //! Store adapters for the core's restart script (jig's domain/root.md, 8).
 //! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 7).
-use crate::archive::{Waiting, goal_failed, goal_loaded, note_failed, note_loaded, waiting};
+use crate::archive::{Waiting, goal_failed, goal_loaded, note_failed, settings_note_loaded, waiting};
 use crate::boundary::{Request, Work};
 use crate::domain::{Domain, close, emit, save};
 use crate::limits::{Limits, core_limits, environment_core};
@@ -51,7 +51,7 @@ pub(crate) fn request_load(
             crate::CoreRange::Deployment
             | crate::CoreRange::RequesterWord { .. }
             | crate::CoreRange::TaskResult { .. }
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Entry { .. }),
+            | crate::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry { .. }),
         ) => 1,
         Range::Core(
             crate::CoreRange::Calls
@@ -65,7 +65,7 @@ pub(crate) fn request_load(
         )
         | Range::Census(_)
         | Range::Forge => domain.limits.loads.rows,
-        Range::Core(crate::CoreRange::Notes(
+        Range::Core(crate::CoreRange::ApplicationNotes(
             jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. },
         )) => domain.limits.loads.rows.min(domain.limits.notes.load_rows),
     };
@@ -101,7 +101,7 @@ pub(crate) fn request_load(
             )
             | Range::Census(_)
             | Range::Forge => {}
-            Range::Core(crate::CoreRange::Notes(_)) => {
+            Range::Core(crate::CoreRange::ApplicationNotes(_)) => {
                 note_failed(domain, waiter);
                 return;
             }
@@ -125,7 +125,7 @@ pub(crate) fn request_load(
                 unreachable!("startup/result load room reserved")
             }
             Range::History(_) => unreachable!("history load failure handled above"),
-            Range::Core(crate::CoreRange::Notes(_)) => unreachable!("notes load failure handled above"),
+            Range::Core(crate::CoreRange::ApplicationNotes(_)) => unreachable!("notes load failure handled above"),
         }
     }
     match load_out.pop().expect("load issued") {
@@ -178,7 +178,7 @@ pub(crate) fn load_outputs(
                         crate::route::forge_route::goal_report::loaded(domain, waiter, rows, next, cut, out);
                     }
                     Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
-                    Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
+                    Some(Waiting::SettingsNote) => settings_note_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::GoalWords) if cut.is_none() && next.is_none() => {
                         goal_loaded(domain, waiter, rows, out);
                     }
@@ -217,7 +217,7 @@ pub(crate) fn load_outputs(
                     ),
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
-                    Some(Waiting::Notes | Waiting::CloserReport) => note_failed(domain, waiter),
+                    Some(Waiting::SettingsNote | Waiting::CloserReport) => note_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
                     Some(Waiting::ChangeFrom) => crate::archive::change_from_loaded(domain, waiter, None),
                     None => {}
@@ -292,7 +292,7 @@ pub(crate) fn startup_page(
             crate::CoreRange::Turns { .. }
             | crate::CoreRange::RequesterWord { .. }
             | crate::CoreRange::TaskResult { .. }
-            | crate::CoreRange::Notes(_),
+            | crate::CoreRange::ApplicationNotes(_),
         ) => unreachable!("startup range"),
     };
     if let Some(range) = following {

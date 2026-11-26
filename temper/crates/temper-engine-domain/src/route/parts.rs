@@ -201,7 +201,7 @@ fn note_load(domain: &Domain, project: u32, task: u64) -> Making {
             best: None,
             kept: Notes { report: None, document: None },
         }),
-        Range::Core(CoreRange::Notes(notes::Range::Lines {
+        Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines {
             scope: notes::Scope::Goal { project, goal: task },
             after: None,
         })),

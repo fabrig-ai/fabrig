@@ -109,7 +109,7 @@ pub fn kind(range: &Range) -> Kind {
         Range::Core(CoreRange::TaskResult { .. }) => Kind::TaskResult,
         Range::Core(CoreRange::RequesterWord { .. }) => Kind::RequesterWord,
         Range::Core(CoreRange::Turns { .. }) => Kind::Turns,
-        Range::Core(CoreRange::Notes(_)) => Kind::Notes,
+        Range::Core(CoreRange::ApplicationNotes(_)) => Kind::Notes,
         Range::Census(_) => Kind::Census,
         Range::Forge => Kind::Forge,
         Range::History(_) => Kind::History,
@@ -427,7 +427,7 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
             crate::CoreRange::Deployment
             | crate::CoreRange::RequesterWord { .. }
             | crate::CoreRange::TaskResult { .. }
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Entry { .. }),
+            | crate::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry { .. }),
         ) => {
             return Err(Failure::Cursor);
         }
@@ -440,7 +440,9 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
             | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. }),
+            | crate::CoreRange::ApplicationNotes(
+                jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. },
+            ),
         )
         | Range::Census(_)
         | Range::Forge
@@ -499,13 +501,15 @@ fn valid_range(range: &Range) -> bool {
             | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. }),
+            | crate::CoreRange::ApplicationNotes(
+                jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. },
+            ),
         )
         | Range::Census(_)
         | Range::Forge => true,
         Range::Core(crate::CoreRange::TaskResult { task }) => *task != 0,
         Range::Core(crate::CoreRange::Turns { task, attempt }) => *task != 0 && *attempt != 0,
-        Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Entry { name })) => *name != 0,
+        Range::Core(crate::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry { name })) => *name != 0,
     }
 }
 

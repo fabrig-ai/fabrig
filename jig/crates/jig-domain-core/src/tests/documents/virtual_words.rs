@@ -47,7 +47,7 @@ fn a_held_delegates_escalation_prepares_its_requesters_next_run() {
     let mut notes = false;
     for request in out {
         if let Request::Held(held) = request
-            && let Held::NotesLoad { .. } = *held
+            && let Held::Store(engine_store::Out::Load { range: engine_store::Range::Notes(_), .. }) = *held
         {
             notes = true;
         }

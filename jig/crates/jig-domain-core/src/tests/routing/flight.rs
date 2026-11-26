@@ -324,7 +324,7 @@ fn an_ended_load_resumes_its_party_and_a_stale_load_leaves_the_next_read_pending
     }));
     loads::wait_point(&mut core, stale, 12);
     let mut issued = Queue::uncapped();
-    loads::resume_points(&mut core, &env.limits, &mut issued);
+    loads::resume_waiting(&mut core, &env.limits, &mut issued);
     let Some(Request::Held(held)) = issued.pop() else { panic!("held result load") };
     let Held::Store(engine_store::Out::Load { load: stale_load, .. }) = *held else { panic!("point load") };
     let mut out = crate::routing::step_store(&mut core, &env, ended_answer(stale_load, None, true));
@@ -340,7 +340,7 @@ fn an_ended_load_resumes_its_party_and_a_stale_load_leaves_the_next_read_pending
     }));
     assert_ne!(stale, current);
     loads::wait_point(&mut core, current, 13);
-    loads::resume_points(&mut core, &env.limits, &mut issued);
+    loads::resume_waiting(&mut core, &env.limits, &mut issued);
     let Some(Request::Held(held)) = issued.pop() else { panic!("held replacement result load") };
     let Held::Store(engine_store::Out::Load { load, .. }) = *held else { panic!("point load") };
     assert_ne!(stale_load, load);

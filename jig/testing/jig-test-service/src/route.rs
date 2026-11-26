@@ -256,9 +256,6 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::Store(load) => {
             crate::store::request(engine, jig_test_store::StoreOut::Engine(load));
         }
-        core::Held::NotesLoad { owner, range } => {
-            crate::store::request(engine, jig_test_store::StoreOut::NotesLoad { owner, range });
-        }
         held @ (core::Held::PublicRead { .. }
         | core::Held::Read { .. }
         | core::Held::Delivery { .. }

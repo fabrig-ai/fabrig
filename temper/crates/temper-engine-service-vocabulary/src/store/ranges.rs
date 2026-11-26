@@ -26,7 +26,7 @@ pub(super) fn starting(range: &Range) -> bool {
             CoreRange::TaskResult { .. }
             | CoreRange::RequesterWord { .. }
             | CoreRange::Turns { .. }
-            | CoreRange::Notes(_),
+            | CoreRange::ApplicationNotes(_),
         )
         | Range::History(_) => false,
     }
@@ -104,7 +104,7 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
             CoreRange::TaskResult { task } => {
                 return Some(jig_get(owner, core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))));
             }
-            CoreRange::Notes(range) => {
+            CoreRange::ApplicationNotes(range) => {
                 return Some(store::Request::Load {
                     owner,
                     range: store::Load::Notes(range.clone()),

@@ -34,6 +34,7 @@ pub mod host;
 pub mod intervals;
 pub mod jobs;
 mod loads;
+pub use loads::notes_answer;
 pub mod logs;
 mod view;
 pub use jobs::{

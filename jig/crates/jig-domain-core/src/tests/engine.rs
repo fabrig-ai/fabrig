@@ -6,7 +6,8 @@ use crate::{
     tests::{config, fixtures, limits},
 };
 use core::hash::{BuildHasher, BuildHasherDefault};
-use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+use jig_domain_notes as notes;
+use skein_lib::{Env, List, Queue, ReplyTo, Time, Token, Wall};
 use std::hash::DefaultHasher;
 
 const SEED: u64 = 41;
@@ -296,4 +297,199 @@ fn a_failed_or_wrong_shaped_store_answer_ends_a_read_as_busy() {
         assert_eq!(read_answer(&mut out), crate::reads::Answer::None(crate::reads::Why::Busy));
         engine.core_mut().reclaim();
     }
+}
+
+fn notes_request(engine: &mut Engine, env: &Env<Limits>, event: notes::Event) -> Queue<Out> {
+    let mut out = Queue::uncapped();
+    engine::step(engine, env, In::Core(Event::Notes(event)), &mut out);
+    out
+}
+
+fn notes_page(out: &Queue<Out>, expected: notes::Range) -> Token {
+    let mut token = None;
+    for output in out {
+        if let Out::Held(engine::Peer::Store(engine::store::Out::Load { load, range })) = output {
+            assert_eq!(range, &engine::store::Range::Notes(expected.clone()));
+            assert!(token.replace(*load).is_none(), "one held store request");
+        }
+    }
+    token.expect("the child requests its page through the port")
+}
+
+fn notes_terminal(engine: &mut Engine, env: &Env<Limits>, load: Token, result: engine::store::Answer) -> Queue<Out> {
+    let mut out = Queue::uncapped();
+    engine::step(engine, env, In::Store(engine::store::In::Loaded { load, result }), &mut out);
+    out
+}
+
+fn notes_records(records: Box<[crate::Record]>, more: bool) -> engine::store::Answer {
+    engine::store::Answer::Rows(engine::store::Rows::Records { records, more })
+}
+
+fn recall(owner: Token) -> notes::Event {
+    let mut scopes = List::with_capacity(1);
+    scopes.push(notes::Scope::Deployment).unwrap();
+    notes::Event::Recall { owner, by: notes::Recall::Search { scopes, query: Box::from(b"note".as_slice()) }, page: 0 }
+}
+
+fn notes_lines() -> notes::Range {
+    notes::Range::Lines { scope: notes::Scope::Deployment, after: None }
+}
+
+fn line(name: u64) -> notes::Line {
+    notes::Line { name, scope: notes::Scope::Deployment, revision: 1, description: Box::from(b"note".as_slice()) }
+}
+
+fn entry(name: u64) -> notes::Entry {
+    let notes::Line { name, scope, revision, description } = line(name);
+    notes::Entry {
+        scope,
+        name,
+        description,
+        revision,
+        body: Box::from(b"body".as_slice()),
+        references: List::with_capacity(0),
+        author: notes::Author::Party { party: 1 },
+        changed: Wall::EPOCH,
+    }
+}
+
+#[test]
+fn a_scope_recall_loads_and_returns_two_notes_in_order_through_the_port() {
+    let mut env = environment();
+    env.limits.notes.entries_per_scope = 2;
+    env.limits.notes.load_rows = 2;
+    env.limits.notes.recalled = 2;
+    env.limits.load_slots = 1;
+    let mut engine = fresh_engine(&env.limits);
+    let owner = Token::new(900);
+    let index = notes_page(&notes_request(&mut engine, &env, recall(owner)), notes_lines());
+    assert_ne!(index, owner);
+    assert!(!engine.core().loads.room(&env.limits));
+    let out = notes_terminal(
+        &mut engine,
+        &env,
+        index,
+        notes_records(
+            Box::new([
+                crate::Record::Notes(notes::Record::Line(line(3))),
+                crate::Record::Notes(notes::Record::Line(line(5))),
+            ]),
+            false,
+        ),
+    );
+    let first = notes_page(&out, notes::Range::Entry { name: 3 });
+    assert_ne!(first, index);
+    assert!(notes_terminal(&mut engine, &env, index, notes_records(Box::new([]), false)).is_empty());
+    let wanted = [entry(3), entry(5)];
+    let out = notes_terminal(
+        &mut engine,
+        &env,
+        first,
+        notes_records(Box::new([crate::Record::Notes(notes::Record::Entry(wanted[0].clone()))]), false),
+    );
+    let second = notes_page(&out, notes::Range::Entry { name: 5 });
+    let out = notes_terminal(
+        &mut engine,
+        &env,
+        second,
+        notes_records(Box::new([crate::Record::Notes(notes::Record::Entry(wanted[1].clone()))]), false),
+    );
+    let mut recalled = false;
+    for output in &out {
+        if let Out::Core(Request::Now(now)) = output
+            && let crate::Now::NotesRecalled { owner: to, entries, more } = now.as_ref()
+        {
+            assert_eq!(*to, owner);
+            assert_eq!(entries.as_slice(), wanted);
+            assert!(!more);
+            assert!(!recalled, "one recall answer");
+            recalled = true;
+        }
+    }
+    assert!(recalled);
+    assert!(engine.core().loads.room(&env.limits));
+}
+
+fn no_store_request(output: &Out) {
+    if let Out::Held(engine::Peer::Store(_)) = output {
+        panic!("no store request while the work lane is full: {output:?}");
+    }
+}
+
+fn assert_notes_busy(out: &Queue<Out>, owner: Token) {
+    let mut refused = false;
+    for output in out {
+        no_store_request(output);
+        if let Out::Core(Request::Now(now)) = output
+            && let crate::Now::NotesRefused { owner: to, why } = now.as_ref()
+        {
+            assert_eq!((*to, *why), (owner, notes::Refusal::Busy));
+            assert!(!refused, "one refusal");
+            refused = true;
+        }
+    }
+    assert!(refused);
+}
+
+#[test]
+fn failed_or_incompatible_notes_pages_refuse_the_operation_once() {
+    let env = environment();
+    let mut engine = fresh_engine(&env.limits);
+    let owner = Token::new(900);
+    let header = engine.core().counters.deployment();
+    for result in [
+        engine::store::Answer::Failed(engine::store::Failure::Gone),
+        notes_records(Box::new([crate::Record::Core(crate::CoreRecord::Deployment(header))]), false),
+        notes_records(Box::new([]), true),
+        engine::store::Answer::Rows(engine::store::Rows::Turns { turns: Box::new([]), more: false }),
+        engine::store::Answer::Rows(engine::store::Rows::Read { rows: Box::new([]), next: None }),
+    ] {
+        let load = notes_page(&notes_request(&mut engine, &env, recall(owner)), notes_lines());
+        assert_notes_busy(&notes_terminal(&mut engine, &env, load, result), owner);
+        assert!(notes_terminal(&mut engine, &env, load, notes_records(Box::new([]), false)).is_empty());
+    }
+}
+
+#[test]
+fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_window() {
+    let mut env = environment();
+    env.limits.load_slots = 1;
+    let mut engine = fresh_engine(&env.limits);
+    let owner = Token::new(900);
+    let Request::Held(window) = engine.core_mut().loads.window(7, (1, 1)) else { panic!("window holds work room") };
+    let crate::Held::Store(engine::store::Out::Load { load: window, .. }) = *window else { panic!("store window") };
+    assert_notes_busy(&notes_request(&mut engine, &env, recall(owner)), owner);
+    let key = crate::CallKey { task: 3, attempt: 1, completion: 1, position: 1 };
+    let to = ReplyTo::new(owner);
+    let call = engine.core_mut().begin_note_route(crate::routing::NoteRoute::Call { to, key, records: Box::new([]) });
+    let mut seen = false;
+    for output in &notes_request(&mut engine, &env, recall(call)) {
+        no_store_request(output);
+        if let Out::Core(Request::Now(now)) = output
+            && let crate::Now::NoteBusy { to: waiter, key: held } = now.as_ref()
+        {
+            assert!(!seen, "one call pressure answer");
+            assert_eq!(waiter, &ReplyTo::new(owner));
+            assert_eq!(*held, key);
+            seen = true;
+        }
+    }
+    assert!(seen);
+    assert!(!engine.core().notes.busy());
+    let out = notes_request(&mut engine, &env, notes::Event::DropProject { owner, project: 3 });
+    for output in &out {
+        no_store_request(output);
+    }
+    assert!(engine.core().notes.busy(), "the child waits for its retried page");
+    let out = notes_terminal(&mut engine, &env, window, engine::store::Answer::Failed(engine::store::Failure::Failed));
+    let range = notes::Range::Project { project: 3, after: None };
+    let page = notes_page(&out, range.clone());
+    let out = notes_terminal(&mut engine, &env, page, engine::store::Answer::Failed(engine::store::Failure::Busy));
+    let retry = notes_page(&out, range);
+    assert_ne!(page, retry);
+    assert!(notes_terminal(&mut engine, &env, page, notes_records(Box::new([]), false)).is_empty());
+    notes_terminal(&mut engine, &env, retry, notes_records(Box::new([]), false));
+    assert!(!engine.core().notes.busy());
+    assert!(engine.core().loads.room(&env.limits));
 }

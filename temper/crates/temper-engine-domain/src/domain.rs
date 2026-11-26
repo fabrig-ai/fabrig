@@ -1469,7 +1469,6 @@ fn released_into(
             domain.work.push(Work::Start(action));
         }
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
-        Delivery::NotesLoad { owner, range } => crate::route::held::notes_load(domain, env, decision, owner, range),
         Delivery::Relay { task, attempt, word, .. } => {
             let name = Token::new(word.number);
             let payload = domain.hub_link.retain(Payload::InboxWord(word));

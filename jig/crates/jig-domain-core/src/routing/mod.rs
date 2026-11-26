@@ -391,7 +391,7 @@ fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
-    crate::loads::resume_points(core, &env.limits, &mut out);
+    crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
@@ -479,7 +479,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     crate::admission::deletion::advance(core, env, &mut out);
-    crate::loads::resume_points(core, &env.limits, &mut out);
+    crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
@@ -851,7 +851,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
     };
     crate::admission::deletion::advance(core, env, &mut out);
-    crate::loads::resume_points(core, &env.limits, &mut out);
+    crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out

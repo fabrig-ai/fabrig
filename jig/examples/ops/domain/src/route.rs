@@ -466,7 +466,6 @@ fn core_held(
         | core::Held::SourceSignedOut { .. }
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
-        | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }) => held(decision, Output::Core(other)),
     }

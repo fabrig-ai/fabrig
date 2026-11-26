@@ -989,7 +989,6 @@ pub(crate) enum Read {
     History { load: u64, most: u32 },
     ChangeFrom { task: u64 },
     GoalWords(Box<GoalWords>),
-    Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
     Parts(Box<crate::route::parts::Flight>),
     Document(Box<crate::route::document::DocumentRead>),
@@ -1023,7 +1022,6 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
-        | Delivery::NotesLoad { .. }
         | Delivery::Start(_)
         | Delivery::Load { .. }) => Request::ToChild(Released(delivery)),
         delivery @ (Delivery::Host(_)

@@ -150,10 +150,10 @@ fn notes_next(domain: &mut Domain, mut read: NoteLoad) -> Option<(Phase, Range)>
         return None;
     }
     if let Some(name) = read.names.pop() {
-        return Some((Phase::Note(read, name), Range::Core(CoreRange::Notes(notes::Range::Entry { name }))));
+        return Some((Phase::Note(read, name), Range::Core(CoreRange::ApplicationNotes(notes::Range::Entry { name }))));
     }
     if read.next {
-        let range = Range::Core(CoreRange::Notes(notes::Range::Lines {
+        let range = Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines {
             scope: notes::Scope::Goal { project: read.project, goal: read.task },
             after: read.after,
         }));

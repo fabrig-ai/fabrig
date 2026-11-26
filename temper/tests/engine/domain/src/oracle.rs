@@ -336,7 +336,6 @@ impl Driver {
             }
             Delivery::Push(_)
             | Delivery::Start(_)
-            | Delivery::NotesLoad { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }
             | Delivery::ProjectReleased { .. }

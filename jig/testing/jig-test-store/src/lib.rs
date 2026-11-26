@@ -58,7 +58,6 @@ pub enum StoreOut {
     Commit { number: u64, writes: Box<[jig_test_domain::Write]> },
     Start { phase: jig_domain_core::start::Phase, census: Option<jig_domain_core::Census> },
     Engine(jig_domain_core::engine::store::Out),
-    NotesLoad { owner: skein_lib::Token, range: jig_domain_notes::Range },
 }
 /// A typed root event or the next store request.
 #[derive(Debug)]

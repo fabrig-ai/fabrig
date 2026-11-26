@@ -130,7 +130,9 @@ fn checked_row(range: &store::Range, row: Option<Record>) -> Option<Record> {
             }
             None
         }
-        store::Range::Read(_) | store::Range::Window { .. } => unreachable!("point load range"),
+        store::Range::Read(_) | store::Range::Window { .. } | store::Range::Notes(_) => {
+            unreachable!("point load range")
+        }
     }
 }
 

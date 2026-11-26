@@ -717,7 +717,8 @@ impl World {
                     range:
                         range @ (engine_store::Range::Read(_)
                         | engine_store::Range::Record(_)
-                        | engine_store::Range::Proposal { .. }),
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
                 })) => {
                     let result = self.store.load(range);
                     self.queue(
@@ -931,7 +932,6 @@ impl World {
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Relay { .. }
-            | Delivery::NotesLoad { .. }
             | Delivery::Load { .. } => panic!("internal root callback leaked to world"),
             Delivery::Host(_) => panic!("escalation world sent no calls"),
             Delivery::Procedure { .. } => panic!("escalation world sent no procedures"),

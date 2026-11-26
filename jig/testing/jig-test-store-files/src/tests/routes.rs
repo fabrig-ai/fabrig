@@ -299,7 +299,10 @@ fn restart_configuration_preserves_the_ordinary_read_allowance() {
     routes.configure(&limits);
     let request = route::down(
         &mut routes,
-        StoreOut::NotesLoad { owner: Token::new(1), range: jig_domain_notes::Range::Entry { name: 1 } },
+        StoreOut::Engine(core::engine::store::Out::Load {
+            load: Token::new(1),
+            range: core::engine::store::Range::Notes(jig_domain_notes::Range::Entry { name: 1 }),
+        }),
     )
     .expect("ordinary read request");
     let jig_protocol_store::Request::Load { bytes, .. } = request else { panic!("ordinary load") };
@@ -502,5 +505,59 @@ fn start_application_decode_failure_names_its_cause_and_has_the_record_key() {
         jig_protocol_store::keys::application(&key, u32::MAX).expect("key")
     );
     assert!(out.is_empty());
+    assert!(routes.idle());
+}
+
+#[test]
+fn a_notes_page_reports_more_and_fails_when_no_record_fits() {
+    use jig_domain_notes as notes;
+    let mut component = fixtures::component();
+    let mut limits = fixtures::root_limits();
+    limits.core.notes.load_rows = 1;
+    let mut routes = fixtures::routes();
+    routes.configure(&limits);
+    let line = |name| {
+        core::Record::Notes(notes::Record::Line(notes::Line {
+            scope: notes::Scope::Deployment,
+            name,
+            revision: 1,
+            description: Box::from(b"note".as_slice()),
+        }))
+    };
+    let writes = Box::new([
+        fixtures::header(1),
+        root::Write::Save(root::Record::Core(line(1))),
+        root::Write::Save(root::Record::Core(line(2))),
+    ]);
+    fixtures::routed(&mut component, &mut routes, StoreOut::Commit { number: 1, writes });
+    let load = Token::new(23);
+    let range = notes::Range::Lines { scope: notes::Scope::Deployment, after: None };
+    let out = fixtures::routed(
+        &mut component,
+        &mut routes,
+        StoreOut::Engine(Out::Load { load, range: Range::Notes(range.clone()) }),
+    );
+    let [
+        Up::Root(root::Event::Store(In::Loaded {
+            load: answered,
+            result: Answer::Rows(Rows::Records { records, more: true }),
+        })),
+    ] = out.as_ref()
+    else {
+        panic!("one note plus a continuation: {out:?}")
+    };
+    assert_eq!(*answered, load);
+    assert_eq!(records.as_ref(), [line(1)]);
+    assert!(routes.idle());
+    limits.core.load_bytes = 1;
+    routes.configure(&limits);
+    let out =
+        fixtures::routed(&mut component, &mut routes, StoreOut::Engine(Out::Load { load, range: Range::Notes(range) }));
+    let [Up::Root(root::Event::Store(In::Loaded { load: answered, result: Answer::Failed(port::Failure::Failed) }))] =
+        out.as_ref()
+    else {
+        panic!("one byte cannot fit a note: {out:?}")
+    };
+    assert_eq!(*answered, load);
     assert!(routes.idle());
 }

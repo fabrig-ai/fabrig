@@ -128,7 +128,7 @@ fn each_root_range_asks_the_store_as_the_table_maps_it() {
         engine::Range::Forge,
         engine::Range::Core(engine::CoreRange::TaskResult { task: 7 }),
         engine::Range::Core(engine::CoreRange::Turns { task: 7, attempt: 2 }),
-        engine::Range::Core(engine::CoreRange::Notes(jig_domain_notes::Range::Entry { name: 5 })),
+        engine::Range::Core(engine::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry { name: 5 })),
     ];
     for (index, range) in ranges.into_iter().enumerate() {
         let request = route::down(&mut fixtures::routes(), load(range, None, 4, 4096)).unwrap();
@@ -1471,4 +1471,73 @@ fn the_components_census_is_handed_to_the_root_whole() {
     let engine::Event::Store(engine::StoreInput::Census(found)) = *event else { panic!("root census") };
     assert_eq!(found, census);
     assert!(out.is_empty(), "one report");
+}
+
+#[test]
+fn an_engine_notes_page_keeps_its_cursor_flag_and_refuses_an_oversized_row() {
+    use jig_domain_notes as notes;
+    let (mut root, _, _) = fixtures::store_limits();
+    root.notes.load_rows = 1;
+    root.loads.rows = 2;
+    root.loads.transcript_bytes = 16;
+    let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).expect("family bounds");
+    let mut routes = route::Routes::new(
+        2,
+        &root,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
+    let load = Token::new(41);
+    let scope = notes::Scope::Deployment;
+    let range = notes::Range::Lines { scope: scope.clone(), after: None };
+    let cases = [(b"tag".as_slice(), true, false), (b"too long for 16 B".as_slice(), false, true)];
+    let mut out = Queue::uncapped();
+    for (description, more, failed) in cases {
+        let request = route::down(
+            &mut routes,
+            engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Notes(range.clone()),
+            }),
+        )
+        .expect("notes route");
+        let store::Request::Load { owner, range: store::Load::Notes(asked), after: None, rows, bytes } = request else {
+            panic!("notes page request")
+        };
+        assert_eq!(asked, range);
+        assert_eq!(rows, 1);
+        assert_eq!(bytes, u64::from(root.loads.bytes));
+        let row = core::Record::Notes(notes::Record::Line(notes::Line {
+            scope: scope.clone(),
+            name: 7,
+            description: description.into(),
+            revision: 1,
+        }));
+        let next = more.then_some(store::Cursor { interval: 0, after: Box::new([7]) });
+        route::up(
+            &mut routes,
+            store::Event::Loaded { owner, rows: Box::new([store::Row::Jig(row.clone())]), next },
+            &mut out,
+        );
+        let Some(Up::Root(event)) = out.pop() else { panic!("one engine answer") };
+        let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load: answered, result })) =
+            *event
+        else {
+            panic!("notes terminal")
+        };
+        assert_eq!(answered, load);
+        if failed {
+            let engine_store::Answer::Failed(engine_store::Failure::Failed) = result else {
+                panic!("oversized notes page fails")
+            };
+        } else {
+            let engine_store::Answer::Rows(engine_store::Rows::Records { records, more: continued }) = result else {
+                panic!("notes records")
+            };
+            assert_eq!(records.as_ref(), [row]);
+            assert_eq!(continued, more);
+        }
+        assert!(out.is_empty(), "the engine chooses whether to ask the next page");
+        assert!(routes.idle());
+    }
 }

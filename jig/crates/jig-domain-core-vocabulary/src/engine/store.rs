@@ -2,6 +2,7 @@
 
 use crate::{Key, Record, TranscriptRow, TurnRecord, reads};
 use alloc::boxed::Box;
+use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::Token;
 
@@ -20,6 +21,7 @@ pub enum Range {
     Record(Key),
     Proposal { task: u64, proposal: u64 },
     Window { task: u64, from: (u64, u32) },
+    Notes(notes::Range),
     Read(Box<reads::Range>),
 }
 

@@ -67,7 +67,7 @@ pub(crate) fn call(
             return;
         }
     }
-    let range = Range::Core(CoreRange::Notes(notes::Range::Lines { scope: scope.clone(), after: None }));
+    let range = Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines { scope: scope.clone(), after: None }));
     let read = DocumentRead { to: right, key, action, body, scope, phase: Phase::Index { after: None } };
     match domain.archive_reads.insert(Some(Read::Document(Box::new(read)))) {
         Ok(id) => emit(decision, &env.limits, Delivery::Load { waiter: id.token(), range, after: None }),
@@ -80,7 +80,6 @@ pub(crate) fn call(
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
                 | Read::History { .. }
-                | Read::Notes { .. }
                 | Read::SettingsNote { .. }
                 | Read::Remember(_),
             )
@@ -176,14 +175,17 @@ fn index(
     }
     if let Some(name) = chosen {
         read.phase = Phase::Entry { name };
-        return Ok(Some(Range::Core(CoreRange::Notes(notes::Range::Entry { name }))));
+        return Ok(Some(Range::Core(CoreRange::ApplicationNotes(notes::Range::Entry { name }))));
     }
     if next.is_some() {
         if last == after {
             return Err(DocumentRefusal::Unread);
         }
         read.phase = Phase::Index { after: last };
-        return Ok(Some(Range::Core(CoreRange::Notes(notes::Range::Lines { scope: read.scope.clone(), after: last }))));
+        return Ok(Some(Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines {
+            scope: read.scope.clone(),
+            after: last,
+        }))));
     }
     write(domain, read, None)?;
     Ok(None)

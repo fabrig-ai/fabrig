@@ -2,7 +2,8 @@
 //! (`domain/engine/vocabulary.md`, section 1.4; `domain/people/acts.md`, section 1).
 
 use crate::{
-    CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, RoutedCall, Write,
+    CallPart, Core, Event, Key, Limits, Now, Record, Request, RoutedCall, Write,
+    engine::store,
     routing::{
         NoteBrief, NoteRoute, Work,
         party::dispatch::{Party, Routed},
@@ -15,7 +16,7 @@ use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue, ReplyTo};
+use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 pub(crate) fn route_notes(
     core: &mut Core,
@@ -26,6 +27,65 @@ pub(crate) fn route_notes(
     let mut child = Queue::uncapped();
     crate::routing::step::step_notes(core, env, event, &mut child);
     tag_notes(core, env, work, child)
+}
+
+pub(crate) fn loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    owner: Token,
+    result: store::Answer,
+) -> Queue<Request> {
+    let event = page(owner, result, &env.limits.notes).unwrap_or(notes::Event::LoadFailed { owner });
+    route_notes(core, env, work, event)
+}
+
+fn page(owner: Token, result: store::Answer, limits: &notes::Limits) -> Option<notes::Event> {
+    let store::Answer::Rows(store::Rows::Records { records, more }) = result else { return None };
+    let count = u32::try_from(records.len()).ok()?;
+    if count > limits.load_rows || (count == 0 && more) {
+        return None;
+    }
+    let mut rows = List::with_capacity(count);
+    for record in records {
+        let Record::Notes(record) = record else { return None };
+        let valid = match &record {
+            notes::Record::Entry(entry) => notes::valid_entry(entry, limits),
+            notes::Record::Line(line) => notes::valid_line(line, limits),
+        };
+        if !valid {
+            return None;
+        }
+        rows.push(record).expect("one note per record");
+    }
+    Some(notes::Event::Loaded { owner, rows: notes::Rows { records: rows }, more })
+}
+
+fn load(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    owner: Token,
+    range: notes::Range,
+) {
+    if core.loads.room(&env.limits) {
+        out.push(core.loads.notes(owner, range));
+    } else if let notes::Range::Project { .. } = range {
+        // The child retries deletion on failure. Keep that one retry for the
+        // next free slot, rather than feeding it failures in this decision.
+        let mut child = Queue::uncapped();
+        crate::routing::step::step_notes(core, env, notes::Event::LoadFailed { owner }, &mut child);
+        let Some(notes::Request::Load { owner, range }) = child.pop() else {
+            unreachable!("project deletion retries a failed page")
+        };
+        assert!(child.is_empty(), "one retry per failed page");
+        if !core.stopping() {
+            core.loads.retry_notes(owner, range);
+        }
+    } else {
+        work.push(Work::Event(Event::Notes(notes::Event::LoadFailed { owner })));
+    }
 }
 
 pub(crate) fn person_note_scope(project: u32, scope: people::NoteScope) -> notes::Scope {
@@ -95,7 +155,7 @@ pub(crate) fn tag_notes(
                 out.push(Request::Write(Write::Erase(Key::Notes(key))));
             }
             notes::Request::Load { owner, range } => {
-                out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
+                load(core, env, work, &mut out, owner, range);
             }
             notes::Request::Written { owner, name, revision, change } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key, records }) => {

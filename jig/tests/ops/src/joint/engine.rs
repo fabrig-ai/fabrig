@@ -265,7 +265,7 @@ impl Application for OpsApplication {
         };
         if let root::Output::Store(engine_store::Out::Load { load, range }) = delivery {
             let result = match range {
-                range @ engine_store::Range::Window { .. } => {
+                range @ (engine_store::Range::Window { .. } | engine_store::Range::Notes(_)) => {
                     return Ops::deliver(
                         &mut peers.conformance,
                         systems,
@@ -367,7 +367,6 @@ impl Application for OpsApplication {
                 | core::Held::Refuse { .. }
                 | core::Held::TurnBusy { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::NotesLoad { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. },

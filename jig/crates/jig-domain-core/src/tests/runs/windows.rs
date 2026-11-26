@@ -130,22 +130,15 @@ fn assert_fresh_brief_tail(cut: bool) {
         let mut owner = None;
         for request in &out {
             if let Request::Held(held) = request
-                && let Held::NotesLoad { owner: loaded, .. } = held.as_ref()
+                && let Held::Store(engine_store::Out::Load { load: loaded, range: engine_store::Range::Notes(_) }) =
+                    held.as_ref()
             {
                 owner = Some(*loaded);
             }
         }
         let Some(owner) = owner else { break };
         {
-            out = watch_outputs(
-                &mut core,
-                &limits,
-                Event::Notes(notes::Event::Loaded {
-                    owner,
-                    rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
-                    more: false,
-                }),
-            );
+            out = watch_store_outputs(&mut core, &limits, point_answer(owner, None, false));
         }
     }
     let mut planned = false;

@@ -21,10 +21,12 @@ pub struct Routes {
     pending: Map<Token, Flight>,
     reads: Map<Token, (Token, bool)>,
     points: Map<Token, Point>,
+    notes: Option<NotePage>,
     windows: Map<Token, Window>,
     next: u64,
     commit: u64,
     limits: engine::loads::Limits,
+    note_rows: u32,
     families: families::Bounds,
     page_failure: Option<store::restore::Failure>,
     row_failure: Option<UnreadableRow>,
@@ -33,6 +35,14 @@ pub struct Routes {
 struct Point {
     load: Token,
     pending: store::ended::Pending,
+}
+
+#[derive(Debug)]
+struct NotePage {
+    owner: Token,
+    load: Token,
+    rows: u32,
+    single: bool,
 }
 
 #[derive(Debug)]
@@ -64,10 +74,12 @@ impl Routes {
             pending: Map::with_capacity(table),
             reads: Map::with_capacity(table),
             points: Map::with_capacity(table),
+            notes: None,
             windows: Map::uncapped(),
             next: 0,
             commit: 0,
             limits: limits.loads,
+            note_rows: limits.notes.load_rows.min(limits.loads.rows),
             families,
             page_failure: None,
             row_failure: None,
@@ -86,7 +98,7 @@ impl Routes {
     /// Whether every routed load has had its terminal.
     #[must_use]
     pub fn idle(&self) -> bool {
-        if !self.reads.is_empty() || !self.points.is_empty() || !self.windows.is_empty() {
+        if !self.reads.is_empty() || !self.points.is_empty() || !self.windows.is_empty() || self.notes.is_some() {
             return false;
         }
         for (_, flight) in &self.pending {
@@ -256,6 +268,23 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             );
             request
         }
+        engine::StoreRequest::Engine(engine_store::Out::Load { load, range: engine_store::Range::Notes(range) }) => {
+            let owner = routes.token()?;
+            let single = match &range {
+                jig_domain_notes::Range::Entry { .. } => true,
+                jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. } => false,
+            };
+            let rows = if single { 1 } else { routes.note_rows };
+            let page = NotePage { owner, load, rows, single };
+            assert!(routes.notes.replace(page).is_none(), "one notes page in flight");
+            store::Request::Load {
+                owner,
+                range: store::Load::Notes(range),
+                after: None,
+                rows,
+                bytes: u64::from(routes.limits.bytes),
+            }
+        }
         engine::StoreRequest::Load { owner: root, range, after, most, bytes } => {
             let offset = routes.continuation(&range, after.as_ref());
             let owner = routes.token()?;
@@ -295,9 +324,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
             into.push(Up::FrameTooLarge { number, task, bytes, limit });
         }
-        store::Event::Loaded { owner, rows, next } => {
-            page(routes, owner, rows, next, None, into);
-        }
+        store::Event::Loaded { owner, rows, next } => loaded(routes, owner, rows, next, into),
         store::Event::Got { owner, row } => {
             if let Some(Point { load, pending }) = routes.points.remove(&owner) {
                 match store::ended::got(owner, pending, row) {
@@ -408,7 +435,7 @@ fn window_loaded(
         engine_store::Answer::Rows(_) | engine_store::Answer::Cut { .. } => true,
         engine_store::Answer::Failed(_) => false,
     };
-    window_answer(into, window.load, result);
+    engine_answer(into, window.load, result);
     if continues && let Some(after) = next {
         let request = window::request(owner, &window, Some(after), &routes.limits);
         assert!(routes.windows.insert(owner, window).expect("removed window").is_none(), "one window per owner");
@@ -416,18 +443,65 @@ fn window_loaded(
     }
 }
 
-fn window_answer(into: &mut Queue<Up>, load: Token, result: engine_store::Answer) {
+fn engine_answer(into: &mut Queue<Up>, load: Token, result: engine_store::Answer) {
     root(into, engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
 }
 
 fn unread(routes: &mut Routes, owner: Token, failure: engine_store::Failure, into: &mut Queue<Up>) {
     if let Some(window) = routes.windows.remove(&owner) {
-        window_answer(into, window.load, engine_store::Answer::Failed(failure));
+        engine_answer(into, window.load, engine_store::Answer::Failed(failure));
     } else if let Some(Point { load, .. }) = routes.points.remove(&owner) {
-        window_answer(into, load, engine_store::Answer::Failed(engine_store::Failure::Failed));
+        engine_answer(into, load, engine_store::Answer::Failed(engine_store::Failure::Failed));
+    } else if let Some(note) = take_note_load(routes, owner) {
+        engine_answer(into, note.load, engine_store::Answer::Failed(engine_store::Failure::Failed));
     } else if let Some(flight) = routes.pending.remove(&owner) {
         root(into, engine::StoreInput::Unloaded { owner: flight.root });
     }
+}
+
+fn take_note_load(routes: &mut Routes, owner: Token) -> Option<NotePage> {
+    if routes.notes.as_ref()?.owner == owner { routes.notes.take() } else { None }
+}
+
+fn loaded(
+    routes: &mut Routes,
+    owner: Token,
+    rows: Box<[store::Row]>,
+    next: Option<store::Cursor>,
+    into: &mut Queue<Up>,
+) {
+    if let Some(note) = take_note_load(routes, owner) {
+        let more = next.is_some();
+        let result = if skein_lib::len_u64(rows.len()) > u64::from(note.rows) || (note.single && more) {
+            engine_store::Answer::Failed(engine_store::Failure::Failed)
+        } else {
+            notes_answer(rows, more, &routes.limits)
+        };
+        engine_answer(into, note.load, result);
+    } else {
+        page(routes, owner, rows, next, None, into);
+    }
+}
+
+fn notes_answer(rows: Box<[store::Row]>, more: bool, limits: &engine::loads::Limits) -> engine_store::Answer {
+    let failed = engine_store::Answer::Failed(engine_store::Failure::Failed);
+    let engine_store::Answer::Rows(engine_store::Rows::Records { records, more }) = store::notes_answer(rows, more)
+    else {
+        return failed;
+    };
+    let mut checked = List::with_capacity(u32::try_from(records.len()).expect("bounded page"));
+    let mut bytes = 0;
+    for record in records {
+        let wrapped = engine::Record::Core(record);
+        let Some((payload, total)) = page_bytes(&wrapped, bytes) else { return failed };
+        if payload > u64::from(limits.transcript_bytes) || total > u64::from(limits.bytes.min(limits.reply_bytes)) {
+            return failed;
+        }
+        bytes = total;
+        let engine::Record::Core(record) = wrapped else { unreachable!("checked core record") };
+        checked.push(record).expect("one checked record per row");
+    }
+    engine_store::Answer::Rows(engine_store::Rows::Records { records: checked.into_boxed(), more })
 }
 
 fn stop(routes: &Routes, why: RouteStop, into: &mut Queue<Up>) {

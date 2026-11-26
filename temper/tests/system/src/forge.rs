@@ -396,7 +396,8 @@ impl World {
                     range:
                         range @ (engine_store::Range::Read(_)
                         | engine_store::Range::Record(_)
-                        | engine_store::Range::Proposal { .. }),
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
                 })) => {
                     let result = self.store.load(range);
                     self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {

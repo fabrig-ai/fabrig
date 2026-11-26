@@ -136,7 +136,6 @@ pub(super) fn route_request(
             | core::Held::Refuse { .. }
             | core::Held::TurnBusy { .. }
             | core::Held::StopRun { .. }
-            | core::Held::NotesLoad { .. }
             | core::Held::NotesWritten { .. }
             | core::Held::Acted { .. }
             | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),

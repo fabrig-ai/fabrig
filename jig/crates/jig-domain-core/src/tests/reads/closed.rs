@@ -575,22 +575,15 @@ fn write_chat_document(core: &mut Core, limits: &Limits, task: u64, title: &[u8]
         let mut owner = None;
         for request in &out {
             if let Request::Held(value) = request
-                && let Held::NotesLoad { owner: load, .. } = value.as_ref()
+                && let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Notes(_) }) =
+                    value.as_ref()
             {
                 assert!(owner.is_none(), "one notes load at a time");
                 owner = Some(*load);
             }
         }
         let owner = owner.expect("chat note load");
-        out = watch_outputs(
-            core,
-            limits,
-            Event::Notes(notes::Event::Loaded {
-                owner,
-                rows: notes::Rows { records: List::with_capacity(0) },
-                more: false,
-            }),
-        );
+        out = watch_store_outputs(core, limits, point_answer(owner, None, false));
     }
     let mut entry = None;
     for request in out {

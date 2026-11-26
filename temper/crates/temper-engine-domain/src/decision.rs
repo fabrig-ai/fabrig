@@ -62,11 +62,6 @@ pub enum Delivery {
     },
     /// Resumes the start only after this decision is durable.
     Start(jig_domain_core::start::Continuation),
-    /// Retry archive admission after the current iteration can retire its read slots.
-    NotesLoad {
-        owner: Token,
-        range: jig_domain_notes::Range,
-    },
     /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
     FindingsOwned {
         project: u32,
@@ -626,7 +621,6 @@ impl Decision {
             | Delivery::Refuse { .. }
             | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
-            | Delivery::NotesLoad { .. }
             | Delivery::Start(_)
             | Delivery::Load { .. } => true,
         };

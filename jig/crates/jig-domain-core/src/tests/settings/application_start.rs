@@ -414,16 +414,10 @@ fn project_deletion_erases_its_states_with_release_project_and_preserves_other_s
     while let Some(request) = pending.pop() {
         match request {
             Request::Held(held) => {
-                if let Held::NotesLoad { owner, .. } = *held {
-                    let mut follow = step(
-                        &mut core,
-                        &env,
-                        Event::Notes(notes::Event::Loaded {
-                            owner,
-                            rows: notes::Rows { records: List::with_capacity(env.limits.notes.load_rows) },
-                            more: false,
-                        }),
-                    );
+                if let Held::Store(engine_store::Out::Load { load: owner, range: engine_store::Range::Notes(_) }) =
+                    *held
+                {
+                    let mut follow = crate::routing::step_store(&mut core, &env, point_answer(owner, None, false));
                     while let Some(request) = follow.pop() {
                         pending.push(request);
                     }

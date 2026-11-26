@@ -768,17 +768,9 @@ fn settle_notes(core: &mut Core, limits: &Limits, mut pending: Queue<Request>) -
     let mut requests = List::uncapped();
     while let Some(request) = pending.pop() {
         if let Request::Held(held) = &request
-            && let Held::NotesLoad { owner, .. } = &**held
+            && let Held::Store(engine_store::Out::Load { load: owner, range: engine_store::Range::Notes(_) }) = &**held
         {
-            let mut follow = step(
-                core,
-                &environment(limits),
-                Event::Notes(notes::Event::Loaded {
-                    owner: *owner,
-                    rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
-                    more: false,
-                }),
-            );
+            let mut follow = crate::routing::step_store(core, &environment(limits), point_answer(*owner, None, false));
             while let Some(request) = follow.pop() {
                 pending.push(request);
             }

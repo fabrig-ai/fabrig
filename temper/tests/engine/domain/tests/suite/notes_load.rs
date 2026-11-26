@@ -1,6 +1,4 @@
-//! Cold note indexes share the root's archive slots. Store terminals and
-//! owner continuations can run before the iteration's single reclaim point.
-//! The two windows fill the engine’s work lane, not the root’s archive slots.
+//! Cold note indexes and transcript windows share the engine’s work lane.
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;
@@ -97,6 +95,7 @@ fn hold_transcripts(mut driver: Driver) -> (Driver, Vec<engine::Event>) {
 #[test]
 fn restart_notes_fit_after_a_window_finishes() {
     let (mut driver, mut held) = restarted_transcripts();
+    assert!(driver.note_loads.is_empty(), "both windows still hold their slots");
     driver.send(held.remove(0));
     driver.events.extend(held);
     driver.pump();
@@ -107,7 +106,7 @@ fn restart_notes_fit_after_a_window_finishes() {
 fn restart_notes_need_no_window_slot_reclaim() {
     let (mut driver, mut held) = restarted_transcripts();
     let before = driver.task(FIRST_TASK).expect("first transcript is preparing").clone();
-    let loads = driver.loads.len();
+    let loads = driver.note_loads.len();
     let decisions = driver.transactions.len();
     // Window answers pass through the engine; the notes read need not wait for root reclaim.
     engine::try_step(&mut driver.root, &driver.env, held.remove(0)).expect("store terminal admitted");
@@ -122,9 +121,7 @@ fn restart_notes_need_no_window_slot_reclaim() {
     assert_eq!(preparing.made, before.made);
     assert_eq!(preparing.numbers, before.numbers);
     assert!(
-        driver.loads[loads..]
-            .iter()
-            .any(|(_, range)| matches!(range, engine::Range::Core(engine::CoreRange::Notes(_)))),
+        driver.note_loads[loads..].iter().any(|(_, range)| matches!(range, jig_domain_notes::Range::Lines { .. })),
         "notes can load before reclaim"
     );
     driver.root.reclaim();
@@ -173,6 +170,6 @@ fn restart_notes_need_no_window_slot_reclaim() {
             engine::Delivery::WebReply { to, reply: people::Reply::Signer(Some(_)) }
                 if *to == ReplyTo::new(WHOSE)
         )),
-        "archive pressure leaves the root able to answer a person"
+        "load pressure leaves the root able to answer a person"
     );
 }

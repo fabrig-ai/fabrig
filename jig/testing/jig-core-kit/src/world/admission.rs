@@ -99,14 +99,14 @@ impl World {
                 load @ core::engine::store::Out::Load { range: core::engine::store::Range::Window { .. }, .. },
             ) => self.load_window(load),
             root::Delivery::Store(
-                load @ core::engine::store::Out::Load { range: core::engine::store::Range::Read(_), .. },
+                load @ core::engine::store::Out::Load {
+                    range: core::engine::store::Range::Read(_) | core::engine::store::Range::Notes(_),
+                    ..
+                },
             ) => {
                 self.store.ask(StoreOut::Engine(load));
             }
             root::Delivery::Store(load) => self.point_load(load),
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                self.store.ask(StoreOut::NotesLoad { owner, range });
-            }
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 self.events.push_back(root::Event::Core(core::Event::Fleet(fleet::Event::Logins {
                     channel,

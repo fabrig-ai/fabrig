@@ -45,7 +45,7 @@ fn words(domain: &Domain, step: Phase) -> Box<[u8]> {
                 | crate::CoreRange::TaskResult { .. }
                 | crate::CoreRange::RequesterWord { .. }
                 | crate::CoreRange::Turns { .. }
-                | crate::CoreRange::Notes(_),
+                | crate::CoreRange::ApplicationNotes(_),
             ) => b"the core's records",
             Range::Census(_) => b"the inbox",
             Range::Forge => b"the forge's records",

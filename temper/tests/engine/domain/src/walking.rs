@@ -944,7 +944,8 @@ impl World {
                     range:
                         range @ (engine_store::Range::Read(_)
                         | engine_store::Range::Record(_)
-                        | engine_store::Range::Proposal { .. }),
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
                 })) => {
                     let result = self.store.load(range);
                     self.queue(
@@ -1155,7 +1156,6 @@ impl World {
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::Relay { .. }
-            | Delivery::NotesLoad { .. }
             | Delivery::Load { .. } => {
                 panic!("internal handoff leaked to world")
             }

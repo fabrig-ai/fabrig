@@ -2,6 +2,7 @@
 
 use crate::{Core, Held, Limits, Request, engine::store, reads, routing::Work};
 use alloc::boxed::Box;
+use jig_domain_notes as notes;
 use skein_lib::{Env, Id, Queue, Slab, Token};
 
 pub(crate) mod point;
@@ -14,13 +15,14 @@ pub(crate) enum Flight {
     Read(Option<reads::Pending>),
     Point(Option<Point>),
     Window(Option<u64>),
+    Notes(Option<Token>),
 }
 
 impl Flight {
     fn uses_load_slot(&self) -> bool {
         match self {
-            Self::Read(_) | Self::Point(None) | Self::Window(None) => false,
-            Self::Point(Some(_)) | Self::Window(Some(_)) => true,
+            Self::Read(_) | Self::Point(None) | Self::Window(None) | Self::Notes(None) => false,
+            Self::Point(Some(_)) | Self::Window(Some(_)) | Self::Notes(Some(_)) => true,
         }
     }
 }
@@ -32,6 +34,8 @@ pub(crate) struct Loads {
     reads: u32,
     retired_reads: u32,
     waiting: Queue<Point>,
+    // Project deletion retries the page the child asked for after a local refusal.
+    note_retry: Option<(Token, notes::Range)>,
 }
 
 impl Loads {
@@ -42,6 +46,7 @@ impl Loads {
             reads: 0,
             retired_reads: 0,
             waiting: Queue::with_capacity(result_flights),
+            note_retry: None,
         }
     }
 
@@ -50,7 +55,7 @@ impl Loads {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.flights.is_empty() && self.waiting.is_empty()
+        self.flights.is_empty() && self.waiting.is_empty() && self.note_retry.is_none()
     }
 
     pub(crate) fn delegate_waiting(&self, key: crate::CallKey) -> bool {
@@ -114,6 +119,19 @@ impl Loads {
         Request::Held(Box::new(Held::Store(store::Out::Load { load, range: store::Range::Window { task, from } })))
     }
 
+    pub(crate) fn notes(&mut self, owner: Token, range: notes::Range) -> Request {
+        let load = self.flights.insert(Flight::Notes(Some(owner))).expect("notes page room reserved").token();
+        Request::Held(Box::new(Held::Store(store::Out::Load { load, range: store::Range::Notes(range) })))
+    }
+
+    pub(crate) fn retry_notes(&mut self, owner: Token, range: notes::Range) {
+        assert!(self.note_retry.replace((owner, range)).is_none(), "one notes operation");
+    }
+
+    pub(crate) fn cancel_notes_retry(&mut self) {
+        self.note_retry = None;
+    }
+
     pub(crate) fn cancel_window(&mut self, task: u64) {
         let mut name = None;
         for (id, flight) in &self.flights {
@@ -155,8 +173,8 @@ pub(crate) fn read(load: Token, range: reads::Range) -> Request {
 pub(crate) fn awaited(core: &Core, load: Token) -> bool {
     match core.loads.flights.get(Id::from_token(load)) {
         Some(Flight::Read(Some(pending))) => pending.awaiting_store(),
-        Some(Flight::Point(Some(_)) | Flight::Window(Some(_))) => true,
-        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None)) | None => false,
+        Some(Flight::Point(Some(_)) | Flight::Window(Some(_)) | Flight::Notes(Some(_))) => true,
+        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None) | Flight::Notes(None)) | None => false,
     }
 }
 
@@ -203,7 +221,18 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
             }
             crate::routing::run::preparation::transcript_loaded(core, env, work, task, result)
         }
-        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None)) | None => Queue::uncapped(),
+        Some(Flight::Notes(Some(owner))) => {
+            let owner = *owner;
+            let Flight::Notes(pending) = core.loads.flights.get_mut(name).expect("known notes flight") else {
+                unreachable!("notes flight")
+            };
+            *pending = None;
+            core.loads.flights.retire(name);
+            crate::routing::effect::note::loaded(core, env, work, owner, result)
+        }
+        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None) | Flight::Notes(None)) | None => {
+            Queue::uncapped()
+        }
     }
 }
 
@@ -232,7 +261,7 @@ pub(crate) fn discard_waiting_points(core: &mut Core) {
     }
 }
 
-pub(crate) fn resume_points(core: &mut Core, limits: &Limits, out: &mut Queue<Request>) {
+pub(crate) fn resume_waiting(core: &mut Core, limits: &Limits, out: &mut Queue<Request>) {
     if core.stopping() {
         discard_waiting_points(core);
         return;
@@ -243,6 +272,11 @@ pub(crate) fn resume_points(core: &mut Core, limits: &Limits, out: &mut Queue<Re
         }
         let point = core.loads.waiting.pop().expect("waiting point count");
         send_point(core, out, point);
+    }
+    if core.loads.room(limits)
+        && let Some((owner, range)) = core.loads.note_retry.take()
+    {
+        out.push(core.loads.notes(owner, range));
     }
 }
 

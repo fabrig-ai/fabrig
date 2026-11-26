@@ -25,7 +25,7 @@ use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use jig_ops_fake_production as production;
 pub use observations::Store;
-use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 pub use systems::Systems;
 
 /// Ops-specific stories beside the shared adversarial scenarios.
@@ -731,8 +731,18 @@ impl Application for Ops {
                 let _ = person;
                 Vec::new()
             }
-            root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                vec![Input::Event(root::Event::Core(peers::notes_loaded(owner, List::with_capacity(0), false)))]
+            root::Output::Store(core::engine::store::Out::Load {
+                load,
+                range: core::engine::store::Range::Notes(_),
+            }) => {
+                let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                    records: Box::new([]),
+                    more: false,
+                });
+                vec![Input::Event(root::Event::Store(root::Store::Engine(core::engine::store::In::Loaded {
+                    load,
+                    result,
+                })))]
             }
             root::Output::Store(core::engine::store::Out::Load {
                 load,

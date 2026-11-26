@@ -4,7 +4,6 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use jig_domain_core as core;
 use jig_domain_core::engine::store as engine_store;
-use jig_domain_notes as notes;
 use jig_protocol_store::{self as store, Event, Request, Restore, Row};
 use jig_test_domain as root;
 use skein_lib::{List, Queue, Token, length::len_u64};
@@ -132,8 +131,8 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             let owner = routes.keep(Flight::Window { load, task, attempt, turn });
             transcript(routes, owner, None)?
         }
-        StoreOut::NotesLoad { owner, range } => {
-            let owner = routes.keep(Flight::Notes(owner));
+        StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Notes(range) }) => {
+            let owner = routes.keep(Flight::Notes(load));
             Request::Load {
                 owner,
                 range: store::Load::Notes(range),
@@ -236,7 +235,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::WindowFailed { owner } => window_failed(routes, owner, engine_store::Failure::Failed, into),
         Event::SecretsNotReady { .. } => unreachable!("the root store route handles public records only"),
         Event::Corrupt { owner } => {
-            if let Some(Flight::Point { load, .. }) = routes.pending.remove(&owner) {
+            if let Some(Flight::Point { load, .. } | Flight::Notes(load)) = routes.pending.remove(&owner) {
                 let result = engine_store::Answer::Failed(engine_store::Failure::Failed);
                 into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
             } else {
@@ -334,21 +333,9 @@ fn switched(routes: &mut Routes, owner: Token, into: &mut Queue<Up>) {
     }
 }
 fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<store::Cursor>, into: &mut Queue<Up>) {
-    if let Some(Flight::Notes(owner)) = routes.pending.remove(&owner) {
-        let mut records = List::with_capacity(u32::try_from(rows.len()).expect("bounded page"));
-        for row in rows {
-            match row {
-                Row::Jig(core::Record::Notes(record)) => {
-                    records.push(record).expect("same count");
-                }
-                Row::Jig(_) | Row::Application { .. } => {
-                    stop(routes, into);
-                    return;
-                }
-            }
-        }
-        let event = notes::Event::Loaded { owner, rows: notes::Rows { records }, more: next.is_some() };
-        into.push(Up::Root(root::Event::Core(core::Event::Notes(event))));
+    if let Some(Flight::Notes(load)) = routes.pending.remove(&owner) {
+        let result = store::notes_answer(rows, next.is_some());
+        into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
     }
 }
 fn decode(row: Row, limits: &root::Limits) -> Result<root::Record, store::restore::Failure> {

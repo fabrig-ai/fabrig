@@ -46,6 +46,7 @@ pub struct Driver {
     /// Every store load the root asked for, by its owner, in order.
     pub loads: Vec<(Token, temper_engine_domain::Range)>,
     pub point_loads: Vec<(Token, engine_store::Range)>,
+    pub note_loads: Vec<(Token, jig_domain_notes::Range)>,
     /// Each held port window issued to the store, by port token and task number.
     pub windows: Vec<(Token, u64)>,
     /// How many inputs `try_step` handed back at the backlog watermark; the
@@ -170,6 +171,7 @@ impl Driver {
             switches: Vec::new(),
             loads: Vec::new(),
             point_loads: Vec::new(),
+            note_loads: Vec::new(),
             windows: Vec::new(),
             returned: 0,
             immediate: Vec::new(),
@@ -271,6 +273,7 @@ impl Driver {
                     };
                     match &range {
                         engine_store::Range::Read(_) => {}
+                        engine_store::Range::Notes(range) => self.note_loads.push((load, range.clone())),
                         engine_store::Range::Window { .. } => unreachable!("window answered above"),
                         engine_store::Range::Record(key) => {
                             self.point_loads.push((load, engine_store::Range::Record(key.clone())));

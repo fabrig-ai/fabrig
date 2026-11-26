@@ -48,7 +48,7 @@ pub(crate) fn call(
         }
     };
     let scope = notes::Scope::Party { party };
-    let range = Range::Core(CoreRange::Notes(notes::Range::Lines { scope: scope.clone(), after: None }));
+    let range = Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines { scope: scope.clone(), after: None }));
     let read = RememberRead {
         to: right,
         key,
@@ -67,7 +67,6 @@ pub(crate) fn call(
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
                 | Read::History { .. }
-                | Read::Notes { .. }
                 | Read::SettingsNote { .. }
                 | Read::CloserReport(_)
                 | Read::Document(_),
@@ -155,7 +154,10 @@ fn index(
             return Err(RememberRefusal::Unread);
         }
         read.phase = Phase::Index { after: last };
-        return Ok(Some(Range::Core(CoreRange::Notes(notes::Range::Lines { scope: read.scope.clone(), after: last }))));
+        return Ok(Some(Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines {
+            scope: read.scope.clone(),
+            after: last,
+        }))));
     }
     check(read, &domain.limits.notes)?;
     match read.action {
@@ -163,7 +165,7 @@ fn index(
             let place = line.checked_sub(1).expect("checked place");
             let name = read.lines.get(place).expect("checked line").name;
             read.phase = Phase::Entry { place };
-            Ok(Some(Range::Core(CoreRange::Notes(notes::Range::Entry { name }))))
+            Ok(Some(Range::Core(CoreRange::ApplicationNotes(notes::Range::Entry { name }))))
         }
         RememberAction::Add { .. } | RememberAction::Drop { .. } => {
             write(domain, read, None);

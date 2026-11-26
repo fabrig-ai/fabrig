@@ -551,10 +551,8 @@ pub enum CoreRange {
         /// Positive root-issued activation; other attempts cannot match.
         attempt: u64,
     },
-    /// The committed turns of one task's current window, from its first
-    /// (attempt, turn), in key order, for preparing its next run.
-    /// One bounded notes-child load by name or by scope and cursor.
-    Notes(jig_domain_notes::Range),
+    /// An application lookup of a note or its scope index.
+    ApplicationNotes(jig_domain_notes::Range),
 }
 
 /// Child-contiguous live or historical store range.
@@ -619,7 +617,9 @@ impl CoreRange {
             Self::People | Self::Sweep => &[RestoreRange::People],
             Self::Tasks => &[RestoreRange::Core, RestoreRange::Tasks],
             Self::Calls | Self::RunProofs => &[RestoreRange::Core],
-            Self::RequesterWord { .. } | Self::TaskResult { .. } | Self::Turns { .. } | Self::Notes(_) => &[],
+            Self::RequesterWord { .. } | Self::TaskResult { .. } | Self::Turns { .. } | Self::ApplicationNotes(_) => {
+                &[]
+            }
         }
     }
 
@@ -670,7 +670,7 @@ impl CoreRange {
                 let Core::Core(CoreKey::Turn { task: found, attempt: run, turn }) = key else { return false };
                 found == task && run == attempt && *turn != 0
             }
-            CoreRange::Notes(range) => {
+            CoreRange::ApplicationNotes(range) => {
                 let Core::Notes(child) = key else { return false };
                 notes_contains(range, child)
             }

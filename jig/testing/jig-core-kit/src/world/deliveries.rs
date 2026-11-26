@@ -89,6 +89,9 @@ impl World {
                     self.store.ask(request);
                 }
             }
+            root::Delivery::Store(load @ engine_store::Out::Load { range: engine_store::Range::Notes(_), .. }) => {
+                self.store.ask(StoreOut::Engine(load));
+            }
             root::Delivery::Store(load) => self.point_load(load),
             root::Delivery::Core(
                 core::Held::Applied { .. }
@@ -221,9 +224,6 @@ impl World {
                 })));
             }
             root::Delivery::Core(core::Held::Store(load)) => self.store.ask(StoreOut::Engine(load)),
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                self.store.ask(StoreOut::NotesLoad { owner, range });
-            }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
                 let token = to.into_token();
                 assert!(

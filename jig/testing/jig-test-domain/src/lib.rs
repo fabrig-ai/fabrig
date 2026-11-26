@@ -1156,7 +1156,6 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
         | core::Held::Cancel { .. }
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
-        | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }
         | core::Held::NeedArrived { .. }) => out.push(Request::Deliver(Delivery::Core(other))),
