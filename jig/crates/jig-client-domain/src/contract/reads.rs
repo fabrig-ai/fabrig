@@ -59,6 +59,15 @@ pub enum Read {
         live: Option<Cursor>,
         ended: Option<Cursor>,
     },
+    /// A project's live waits, in one continued window.
+    Waits {
+        project: u32,
+        kind: Option<super::WaitKind>,
+        party: Option<u64>,
+        /// Nanoseconds from the first page's wall time.
+        due: Option<u64>,
+        after: Option<Cursor>,
+    },
     /// The frame.
     Me,
     /// One committed turn, with the same access as activity.
@@ -188,6 +197,8 @@ pub enum ReadValue {
     Revisions(Box<super::RevisionsPage>),
     /// A task query's two groups.
     Tasks(Box<super::TaskPage>),
+    /// A project's live waits, nearest bound first.
+    Waits(Box<super::WaitPage>),
     /// Whole authentic project owner document.
     Project(Box<super::Project>),
     /// Whole ended facts for one existing object query.

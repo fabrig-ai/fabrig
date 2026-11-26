@@ -362,6 +362,7 @@ pub const fn query_filter(query: Option<&Read>) -> Option<Filter> {
         Some(Read::Inbox { project, kind, goal, .. }) => Some(Filter { project: *project, kind: *kind, goal: *goal }),
         Some(
             Read::Tasks { .. }
+            | Read::Waits { .. }
             | Read::Me
             | Read::TaskText { .. }
             | Read::Task { .. }

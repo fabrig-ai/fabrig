@@ -774,6 +774,8 @@ record Tasks { rows: bytes 16777216 more: bool ended_mark: u64 }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }
 enum EndedGroup { rows: EndedRows, none }
 record TaskPage { live: bytes 16777216 live_after: option Cursor ended: EndedGroup ended_mark: u64 }
+record WaitRow { chip: Chip wait: Wait }
+record WaitPage { now: u64 rows: list 32 WaitRow after: option Cursor }
 record Call { number: u64 tool: text 65536 input: text 65536 outcome: option text 65536 failed: bool objects: list 32 ObjectKey parts: bytes 16777216 }
 record CurrentCall { identity: CallIdentity tool: text 65536 input: text 65536 cut: bool began: option u64 }
 record LiveCallDecoded { value: Call }
@@ -1138,7 +1140,8 @@ enum Final { done: Done, refused: Refused }
 enum TaskTextField { specification, instructions, result }
 record ReadTaskText { task: u64 field: TaskTextField from: u64 }
 record TaskText { task: u64 field: TaskTextField from: u64 total: u64 next: option u64 words: text 65536 }
-enum Read { tasks: ReadTasks, me, task: ReadTask, proposal: ReadProposal, escalation: ReadEscalation, question: ReadQuestion, person_task: ReadPersonTask, result: ReadResult, ended: ReadEnded, history: ReadHistory, activity: ReadActivity, inbox: ReadInbox, spend: ReadSpend, project: ReadProject, notes: ReadNotes, deployment, turn: ReadTurn, settings, setting: ReadSetting, revision: ReadRevision, revisions: ReadRevisions, task_text: ReadTaskText, activity_beside: ReadActivityBeside }
+record ReadWaits { project: u32 kind: option WaitKind party: option u64 due: option u64 after: option Cursor }
+enum Read { tasks: ReadTasks, me, task: ReadTask, proposal: ReadProposal, escalation: ReadEscalation, question: ReadQuestion, person_task: ReadPersonTask, result: ReadResult, ended: ReadEnded, history: ReadHistory, activity: ReadActivity, inbox: ReadInbox, spend: ReadSpend, project: ReadProject, notes: ReadNotes, deployment, turn: ReadTurn, settings, setting: ReadSetting, revision: ReadRevision, revisions: ReadRevisions, task_text: ReadTaskText, activity_beside: ReadActivityBeside, waits: ReadWaits }
 record BeyondRefused { value: Refusal }
 enum Beyond { proposed: BeyondProposed, refused: BeyondRefused }
 record AdmissionBounded { within: Bounds beyond: Beyond }
@@ -1154,7 +1157,7 @@ record Restore { revision: u32 reason: text 65536 }
 record ReadLists { provider: u32 }
 record ReissueService { party: u64 }
 enum Ask { message: Message, answer: Answer, take: Take, hand_back: HandBack, decide: Decide, release: Release, amend: boxed Amend, stop: Stop, cancel: Cancel, move_task: Move, seen: Seen, edit_note: EditNote, delete_note: DeleteNote, change_policy: ChangePolicy, set_roles: SetRoles, make_service: MakeService, set_pool: SetPool, compound: Compound, create: Create, propose: Propose, withdraw: Withdraw, sign_in: AskSignIn, sign_out: AskSignOut, account_change: AskAccountChange, rename: Rename, make_project: MakeProject, change_settings: ChangeSettings, move_to_newest: MoveToNewest, lift: Lift, remove_project: RemoveProject, restore: Restore, set_visibility: SetVisibility, change_model: ChangeModel, read_lists: ReadLists, talk: Message, leave: Leave, conclude: Conclude, delegate: Delegate, pause_worker: PauseWorker, reissue_service: ReissueService }
-enum ReadValue { tasks: TaskPage, project: Project, ended: boxed Ended, me: Me, task: Task, proposal: Proposal, escalation: Escalation, question: Question, person_task: PersonTask, result: ResultDocument, ended_page: EndedPage, history: HistoryPage, activity: ActivityPage, inbox: InboxPage, spend: SpendPage, notes: NotePage, deployment: Deployment, turn: ArchivedTurn, settings: SettingsDocument, setting: SettingDocument, revision: ReadRevisionAnswer, revisions: RevisionsPage, task_text: TaskText }
+enum ReadValue { tasks: TaskPage, project: Project, ended: boxed Ended, me: Me, task: Task, proposal: Proposal, escalation: Escalation, question: Question, person_task: PersonTask, result: ResultDocument, ended_page: EndedPage, history: HistoryPage, activity: ActivityPage, inbox: InboxPage, spend: SpendPage, notes: NotePage, deployment: Deployment, turn: ArchivedTurn, settings: SettingsDocument, setting: SettingDocument, revision: ReadRevisionAnswer, revisions: RevisionsPage, task_text: TaskText, waits: WaitPage }
 enum DeliveryValue { project: Project, me: Me, task: boxed Task, proposal: Proposal, tree: Tree, chips: Chips, inbox: Inbox, tasks: Tasks, run_state: RunState, deployment: Deployment, accounts: Accounts, settings: SettingsDocument, terminal: Terminal }
 record OriginRevision { revision: u32 }
 enum SettingOrigin { default: OriginRevision, change: OriginRevision, not_offered }

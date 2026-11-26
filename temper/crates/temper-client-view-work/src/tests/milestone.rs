@@ -235,6 +235,7 @@ impl Harness {
                         | c::Read::Spend { .. }
                         | c::Read::Project { .. }
                         | c::Read::Notes { .. }
+                        | c::Read::Waits { .. }
                         | c::Read::Deployment => None,
                     };
                     value.map(|value| Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(value)) })

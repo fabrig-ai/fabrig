@@ -279,6 +279,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
                     assert!(group.updates(), "needs end without a store continuation");
                     break;
                 }
+                Some(crate::reads::Cursor::Waits { .. }) => panic!("an inbox read cannot give a waits cursor"),
                 None => break,
             }
         }

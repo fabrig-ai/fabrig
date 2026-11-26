@@ -34,4 +34,10 @@ ScopedNotes: ceilings encoded=1054741 decoded=1067008; at_most(3) encoded=48 dec
 StoreCursor: ceilings encoded=1055807 decoded=1068032; at_most(3) encoded=135 decoded=66
 Tree: ceilings encoded=48 decoded=0; at_most(3) encoded=48 decoded=0
 Turn: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
+WaitAt: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+WaitCursor: ceilings encoded=53 decoded=0; at_most(3) encoded=53 decoded=0
+WaitKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+WaitPlace: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
+WaitPosition: ceilings encoded=21 decoded=0; at_most(3) encoded=21 decoded=0
+WaitQuery: ceilings encoded=24 decoded=0; at_most(3) encoded=24 decoded=0
 family: ceilings encoded=1055879 decoded=1068032; at_most(3) encoded=207 decoded=66

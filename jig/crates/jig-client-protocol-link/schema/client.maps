@@ -539,7 +539,7 @@ enum TaskWaitRefused = c::TaskWaitRefused { hello { at via s::wall } }
 record TaskRunWaitRefused stands for value
 record TaskWaitWorker
 enum TaskRunWait = c::TaskRunWait { refused tuple, worker { until via s::wall } }
-enum WaitKind = c::WaitKind
+enum WaitKind = c::WaitKind both ways
 record WaitEntry
 record WaitQuestion
 record WaitTask stands for value
@@ -610,6 +610,8 @@ record Task by hand
 record Tasks by hand
 enum EndedGroup by hand
 record TaskPage by hand
+record WaitRow by hand
+record WaitPage by hand
 record Call by hand
 record CurrentCall by hand
 record LiveCallDecoded stands for value
@@ -915,6 +917,7 @@ enum Final = c::Answer { done tuple }
 enum TaskTextField = c::TaskTextField both ways
 record ReadTaskText
 record TaskText by hand
+record ReadWaits
 enum Read = c::Read to record { notes { description via h::client_text }, setting tuple, revision tuple, revisions tuple }
 record BeyondRefused stands for value
 enum Beyond = c::Beyond { refused tuple }

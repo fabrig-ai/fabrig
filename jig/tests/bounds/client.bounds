@@ -769,6 +769,7 @@ ReadTasks: ceilings encoded=2211 decoded=2160; at_most(3) encoded=95 decoded=42
 ReadTooLinked: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 ReadTurn: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
 ReadValue: ceilings encoded=1281503763 decoded=1281583916; at_most(3) encoded=2440 decoded=4951
+ReadWaits: ceilings encoded=1085 decoded=1056; at_most(3) encoded=32 decoded=3
 Readiness: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Recipient: ceilings encoded=137 decoded=128; at_most(3) encoded=21 decoded=12
 RecipientParty: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
@@ -1080,10 +1081,12 @@ WaitKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 WaitNews: ceilings encoded=45 decoded=32; at_most(3) encoded=37 decoded=24
 WaitNoBound: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 WaitObject: ceilings encoded=2097296 decoded=2097664; at_most(3) encoded=72 decoded=96
+WaitPage: ceilings encoded=603986769 decoded=604001824; at_most(3) encoded=368 decoded=732
 WaitProcedure: ceilings encoded=92 decoded=128; at_most(3) encoded=71 decoded=96
 WaitQuestion: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 WaitResource: ceilings encoded=2097295 decoded=2097664; at_most(3) encoded=36 decoded=57
 WaitResourceName: ceilings encoded=2097286 decoded=2097664; at_most(3) encoded=27 decoded=57
+WaitRow: ceilings encoded=18874553 decoded=18874880; at_most(3) encoded=116 decoded=99
 WaitRun: ceilings encoded=38 decoded=0; at_most(3) encoded=38 decoded=0
 WaitTask: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 WaitedFor: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

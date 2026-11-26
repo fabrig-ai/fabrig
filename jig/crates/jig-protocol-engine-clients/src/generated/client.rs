@@ -2722,6 +2722,24 @@ pub fn wait_kind_to_record(value: &jig_domain_core_vocabulary::waits::WaitKind) 
     }
 }
 
+#[must_use]
+pub fn wait_kind_to_domain(record: jig_client_protocol_wire::v44::WaitKind) -> jig_domain_core_vocabulary::waits::WaitKind {
+    match record {
+        jig_client_protocol_wire::v44::WaitKind::Party => jig_domain_core_vocabulary::waits::WaitKind::Party,
+        jig_client_protocol_wire::v44::WaitKind::Question => jig_domain_core_vocabulary::waits::WaitKind::Question,
+        jig_client_protocol_wire::v44::WaitKind::Dependency => jig_domain_core_vocabulary::waits::WaitKind::Dependency,
+        jig_client_protocol_wire::v44::WaitKind::Resource => jig_domain_core_vocabulary::waits::WaitKind::Resource,
+        jig_client_protocol_wire::v44::WaitKind::Account => jig_domain_core_vocabulary::waits::WaitKind::Account,
+        jig_client_protocol_wire::v44::WaitKind::Host => jig_domain_core_vocabulary::waits::WaitKind::Host,
+        jig_client_protocol_wire::v44::WaitKind::Delegate => jig_domain_core_vocabulary::waits::WaitKind::Delegate,
+        jig_client_protocol_wire::v44::WaitKind::News => jig_domain_core_vocabulary::waits::WaitKind::News,
+        jig_client_protocol_wire::v44::WaitKind::Step => jig_domain_core_vocabulary::waits::WaitKind::Step,
+        jig_client_protocol_wire::v44::WaitKind::Room => jig_domain_core_vocabulary::waits::WaitKind::Room,
+        jig_client_protocol_wire::v44::WaitKind::Turn => jig_domain_core_vocabulary::waits::WaitKind::Turn,
+        jig_client_protocol_wire::v44::WaitKind::SignOff => jig_domain_core_vocabulary::waits::WaitKind::SignOff,
+    }
+}
+
 pub fn wait_resource_name_to_record(value: &jig_domain_tasks::Name) -> Result<jig_client_protocol_wire::v44::WaitResourceName, jig_client_protocol_wire::v44::Problem> {
     let jig_domain_tasks::Name { connector: field_000000, path: field_000001 } = value;
     Ok(jig_client_protocol_wire::v44::WaitResourceName {

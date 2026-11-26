@@ -507,6 +507,152 @@ pub fn query_to_domain(record: crate::cursor_v2::Query) -> Result<jig_domain_cor
     })
 }
 
+#[must_use]
+pub fn wait_kind_to_record(value: &jig_domain_core_vocabulary::waits::WaitKind) -> crate::cursor_v2::WaitKind {
+    match value {
+        jig_domain_core_vocabulary::waits::WaitKind::Party => crate::cursor_v2::WaitKind::Party,
+        jig_domain_core_vocabulary::waits::WaitKind::Question => crate::cursor_v2::WaitKind::Question,
+        jig_domain_core_vocabulary::waits::WaitKind::Dependency => crate::cursor_v2::WaitKind::Dependency,
+        jig_domain_core_vocabulary::waits::WaitKind::Resource => crate::cursor_v2::WaitKind::Resource,
+        jig_domain_core_vocabulary::waits::WaitKind::Account => crate::cursor_v2::WaitKind::Account,
+        jig_domain_core_vocabulary::waits::WaitKind::Host => crate::cursor_v2::WaitKind::Host,
+        jig_domain_core_vocabulary::waits::WaitKind::Delegate => crate::cursor_v2::WaitKind::Delegate,
+        jig_domain_core_vocabulary::waits::WaitKind::News => crate::cursor_v2::WaitKind::News,
+        jig_domain_core_vocabulary::waits::WaitKind::Step => crate::cursor_v2::WaitKind::Step,
+        jig_domain_core_vocabulary::waits::WaitKind::Room => crate::cursor_v2::WaitKind::Room,
+        jig_domain_core_vocabulary::waits::WaitKind::Turn => crate::cursor_v2::WaitKind::Turn,
+        jig_domain_core_vocabulary::waits::WaitKind::SignOff => crate::cursor_v2::WaitKind::SignOff,
+    }
+}
+
+#[must_use]
+pub fn wait_kind_to_domain(record: crate::cursor_v2::WaitKind) -> jig_domain_core_vocabulary::waits::WaitKind {
+    match record {
+        crate::cursor_v2::WaitKind::Party => jig_domain_core_vocabulary::waits::WaitKind::Party,
+        crate::cursor_v2::WaitKind::Question => jig_domain_core_vocabulary::waits::WaitKind::Question,
+        crate::cursor_v2::WaitKind::Dependency => jig_domain_core_vocabulary::waits::WaitKind::Dependency,
+        crate::cursor_v2::WaitKind::Resource => jig_domain_core_vocabulary::waits::WaitKind::Resource,
+        crate::cursor_v2::WaitKind::Account => jig_domain_core_vocabulary::waits::WaitKind::Account,
+        crate::cursor_v2::WaitKind::Host => jig_domain_core_vocabulary::waits::WaitKind::Host,
+        crate::cursor_v2::WaitKind::Delegate => jig_domain_core_vocabulary::waits::WaitKind::Delegate,
+        crate::cursor_v2::WaitKind::News => jig_domain_core_vocabulary::waits::WaitKind::News,
+        crate::cursor_v2::WaitKind::Step => jig_domain_core_vocabulary::waits::WaitKind::Step,
+        crate::cursor_v2::WaitKind::Room => jig_domain_core_vocabulary::waits::WaitKind::Room,
+        crate::cursor_v2::WaitKind::Turn => jig_domain_core_vocabulary::waits::WaitKind::Turn,
+        crate::cursor_v2::WaitKind::SignOff => jig_domain_core_vocabulary::waits::WaitKind::SignOff,
+    }
+}
+
+#[must_use]
+pub fn wait_query_to_record(value: &jig_domain_core_vocabulary::reads::WaitQuery) -> crate::cursor_v2::WaitQuery {
+    let jig_domain_core_vocabulary::reads::WaitQuery { project: field_000000, kind: field_000001, party: field_000002, due: field_000003 } = value;
+    crate::cursor_v2::WaitQuery {
+        project: *field_000000,
+        kind: match field_000001 {
+            Some(item) => {
+                let converted = wait_kind_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        party: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        due: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn wait_query_to_domain(record: crate::cursor_v2::WaitQuery) -> jig_domain_core_vocabulary::reads::WaitQuery {
+    let crate::cursor_v2::WaitQuery { project: field_000000, kind: field_000001, party: field_000002, due: field_000003 } = record;
+    jig_domain_core_vocabulary::reads::WaitQuery {
+        project: field_000000,
+        kind: match field_000001 {
+            Some(item) => {
+                let converted = wait_kind_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        party: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        due: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn wait_place_to_record(value: &jig_domain_core_vocabulary::reads::WaitPlace) -> crate::cursor_v2::WaitPlace {
+    match value {
+        jig_domain_core_vocabulary::reads::WaitPlace::Overdue { at: field_000000 } => crate::cursor_v2::WaitPlace::Overdue(crate::cursor_v2::WaitAt {
+            at: skein_codec::convert::wall_to_record(field_000000)
+        }),
+        jig_domain_core_vocabulary::reads::WaitPlace::Bounded { at: field_000000 } => crate::cursor_v2::WaitPlace::Bounded(crate::cursor_v2::WaitAt {
+            at: skein_codec::convert::wall_to_record(field_000000)
+        }),
+        jig_domain_core_vocabulary::reads::WaitPlace::Unbounded => crate::cursor_v2::WaitPlace::Unbounded,
+    }
+}
+
+#[must_use]
+pub fn wait_place_to_domain(record: crate::cursor_v2::WaitPlace) -> jig_domain_core_vocabulary::reads::WaitPlace {
+    match record {
+        crate::cursor_v2::WaitPlace::Overdue(held) => {
+            let crate::cursor_v2::WaitAt { at: field_000000 } = held;
+            jig_domain_core_vocabulary::reads::WaitPlace::Overdue {
+                at: skein_codec::convert::wall_to_domain(field_000000)
+            }
+        },
+        crate::cursor_v2::WaitPlace::Bounded(held) => {
+            let crate::cursor_v2::WaitAt { at: field_000000 } = held;
+            jig_domain_core_vocabulary::reads::WaitPlace::Bounded {
+                at: skein_codec::convert::wall_to_domain(field_000000)
+            }
+        },
+        crate::cursor_v2::WaitPlace::Unbounded => jig_domain_core_vocabulary::reads::WaitPlace::Unbounded,
+    }
+}
+
+#[must_use]
+pub fn wait_position_to_record(value: &jig_domain_core_vocabulary::reads::WaitPosition) -> crate::cursor_v2::WaitPosition {
+    let jig_domain_core_vocabulary::reads::WaitPosition { place: field_000000, task: field_000001, order: field_000002 } = value;
+    crate::cursor_v2::WaitPosition {
+        place: wait_place_to_record(field_000000),
+        task: *field_000001,
+        order: *field_000002
+    }
+}
+
+#[must_use]
+pub fn wait_position_to_domain(record: crate::cursor_v2::WaitPosition) -> jig_domain_core_vocabulary::reads::WaitPosition {
+    let crate::cursor_v2::WaitPosition { place: field_000000, task: field_000001, order: field_000002 } = record;
+    jig_domain_core_vocabulary::reads::WaitPosition {
+        place: wait_place_to_domain(field_000000),
+        task: field_000001,
+        order: field_000002
+    }
+}
+
 pub fn cursor_to_record(value: &jig_domain_core_vocabulary::reads::Cursor) -> Result<crate::cursor_v2::Cursor, crate::cursor_v2::Problem> {
     Ok(match value {
         jig_domain_core_vocabulary::reads::Cursor::Live { scope: field_000000, after: field_000001, store_after: field_000002 } => crate::cursor_v2::Cursor::Live(crate::cursor_v2::LiveCursor {
@@ -529,6 +675,11 @@ pub fn cursor_to_record(value: &jig_domain_core_vocabulary::reads::Cursor) -> Re
                 }
                 None => None,
             }
+        }),
+        jig_domain_core_vocabulary::reads::Cursor::Waits { query: field_000000, now: field_000001, after: field_000002 } => crate::cursor_v2::Cursor::Waits(crate::cursor_v2::WaitCursor {
+            query: wait_query_to_record(field_000000),
+            now: skein_codec::convert::wall_to_record(field_000001),
+            after: wait_position_to_record(field_000002)
         }),
     })
 }
@@ -560,6 +711,14 @@ pub fn cursor_to_domain(record: crate::cursor_v2::Cursor) -> Result<jig_domain_c
                     }
                     None => None,
                 }
+            }
+        },
+        crate::cursor_v2::Cursor::Waits(held) => {
+            let crate::cursor_v2::WaitCursor { query: field_000000, now: field_000001, after: field_000002 } = held;
+            jig_domain_core_vocabulary::reads::Cursor::Waits {
+                query: wait_query_to_domain(field_000000),
+                now: skein_codec::convert::wall_to_domain(field_000001),
+                after: wait_position_to_domain(field_000002)
             }
         },
     })

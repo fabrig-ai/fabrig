@@ -93,7 +93,7 @@ fn page(core: &mut Core, limits: &Limits, filter: Filter, from: Option<reads::Cu
     };
     assert!(page.rows.len() <= limits.documents.rows);
     match page.next {
-        Some(reads::Cursor::Store { .. }) => panic!("needs never continue in the store"),
+        Some(reads::Cursor::Store { .. } | reads::Cursor::Waits { .. }) => panic!("needs never continue in the store"),
         Some(reads::Cursor::Live { .. }) | None => {}
     }
     page

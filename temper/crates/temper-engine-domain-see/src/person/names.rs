@@ -34,6 +34,7 @@ pub(super) fn make(core: &jig_domain_core::Core, project: u32, gathered: &Gather
                 | Answer::Revision(_)
                 | Answer::Revisions(_)
                 | Answer::Tasks(_)
+                | Answer::Waits(_)
                 | Answer::Ended(_)
                 | Answer::Page(_)
                 | Answer::None(_),

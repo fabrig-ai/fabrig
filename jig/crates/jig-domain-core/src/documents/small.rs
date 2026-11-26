@@ -28,7 +28,7 @@ pub(super) fn chip(core: &Core, limits: &Limits, party: u64, number: u64) -> Res
     chip_with_core(core, limits, party, row)
 }
 
-pub(super) fn chip_with_core(
+pub(crate) fn chip_with_core(
     core: &Core,
     limits: &Limits,
     party: u64,

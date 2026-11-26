@@ -26,6 +26,7 @@ pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits
             words: Box::from(value.text.bytes()),
         }),
         c::ReadValue::Revisions(value) => w::ReadValue::Revisions(wire_revisions_page(value)),
+        c::ReadValue::Waits(_) => return Err(w::paths::READ_VALUE_TAG.problem(skein_codec::Reason::Tag)),
         c::ReadValue::Tasks(value) => w::ReadValue::Tasks(wire_task_page(value, limits)?),
         c::ReadValue::Project(value) => w::ReadValue::Project(wire_project(value, limits)?),
         c::ReadValue::Ended(value) => w::ReadValue::Ended(Box::new(wire_ended(value, limits)?)),

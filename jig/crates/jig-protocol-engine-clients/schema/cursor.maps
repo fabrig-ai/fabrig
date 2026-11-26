@@ -57,6 +57,12 @@ record Query = d::TaskQuery {
 enum Scope by hand
 record LiveCursor
 record StoreCursor
+enum WaitKind = jig_domain_core_vocabulary::waits::WaitKind
+record WaitQuery = r::WaitQuery
+record WaitAt { at via s::wall }
+enum WaitPlace = r::WaitPlace
+record WaitPosition = r::WaitPosition
+record WaitCursor { now via s::wall }
 enum Cursor = r::Cursor
 record Tree by hand
 record Owner by hand

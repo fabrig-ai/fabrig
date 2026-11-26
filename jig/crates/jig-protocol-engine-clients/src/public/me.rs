@@ -34,6 +34,7 @@ pub(super) fn read_frame(answer: &core::reads::Answer) -> Option<&Frame> {
         | core::reads::Answer::Revision(_)
         | core::reads::Answer::Revisions(_)
         | core::reads::Answer::Tasks(_)
+        | core::reads::Answer::Waits(_)
         | core::reads::Answer::Ended(_)
         | core::reads::Answer::Page(_)
         | core::reads::Answer::None(_) => None,

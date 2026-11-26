@@ -154,6 +154,7 @@ pub(super) fn needs_store(read: &Read, document: &Document) -> bool {
             | Read::Activity { .. }
             | Read::ActivityBeside { .. }
             | Read::Tasks { .. }
+            | Read::Waits { .. }
             | Read::Project { .. }
             | Read::Notes { .. }
             | Read::ScopedNotes { .. }
@@ -207,6 +208,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                 | Read::Activity { .. }
                 | Read::ActivityBeside { .. }
                 | Read::Tasks { .. }
+                | Read::Waits { .. }
                 | Read::Project { .. }
                 | Read::Notes { .. }
                 | Read::ScopedNotes { .. }
@@ -248,7 +250,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                         Some((cursor, activity)) => super::indexed::inbox_position(party, *group, cursor, activity),
                         None => match super::cursor(read) {
                             Some(Cursor::Live { store_after, .. }) => store_after.clone(),
-                            Some(Cursor::Store { .. }) | None => None,
+                            Some(Cursor::Store { .. } | Cursor::Waits { .. }) | None => None,
                         },
                     },
                     after: match last {
@@ -262,7 +264,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                         Some((cursor, activity)) => super::indexed::inbox_position(party, *group, cursor, activity),
                         None => match super::cursor(read) {
                             Some(Cursor::Live { store_after, .. }) => store_after.clone(),
-                            Some(Cursor::Store { .. }) | None => None,
+                            Some(Cursor::Store { .. } | Cursor::Waits { .. }) | None => None,
                         },
                     };
                     if value.cached_needs != 0 || value.cached_updates != documents::Count::Known(0) {

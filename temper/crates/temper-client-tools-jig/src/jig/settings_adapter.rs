@@ -1428,6 +1428,7 @@ pub fn form_read_value(v: &c::ReadValue) -> n::ReadValue {
         c::ReadValue::Revisions(x) => n::ReadValue::Revisions(Box::new(form_revisions_page(x))),
         c::ReadValue::TaskText(_)
         | c::ReadValue::Tasks(_)
+        | c::ReadValue::Waits(_)
         | c::ReadValue::Project(_)
         | c::ReadValue::Ended(_)
         | c::ReadValue::Me(_)

@@ -60,6 +60,7 @@ impl<'a> Part<'a> {
             | ReadValue::Activity(_)
             | ReadValue::Spend(_)
             | ReadValue::Notes(_)
+            | ReadValue::Waits(_)
             | ReadValue::Deployment(_) => None,
         }
     }
@@ -118,6 +119,7 @@ pub fn person_task(value: &ReadValue) -> Option<&contract::PersonTask> {
         | ReadValue::Me(_)
         | ReadValue::Inbox(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::TaskText(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
@@ -153,6 +155,7 @@ pub(crate) fn person_answerer(value: &ReadValue) -> Option<u64> {
         | ReadValue::Me(_)
         | ReadValue::Inbox(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::TaskText(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)

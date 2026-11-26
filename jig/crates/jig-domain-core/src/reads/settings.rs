@@ -105,6 +105,7 @@ fn proposal_answer(to: ReplyTo, key: crate::CallKey, value: Answer) -> Queue<Req
         | Answer::Revisions(_)
         | Answer::TaskText(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Page(_) => unreachable!("proposal read answer"),
     };
     let mut out = Queue::uncapped();
@@ -212,7 +213,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
         Answer::Revisions(value) => SettingsAnswer::Revisions(*value),
         Answer::None(Why::Busy) => return refused(to, key, crate::CallPart::Unavailable),
         Answer::None(_) => SettingsAnswer::Unknown,
-        Answer::TaskText(_) | Answer::Tasks(_) | Answer::Ended(_) | Answer::Page(_) => {
+        Answer::TaskText(_) | Answer::Tasks(_) | Answer::Waits(_) | Answer::Ended(_) | Answer::Page(_) => {
             unreachable!("settings reads answer settings documents")
         }
     };
@@ -1214,6 +1215,7 @@ mod tests {
                 | Answer::Revisions(_)
                 | Answer::TaskText(_)
                 | Answer::Tasks(_)
+                | Answer::Waits(_)
                 | Answer::Ended(_)
                 | Answer::Page(_)
                 | Answer::None(_)) => panic!("project-scoped proposal answer: {other:?}"),

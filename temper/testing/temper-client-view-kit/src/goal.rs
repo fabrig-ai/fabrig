@@ -389,6 +389,7 @@ pub fn read_value(
         | c::Read::History { .. }
         | c::Read::Spend { .. }
         | c::Read::Project { .. }
+        | c::Read::Waits { .. }
         | c::Read::Deployment => None,
     }
 }

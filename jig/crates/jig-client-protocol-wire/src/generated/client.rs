@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0xa1, 0xd9, 0x4c, 0x24, 0x3e, 0x0f, 0x42, 0x02, 0xfc, 0x0d, 0x14, 0x19, 0x6f, 0x21, 0x95, 0xcb, 0x7f, 0x42, 0x5a,
-    0xea, 0xa1, 0x99, 0x80, 0xde, 0xa7, 0xe3, 0x6f, 0xd3, 0xaa, 0x73, 0x76, 0x18,
+    0x2a, 0x9d, 0x6a, 0x10, 0xdd, 0x5c, 0xf2, 0x82, 0x1e, 0x35, 0xdc, 0x63, 0x4d, 0x26, 0x9a, 0x64, 0x6e, 0x97, 0x23,
+    0x9b, 0x84, 0x47, 0x5c, 0xcb, 0x66, 0x84, 0xdb, 0x2f, 0xe4, 0xe7, 0x3a, 0xc1,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -219,6 +219,7 @@ pub struct Limits {
     pub tasks_rows: u32,
     pub ended_rows_rows: u32,
     pub task_page_live: u32,
+    pub wait_page_rows: u32,
     pub call_tool: u32,
     pub call_input: u32,
     pub call_outcome_some: u32,
@@ -612,6 +613,7 @@ pub const CEILINGS: Limits = Limits {
     tasks_rows: 16_777_216,
     ended_rows_rows: 16_777_216,
     task_page_live: 16_777_216,
+    wait_page_rows: 32,
     call_tool: 65_536,
     call_input: 65_536,
     call_outcome_some: 65_536,
@@ -1005,6 +1007,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "tasks_rows",
     "ended_rows_rows",
     "task_page_live",
+    "wait_page_rows",
     "call_tool",
     "call_input",
     "call_outcome_some",
@@ -1402,6 +1405,7 @@ impl Limits {
             self.tasks_rows,
             self.ended_rows_rows,
             self.task_page_live,
+            self.wait_page_rows,
             self.call_tool,
             self.call_input,
             self.call_outcome_some,
@@ -1800,6 +1804,7 @@ impl Limits {
             tasks_rows: self.tasks_rows.min(most),
             ended_rows_rows: self.ended_rows_rows.min(most),
             task_page_live: self.task_page_live.min(most),
+            wait_page_rows: self.wait_page_rows.min(most),
             call_tool: self.call_tool.min(most),
             call_input: self.call_input.min(most),
             call_outcome_some: self.call_outcome_some.min(most),
@@ -2195,6 +2200,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::TASKS_ROWS,
     paths::ENDED_ROWS_ROWS,
     paths::TASK_PAGE_LIVE,
+    paths::WAIT_PAGE_ROWS,
     paths::CALL_TOOL,
     paths::CALL_INPUT,
     paths::CALL_OUTCOME,
@@ -4576,6 +4582,13 @@ pub mod paths {
     pub const TASK_PAGE_ENDED: Path = Path::new("TaskPage.ended");
     pub const TASK_PAGE_ENDED_MARK: Path = Path::new("TaskPage.ended_mark");
     pub const TASK_PAGE_TAIL: Path = Path::new("TaskPage (tail)");
+    pub const WAIT_ROW_CHIP: Path = Path::new("WaitRow.chip");
+    pub const WAIT_ROW_WAIT: Path = Path::new("WaitRow.wait");
+    pub const WAIT_ROW_TAIL: Path = Path::new("WaitRow (tail)");
+    pub const WAIT_PAGE_NOW: Path = Path::new("WaitPage.now");
+    pub const WAIT_PAGE_ROWS: Path = Path::new("WaitPage.rows");
+    pub const WAIT_PAGE_AFTER: Path = Path::new("WaitPage.after");
+    pub const WAIT_PAGE_TAIL: Path = Path::new("WaitPage (tail)");
     pub const CALL_NUMBER: Path = Path::new("Call.number");
     pub const CALL_TOOL: Path = Path::new("Call.tool");
     pub const CALL_INPUT: Path = Path::new("Call.input");
@@ -5827,6 +5840,12 @@ pub mod paths {
     pub const TASK_TEXT_NEXT: Path = Path::new("TaskText.next");
     pub const TASK_TEXT_WORDS: Path = Path::new("TaskText.words");
     pub const TASK_TEXT_TAIL: Path = Path::new("TaskText (tail)");
+    pub const READ_WAITS_PROJECT: Path = Path::new("ReadWaits.project");
+    pub const READ_WAITS_KIND: Path = Path::new("ReadWaits.kind");
+    pub const READ_WAITS_PARTY: Path = Path::new("ReadWaits.party");
+    pub const READ_WAITS_DUE: Path = Path::new("ReadWaits.due");
+    pub const READ_WAITS_AFTER: Path = Path::new("ReadWaits.after");
+    pub const READ_WAITS_TAIL: Path = Path::new("ReadWaits (tail)");
     pub const READ_TAG: Path = Path::new("Read (tag)");
     pub const BEYOND_REFUSED_VALUE: Path = Path::new("BeyondRefused.value");
     pub const BEYOND_REFUSED_TAIL: Path = Path::new("BeyondRefused (tail)");
@@ -49781,6 +49800,120 @@ impl Record for TaskPage {
     }
 }
 
+// Type: WaitRow.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitRow {
+    pub chip: Chip,
+    pub wait: Wait,
+}
+
+// Record: WaitRow.
+impl WaitRow {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Chip"),
+        skein_codec::bounds::Node::Named("Wait"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 80;
+}
+
+impl Record for WaitRow {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_ROW_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitRow")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitRow")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.chip, limits, out, paths::WAIT_ROW_CHIP)?;
+        field::write(field::Nested, &self.wait, limits, out, paths::WAIT_ROW_WAIT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            chip: field::read(field::Nested, limits, reader, paths::WAIT_ROW_CHIP)?,
+            wait: field::read(field::Nested, limits, reader, paths::WAIT_ROW_WAIT)?,
+        })
+    }
+}
+
+// Type: WaitPage.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitPage {
+    pub now: u64,
+    pub rows: List<WaitRow>,
+    pub after: Option<Cursor>,
+}
+
+// Record: WaitPage.
+impl WaitPage {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("WaitRow"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, wait_page_rows), item: 1, size: size_of::<WaitRow>() },
+        skein_codec::bounds::Node::Named("Cursor"),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
+impl Record for WaitPage {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_PAGE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitPage")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitPage")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.now, limits, out, paths::WAIT_PAGE_NOW)?;
+        field::write(field::Sequence { limit: limits.wait_page_rows.min(CEILINGS.wait_page_rows), minimum: 26, item: field::Nested }, &self.rows, limits, out, paths::WAIT_PAGE_ROWS)?;
+        field::write(field::Optional { item: field::Nested }, &self.after, limits, out, paths::WAIT_PAGE_AFTER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            now: field::read(field::U64, limits, reader, paths::WAIT_PAGE_NOW)?,
+            rows: field::read(field::Sequence { limit: limits.wait_page_rows.min(CEILINGS.wait_page_rows), minimum: 26, item: field::Nested }, limits, reader, paths::WAIT_PAGE_ROWS)?,
+            after: field::read(field::Optional { item: field::Nested }, limits, reader, paths::WAIT_PAGE_AFTER)?,
+        })
+    }
+}
+
 // Type: Call.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Call {
@@ -71856,6 +71989,76 @@ impl Record for TaskText {
     }
 }
 
+// Type: ReadWaits.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ReadWaits {
+    pub project: u32,
+    pub kind: Option<WaitKind>,
+    pub party: Option<u64>,
+    pub due: Option<u64>,
+    pub after: Option<Cursor>,
+}
+
+// Record: ReadWaits.
+impl ReadWaits {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("WaitKind"),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Named("Cursor"),
+        skein_codec::bounds::Node::Option { item: 7 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 8] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 29;
+}
+
+impl Record for ReadWaits {
+    type Limits = Limits;
+    const TAIL: Path = paths::READ_WAITS_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ReadWaits")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ReadWaits")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::READ_WAITS_PROJECT)?;
+        field::write(field::Optional { item: field::Nested }, &self.kind, limits, out, paths::READ_WAITS_KIND)?;
+        field::write(field::Optional { item: field::U64 }, &self.party, limits, out, paths::READ_WAITS_PARTY)?;
+        field::write(field::Optional { item: field::U64 }, &self.due, limits, out, paths::READ_WAITS_DUE)?;
+        field::write(field::Optional { item: field::Nested }, &self.after, limits, out, paths::READ_WAITS_AFTER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::READ_WAITS_PROJECT)?,
+            kind: field::read(field::Optional { item: field::Nested }, limits, reader, paths::READ_WAITS_KIND)?,
+            party: field::read(field::Optional { item: field::U64 }, limits, reader, paths::READ_WAITS_PARTY)?,
+            due: field::read(field::Optional { item: field::U64 }, limits, reader, paths::READ_WAITS_DUE)?,
+            after: field::read(field::Optional { item: field::Nested }, limits, reader, paths::READ_WAITS_AFTER)?,
+        })
+    }
+}
+
 // Type: Read.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Read {
@@ -71882,6 +72085,7 @@ pub enum Read {
     Revisions(ReadRevisions),
     TaskText(ReadTaskText),
     ActivityBeside(ReadActivityBeside),
+    Waits(ReadWaits),
 }
 
 // Record: Read.
@@ -71910,7 +72114,8 @@ impl Read {
         skein_codec::bounds::Node::Named("ReadRevisions"),
         skein_codec::bounds::Node::Named("ReadTaskText"),
         skein_codec::bounds::Node::Named("ReadActivityBeside"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] },
+        skein_codec::bounds::Node::Named("ReadWaits"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -71963,6 +72168,7 @@ impl Record for Read {
             Self::Revisions(value) => { field::put(out, &[20], paths::READ_TAG)?; value.write(limits, out) },
             Self::TaskText(value) => { field::put(out, &[21], paths::READ_TAG)?; value.write(limits, out) },
             Self::ActivityBeside(value) => { field::put(out, &[22], paths::READ_TAG)?; value.write(limits, out) },
+            Self::Waits(value) => { field::put(out, &[23], paths::READ_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -71992,7 +72198,8 @@ impl Record for Read {
             20 => Ok(Self::Revisions(ReadRevisions::read(limits, reader)?)),
             21 => Ok(Self::TaskText(ReadTaskText::read(limits, reader)?)),
             22 => Ok(Self::ActivityBeside(ReadActivityBeside::read(limits, reader)?)),
-            23..=u8::MAX => Err(Problem { path: paths::READ_TAG, reason: skein_codec::Reason::Tag }),
+            23 => Ok(Self::Waits(ReadWaits::read(limits, reader)?)),
+            24..=u8::MAX => Err(Problem { path: paths::READ_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -73026,6 +73233,7 @@ pub enum ReadValue {
     Revision(ReadRevisionAnswer),
     Revisions(RevisionsPage),
     TaskText(TaskText),
+    Waits(WaitPage),
 }
 
 // Record: ReadValue.
@@ -73055,7 +73263,8 @@ impl ReadValue {
         skein_codec::bounds::Node::Named("ReadRevisionAnswer"),
         skein_codec::bounds::Node::Named("RevisionsPage"),
         skein_codec::bounds::Node::Named("TaskText"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] },
+        skein_codec::bounds::Node::Named("WaitPage"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -73108,6 +73317,7 @@ impl Record for ReadValue {
             Self::Revision(value) => { field::put(out, &[20], paths::READ_VALUE_TAG)?; value.write(limits, out) },
             Self::Revisions(value) => { field::put(out, &[21], paths::READ_VALUE_TAG)?; value.write(limits, out) },
             Self::TaskText(value) => { field::put(out, &[22], paths::READ_VALUE_TAG)?; value.write(limits, out) },
+            Self::Waits(value) => { field::put(out, &[23], paths::READ_VALUE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -73137,7 +73347,8 @@ impl Record for ReadValue {
             20 => Ok(Self::Revision(ReadRevisionAnswer::read(limits, reader)?)),
             21 => Ok(Self::Revisions(RevisionsPage::read(limits, reader)?)),
             22 => Ok(Self::TaskText(TaskText::read(limits, reader)?)),
-            23..=u8::MAX => Err(Problem { path: paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag }),
+            23 => Ok(Self::Waits(WaitPage::read(limits, reader)?)),
+            24..=u8::MAX => Err(Problem { path: paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -74315,6 +74526,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ReadTooLinked", nodes: ReadTooLinked::SHAPE },
     skein_codec::bounds::Declaration { name: "ReadTurn", nodes: ReadTurn::SHAPE },
     skein_codec::bounds::Declaration { name: "ReadValue", nodes: ReadValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "ReadWaits", nodes: ReadWaits::SHAPE },
     skein_codec::bounds::Declaration { name: "Readiness", nodes: Readiness::SHAPE },
     skein_codec::bounds::Declaration { name: "Recipient", nodes: Recipient::SHAPE },
     skein_codec::bounds::Declaration { name: "RecipientParty", nodes: RecipientParty::SHAPE },
@@ -74626,10 +74838,12 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "WaitNews", nodes: WaitNews::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitNoBound", nodes: WaitNoBound::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitObject", nodes: WaitObject::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitPage", nodes: WaitPage::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitProcedure", nodes: WaitProcedure::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitQuestion", nodes: WaitQuestion::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitResource", nodes: WaitResource::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitResourceName", nodes: WaitResourceName::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitRow", nodes: WaitRow::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitRun", nodes: WaitRun::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitTask", nodes: WaitTask::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitedFor", nodes: WaitedFor::SHAPE },
@@ -74865,6 +75079,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.tasks_rows,
     CEILINGS.ended_rows_rows,
     CEILINGS.task_page_live,
+    CEILINGS.wait_page_rows,
     CEILINGS.call_tool,
     CEILINGS.call_input,
     CEILINGS.call_outcome_some,

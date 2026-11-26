@@ -128,6 +128,7 @@ pub fn document(
         | reads::Answer::Revisions(_)
         | reads::Answer::TaskText(_)
         | reads::Answer::Tasks(_)
+        | reads::Answer::Waits(_)
         | reads::Answer::Page(_)
         | reads::Answer::None(_) => {
             return Err(w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag });

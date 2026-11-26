@@ -114,6 +114,7 @@ fn from_store(
         | Answer::Revisions(_)
         | Answer::TaskText(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Document(_)
         | Answer::Page(_)
         | Answer::None(_) => Err(views::End::Gone),

@@ -249,6 +249,7 @@ pub(super) fn turn(task: u64, attempt: u64, turn: u32, answer: &Answer, lines: &
         | Answer::Revision(_)
         | Answer::Revisions(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Page(_) => None,
     };
     let Some((record, withheld)) = record else {

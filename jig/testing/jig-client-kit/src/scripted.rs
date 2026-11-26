@@ -476,6 +476,7 @@ impl Front<Test> for Scripted {
                     Read::PersonTask { task } => Some(ObjectKey::PersonTask(*task)),
                     Read::Result { task } => Some(ObjectKey::Result(*task)),
                     Read::Tasks { .. }
+                    | Read::Waits { .. }
                     | Read::Me
                     | Read::Ended { .. }
                     | Read::History { .. }
@@ -727,6 +728,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Proposal(_)
                 | ReadValue::Escalation(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Me(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
@@ -751,6 +753,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 ReadValue::Result(r) => seen.push(Observed::Ended { task: r.task.task, commit }),
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Me(_)
                 | ReadValue::EndedPage(_)
                 | ReadValue::Proposal(_)

@@ -58,6 +58,7 @@ pub(super) fn decided(
         | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Project(_)
         | ReadValue::Ended(_)
         | ReadValue::Me(_)
