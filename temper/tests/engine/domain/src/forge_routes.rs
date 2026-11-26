@@ -3108,7 +3108,26 @@ impl World {
 
     /// Send a scripted agent's tool call and commit its turn's call evidence.
     pub fn scripted_call(&mut self, run: &engine::Assignment, number: u64, tool: engine::Tool) -> engine::CallAnswer {
-        const CHANNEL: Token = Token::new(7);
+        self.scripted_call_then_turn(run, number, tool, false)
+    }
+
+    /// Resend one named call before the caller commits the turn that carries its answer.
+    pub(crate) fn scripted_call_with_replay(
+        &mut self,
+        run: &engine::Assignment,
+        number: u64,
+        tool: engine::Tool,
+    ) -> engine::CallAnswer {
+        self.scripted_call_then_turn(run, number, tool, true)
+    }
+
+    fn scripted_call_then_turn(
+        &mut self,
+        run: &engine::Assignment,
+        number: u64,
+        tool: engine::Tool,
+        replay: bool,
+    ) -> engine::CallAnswer {
         self.scripted_read_inbox(run);
         let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
         let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
@@ -3116,40 +3135,51 @@ impl World {
             panic!("scripted caller is live")
         };
         let turn = row.turn + 1;
+        let body = engine::Call { completion: turn, position: 1, tool };
+        let answer = if replay {
+            let first = self.scripted_call_at(run, number, body.clone());
+            assert_eq!(self.scripted_call_at(run, number, body), first, "named call {number} replays its answer");
+            first
+        } else {
+            self.scripted_call_at(run, number, body)
+        };
+        let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+            self.store.rows.get(&proof_key)
+        else {
+            panic!("scripted run proof")
+        };
+        let read = proof.turn.as_ref().and_then(|turn| turn.read);
+        self.send(protocol::turn(Token::new(7), run.task, run.attempt, turn, 0, read, b"Continue the agreed work"));
+        for _ in 0..STEPS {
+            self.tick();
+            if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                self.store.rows.get(&key)
+                && row.turn >= turn
+                && self.store.pending.is_empty()
+            {
+                return answer;
+            }
+        }
+        panic!("scripted call {number} turn committed");
+    }
+
+    /// Send a call at an explicit completion and leave its turn uncommitted.
+    pub fn scripted_call_at(
+        &mut self,
+        run: &engine::Assignment,
+        number: u64,
+        body: engine::Call,
+    ) -> engine::CallAnswer {
         let before = self.answers.len();
         let errors = self.call_errors.len();
-        let event = self.protocol.call(
-            CHANNEL,
-            run.task,
-            run.attempt,
-            number,
-            engine::Call { completion: turn, position: 1, tool },
-        );
+        let event = self.protocol.call(Token::new(7), run.task, run.attempt, number, body);
         self.send(event);
         for _ in 0..STEPS {
             self.tick();
             assert_eq!(self.call_errors.len(), errors, "scripted call {number}: {:?}", self.call_errors);
             if self.answers.len() > before && self.store.pending.is_empty() {
-                let answer = self.answers[before].clone();
-                let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
-                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
-                    self.store.rows.get(&proof_key)
-                else {
-                    panic!("scripted run proof")
-                };
-                let read = proof.turn.as_ref().and_then(|turn| turn.read);
-                self.send(protocol::turn(CHANNEL, run.task, run.attempt, turn, 0, read, b"Continue the agreed work"));
-                for _ in 0..STEPS {
-                    self.tick();
-                    if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
-                        self.store.rows.get(&key)
-                        && row.turn >= turn
-                        && self.store.pending.is_empty()
-                    {
-                        return answer;
-                    }
-                }
-                panic!("scripted call {number} turn committed");
+                return self.answers[before].clone();
             }
         }
         panic!("scripted call {number} answered: {:?}", self.answers);

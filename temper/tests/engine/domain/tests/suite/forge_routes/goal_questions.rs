@@ -483,6 +483,43 @@ fn a_goal_answers_a_question_and_the_change_lands() {
 }
 
 #[test]
+fn a_goals_answer_call_replays_after_a_restart() {
+    let mut story = start(None);
+    let (question, up) = ask_up(&mut story.world, &story.producer, story.a);
+    let world = &mut story.world;
+    world.drain_cut();
+    world.restart_same();
+    world.until(Until::Ready);
+    world.scripted_read_inbox(&story.goal);
+    let body = engine::Call {
+        completion: live_task(world, story.goal.task).turn + 1,
+        position: 1,
+        tool: engine::Tool::Message {
+            target: story.a,
+            form: engine::MessageForm::Answer { question: up },
+            words: ANSWER.into(),
+        },
+    };
+    let first = world.scripted_call_at(&story.goal, 105, body.clone());
+    assert!(matches!(first, engine::CallAnswer::Sent { .. }));
+    resumed(world, &story.producer, story.a, question, ANSWER);
+    world.drain_cut();
+
+    // The relay has used the answer, but the goal's turn carrying its result has not committed.
+    world.restart_same();
+    world.until(Until::Ready);
+    assert_eq!(world.scripted_call_at(&story.goal, 105, body), first);
+    world.until(Until::Ready);
+    let answers: Vec<_> = replies(world, story.producer.task, story.a)
+        .into_iter()
+        .filter(|word| word.kind == tasks::MessageKind::Answer { question })
+        .collect();
+    assert_eq!(answers.len(), 1, "the producer receives the answer once");
+    assert_eq!(answers[0].words.as_ref(), ANSWER);
+    world.close();
+}
+
+#[test]
 fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
     let mut story = start(None);
     let base = settle_a(&mut story);
