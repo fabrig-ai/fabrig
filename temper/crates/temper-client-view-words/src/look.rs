@@ -1659,6 +1659,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-858",
         b"temper-reserved-859",
         b"temper-goal-wait",
+        b"temper-need-overdue",
     ],
     regions: &[b"temper-link"],
 };
@@ -1669,6 +1670,8 @@ pub const WHY_OFFERS: Style = Style { owner: owner(), token: 690 };
 
 /// Needs you (temper/docs/design/client/pages/README.md).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };
+/// An overdue need's from line (client/pages/needs-you.md, 1).
+pub const NEED_OVERDUE: Style = Style { owner: owner(), token: 861 };
 
 /// Needs you (temper/docs/design/client/pages/README.md).
 pub const FLOW_Q: Style = Style { owner: owner(), token: 306 };

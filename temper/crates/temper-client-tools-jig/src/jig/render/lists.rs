@@ -230,7 +230,13 @@ pub(super) fn activity_limit(call: &Call, rows: u32) -> u32 {
     }
 }
 
-pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phrasebook, out: &mut Text) {
+pub(super) fn inboxes(
+    reading: &Reading,
+    limits: &crate::jig::Limits,
+    book: &Phrasebook,
+    wall: skein_lib::Wall,
+    out: &mut Text,
+) {
     let rows = limits.rows;
     let updates_fit = updates_fit(reading, rows);
     for (local, page) in &reading.pages {
@@ -240,8 +246,8 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phr
         match page {
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
                 for row in page.rows.as_slice().iter().take(usize::try_from(rows).expect("rows fit")) {
-                    if !titled_proposal(row, reading, out) {
-                        owner_inbox_row(row, book, out);
+                    if !titled_proposal(row, reading, wall, out) {
+                        inbox_row(row, book, Some(wall), out);
                     }
                     if let c::InboxObject::Question { message } = row.object {
                         question(reading, (row.task.number(), message), out);
@@ -259,7 +265,7 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phr
     }
     next(&reading.called.call, 3, inbox_cursor(reading, rows).as_ref(), out);
 }
-fn titled_proposal(row: &c::InboxEntry, reading: &Reading, out: &mut Text) -> bool {
+fn titled_proposal(row: &c::InboxEntry, reading: &Reading, wall: skein_lib::Wall, out: &mut Text) -> bool {
     let c::InboxObject::Proposal { proposer, number } = row.object else { return false };
     let key = c::ProposalKey { proposer, number };
     let Some(Some(reason)) = reading.proposals.get(&key) else { return false };
@@ -274,6 +280,7 @@ fn titled_proposal(row: &c::InboxEntry, reading: &Reading, out: &mut Text) -> bo
         out.put(b" \xc2\xb7 projects: ");
         super::document::projects_text(&row.projects, out);
     }
+    super::document::waits::inbox_when(row, wall, out);
     out.put(b"\n");
     true
 }
@@ -321,14 +328,26 @@ fn group_cursor(group: u8, after: Option<&c::Cursor>) -> c::Cursor {
     c::Cursor::new(bytes.finish(), u32::MAX).expect("bounded cursor")
 }
 pub(super) fn owner_inbox_row(row: &c::InboxEntry, book: &Phrasebook, out: &mut Text) {
-    object(row.card_key(), out);
+    inbox_row(row, book, None, out);
+}
+fn inbox_row(row: &c::InboxEntry, book: &Phrasebook, wall: Option<skein_lib::Wall>, out: &mut Text) {
+    let key = row.card_key();
+    object(key, out);
+    if let Some(wall) = wall {
+        super::document::waits::inbox_when(row, wall, out);
+    }
+    if let c::ObjectKey::PersonTask(task) = key {
+        out.put(b"\n  read: task show ");
+        out.number(task);
+    }
+    out.put(b"\n");
     if let c::TaskLink::Live(chip) | c::TaskLink::Retained { chip, .. } = &row.task
         && let c::ChipPhase::Held { reason: c::HoldCategory::Budget, .. } = (&(chip.details.as_ref()).phase)
     {
         super::document::budget_hold_text(chip.task, book, out);
     }
 }
-pub(super) fn object(key: c::ObjectKey, out: &mut Text) {
+fn object(key: c::ObjectKey, out: &mut Text) {
     match key {
         c::ObjectKey::Task(task) => {
             out.number(task);
@@ -349,8 +368,7 @@ pub(super) fn object(key: c::ObjectKey, out: &mut Text) {
         }
         c::ObjectKey::PersonTask(task) => {
             out.number(task);
-            out.put(b" \xc2\xb7 person task\n  read: task show ");
-            out.number(task);
+            out.put(b" \xc2\xb7 person task");
         }
         c::ObjectKey::Result(task) => {
             out.number(task);
@@ -362,7 +380,6 @@ pub(super) fn object(key: c::ObjectKey, out: &mut Text) {
             out.number(u64::from(project));
         }
     }
-    out.put(b"\n");
 }
 
 fn question(reading: &Reading, key: (u64, u64), out: &mut Text) {

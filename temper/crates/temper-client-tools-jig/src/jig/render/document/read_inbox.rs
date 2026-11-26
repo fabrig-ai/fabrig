@@ -1,5 +1,6 @@
 //! Integer JSON for supplied read facts.
 use skein_json::writer::Encoder;
+use skein_lib::Wall;
 
 pub(super) fn encode_owner_inbox_cursor(
     value: &jig_client::contract::InboxCursor,
@@ -39,6 +40,7 @@ pub(super) fn encode_owner_inbox_cursor(
 
 pub(super) fn encode_owner_inbox_entry(
     value: &jig_client::contract::InboxEntry,
+    wall: Option<Wall>,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -80,6 +82,27 @@ pub(super) fn encode_owner_inbox_entry(
             out.unsigned((item_4).as_nanos());
         }
         None => out.null(),
+    }
+    let bound =
+        if jig_client::contract::InboxReadGroup::of(value.group()) == jig_client::contract::InboxReadGroup::Updates {
+            None
+        } else {
+            value.bound
+        };
+    // The watch's canonical subject includes supplied facts, never a clock's judgement.
+    if wall.is_some() || bound.is_some() {
+        out.key(b"bound");
+        match bound {
+            Some(bound) => super::waits::encode_bound(bound, out),
+            None => out.null(),
+        }
+    }
+    if let Some(wall) = wall {
+        out.key(b"overdue");
+        out.boolean(match bound {
+            Some(bound) => super::waits::overdue(bound, wall),
+            None => false,
+        });
     }
     out.key(b"unread");
     match &value.unread {
@@ -154,6 +177,7 @@ pub(super) fn encode_owner_inbox_object(
 
 pub(super) fn encode_owner_inbox_page(
     value: &jig_client::contract::InboxPage,
+    wall: Wall,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -174,7 +198,7 @@ pub(super) fn encode_owner_inbox_page(
     out.key(b"rows");
     out.array_start();
     for item_3 in &value.rows {
-        encode_owner_inbox_entry(item_3, out, budget);
+        encode_owner_inbox_entry(item_3, Some(wall), out, budget);
     }
     out.array_end();
     out.key(b"before");

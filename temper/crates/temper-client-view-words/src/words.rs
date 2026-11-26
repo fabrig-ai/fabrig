@@ -1029,6 +1029,7 @@ pub enum Word {
 
     HomeOpen,
     NeedsLaterMeta,
+    NeedOverdue,
     NeedsYourReply,
     NeedsPlaceholder,
     NeedsSendReply,
@@ -2350,7 +2351,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
 // Landing waits add 17 literal phrases (client/web/public.md, 3).
-const PHRASES: u32 = 2925;
+const PHRASES: u32 = 2926;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2378,10 +2379,10 @@ const PHRASES: u32 = 2925;
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 // Landing waits add 17 literal segments (client/web/public.md, 3).
-const SEGMENTS: u32 = 5462;
+const SEGMENTS: u32 = 5463;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 68496;
-const ALL: [Word; 2172] = [
+const ENGLISH_BYTES: u32 = 68503;
+const ALL: [Word; 2173] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -3346,6 +3347,7 @@ const ALL: [Word; 2172] = [
     Word::Asking,
     Word::HomeOpen,
     Word::NeedsLaterMeta,
+    Word::NeedOverdue,
     Word::NeedsYourReply,
     Word::NeedsPlaceholder,
     Word::NeedsSendReply,
@@ -5563,6 +5565,7 @@ impl Word {
             Self::Asking => 3188,
             Self::HomeOpen => 3165,
             Self::NeedsLaterMeta => 3305,
+            Self::NeedOverdue => 9970,
             Self::NeedsYourReply => 3306,
             Self::NeedsPlaceholder => 3307,
             Self::NeedsSendReply => 3308,
@@ -8024,6 +8027,10 @@ const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'stati
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
         Word::HomeOpen => (&[b"Open"], &[]),
         Word::NeedsLaterMeta => (&[b" \xc2\xb7 later"], &[]),
+        Word::NeedOverdue => (
+            match shell { Shell::Browser => &[b"Overdue"], Shell::Terminal => &[b"overdue"] },
+            &[],
+        ),
         Word::NeedsYourReply => (&[b"Your reply"], &[]),
         Word::NeedsPlaceholder => (&[b"Your words go to ", b"\xe2\x80\x99s agent"], &[Name]),
         Word::NeedsSendReply => (&[b"Send reply"], &[]),

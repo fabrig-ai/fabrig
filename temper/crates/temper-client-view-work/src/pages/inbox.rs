@@ -7,13 +7,14 @@ use crate::{
     words::{TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
+use jig_client::contract::{AtBound, waits::Bound};
 use jig_client::contract::{EndedValue, InboxEntry, InboxGroup, ObjectKey, Proposer, ReadValue, ResultValue, TaskLink};
 use skein_lib::Decimal;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     address::{Filter, Kind},
-    pages::{Act, inbox::Card},
+    pages::{Act, findings, inbox::Card, needs},
 };
 fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.open(role);
@@ -32,10 +33,6 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     }
     b.close();
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "the terminal's two sections join row-only needs with read cards and keep updates separate"
-)]
 pub fn main(
     b: &mut Builder,
     root: &Domain,
@@ -60,25 +57,14 @@ pub fn main(
         b.close();
         return;
     };
-    for (heading, groups) in [
-        (
-            Word::NeedsYou,
-            [
-                Some(InboxGroup::Proposals),
-                Some(InboxGroup::Questions),
-                Some(InboxGroup::Escalations),
-                Some(InboxGroup::PersonTasks),
-            ],
-        ),
-        (Word::InboxUpdates, [Some(InboxGroup::Results), Some(InboxGroup::Replies), None, None]),
-    ] {
+    for heading in [Word::NeedsYou, Word::InboxUpdates] {
         b.open(Role::Slot);
         b.style(look::HEADING);
         text(b, Role::Heading { level: 2 }, &words.say(heading, &[]));
         let updates = heading == Word::InboxUpdates;
         let mut count = 0_u64;
         for card in &inbox.cards {
-            if groups.contains(&Some(card.group)) {
+            if updates && (card.group == InboxGroup::Results || card.group == InboxGroup::Replies) {
                 count = count.checked_add(1).expect("listed cards fit");
             }
         }
@@ -107,58 +93,33 @@ pub fn main(
         }
         b.close();
         let mut opened = false;
-        for group in groups.into_iter().flatten() {
-            if !updates {
-                for row in &inbox.rows {
-                    if row.group() != group
-                        || root.pages().needs().held(row.card_key())
-                        || match inbox.filter.kind {
-                            Some(kind) => temper_client_domain::pages::inbox::kind(kind) != Some(row.group()),
-                            None => false,
-                        }
-                        || match inbox.filter.project {
-                            Some(project) => !row.shows_in(project),
-                            None => false,
-                        }
-                    {
-                        continue;
-                    }
-                    if !opened {
-                        b.open(Role::List);
-                        b.name(&words.say(heading, &[]));
-                        b.style(look::CARDS);
-                        opened = true;
-                    }
-                    let mut read = None;
-                    for card in &inbox.cards {
-                        if card.object == row.card_key() {
-                            read = Some(card);
-                        }
-                    }
-                    match read {
-                        Some(card) if card.page.is_some() || card.withdraw_unread => {
-                            entry(b, root, card, words, bindings, rows, times);
-                        }
-                        Some(_) | None => row_entry(b, root, row, read, words, bindings, times),
+        if updates {
+            for group in [InboxGroup::Results, InboxGroup::Replies] {
+                for card in &inbox.cards {
+                    if card.group == group {
+                        open_rows(b, words, heading, &mut opened);
+                        entry(b, root, card, words, bindings, rows, times);
                     }
                 }
             }
-            for card in &inbox.cards {
-                let mut listed = false;
-                for row in &inbox.rows {
-                    listed |= card.object == row.card_key();
-                }
-                if card.group == group && (updates || !listed) {
-                    if !opened {
-                        b.open(Role::List);
-                        b.name(&words.say(heading, &[]));
-                        b.style(look::CARDS);
-                        if heading == Word::InboxUpdates {
-                            b.style(look::UPDATES);
-                        }
-                        opened = true;
+        } else {
+            for need in &root.pages().needs().all(inbox, root.forge().approvals()) {
+                match need {
+                    findings::Need::Existing(needs::Need::Card(card)) => {
+                        open_rows(b, words, heading, &mut opened);
+                        entry(b, root, card, words, bindings, rows, times);
                     }
-                    entry(b, root, card, words, bindings, rows, times);
+                    findings::Need::Row(row) => {
+                        open_rows(b, words, heading, &mut opened);
+                        let mut card = None;
+                        for candidate in &inbox.cards {
+                            if candidate.object == row.card_key() {
+                                card = Some(candidate);
+                            }
+                        }
+                        row_entry(b, root, row, card, words, bindings, times);
+                    }
+                    findings::Need::Existing(needs::Need::Approval(_)) | findings::Need::Finding(_) => {}
                 }
             }
         }
@@ -176,6 +137,17 @@ pub fn main(
     super::needs::decided(b, root, words, bindings, times);
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
+}
+fn open_rows(b: &mut Builder, words: &Words, heading: Word, opened: &mut bool) {
+    if !*opened {
+        b.open(Role::List);
+        b.name(&words.say(heading, &[]));
+        b.style(look::CARDS);
+        if heading == Word::InboxUpdates {
+            b.style(look::UPDATES);
+        }
+        *opened = true;
+    }
 }
 fn filter_control(b: &mut Builder, bindings: &mut Bindings, name: &[u8], filter: Filter, pressed: bool) {
     b.open(Role::Button);
@@ -378,38 +350,25 @@ fn entry(
             b.close();
         }
         b.close();
-        card_time(b, card, words, times);
+        let row = need_row(root, card.object);
+        card_time(b, card, row, words, times);
         b.close();
     }
     if let Some(page) = &card.page {
         if update {
             update_body(b, card, page, words, bindings);
-            card_time(b, card, words, times);
+            card_time(b, card, None, words, times);
             b.close();
             return;
         }
         if crate::cards::proposal::settings(b, root, card, words, bindings, false) {
-            super::needs::why_line(
-                b,
-                root,
-                words,
-                bindings,
-                temper_client_domain::pages::needs::Need::Card(card),
-                super::needs::WhyForm::Short,
-            );
+            super::needs::why_line(b, root, words, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
             b.close();
             return;
         }
         body(b, page, words);
         crate::cards::proposal_reason(b, page);
-        super::needs::why_line(
-            b,
-            root,
-            words,
-            bindings,
-            temper_client_domain::pages::needs::Need::Card(card),
-            super::needs::WhyForm::Short,
-        );
+        super::needs::why_line(b, root, words, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
         if has_facts(page) {
             let proposal = crate::cards::proposal_has_rows(page);
             if !proposal {
@@ -431,14 +390,7 @@ fn entry(
         }
     } else if !update {
         crate::confirm::card_controls(b, root, card, words, bindings);
-        super::needs::why_line(
-            b,
-            root,
-            words,
-            bindings,
-            temper_client_domain::pages::needs::Need::Card(card),
-            super::needs::WhyForm::Short,
-        );
+        super::needs::why_line(b, root, words, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
     } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
         b.style(look::TITLE);
@@ -530,18 +482,12 @@ fn row_entry(
         text(b, Role::Text, &skein_lib::bytes::concat(&[b" ", &crate::common::chat::row_title(title)]));
     }
     if let Some(at) = row.at {
-        text(b, Role::Text, &times.say(words, TimeForm::Span, at));
+        let age = times.say(words, TimeForm::Span, at);
+        text(b, Role::Text, &wait_with_overdue(age, Some(row), words, times));
     }
     b.close();
     if let Some(card) = card {
-        super::needs::why_line(
-            b,
-            root,
-            words,
-            bindings,
-            temper_client_domain::pages::needs::Need::Card(card),
-            super::needs::WhyForm::Short,
-        );
+        super::needs::why_line(b, root, words, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
     }
     control(
         b,
@@ -684,13 +630,15 @@ fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
     }
 }
 
-fn card_time(b: &mut Builder, card: &Card, words: &Words, times: &mut Times) {
-    let Some(page) = &card.page else { return };
+fn card_time(b: &mut Builder, card: &Card, row: Option<&InboxEntry>, words: &Words, times: &mut Times) {
     let (at, wait) = match card.group {
         InboxGroup::Proposals | InboxGroup::Questions | InboxGroup::Escalations | InboxGroup::PersonTasks => {
-            (waiting_since(page), true)
+            (card_since(card, row), true)
         }
-        InboxGroup::Results | InboxGroup::Replies => (arrival(page, card.group == InboxGroup::Replies), false),
+        InboxGroup::Results | InboxGroup::Replies => {
+            let Some(page) = &card.page else { return };
+            (arrival(page, card.group == InboxGroup::Replies), false)
+        }
     };
     let Some(at) = at else { return };
     let said = times.say(words, if wait { TimeForm::Span } else { TimeForm::Ago }, at);
@@ -706,11 +654,48 @@ fn card_time(b: &mut Builder, card: &Card, words: &Words, times: &mut Times) {
     } else {
         said
     };
+    let said = wait_with_overdue(said, row, words, times);
     b.open(Role::Paragraph);
     b.style(if wait { look::WAIT } else { look::UPDATE_TIME });
     b.name(&said);
     b.text(Run::Plain, &said);
     b.close();
+}
+
+fn wait_with_overdue(age: Box<[u8]>, row: Option<&InboxEntry>, words: &Words, times: &mut Times) -> Box<[u8]> {
+    if overdue(row, times) {
+        return skein_lib::bytes::concat(&[&age, &overdue_words(words)]);
+    }
+    age
+}
+
+pub(super) fn need_row(root: &Domain, object: ObjectKey) -> Option<&InboxEntry> {
+    root.pages().inbox()?.need_row(object)
+}
+
+pub(super) fn card_since(card: &Card, row: Option<&InboxEntry>) -> Option<skein_lib::Wall> {
+    if let Some(row) = row
+        && row.at.is_some()
+    {
+        return row.at;
+    }
+    waiting_since(card.page.as_ref()?)
+}
+
+pub(super) fn overdue(row: Option<&InboxEntry>, times: &mut Times) -> bool {
+    let Some(row) = row else { return false };
+    let Some(Bound::At { at, then: AtBound::Overdue }) = row.bound else { return false };
+    if at <= times.now {
+        return true;
+    }
+    if times.next.is_none() || Some(at) < times.next {
+        times.next = Some(at);
+    }
+    false
+}
+
+pub(super) fn overdue_words(words: &Words) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[&words.say(Word::ToolSeparator, &[]), &words.say(Word::NeedOverdue, &[])])
 }
 
 fn arrival(page: &ReadValue, reply: bool) -> Option<skein_lib::Wall> {

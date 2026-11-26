@@ -124,3 +124,100 @@ fn approval_context_names_who_signed_and_who_can_still_sign() {
     assert_eq!(context[2].as_ref(), b"There are too many reviews to read them all, so one may already count.");
     assert_eq!(context[3].as_ref(), b"temper knows no Forgejo account of yours, so your review wouldn't count.");
 }
+
+const DUE: u64 = 3_610_000_000_000;
+const BEFORE_DUE: skein_lib::Wall = skein_lib::Wall::from_nanos(DUE - 1);
+const AT_DUE: skein_lib::Wall = skein_lib::Wall::from_nanos(DUE);
+
+fn bounded_needs() -> d::Domain {
+    use super::fixtures::needs::{deliver_asked, event, fixture_watched};
+    use jig_client::contract::{self as c, AtBound, waits::Bound};
+    use skein_lib::Queue;
+    const COUNT: u32 = 5;
+    let (mut root, watch, decided) = fixture_watched("A question?", false, COUNT, false, d::address::Filter::ALL, None);
+    deliver_asked(&mut root, decided, None);
+    let mut rows = root.pages().inbox().unwrap().rows.clone();
+    for (index, then) in [(0, AtBound::Overdue), (1, AtBound::PassUp), (COUNT - 1, AtBound::Overdue)] {
+        rows.get_mut(index).unwrap().bound = Some(Bound::At { at: AT_DUE, then });
+    }
+    event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(f::documents::inbox(
+                        rows,
+                        COUNT,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    )))),
+                },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    let inbox = root.pages().inbox().unwrap();
+    assert!(inbox.cards.get(0).unwrap().page.is_some(), "the first need is a read card");
+    assert_eq!(inbox.cards.len(), COUNT - 1, "the last need has only its row");
+    root
+}
+
+fn inbox_tree(root: &d::Domain, words: &crate::words::Words, times: &mut crate::words::Times) -> skein_ui::Tree {
+    let mut b = skein_ui::Builder::new(&f::tree_limits());
+    crate::pages::inbox::main(
+        &mut b,
+        root,
+        words,
+        &mut crate::bindings::Bindings::new(256),
+        32,
+        times,
+        &crate::forge_sign_in::Forges::new(),
+    );
+    b.finish()
+}
+
+#[test]
+fn needs_you_marks_only_overdue_bounds_after_the_age() {
+    use crate::{look, words::Times};
+    let root = bounded_needs();
+    let words = f::browser_words();
+    let mut times = Times::new(BEFORE_DUE);
+    let before = inbox_tree(&root, &words, &mut times);
+    assert!(!core::str::from_utf8(&f::text(&before)).unwrap().contains("Overdue"));
+    assert_eq!(times.next, Some(AT_DUE), "a redraw is due even if the displayed age stays the same");
+
+    let tree = inbox_tree(&root, &words, &mut Times::new(AT_DUE));
+    assert!(f::find(&tree, skein_ui::Role::Text, b"oldest first").is_some());
+    let mut overdue = 0_u32;
+    for (index, node) in tree.nodes().iter().enumerate() {
+        if node.styles.as_slice().contains(&look::ASK_META) {
+            let text = f::node_text(&tree, index);
+            let text = core::str::from_utf8(&text).unwrap();
+            if text.contains("Overdue") {
+                assert!(text.ends_with(" · 1 h · Overdue"), "{text}");
+                let parts = f::inbox::subtree(&tree, index);
+                assert!(parts.iter().any(|part| part.styles.as_slice().contains(&look::NEED_OVERDUE)));
+                assert_eq!(node.name.is_some(), overdue == 0, "first the open card, then the row-only need");
+                overdue += 1;
+            }
+        }
+    }
+    assert_eq!(overdue, 2, "one open card and one closed row, but never the pass-up need");
+}
+
+#[test]
+fn terminal_inbox_marks_overdue_after_the_wait() {
+    use crate::words::{Shell, Times};
+    let root = bounded_needs();
+    let words = f::english(Shell::Terminal);
+    for (wall, marked) in [(BEFORE_DUE, 0), (AT_DUE, 2)] {
+        let tree = inbox_tree(&root, &words, &mut Times::new(wall));
+        let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+        skein_ui_text::render(&tree, b"temper", None, &mut print);
+        let text = core::str::from_utf8(print.text.as_slice()).unwrap();
+        assert_eq!(text.matches("overdue").count(), marked, "{text}");
+        assert_eq!(text.matches("1 h · overdue").count(), marked, "{text}");
+    }
+}

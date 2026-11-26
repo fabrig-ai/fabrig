@@ -533,7 +533,7 @@ pub(crate) fn reads(
         };
         return notes::print(page, &reading.called.call, reading.called.json, limits);
     }
-    document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
+    document::print(document::Document::ReadSet(reading, party, wall), reading.called.json, limits, vocabulary)
 }
 
 fn deleted_project(project: u32) -> Box<[u8]> {

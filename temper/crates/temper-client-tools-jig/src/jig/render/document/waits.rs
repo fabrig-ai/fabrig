@@ -68,6 +68,30 @@ pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn Parts, out:
     }
 }
 
+pub(in crate::jig::render) fn inbox_when(row: &c::InboxEntry, wall: Wall, out: &mut Text) {
+    if jig_client::contract::InboxReadGroup::of(row.group()) == jig_client::contract::InboxReadGroup::Updates {
+        return;
+    }
+    if let Some(at) = row.at {
+        since(at, out);
+    }
+    if let Some(bound @ Bound::At { at, then }) = row.bound {
+        out.put(b" \xc2\xb7 ");
+        if overdue(bound, wall) {
+            out.put(b"overdue since ");
+            clock::deadline(at, out);
+        } else {
+            at_bound(at, then, out);
+        }
+    }
+}
+pub(super) fn overdue(bound: Bound, wall: Wall) -> bool {
+    if let Bound::At { at, then: c::AtBound::Overdue } = bound {
+        return at <= wall;
+    }
+    false
+}
+
 /// One wait with its own bound, without the document's hearer suffix.
 pub fn wait_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     object_text(wait, me, vocabulary, out);
@@ -250,19 +274,22 @@ fn encode_wait(wait: &c::Wait, out: &mut Encoder, budget: &mut Cut) {
     out.key(b"since");
     out.unsigned(wait.since.as_nanos());
     out.key(b"bound");
+    encode_bound(wait.bound, out);
+    out.key(b"hears");
+    match &wait.hears {
+        Some(holder) => super::encode_owner_escalation_holder(holder, out, budget),
+        None => out.null(),
+    }
+    out.object_end();
+}
+pub(super) fn encode_bound(bound: Bound, out: &mut Encoder) {
     out.object_start();
-    match wait.bound {
+    match bound {
         Bound::At { at, then } => encode_at(at, then, out),
         Bound::None(reason) => {
             out.key(b"none");
             encode_unbounded(reason, out);
         }
-    }
-    out.object_end();
-    out.key(b"hears");
-    match &wait.hears {
-        Some(holder) => super::encode_owner_escalation_holder(holder, out, budget),
-        None => out.null(),
     }
     out.object_end();
 }

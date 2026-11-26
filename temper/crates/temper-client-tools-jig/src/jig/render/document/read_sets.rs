@@ -3,6 +3,7 @@ use super::{Cut, Limits, Text};
 use crate::jig::runner::reads::Reading;
 use jig_client::{Readout, contract as c};
 use skein_json::writer::Encoder;
+use skein_lib::Wall;
 use skein_ui::phrases::Phrasebook;
 #[expect(
     clippy::too_many_lines,
@@ -14,6 +15,7 @@ pub(super) fn text(
     book: &Phrasebook,
     limits: &Limits,
     vocabulary: &dyn crate::jig::render::Parts,
+    wall: Wall,
     out: &mut Text,
 ) {
     if let Some(person) = &reading.person {
@@ -25,7 +27,7 @@ pub(super) fn text(
         return;
     }
     if call.tool == 1 {
-        super::super::lists::inboxes(reading, limits, book, out);
+        super::super::lists::inboxes(reading, limits, book, wall, out);
         return;
     }
     if let Some(thread) = &reading.thread {
@@ -146,14 +148,21 @@ fn ended_text(
     super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
 }
 #[expect(clippy::too_many_lines, reason = "read-set dispatch keeps each selected document's encoding together")]
-pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
+pub(super) fn encode(
+    reading: &Reading,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    wall: Wall,
+    out: &mut Encoder,
+    budget: &mut Cut,
+) {
     let call = &reading.called.call;
     if crate::jig::runner::providers::all(call) {
         super::settings::providers_encode(reading, out);
         return;
     }
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
-        super::subjects::encode_inbox_read(reading, limits, out);
+        super::subjects::encode_inbox_read(reading, limits, wall, out);
         return;
     }
     let compound = reading.called.call.tool == 1 || reading.called.call.tool == 3 || reading.called.call.tool == 4;
@@ -242,7 +251,7 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
             }
 
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
-                super::encode_owner_inbox_page(page, out, budget);
+                super::encode_owner_inbox_page(page, wall, out, budget);
             }
             Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
                 unreachable!("validated read value")

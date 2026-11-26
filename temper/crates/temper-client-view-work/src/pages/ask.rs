@@ -115,6 +115,14 @@ pub fn card_kind(card: &Card) -> Word {
     if person_in_words(card).is_some() { Word::HomeQuestion } else { need_kind(card.group) }
 }
 pub(crate) fn need_when(card: &Card, w: &Words, times: &mut Times) -> Box<[u8]> {
+    need_when_at(card, None, w, times)
+}
+pub(super) fn need_when_at(
+    card: &Card,
+    row: Option<&jig_client::contract::InboxEntry>,
+    w: &Words,
+    times: &mut Times,
+) -> Box<[u8]> {
     let kind = if let Some(ReadValue::Escalation(held)) = &card.page
         && let Some(hold) = &held.task.hold
         && hold.reason == jig_client::contract::HoldCategory::Budget
@@ -123,15 +131,8 @@ pub(crate) fn need_when(card: &Card, w: &Words, times: &mut Times) -> Box<[u8]> 
     } else {
         card_kind(card)
     };
-    when(card, kind, w, times)
-}
-fn when(card: &Card, kind: Word, w: &Words, times: &mut Times) -> Box<[u8]> {
     let kind = w.say(kind, &[]);
-    let since = match &card.page {
-        Some(page) => super::inbox::waiting_since(page),
-        None => None,
-    };
-    match since {
+    match super::inbox::card_since(card, row) {
         Some(since) => crate::accounts::words::join(&[
             &kind,
             &w.say(Word::ToolSeparator, &[]),
