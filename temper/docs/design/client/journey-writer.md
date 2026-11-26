@@ -557,20 +557,25 @@ terminal.
      changes, where a rule C adds, changes or removes there selects an
      element (step 5);
    - each `.html` page C changes in a directory under the browser's
-     root that is no journey and is drawn on a gallery state
-     (`web/look-requests.md`, 2): its `README.md`, as C holds it, holds
-     `` the gallery's state `NAME` ``, NAME of ASCII letters, digits
-     and `-`, and every such phrase in it names the same NAME. Each is
-     rendered beside that state's page as the gallery prints it (step
-     3), and is touched as a journey's page is (step 5).
+     root that is no journey and is drawn on a gallery state as the
+     requested look (`web/look-requests.md`, 2): its `README.md`, as C
+     holds it, holds `` the gallery's state `NAME` ``, NAME of ASCII
+     letters, digits and `-`, every such phrase in it names the same
+     NAME, and it names the page as the request: the page's file name
+     between backticks, one space and `the request`, followed by the
+     file's end or by no ASCII letter, digit, `-`, `_`, `'` or `’`.
+     Each is rendered beside that state's page as the gallery prints it
+     (step 3), and is touched by the request's rules alone (step 5).
 
-   Any other page C changes in a directory that is no journey is
-   `uncompared`, `hand-made`, the TUI's root's among them, since the
-   gallery prints the browser's pages; a journey's page the checkout's
-   print lacks at its path, or a page whose state the gallery's print
-   lacks, is `uncompared`, `nothing printed beside it`. The TUI's
-   `NN.txt` is not rendered: its text was compared at the landing
-   (6.1).
+   A page C changes in such a directory that its `README.md` doesn't
+   name as the request, the look before the request among them, is
+   `uncompared`, `not the requested look`. Any other page C changes in a
+   directory that is no journey is `uncompared`, `hand-made`, the TUI's
+   root's among them, since the gallery prints the browser's pages; a
+   journey's page the checkout's print lacks at its path, or a page
+   whose state the gallery's print lacks, is `uncompared`, `nothing
+   printed beside it`. The TUI's `NN.txt` is not rendered: its text was
+   compared at the landing (6.1).
 3. **Two copies,** made afresh under `look-render` in the checkout's git
    directory and left for reading: `request`, C's two journeys roots and
    `temper/crates/temper-client-shell-web/` from git, and `print`, the
@@ -591,8 +596,10 @@ terminal.
      `dialog` start tags opened as above; it links the bundle beside it
      in DIR, whose stylesheets are the tree's own
      (`web/look-requests.md`, 2).
-4. **One Chromium,** started by the kit's command with file access
-   (`skein/docs/design/testing/browser.md`, 3), its profile under the
+4. **One Chromium,** started by the kit's command with file access and
+   its scrollbars hidden (`skein/docs/design/testing/browser.md`, 3),
+   so that a page taller than 900 px lays out at its whole width, as a
+   shorter one does (step 7), its profile under the
    scratch directory, with one person. Each page of step 2 is opened
    from each copy as a `file://` page kept to files (browser.md, 5), so
    that every request outside `file://` fails. A page's `Trouble` goes
@@ -617,9 +624,10 @@ terminal.
      is `uncompared`, `its markup doesn't parse as written`. So the k-th
      start tag is the k-th element, and its line is the line it starts
      on.
-   - **By its edit:** each element whose start tag starts on a line that
-     P's page to C's changes, by `git diff --no-index -U0` of their
-     comparable texts (step 6); every element where P lacks the page.
+   - **By its edit,** on a journey's page: each element whose start tag
+     starts on a line that P's page to C's changes, by `git diff
+     --no-index -U0` of their comparable texts (step 6); every element
+     where P lacks the page.
    - **By its rules:** each element that a rule C adds, changes or
      removes in the page's root's overlay selects (`Elements` with its
      selector), the selector read as 6.1, step 6, reads it, with its
@@ -627,14 +635,24 @@ terminal.
      `:active`, `:focus`, `:focus-visible`, `:focus-within`) dropped,
      since the element they style is the one touched. A selector
      Chromium refuses selects nothing.
-   - Each touched element brings its descendants. A request whose edits
-     and rules touch no element on any page is `nothing to render`.
+   - On a journey's page, each touched element brings its descendants.
+   - **On a page drawn on a gallery state,** its edits touch nothing and
+     its touched elements bring no descendants: the elements its rules
+     select are its touched elements, since the copy's other elements
+     and figures are examples (`web/look-requests.md`, 4). Each carries
+     the names its selecting rules declare: those of the rule as C
+     holds it, and as P holds it where C changes or removes it (step 7).
+   - A request whose edits and rules touch no element on any page is
+     `nothing to render`.
 6. **Paired by the pages' alignment:** the request's page and the
    print's, each made comparable, diffed by git. A start tag on a line
    the diff keeps pairs with the same start tag of that line on the
    other side; within a hunk, the two sides' start tags pair in order
-   while their names agree, and the rest have no pair. A touched
-   element with no pair is one difference, `pair`.
+   while their names agree, and the rest have no pair. On a journey's
+   page, a touched element with no pair is one difference, `pair`. On a
+   page drawn on a gallery state, one with no pair is passed over, as a
+   line its copy added by hand; where none of its touched elements has
+   a pair, the page is `uncompared`, `nothing printed beside it`.
    - **Comparable** as 6.1, step 5, makes a text, and in the form a
      print's page takes for a diff (`web/journeys.md`, 5.3): a line
      break before each `>` that starts no line, and no `data-node`
@@ -645,11 +663,27 @@ terminal.
      them places it; ELEMENT's line stays the page's own (step 8).
 7. **Compared at each width,** 1440, 1000 and 420 CSS pixels by 900,
    both copies' pages set to it: each touched element's and its pair's
-   `Style` and `Rect`. A property differs where its two values differ as
-   bytes, custom properties (`--*`) aside, since the properties they
-   feed are compared; a box differs where its x, y, width or height
-   differs by more than 1 px, or where one side has a box and the other
-   none.
+   `Style`, and on a journey's page their `Rect`. A property differs
+   where its two values differ as bytes; a box differs where its x, y,
+   width or height differs by more than 1 px, or where one side has a
+   box and the other none.
+   - **On a journey's page,** every property is compared but custom
+     properties (`--*`), since the properties they feed are compared,
+     and `width`, `height`, `inline-size`, `block-size`,
+     `transform-origin` and `perspective-origin`, which follow from the
+     box: its one row stands for them, and a box within 1 px equal
+     hides their fractions too. Turned down: listing them beside the
+     box, which repeated each change of a size five times.
+   - **On a page drawn on a gallery state,** no box is compared, and of
+     each touched element's style only the properties its names (step
+     5) set: a name the computed style holds sets itself, a custom
+     property among them; a shorthand sets its longhands as CSS defines
+     them, from the check's table of CSS's shorthands (`padding` its four
+     `padding-*`, `inset` `top`, `right`, `bottom` and `left`, `gap`
+     `row-gap` and `column-gap`); a name in neither sets the computed
+     properties whose names start with it and `-`. Turned down: the
+     names' prefixes alone, which set `transform-origin` for
+     `transform`, a value that follows from the box.
 8. **Its lines,** on stdout once the check has finished, fields
    separated by a tab, a `\`, tab, CR or LF within a field written
    `\\`, `\t`, `\r` or `\n`:
@@ -659,7 +693,7 @@ terminal.
    | `identical PAGE` | no touched element of PAGE differs at any width |
    | `differs PAGE WIDTH ELEMENT PROPERTY REQUESTED LANDED` | one difference: WIDTH `1440`, `1000` or `420`, and `-` for a pair; PROPERTY a computed property, `box` (each value `X,Y WxH`, or `none`), or `pair` (`present` against `none`) |
    | `more PAGE N` | N of PAGE's differences past its first 50, not listed |
-   | `uncompared PAGE WHY` | `hand-made`, `nothing printed beside it`, or `its markup doesn't parse as written` |
+   | `uncompared PAGE WHY` | `hand-made`, `not the requested look`, `nothing printed beside it`, or `its markup doesn't parse as written` |
    | `result RESULT` | last, once: `identical`, `differs`, `not compared` where no page was compared, or `nothing to render` |
 
    PAGE is the page's path below `temper/docs/design/client/`, as 6.1's
@@ -862,11 +896,22 @@ Focused and native: no box, browser or terminal starts.
   differences, `more`; the copies' `details` and `dialog` opened and
   each page opened kept to files; a read refused, exit 3; a tip that
   isn't C, exit 2. A hand-made page whose `README.md` names a gallery
-  state, rendered beside that state's page, the gallery printed once
-  for all such pages; one whose `README.md` names none, or two states,
-  `hand-made`; a state the gallery's print lacks, `nothing printed
-  beside it`; the gallery's print failing, exit 3; a page on one line
-  paired a tag a line. No Chromium starts.
+  state and the page as the request, rendered beside that state's page,
+  the gallery printed once for all such pages; a page beside it that
+  the `README.md` calls the look before, or doesn't name, `not the
+  requested look`, and no difference; one whose `README.md` names no
+  state, or two, `hand-made`; a state the gallery's print lacks,
+  `nothing printed beside it`; the gallery's print failing, exit 3; a
+  page on one line paired a tag a line. On a page drawn on a gallery
+  state: an element a rule selects, its declared property and a
+  shorthand's longhand differing, each a row, and its box, an
+  undeclared property and an element no rule selects differing, none;
+  a declared custom property differing, a row; a selected element with
+  no pair passed over, and none paired, `nothing printed beside it`. On
+  a journey's page, a box and its `width`, `height`, `inline-size`,
+  `block-size`, `transform-origin` and `perspective-origin` differing,
+  one `box` row, and those properties differing within a box 1 px off,
+  none. No Chromium starts.
 - **The render check's lines, read back,** one step test in the same
   library: the lines of a printed page and of a page that is no
   journey's, written by `look-render`'s own writer (6.2, step 8) and
@@ -876,8 +921,9 @@ Focused and native: no box, browser or terminal starts.
   (`skein/docs/design/testing/browser.md`, 9), in the session its
   viewport story starts: written and compiled in the plan, run after
   landing. None is in temper's browser tier. The command's file access
-  (6.2, step 4) is held by the kit's step tests of its arguments
-  (browser.md, 9); the tool's host asks for it at every start.
+  and hidden scrollbars (6.2, step 4) are held by the kit's step tests
+  of its arguments (browser.md, 9); the tool's host asks for both at
+  every start.
 - **The comparison's decisions,** step tests in the same library, the
   `look-compare` command on canned answers (git's output and exit, the
   print's lines and exit, the files read), then its rows, stderr and

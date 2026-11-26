@@ -119,6 +119,14 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     nothing outside `file://` (section 5). temper's render check asks
     for it (`temper/docs/design/client/journey-writer.md`, 6.2, step
     4); every other owner passes `false`;
+  - `--hide-scrollbars` where the owner asks for it, `command`'s
+    `hide_scrollbars` (`RawPump::start` passes it on), and never
+    otherwise: a page taller than its window then lays out at the
+    window's whole width, as a shorter one does. temper's render check
+    asks for it, comparing pages of any height at one width
+    (`temper/docs/design/client/journey-writer.md`, 6.2, step 4); every
+    other owner passes `false`, and its pages
+    keep the scrollbars a person's browser draws;
   - `about:blank` as the first page.
 
   The environment is minimal, and it is the child's whole environment
@@ -645,7 +653,9 @@ named scenario ceiling with headroom.
   suite checks those assumptions against Chromium.
 - **The command's arguments,** step tests: with file access,
   `--allow-file-access-from-files` once, before `about:blank`; without
-  it, none, the other arguments the same in both (section 3).
+  it, none, the other arguments the same in both; and likewise
+  `--hide-scrollbars` with hidden scrollbars and none without (section
+  3).
 - **A page's requests,** step tests on synthetic `Network` events: a
   page opened with `requests` enables `Network`, and one without
   enables nothing and reports none; `Sent` for the main frame's

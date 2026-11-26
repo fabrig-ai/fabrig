@@ -71,9 +71,14 @@ A look request's round trip: drawing it, landing it, accounting for it and check
      the copy links those, then `../overlay.css`, as a journey's pages
      do (`journeys.md`, 5.3), and there is no bundle to copy beside it.
      The directory's `README.md` names the state in the words
-     `` the gallery's state `NAME` ``, and names no other, so that the
-     render check renders its pages beside that state's print (section
-     4).
+     `` the gallery's state `NAME` ``, and names no other, and names
+     each page drawn as the requested look by its file name in
+     backticks, a space and the words `the request`
+     (`` `accounts-after.html` the request, its week filling ``), so
+     that the render check renders those pages beside that state's
+     print (section 4). A page it names otherwise, the look before the
+     request among them, is the person's to read, and the check lists
+     it as not compared.
   4. **A hand-made page,** last, in a directory of its own under
      `journeys/` whose `README.md` says it is hand-made and from what.
      Its values are written in by hand, and no journey's print will
@@ -214,16 +219,29 @@ request; this does.
   under its overlay and stylesheets, against the same page as the
   writer printed it, under the landed stylesheets and an empty overlay.
   A page drawn on a gallery state, its directory's `README.md` naming
-  the state (section 2), is compared with that state as
-  `temper-client-gallery` prints it from the same tree as the writer's
-  print. Any other hand-made page, with nothing printed beside it, is
-  listed as not compared.
+  the state and the page as the request (section 2), is compared with
+  that state as `temper-client-gallery` prints it from the same tree as
+  the writer's print. A page the `README.md` doesn't name as the
+  request, the look before it among them, and any other hand-made
+  page, with nothing printed beside it, are listed as not compared,
+  never as a difference.
 - **How:** in the Chromium the browser tiers use, through skein's kit,
-  from scratch copies, every request outside `file://` blocked; at
-  1440, 1000 and 420 pixels wide, every dialog and disclosure open and
-  nothing clicked. Each element the request touched, by its edit or its
-  rules, with its descendants, is paired with the print's, and their
-  computed style and box are compared, a box within 1 px equal.
+  from scratch copies, every request outside `file://` blocked, its
+  scrollbars hidden, so that a page taller than the window keeps the
+  window's width; at 1440, 1000 and 420 pixels wide, every dialog and
+  disclosure open and nothing clicked. On a journey's page, each element
+  the request touched, by its edit or its rules, with its descendants,
+  is paired with the print's, and their computed style and box are
+  compared, a box within 1 px equal. The box is one row: the
+  properties that follow from it (width, height, their logical names
+  and the transform's and perspective's origins) are not rows of
+  their own.
+- **A page drawn on a gallery state** compares less, since a copy's
+  figures are examples: of its elements, only those the request's
+  rules select, and of their computed style only the properties those
+  rules declare. Its boxes, its other elements and the rest of their
+  style are not compared, and an element the state's print has no pair
+  for, an example's line added by hand, is passed over.
 - **States in words** aren't rendered: the account covers them
   (section 5), and the verdict says so.
 - **The TUI's requests:** their themed frames are rendered the same
