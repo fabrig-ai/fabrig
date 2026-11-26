@@ -22,8 +22,3 @@ lines, each cut past 200 bytes (`skein-playground`'s `replay.rs`;
   `header=<name bytes>:<value bytes>` for each header kept. They carry
   the bridge's `Exchange` `cache` and `keep`; the section gives version
   1 without them, and no reason is recorded.
-- **Not yet:** 6: a snapshot taken after a kept stamp and before its
-  slice's clock still ends at the clock before, with that clock's
-  digest, rather than at the stamp with the digest of nothing
-  (`skein-ui-web`'s `log.rs`); 8: no test replays a snapshot taken
-  after each message the page heard. [in flight: change 18463]
