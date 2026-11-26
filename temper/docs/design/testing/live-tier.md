@@ -211,7 +211,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its model:** the Claude Code story's two `settings apply`s,
     unchanged: the stock has no Haiku, so a fresh sitting adds it by
     name with `claude-fable-5-1`'s figures, `low` its default, then has
-    charters 1 and 2 name it. The run takes the key's direct endpoint
+    charters 1 and 2 name it, and sets the Budget's turns (below). The run takes the key's direct endpoint
     whatever endpoint the model's row names, since the endpoint is the
     chosen source's (`../draft/claude-api.md`, section 4). A focused test
     builds both files from the stock settings as a fresh deployment shows
@@ -226,13 +226,48 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   backend, each assistant message the program writes (smith's
   `protocol/programs-claude-code.md`, 1.5), so the count holds for Claude Code's
   runs as for direct ones.
-- **Budget:** at most 25 completions and 30 minutes in all. The live
-  configuration's charters bound each run's turns so the two stories
-  together make at most 25 completions, which smith's agent holds on
+- **Budget:** at most 25 completions and 30 minutes in all, a story's
+  runs over both its sittings: the engine keeps the first box's turns,
+  so the second sitting's count is the story's whole. The live
+  configuration's charters bound each run's turns so a story makes at
+  most 25 completions, which smith's agent holds on
   either backend (on the program backend with `--max-turns` behind its
   own count; smith's `protocol/programs-claude-code.md`, 1.7), the script stops the
   run at 30 minutes, and the test fails when the transcripts count more
-  than 25. Each run's summary, a failed run's included, records its
+  than 25.
+  - **The bound:** the sitting's `live-settings` change sets the
+    chat's charter, 1, to 5 turns, the producer's, 2, to 10 and the
+    reviewer's, 4, to 4, each keeping the stock's reserve of one turn,
+    in every landing story, whatever its model; charter 4's model stays
+    the stock's. smith counts a run's turns afresh at each activation
+    (smith's `domain/budget.md`, 2), so the charters bound the story
+    through the runs it makes: the chat's on the person's words and on
+    its change's result, at most 5 each; its last reply when the second
+    sitting closes it, at most the reserve's one; the producer's and the
+    reviewer's runs, one each: 5 + 5 + 1 + 10 + 4 = 25. A run past
+    those, a question the change asks the chat, an attempt retried or a
+    repair's run, is past the story's plan, and the count fails it.
+  - **No run restarts:** the first sitting counts its completions and
+    stops its box only once the chat has parked, its phase read idle
+    through ctl within 300 seconds, so that the stop interrupts no run:
+    an interrupted run comes back as an attempt of its own, with a fresh
+    allowance (jig's `domain/engine/restart.md`, 1).
+  - **A kept store** whose charters 1, 2 and 4 carry other turns, as one
+    made before the bound does, has them set to the bound's before the
+    person's words, its charters otherwise as they stand.
+  - **The count's line,** pass or fail, goes out before its check,
+    naming each counted task's turns by attempt, so that a count past 25
+    says whose turns passed it.
+  - **Why:** a charter's turns bound one activation, not a story: the
+    stock's 64, 800 and 800 bound nothing a story reaches, a chat woken
+    by its change's result or by its close counts afresh, and a run the
+    stop interrupts comes back as an attempt of its own. So the bound
+    holds over the runs listed, none of them interrupted, and nowhere
+    else. Turned down: a turn bound across a task's activations or a
+    tree's runs, which neither smith nor jig has, a concept for one
+    test's figure; counting one sitting alone, which checks less.
+
+  Each run's summary, a failed run's included, records its
   completions and its wall time. Nothing in the test catches a panic for
   it: a sitting's checks return their findings, and the test writes the
   summary before it fails with one (`../draft/archive/panics.md`, 4). A panic
