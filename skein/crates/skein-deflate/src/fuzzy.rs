@@ -69,6 +69,8 @@ fn generated_streams_decode_or_refuse_without_growing_the_output() {
 
 #[test]
 fn generated_gzip_members_round_trip_within_their_bound() {
+    // Chain searches cost more on small alphabets; sample both kinds of input at best.
+    const BEST_CASES: u64 = 24;
     for seed in 0..128 {
         let mut rng = Rng::new(seed);
         let length = usize::try_from(rng.between(0, 4096)).unwrap();
@@ -81,11 +83,19 @@ fn generated_gzip_members_round_trip_within_their_bound() {
         }
         let mut room = skein_lib::bytes::zeroed(gzip::bound(length).unwrap());
         let written = gzip::encode(&body, &mut room).unwrap();
-        assert!(written <= room.len(), "seed {seed}: member stays within its bound");
-        let mut out = List::allocated(u32::try_from(length).unwrap());
-        assert_eq!(gzip::decode(&room[..written], &mut out), Some(()), "seed {seed}");
-        assert_eq!(out.as_slice(), body, "seed {seed}: input read back");
+        check_gzip_round_trip(&body, &room, written, seed);
+        if seed < BEST_CASES {
+            let written = gzip::encode_best(&body, &mut room).unwrap();
+            check_gzip_round_trip(&body, &room, written, seed);
+        }
     }
+}
+
+fn check_gzip_round_trip(body: &[u8], room: &[u8], written: usize, seed: u64) {
+    assert!(written <= room.len(), "seed {seed}: member stays within its bound");
+    let mut out = List::allocated(u32::try_from(body.len()).unwrap());
+    assert_eq!(gzip::decode(&room[..written], &mut out), Some(()), "seed {seed}");
+    assert_eq!(out.as_slice(), body, "seed {seed}: input read back");
 }
 
 #[test]

@@ -1,6 +1,6 @@
 //! Worker modules beside a page's module (playground.md, 7).
 
-use super::{contents, glue, inputs};
+use super::{assert_best_form, contents, glue, inputs};
 use crate::{Refusal, WORKER_STARTER, Worker, bundle, bundle_with};
 use skein_scratch::Scratch;
 use std::{fs, path::Path};
@@ -35,9 +35,7 @@ fn a_worker_is_bundled_beside_the_page() {
         assert_eq!(files.get(name), Some(bytes), "{name}");
         if crate::types::gzipped(Path::new(name)) {
             let compressed = files.get(&format!("{name}.gz")).expect("worker form");
-            let mut decoded = skein_lib::List::allocated(u32::try_from(bytes.len()).expect("fixture fits u32"));
-            skein_deflate::gzip::decode(compressed, &mut decoded).expect("worker gzip");
-            assert_eq!(decoded.as_slice(), bytes, "{name}");
+            assert_best_form(name, compressed, bytes);
         }
     }
     assert_eq!(files.len(), 23);

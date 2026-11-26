@@ -3,13 +3,12 @@
 
 use skein_lib::List;
 
-/// The member's header (RFC 1952, 2.3): gzip, DEFLATE, no flags, no time,
-/// no extra flags, an unknown system.
-const HEADER: [u8; 10] = [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 255];
+/// The member's header length (RFC 1952, 2.3).
+const HEADER: usize = 10;
 
 /// The trailer's CRC-32 and ISIZE (RFC 1952, 2.2).
 const TRAILER: usize = 8;
-const FRAME: usize = HEADER.len() + TRAILER;
+const FRAME: usize = HEADER + TRAILER;
 
 /// The worst case of the member's length, including its header and trailer.
 #[must_use]
@@ -21,11 +20,38 @@ pub fn bound(length: usize) -> Option<usize> {
 /// Refuses room shorter than [`bound`] of the body's length.
 #[must_use]
 pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
+    member(body, out, Level::Fast)
+}
+
+/// Writes `body`'s deterministic gzip member at the best DEFLATE level,
+/// with extra flags 2. Refuses room shorter than [`bound`] of the body's length.
+#[must_use]
+pub fn encode_best(body: &[u8], out: &mut [u8]) -> Option<usize> {
+    member(body, out, Level::Best)
+}
+
+#[derive(Clone, Copy)]
+enum Level {
+    Fast,
+    Best,
+}
+
+fn member(body: &[u8], out: &mut [u8], level: Level) -> Option<usize> {
     if out.len() < bound(body.len())? {
         return None;
     }
-    let start = copy(out, 0, &HEADER)?;
-    let length = crate::encode(body, out.get_mut(start..)?)?;
+    let extra = match level {
+        Level::Fast => 0,
+        Level::Best => 2,
+    };
+    // Gzip, DEFLATE, no flags, no time, level-specific extra flags, unknown system.
+    let header: [u8; HEADER] = [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, extra, 255];
+    let start = copy(out, 0, &header)?;
+    let stream = out.get_mut(start..)?;
+    let length = match level {
+        Level::Fast => crate::encode(body, stream)?,
+        Level::Best => crate::encode_best(body, stream)?,
+    };
     let at = copy(out, start.checked_add(length)?, &crc(body)?.to_le_bytes())?;
     let [a, b, c, d, ..] = skein_lib::len_u64(body.len()).to_le_bytes();
     copy(out, at, &[a, b, c, d])
@@ -36,7 +62,7 @@ pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
 #[must_use]
 pub fn decode(member: &[u8], out: &mut List<u8>) -> Option<()> {
     out.clear();
-    let (header, framed) = member.split_at_checked(HEADER.len())?;
+    let (header, framed) = member.split_at_checked(HEADER)?;
     let [0x1f, 0x8b, 8, 0, ..] = header else {
         return None;
     };

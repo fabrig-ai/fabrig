@@ -574,6 +574,55 @@ fn the_decoder_reads_whole_members() {
     reads_back(&member, GOLDEN_BODY);
 }
 
+/// `body`'s best member, in room of exactly the bound.
+fn best_member(body: &[u8]) -> Vec<u8> {
+    let mut out = bytes::zeroed(gzip::bound(body.len()).unwrap());
+    let length = gzip::encode_best(body, &mut out).unwrap();
+    Vec::from(&out[..length])
+}
+
+#[test]
+fn best_members_round_trip_within_the_bound() {
+    let crossing = wordy(9, BLOCK + 1);
+    for body in [b"".as_slice(), b"abc", &crossing] {
+        reads_back(&best_member(body), body);
+    }
+}
+
+#[test]
+fn the_best_header_differs_only_in_extra_flags() {
+    let fast = gzip(b"abc");
+    let best = best_member(b"abc");
+    assert_eq!(&best[..8], &fast[..8]);
+    assert_eq!(best[8], 2, "extra flags say best compression");
+    assert_eq!(best[9], fast[9]);
+}
+
+#[test]
+fn best_members_repeat_byte_for_byte() {
+    let expected = best_member(GOLDEN_BODY);
+    let mut out = bytes::zeroed(gzip::bound(GOLDEN_BODY.len()).unwrap());
+    out.fill(0xa5);
+    let length = gzip::encode_best(GOLDEN_BODY, &mut out).unwrap();
+    assert_eq!(&out[..length], expected);
+}
+
+#[test]
+fn the_best_level_refuses_room_short_of_the_bound() {
+    let body = b"abc";
+    let mut out = bytes::zeroed(gzip::bound(body.len()).unwrap() - 1);
+    assert_eq!(gzip::encode_best(body, &mut out), None);
+}
+
+#[test]
+fn best_members_are_shorter_on_repetitive_text() {
+    const TEXT_BYTES: usize = 5_000;
+    let body = wordy(8, TEXT_BYTES);
+    let fast = gzip(&body).len();
+    let best = best_member(&body).len();
+    assert!(best < fast, "best member is {best} bytes, fast member is {fast} bytes");
+}
+
 #[test]
 fn invalid_headers_are_refused_before_inflating() {
     let member = gzip(b"abc");
