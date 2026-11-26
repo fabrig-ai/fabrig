@@ -18,6 +18,7 @@ fn heard() -> top::LandingHeard {
         outcomes: Box::new([]),
         dependencies: Box::new([]),
         held: Box::new([]),
+        ended: Box::new([]),
         failure: Box::new([]),
         preparation: Some(landing::Preparation::Idle),
         released: false,

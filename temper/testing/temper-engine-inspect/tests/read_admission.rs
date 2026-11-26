@@ -43,6 +43,7 @@ fn a_landing_waits_on_its_read_admission_retry() {
                 outcomes: Box::default(),
                 dependencies: Box::default(),
                 held: Box::default(),
+                ended: Box::new([]),
                 failure: Box::default(),
                 preparation: Some(landing::Preparation::Idle),
                 released: false,

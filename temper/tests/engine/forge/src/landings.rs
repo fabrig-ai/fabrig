@@ -127,6 +127,7 @@ pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::De
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
+            ended: Box::new([]),
             failure: Box::new([]),
             preparation: Some(landing::Preparation::Idle),
             released: false,

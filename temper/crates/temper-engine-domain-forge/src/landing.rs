@@ -2042,8 +2042,9 @@ fn advance(
                         };
                     fact.held = p.heard.held.contains(&member.change)
                         || if let change::State::Held { .. } = change.change.state { true } else { false };
-                    fact.cancelled = change.change.state == change::State::Ended;
-                    fact.cancelled |= p.heard.cancelled;
+                    fact.cancelled = change.change.state == change::State::Ended
+                        || p.heard.ended.contains(&member.change)
+                        || p.heard.cancelled;
                     p.stage = Stage::Reviews(index, 1);
                     api::Read::Reviews { number: member.pull, page: 1, skip: 0 }
                 }
@@ -5293,6 +5294,7 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
+                ended: Box::new([]),
                 failure: Box::new([]),
                 preparation: None,
                 released: false,

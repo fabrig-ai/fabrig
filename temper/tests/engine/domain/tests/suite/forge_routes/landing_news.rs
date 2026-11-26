@@ -27,7 +27,7 @@ fn produced_goal_with_checks(passes: u32) -> (World, u64, u64) {
 fn hex(commit: &[u8; 32]) -> String {
     String::from_utf8(engine::commit_text(commit).into_vec()).expect("hex commit")
 }
-fn news(world: &World, goal: u64, landing: u64) -> Vec<String> {
+pub(super) fn news(world: &World, goal: u64, landing: u64) -> Vec<String> {
     let prefix = format!("landing {landing}: ");
     let mut lines: Vec<_> = world
         .store

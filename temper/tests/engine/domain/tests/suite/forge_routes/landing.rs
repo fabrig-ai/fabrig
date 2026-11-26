@@ -1237,6 +1237,8 @@ pub(crate) mod wait_drill;
 
 #[path = "landing_restarts.rs"]
 pub(crate) mod restarts;
+#[path = "landing_wakes.rs"]
+pub(crate) mod wakes;
 
 #[path = "landing_two_goals.rs"]
 mod two_goals;

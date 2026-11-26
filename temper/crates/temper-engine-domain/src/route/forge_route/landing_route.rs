@@ -61,6 +61,63 @@ pub(super) fn cohort_saved(
     }
 }
 
+/// The live phases that withdraw a landing's wake (domain/landing-liveness.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) enum Unavailable {
+    Held,
+    Closing,
+}
+
+impl Unavailable {
+    pub(crate) const fn of(phase: &tasks::Phase) -> Option<Self> {
+        match phase {
+            tasks::Phase::Held { .. } => Some(Self::Held),
+            tasks::Phase::Closing(_) => Some(Self::Closing),
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Ended(_) => None,
+        }
+    }
+}
+
+pub(super) fn wake_member(domain: &mut Domain, change: u64) {
+    if let Some(task) = domain.forge.landing_of(change) {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+    }
+}
+
+pub(super) fn lifecycle_saved(domain: &mut Domain, task: &tasks::TaskRecord) {
+    let ended = match task.phase {
+        tasks::Phase::Ended(_) => true,
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) => false,
+    };
+    let changed = match Unavailable::of(&task.phase) {
+        Some(phase) => {
+            let previous = domain.landing_unavailable.insert(task.number, phase).expect("one phase per live task");
+            previous != Some(phase)
+        }
+        None => {
+            domain.landing_unavailable.remove(&task.number);
+            ended
+        }
+    };
+    if !changed {
+        return;
+    }
+    wake_member(domain, task.number);
+    if task.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
+        && let tasks::Party::Task(owner) = task.requester
+        && domain.forge.landing(owner).is_some()
+    {
+        let affected = match prepare_child(domain, owner) {
+            Some(child) => child.number == task.number,
+            // Jig removes an ended delegate before routing the terminal save.
+            None => ended,
+        };
+        if affected {
+            domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: owner }));
+        }
+    }
+}
+
 fn live(task: &tasks::TaskRecord) -> bool {
     match task.phase {
         tasks::Phase::Waiting | tasks::Phase::Active(_) => task.placed.is_none(),
@@ -496,11 +553,21 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
     let Some(row) = domain.forge.landing(task) else { return };
     let released = if let landing::Phase::Held { .. } = row.landing.phase { true } else { false };
     let mut held = List::with_capacity(env.limits.forge.landing_members);
+    let mut ended = List::with_capacity(env.limits.forge.landing_members);
     for member in &row.landing.members {
-        if let Some(task) = domain.core.tasks.task(member.change)
-            && let tasks::Phase::Held { .. } = task.phase
-        {
-            held.push(member.change).expect("bounded members");
+        if member.left.is_some() || member.landed.is_some() {
+            continue;
+        }
+        let phase = match domain.core.tasks.task(member.change) {
+            Some(task) => Some(&task.phase),
+            None => None,
+        };
+        match phase {
+            Some(tasks::Phase::Held { .. }) => held.push(member.change).expect("bounded members"),
+            Some(tasks::Phase::Closing(_) | tasks::Phase::Ended(_)) | None => {
+                ended.push(member.change).expect("bounded members");
+            }
+            Some(tasks::Phase::Waiting | tasks::Phase::Active(_)) => {}
         }
     }
     let graph = dependencies(domain, env, row.landing.project);
@@ -514,6 +581,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
             outcomes: prepare::outcomes(&context.inbox, env.limits.forge.landing_members),
             dependencies: graph,
             held: held.into_boxed(),
+            ended: ended.into_boxed(),
             failure: prepare::failure(&context.inbox),
             preparation: Some(preparation(domain, context)),
             released,
@@ -680,22 +748,34 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
             }
         }
     }
-    if let Some(task) = domain.core.tasks.task(context.task) {
-        for child in task.delegates.iter().rev() {
-            if let Some(child) = domain.core.tasks.task(*child)
-                && child.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
-            {
-                match child.phase {
-                    tasks::Phase::Held { .. } => return landing::Preparation::Failed,
-                    tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) => {
-                        return landing::Preparation::Running;
-                    }
-                    tasks::Phase::Ended(_) => {}
+    if let Some(child) = prepare_child(domain, context.task) {
+        return match child.phase {
+            tasks::Phase::Held { .. } => landing::Preparation::Failed,
+            tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) => landing::Preparation::Running,
+            tasks::Phase::Ended(_) => unreachable!("prepare child is live"),
+        };
+    }
+    if kept_prepare(domain, context.task) { landing::Preparation::Idle } else { landing::Preparation::Absent }
+}
+
+fn prepare_child(domain: &Domain, landing: u64) -> Option<&tasks::TaskRecord> {
+    let task = domain.core.tasks.task(landing)?;
+    for child in task.delegates.iter().rev() {
+        if let Some(child) = domain.core.tasks.task(*child)
+            && child.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
+        {
+            match child.phase {
+                tasks::Phase::Held { .. }
+                | tasks::Phase::Active(_)
+                | tasks::Phase::Waiting
+                | tasks::Phase::Closing(_) => {
+                    return Some(child);
                 }
+                tasks::Phase::Ended(_) => {}
             }
         }
     }
-    if kept_prepare(domain, context.task) { landing::Preparation::Idle } else { landing::Preparation::Absent }
+    None
 }
 
 // An ended child's record counts only with an answer the current round keeps for its suffix

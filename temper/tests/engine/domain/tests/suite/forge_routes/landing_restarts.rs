@@ -22,12 +22,16 @@ fn turn_world() -> World {
 }
 
 fn turn_world_with_gate_latency(landing_gate_latency: Option<Duration>) -> World {
+    turn_world_configured(Gate::default(), landing_gate_latency)
+}
+
+pub(super) fn turn_world_configured(gate: Gate, landing_gate_latency: Option<Duration>) -> World {
     let mut world = World::configured_limits(
         true,
         true,
         false,
         1000,
-        Gate::default(),
+        gate,
         None,
         StoryLimits {
             turn: true,
@@ -46,6 +50,9 @@ fn turn_world_with_gate_latency(landing_gate_latency: Option<Duration>) -> World
     )
     .with_landing_batch(1)
     .with_forge_holds(16);
+    if gate.agent {
+        world.env.limits.brief.budgets.task = 512;
+    }
     let mut client = world.env.limits.forge.client;
     client.pending = 8;
     world = world.with_forge_client(client);
@@ -623,7 +630,7 @@ fn a_prepare_answer_kept_before_restart_is_read_without_asking_again() {
     world.close();
 }
 
-fn person(world: &mut World, key: u8, ask: people::Ask) {
+pub(super) fn person(world: &mut World, key: u8, ask: people::Ask) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(u64::from(key))),

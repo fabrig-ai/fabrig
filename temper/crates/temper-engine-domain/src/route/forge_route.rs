@@ -53,6 +53,7 @@ use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
 pub(super) mod job_history;
 mod landing_route;
+pub(crate) use landing_route::Unavailable as LandingUnavailable;
 #[cfg(test)]
 use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
@@ -1567,6 +1568,7 @@ pub(crate) fn revision_saved(
     let mut out = Queue::uncapped();
     domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
     landing_route::cohort_saved(domain, env, task, &mut out);
+    landing_route::lifecycle_saved(domain, task);
     outputs(domain, env, decision, &mut out);
 }
 
@@ -3729,9 +3731,7 @@ fn change_result_bound(domain: &Domain, task: u64) -> u32 {
 fn ready_change(domain: &mut Domain, _env: &Env<Limits>, task: u64) -> bool {
     let row = domain.forge.change(task).expect("ready change");
     let again = row.change.way == forge_change::Way::Queue;
-    if let Some(landing) = domain.forge.landing_of(task) {
-        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: landing }));
-    }
+    landing_route::wake_member(domain, task);
     again
 }
 

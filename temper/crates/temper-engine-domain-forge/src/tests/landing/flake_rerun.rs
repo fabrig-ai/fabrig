@@ -46,6 +46,7 @@ fn begin(d: &mut Domain, entry: u64) {
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
+                ended: Box::new([]),
                 failure: Box::new([]),
                 preparation: Some(policy::Preparation::Idle),
                 kept: Box::new([]),

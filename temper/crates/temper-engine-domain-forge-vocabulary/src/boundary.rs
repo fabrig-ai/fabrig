@@ -1779,6 +1779,9 @@ pub struct LandingHeard {
     pub outcomes: Box<[crate::preparation::Prepared]>,
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
+    /// Members whose task is closing, ended or not among jig's live tasks
+    /// (landing-liveness.md, 4). The top reads each as `MemberFacts::cancelled`.
+    pub ended: Box<[u64]>,
     pub failure: Box<[u8]>,
     pub preparation: Option<landing::Preparation>,
     /// Live landings waiting prepared on a member of another live landing.

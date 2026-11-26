@@ -510,12 +510,25 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
                 domain.stop_start(crate::StartStop::Binding);
                 return;
             }
+            // Seed the phase comparison without replaying a lifecycle wake on restore.
+            let unavailable = if let jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task)) = &row
+                && let Some(phase) = crate::route::forge_route::LandingUnavailable::of(&task.phase)
+            {
+                Some((task.number, phase))
+            } else {
+                None
+            };
             match domain.core.restore(&environment_core(env), row) {
                 jig_domain_core::Restore::Deployment { commits } => {
                     domain.core_header_loaded = true;
                     domain.restored_commits = Some(commits);
                 }
-                jig_domain_core::Restore::Kept | jig_domain_core::Restore::Swept => {}
+                jig_domain_core::Restore::Kept => {
+                    if let Some((task, phase)) = unavailable {
+                        domain.landing_unavailable.insert(task, phase).expect("one phase per admitted live task");
+                    }
+                }
+                jig_domain_core::Restore::Swept => {}
                 jig_domain_core::Restore::Refused => domain.stop_core(),
             }
         }
