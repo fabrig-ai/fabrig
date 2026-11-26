@@ -681,7 +681,9 @@ fn a_non_frame_watch_is_refused_busy_while_starting() {
     let bearer = bearer(signed_in.token.as_ref().expect("native token").expose());
     let mut stream = Peer::new(engine, b"GET", b"/jig/v1/stream", &[], Some(&bearer));
     tick_peer(engine, &mut stream);
-    let w::StreamEvent::Hello(hello) = first_stream_event(engine, &stream) else { panic!("legacy hello") };
+    let w::StreamEvent::Hello(hello) = first_stream_event(engine, &stream) else {
+        panic!("expected a hello event first")
+    };
     let limits = engine.clients.as_ref().expect("clients").env.limits.wire;
     let value = w::Open {
         stream: hello.stream,
