@@ -1,6 +1,6 @@
 # fuzzy-campaigns: fresh seeds off the gate, one case replayed, and worlds widened by what escapes
 
-Draft, 2026-11-26, with the user; its review's corrections the same day. The fuzzy suite runs fixed seeds at the gate, the same work at every run (`test-budgets.md`, 4), so it explores only where the code beneath it changes. The user asked (11-24) whether it should run "separately with a different seed each time", and (11-26) how fuzzy testing could catch production's problems early. The prompt was an agent crash that smith's session world, the world drawing random batches of tool calls, couldn't draw; a0f6f9d91b fixed it. This draft runs the fuzzy suite's sweeps after landing, with fresh seeds, in campaigns of their own:
+Draft, 2026-11-26, with the user; its review's corrections, and the user's word on where campaigns run and on the gate's samples, the same day. The fuzzy suite runs fixed seeds at the gate, the same work at every run (`test-budgets.md`, 4), so it explores only where the code beneath it changes. The user asked (11-24) whether it should run "separately with a different seed each time", and (11-26) how fuzzy testing could catch production's problems early. The prompt was an agent crash that smith's session world, the world drawing random batches of tool calls, couldn't draw; a0f6f9d91b fixed it. This draft runs the fuzzy suite's sweeps after landing, with fresh seeds, in campaigns of their own:
 
 - one seam through which a sweep takes its cases;
 - one case replayed alone;
@@ -20,7 +20,7 @@ The gate keeps its seeds. What a seed can draw (agents generated from a run's to
 
   A failing case names its test and seed. `each_seed` stays as it is, for the tests that keep fixed seeds.
 - **Every seed a valid case** (section 4.4). A world adopts the seam only once any seed draws a case it can run. A case's own checks run in every mode. A check over the gate's set of seeds (every kind fell, an exact count left out) runs only on the gate's seeds, and in a campaign a sweep counts the cases each kind fell in instead.
-- **A campaign** (section 5) is rounds of a tree's campaign pair, `campaign-TREE`, run by `tools/tiers/campaign`. Each round has its own campaign seed, drawn and printed. It runs over the binaries whose sweeps take their cases from the seam, in the layers that replay. A round's CPU is reported against the tree's fuzzy ceilings, as a warning. Where and how often campaigns run, their envelope and their wall are the user's.
+- **A campaign** (section 5) is rounds of a tree's campaign pair, `campaign-TREE`, run by `tools/tiers/campaign`. Each round has its own campaign seed, drawn and printed. It runs over the binaries whose sweeps take their cases from the seam, in the layers that replay. A round's CPU is reported against the tree's fuzzy ceilings, as a warning. Campaigns run once a day, on a builder apart from the gate (the user, 11-26). Which builder, their envelope and their wall are the user's figures.
 - **Wider in a campaign** (section 6): a sweep may configure more kinds in a campaign than at the gate, kind by kind as its world learns to inject and judge them, and take more cases there.
 - **A finding** (section 7) is a failing case, replayed alone at its commit. It reads as its test, its failure's first line, its seed and the configuration it failed under. One more replay, at the last campaign's commit, says what that case did there. It is kept in the campaign's report, for the user to route, and pinned at the gate, in the lowest tier that shows it, once fixed.
 - **An escape widens its world** (section 8): a fault found outside the worlds, which the nearest fuzzy world's draws couldn't reach, is repaired with its case pinned, and with that world's draws widened to reach its kind. The class is then drawn, not only the instance.
@@ -38,7 +38,7 @@ The gate keeps its seeds. What a seed can draw (agents generated from a run's to
 ## 3. The gate keeps its seeds
 
 - **Fixed, as `test-budgets.md`, 4 has it:** the same work at every run, so a red at the gate is the head's alone, and its figures move only with the code. A fresh seed's finding is unattributed: an old fault, or a recent landing's, never the head's to answer for at the gate. Rotating seeds at the gate is no option of this draft's (notes, 1).
-- **The fuzzy suite stays at the gate in full** (the user asked on 11-25 whether it would leave the gate). Its fixed seeds still reach new states wherever a change moves the code beneath them, and they caught later changes' faults (notes, 2). Every campaign finding is pinned in the gate's suites too (7.5), so the gate gains the regressions campaigns find. Whether a sweep's sample at the gate shrinks once campaigns cover it is the user's (status, **Open**).
+- **The fuzzy suite stays at the gate in full** (the user asked on 11-25 whether it would leave the gate). Its fixed seeds still reach new states wherever a change moves the code beneath them, and they caught later changes' faults (notes, 2). Every campaign finding is pinned in the gate's suites too (7.5), so the gate gains the regressions campaigns find. Each sweep keeps its whole sample at the gate, campaigns or not (the user, 11-26).
 - **Nothing changes at the gate for the failure worlds:** their sweeps run the seeds their budget allows there (`failure-worlds.md`, 5 and 8), and a campaign adds seeds after landing alone.
 - **Apart from the replay after landing:** the daily run of the gate's suites at a landed commit, which checks that they replay (`test-budgets.md`, 4), keeps the gate's fixed seeds. A campaign is another run.
 - **Two tests registered twice go.** skein's channel suite registers `generic_protocol.rs` as a module of its own (`skein/tests/channel/tests/suite/main.rs`), and again under `fuzzy/channel.rs`. So `both_directions_progress_over_socket_and_pipes` and `a_last_word_reaches_the_peer_after_the_writer_pipe_fails` run in both suites. The fuzzy module's second copy goes, and its 64-seed caller stays.
@@ -151,11 +151,11 @@ pub fn gate() -> bool;
 
 The options, best first:
 
-1. **Once a day,** on a builder apart from the gate and the landings, for the rounds its envelope holds. A day's rounds make one report to read, and the campaign competes with no gate. This is the pick.
+1. **Once a day,** on a builder apart from the gate and the landings, for the rounds its envelope holds. A day's rounds make one report to read, and the campaign competes with no gate. The user's pick, 11-26.
 2. **At each landing,** a round or two after landing. That ties its findings to landings they mostly aren't owed to, and its load to main's pace.
 3. **At the gate, with rotating seeds:** no (`test-budgets.md`, 4).
 
-Until the user says where, a campaign runs by hand after landing.
+Which builder, the envelope and the wall are the user's figures still (status, **Open**). Until a runner runs campaigns there, a campaign runs by hand after landing.
 
 ## 6. Wider in a campaign
 
@@ -255,7 +255,7 @@ Until the user says where, a campaign runs by hand after landing.
 - **Coverage-guided fuzzing of decoders** with `cargo fuzz` (the strategy's section 6), which no target does yet. A campaign's runner could host its runs later.
 - **Conversion across two releases under a crash** (`layouts-both-ways.md`), a sweep of its own.
 - **Bisecting a finding** over the landings since the last campaign, and **shrinking** a case.
-- **Shrinking a sweep's sample at the gate** once campaigns cover it (status, **Open**).
+- **Shrinking a sweep's sample at the gate** once campaigns cover it: it stays whole (the user, 11-26).
 - **The campaign's runner,** outside this repository: its schedule and its builder (5.5).
 
 **Tests stay cheap:** the suites are the check. A milestone runs a test it adds or changes by name, alone, at most. **A plan runs the focused and fuzzy suites alone and is complete when it lands (`AGENTS.md`, 5).** No milestone runs a campaign or a slow tier. The first campaign runs after landing, on the user's word. `walk = false`.

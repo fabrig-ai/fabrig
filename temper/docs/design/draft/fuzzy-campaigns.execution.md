@@ -25,5 +25,5 @@ Each is a goal, one change of one concern. A milestone that grows past a day's c
 - **No priority mark:** fuzzy testing isn't one of v0.1.0's critical pieces. Its plans start when places are free and marked work isn't about to arrive.
 - **F1, F2 and F5 start together.** F3 follows F2, and F4 follows F3. F6, F8, F9 and F10 follow F3, a stream per tree, side by side. Each edits its own tree's lines of `.config/nextest.toml` and `tools/tiers/packages.toml`, so a later one merges past an earlier one's lines. F7 follows F6 in temper's stream.
 - **One at a time within a stream,** each from main once the one before it has landed. A tree's adoption that grows past a day's change splits by binary.
-- **Outside this repository:** where campaigns run, how often, on which builder, within what envelope and under what wall are the user's (draft, 5.3 and 5.5). Until the user says, a campaign runs by hand after landing.
+- **Outside this repository:** campaigns run once a day, on a builder apart from the gate (the user, 11-26). Which builder, their envelope and their wall are the user's (draft, 5.3 and 5.5). Until a runner runs them, a campaign runs by hand after landing.
 - **The first campaign** runs after F3 lands, on the user's word, by hand: `tools/tiers/campaign temper --rounds 1`.
