@@ -49,9 +49,9 @@ pub(crate) fn next_assignment(world: &mut World, index: usize) -> engine::Assign
 }
 
 pub(super) fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [u8; 32] {
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, CONTENT, 1)
-        .expect("producer pushed review head");
+    let parent = world.fake.branch(b"org/repo", branch).unwrap_or(1);
+    let head = world.worker_commit(parent, FILE, CONTENT);
+    world.run_push(producer, branch, head, 1);
     let event = world.protocol.answer(
         CHANNEL,
         producer.task,
@@ -1244,6 +1244,7 @@ pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64)
 }
 
 fn delivered_review_repair(moved: bool, idle: bool) {
+    use forge_top::writes::{Operation, Sender, WriteState};
     let (mut world, requester, change, branch, repair) = waiting_review_repair(None);
     if idle {
         world.advance_ticks(MAX_TICKS);
@@ -1271,11 +1272,43 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     let resumed = next_assignment(&mut world, 7);
     assert_eq!(resumed.task, repair.task);
     push_append(&mut world, &resumed, &branch, b"both lines");
-    if moved {
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
-            .expect("another writer advances the delivered branch");
-    }
-    let head = translate::commit(world.fake.branch(b"org/repo", &branch).expect("repaired branch"));
+    let repaired = world.fake.branch(b"org/repo", &branch).expect("repaired branch");
+    let head = if moved {
+        let outside = fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            &branch,
+            b"another-file",
+            b"another writer",
+            2,
+        )
+        .expect("another writer advances the delivered branch");
+        wait_held(&mut world, change);
+        assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
+        let held = change_row(&world, change).change;
+        assert_eq!(held.repairs, 2, "the outside move spends no further repair");
+        assert!(matches!(
+            held.state,
+            temper_engine_domain_forge_change::State::Held {
+                why: temper_engine_domain_forge_change::Hold::BranchMoved,
+                ..
+            }
+        ));
+        let sender = Sender::Attempt { task: resumed.task, attempt: resumed.attempt };
+        assert!(world.store.rows.values().any(|record| matches!(record,
+            Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Writes(writes)
+                if writes.entries.iter().any(|entry| entry.sender == sender && entry.state == WriteState::Confirmed
+                    && matches!(entry.operation, Operation::Push { after, .. } if after == translate::commit(repaired))))
+        )), "the outside tip contains the confirmed repair");
+        world.signed_in = None;
+        world.sign_in();
+        release(&mut world, change);
+        outside
+    } else {
+        repaired
+    };
+    let head = translate::commit(head);
     for _ in 0..MAX_TICKS {
         world.tick();
         if world.assigned.len() > 8 {
@@ -1286,7 +1319,11 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     assert_eq!(row.change.last_head, Some(head), "delivered repair must advance the change: {row:?}");
     let fresh = world.assigned.get(8).expect("successful repair must be reviewed");
     assert_review_head(&world, fresh, head);
-    assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
+    if moved {
+        assert_eq!(row.change.repairs, 0, "the owner's release starts the repair count again");
+    } else {
+        assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
+    }
     assert!(row.questions.open.is_empty());
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }

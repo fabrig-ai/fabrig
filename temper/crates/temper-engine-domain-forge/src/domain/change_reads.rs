@@ -217,22 +217,19 @@ pub(super) fn pull(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out
         return Judgement::Owed;
     }
     if !closed {
-        return pull_commits(pending, pull, read, target_changed);
+        return pull_commits(pending, pull, read);
     }
     Judgement::Read
 }
 
-fn pull_commits(pending: &PendingStep, pull: &Pull, read: writes::PullSeen, target_changed: bool) -> Judgement {
+fn pull_commits(pending: &PendingStep, pull: &Pull, read: writes::PullSeen) -> Judgement {
     // The branch read is authoritative for BranchMoved. A pull carrying a
     // different commit cannot supply the found head for a drift hold.
     if pending.branch.is_some() && pending.branch != Some(pull.commit) {
         return behind(BehindRead::PullHead, pending.branch, Some(pull.commit));
     }
-    if !target_changed && pull.base_commit.is_some() && pending.base_read != pull.base_commit {
-        return behind(BehindRead::PullBase, pending.base_read, pull.base_commit);
-    }
-    // When the branch is missing (or the base moved outside temper) the
-    // commits may have no usable pair, but their own verdicts still apply.
+    // A different base commit can be newer than the branch read. Only the
+    // record can say it is behind; otherwise both remain dependencies.
     match read.head {
         Seen::Behind { .. } => return behind(BehindRead::PullHead, pending.branch, Some(pull.commit)),
         Seen::Current | Seen::Explained { .. } | Seen::Drift { .. } | Seen::Owed => {}

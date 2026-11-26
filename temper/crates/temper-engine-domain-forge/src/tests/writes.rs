@@ -283,6 +283,8 @@ fn an_update_intent_checks_both_pinned_commits_before_explaining_a_head() {
     head(&mut d, &branch, T);
     let mut out = Queue::uncapped();
     d.admit(&branch, Operation::Update { pull: PULL, before: T, base: C, after: None }, SENDER, &mut out).unwrap();
+    assert_eq!(d.observe(&branch, Some(D), Actor::Unknown, &mut out), Seen::Drift { nearest: Some(1) });
+    d.writes.get_mut(&branch).expect("update record").entries[0].state = WriteState::Sent;
     assert_eq!(d.observe(&branch, Some(D), Actor::Unknown, &mut out), Seen::Owed);
     contains(&mut d, D, T, true);
     let out = contains(&mut d, D, C, true);

@@ -98,22 +98,12 @@ fn publish(world: &mut World, producer: &engine::Assignment, path: Option<&[u8]>
     let branch = change_row(world, change).branch.clone();
     let base = world.fake.branch(b"org/repo", b"main").expect("main tip");
     let head = if let Some(path) = path {
-        assert_eq!(
-            world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base })),
-            raw::Answer::Branch(raw::Created::Created)
-        );
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, b"added", 2)
-            .expect("producer pushed")
+        world.worker_commit(base, path, b"added")
     } else {
-        let head =
-            fake::commit_tree(&mut world.fake, &world.fake_env.limits, base, None, Box::new([]), b"Empty change")
-                .expect("empty commit on the empty main tree");
-        assert_eq!(
-            world.external(2, raw::Op::Git(raw::Git::Push { branch, commit: head, expected: None })),
-            raw::Answer::Pushed(raw::Pushed::Pushed)
-        );
-        head
+        fake::commit_tree(&mut world.fake, &world.fake_env.limits, base, None, Box::new([]), b"Empty change")
+            .expect("empty commit on the empty main tree")
     };
+    world.run_push(producer, &branch, head, 2);
     if pending {
         // Let the fake's automatic build finish before replacing its verdict with pending.
         settle(world);
@@ -301,7 +291,8 @@ fn taking_mains_protocol_edit_in_an_update_touches_nothing() {
     );
 
     post_approval_read(&mut world, protocol, 7);
-    settle(&mut world);
+    // Complete the old head's CI as soon as the protocol change lands. A
+    // later check of the still-pending head could take the base before CI.
     assert_landed(&mut world, protocol);
     assert_eq!(world.merges, 1);
     let main = world.fake.branch(b"org/repo", b"main").expect("protocol landing");

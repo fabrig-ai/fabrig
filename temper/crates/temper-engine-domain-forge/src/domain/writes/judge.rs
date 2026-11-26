@@ -45,7 +45,9 @@ pub(super) fn judge(row: &Writes, observed: Option<Commit>, actor: Actor) -> Jud
         // delivery commit, which the pull could never name as its merge.
         let missing = missing_link(row, observed);
         for entry in &row.entries {
-            if entry.state.unsettled() && intent(&entry.operation) {
+            // A queued forge write may be waiting for the very facts this
+            // read supplies. Until sent, it cannot explain a different tip.
+            if entry.state.unsettled() && entry.state != WriteState::Admitted && intent(&entry.operation) {
                 return Judgement::Readback { order: entry.order, observed: missing };
             }
         }

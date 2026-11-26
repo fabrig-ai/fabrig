@@ -602,13 +602,38 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     settle(&mut world);
     assert_eq!(world.merges, 1, "Y lands first");
     assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
-    let reviewer = change_gate(&mut world, x);
+    let reviewer = change_gate(&mut world, x, None);
     assert!(matches!(light_rules::change_row(&world, x).change.state, State::Gating { .. }));
     assert!(!light_rules::change_row(&world, x).change.owns_turn);
+    let first_head = light_rules::change_row(&world, x).change.state.pinned_head().expect("first updated head");
+    for _ in 0..200 {
+        if matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }));
+    assert_eq!(world.merges, 2, "Z lands while X waits for its gate");
     reviews::finish_review(
         &mut world,
         &reviewer,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"updated head approved".as_slice().into() },
+    );
+
+    // X takes Z's confirmed tip on its next turn. The verdict at the first
+    // updated head cannot stand for the exact gate at the second one.
+    let next = change_gate(&mut world, x, Some(first_head));
+    let row = light_rules::change_row(&world, x);
+    let State::Gating { head, .. } = row.change.state else { panic!("X gates after taking Z's tip: {row:?}") };
+    assert_ne!(head, first_head);
+    assert_ne!(next.task, reviewer.task);
+    assert_eq!(row.change.ready_since, since);
+    assert!(matches!(row.delegate, Some((task, temper_engine_domain_forge_change::Delegate::Gate { head: asked, .. }))
+        if task == next.task && asked == head));
+    reviews::finish_review(
+        &mut world,
+        &next,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"latest head approved".as_slice().into() },
     );
     settle(&mut world);
     assert_eq!(world.merges, 3);
@@ -625,12 +650,13 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     world.close();
 }
 
-fn change_gate(world: &mut World, change: u64) -> engine::Assignment {
+fn change_gate(world: &mut World, change: u64, after: Option<skein_forge::api::Commit>) -> engine::Assignment {
+    use temper_engine_domain_forge_change::State;
     for _ in 0..200 {
-        if matches!(
-            light_rules::change_row(world, change).change.state,
-            temper_engine_domain_forge_change::State::Gating { .. }
-        ) && let Some((task, _)) = light_rules::change_row(world, change).delegate
+        let row = light_rules::change_row(world, change);
+        if let State::Gating { head, .. } = row.change.state
+            && Some(head) != after
+            && let Some((task, _)) = row.delegate
             && world.assigned.iter().any(|run| run.task == task)
         {
             break;
@@ -645,7 +671,7 @@ fn change_gate(world: &mut World, change: u64) -> engine::Assignment {
 }
 
 fn finish_change_gate(world: &mut World, change: u64) {
-    let reviewer = change_gate(world, change);
+    let reviewer = change_gate(world, change, None);
     reviews::finish_review(
         world,
         &reviewer,
