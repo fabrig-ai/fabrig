@@ -1,0 +1,956 @@
+a_branch_moved_elsewhere_is_not_overwritten	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_branch_moved_elsewhere_is_not_overwritten	fetch	origin	main
+a_branch_moved_elsewhere_is_not_overwritten	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_branch_moved_elsewhere_is_not_overwritten	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_branch_moved_elsewhere_is_not_overwritten	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_branch_moved_elsewhere_is_not_overwritten	merge-base	origin/main	look-requests
+a_branch_moved_elsewhere_is_not_overwritten	rev-list	--reverse	origin/main..look-requests
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--git-path	MERGE_HEAD
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--git-path	rebase-apply
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--git-path	rebase-merge
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--git-path	sequencer
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_branch_moved_elsewhere_is_not_overwritten	rev-parse	--verify	refs/remotes/origin/look-requests
+a_branch_moved_elsewhere_is_not_overwritten	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_branch_moved_elsewhere_is_not_overwritten	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_branch_moved_elsewhere_is_not_overwritten	status	--porcelain	--untracked-files=no
+a_branch_moved_elsewhere_is_not_overwritten	symbolic-ref	--quiet	--short	HEAD
+a_completed_stack_can_be_refreshed_again	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_completed_stack_can_be_refreshed_again	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	3333333333333333333333333333333333333333
+a_completed_stack_can_be_refreshed_again	cat-file	-t	2222222222222222222222222222222222222222
+a_completed_stack_can_be_refreshed_again	fetch	origin	main
+a_completed_stack_can_be_refreshed_again	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_completed_stack_can_be_refreshed_again	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_completed_stack_can_be_refreshed_again	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_completed_stack_can_be_refreshed_again	merge-base	--is-ancestor	2222222222222222222222222222222222222222	2222222222222222222222222222222222222222
+a_completed_stack_can_be_refreshed_again	merge-base	--is-ancestor	2222222222222222222222222222222222222222	origin/main
+a_completed_stack_can_be_refreshed_again	merge-base	--is-ancestor	3333333333333333333333333333333333333333	2222222222222222222222222222222222222222
+a_completed_stack_can_be_refreshed_again	merge-base	--is-ancestor	3333333333333333333333333333333333333333	3333333333333333333333333333333333333333
+a_completed_stack_can_be_refreshed_again	merge-base	--is-ancestor	3333333333333333333333333333333333333333	5555555555555555555555555555555555555555
+a_completed_stack_can_be_refreshed_again	merge-base	origin/main	look-requests
+a_completed_stack_can_be_refreshed_again	rev-list	--first-parent	--count	3333333333333333333333333333333333333333..origin/main
+a_completed_stack_can_be_refreshed_again	rev-list	--first-parent	origin/main
+a_completed_stack_can_be_refreshed_again	rev-list	--reverse	origin/main..look-requests
+a_completed_stack_can_be_refreshed_again	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_completed_stack_can_be_refreshed_again	rev-parse	--git-path	MERGE_HEAD
+a_completed_stack_can_be_refreshed_again	rev-parse	--git-path	rebase-apply
+a_completed_stack_can_be_refreshed_again	rev-parse	--git-path	rebase-merge
+a_completed_stack_can_be_refreshed_again	rev-parse	--git-path	sequencer
+a_completed_stack_can_be_refreshed_again	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_completed_stack_can_be_refreshed_again	rev-parse	--short	HEAD
+a_completed_stack_can_be_refreshed_again	rev-parse	--verify	refs/remotes/origin/look-requests
+a_completed_stack_can_be_refreshed_again	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_completed_stack_can_be_refreshed_again	show	-s	--format=%(trailers:key=Look-request)	7777777777777777777777777777777777777777
+a_completed_stack_can_be_refreshed_again	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_completed_stack_can_be_refreshed_again	show	-s	--format=%P	7777777777777777777777777777777777777777
+a_completed_stack_can_be_refreshed_again	status	--porcelain	--untracked-files=no
+a_completed_stack_can_be_refreshed_again	symbolic-ref	--quiet	--short	HEAD
+a_conflict_stops_for_the_person	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_conflict_stops_for_the_person	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	5555555555555555555555555555555555555555
+a_conflict_stops_for_the_person	fetch	origin	main
+a_conflict_stops_for_the_person	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_conflict_stops_for_the_person	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_conflict_stops_for_the_person	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_conflict_stops_for_the_person	merge-base	origin/main	look-requests
+a_conflict_stops_for_the_person	rev-list	--reverse	origin/main..look-requests
+a_conflict_stops_for_the_person	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_conflict_stops_for_the_person	rev-parse	--git-path	MERGE_HEAD
+a_conflict_stops_for_the_person	rev-parse	--git-path	rebase-apply
+a_conflict_stops_for_the_person	rev-parse	--git-path	rebase-merge
+a_conflict_stops_for_the_person	rev-parse	--git-path	sequencer
+a_conflict_stops_for_the_person	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_conflict_stops_for_the_person	rev-parse	--short	HEAD
+a_conflict_stops_for_the_person	rev-parse	--verify	REBASE_HEAD
+a_conflict_stops_for_the_person	rev-parse	--verify	refs/remotes/origin/look-requests
+a_conflict_stops_for_the_person	show	-s	--format=%(trailers:key=Look-request)	4444444444444444444444444444444444444444
+a_conflict_stops_for_the_person	show	-s	--format=%(trailers:key=Look-request)	7777777777777777777777777777777777777777
+a_conflict_stops_for_the_person	show	-s	--format=%P	4444444444444444444444444444444444444444
+a_conflict_stops_for_the_person	show	-s	--format=%P	7777777777777777777777777777777777777777
+a_conflict_stops_for_the_person	status	--porcelain	--untracked-files=no
+a_conflict_stops_for_the_person	symbolic-ref	--quiet	--short	HEAD
+a_dom_not_following_start_tags_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_dom_not_following_start_tags_is_not_compared	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_dom_not_following_start_tags_is_not_compared	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_dom_not_following_start_tags_is_not_compared	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_dom_not_following_start_tags_is_not_compared	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_dom_not_following_start_tags_is_not_compared	remote
+a_dom_not_following_start_tags_is_not_compared	rev-parse	--path-format=absolute	--git-path	look-render
+a_dom_not_following_start_tags_is_not_compared	rev-parse	--show-toplevel
+a_dom_not_following_start_tags_is_not_compared	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_dom_not_following_start_tags_is_not_compared	rev-parse	--verify	FETCH_HEAD^{commit}
+a_dom_not_following_start_tags_is_not_compared	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_dom_not_following_start_tags_is_not_compared	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_done_request_is_dropped	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_done_request_is_dropped	cat-file	-t	2222222222222222222222222222222222222222
+a_done_request_is_dropped	cat-file	-t	8888888888888888888888888888888888888888
+a_done_request_is_dropped	fetch	origin	main
+a_done_request_is_dropped	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_done_request_is_dropped	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_done_request_is_dropped	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_done_request_is_dropped	merge-base	--is-ancestor	2222222222222222222222222222222222222222	2222222222222222222222222222222222222222
+a_done_request_is_dropped	merge-base	--is-ancestor	2222222222222222222222222222222222222222	8888888888888888888888888888888888888888
+a_done_request_is_dropped	merge-base	--is-ancestor	2222222222222222222222222222222222222222	origin/main
+a_done_request_is_dropped	merge-base	--is-ancestor	3333333333333333333333333333333333333333	2222222222222222222222222222222222222222
+a_done_request_is_dropped	merge-base	--is-ancestor	3333333333333333333333333333333333333333	3333333333333333333333333333333333333333
+a_done_request_is_dropped	merge-base	--is-ancestor	3333333333333333333333333333333333333333	4444444444444444444444444444444444444444
+a_done_request_is_dropped	merge-base	--is-ancestor	3333333333333333333333333333333333333333	5555555555555555555555555555555555555555
+a_done_request_is_dropped	merge-base	--is-ancestor	3333333333333333333333333333333333333333	8888888888888888888888888888888888888888
+a_done_request_is_dropped	merge-base	--is-ancestor	8888888888888888888888888888888888888888	origin/main
+a_done_request_is_dropped	merge-base	origin/main	look-requests
+a_done_request_is_dropped	rev-list	--first-parent	--count	3333333333333333333333333333333333333333..origin/main
+a_done_request_is_dropped	rev-list	--first-parent	origin/main
+a_done_request_is_dropped	rev-list	--reverse	origin/main..look-requests
+a_done_request_is_dropped	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_done_request_is_dropped	rev-parse	--git-path	MERGE_HEAD
+a_done_request_is_dropped	rev-parse	--git-path	rebase-apply
+a_done_request_is_dropped	rev-parse	--git-path	rebase-merge
+a_done_request_is_dropped	rev-parse	--git-path	sequencer
+a_done_request_is_dropped	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_done_request_is_dropped	rev-parse	--short	HEAD
+a_done_request_is_dropped	rev-parse	--verify	refs/remotes/origin/look-requests
+a_done_request_is_dropped	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_done_request_is_dropped	show	-s	--format=%(trailers:key=Look-request)	7777777777777777777777777777777777777777
+a_done_request_is_dropped	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_done_request_is_dropped	show	-s	--format=%P	7777777777777777777777777777777777777777
+a_done_request_is_dropped	status	--porcelain	--untracked-files=no
+a_done_request_is_dropped	symbolic-ref	--quiet	--short	HEAD
+a_done_request_stays_until_printed	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_done_request_stays_until_printed	fetch	origin	main
+a_done_request_stays_until_printed	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_done_request_stays_until_printed	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_done_request_stays_until_printed	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_done_request_stays_until_printed	merge-base	origin/main	look-requests
+a_done_request_stays_until_printed	rev-list	--reverse	origin/main..look-requests
+a_done_request_stays_until_printed	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_done_request_stays_until_printed	rev-parse	--git-path	MERGE_HEAD
+a_done_request_stays_until_printed	rev-parse	--git-path	rebase-apply
+a_done_request_stays_until_printed	rev-parse	--git-path	rebase-merge
+a_done_request_stays_until_printed	rev-parse	--git-path	sequencer
+a_done_request_stays_until_printed	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_done_request_stays_until_printed	rev-parse	--short	HEAD
+a_done_request_stays_until_printed	rev-parse	--verify	refs/remotes/origin/look-requests
+a_done_request_stays_until_printed	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_done_request_stays_until_printed	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_done_request_stays_until_printed	status	--porcelain	--untracked-files=no
+a_done_request_stays_until_printed	symbolic-ref	--quiet	--short	HEAD
+a_failed_commit_lookup_does_not_fetch	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_failed_print_has_no_table	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_failed_print_has_no_table	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_failed_print_has_no_table	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_failed_print_has_no_table	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_failed_print_has_no_table	remote
+a_failed_print_has_no_table	rev-parse	--path-format=absolute	--git-path	look-compare
+a_failed_print_has_no_table	rev-parse	--show-toplevel
+a_failed_print_has_no_table	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_failed_print_has_no_table	rev-parse	--verify	FETCH_HEAD^{commit}
+a_failed_print_has_no_table	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_failed_print_has_no_table	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_first_push_creates_the_branch	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_first_push_creates_the_branch	fetch	origin	main
+a_first_push_creates_the_branch	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_first_push_creates_the_branch	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_first_push_creates_the_branch	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_first_push_creates_the_branch	merge-base	origin/main	look-requests
+a_first_push_creates_the_branch	rev-list	--reverse	origin/main..look-requests
+a_first_push_creates_the_branch	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_first_push_creates_the_branch	rev-parse	--git-path	MERGE_HEAD
+a_first_push_creates_the_branch	rev-parse	--git-path	rebase-apply
+a_first_push_creates_the_branch	rev-parse	--git-path	rebase-merge
+a_first_push_creates_the_branch	rev-parse	--git-path	sequencer
+a_first_push_creates_the_branch	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_first_push_creates_the_branch	rev-parse	--short	HEAD
+a_first_push_creates_the_branch	rev-parse	--verify	refs/remotes/origin/look-requests
+a_first_push_creates_the_branch	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_first_push_creates_the_branch	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_first_push_creates_the_branch	status	--porcelain	--untracked-files=no
+a_first_push_creates_the_branch	symbolic-ref	--quiet	--short	HEAD
+a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html
+a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+a_gallery_drawing_is_compared_with_the_opened_state	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_gallery_drawing_is_compared_with_the_opened_state	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_gallery_drawing_is_compared_with_the_opened_state	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_gallery_drawing_is_compared_with_the_opened_state	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_gallery_drawing_is_compared_with_the_opened_state	remote
+a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--path-format=absolute	--git-path	look-render
+a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--show-toplevel
+a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--verify	FETCH_HEAD^{commit}
+a_gallery_drawing_is_compared_with_the_opened_state	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_gallery_drawing_is_compared_with_the_opened_state	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/mockup/walk
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sources/walk
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	remote
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	rev-parse	--path-format=absolute	--git-path	look-compare
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	rev-parse	--show-toplevel
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	rev-parse	--verify	FETCH_HEAD^{commit}
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_hand_made_directory_gets_one_row_and_walk_sources_get_none	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	--literal-pathspecs	ls-tree	--full-tree	-z	origin/main	--	temper/docs/design/client/web/journeys/looks.html
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	cat-file	-t	4444444444444444444444444444444444444444
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	cat-file	blob	8888888888888888888888888888888888888888
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	fetch	origin	main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	merge-base	--is-ancestor	4444444444444444444444444444444444444444	origin/main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	merge-base	--is-ancestor	5555555555555555555555555555555555555555	4444444444444444444444444444444444444444
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	merge-base	--is-ancestor	5555555555555555555555555555555555555555	5555555555555555555555555555555555555555
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	merge-base	origin/main	look-requests
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-list	--first-parent	--count	5555555555555555555555555555555555555555..origin/main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-list	--first-parent	origin/main
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-list	--reverse	origin/main..look-requests
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--git-path	MERGE_HEAD
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--git-path	rebase-apply
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--git-path	rebase-merge
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--git-path	sequencer
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--short	HEAD
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	rev-parse	--verify	refs/remotes/origin/look-requests
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	status	--porcelain	--untracked-files=no
+a_landed_request_stays_until_main_has_the_newest_landing_verdict	symbolic-ref	--quiet	--short	HEAD
+a_locally_held_request_is_compared_without_fetching	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/mockup/walk
+a_locally_held_request_is_compared_without_fetching	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_locally_held_request_is_compared_without_fetching	rev-parse	--path-format=absolute	--git-path	look-compare
+a_locally_held_request_is_compared_without_fetching	rev-parse	--show-toplevel
+a_locally_held_request_is_compared_without_fetching	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_locally_held_request_is_compared_without_fetching	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_locally_held_request_is_compared_without_fetching	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_locally_held_request_is_render_checked_without_fetching	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_locally_held_request_is_render_checked_without_fetching	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_locally_held_request_is_render_checked_without_fetching	rev-parse	--path-format=absolute	--git-path	look-render
+a_locally_held_request_is_render_checked_without_fetching	rev-parse	--show-toplevel
+a_locally_held_request_is_render_checked_without_fetching	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_locally_held_request_is_render_checked_without_fetching	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_locally_held_request_is_render_checked_without_fetching	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/mockup/walk
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	fetch	--no-tags	--no-recurse-submodules	--refmap=	--	-upstream	refs/heads/docs/look/look-request
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	fetch	--no-tags	--no-recurse-submodules	--refmap=	forge	refs/heads/docs/look/look-request
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	fetch	--no-tags	--no-recurse-submodules	--refmap=	upstream	refs/heads/docs/look/look-request
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	remote
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	rev-parse	--path-format=absolute	--git-path	look-compare
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	rev-parse	--show-toplevel
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	rev-parse	--verify	FETCH_HEAD^{commit}
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_missing_request_prefers_forge_then_origin_then_the_only_remote	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_missing_request_without_a_preferred_or_sole_remote_is_refused	remote
+a_missing_request_without_a_preferred_or_sole_remote_is_refused	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_new_walks_page_is_compared_whole	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/new-walk/01.html
+a_new_walks_page_is_compared_whole	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/new-walk/01.html
+a_new_walks_page_is_compared_whole	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/new-walk/walk
+a_new_walks_page_is_compared_whole	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_new_walks_page_is_compared_whole	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+a_new_walks_page_is_compared_whole	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_new_walks_page_is_compared_whole	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_new_walks_page_is_compared_whole	remote
+a_new_walks_page_is_compared_whole	rev-parse	--path-format=absolute	--git-path	look-compare
+a_new_walks_page_is_compared_whole	rev-parse	--show-toplevel
+a_new_walks_page_is_compared_whole	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_new_walks_page_is_compared_whole	rev-parse	--verify	FETCH_HEAD^{commit}
+a_new_walks_page_is_compared_whole	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_new_walks_page_is_compared_whole	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_page_missing_from_the_print_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_page_missing_from_the_print_is_not_compared	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_page_missing_from_the_print_is_not_compared	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_page_missing_from_the_print_is_not_compared	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_page_missing_from_the_print_is_not_compared	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_page_missing_from_the_print_is_not_compared	remote
+a_page_missing_from_the_print_is_not_compared	rev-parse	--path-format=absolute	--git-path	look-render
+a_page_missing_from_the_print_is_not_compared	rev-parse	--show-toplevel
+a_page_missing_from_the_print_is_not_compared	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_page_missing_from_the_print_is_not_compared	rev-parse	--verify	FETCH_HEAD^{commit}
+a_page_missing_from_the_print_is_not_compared	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_page_missing_from_the_print_is_not_compared	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_page_trouble_is_reported_without_judging_the_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+a_page_trouble_is_reported_without_judging_the_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_page_trouble_is_reported_without_judging_the_page	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_page_trouble_is_reported_without_judging_the_page	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_page_trouble_is_reported_without_judging_the_page	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_page_trouble_is_reported_without_judging_the_page	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_page_trouble_is_reported_without_judging_the_page	remote
+a_page_trouble_is_reported_without_judging_the_page	rev-parse	--path-format=absolute	--git-path	look-render
+a_page_trouble_is_reported_without_judging_the_page	rev-parse	--show-toplevel
+a_page_trouble_is_reported_without_judging_the_page	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_page_trouble_is_reported_without_judging_the_page	rev-parse	--verify	FETCH_HEAD^{commit}
+a_page_trouble_is_reported_without_judging_the_page	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_page_trouble_is_reported_without_judging_the_page	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_print_before_the_landing_keeps_the_request	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_print_before_the_landing_keeps_the_request	cat-file	-t	1111111111111111111111111111111111111111
+a_print_before_the_landing_keeps_the_request	fetch	origin	main
+a_print_before_the_landing_keeps_the_request	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_print_before_the_landing_keeps_the_request	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_print_before_the_landing_keeps_the_request	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_print_before_the_landing_keeps_the_request	merge-base	--is-ancestor	1111111111111111111111111111111111111111	origin/main
+a_print_before_the_landing_keeps_the_request	merge-base	--is-ancestor	2222222222222222222222222222222222222222	1111111111111111111111111111111111111111
+a_print_before_the_landing_keeps_the_request	merge-base	--is-ancestor	3333333333333333333333333333333333333333	1111111111111111111111111111111111111111
+a_print_before_the_landing_keeps_the_request	merge-base	--is-ancestor	3333333333333333333333333333333333333333	2222222222222222222222222222222222222222
+a_print_before_the_landing_keeps_the_request	merge-base	--is-ancestor	3333333333333333333333333333333333333333	3333333333333333333333333333333333333333
+a_print_before_the_landing_keeps_the_request	merge-base	origin/main	look-requests
+a_print_before_the_landing_keeps_the_request	rev-list	--first-parent	--count	3333333333333333333333333333333333333333..origin/main
+a_print_before_the_landing_keeps_the_request	rev-list	--first-parent	origin/main
+a_print_before_the_landing_keeps_the_request	rev-list	--reverse	origin/main..look-requests
+a_print_before_the_landing_keeps_the_request	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_print_before_the_landing_keeps_the_request	rev-parse	--git-path	MERGE_HEAD
+a_print_before_the_landing_keeps_the_request	rev-parse	--git-path	rebase-apply
+a_print_before_the_landing_keeps_the_request	rev-parse	--git-path	rebase-merge
+a_print_before_the_landing_keeps_the_request	rev-parse	--git-path	sequencer
+a_print_before_the_landing_keeps_the_request	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_print_before_the_landing_keeps_the_request	rev-parse	--short	HEAD
+a_print_before_the_landing_keeps_the_request	rev-parse	--verify	refs/remotes/origin/look-requests
+a_print_before_the_landing_keeps_the_request	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_print_before_the_landing_keeps_the_request	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_print_before_the_landing_keeps_the_request	status	--porcelain	--untracked-files=no
+a_print_before_the_landing_keeps_the_request	symbolic-ref	--quiet	--short	HEAD
+a_push_failure_without_a_stale_lease_returns_one	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+a_push_failure_without_a_stale_lease_returns_one	fetch	origin	main
+a_push_failure_without_a_stale_lease_returns_one	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+a_push_failure_without_a_stale_lease_returns_one	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+a_push_failure_without_a_stale_lease_returns_one	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+a_push_failure_without_a_stale_lease_returns_one	merge-base	origin/main	look-requests
+a_push_failure_without_a_stale_lease_returns_one	rev-list	--reverse	origin/main..look-requests
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--git-path	MERGE_HEAD
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--git-path	rebase-apply
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--git-path	rebase-merge
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--git-path	sequencer
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+a_push_failure_without_a_stale_lease_returns_one	rev-parse	--verify	refs/remotes/origin/look-requests
+a_push_failure_without_a_stale_lease_returns_one	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_push_failure_without_a_stale_lease_returns_one	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_push_failure_without_a_stale_lease_returns_one	status	--porcelain	--untracked-files=no
+a_push_failure_without_a_stale_lease_returns_one	symbolic-ref	--quiet	--short	HEAD
+a_readme_must_name_one_distinct_valid_gallery_state	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+a_readme_must_name_one_distinct_valid_gallery_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+a_readme_must_name_one_distinct_valid_gallery_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+a_readme_must_name_one_distinct_valid_gallery_state	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_readme_must_name_one_distinct_valid_gallery_state	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_readme_must_name_one_distinct_valid_gallery_state	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_readme_must_name_one_distinct_valid_gallery_state	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_readme_must_name_one_distinct_valid_gallery_state	remote
+a_readme_must_name_one_distinct_valid_gallery_state	rev-parse	--path-format=absolute	--git-path	look-render
+a_readme_must_name_one_distinct_valid_gallery_state	rev-parse	--show-toplevel
+a_readme_must_name_one_distinct_valid_gallery_state	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_readme_must_name_one_distinct_valid_gallery_state	rev-parse	--verify	FETCH_HEAD^{commit}
+a_readme_must_name_one_distinct_valid_gallery_state	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_readme_must_name_one_distinct_valid_gallery_state	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_refused_read_keeps_stdout_empty_and_closes_chromium	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+a_refused_read_keeps_stdout_empty_and_closes_chromium	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_refused_read_keeps_stdout_empty_and_closes_chromium	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_refused_read_keeps_stdout_empty_and_closes_chromium	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+a_refused_read_keeps_stdout_empty_and_closes_chromium	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_refused_read_keeps_stdout_empty_and_closes_chromium	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_refused_read_keeps_stdout_empty_and_closes_chromium	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_refused_read_keeps_stdout_empty_and_closes_chromium	remote
+a_refused_read_keeps_stdout_empty_and_closes_chromium	rev-parse	--path-format=absolute	--git-path	look-render
+a_refused_read_keeps_stdout_empty_and_closes_chromium	rev-parse	--show-toplevel
+a_refused_read_keeps_stdout_empty_and_closes_chromium	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_refused_read_keeps_stdout_empty_and_closes_chromium	rev-parse	--verify	FETCH_HEAD^{commit}
+a_refused_read_keeps_stdout_empty_and_closes_chromium	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_refused_read_keeps_stdout_empty_and_closes_chromium	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_request_without_its_trailer_is_refused	fetch	origin	main
+a_request_without_its_trailer_is_refused	rev-list	--reverse	origin/main..look-requests
+a_request_without_its_trailer_is_refused	rev-parse	--git-path	CHERRY_PICK_HEAD
+a_request_without_its_trailer_is_refused	rev-parse	--git-path	MERGE_HEAD
+a_request_without_its_trailer_is_refused	rev-parse	--git-path	rebase-apply
+a_request_without_its_trailer_is_refused	rev-parse	--git-path	rebase-merge
+a_request_without_its_trailer_is_refused	rev-parse	--git-path	sequencer
+a_request_without_its_trailer_is_refused	rev-parse	--verify	refs/remotes/origin/look-requests
+a_request_without_its_trailer_is_refused	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+a_request_without_its_trailer_is_refused	show	-s	--format=%P	6666666666666666666666666666666666666666
+a_request_without_its_trailer_is_refused	status	--porcelain	--untracked-files=no
+a_request_without_its_trailer_is_refused	symbolic-ref	--quiet	--short	HEAD
+a_selector_refused_by_chromium_selects_no_element	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+a_selector_refused_by_chromium_selects_no_element	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+a_selector_refused_by_chromium_selects_no_element	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_selector_refused_by_chromium_selects_no_element	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_selector_refused_by_chromium_selects_no_element	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_selector_refused_by_chromium_selects_no_element	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_selector_refused_by_chromium_selects_no_element	remote
+a_selector_refused_by_chromium_selects_no_element	rev-parse	--path-format=absolute	--git-path	look-render
+a_selector_refused_by_chromium_selects_no_element	rev-parse	--show-toplevel
+a_selector_refused_by_chromium_selects_no_element	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_selector_refused_by_chromium_selects_no_element	rev-parse	--verify	FETCH_HEAD^{commit}
+a_selector_refused_by_chromium_selects_no_element	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_selector_refused_by_chromium_selects_no_element	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+a_state_missing_from_the_gallery_is_not_compared	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_state_missing_from_the_gallery_is_not_compared	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_state_missing_from_the_gallery_is_not_compared	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_state_missing_from_the_gallery_is_not_compared	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_state_missing_from_the_gallery_is_not_compared	remote
+a_state_missing_from_the_gallery_is_not_compared	rev-parse	--path-format=absolute	--git-path	look-render
+a_state_missing_from_the_gallery_is_not_compared	rev-parse	--show-toplevel
+a_state_missing_from_the_gallery_is_not_compared	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_state_missing_from_the_gallery_is_not_compared	rev-parse	--verify	FETCH_HEAD^{commit}
+a_state_missing_from_the_gallery_is_not_compared	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_state_missing_from_the_gallery_is_not_compared	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_stopped_walk_gets_only_its_directory_row	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/tui/journeys/terminal/01.txt
+a_stopped_walk_gets_only_its_directory_row	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/tui/journeys/terminal/01.txt
+a_stopped_walk_gets_only_its_directory_row	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/tui/journeys/terminal/walk
+a_stopped_walk_gets_only_its_directory_row	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_stopped_walk_gets_only_its_directory_row	-c	merge.conflictStyle=merge	merge-file	-p	--marker-size=7	-L	landed	-L	parent	-L	requested	landed	parent	requested
+a_stopped_walk_gets_only_its_directory_row	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_stopped_walk_gets_only_its_directory_row	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_stopped_walk_gets_only_its_directory_row	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_stopped_walk_gets_only_its_directory_row	remote
+a_stopped_walk_gets_only_its_directory_row	rev-parse	--path-format=absolute	--git-path	look-compare
+a_stopped_walk_gets_only_its_directory_row	rev-parse	--show-toplevel
+a_stopped_walk_gets_only_its_directory_row	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_stopped_walk_gets_only_its_directory_row	rev-parse	--verify	FETCH_HEAD^{commit}
+a_stopped_walk_gets_only_its_directory_row	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_stopped_walk_gets_only_its_directory_row	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_tip_that_isnt_c_is_refused	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_tip_that_isnt_c_is_refused	remote
+a_tip_that_isnt_c_is_refused	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_tip_that_isnt_c_is_refused	rev-parse	--verify	FETCH_HEAD^{commit}
+a_touched_tag_with_no_pair_reports_one_difference	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+a_touched_tag_with_no_pair_reports_one_difference	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+a_touched_tag_with_no_pair_reports_one_difference	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_touched_tag_with_no_pair_reports_one_difference	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+a_touched_tag_with_no_pair_reports_one_difference	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_touched_tag_with_no_pair_reports_one_difference	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_touched_tag_with_no_pair_reports_one_difference	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_touched_tag_with_no_pair_reports_one_difference	remote
+a_touched_tag_with_no_pair_reports_one_difference	rev-parse	--path-format=absolute	--git-path	look-render
+a_touched_tag_with_no_pair_reports_one_difference	rev-parse	--show-toplevel
+a_touched_tag_with_no_pair_reports_one_difference	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_touched_tag_with_no_pair_reports_one_difference	rev-parse	--verify	FETCH_HEAD^{commit}
+a_touched_tag_with_no_pair_reports_one_difference	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_touched_tag_with_no_pair_reports_one_difference	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_tui_hand_made_page_cannot_name_a_gallery_state	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/tui/journeys/usage-model-week
+a_tui_hand_made_page_cannot_name_a_gallery_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/tui/journeys/usage-model-week/walk
+a_tui_hand_made_page_cannot_name_a_gallery_state	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_tui_hand_made_page_cannot_name_a_gallery_state	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_tui_hand_made_page_cannot_name_a_gallery_state	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_tui_hand_made_page_cannot_name_a_gallery_state	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_tui_hand_made_page_cannot_name_a_gallery_state	remote
+a_tui_hand_made_page_cannot_name_a_gallery_state	rev-parse	--path-format=absolute	--git-path	look-render
+a_tui_hand_made_page_cannot_name_a_gallery_state	rev-parse	--show-toplevel
+a_tui_hand_made_page_cannot_name_a_gallery_state	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_tui_hand_made_page_cannot_name_a_gallery_state	rev-parse	--verify	FETCH_HEAD^{commit}
+a_tui_hand_made_page_cannot_name_a_gallery_state	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_tui_hand_made_page_cannot_name_a_gallery_state	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_web_walk_shadowing_the_tui_refuses_before_print	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/tui/journeys/sign-in/walk
+a_web_walk_shadowing_the_tui_refuses_before_print	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_web_walk_shadowing_the_tui_refuses_before_print	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_web_walk_shadowing_the_tui_refuses_before_print	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_web_walk_shadowing_the_tui_refuses_before_print	remote
+a_web_walk_shadowing_the_tui_refuses_before_print	rev-parse	--path-format=absolute	--git-path	look-compare
+a_web_walk_shadowing_the_tui_refuses_before_print	rev-parse	--show-toplevel
+a_web_walk_shadowing_the_tui_refuses_before_print	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_web_walk_shadowing_the_tui_refuses_before_print	rev-parse	--verify	FETCH_HEAD^{commit}
+a_web_walk_shadowing_the_tui_refuses_before_print	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_web_walk_shadowing_the_tui_refuses_before_print	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+an_origin_tip_not_matching_c_is_refused_before_copies	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+an_origin_tip_not_matching_c_is_refused_before_copies	remote
+an_origin_tip_not_matching_c_is_refused_before_copies	rev-parse	--verify	--quiet	abcdef0^{commit}
+an_origin_tip_not_matching_c_is_refused_before_copies	rev-parse	--verify	FETCH_HEAD^{commit}
+an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	CHERRY_PICK_HEAD
+an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	MERGE_HEAD
+an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	rebase-apply
+an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	rebase-merge
+an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	sequencer
+an_unsuitable_checkout_is_refused_before_fetching	status	--porcelain	--untracked-files=no
+an_unsuitable_checkout_is_refused_before_fetching	symbolic-ref	--quiet	--short	HEAD
+box_coordinates_one_pixel_apart_are_equal	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+box_coordinates_one_pixel_apart_are_equal	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+box_coordinates_one_pixel_apart_are_equal	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+box_coordinates_one_pixel_apart_are_equal	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+box_coordinates_one_pixel_apart_are_equal	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+box_coordinates_one_pixel_apart_are_equal	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+box_coordinates_one_pixel_apart_are_equal	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+box_coordinates_one_pixel_apart_are_equal	remote
+box_coordinates_one_pixel_apart_are_equal	rev-parse	--path-format=absolute	--git-path	look-render
+box_coordinates_one_pixel_apart_are_equal	rev-parse	--show-toplevel
+box_coordinates_one_pixel_apart_are_equal	rev-parse	--verify	--quiet	abcdef0^{commit}
+box_coordinates_one_pixel_apart_are_equal	rev-parse	--verify	FETCH_HEAD^{commit}
+box_coordinates_one_pixel_apart_are_equal	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+box_coordinates_one_pixel_apart_are_equal	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+box_coordinates_two_pixels_apart_or_absent_differ	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+box_coordinates_two_pixels_apart_or_absent_differ	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+box_coordinates_two_pixels_apart_or_absent_differ	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+box_coordinates_two_pixels_apart_or_absent_differ	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+box_coordinates_two_pixels_apart_or_absent_differ	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+box_coordinates_two_pixels_apart_or_absent_differ	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+box_coordinates_two_pixels_apart_or_absent_differ	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+box_coordinates_two_pixels_apart_or_absent_differ	remote
+box_coordinates_two_pixels_apart_or_absent_differ	rev-parse	--path-format=absolute	--git-path	look-render
+box_coordinates_two_pixels_apart_or_absent_differ	rev-parse	--show-toplevel
+box_coordinates_two_pixels_apart_or_absent_differ	rev-parse	--verify	--quiet	abcdef0^{commit}
+box_coordinates_two_pixels_apart_or_absent_differ	rev-parse	--verify	FETCH_HEAD^{commit}
+box_coordinates_two_pixels_apart_or_absent_differ	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+box_coordinates_two_pixels_apart_or_absent_differ	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+computed_color_differences_are_listed_widest_first	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+computed_color_differences_are_listed_widest_first	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+computed_color_differences_are_listed_widest_first	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+computed_color_differences_are_listed_widest_first	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+computed_color_differences_are_listed_widest_first	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+computed_color_differences_are_listed_widest_first	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+computed_color_differences_are_listed_widest_first	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+computed_color_differences_are_listed_widest_first	remote
+computed_color_differences_are_listed_widest_first	rev-parse	--path-format=absolute	--git-path	look-render
+computed_color_differences_are_listed_widest_first	rev-parse	--show-toplevel
+computed_color_differences_are_listed_widest_first	rev-parse	--verify	--quiet	abcdef0^{commit}
+computed_color_differences_are_listed_widest_first	rev-parse	--verify	FETCH_HEAD^{commit}
+computed_color_differences_are_listed_widest_first	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+computed_color_differences_are_listed_widest_first	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+copies_open_real_disclosures_and_leave_every_other_byte	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+copies_open_real_disclosures_and_leave_every_other_byte	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+copies_open_real_disclosures_and_leave_every_other_byte	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+copies_open_real_disclosures_and_leave_every_other_byte	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+copies_open_real_disclosures_and_leave_every_other_byte	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+copies_open_real_disclosures_and_leave_every_other_byte	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+copies_open_real_disclosures_and_leave_every_other_byte	remote
+copies_open_real_disclosures_and_leave_every_other_byte	rev-parse	--path-format=absolute	--git-path	look-render
+copies_open_real_disclosures_and_leave_every_other_byte	rev-parse	--show-toplevel
+copies_open_real_disclosures_and_leave_every_other_byte	rev-parse	--verify	--quiet	abcdef0^{commit}
+copies_open_real_disclosures_and_leave_every_other_byte	rev-parse	--verify	FETCH_HEAD^{commit}
+copies_open_real_disclosures_and_leave_every_other_byte	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+copies_open_real_disclosures_and_leave_every_other_byte	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+differing_custom_properties_do_not_count_as_differences	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+differing_custom_properties_do_not_count_as_differences	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+differing_custom_properties_do_not_count_as_differences	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+differing_custom_properties_do_not_count_as_differences	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+differing_custom_properties_do_not_count_as_differences	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+differing_custom_properties_do_not_count_as_differences	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+differing_custom_properties_do_not_count_as_differences	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+differing_custom_properties_do_not_count_as_differences	remote
+differing_custom_properties_do_not_count_as_differences	rev-parse	--path-format=absolute	--git-path	look-render
+differing_custom_properties_do_not_count_as_differences	rev-parse	--show-toplevel
+differing_custom_properties_do_not_count_as_differences	rev-parse	--verify	--quiet	abcdef0^{commit}
+differing_custom_properties_do_not_count_as_differences	rev-parse	--verify	FETCH_HEAD^{commit}
+differing_custom_properties_do_not_count_as_differences	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+differing_custom_properties_do_not_count_as_differences	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+edits_to_lines_with_no_start_tag_touch_nothing	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+edits_to_lines_with_no_start_tag_touch_nothing	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+edits_to_lines_with_no_start_tag_touch_nothing	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+edits_to_lines_with_no_start_tag_touch_nothing	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+edits_to_lines_with_no_start_tag_touch_nothing	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+edits_to_lines_with_no_start_tag_touch_nothing	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+edits_to_lines_with_no_start_tag_touch_nothing	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+edits_to_lines_with_no_start_tag_touch_nothing	remote
+edits_to_lines_with_no_start_tag_touch_nothing	rev-parse	--path-format=absolute	--git-path	look-render
+edits_to_lines_with_no_start_tag_touch_nothing	rev-parse	--show-toplevel
+edits_to_lines_with_no_start_tag_touch_nothing	rev-parse	--verify	--quiet	abcdef0^{commit}
+edits_to_lines_with_no_start_tag_touch_nothing	rev-parse	--verify	FETCH_HEAD^{commit}
+edits_to_lines_with_no_start_tag_touch_nothing	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+edits_to_lines_with_no_start_tag_touch_nothing	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+edits_to_one_tag_conflict	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+edits_to_one_tag_conflict	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/02.html
+edits_to_one_tag_conflict	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+edits_to_one_tag_conflict	-c	merge.conflictStyle=merge	merge-file	-p	--marker-size=7	-L	landed	-L	parent	-L	requested	landed	parent	requested
+edits_to_one_tag_conflict	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+edits_to_one_tag_conflict	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	merged-with-landing-conflicts
+edits_to_one_tag_conflict	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+edits_to_one_tag_conflict	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+edits_to_one_tag_conflict	remote
+edits_to_one_tag_conflict	rev-parse	--path-format=absolute	--git-path	look-compare
+edits_to_one_tag_conflict	rev-parse	--show-toplevel
+edits_to_one_tag_conflict	rev-parse	--verify	--quiet	abcdef0^{commit}
+edits_to_one_tag_conflict	rev-parse	--verify	FETCH_HEAD^{commit}
+edits_to_one_tag_conflict	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+edits_to_one_tag_conflict	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+equal_views_have_one_identical_line_for_the_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+equal_views_have_one_identical_line_for_the_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+equal_views_have_one_identical_line_for_the_page	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+equal_views_have_one_identical_line_for_the_page	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+equal_views_have_one_identical_line_for_the_page	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+equal_views_have_one_identical_line_for_the_page	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+equal_views_have_one_identical_line_for_the_page	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+equal_views_have_one_identical_line_for_the_page	remote
+equal_views_have_one_identical_line_for_the_page	rev-parse	--path-format=absolute	--git-path	look-render
+equal_views_have_one_identical_line_for_the_page	rev-parse	--show-toplevel
+equal_views_have_one_identical_line_for_the_page	rev-parse	--verify	--quiet	abcdef0^{commit}
+equal_views_have_one_identical_line_for_the_page	rev-parse	--verify	FETCH_HEAD^{commit}
+equal_views_have_one_identical_line_for_the_page	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+equal_views_have_one_identical_line_for_the_page	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+every_edit_landed	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+every_edit_landed	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/02.html
+every_edit_landed	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+every_edit_landed	-c	merge.conflictStyle=merge	merge-file	-p	--marker-size=7	-L	landed	-L	parent	-L	requested	landed	parent	requested
+every_edit_landed	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+every_edit_landed	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+every_edit_landed	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+every_edit_landed	remote
+every_edit_landed	rev-parse	--path-format=absolute	--git-path	look-compare
+every_edit_landed	rev-parse	--show-toplevel
+every_edit_landed	rev-parse	--verify	--quiet	abcdef0^{commit}
+every_edit_landed	rev-parse	--verify	FETCH_HEAD^{commit}
+every_edit_landed	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+every_edit_landed	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+field_values_escape_backslash_tab_and_line_endings	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+field_values_escape_backslash_tab_and_line_endings	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+field_values_escape_backslash_tab_and_line_endings	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+field_values_escape_backslash_tab_and_line_endings	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+field_values_escape_backslash_tab_and_line_endings	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+field_values_escape_backslash_tab_and_line_endings	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+field_values_escape_backslash_tab_and_line_endings	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+field_values_escape_backslash_tab_and_line_endings	remote
+field_values_escape_backslash_tab_and_line_endings	rev-parse	--path-format=absolute	--git-path	look-render
+field_values_escape_backslash_tab_and_line_endings	rev-parse	--show-toplevel
+field_values_escape_backslash_tab_and_line_endings	rev-parse	--verify	--quiet	abcdef0^{commit}
+field_values_escape_backslash_tab_and_line_endings	rev-parse	--verify	FETCH_HEAD^{commit}
+field_values_escape_backslash_tab_and_line_endings	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+field_values_escape_backslash_tab_and_line_endings	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+gallery_print_failure_aborts_before_chromium_without_stdout	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+gallery_print_failure_aborts_before_chromium_without_stdout	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+gallery_print_failure_aborts_before_chromium_without_stdout	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+gallery_print_failure_aborts_before_chromium_without_stdout	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+gallery_print_failure_aborts_before_chromium_without_stdout	remote
+gallery_print_failure_aborts_before_chromium_without_stdout	rev-parse	--path-format=absolute	--git-path	look-render
+gallery_print_failure_aborts_before_chromium_without_stdout	rev-parse	--show-toplevel
+gallery_print_failure_aborts_before_chromium_without_stdout	rev-parse	--verify	--quiet	abcdef0^{commit}
+gallery_print_failure_aborts_before_chromium_without_stdout	rev-parse	--verify	FETCH_HEAD^{commit}
+gallery_print_failure_aborts_before_chromium_without_stdout	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+gallery_print_failure_aborts_before_chromium_without_stdout	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+hand_made_pages_receive_a_row_without_rendering	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/not-a-walk
+hand_made_pages_receive_a_row_without_rendering	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/not-a-walk/README.md
+hand_made_pages_receive_a_row_without_rendering	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/not-a-walk/walk
+hand_made_pages_receive_a_row_without_rendering	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+hand_made_pages_receive_a_row_without_rendering	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+hand_made_pages_receive_a_row_without_rendering	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+hand_made_pages_receive_a_row_without_rendering	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+hand_made_pages_receive_a_row_without_rendering	remote
+hand_made_pages_receive_a_row_without_rendering	rev-parse	--path-format=absolute	--git-path	look-render
+hand_made_pages_receive_a_row_without_rendering	rev-parse	--show-toplevel
+hand_made_pages_receive_a_row_without_rendering	rev-parse	--verify	--quiet	abcdef0^{commit}
+hand_made_pages_receive_a_row_without_rendering	rev-parse	--verify	FETCH_HEAD^{commit}
+hand_made_pages_receive_a_row_without_rendering	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+hand_made_pages_receive_a_row_without_rendering	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html
+inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+inserting_one_inline_tag_keeps_the_following_pairs	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+inserting_one_inline_tag_keeps_the_following_pairs	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+inserting_one_inline_tag_keeps_the_following_pairs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+inserting_one_inline_tag_keeps_the_following_pairs	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+inserting_one_inline_tag_keeps_the_following_pairs	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+inserting_one_inline_tag_keeps_the_following_pairs	remote
+inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--path-format=absolute	--git-path	look-render
+inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--show-toplevel
+inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--verify	--quiet	abcdef0^{commit}
+inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--verify	FETCH_HEAD^{commit}
+inserting_one_inline_tag_keeps_the_following_pairs	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+inserting_one_inline_tag_keeps_the_following_pairs	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+invalid_prints_do_not_hide_the_last_valid_print	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	2222222222222222222222222222222222222222
+invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	6666666666666666666666666666666666666666
+invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	cccccccccccccccccccccccccccccccccccccccc
+invalid_prints_do_not_hide_the_last_valid_print	fetch	origin	main
+invalid_prints_do_not_hide_the_last_valid_print	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+invalid_prints_do_not_hide_the_last_valid_print	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+invalid_prints_do_not_hide_the_last_valid_print	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	2222222222222222222222222222222222222222	2222222222222222222222222222222222222222
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	2222222222222222222222222222222222222222	origin/main
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	2222222222222222222222222222222222222222
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	3333333333333333333333333333333333333333
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa10000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa20000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa30000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa40000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa50000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa60000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	3333333333333333333333333333333333333333	aa70000000000000000000000000000000000000
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	--is-ancestor	6666666666666666666666666666666666666666	origin/main
+invalid_prints_do_not_hide_the_last_valid_print	merge-base	origin/main	look-requests
+invalid_prints_do_not_hide_the_last_valid_print	rev-list	--first-parent	--count	3333333333333333333333333333333333333333..origin/main
+invalid_prints_do_not_hide_the_last_valid_print	rev-list	--first-parent	origin/main
+invalid_prints_do_not_hide_the_last_valid_print	rev-list	--reverse	origin/main..look-requests
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--git-path	CHERRY_PICK_HEAD
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--git-path	MERGE_HEAD
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--git-path	rebase-apply
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--git-path	rebase-merge
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--git-path	sequencer
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--short	HEAD
+invalid_prints_do_not_hide_the_last_valid_print	rev-parse	--verify	refs/remotes/origin/look-requests
+invalid_prints_do_not_hide_the_last_valid_print	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+invalid_prints_do_not_hide_the_last_valid_print	show	-s	--format=%P	6666666666666666666666666666666666666666
+invalid_prints_do_not_hide_the_last_valid_print	status	--porcelain	--untracked-files=no
+invalid_prints_do_not_hide_the_last_valid_print	symbolic-ref	--quiet	--short	HEAD
+malformed_requests_are_refused_before_rebasing	fetch	origin	main
+malformed_requests_are_refused_before_rebasing	rev-list	--reverse	origin/main..look-requests
+malformed_requests_are_refused_before_rebasing	rev-parse	--git-path	CHERRY_PICK_HEAD
+malformed_requests_are_refused_before_rebasing	rev-parse	--git-path	MERGE_HEAD
+malformed_requests_are_refused_before_rebasing	rev-parse	--git-path	rebase-apply
+malformed_requests_are_refused_before_rebasing	rev-parse	--git-path	rebase-merge
+malformed_requests_are_refused_before_rebasing	rev-parse	--git-path	sequencer
+malformed_requests_are_refused_before_rebasing	rev-parse	--verify	refs/remotes/origin/look-requests
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%(trailers:key=Look-request)	7777777777777777777777777777777777777777
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%(trailers:key=Look-request)	8888888888888888888888888888888888888888
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%P	6666666666666666666666666666666666666666
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%P	7777777777777777777777777777777777777777
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%P	8888888888888888888888888888888888888888
+malformed_requests_are_refused_before_rebasing	show	-s	--format=%P	9999999999999999999999999999999999999999
+malformed_requests_are_refused_before_rebasing	status	--porcelain	--untracked-files=no
+malformed_requests_are_refused_before_rebasing	symbolic-ref	--quiet	--short	HEAD
+missing_chromium_configuration_has_no_standard_output	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+missing_chromium_configuration_has_no_standard_output	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+missing_chromium_configuration_has_no_standard_output	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+missing_chromium_configuration_has_no_standard_output	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+missing_chromium_configuration_has_no_standard_output	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+missing_chromium_configuration_has_no_standard_output	remote
+missing_chromium_configuration_has_no_standard_output	rev-parse	--path-format=absolute	--git-path	look-render
+missing_chromium_configuration_has_no_standard_output	rev-parse	--show-toplevel
+missing_chromium_configuration_has_no_standard_output	rev-parse	--verify	--quiet	abcdef0^{commit}
+missing_chromium_configuration_has_no_standard_output	rev-parse	--verify	FETCH_HEAD^{commit}
+missing_chromium_configuration_has_no_standard_output	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+missing_chromium_configuration_has_no_standard_output	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+missing_edit_gets_its_hunk	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+missing_edit_gets_its_hunk	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/02.html
+missing_edit_gets_its_hunk	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+missing_edit_gets_its_hunk	-c	merge.conflictStyle=merge	merge-file	-p	--marker-size=7	-L	landed	-L	parent	-L	requested	landed	parent	requested
+missing_edit_gets_its_hunk	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+missing_edit_gets_its_hunk	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	merged
+missing_edit_gets_its_hunk	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+missing_edit_gets_its_hunk	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+missing_edit_gets_its_hunk	remote
+missing_edit_gets_its_hunk	rev-parse	--path-format=absolute	--git-path	look-compare
+missing_edit_gets_its_hunk	rev-parse	--show-toplevel
+missing_edit_gets_its_hunk	rev-parse	--verify	--quiet	abcdef0^{commit}
+missing_edit_gets_its_hunk	rev-parse	--verify	FETCH_HEAD^{commit}
+missing_edit_gets_its_hunk	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+missing_edit_gets_its_hunk	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+moved_elements_do_not_report_generated_id_edits	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+moved_elements_do_not_report_generated_id_edits	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/02.html
+moved_elements_do_not_report_generated_id_edits	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+moved_elements_do_not_report_generated_id_edits	-c	merge.conflictStyle=merge	merge-file	-p	--marker-size=7	-L	landed	-L	parent	-L	requested	landed	parent	requested
+moved_elements_do_not_report_generated_id_edits	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+moved_elements_do_not_report_generated_id_edits	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+moved_elements_do_not_report_generated_id_edits	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+moved_elements_do_not_report_generated_id_edits	remote
+moved_elements_do_not_report_generated_id_edits	rev-parse	--path-format=absolute	--git-path	look-compare
+moved_elements_do_not_report_generated_id_edits	rev-parse	--show-toplevel
+moved_elements_do_not_report_generated_id_edits	rev-parse	--verify	--quiet	abcdef0^{commit}
+moved_elements_do_not_report_generated_id_edits	rev-parse	--verify	FETCH_HEAD^{commit}
+moved_elements_do_not_report_generated_id_edits	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+moved_elements_do_not_report_generated_id_edits	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+overlay_selectors_drop_user_states_and_pseudo_elements	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+overlay_selectors_drop_user_states_and_pseudo_elements	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+overlay_selectors_drop_user_states_and_pseudo_elements	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+overlay_selectors_drop_user_states_and_pseudo_elements	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+overlay_selectors_drop_user_states_and_pseudo_elements	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+overlay_selectors_drop_user_states_and_pseudo_elements	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+overlay_selectors_drop_user_states_and_pseudo_elements	remote
+overlay_selectors_drop_user_states_and_pseudo_elements	rev-parse	--path-format=absolute	--git-path	look-render
+overlay_selectors_drop_user_states_and_pseudo_elements	rev-parse	--show-toplevel
+overlay_selectors_drop_user_states_and_pseudo_elements	rev-parse	--verify	--quiet	abcdef0^{commit}
+overlay_selectors_drop_user_states_and_pseudo_elements	rev-parse	--verify	FETCH_HEAD^{commit}
+overlay_selectors_drop_user_states_and_pseudo_elements	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+overlay_selectors_drop_user_states_and_pseudo_elements	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+reports_list_fifty_differences_then_count_the_rest	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+reports_list_fifty_differences_then_count_the_rest	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+reports_list_fifty_differences_then_count_the_rest	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+reports_list_fifty_differences_then_count_the_rest	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+reports_list_fifty_differences_then_count_the_rest	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+reports_list_fifty_differences_then_count_the_rest	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+reports_list_fifty_differences_then_count_the_rest	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+reports_list_fifty_differences_then_count_the_rest	remote
+reports_list_fifty_differences_then_count_the_rest	rev-parse	--path-format=absolute	--git-path	look-render
+reports_list_fifty_differences_then_count_the_rest	rev-parse	--show-toplevel
+reports_list_fifty_differences_then_count_the_rest	rev-parse	--verify	--quiet	abcdef0^{commit}
+reports_list_fifty_differences_then_count_the_rest	rev-parse	--verify	FETCH_HEAD^{commit}
+reports_list_fifty_differences_then_count_the_rest	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+reports_list_fifty_differences_then_count_the_rest	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	remote
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	rev-parse	--path-format=absolute	--git-path	look-compare
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	rev-parse	--show-toplevel
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	rev-parse	--verify	--quiet	abcdef0^{commit}
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	rev-parse	--verify	FETCH_HEAD^{commit}
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+rules_alone_do_not_print_and_keep_nested_conditions_and_quotes	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+rules_compare_values_conditions_and_removals	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+rules_compare_values_conditions_and_removals	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+rules_compare_values_conditions_and_removals	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+rules_compare_values_conditions_and_removals	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+rules_compare_values_conditions_and_removals	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+rules_compare_values_conditions_and_removals	remote
+rules_compare_values_conditions_and_removals	rev-parse	--path-format=absolute	--git-path	look-compare
+rules_compare_values_conditions_and_removals	rev-parse	--show-toplevel
+rules_compare_values_conditions_and_removals	rev-parse	--verify	--quiet	abcdef0^{commit}
+rules_compare_values_conditions_and_removals	rev-parse	--verify	FETCH_HEAD^{commit}
+rules_compare_values_conditions_and_removals	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+rules_compare_values_conditions_and_removals	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+the_newest_print_decides	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+the_newest_print_decides	cat-file	-t	1111111111111111111111111111111111111111
+the_newest_print_decides	cat-file	-t	2222222222222222222222222222222222222222
+the_newest_print_decides	fetch	origin	main
+the_newest_print_decides	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+the_newest_print_decides	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+the_newest_print_decides	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+the_newest_print_decides	merge-base	--is-ancestor	1111111111111111111111111111111111111111	origin/main
+the_newest_print_decides	merge-base	--is-ancestor	2222222222222222222222222222222222222222	1111111111111111111111111111111111111111
+the_newest_print_decides	merge-base	--is-ancestor	2222222222222222222222222222222222222222	2222222222222222222222222222222222222222
+the_newest_print_decides	merge-base	--is-ancestor	2222222222222222222222222222222222222222	origin/main
+the_newest_print_decides	merge-base	--is-ancestor	4444444444444444444444444444444444444444	3333333333333333333333333333333333333333
+the_newest_print_decides	merge-base	--is-ancestor	4444444444444444444444444444444444444444	4444444444444444444444444444444444444444
+the_newest_print_decides	merge-base	origin/main	look-requests
+the_newest_print_decides	rev-list	--first-parent	--count	4444444444444444444444444444444444444444..origin/main
+the_newest_print_decides	rev-list	--first-parent	origin/main
+the_newest_print_decides	rev-list	--reverse	origin/main..look-requests
+the_newest_print_decides	rev-parse	--git-path	CHERRY_PICK_HEAD
+the_newest_print_decides	rev-parse	--git-path	MERGE_HEAD
+the_newest_print_decides	rev-parse	--git-path	rebase-apply
+the_newest_print_decides	rev-parse	--git-path	rebase-merge
+the_newest_print_decides	rev-parse	--git-path	sequencer
+the_newest_print_decides	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+the_newest_print_decides	rev-parse	--short	HEAD
+the_newest_print_decides	rev-parse	--verify	refs/remotes/origin/look-requests
+the_newest_print_decides	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+the_newest_print_decides	show	-s	--format=%P	6666666666666666666666666666666666666666
+the_newest_print_decides	status	--porcelain	--untracked-files=no
+the_newest_print_decides	symbolic-ref	--quiet	--short	HEAD
+the_print_lands_squashed_with_unrelated_work	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+the_print_lands_squashed_with_unrelated_work	cat-file	-t	2222222222222222222222222222222222222222
+the_print_lands_squashed_with_unrelated_work	fetch	origin	main
+the_print_lands_squashed_with_unrelated_work	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+the_print_lands_squashed_with_unrelated_work	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+the_print_lands_squashed_with_unrelated_work	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+the_print_lands_squashed_with_unrelated_work	merge-base	--is-ancestor	2222222222222222222222222222222222222222	2222222222222222222222222222222222222222
+the_print_lands_squashed_with_unrelated_work	merge-base	--is-ancestor	2222222222222222222222222222222222222222	origin/main
+the_print_lands_squashed_with_unrelated_work	merge-base	--is-ancestor	5555555555555555555555555555555555555555	2222222222222222222222222222222222222222
+the_print_lands_squashed_with_unrelated_work	merge-base	--is-ancestor	5555555555555555555555555555555555555555	5555555555555555555555555555555555555555
+the_print_lands_squashed_with_unrelated_work	merge-base	origin/main	look-requests
+the_print_lands_squashed_with_unrelated_work	rev-list	--first-parent	--count	5555555555555555555555555555555555555555..origin/main
+the_print_lands_squashed_with_unrelated_work	rev-list	--first-parent	origin/main
+the_print_lands_squashed_with_unrelated_work	rev-list	--reverse	origin/main..look-requests
+the_print_lands_squashed_with_unrelated_work	rev-parse	--git-path	CHERRY_PICK_HEAD
+the_print_lands_squashed_with_unrelated_work	rev-parse	--git-path	MERGE_HEAD
+the_print_lands_squashed_with_unrelated_work	rev-parse	--git-path	rebase-apply
+the_print_lands_squashed_with_unrelated_work	rev-parse	--git-path	rebase-merge
+the_print_lands_squashed_with_unrelated_work	rev-parse	--git-path	sequencer
+the_print_lands_squashed_with_unrelated_work	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+the_print_lands_squashed_with_unrelated_work	rev-parse	--short	HEAD
+the_print_lands_squashed_with_unrelated_work	rev-parse	--verify	refs/remotes/origin/look-requests
+the_print_lands_squashed_with_unrelated_work	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+the_print_lands_squashed_with_unrelated_work	show	-s	--format=%P	6666666666666666666666666666666666666666
+the_print_lands_squashed_with_unrelated_work	status	--porcelain	--untracked-files=no
+the_print_lands_squashed_with_unrelated_work	symbolic-ref	--quiet	--short	HEAD
+the_print_lands_through_a_merge	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+the_print_lands_through_a_merge	cat-file	-t	2222222222222222222222222222222222222222
+the_print_lands_through_a_merge	fetch	origin	main
+the_print_lands_through_a_merge	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+the_print_lands_through_a_merge	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+the_print_lands_through_a_merge	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+the_print_lands_through_a_merge	merge-base	--is-ancestor	2222222222222222222222222222222222222222	2222222222222222222222222222222222222222
+the_print_lands_through_a_merge	merge-base	--is-ancestor	2222222222222222222222222222222222222222	origin/main
+the_print_lands_through_a_merge	merge-base	--is-ancestor	3333333333333333333333333333333333333333	4444444444444444444444444444444444444444
+the_print_lands_through_a_merge	merge-base	--is-ancestor	3333333333333333333333333333333333333333	5555555555555555555555555555555555555555
+the_print_lands_through_a_merge	merge-base	--is-ancestor	3333333333333333333333333333333333333333	8888888888888888888888888888888888888888
+the_print_lands_through_a_merge	merge-base	--is-ancestor	3333333333333333333333333333333333333333	9999999999999999999999999999999999999999
+the_print_lands_through_a_merge	merge-base	origin/main	look-requests
+the_print_lands_through_a_merge	rev-list	--first-parent	--count	9999999999999999999999999999999999999999..origin/main
+the_print_lands_through_a_merge	rev-list	--first-parent	origin/main
+the_print_lands_through_a_merge	rev-list	--reverse	origin/main..look-requests
+the_print_lands_through_a_merge	rev-parse	--git-path	CHERRY_PICK_HEAD
+the_print_lands_through_a_merge	rev-parse	--git-path	MERGE_HEAD
+the_print_lands_through_a_merge	rev-parse	--git-path	rebase-apply
+the_print_lands_through_a_merge	rev-parse	--git-path	rebase-merge
+the_print_lands_through_a_merge	rev-parse	--git-path	sequencer
+the_print_lands_through_a_merge	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+the_print_lands_through_a_merge	rev-parse	--short	HEAD
+the_print_lands_through_a_merge	rev-parse	--verify	refs/remotes/origin/look-requests
+the_print_lands_through_a_merge	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+the_print_lands_through_a_merge	show	-s	--format=%P	6666666666666666666666666666666666666666
+the_print_lands_through_a_merge	status	--porcelain	--untracked-files=no
+the_print_lands_through_a_merge	symbolic-ref	--quiet	--short	HEAD
+the_requests_follow_main	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+the_requests_follow_main	fetch	origin	main
+the_requests_follow_main	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+the_requests_follow_main	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+the_requests_follow_main	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+the_requests_follow_main	merge-base	origin/main	look-requests
+the_requests_follow_main	merge-base	origin/main	tui-requests
+the_requests_follow_main	rev-list	--reverse	origin/main..look-requests
+the_requests_follow_main	rev-list	--reverse	origin/main..tui-requests
+the_requests_follow_main	rev-parse	--git-path	CHERRY_PICK_HEAD
+the_requests_follow_main	rev-parse	--git-path	MERGE_HEAD
+the_requests_follow_main	rev-parse	--git-path	rebase-apply
+the_requests_follow_main	rev-parse	--git-path	rebase-merge
+the_requests_follow_main	rev-parse	--git-path	sequencer
+the_requests_follow_main	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+the_requests_follow_main	rev-parse	--short	HEAD
+the_requests_follow_main	rev-parse	--verify	refs/remotes/origin/look-requests
+the_requests_follow_main	rev-parse	--verify	refs/remotes/origin/tui-requests
+the_requests_follow_main	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+the_requests_follow_main	show	-s	--format=%(trailers:key=Look-request)	7777777777777777777777777777777777777777
+the_requests_follow_main	show	-s	--format=%P	6666666666666666666666666666666666666666
+the_requests_follow_main	show	-s	--format=%P	7777777777777777777777777777777777777777
+the_requests_follow_main	status	--porcelain	--untracked-files=no
+the_requests_follow_main	symbolic-ref	--quiet	--short	HEAD
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	--literal-pathspecs	ls-tree	--full-tree	-z	origin/main	--	temper/docs/design/client/tui/journeys/looks.html
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	cat-file	blob	8888888888888888888888888888888888888888
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	fetch	origin	main
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	log	--format=commit %H%n%(trailers:key=Look-request,valueonly)	origin/main
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	log	--topo-order	--format=commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)	origin/main
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	log	--topo-order	-z	--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)	origin/main
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	merge-base	origin/main	tui-requests
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-list	--reverse	origin/main..tui-requests
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--git-path	CHERRY_PICK_HEAD
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--git-path	MERGE_HEAD
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--git-path	rebase-apply
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--git-path	rebase-merge
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--git-path	sequencer
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--path-format=absolute	--git-path	temper-look-refresh.41.todo
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--short	HEAD
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	rev-parse	--verify	refs/remotes/origin/tui-requests
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	show	-s	--format=%(trailers:key=Look-request)	6666666666666666666666666666666666666666
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	show	-s	--format=%P	6666666666666666666666666666666666666666
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	status	--porcelain	--untracked-files=no
+tui_refresh_drops_a_landed_request_with_a_not_checked_verdict	symbolic-ref	--quiet	--short	HEAD
+tui_rules_are_listed_to_read	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/tui/journeys/overlay.css
+tui_rules_are_listed_to_read	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/tui/journeys/overlay.css
+tui_rules_are_listed_to_read	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+tui_rules_are_listed_to_read	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+tui_rules_are_listed_to_read	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+tui_rules_are_listed_to_read	remote
+tui_rules_are_listed_to_read	rev-parse	--path-format=absolute	--git-path	look-compare
+tui_rules_are_listed_to_read	rev-parse	--show-toplevel
+tui_rules_are_listed_to_read	rev-parse	--verify	--quiet	abcdef0^{commit}
+tui_rules_are_listed_to_read	rev-parse	--verify	FETCH_HEAD^{commit}
+tui_rules_are_listed_to_read	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+tui_rules_are_listed_to_read	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-before.html
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+two_drawings_share_one_gallery_print_and_state_page	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+two_drawings_share_one_gallery_print_and_state_page	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+two_drawings_share_one_gallery_print_and_state_page	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+two_drawings_share_one_gallery_print_and_state_page	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+two_drawings_share_one_gallery_print_and_state_page	remote
+two_drawings_share_one_gallery_print_and_state_page	rev-parse	--path-format=absolute	--git-path	look-render
+two_drawings_share_one_gallery_print_and_state_page	rev-parse	--show-toplevel
+two_drawings_share_one_gallery_print_and_state_page	rev-parse	--verify	--quiet	abcdef0^{commit}
+two_drawings_share_one_gallery_print_and_state_page	rev-parse	--verify	FETCH_HEAD^{commit}
+two_drawings_share_one_gallery_print_and_state_page	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+two_drawings_share_one_gallery_print_and_state_page	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
