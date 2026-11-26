@@ -114,21 +114,10 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 continue;
             }
         }
-        let mut delivery = None;
-        if let Stands::Held { question: number, blocked, .. } = &mut question.stands {
-            // Question zero is a legacy hold, whose requester was never told it was held.
-            let needed = if *number == 0 { 1 } else { 2 };
-            if heard.dependency.is_some() || room < needed {
-                refresh_blocker(blocked, heard.dependency, heard.now);
-                more |= heard.dependency.is_none();
-                break;
-            }
-            if *number != 0
-                && let Some(blocked) = blocked
-            {
-                delivery = Some(RelayAct::Delivered { question: *number, since: blocked.since, asker: question.asker });
-            }
-        }
+        let Ok(delivery) = prepare_held_delivery(question, &heard, room) else {
+            more |= heard.dependency.is_none();
+            break;
+        };
         let Some(act) = next_act(question, &heard, limits, taken, questions.route) else { break };
         if act != RelayAct::Hold {
             if room == 0 {
@@ -281,6 +270,31 @@ fn hold_answer(question: &mut Open, answer: RelayAnswer<'_>, dependency: Option<
     question.stands =
         Stands::Held { answer: bytes::copy_of(answer.words), question: answer.question, blocked: Some(blocked) };
     RelayAct::Held { question: answer.question, blocked }
+}
+
+// A held answer and its delivery notice need room in the same step.
+fn prepare_held_delivery(question: &mut Open, heard: &RelayHeard<'_>, room: usize) -> Result<Option<RelayAct>, ()> {
+    match &mut question.stands {
+        Stands::Taken | Stands::Asked => Ok(None),
+        Stands::Held { question: number, blocked, .. } => {
+            // Question zero is a legacy hold, whose requester was never told it was held.
+            let needed = if *number == 0 { 1 } else { 2 };
+            if heard.dependency.is_some() || room < needed {
+                refresh_blocker(blocked, heard.dependency, heard.now);
+                return Err(());
+            }
+            if *number != 0
+                && let Some(blocked) = blocked
+            {
+                return Ok(Some(RelayAct::Delivered {
+                    question: *number,
+                    since: blocked.since,
+                    asker: question.asker,
+                }));
+            }
+            Ok(None)
+        }
+    }
 }
 
 fn refresh_blocker(blocked: &mut Option<Blocked>, dependency: Option<u64>, now: Wall) {
