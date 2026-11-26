@@ -2,16 +2,19 @@
 //! link records, engine tools called by name and their relayed answers
 //! (jig's `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4). The engine world's protocol stand
 //! decodes, renders and reads outcomes, as jig's worlds do.
-use crate::{Peers, Temper, send};
+use crate::{Peers, Temper, send, systems::REPOSITORY};
 use jig_conformance::{Harness, referee as r};
 use jig_domain_host as host;
 use jig_domain_link::Phase;
 use jig_domain_tasks as tasks;
 use jig_fake_workers as workers;
+use skein_fake_forge_domain::api as raw;
+use skein_forge::api::Commit;
 use skein_lib::{Duration, Time, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::protocol;
+use temper_engine_forge_world::translate;
 
 /// The one scripted worker's channel.
 pub const CHANNEL: u64 = 7;
@@ -33,6 +36,66 @@ pub fn call(world: &mut Harness<Temper>, task: u64, attempt: u64, name: u64, bod
     world.peers.retries.insert(name, now + RETRY);
     let event = world.peers.protocol.call(Token::new(CHANNEL), task, attempt, name, body);
     send(world, event);
+}
+
+/// Deliver an edit on an existing branch after the engine admits the worker's lease.
+pub(crate) fn push(
+    world: &mut Harness<Temper>,
+    run: &engine::Assignment,
+    branch: &[u8],
+    body: &[u8],
+) -> Result<Commit, r::Violation> {
+    let item = &run.workspace.repositories[0];
+    assert_eq!(item.push.as_deref(), Some(branch));
+    let expected = world.systems.domain.branch(REPOSITORY, branch).expect("push destination");
+    let commit = world.systems.delivery_commit(expected, body);
+    let mut asking = engine::wire::Asking {
+        channel: Token::new(CHANNEL),
+        run: Token::new(run.task),
+        attempt: Token::new(run.attempt),
+        number: 1,
+    };
+    let started = world.outcome().iterations;
+    loop {
+        let generation = world.peers.generation;
+        // The protocol stand supplies the decoded ask of this assigned run.
+        send(
+            world,
+            engine::Event::Worker(engine::WorkerInput::Admit {
+                asking,
+                tag: item.tag,
+                branch: branch.into(),
+                expected: Some(translate::commit(expected)),
+                commit: translate::commit(commit),
+            }),
+        );
+        world.drain_from(started)?;
+        if let Some((answered, result)) = world.peers.push_reply.take() {
+            assert_eq!(answered, asking, "push admission reply addresses this ask");
+            result.map_err(|why| r::Violation { promise: r::Promise::Lost, why })?;
+            break;
+        }
+        if world.peers.generation == generation {
+            return Err(r::Violation { promise: r::Promise::Lost, why: format!("no answer for push ask {asking:?}") });
+        }
+        // A cold cut can lose the answer. The worker still holds the commit and lease.
+        asking.number += 1;
+    }
+    let op = raw::Op::Git(raw::Git::Push { branch: branch.into(), expected: Some(expected), commit });
+    assert_eq!(world.systems.external(world.clock(), op), raw::Answer::Pushed(raw::Pushed::Pushed));
+    Ok(translate::commit(commit))
+}
+
+/// Only the released answer lets the scripted worker send the push to the forge.
+pub(crate) fn push_answer(peers: &mut Peers, asking: engine::wire::Asking, answer: &engine::wire::Answer) {
+    let result = match answer {
+        engine::wire::Answer::Admitted => Ok(()),
+        engine::wire::Answer::Unadmitted { words } => {
+            Err(format!("push {asking:?} was not admitted: {}", String::from_utf8_lossy(words)))
+        }
+        other => panic!("unexpected answer for push {asking:?}: {other:?}"),
+    };
+    assert!(peers.push_reply.replace((asking, result)).is_none(), "one answer per push ask");
 }
 
 /// The calls whose answers are overdue, asked again.

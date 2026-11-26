@@ -128,6 +128,7 @@ pub struct Peers {
     observed: Vec<r::Observed>,
     /// The protocol layer this world plays: decodes, renders, outcomes, accounts.
     protocol: Protocol,
+    push_reply: Option<(engine::wire::Asking, Result<(), String>)>,
     requests: std::collections::BTreeMap<u64, [u8; 16]>,
     ask_bodies: std::collections::BTreeMap<u64, (u64, [u8; 16], people::Ask)>,
     ask_retries: std::collections::BTreeMap<u64, u64>,
@@ -302,6 +303,7 @@ impl Application for Temper {
             expenses: observations::Expenses::default(),
             observed: Vec::new(),
             protocol: Protocol::default(),
+            push_reply: None,
             requests: std::collections::BTreeMap::new(),
             ask_bodies: std::collections::BTreeMap::new(),
             ask_retries: std::collections::BTreeMap::new(),
@@ -474,6 +476,12 @@ impl Application for Temper {
             }
             request => request,
         };
+        if let engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) = &request
+            && let engine::HostDelivery::Asked { asking, answer } = delivery.as_ref()
+        {
+            link::push_answer(peers, *asking, answer);
+            return Ok(Vec::new());
+        }
         // The protocol layer answers at once (testing-strategy.md, 4).
         let request = match peers.protocol.play(request) {
             Ok(events) => return Ok(events.into_iter().map(|event| Input::Event(Event::Root(event))).collect()),
