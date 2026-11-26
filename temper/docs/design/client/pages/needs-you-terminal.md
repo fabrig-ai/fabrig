@@ -31,7 +31,9 @@ This document holds the terminal inbox, split from [`needs-you.md`](needs-you.md
   moves to the filtered inbox's address and folds its menu (`../web/addresses.md`, 1).
 - **A card that needs the person** begins with its kind's tag, then
   "PROJECT › TN TITLE", for its own task alone, and its wait at the right
-  (`../view.md`, 6). A proposal holds no proposing task's title, so its line stops at
+  (`../view.md`, 6), then "overdue" where it is: its bound *overdue* and
+  passed by the view's clock (jig's `client/domain/contract/documents.md`,
+  1, *an inbox*; `../../draft/bounded-waits.md`, 8). A proposal holds no proposing task's title, so its line stops at
   TN; questions, held tasks and person tasks use their documents' titles.
   Every TITLE a card draws, on this page, on Home and in the inbox, its
   milestone's and goal's in the from line among them, is cut past 80

@@ -1,6 +1,6 @@
 # reads: status
 
-2026-11-23. Where the tree's code lags or departs from [reads.md](reads.md).
+2026-11-26. Where the tree's code lags or departs from [reads.md](reads.md).
 
 `requests.md`, section 2, and `documents.md`, section 1 have no known gap in `ChangeModel`, numbered model
 settings, source and estimated-price facts, the project's omitted count
@@ -30,3 +30,5 @@ times reach the accounts watch without marking an unchanged offer.
   reads such a turn.
 
 - **Not yet:** 1: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it.
+
+- **Not yet:** 1.2: no read lists a project's waits; the core computes them per task alone [in flight: change 18562].

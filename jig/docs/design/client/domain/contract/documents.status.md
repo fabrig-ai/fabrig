@@ -1,9 +1,10 @@
 # documents: status
 
-2026-11-25. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-26. Where the tree's code lags or departs from [documents.md](documents.md).
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
+- **Not yet:** 1: an inbox need carries no bound, and a passed-up need's time may not be its arrival at its holder [in flight: change 18563].
 
 `reads.md`, section 1, and `watches.md`, section 1.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the

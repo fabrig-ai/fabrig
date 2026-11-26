@@ -29,7 +29,12 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
   rows*) is a closed row drawn from its row alone: its from line, the
   project's chip on the unfiltered address, its task's TITLE from the
   row's task link, "TN" where the link holds no title, its kind and its
-  age; no SHORT. Opening it reads its card, and it opens as *The card*
+  age; no SHORT. Wherever this page draws a need's age, a closed row and
+  its card's from line among them, "Overdue" follows it, in the
+  signal's colour, where the need's row's bound is *overdue* and has
+  passed by the view's clock (jig's
+  `client/domain/contract/documents.md`, 1, *an inbox*;
+  `../../draft/bounded-waits.md`, 8). Opening it reads its card, and it opens as *The card*
   once that read answers, closed until then. In the terminal's inbox
   such a need is its row alone, its kind's tag, "PROJECT › TN TITLE" and
   its wait, with "Open TN ↗".

@@ -134,6 +134,31 @@ digest: task 7c1e09a2b44f0d13
     question 228316 to task 34 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC · hears task 34
     dependency task 17 · since 2026-11-24 05:50 UTC · no bound: no deadline · hears task 34
   ```
+- **`waits`** (`tools-reads.md`, 1) prints a heading, `waits of project
+  P · now WALL`, the page's *now*, then a line a wait in the read's
+  order, `TASK TITLE · KIND OBJECT · since WALL · BOUND`, and ` · hears
+  HOLDER` where a holder would hear: TASK and TITLE the row's chip's, as
+  `task list` prints a line's, and the rest as `waits:` prints a wait
+  (above). An *overdue* bound at or before the page's *now* prints
+  `overdue since WALL`; every other bound as `waits:` prints it. A page
+  with none prints `no waits`, `no waits match` under a filter; the page
+  ends as `task list`'s does, `read on with:` and the call with its
+  filters and `--after`, or nothing more after the last:
+
+  ```
+  waits of project 2 · now 2026-11-26 09:40 UTC
+  812 Store shape · party proposal 3 at role 1 in project 2 · since 2026-11-25 10:02 UTC · overdue since 2026-11-25 11:02 UTC
+  820 S7 history in task logs · question 4 to task 812 · since 2026-11-26 08:01 UTC · passes up at 2026-11-26 10:01 UTC · hears task 812
+  833 Read the layout · dependency task 820 · since 2026-11-26 07:12 UTC · no bound: no deadline · hears task 820
+  read on with: temper ctl waits --project 2 --after 3f9a0c
+  ```
+- **`inbox`'s needs:** each need's line goes on with ` · since WALL`,
+  its time, the *since* of its wait at the party (jig's
+  `client/domain/contract/documents.md`, 1, *an inbox*), and, where it
+  has a bound, ` · passes up at WALL` or ` · is overdue at WALL`; an
+  *overdue* bound at or before ctl's clock prints ` · overdue since
+  WALL`. Needs stay oldest first, as the inbox orders them. An update's
+  line is as before.
 - **`unread:`** follows `waiting on:` where the task's document lists
   unread words (jig's `client/domain/contract/documents.md`, section 1),
   and is left out where it lists none: words a person, or a requesting
@@ -393,6 +418,16 @@ may change with them.
   or `{"none": …}`, one of `no_deadline`, `standing`, `operator_hold` and
   `{"behind": N}`) and `hears` (`null` or the holder). `waits_on` stays
   as jig gives it (1).
+- **`waits`** prints the record `waits`: `now` (a wall in nanoseconds,
+  the first page's), `waits`, an array in the read's order, each `{"chip":
+  …, "wait": …, "overdue": …}`, the chip as a task line prints its
+  `chip`, the wait as a task's `waits` prints one, `overdue` whether its
+  bound is *overdue* and at or before `now`; and `read_on`, the call that
+  reads the next page, or `null` after the last.
+- **`inbox`'s needs** each add `bound`, `null` or a wait's bound as above,
+  and `overdue`, whether that bound is *overdue* and at or before ctl's
+  clock; `at` stays the need's time, its wait's *since*. An update's
+  `bound` is `null` and its `overdue` false.
 - **`deployment census`** prints one object, `{"census": …}`: `null`
   before the store's first report, else the census whole, its fields
   named as jig's document names them (`commit`, `since`, `keyspaces`,

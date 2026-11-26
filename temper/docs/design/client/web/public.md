@@ -111,7 +111,14 @@ never streaming (`../../draft/first-release.md`, 5.3).
   (`../forge/README.md`, 9.2): its line says landed, its change and its commit,
   and its public landing holds its change, with no gates. A landing's
   stale proofs show only when it has any: a zero draws nothing, on a queue
-  merge's landing as on a landing by turn.
+  merge's landing as on a landing by turn. A live landing that waits
+  says what for, by its wait's name alone
+  (`../../domain/landing-waits.md`, 2, its first column;
+  `../../draft/bounded-waits.md`, 9): "Waits for: WORDS", WORDS the
+  page's own for the name, naming no change, gate, run or landing ("a
+  member's change to be ready", "a gate's run", "the turn", "room in
+  the forge's outbox"), with no since, bound or age; an ended landing,
+  or one whose record names no wait, draws no line.
 - **The projects:** each public project's name, a link to its board; "No
   public projects yet." when there are none.
 - **A short commit** is the first seven digits, plain text on a change
