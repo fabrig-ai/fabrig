@@ -295,6 +295,18 @@ fn a_claude_plan_declares_without_import_or_sign_in() {
     );
 }
 
+fn live_charter_rows(turns: [u32; 3]) -> [Value; 3] {
+    std::array::from_fn(|at| {
+        let number = [1, 2, 4][at];
+        json!({
+            "setting":{"kind":"charter","number":number},
+            "value":{"instructions":format!("charter {number}"),"model":{"name":"old"},
+                "alternatives":[{"name":"fallback"}],"rest":true,"time":1,
+                "turns":turns[at],"reserve_turns":1}
+        })
+    })
+}
+
 #[test]
 fn a_fresh_sitting_selects_its_model_in_every_charter() {
     use serde_json::json;
@@ -302,15 +314,9 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
     use support::forge_land::{LiveChange, LiveModel, live_settings};
 
     let mut lines: Vec<_> = (1..=8).map(|number| json!({"setting":{"kind":"model","number":number}})).collect();
-    lines.extend([json!({"setting":{"kind":"charter","number":1}}), json!({"setting":{"kind":"charter","number":2}})]);
+    let charters = live_charter_rows([64, 800, 800]);
+    lines.extend(charters.iter().map(|row| json!({"setting":row["setting"]})));
     let inventory = json!({"newest":0,"settings":lines});
-    let charters = [1, 2].map(|number| {
-        json!({
-            "setting":{"kind":"charter","number":number},
-            "value":{"instructions":format!("charter {number}"),"model":{"name":"old"},
-                "alternatives":[{"name":"fallback"}],"rest":true,"time":1}
-        })
-    });
     let stock_model = json!({
         "provider":2,"dialect":2,"endpoint":2,"program":"claude_code","name":"claude-fable-5-1",
         "window":200_000,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":4,
@@ -322,13 +328,16 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
     haiku_model["name"] = "claude-haiku-5-5".into();
     haiku_model["effort"] = "low".into();
     let charter_items = |model: &serde_json::Value| {
-        [1, 2].map(|number| {
+        let [chat, producer] = [(1, 5), (2, 10)].map(|(number, turns)| {
             json!({
                 "setting":{"kind":"charter","number":number},
                 "set":{"instructions":format!("charter {number}"),"model":model,
-                    "alternatives":[],"rest":false,"time":1}
+                    "alternatives":[],"rest":false,"time":1,"turns":turns,"reserve_turns":1}
             })
-        })
+        });
+        let mut reviewer = charters[2]["value"].clone();
+        reviewer["turns"] = 4.into();
+        [chat, producer, json!({"setting":charters[2]["setting"],"set":reviewer})]
     };
     let gpt_items = charter_items(&gpt_model);
     let haiku_items = charter_items(&haiku_model);
@@ -338,7 +347,7 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
             LiveModel::ChatGpt { account: None },
             "gpt-6-luna",
             "gpt-6-luna",
-            Ok(vec![LiveChange { key: "live-settings", file: json!({"items":gpt_items}) }]),
+            Ok(vec![LiveChange { key: "live-settings".into(), file: json!({"items":gpt_items}) }]),
         ),
         (
             claude,
@@ -346,7 +355,7 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
             "claude-haiku-5-5",
             Ok(vec![
                 LiveChange {
-                    key: "live-model",
+                    key: "live-model".into(),
                     file: json!({"items":[
                         {"setting":{"kind":"model","number":64},"set":{
                             "number":64,"model":haiku_model,"shown":null,"description":null,
@@ -354,7 +363,7 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
                         }}
                     ]}),
                 },
-                LiveChange { key: "live-settings", file: json!({"items":haiku_items}) },
+                LiveChange { key: "live-settings".into(), file: json!({"items":haiku_items}) },
             ]),
         ),
         (
@@ -373,8 +382,49 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
             "picker":false,"withdrawn":true,"source":"stock","estimated":false
         }});
         assert_eq!(model.name(), selected, "chat's --model for {row_name}");
-        assert_eq!(live_settings(model, &inventory, [&charters[0], &charters[1]], &row), expected, "{row_name}");
+        assert_eq!(live_settings(model, &inventory, charters.each_ref(), &row), expected, "{row_name}");
     }
+}
+
+#[test]
+fn a_kept_store_updates_only_out_of_bound_turns() {
+    use support::forge_land::{kept_turn_settings, live_apply};
+    let charters = live_charter_rows([64, 10, 800]);
+    let change = kept_turn_settings(charters.each_ref(), 26).expect("two charters need new turns");
+    let items = [(0, 5), (2, 4)].map(|(at, turns)| {
+        let mut value = charters[at]["value"].clone();
+        value["turns"] = turns.into();
+        json!({"setting":charters[at]["setting"],"set":value})
+    });
+    assert_eq!(change.file, json!({"items":items}));
+    assert_eq!(
+        live_apply(&change, 0, 26, "turns.json"),
+        ["settings", "apply", "turns.json", "--against", "26", "--key", "live-turns-26"]
+    );
+}
+
+#[test]
+fn a_kept_store_at_the_bound_applies_nothing() {
+    let charters = live_charter_rows([5, 10, 4]);
+    assert_eq!(support::forge_land::kept_turn_settings(charters.each_ref(), 26), None);
+}
+
+fn activity_turn(attempt: u64, turn: u64) -> Value {
+    json!({"event":{"owner":{"source":{"line":{"turn":{"attempt":attempt,"turn":turn}}}}}})
+}
+
+#[test]
+fn completion_notice_groups_distinct_turns_by_task_and_attempt() {
+    use support::live::CompletionTurns;
+    let mut turns = CompletionTurns::default();
+    for (task, rows) in [
+        (9, vec![activity_turn(1, 1)]),
+        (7, vec![activity_turn(1, 1), activity_turn(2, 1)]),
+        (7, vec![activity_turn(1, 1), activity_turn(1, 2), json!({"event":{"owner":{}}})]),
+    ] {
+        turns.read(task, &json!({"rows":rows})).expect("activity rows");
+    }
+    assert_eq!(turns.summary(7, 8), Ok((4, "COMPLETIONS chat=7 change=8 count=4 turns=7/1:2 7/2:1 9/1:1".to_owned())));
 }
 
 type SettingsWorld =
@@ -408,7 +458,7 @@ fn live_settings_world() -> (SettingsWorld, jig_client_kit::harness::ClientId) {
     // Each extra grant reserves room in the fleet's four routing cohorts.
     limits.journal.writes += (limits.fleet.grants - 2) * 4;
     limits.fleet.reads = limits.accounts.accounts;
-    limits.tasks.charters = 2;
+    limits.tasks.charters = 3;
     limits.templates = 3;
     limits.documents.text_bytes = 8192;
     limits.journal.run_bytes = engine.limits.core.run_bytes;
@@ -424,7 +474,7 @@ fn live_settings_world() -> (SettingsWorld, jig_client_kit::harness::ClientId) {
         ]);
         let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
         config.core.defaults.models = core.defaults.models;
-        config.core.defaults.charters = core.defaults.charters.into_vec().into_iter().take(2).collect();
+        config.core.defaults.charters = core.defaults.charters.into_vec().into_iter().take(3).collect();
         config.core.defaults.providers = core.defaults.providers;
         config.core.fixed_providers = core.fixed_providers;
         config.core.settings.models = core.settings.models;
@@ -481,13 +531,13 @@ fn settings_fixture(
     world: &mut SettingsWorld,
     agent: jig_client_kit::harness::ClientId,
     model: support::forge_land::LiveModel<'_>,
-) -> (u64, [Value; 2], Value, Vec<support::forge_land::LiveChange>) {
+) -> (u64, [Value; 3], Value, Vec<support::forge_land::LiveChange>) {
     let inventory = settings_read(world, agent, &[b"settings", b"show", b"--json"]);
-    let charters = [b"1".as_slice(), b"2"]
+    let charters = [b"1".as_slice(), b"2", b"4"]
         .map(|number| settings_read(world, agent, &[b"settings", b"show", b"charter", number, b"--json"]));
     let row = settings_read(world, agent, &[b"settings", b"show", b"model", b"3", b"--json"]);
-    let changes = support::forge_land::live_settings(model, &inventory, [&charters[0], &charters[1]], &row)
-        .expect("live model settings");
+    let changes =
+        support::forge_land::live_settings(model, &inventory, charters.each_ref(), &row).expect("live model settings");
     (inventory["newest"].as_u64().expect("newest"), charters, row, changes)
 }
 
@@ -502,21 +552,30 @@ fn claude_and_key_model_settings_are_admitted_on_stock() {
         let (mut world, agent) = live_settings_world();
         let (newest, charters, row, changes) = settings_fixture(&mut world, agent, model);
         let [add, select] = changes.as_slice() else { panic!("model then charters: {changes:?}") };
-        assert_eq!((add.key, select.key), ("live-model", "live-settings"));
+        assert_eq!((add.key.as_str(), select.key.as_str()), ("live-model", "live-settings"));
         let mut haiku = row["value"]["model"].clone();
         haiku["name"] = "claude-haiku-5-5".into();
         haiku["effort"] = "low".into();
         let value = json!({"number":64,"model":haiku,"shown":null,"description":null,
             "picker":true,"withdrawn":false,"source":"person","estimated":true});
         assert_eq!(add.file, json!({"items":[{"setting":{"kind":"model","number":64},"set":value}]}));
-        let items = charters.map(|charter| {
+        let items = std::array::from_fn::<_, 3, _>(|at| {
+            let charter = &charters[at];
             let mut selected = charter["value"].clone();
-            selected["model"] = haiku.clone();
-            selected["alternatives"] = json!([]);
-            selected["rest"] = false.into();
+            selected["turns"] = [5, 10, 4][at].into();
+            if at != 2 {
+                selected["model"] = haiku.clone();
+                selected["alternatives"] = json!([]);
+                selected["rest"] = false.into();
+            }
             json!({"setting":charter["setting"],"set":selected})
         });
         assert_eq!(select.file, json!({"items":items}));
+        // temper/docs/design/testing/live-tier.md, 2: two chat activations, a closing reply, a producer and a reviewer.
+        let policy = |at: usize, field: &str| select.file["items"][at]["set"][field].as_u64().expect(field);
+        let planned_turns =
+            2 * policy(0, "turns") + policy(0, "reserve_turns") + policy(1, "turns") + policy(2, "turns");
+        assert_eq!(planned_turns, 25);
         for (at, change) in changes.iter().enumerate() {
             let applied = settings_apply(&mut world, agent, change, at, newest);
             assert_eq!(applied.status, 0, "{}: {applied:?}", change.key);
@@ -526,11 +585,15 @@ fn claude_and_key_model_settings_are_admitted_on_stock() {
         assert_eq!(inventory["newest"], newest + 2);
         let row = settings_read(&mut world, agent, &[b"settings", b"show", b"model", b"64", b"--json"]);
         assert_eq!(row["value"], value);
-        for number in [b"1".as_slice(), b"2"] {
+        for (number, item) in [b"1".as_slice(), b"2", b"4"].into_iter().zip(items) {
             let charter = settings_read(&mut world, agent, &[b"settings", b"show", b"charter", number, b"--json"]);
-            assert_eq!(charter["value"]["model"], haiku);
-            assert_eq!(charter["value"]["alternatives"], json!([]));
-            assert_eq!(charter["value"]["rest"], false);
+            // `rest` can add the newly catalogued model to the reviewer's resolved alternatives.
+            for field in ["model", "rest", "turns", "reserve_turns"] {
+                assert_eq!(charter["value"][field], item["set"][field], "charter field {field}");
+            }
+            if number != b"4" {
+                assert_eq!(charter["value"]["alternatives"], json!([]));
+            }
         }
     }
 }

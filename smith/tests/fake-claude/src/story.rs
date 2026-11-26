@@ -256,6 +256,8 @@ pub enum Step {
     Together(Vec<Step>),
     /// Emits one assistant message and sends every Call or CallChecked before reading replies by ID.
     AllAtOnce(Vec<Step>),
+    /// Reports a server call in an assistant message without waiting for its MCP exchange.
+    ReportCall { tool: String, input: serde_json::Value },
     /// Calls the named server tool, returning its answer to the model.
     Call { tool: String, input: serde_json::Value },
     /// Calls a server tool and checks its reply against scripted text.
@@ -399,6 +401,8 @@ pub enum Seen {
     UnreadableSettings,
     /// An allowed built-in operation completed or failed, without file contents.
     Acted { tool: String, path: String, error: bool },
+    /// A streamed assistant call reported independently of MCP.
+    ReportedCall { tool: String },
     /// A server tool call and whether its result failed, without its input.
     Called { tool: String, error: bool },
     /// A checked server reply lacked its expected text, even if the reply was already an error.
