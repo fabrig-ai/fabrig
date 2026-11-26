@@ -52,10 +52,120 @@ fn people_act_on_goals_at_any_step() {
     // races branch making and is excluded; seed 0 cancels after making settles.
     for seed in [0, 3, 162] {
         eprintln!("people_act_on_goals_at_any_step seed {seed}");
-        let run = workload::run(&Streams::new(seed), &ACTS, &sweep).expect("world checks, Ends and act outcomes");
+        let run = if seed == 3 {
+            people_and_a_failed_landing(seed, &sweep)
+        } else {
+            workload::run(&Streams::new(seed), &ACTS, &sweep).expect("world checks, Ends and act outcomes")
+        };
         sweep.ran(&run.ledger);
     }
-    sweep.check_fell().expect("every configured act fell");
+    // HoldMember goes through a person's Stop, only on a member that has
+    // neither left nor landed. The sweep requires this act beside the cancellations.
+    sweep.check_fell().expect("every configured act fell, including a person's stop of a live member");
+}
+
+fn people_and_a_failed_landing(seed: u64, sweep: &Sweep) -> workload::Run {
+    use jig_domain_tasks as tasks;
+    use temper_engine_domain_forge::LandingPhase;
+    use temper_workload::{
+        draw::{ENGINE, Workload},
+        parties,
+    };
+
+    let streams = Streams::new(seed);
+    let work = Workload::draw(&streams, &ENGINE);
+    let actions = parties::draw(&streams, &work, &ACTS);
+    // Let the people's draws keep their own landing targets. Fail a different
+    // landing while proving, through jig's deployment failure route.
+    let targets: Vec<_> = actions
+        .iter()
+        .filter(|action| {
+            matches!(action.act, Act::HoldMember | Act::ReleaseMember | Act::CancelLanding | Act::CancelChange)
+        })
+        .map(|action| action.target.clone())
+        .collect();
+    let mut failed = None;
+    let run = workload::run_actions(&streams, work, actions, sweep, |world, names, _, _| {
+        if failed.is_some() {
+            return;
+        }
+        let candidate = world.root.forge().inspection_landings().iter().find_map(|(task, row)| {
+            (row.landing.phase == LandingPhase::Proving
+                && row
+                    .landing
+                    .members
+                    .iter()
+                    .all(|member| !targets.iter().any(|target| names.task(target) == Some(member.change))))
+            .then_some(*task)
+        });
+        if let Some(task) = candidate {
+            super::super::forge_routes::landing::wakes::expire_repair(world, task);
+            failed = Some(task);
+        }
+    })
+    .expect("world checks, Ends and act outcomes");
+    let task = failed.expect("a proving landing failed beside the people's acts");
+    assert!(matches!(
+        run.world.store.rows.get(&temper_engine_domain::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)))),
+        Some(temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row))))
+            if matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Failed { reason }) if reason.starts_with(b"past its repair deadline"))
+    ));
+    assert_eq!(
+        run.world.root.forge().landing(task).expect("settled landing kept").landing.phase,
+        LandingPhase::Cancelled
+    );
+    run
+}
+
+#[test]
+fn a_dependency_landing_releases_a_cohort() {
+    use temper_engine_domain_forge::LandingPhase;
+    use temper_workload::draw::{ENGINE, Shape, Span, Workload};
+
+    // Two goals, one upstream change and two independent members that share
+    // it. The usual ENGINE draws (including their person-latched trains) stay as they are.
+    let streams = Streams::new(4);
+    let shape = Shape {
+        goals: Span { least: 2, most: 2 },
+        changes: Span { least: 1, most: 1 },
+        milestone: Span { least: 0, most: 0 },
+        train: Span { least: 2, most: 2 },
+        ..ENGINE
+    };
+    let mut work = Workload::draw(&streams, &shape);
+    let upstream = work.goals[0].changes[0].name.clone();
+    let members: Vec<_> = work.goals[1]
+        .changes
+        .iter_mut()
+        .map(|member| {
+            member.after.push(upstream.clone());
+            member.name.clone()
+        })
+        .collect();
+    let mut waited_together = false;
+    let run = workload::run_actions(&streams, work, Vec::new(), &Sweep::new("cohort"), |world, names, _, _| {
+        if let Some(upstream) = names.task(&upstream)
+            && world.root.forge().landing_of(upstream).is_some()
+            && members.iter().all(|name| {
+                names.task(name).is_some_and(|member| {
+                    world.root.tasks().task(member).is_some_and(|task| task.waiting_on.contains(&upstream))
+                })
+            })
+        {
+            waited_together = true;
+        }
+    })
+    .expect("world checks, Ends and final tier green");
+    assert!(waited_together, "both members awaited the same change while it landed");
+    let tasks: Vec<_> = members.iter().map(|name| run.names.task(name).expect("drawn cohort member")).collect();
+    assert!(
+        run.world.root.forge().inspection_landings().iter().any(|(_, row)| {
+            row.landing.phase == LandingPhase::Landed
+                && row.landing.members.len() == tasks.len()
+                && row.landing.members.iter().all(|member| tasks.contains(&member.change) && member.landed.is_some())
+        }),
+        "both members land in a single cohort, not two landings"
+    );
 }
 
 #[test]

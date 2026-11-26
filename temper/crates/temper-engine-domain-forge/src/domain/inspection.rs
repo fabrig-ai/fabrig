@@ -79,6 +79,28 @@ impl Domain {
         self.landing.due.get(&task).copied()
     }
 
+    /// Whether the landing has a step gathering facts or waiting to resume after catch-up
+    /// (temper/docs/design/testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_landing_stepping(&self, task: u64) -> bool {
+        if self.fresh_waits.contains_key(&task) {
+            return true;
+        }
+        for (_, pending) in &self.landing.pending {
+            if pending.task == task {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Whether startup still owes this taskless landing its merge readback and ending
+    /// (temper/docs/design/domain/landing-liveness.md, 6.2).
+    #[must_use]
+    pub fn inspection_landing_readback(&self, task: u64) -> bool {
+        self.landing.unmade.contains_key(&task)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     /// A turn change has settled its gates, without a delegate terminal guessed by the reader.
     #[must_use]

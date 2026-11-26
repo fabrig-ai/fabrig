@@ -237,10 +237,11 @@ fn cancelling_a_member_wakes_its_landing_before_effects_settle() {
 }
 
 // Inject an expiring repair assignment so the real findings route issues tasks::Event::Fail.
-fn expire_repair(world: &mut World, change: u64) {
+pub(crate) fn expire_repair(world: &mut World, task: u64) {
+    let number = world.root.forge().findings(PROJECT).next_back().map_or(1, |((_, last), _)| last + 1);
     let finding = forge_top::Finding {
         project: PROJECT,
-        number: 1,
+        number,
         kind: forge_top::FindingKind::Red,
         severity: forge_top::Severity::High,
         area: None,
@@ -251,14 +252,14 @@ fn expire_repair(world: &mut World, change: u64) {
         at: world.env.wall,
         why: None,
         hander: None,
-        goal: Some(change),
+        goal: Some(task),
         reason: None,
         signature: None,
         seen: None,
         blame: None,
         cleared: None,
         repair: Some(forge_top::FindingRepair {
-            goal: change,
+            goal: task,
             made: true,
             attempts: 1,
             cancelled: false,

@@ -1034,6 +1034,10 @@ fn a_taskless_turn_reads_the_candidate_and_hands_each_prefix() {
     let (mut world, changes) = ready_unmade_pair(Some(Tier::default()));
     let prefixes = seed_taskless_turn(&mut world, &changes, ReadbackTip::Candidate);
     pause_taskless_turn_readback(&mut world, changes[0].repository);
+    let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::inspect(&world.root, &mut inspection);
+    let moment = skein_world::inspect::Moment { seed: 71, at: world.env.now, iteration: 0 };
+    assert_eq!(inspection.check_violation(moment), Ok(()), "the deferred taskless turn is still owed readback");
     resume_taskless_turn_readback(&mut world);
     expect_taskless_turn_landed(&mut world, &changes, prefixes);
     close_taskless_turn_story(&mut world, &changes);

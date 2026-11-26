@@ -21,13 +21,14 @@ pub struct Inspection {
     kinds: &'static [&'static str],
     waits: Vec<Wait>,
     tables: Vec<Table>,
+    violation: Option<(String, String)>,
 }
 
 impl Inspection {
     /// `kinds`: the waits its design documents, each in the design's words.
     #[must_use]
     pub fn new(component: &'static str, kinds: &'static [&'static str]) -> Inspection {
-        Inspection { component, kinds, waits: Vec::new(), tables: Vec::new() }
+        Inspection { component, kinds, waits: Vec::new(), tables: Vec::new(), violation: None }
     }
 
     #[must_use]
@@ -61,6 +62,21 @@ impl Inspection {
     /// Let a harness mark its fixture's entries without copying the table.
     pub fn tables_mut(&mut self) -> &mut [Table] {
         &mut self.tables
+    }
+
+    /// Record the first violation of a component's own invariant, not a wait or table rule.
+    pub fn violate(&mut self, object: String, what: String) {
+        if self.violation.is_none() {
+            self.violation = Some((object, what));
+        }
+    }
+
+    /// Report that violation at the moment the world took this snapshot.
+    pub fn check_violation(&self, moment: Moment) -> Result<(), String> {
+        match &self.violation {
+            Some((object, what)) => Err(self.finding(moment, object, what)),
+            None => Ok(()),
+        }
     }
 
     /// The shared one-line form for a check's finding (section 6).
