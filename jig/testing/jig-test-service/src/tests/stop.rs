@@ -1,5 +1,6 @@
 use super::fixtures;
 use crate::{End, stop};
+use jig_domain_core::engine::{self, Admit};
 use jig_test_domain as root;
 
 fn components() -> crate::Service {
@@ -178,7 +179,8 @@ fn a_paused_core_timer_does_not_pin_the_service_while_stopping() {
     let mut driven = fixtures::Driven::started(&fixtures::engine_document());
     let engine = fixtures::engine(&mut driven.service);
     engine.values.accounts.expire(EXPIRE_VALUES);
-    let due = engine.domain.core().next_deadline(engine.env.now, engine.env.wall).expect("core timer");
+    let due =
+        engine::next_deadline(engine.domain.engine(), engine.env.now, engine.env.wall, Admit::All).expect("core timer");
     let people_due = engine.domain.core().people.next_deadline().expect("sign-in timer");
     let live = due.saturating_add(LIVE_GAP);
     let value = jig_protocol_accounts::table::Value {
@@ -216,7 +218,11 @@ fn the_service_fires_wall_expiry_before_the_original_elapsed_alarm() {
     driven.party(core::Event::Delivered { watcher: WATCHER });
     driven.commit_all();
     let engine = fixtures::engine(&mut driven.service);
-    assert!(engine.domain.core().next_deadline(engine.env.now, engine.env.wall).expect("armed sign-in") > ELAPSED);
+    assert!(
+        engine::next_deadline(engine.domain.engine(), engine.env.now, engine.env.wall, Admit::All)
+            .expect("armed sign-in")
+            > ELAPSED
+    );
     engine.env.now = ELAPSED;
     engine.env.wall = expires;
     assert_eq!(engine.next_deadline(), Some(ELAPSED), "the service resamples saved wall expiry");

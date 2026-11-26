@@ -2,6 +2,7 @@ use crate::read_support::request;
 use jig_core_world::reads;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -299,7 +300,11 @@ fn settling_does_not_activate_a_backoff_that_passes() {
     assert_eq!(world.domain.core().tasks.task(task).expect("still due for retry").phase, phase);
     assert_eq!(world.domain.core().tasks.next_deadline(), Some(deadline));
     let env = world.env();
-    assert_ne!(world.domain.core().due(env.now, env.wall), Some(core::Timer::Tasks), "the held timer is not rearmed");
+    assert_ne!(
+        engine::due(world.domain.engine(), env.now, env.wall, Admit::All),
+        Some(core::Timer::Tasks),
+        "the held timer is not rearmed"
+    );
     // The next start may now spend the held retry; finish it before the closing oracle.
     world.restart(173, false);
     world.retry_due();

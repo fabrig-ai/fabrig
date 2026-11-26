@@ -4,9 +4,10 @@ use jig_core_world::{
     world::{Setup, World},
 };
 use jig_domain_core as core;
+use jig_domain_core::engine;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::inspect::{Inspection, Moment, Release, Wait, Wake, check_tables, check_waits};
 use std::fmt::Write;
 
@@ -583,7 +584,8 @@ fn answers_are_kept_until_the_core_clock_reaches_their_expiry() {
         limits: jig_core_world::faults::plan_fixture(11735).1.core,
     };
     // Step an unrelated owner: people's expiration input has not run yet.
-    let out = core::fire(world.domain.core_mut(), &env, core::Timer::Resources);
+    let mut out = Queue::uncapped();
+    engine::fire(world.domain.engine_mut(), &env, core::Timer::Resources, &mut out);
     assert!(out.is_empty());
     let mut inspection = Inspection::new("jig", jig_inspect::KINDS);
     jig_inspect::core(world.domain.core(), &mut inspection);

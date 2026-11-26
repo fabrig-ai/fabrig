@@ -5,6 +5,7 @@ use jig_core_world::{
     world::{Setup, World},
 };
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -211,7 +212,10 @@ fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
         let (now, wall) = world.clocks();
         let deadline = if world.domain.core().awaiting_resources_flights() == 1 {
             let deadline = parked.saturating_add(limits.core.tasks.hold_wait);
-            assert!(world.domain.core().next_deadline(now, wall).expect("report deadline armed") <= deadline);
+            assert!(
+                engine::next_deadline(world.domain.engine(), now, wall, Admit::All).expect("report deadline armed")
+                    <= deadline
+            );
             for (number, event) in delayed {
                 // More than a full table's foreign reports cannot evict these pins.
                 for at in 0..capacity + u32::try_from(rng.below(3)).unwrap() {

@@ -36,12 +36,12 @@ fn a_recorded_fit_failure_stops_at_its_start_phase() {
         held: 1,
         limit: 0,
     };
-    let action = domain.core.start_refuse(failure.clone());
+    let action = domain.engine.core_mut().start_refuse(failure.clone());
     crate::domain::decide(&mut domain, &env, crate::domain::Work::Start(action));
     let outputs = take(&mut domain, &env);
     let [Output::Stop] = outputs.as_ref() else { panic!("the recorded fit failure stops the root") };
-    assert_eq!(domain.core.start_phase(), Some(Phase::LoadCore));
-    assert_eq!(domain.core.start_failure(), Some(failure));
+    assert_eq!(domain.engine.core().start_phase(), Some(Phase::LoadCore));
+    assert_eq!(domain.engine.core().start_failure(), Some(failure));
     assert!(!domain.ready());
     assert!(take(&mut domain, &env).is_empty());
 }
@@ -54,7 +54,7 @@ fn a_crash_after_the_wires_commit_starts_afresh_and_reaches_open() {
         let mut original = original;
         step(&mut original, &env, Event::Restart { pending: false });
         let continuation = drive(&mut original, &env, &mut rows, true).expect("the durable Wires continuation");
-        assert_eq!(original.core.start_phase(), Some(Phase::Wires));
+        assert_eq!(original.engine.core().start_phase(), Some(Phase::Wires));
         assert!(!original.ready());
         continuation
     };

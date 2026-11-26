@@ -56,6 +56,6 @@ pub(super) fn call(domain: &mut Domain, to: ReplyTo, work: &mut Queue<Work>) {
 impl Domain {
     #[must_use]
     pub fn stopping(&self) -> bool {
-        self.core.stopping()
+        self.engine.core().stopping()
     }
 }
