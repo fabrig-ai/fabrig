@@ -57,6 +57,8 @@ pub enum Read {
     Tool,
     Retrying,
     Delegating,
+    WaitingForWords,
+    WaitingOnDelegate,
     ParkedOnDelegate,
     Woken,
     Parked,
@@ -77,6 +79,8 @@ impl Read {
                 (w::Phase::BackingOff, w::RunStage::BackingOff(w::RunStageBackingOff { until: 100 }), None)
             }
             Self::Delegating => running(2, w::ChipWork::Active),
+            Self::WaitingForWords => running(1, w::ChipWork::Waiting),
+            Self::WaitingOnDelegate => running(2, w::ChipWork::Waiting),
             Self::Woken => running(3, w::ChipWork::Active),
             Self::ParkedOnDelegate | Self::Parked => (w::Phase::Idle, w::RunStage::Idle, None),
         };
@@ -85,8 +89,20 @@ impl Read {
             .then_some(w::RetryNotice::Refused(w::RetryNoticeRefused { count: 1, reason: None }));
         details.value.observation =
             work.map(|work| w::ChipObservation { work, channel: 1, since: 7, reported_at: 7, started: Some(7) });
-        details.value.live_delegates = u32::from(matches!(self, Self::Delegating | Self::ParkedOnDelegate));
-        let waits_on = if matches!(self, Self::ParkedOnDelegate) { w::WaitsOn::Delegates } else { w::WaitsOn::Nothing };
+        details.value.live_delegates =
+            u32::from(matches!(self, Self::Delegating | Self::WaitingOnDelegate | Self::ParkedOnDelegate));
+        let waits_on = match self {
+            Self::WaitingForWords => w::WaitsOn::News,
+            Self::WaitingOnDelegate | Self::ParkedOnDelegate => w::WaitsOn::Delegates,
+            Self::Starting
+            | Self::Working
+            | Self::Writing
+            | Self::Tool
+            | Self::Retrying
+            | Self::Delegating
+            | Self::Woken
+            | Self::Parked => w::WaitsOn::Nothing,
+        };
         let rows = [
             w::Fact::Chip(w::ChipRow {
                 parent: None,

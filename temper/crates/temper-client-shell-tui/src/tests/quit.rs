@@ -80,6 +80,33 @@ fn ctrl_c_names_the_chat_parked_on_a_live_delegate() {
 }
 
 #[test]
+fn ctrl_c_stops_at_once_after_ask_temper_waits_for_words() {
+    let mut front = Front::with_chat();
+    for read in [Read::Starting, Read::WaitingForWords] {
+        front.read(read);
+        assert!(!text(&mut front.host).contains("Working"), "unexpected Working frame after {read:?}");
+    }
+    front.key_stops();
+    assert!(!text(&mut front.host).contains("Stop the box?"));
+}
+
+#[test]
+fn ctrl_c_asks_through_the_chats_wait_on_its_delegate() {
+    let mut front = Front::with_chat();
+    front.read(Read::Starting);
+    front.read(Read::WaitingOnDelegate);
+    assert!(text(&mut front.host).contains("waiting on 1 delegate"));
+    front.key_asks();
+    let head = "Stop the box? csv-export's running task stops with it.";
+    front.head_is(head);
+    for read in [Read::WaitingOnDelegate, Read::ParkedOnDelegate] {
+        front.read(read);
+        assert!(front.host.state().quitting(), "question lowered after {read:?}");
+        front.head_is(head);
+    }
+}
+
+#[test]
 fn ctrl_c_before_work_ends_leaves_the_question_standing() {
     let mut front = Front::with_chat();
     front.read(Read::Working);

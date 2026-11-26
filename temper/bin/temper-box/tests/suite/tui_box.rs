@@ -251,17 +251,11 @@ impl Referee<Root> for Judge {
                 }
                 Phase::Project if terminal.screen.has(b"playground") && !terminal.writing => {
                     terminal.bytes.clear();
-                    terminal.screen.watch(b"Add CSV export to widget");
-                    terminal.screen.watch(b"Working");
-                    terminal.keys(b"Add CSV export to widget\r");
+                    terminal.screen.watch(b"waiting on 1 delegate");
+                    terminal.keys(b"/change Add CSV export to widget\r");
                     self.phase = Phase::Chat;
                 }
-                // The echoed input can precede the running chat read by the TUI.
-                Phase::Chat
-                    if terminal.screen.seen(b"Add CSV export to widget")
-                        && terminal.screen.seen(b"Working")
-                        && !terminal.writing =>
-                {
+                Phase::Chat if terminal.screen.seen(b"waiting on 1 delegate") && !terminal.writing => {
                     terminal.keys(b"\x03");
                     self.phase = Phase::Question;
                 }
@@ -341,6 +335,7 @@ fn run(case: Case, name: &str) {
     let initialized = box_link::command(root, "init").arg("--box").output().expect("initialize box");
     assert!(initialized.status.success());
     if matches!(case, Case::Working) {
+        // /change starts the project's chat template, which delegates; Ask temper does not.
         // Hold the CSV change at landing so it stays a live delegate after the chat parks.
         fs::write(root.join("data/landing-held"), b"").expect("hold landings for the working sitting");
     }
