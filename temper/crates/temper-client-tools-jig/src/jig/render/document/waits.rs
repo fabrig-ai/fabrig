@@ -27,7 +27,11 @@ pub(super) fn page_text(
         out.put(b" ");
         out.words(row.chip.title.bytes());
         out.put(b" \xc2\xb7 ");
-        line(&row.wait, overdue(&row.wait, page.now), me, vocabulary, out);
+        let overdue_since = match row.wait.bound {
+            bound @ Bound::At { at, .. } if overdue(bound, page.now) => Some(at),
+            Bound::At { .. } | Bound::None(_) => None,
+        };
+        line(&row.wait, overdue_since, me, vocabulary, out);
         hearer(&row.wait, me, out);
         out.put(b"\n");
     }
@@ -53,7 +57,7 @@ pub(super) fn encode_page(page: &c::WaitPage, call: &Call, out: &mut Encoder, bu
         out.key(b"wait");
         encode_wait(&row.wait, out, budget);
         out.key(b"overdue");
-        out.boolean(overdue(&row.wait, page.now).is_some());
+        out.boolean(overdue(row.wait.bound, page.now));
         out.object_end();
     }
     out.array_end();
@@ -63,13 +67,6 @@ pub(super) fn encode_page(page: &c::WaitPage, call: &Call, out: &mut Encoder, bu
         None => out.null(),
     }
     out.object_end();
-}
-
-fn overdue(wait: &c::Wait, now: Wall) -> Option<Wall> {
-    match wait.bound {
-        Bound::At { at, then: c::AtBound::Overdue } if at <= now => Some(at),
-        Bound::At { .. } | Bound::None(_) => None,
-    }
 }
 
 pub(super) fn entry_kind(value: c::WaitedFor) -> &'static [u8] {
