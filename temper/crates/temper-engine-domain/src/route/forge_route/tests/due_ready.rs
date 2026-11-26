@@ -449,23 +449,24 @@ fn a_step_begun_before_readiness_does_not_hold_forming_once_ready() {
     let (mut domain, env) = ready_changes(&[7, 8], 3);
     let mut row = domain.forge.change(8).unwrap().clone();
     row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([]) };
-    forge::step(
-        &mut domain.forge,
-        &crate::translate::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row.clone())) },
-        &mut Queue::uncapped(),
-    );
+    row.change.last_head = Some(super::SHA1);
+    // The last blocking gate's result has released change 8 into the cohort.
+    row.settling = true;
+    restore_change(&mut domain, &env, row.clone());
     wake(&mut domain, &env, 8);
     let context = domain.core.tasks.run_context(8).unwrap();
     assert!(super::super::start_change(&mut domain, &env, &context));
     super::judge_trains(&mut domain, &env);
-    assert!(domain.forge.landing_of(7).is_none());
+    assert!(domain.forge.landing_of(7).is_none(), "change 8 is settling into the train");
     // A second wake reaches the same step before its readiness read completes.
     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: 8 }));
+    // The Ready answer accompanies the row written by the first decision, which leaves the cohort.
     row.change.state = change::State::Ready { head: super::SHA1, ready_since: env.wall };
+    row.settling = false;
     domain.work.push(Work::Forge(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) }));
     ready_answer(&mut domain, 8);
     super::judge_trains(&mut domain, &env);
+    assert!(!domain.forge.change(8).unwrap().settling, "the first decision leaves the cohort");
     assert!(domain.core.tasks.procedure_due(8).is_some(), "the readiness step has a coalesced wake");
     let formed = domain.forge.landing_of(7).expect("the ready member no longer holds forming");
     assert_eq!(members(&domain, formed).as_ref(), [7, 8]);
