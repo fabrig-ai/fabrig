@@ -9,9 +9,10 @@ mod projects;
 mod projects_json;
 mod proposal;
 mod unread;
-mod waits;
+pub(super) mod waits;
 mod workers;
 pub(super) use proposal::projects_text;
+pub use waits::wait_text;
 pub(super) mod question;
 pub(crate) mod settings;
 use super::{Text, acts};
@@ -29,7 +30,7 @@ pub enum Document<'a> {
     Accounts(accounts::Accounts<'a>),
     Task(&'a Task, Option<&'a Me>),
     EndedTask(&'a Task, &'a jig_client::contract::Result, Option<&'a Me>),
-    ReadSet(&'a crate::jig::runner::reads::Reading, Option<&'a Me>),
+    ReadSet(&'a crate::jig::runner::reads::Reading, Option<&'a Me>, skein_lib::Wall),
     /// The task alone, retaining supplemental source words for a host's joined record.
     TaskRead(&'a crate::jig::runner::reads::Reading, Option<&'a Me>),
     Wait(waiting::Waiting<'a>),
@@ -57,7 +58,7 @@ pub fn print(
         | Document::SizedTurn { .. } => false,
     };
     let settings = match &document {
-        Document::ReadSet(reading, _) => {
+        Document::ReadSet(reading, ..) => {
             reading.called.call.tool >= crate::jig::rows::SETTINGS_AT
                 && reading.called.call.tool <= crate::jig::rows::REVISIONS_AT
                 || reading.called.call.tool == crate::jig::rows::PROPOSAL_AT
@@ -147,7 +148,7 @@ fn text(
             }
             vocabulary.task_next(task, out);
         }
-        Document::ReadSet(reading, me) => read_sets::text(reading, *me, book, limits, vocabulary, out),
+        Document::ReadSet(reading, me, wall) => read_sets::text(reading, *me, book, limits, vocabulary, *wall, out),
         Document::SizedTurn { task, name, bytes } => super::turn::sized(*task, *name, *bytes, true, out),
     }
     match document {
@@ -553,7 +554,7 @@ fn encode(document: &Document<'_>, limits: &Limits, digest: Option<crate::jig::d
                 out.object_end();
             }
         }
-        Document::ReadSet(reading, me) => read_sets::encode(reading, *me, limits, out, &mut cut),
+        Document::ReadSet(reading, me, wall) => read_sets::encode(reading, *me, limits, *wall, out, &mut cut),
         Document::SizedTurn { task, name, bytes } => {
             out.object_start();
             out.key(b"task");

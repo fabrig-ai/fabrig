@@ -1339,6 +1339,7 @@ impl Host {
             }
             Address::Work { project, .. }
             | Address::Goals { project, .. }
+            | Address::Waits { project, .. }
             | Address::Changes { project }
             | Address::Settings { project }
             | Address::Repositories { project }

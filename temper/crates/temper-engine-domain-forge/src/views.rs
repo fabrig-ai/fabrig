@@ -1,5 +1,6 @@
 //! Forge documents from retained facts (domain/landing.md, 14; domain/forge/attention.md, 1).
-use crate::{Check, DISMISSED_SUBJECT, Domain, ReceiptKey};
+use crate::{Check, DISMISSED_SUBJECT, Domain, Limits, ReceiptKey};
+use jig_domain_core_vocabulary::waits::{Bound, ReportedBound};
 use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
@@ -20,7 +21,7 @@ impl Domain {
         scope: ApplicationScope,
         party: u64,
         now: skein_lib::Wall,
-        limits: &crate::Limits,
+        limits: &Limits,
     ) -> Option<Document> {
         let project = match scope {
             ApplicationScope::Own => {
@@ -42,7 +43,7 @@ impl Domain {
         }
         for ended in [false, true] {
             if subject == landings_subject(project, ended) {
-                return Some(Document::Landings(self.landings_view(project, ended, now)?));
+                return Some(Document::Landings(self.landings_view(project, ended, now, limits)?));
             }
         }
         if subject == crate::decided_subject(project) {
@@ -61,7 +62,7 @@ impl Domain {
             if row.landing.project != project {
                 return None;
             }
-            return Some(Document::Landing(self.landing_view(subject)?));
+            return Some(Document::Landing(self.landing_view(subject, limits)?));
         }
         Some(Document::Change(self.panel(subject, scope, now, limits)?))
     }
@@ -73,7 +74,7 @@ impl Domain {
         }
         None
     }
-    fn landing_view(&self, task: u64) -> Option<LandingView> {
+    fn landing_view(&self, task: u64, limits: &Limits) -> Option<LandingView> {
         let kept = self.landing.rows.get(&task)?;
         let row = &kept.landing;
         let mut members = List::with_capacity(self.landing.limits.landing_members);
@@ -88,7 +89,7 @@ impl Domain {
             } else {
                 kept.read_hold.clone()
             },
-            waits: self.landing_wait(task),
+            waits: self.landing_wait(task, limits),
             task,
             project: row.project,
             phase: row.phase.clone(),
@@ -184,12 +185,33 @@ impl Domain {
             judgement: self.prefix_judgement(row, member),
         })
     }
-    fn landing_wait(&self, task: u64) -> Option<LandingWait> {
+    fn landing_wait(&self, task: u64, limits: &Limits) -> Option<LandingWait> {
         let row = self.landing.rows.get(&task)?;
         if is_ended(&row.landing.phase) {
             return None;
         }
-        let mut wait = LandingWait { on: LandingWaitFor::Nothing, change: None, gate: None, run: None, landing: None };
+        let report = crate::waits::landing::waited(self, limits, task);
+        let (since, bound) = match report {
+            Some(report) => (
+                Some(report.since),
+                match report.bound {
+                    ReportedBound::At { at, then } => Some(Bound::At { at, then }),
+                    ReportedBound::None(reason) => Some(Bound::None(reason)),
+                    // A figure is not a wall bound until jig applies it. Landings report their own clocks.
+                    ReportedBound::Figure(_) => None,
+                },
+            ),
+            None => (None, None),
+        };
+        let mut wait = LandingWait {
+            on: LandingWaitFor::Nothing,
+            change: None,
+            gate: None,
+            run: None,
+            landing: None,
+            since,
+            bound,
+        };
         if row.room.is_some() {
             wait.on = LandingWaitFor::Room;
             return Some(wait);
@@ -300,7 +322,7 @@ impl Domain {
         }
         Some(PrefixJudgement { prefix, verdict, gates: gates.into_boxed() })
     }
-    fn landings_view(&self, project: u32, ended: bool, now: skein_lib::Wall) -> Option<LandingsView> {
+    fn landings_view(&self, project: u32, ended: bool, now: skein_lib::Wall, limits: &Limits) -> Option<LandingsView> {
         let turn = self.turn_holder(project);
         let mut landings = List::with_capacity(self.landing.limits.landings);
         let mut ordered = skein_lib::Map::with_capacity(self.landing.limits.landings);
@@ -337,6 +359,7 @@ impl Domain {
             landings
                 .push(LandingLine {
                     task,
+                    waits: self.landing_wait(task, limits),
                     step: if is_ended(&row.phase) { None } else { Some(landing_step(self, row)) },
                     last_event: self.landing.rows.get(&task)?.last_event,
                     phase: row.phase.clone(),
@@ -469,7 +492,7 @@ pub(crate) fn matches_turn(phase: &policy::Phase) -> bool {
         | policy::Phase::Cancelled => false,
     }
 }
-fn is_ended(phase: &policy::Phase) -> bool {
+pub(crate) fn is_ended(phase: &policy::Phase) -> bool {
     match phase {
         policy::Phase::Landed | policy::Phase::Cancelled => true,
         policy::Phase::Waiting

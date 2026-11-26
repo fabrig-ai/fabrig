@@ -280,6 +280,7 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
         assert_wait(&waiting, on);
         let behind = ReportedBound::None(Unbounded::Behind(refusals::entry(1).task));
         assert_room_report(&waiting, TASK, LANDING_ROOM, env().wall, behind);
+        assert_panel_wait(&d, &env(), TASK, LandingWaitFor::Room, Some(&wait_report(&waiting, TASK).unwrap()[0]));
         prior.room = Some(1);
         prior.waiting = Some(on);
         assert_eq!(d.landing(TASK), Some(&prior), "{kind}: only its place and wait are saved");

@@ -153,6 +153,7 @@ pub(crate) fn answered(
         | reads::Answer::Setting(_)
         | reads::Answer::TaskText(_)
         | reads::Answer::Tasks(_)
+        | reads::Answer::Waits(_)
         | reads::Answer::Page(_) => unreachable!("project proposal answer"),
     };
     deliver(env, decision, reply, view);

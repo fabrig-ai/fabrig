@@ -125,7 +125,7 @@ fn start_reading(
         provider_defaults: BTreeSet::new(),
         parts: runner.parts.expect("host vocabulary"),
     };
-    if reading.called.call.tool <= 3 {
+    if reading.called.call.tool <= 3 || reading.called.call.tool == rows::WAITS_AT {
         start_overview(runner, client, env, reading, out);
     } else {
         start_detail(runner, client, env, reading, out);
@@ -173,6 +173,25 @@ fn start_overview(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut r
             if value(&reading.called.call, 3).is_some() {
                 watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
             }
+        }
+        rows::WAITS_AT => {
+            let Some(me) = super::acts::me(runner, client) else { return };
+            let call = &reading.called.call;
+            let Some(project) = project(call, me) else {
+                let printed = render::failure(b"unknown project", reading.called.json, 1);
+                finish(reading, printed, out);
+                return;
+            };
+            let kind = if let Some(Value::Word(index)) = value(call, 1) {
+                Some(*rows::WAIT_KINDS.get(usize::from(*index)).expect("parsed wait kind"))
+            } else {
+                None
+            };
+            let due =
+                if let Some(Value::Duration(duration)) = value(call, 3) { Some(duration.as_nanos()) } else { None };
+            let what = c::Read::Waits { project, kind, party: number(call, 2), due, after: cursor(call, 4) };
+            reading.project = Some(project);
+            read(runner, &mut reading, 1, what, out);
         }
         _ => unreachable!("overview read"),
     }

@@ -1178,5 +1178,6 @@ fn landing_wait_views_resolve_names_and_list_times() {
     holder.landing.phase = policy::Phase::Landed;
     outputs(&mut d, Event::Restore { record: Stored::Landing(holder) });
     assert_eq!(view(&d, 62).waits, None);
-    assert_eq!(list(&d, true).landings[1].step, None);
+    let ended = list(&d, true);
+    assert_eq!((ended.landings[1].step, &ended.landings[1].waits), (None, &None));
 }

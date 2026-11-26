@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 76] = [
+pub static PAGES: [Page; 77] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -391,6 +391,13 @@ pub static PAGES: [Page; 76] = [
         title: "temper ctl inbox",
         summary: "Read what waits on your party, then its updates.",
         text: include_str!("../../../docs/help/reference/ctl-inbox.md"),
+    },
+    Page {
+        name: "ctl-waits",
+        kind: Kind::Reference,
+        title: "temper ctl waits",
+        summary: "Read a project's live waits, overdue first.",
+        text: include_str!("../../../docs/help/reference/ctl-waits.md"),
     },
     Page {
         name: "ctl-task",

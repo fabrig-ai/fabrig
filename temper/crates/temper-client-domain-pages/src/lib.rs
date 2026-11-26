@@ -13,8 +13,8 @@ mod generated {
 pub mod acts;
 pub mod pages;
 pub use temper_client_domain_forge::{
-    Address, ChatsFilter, Choice, GoalsFilter, Limits, ModelWay, Place, Step, WayKind, WorkFilter, address, amend,
-    delegation, forge, key, limits, owner, public, question, sign_in, valid, views, words,
+    Address, ChatsFilter, Choice, GoalsFilter, Limits, ModelWay, Place, Step, WaitsFilter, WayKind, WorkFilter,
+    address, amend, delegation, forge, key, limits, owner, public, question, sign_in, valid, views, words,
 };
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,7 @@
 # needs-you: status
 
-2026-11-18. Where the tree's code lags or departs from [needs-you.md](needs-you.md).
+2026-11-26. Where the tree's code lags or departs from [needs-you.md](needs-you.md).
+
 
 
 - **Not yet:** 1, **What the client keeps**, *The needs' rows*, the count after *Later* and *The rail's count*: a needs page answering without its value marks the read cut while its rows stand, a stopped chain's rows stand cut on first load, a page's own `cut` is not read, no transient end is asked again, and the rail is cut wherever its watch's `next` is set, updates past the window included, and never says the page's count [in flight: change 8571].

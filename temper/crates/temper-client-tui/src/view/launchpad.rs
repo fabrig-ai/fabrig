@@ -103,6 +103,7 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Talk { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Models { .. }

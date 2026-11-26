@@ -183,6 +183,7 @@ pub struct Pump {
     chromium: PathBuf,
     profile: PathBuf,
     environment: Vec<(OsString, OsString)>,
+    file_access: bool,
     child: Option<Token>,
     pipes: Option<[Token; 3]>,
     opening: Opening,
@@ -198,7 +199,7 @@ impl Pump {
         environment: Vec<(OsString, OsString)>,
         external: u32,
     ) -> Result<Self, String> {
-        Self::build(chromium, profile, environment, external, BROWSER)
+        Self::build(chromium, profile, environment, external, BROWSER, false)
     }
     fn build(
         chromium: PathBuf,
@@ -206,6 +207,7 @@ impl Pump {
         environment: Vec<(OsString, OsString)>,
         external: u32,
         browser_owner: Token,
+        file_access: bool,
     ) -> Result<Self, String> {
         let bl = browser::Limits::default();
         let cap = capacity::Capacity::new(2, 0, super::Output::Stdout, &bl).ok_or("session capacity does not fit")?;
@@ -239,6 +241,7 @@ impl Pump {
             chromium,
             profile,
             environment,
+            file_access,
             child: None,
             pipes: None,
             opening: Opening::Idle,
@@ -267,8 +270,15 @@ impl Pump {
     pub fn input(&mut self, fd: Fd) -> Result<Token, Fd> {
         self.io.adopt_read_pipe(fd)
     }
-    fn chromium_spawn(chromium: &Path, profile: &Path, environment: &[(OsString, OsString)], root: Fd) -> Spawn {
-        let command = browser::command::command(chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes());
+    fn chromium_spawn(
+        chromium: &Path,
+        profile: &Path,
+        environment: &[(OsString, OsString)],
+        root: Fd,
+        file_access: bool,
+    ) -> Spawn {
+        let command =
+            browser::command::command(chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes(), file_access);
         let mut env = environment.to_vec();
         // As in the browser tier, leave Chromium's singleton socket to the host's
         // temporary directory. A deep scratch directory can make its path too long.
@@ -299,7 +309,8 @@ impl Pump {
         }
     }
     fn start(&mut self, opening: Opening) {
-        let spawn = Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root());
+        let spawn =
+            Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root(), self.file_access);
         self.opening = opening;
         self.request(io::Request::Spawn { owner: PROCESS, spawn });
     }
@@ -621,13 +632,15 @@ pub struct RawPump(Pump);
 
 impl RawPump {
     /// `owner` names the browser itself; use other tokens for people and pages.
+    /// Enable `file_access` only for trusted file pages: it is not limited to the profile or page directory.
     pub fn start(
         chromium: PathBuf,
         profile: PathBuf,
         environment: Vec<(OsString, OsString)>,
         owner: Token,
+        file_access: bool,
     ) -> Result<Self, String> {
-        let mut pump = Pump::build(chromium, profile, environment, 0, owner)?;
+        let mut pump = Pump::build(chromium, profile, environment, 0, owner, file_access)?;
         pump.start(Opening::Raw);
         Ok(Self(pump))
     }

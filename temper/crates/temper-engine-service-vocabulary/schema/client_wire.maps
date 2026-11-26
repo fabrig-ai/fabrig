@@ -11,6 +11,7 @@ use api = skein_forge::api
 use trial = temper_engine_domain_trials
 use tiers = temper_engine_domain_forge_tiers
 use s = skein_codec::convert
+use wait = jig_domain_core
 by hand h
 context h::Context<'_>
 refuses h::forge_ask_to_domain
@@ -310,7 +311,13 @@ record ChangeFrom = f::ChangeFrom
 record TrainLanding = f::TrainLanding { ready_since via s::wall }
 record Member by hand
 enum LandingWaitFor = f::LandingWaitFor
-record LandingWait = f::LandingWait
+enum LandingWaitThen = wait::AtBound
+record LandingWaitAt
+record LandingWaitBehind stands for task
+enum LandingWaitUnbounded = wait::Unbounded { behind tuple }
+record LandingWaitNone stands for reason
+enum LandingWaitBound = wait::Bound { at { at via s::wall }, none tuple }
+record LandingWait = f::LandingWait { since via s::wall }
 
 record LandingPanel by hand
 record LandingLine = f::LandingLine { last_event via s::wall, changes slice, repositories slice, landed slice }

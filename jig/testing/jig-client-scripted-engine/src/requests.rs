@@ -186,6 +186,7 @@ impl<A: crate::Application> Engine<A> {
                     (ReadValue::PersonTask(value), Moved::PersonTask) => Some(value.revision),
                     (
                         ReadValue::Tasks(_)
+                        | ReadValue::Waits(_)
                         | ReadValue::Me(_)
                         | ReadValue::Task(_)
                         | ReadValue::Ended(_)
@@ -227,6 +228,7 @@ impl<A: crate::Application> Engine<A> {
                                     }
 
                                     ReadValue::Tasks(_)
+                                    | ReadValue::Waits(_)
                                     | ReadValue::Me(_)
                                     | ReadValue::Ended(_)
                                     | ReadValue::Proposal(_)
@@ -305,6 +307,7 @@ impl<A: crate::Application> Engine<A> {
                 | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::Waits(_)
                 | ReadValue::Project(_)
                 | ReadValue::Ended(_)
                 | ReadValue::Me(_)
@@ -613,6 +616,7 @@ fn offers(value: &ReadValue) -> Option<&List<Offered>> {
         ReadValue::Result(v) => Some(&v.acts),
         ReadValue::Ended(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Me(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
@@ -649,6 +653,7 @@ fn ending(value: &ReadValue) -> Option<Ending> {
         | ReadValue::Proposal(_)
         | ReadValue::Escalation(_)
         | ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Me(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)

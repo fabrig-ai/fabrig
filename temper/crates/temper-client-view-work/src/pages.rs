@@ -27,5 +27,6 @@ pub mod start_goal;
 pub mod task;
 pub mod tell;
 pub mod terminal;
+pub mod waits;
 pub mod work;
 pub use temper_client_view_parts::common::{chat_line, project_name, serves_pages, ways};

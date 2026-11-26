@@ -474,6 +474,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
                 | Address::Task { .. }
                 | Address::Work { .. }
                 | Address::Goals { .. }
+                | Address::Waits { .. }
                 | Address::Changes { .. }
                 | Address::Settings { .. }
                 | Address::Models { .. }

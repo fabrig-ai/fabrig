@@ -2729,6 +2729,48 @@ fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api
     poll_clocked_gate_with_report(d, clock, run).0
 }
 
+fn assert_panel_wait(
+    d: &Domain,
+    clock: &Env<Limits>,
+    task: u64,
+    on: LandingWaitFor,
+    report: Option<&jig_domain_core_vocabulary::waits::Reported>,
+) {
+    use jig_domain_core_vocabulary::waits::{Bound, ReportedBound};
+    use jig_domain_people::ApplicationScope;
+    let project = d.landing(task).unwrap().landing.project;
+    let scope = ApplicationScope::Project(project);
+    let Some(Document::Landing(panel)) = d.document(task, scope, 1, clock.wall, &clock.limits) else {
+        panic!("landing panel")
+    };
+    let wait = panel.waits.expect("live landing's wait");
+    assert_eq!(wait.on, on);
+    let (since, bound) = match report {
+        Some(report) => {
+            let bound = match report.bound {
+                ReportedBound::At { at, then } => Bound::At { at, then },
+                ReportedBound::None(reason) => Bound::None(reason),
+                ReportedBound::Figure(_) => panic!("landing reports have no jig figure"),
+            };
+            (Some(report.since), Some(bound))
+        }
+        None => (None, None),
+    };
+    assert_eq!((wait.since, wait.bound), (since, bound), "timing for {on:?}");
+    let Some(Document::Landings(list)) =
+        d.document(landings_subject(project, false), scope, 1, clock.wall, &clock.limits)
+    else {
+        panic!("landings panel")
+    };
+    for line in &list.landings {
+        if line.task == task {
+            assert_eq!(line.waits.as_ref(), Some(&wait));
+            return;
+        }
+    }
+    panic!("live line missing");
+}
+
 fn owned_wait_report(out: &[Request], task: u64) -> Option<Box<[jig_domain_core_vocabulary::waits::Reported]>> {
     match wait_report(out, task) {
         Some(report) => Some(report.into()),
@@ -3048,9 +3090,9 @@ fn a_hearing_without_preparation_reaches_policy_as_running() {
     read_preparing_member(&mut d);
     let requests = read_absent_prefix(&mut d);
     let mut decision = None;
-    for request in requests {
+    for request in &requests {
         if let Request::LandingDecision { task: 61, decision: found, .. } = request {
-            decision = Some(found);
+            decision = Some(*found);
         }
     }
     assert_eq!(
@@ -3059,6 +3101,8 @@ fn a_hearing_without_preparation_reaches_policy_as_running() {
         "the policy waits on a running prepare"
     );
     assert_eq!(d.landing.rows.get(&61).expect("waiting round").landing.phase, policy::Phase::Preparing);
+    assert!(wait_report(&requests, 61).is_none());
+    assert_panel_wait(&d, &env(), 61, LandingWaitFor::Prepare, None);
 }
 
 #[test]
@@ -3863,6 +3907,7 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
             .as_slice()
         )
     );
+    assert_panel_wait(&d, &env(), 62, LandingWaitFor::Receipt, Some(&report.unwrap()[0]));
     assert_eq!(d.receipt(&key).unwrap().run.id, 41);
     run.state = skein_forge::api::RunState::Completed;
     run.conclusion = Some(skein_forge::api::Conclusion::Success);

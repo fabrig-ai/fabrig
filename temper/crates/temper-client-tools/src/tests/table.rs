@@ -431,7 +431,7 @@ fn bound_is_what_the_parser_accepts() {
             Usage::Kind { tool: 0, form: 0, argument: 2 },
         ),
         (b"--text", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { tool: 0, form: 0, argument: 3 }),
-        (b"--timeout", b"4", b"5", Bound::Seconds { most: 4 }, Usage::Rows { tool: 0, form: 0, argument: 4 }),
+        (b"--timeout", b"4", b"5", Bound::Seconds { least: 0, most: 4 }, Usage::Rows { tool: 0, form: 0, argument: 4 }),
         (
             b"--named",
             b"made:4",
@@ -465,7 +465,7 @@ fn bound_is_what_the_parser_accepts() {
                 } else {
                     Value::Number(most.checked_add(1).expect("one past the numeric edge"))
                 }
-            } else if let Bound::Seconds { most } = expected {
+            } else if let Bound::Seconds { most, .. } = expected {
                 Value::Duration(skein_lib::Duration::from_secs(most.checked_add(1).expect("one past the timeout")))
             } else {
                 Value::Text(Box::from(*past))

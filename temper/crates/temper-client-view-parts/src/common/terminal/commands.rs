@@ -99,6 +99,7 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                     | Address::Task { .. }
                     | Address::Work { .. }
                     | Address::Goals { .. }
+                    | Address::Waits { .. }
                     | Address::Home { .. }
                     | Address::Changes { .. }
                     | Address::Team { .. }

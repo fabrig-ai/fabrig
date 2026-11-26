@@ -96,6 +96,7 @@ impl Domain {
                 }
                 return {
                     let value = w::PublicLanding {
+                        wait: None,
                         search: None,
                         combined: None,
                         step: None,

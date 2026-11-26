@@ -2,6 +2,7 @@
 use crate::{Panel, PersonFact, ReceiptRun};
 use alloc::boxed::Box;
 use core::mem::size_of_val;
+use jig_domain_core_vocabulary::waits::Bound;
 use temper_engine_domain_forge_landing as policy;
 mod landing;
 pub use landing::{LandingRound, LandingSearch, LandingSearchTests, SearchPass, SearchSelection};
@@ -64,6 +65,8 @@ pub struct LandingWait {
     pub gate: Option<Box<[u8]>>,
     pub run: Option<u64>,
     pub landing: Option<u64>,
+    pub since: Option<skein_lib::Wall>,
+    pub bound: Option<Bound>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LandingWaitFor {
@@ -163,6 +166,7 @@ pub struct LandingsView {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingLine {
+    pub waits: Option<LandingWait>,
     pub step: Option<LandingStep>,
     pub last_event: Option<skein_lib::Wall>,
     pub task: u64,
@@ -292,12 +296,8 @@ impl Document {
                 }
             }
             Self::Landing(view) => {
-                if let Some(wait) = &view.waits
-                    && let Some(gate) = &wait.gate
-                {
-                    size = size.saturating_add(gate.len());
-                }
                 size = size
+                    .saturating_add(wait_bytes(view.waits.as_ref()))
                     .saturating_add(phase_bytes(&view.phase))
                     .saturating_add(size_of_val(view.members.as_ref()))
                     .saturating_add(train_bytes(view.train.as_ref()))
@@ -330,7 +330,8 @@ impl Document {
                         .saturating_add(size_of_val(row.changes.as_ref()))
                         .saturating_add(size_of_val(row.repositories.as_ref()))
                         .saturating_add(size_of_val(row.landed.as_ref()))
-                        .saturating_add(train_bytes(row.train.as_ref()));
+                        .saturating_add(train_bytes(row.train.as_ref()))
+                        .saturating_add(wait_bytes(row.waits.as_ref()));
                     for name in &row.repositories {
                         size = size.saturating_add(name.len());
                     }
@@ -338,6 +339,12 @@ impl Document {
             }
         }
         size
+    }
+}
+fn wait_bytes(wait: Option<&LandingWait>) -> usize {
+    match wait {
+        Some(LandingWait { gate: Some(gate), .. }) => gate.len(),
+        Some(LandingWait { gate: None, .. }) | None => 0,
     }
 }
 fn train_bytes(train: Option<&LandingTrain>) -> usize {

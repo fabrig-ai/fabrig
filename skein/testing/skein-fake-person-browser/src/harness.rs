@@ -373,8 +373,11 @@ impl Runtime {
         let mut startup = VecDeque::new();
         let (browser, roots) = match start {
             run::BrowserStart::Chromium { profile, root, browser_root } => {
-                let command =
-                    browser::command::command(setup.chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes());
+                let command = browser::command::command(
+                    setup.chromium.as_os_str().as_bytes(),
+                    profile.as_os_str().as_bytes(),
+                    false,
+                );
                 startup.push_back(io::Request::Spawn {
                     owner: PROCESS,
                     spawn: Self::browser_spawn(command, browser_root),

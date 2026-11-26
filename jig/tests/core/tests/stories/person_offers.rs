@@ -103,6 +103,61 @@ fn needs(world: &mut World, party: Party) -> Vec<u64> {
         .collect()
 }
 
+fn person_need(world: &mut World, party: Party, request: u64) -> core::documents::InboxEntry {
+    use jig_domain_core::reads::{Answer, Filter, Group, PageRow, Read};
+    world.sign_in = Some(party.sign_in);
+    jig_core_world::reads::ask(
+        world,
+        request,
+        Read::Inbox { group: Group::PersonTasks, filter: Filter { project: Some(1), goal: None }, from: None },
+    );
+    let Answer::Page(page) = jig_core_world::reads::latest(world) else { panic!("person tasks page") };
+    let [PageRow::Inbox(row)] = page.rows.as_slice() else { panic!("one person task need") };
+    assert!(page.next.is_none());
+    row.clone()
+}
+
+#[test]
+fn both_holders_inboxes_take_the_person_tasks_current_wait() {
+    const SEED: u64 = 190;
+    let Offer { mut world, task, requester, addressee, policy, .. } = offer(SEED, false);
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    let first = person_need(&mut world, addressee, 7801);
+    world.advance(STALL);
+    let since = live_row(&world, task).person_wait.unwrap().offer.unwrap().since;
+    let bound = core::Bound::At {
+        at: skein_lib::Wall::from_nanos(since.as_nanos() + STALL.as_nanos()),
+        then: core::AtBound::PassUp,
+    };
+    assert!(first.at.expect("first arrival") < since);
+    let offered = person_need(&mut world, requester, 7802);
+    let original = person_need(&mut world, addressee, 7803);
+    for entry in [original, offered] {
+        assert_eq!(entry.object, core::documents::InboxObject::PersonTask);
+        assert_eq!(entry.at, Some(since));
+        assert_eq!(entry.bound, Some(bound));
+        assert_eq!(entry.cursor, core::documents::Cursor::Inbox { task, object: entry.object, at: Some(since) });
+    }
+    let waits = world.domain.core().waits(task);
+    let [wait] = waits.own.as_slice() else { panic!("one wait, not one per addressee") };
+    assert_eq!((wait.since, wait.bound), (since, bound));
+
+    world.advance(STALL);
+    // The original addressee can also acquire the final holder's role, without
+    // getting two rows with the same cursor or an extra count in the frame.
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: 1,
+        holdings: Box::new([
+            people::Holding { person: requester.person, role: people::Role::Owner },
+            people::Holding { person: addressee.person, role: POLICY },
+            people::Holding { person: policy.person, role: POLICY },
+        ]),
+    })));
+    let final_entry = person_need(&mut world, policy, 7804);
+    assert_eq!(person_need(&mut world, addressee, 7805), final_entry);
+    assert_eq!(world.domain.core().people.needs(addressee.person), Some(1));
+}
+
 fn answer(world: &mut World, party: Party, key: u8, task: u64, expected: people::Outcome) {
     ask_as(
         world,

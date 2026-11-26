@@ -425,8 +425,7 @@ pub(super) fn party_entries(core: &Core, limits: &Limits, row: &TaskRecord) -> L
     }
     if crate::inbox::questions_live(&row.phase) {
         for credit in &row.questions {
-            let Some((holder, at)) = question_place(core, row, credit) else { continue };
-            if let Some(entry) = crate::inbox::question_entry(row, credit.number, holder, at) {
+            if let Some(entry) = party_question(core, row, credit) {
                 entries.push(entry).expect("one fact per open credit");
             }
         }
@@ -434,23 +433,64 @@ pub(super) fn party_entries(core: &Core, limits: &Limits, row: &TaskRecord) -> L
     entries
 }
 
+fn party_question(core: &Core, row: &TaskRecord, credit: &tasks::QuestionCredit) -> Option<Entry> {
+    let (holder, at) = question_place(core, row, credit)?;
+    crate::inbox::question_entry(row, credit.number, holder, at)
+}
+
 /// The second inbox entry is another way to answer, not another wait.
-fn party_fact(row: &TaskRecord, mut fact: Entry) -> Option<Entry> {
+fn party_fact(row: &TaskRecord, fact: Entry) -> Option<Entry> {
     match fact.kind {
         EntryKind::PersonTask => {
-            if let Some(offer) = row.person_wait?.offer {
-                let whom = crate::inbox::person_whom(row.project, offer.holder);
-                if row.taken_by.is_none() && fact.whom != whom {
-                    return None;
-                }
-                fact.whom = whom;
-                fact.at = offer.since;
-            }
-            Some(fact)
+            let current = person_place(row, fact)?;
+            if row.taken_by.is_none() && fact.whom != current.whom { None } else { Some(current) }
         }
         EntryKind::Question { .. } | EntryKind::Escalation { .. } | EntryKind::Proposal { .. } => Some(fact),
         EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => None,
     }
+}
+
+fn person_place(row: &TaskRecord, mut fact: Entry) -> Option<Entry> {
+    if let Some(offer) = row.person_wait?.offer {
+        fact.whom = crate::inbox::person_whom(row.project, offer.holder);
+        fact.at = offer.since;
+    }
+    Some(fact)
+}
+
+pub(super) fn inbox_wait(core: &Core, limits: &Limits, row: &TaskRecord, fact: Entry) -> Option<Wait> {
+    match fact.kind {
+        EntryKind::Question { message } => {
+            let asker = match question_asker(core, row, message) {
+                Some(asker) => core.tasks.task(asker).unwrap_or(row),
+                None => row,
+            };
+            for credit in &asker.questions {
+                if credit.number == message {
+                    let current = party_question(core, asker, credit)?;
+                    return Some(party(core, limits, asker, &current, None));
+                }
+            }
+            Some(party(core, limits, row, &fact, None))
+        }
+        EntryKind::PersonTask => Some(party(core, limits, row, &person_place(row, fact)?, None)),
+        EntryKind::Escalation { .. } | EntryKind::Proposal { .. } => Some(party(core, limits, row, &fact, None)),
+        EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => None,
+    }
+}
+
+// The first inbox entry links to the asked task. Its question line names the
+// credit owner; the offered entry links straight to the credit owner instead.
+fn question_asker(core: &Core, row: &TaskRecord, message: u64) -> Option<u64> {
+    for position in &row.question_lines {
+        if position.message == message {
+            let line = core.question_activity.get(&(row.number, position.line))?;
+            if let tasks::Line::Words { by: Party::Task(asker), .. } = line.line {
+                return Some(asker);
+            }
+        }
+    }
+    None
 }
 
 pub(super) fn party(core: &Core, limits: &Limits, row: &TaskRecord, fact: &Entry, hears: Option<Holder>) -> Wait {
@@ -470,14 +510,6 @@ fn entry(
     since: Wall,
     hears: Option<Holder>,
 ) -> Wait {
-    let since = core.wait_since(WaitKind::Party, since);
-    let (figure, deadline) = match kind {
-        EntryKind::Question { .. } => (limits.waits.party, tasks::deadline(row, core.run_wall)),
-        EntryKind::Escalation { .. } => (limits.tasks.escalation_stall, None),
-        EntryKind::Proposal { .. } => (limits.tasks.proposal_stall, None),
-        EntryKind::PersonTask => (row.person_wait.expect("answerable person interval").stall, None),
-        EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => unreachable!("a reply is not waiting for a party"),
-    };
     let passes = match kind {
         EntryKind::Proposal { .. } => match at {
             Holder::Role { .. } => false,
@@ -493,14 +525,27 @@ fn entry(
         EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => unreachable!("a reply is not a wait"),
     };
     let then = if passes { AtBound::PassUp } else { AtBound::Overdue };
-    Wait {
-        task: row.number,
-        kind: WaitKind::Party,
-        object: WaitObject::Entry { kind, at },
-        since,
-        bound: not_before(clock(since, figure, deadline, then), since),
-        hears,
-    }
+    let (since, bound) = match kind {
+        EntryKind::Question { .. } => {
+            party_clock(core, since, limits.waits.party, tasks::deadline(row, core.run_wall), then)
+        }
+        EntryKind::Escalation { .. } => party_clock(core, since, limits.tasks.escalation_stall, None, then),
+        EntryKind::Proposal { .. } => proposal_clock(core, limits, since, then),
+        EntryKind::PersonTask => {
+            party_clock(core, since, row.person_wait.expect("answerable person interval").stall, None, then)
+        }
+        EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => unreachable!("a reply is not a wait"),
+    };
+    Wait { task: row.number, kind: WaitKind::Party, object: WaitObject::Entry { kind, at }, since, bound, hears }
+}
+
+pub(super) fn proposal_clock(core: &Core, limits: &Limits, since: Wall, then: AtBound) -> (Wall, Bound) {
+    party_clock(core, since, limits.tasks.proposal_stall, None, then)
+}
+
+fn party_clock(core: &Core, since: Wall, figure: Duration, deadline: Option<Wall>, then: AtBound) -> (Wall, Bound) {
+    let since = core.wait_since(WaitKind::Party, since);
+    (since, not_before(clock(since, figure, deadline, then), since))
 }
 
 fn proposal_passes(core: &Core, limits: &Limits, row: &TaskRecord, holder: tasks::ProposalHolder) -> bool {

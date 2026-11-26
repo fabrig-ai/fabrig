@@ -106,8 +106,9 @@ impl Domain {
     pub fn inbox_needs(&self, person: u64) -> Option<Box<[Entry]>> {
         let mut entries = List::with_capacity(self.needs(person)?);
         for (_, needs) in &self.needs {
+            let mut person_task = false;
             for &need in needs {
-                if addressed(self, person, need) {
+                if addressed_need(self, person, need, &mut person_task) {
                     entries.push(need).expect("addressed subset of the live need census");
                 }
             }
@@ -164,8 +165,9 @@ impl Domain {
         self.identity(person)?;
         let mut counts = Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 };
         for (_, tallies) in &self.needs {
+            let mut person_task = false;
             for tally in tallies {
-                if !addressed(self, person, *tally) {
+                if !addressed_need(self, person, *tally, &mut person_task) {
                     continue;
                 }
                 let count = match tally.kind {
@@ -186,8 +188,9 @@ impl Domain {
     pub fn project_needs(&self, person: u64, project: u32) -> u32 {
         let mut count = 0_u32;
         for (_, needs) in &self.needs {
+            let mut person_task = false;
             for &need in needs {
-                if need.project == project && addressed(self, person, need) {
+                if need.project == project && addressed_need(self, person, need, &mut person_task) {
                     count = count.checked_add(1).expect("validated task projection bound");
                 }
             }
@@ -647,6 +650,18 @@ fn addressed(domain: &Domain, person: u64, need: Entry) -> bool {
         Whom::Person(owner) => owner == person,
         Whom::Role { project, role } => project == need.project && held.number() == role,
     }
+}
+
+// A person task can be addressed to the same reader both by name and by
+// role. Both routes open the same need at its current holder.
+fn addressed_need(domain: &Domain, person: u64, need: Entry, person_task: &mut bool) -> bool {
+    if !addressed(domain, person, need) {
+        return false;
+    }
+    if let EntryKind::PersonTask = need.kind {
+        return !core::mem::replace(person_task, true);
+    }
+    true
 }
 
 // The recipient cache is a secondary index; its replacement key is the same

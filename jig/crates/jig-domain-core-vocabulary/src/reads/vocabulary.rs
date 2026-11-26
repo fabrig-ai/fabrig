@@ -3,6 +3,7 @@
 use crate::{
     CoreRecord, Key, Record,
     documents::{self, Document, Proposer},
+    waits::{AtBound, Bound, Wait, WaitKind},
 };
 use alloc::boxed::Box;
 use core::mem::{size_of, size_of_val};
@@ -132,6 +133,8 @@ pub enum Cursor {
     Live { scope: Scope, after: documents::Cursor, store_after: Option<Position> },
     /// Exclusive owner key; `None` starts the stored portion after live rows.
     Store { scope: Scope, after: Option<Position> },
+    /// Exclusive position in one live waits read, with its original time and filters.
+    Waits { query: WaitQuery, now: Wall, after: WaitPosition },
 }
 /// Which side of an activity line to read (client/domain/contract/reads.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -163,6 +166,11 @@ pub enum Read {
         query: documents::TaskQuery,
         live: Option<Cursor>,
         ended: Option<Cursor>,
+    },
+    /// A project's live wait records, without store work.
+    Waits {
+        query: WaitQuery,
+        after: Option<Cursor>,
     },
     /// A connector-owned document within the client's stated role scope.
     Application {
@@ -440,6 +448,60 @@ pub struct TaskPage {
     pub ended_mark: u64,
     pub ended: EndedGroup,
 }
+/// The identity of a project's live waits read, independent of its continuation.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct WaitQuery {
+    pub project: u32,
+    pub kind: Option<WaitKind>,
+    pub party: Option<u64>,
+    pub due: Option<u64>,
+}
+
+/// Order a wait by its bound group, then by the bound in that group.
+#[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash, Debug)]
+pub enum WaitPlace {
+    Overdue { at: Wall },
+    Bounded { at: Wall },
+    Unbounded,
+}
+
+/// Exclusive key in a project's ordered waits (client/domain/contract/reads.md, 1.2).
+#[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash, Debug)]
+pub struct WaitPosition {
+    pub place: WaitPlace,
+    pub task: u64,
+    /// Ordinal in this task's full own-wait order, before filters.
+    pub order: u32,
+}
+
+impl WaitPosition {
+    #[must_use]
+    pub const fn of(wait: &Wait, now: Wall, order: u32) -> Self {
+        let place = match wait.bound {
+            Bound::At { at, then: AtBound::Overdue } if at.as_nanos() <= now.as_nanos() => WaitPlace::Overdue { at },
+            Bound::At { at, .. } => WaitPlace::Bounded { at },
+            Bound::None(_) => WaitPlace::Unbounded,
+        };
+        Self { place, task: wait.task, order }
+    }
+}
+
+/// A bounded window of one project's live waits.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WaitPage {
+    pub now: Wall,
+    pub rows: List<WaitRow>,
+    pub after: Option<Cursor>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WaitRow {
+    pub chip: documents::Chip,
+    pub wait: Wait,
+    // Kept so the protocol may cut the page at its byte window.
+    pub position: WaitPosition,
+}
+
 /// An ended index's rows, or no index for these query keys.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(
@@ -460,6 +522,7 @@ pub enum Answer {
     Revisions(Box<RevisionsPage>),
     /// A task query's two groups.
     Tasks(Box<TaskPage>),
+    Waits(Box<WaitPage>),
     /// A current document.
     Document(Box<Document>),
     /// An ended or decided object, with kept actor and wall time.
@@ -482,7 +545,7 @@ pub enum Why {
     TooLarge { bytes: u64 },
     /// The first row needs more joins than the whole read bound.
     TooLinked { joins: u32 },
-    /// The visible turn frame could not be read whole.
+    /// The visible turn frame or page continuation was malformed.
     Malformed,
     /// The read's sign-in is unknown to a ready engine, ended or expired.
     SignedOut,

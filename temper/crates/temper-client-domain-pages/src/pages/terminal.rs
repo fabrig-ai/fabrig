@@ -86,6 +86,7 @@ pub fn draws(address: &crate::Address) -> bool {
         | Address::Task { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Team { .. }

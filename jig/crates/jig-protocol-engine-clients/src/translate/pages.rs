@@ -39,6 +39,7 @@ pub fn page(
             documents::notes(models, page, before, after, limits)?
         }
         reads::Read::Tasks { .. }
+        | reads::Read::Waits { .. }
         | reads::Read::Application { .. }
         | reads::Read::Frame
         | reads::Read::TaskText { .. }
@@ -81,6 +82,7 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
                         reads::Scope::ScopedNotes { scope: scope.clone(), description: description.clone() }
                     }
                     reads::Read::Application { .. }
+                    | reads::Read::Waits { .. }
                     | reads::Read::Frame
                     | reads::Read::TaskText { .. }
                     | reads::Read::Task { .. }
@@ -100,6 +102,7 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
                 };
                 *scope == expected
             }
+            reads::Cursor::Waits { .. } => false,
         };
         if !matches {
             return Err(invalid);
@@ -108,7 +111,7 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
     Ok(())
 }
 
-fn wire_cursor(value: &reads::Cursor, limits: &w::Limits) -> Result<w::Cursor, w::Problem> {
+pub(super) fn wire_cursor(value: &reads::Cursor, limits: &w::Limits) -> Result<w::Cursor, w::Problem> {
     let bytes = cursor::encode(value, limits.cursor_value.min(w::CEILINGS.cursor_value))
         .ok_or(w::Problem { path: w::paths::CURSOR_VALUE, reason: skein_codec::Reason::Bound })?;
     Ok(w::Cursor { value: bytes })
@@ -164,7 +167,9 @@ fn task_cursor(
     limits: &w::Limits,
 ) -> Result<w::Cursor, w::Problem> {
     let mut value = value.clone();
-    let (reads::Cursor::Live { scope, .. } | reads::Cursor::Store { scope, .. }) = &mut value;
+    let (reads::Cursor::Live { scope, .. } | reads::Cursor::Store { scope, .. }) = &mut value else {
+        return Err(super::problem(skein_codec::Reason::Tag));
+    };
     if let reads::Scope::Tasks { query: held } = scope {
         *held = query.clone();
     } else {

@@ -12,6 +12,6 @@ pub(crate) use temper_client_view_work::{
     pages::agent, pages::all_home, pages::approval, pages::ask, pages::ask_page, pages::change, pages::changes,
     pages::chat, pages::chat_sheet, pages::decided, pages::document, pages::findings, pages::goal, pages::home_cards,
     pages::inbox, pages::needs, pages::new_chat, pages::only_you, pages::session, pages::start_goal, pages::task,
-    pages::tell, pages::terminal, pages::work,
+    pages::tell, pages::terminal, pages::waits, pages::work,
 };
 pub use temper_client_view_work::{pages::chats, pages::goals, pages::home};

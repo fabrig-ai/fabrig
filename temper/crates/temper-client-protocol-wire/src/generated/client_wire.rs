@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0xb2, 0xe9, 0x2f, 0xcb, 0x28, 0xd5, 0x8a, 0x4c, 0x84, 0x63, 0x65, 0x7b, 0xe2, 0x1d, 0xe5, 0x23, 0xf5, 0x48, 0x88,
-    0xd2, 0x04, 0xdd, 0xde, 0xb1, 0xb2, 0xc6, 0x94, 0x56, 0x56, 0x28, 0x3d, 0x6b,
+    0x2c, 0xfd, 0xa0, 0x8f, 0xbc, 0x1e, 0xf0, 0x09, 0x87, 0xfc, 0x3b, 0x51, 0xc0, 0x37, 0x6f, 0xbb, 0x8a, 0xa3, 0xd9,
+    0x51, 0x20, 0x2e, 0x16, 0x0d, 0x60, 0xdc, 0xac, 0xcd, 0x06, 0x04, 0x65, 0xe4,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3076,11 +3076,23 @@ pub mod paths {
     pub const MEMBER_JUDGEMENT: Path = Path::new("Member.judgement");
     pub const MEMBER_TAIL: Path = Path::new("Member (tail)");
     pub const LANDING_WAIT_FOR_TAG: Path = Path::new("LandingWaitFor (tag)");
+    pub const LANDING_WAIT_THEN_TAG: Path = Path::new("LandingWaitThen (tag)");
+    pub const LANDING_WAIT_AT_AT: Path = Path::new("LandingWaitAt.at");
+    pub const LANDING_WAIT_AT_THEN: Path = Path::new("LandingWaitAt.then");
+    pub const LANDING_WAIT_AT_TAIL: Path = Path::new("LandingWaitAt (tail)");
+    pub const LANDING_WAIT_BEHIND_TASK: Path = Path::new("LandingWaitBehind.task");
+    pub const LANDING_WAIT_BEHIND_TAIL: Path = Path::new("LandingWaitBehind (tail)");
+    pub const LANDING_WAIT_UNBOUNDED_TAG: Path = Path::new("LandingWaitUnbounded (tag)");
+    pub const LANDING_WAIT_NONE_REASON: Path = Path::new("LandingWaitNone.reason");
+    pub const LANDING_WAIT_NONE_TAIL: Path = Path::new("LandingWaitNone (tail)");
+    pub const LANDING_WAIT_BOUND_TAG: Path = Path::new("LandingWaitBound (tag)");
     pub const LANDING_WAIT_ON: Path = Path::new("LandingWait.on");
     pub const LANDING_WAIT_CHANGE: Path = Path::new("LandingWait.change");
     pub const LANDING_WAIT_GATE: Path = Path::new("LandingWait.gate");
     pub const LANDING_WAIT_RUN: Path = Path::new("LandingWait.run");
     pub const LANDING_WAIT_LANDING: Path = Path::new("LandingWait.landing");
+    pub const LANDING_WAIT_SINCE: Path = Path::new("LandingWait.since");
+    pub const LANDING_WAIT_BOUND: Path = Path::new("LandingWait.bound");
     pub const LANDING_WAIT_TAIL: Path = Path::new("LandingWait (tail)");
     pub const LANDING_PANEL_WAITS: Path = Path::new("LandingPanel.waits");
     pub const LANDING_PANEL_TASK: Path = Path::new("LandingPanel.task");
@@ -3103,6 +3115,7 @@ pub mod paths {
     pub const LANDING_LINE_REPOSITORIES: Path = Path::new("LandingLine.repositories");
     pub const LANDING_LINE_LANDED: Path = Path::new("LandingLine.landed");
     pub const LANDING_LINE_TRAIN: Path = Path::new("LandingLine.train");
+    pub const LANDING_LINE_WAITS: Path = Path::new("LandingLine.waits");
     pub const LANDING_LINE_TAIL: Path = Path::new("LandingLine (tail)");
     pub const LANDINGS_PANEL_NOW: Path = Path::new("LandingsPanel.now");
     pub const LANDINGS_PANEL_TURN_SINCE: Path = Path::new("LandingsPanel.turn_since");
@@ -25607,6 +25620,347 @@ impl Record for LandingWaitFor {
     }
 }
 
+// Type: LandingWaitThen.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LandingWaitThen {
+    Hold,
+    PassUp,
+    Overdue,
+    GiveUp,
+}
+
+// Record: LandingWaitThen.
+impl LandingWaitThen {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for LandingWaitThen {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_WAIT_THEN_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitThen")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitThen")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Hold => field::put(out, &[0], paths::LANDING_WAIT_THEN_TAG),
+            Self::PassUp => field::put(out, &[1], paths::LANDING_WAIT_THEN_TAG),
+            Self::Overdue => field::put(out, &[2], paths::LANDING_WAIT_THEN_TAG),
+            Self::GiveUp => field::put(out, &[3], paths::LANDING_WAIT_THEN_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::LANDING_WAIT_THEN_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Hold),
+            1 => Ok(Self::PassUp),
+            2 => Ok(Self::Overdue),
+            3 => Ok(Self::GiveUp),
+            4..=u8::MAX => Err(Problem { path: paths::LANDING_WAIT_THEN_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: LandingWaitAt.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingWaitAt {
+    pub at: u64,
+    pub then: LandingWaitThen,
+}
+
+// Record: LandingWaitAt.
+impl LandingWaitAt {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("LandingWaitThen"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for LandingWaitAt {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_WAIT_AT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitAt")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitAt")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.at, limits, out, paths::LANDING_WAIT_AT_AT)?;
+        field::write(field::Nested, &self.then, limits, out, paths::LANDING_WAIT_AT_THEN)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            at: field::read(field::U64, limits, reader, paths::LANDING_WAIT_AT_AT)?,
+            then: field::read(field::Nested, limits, reader, paths::LANDING_WAIT_AT_THEN)?,
+        })
+    }
+}
+
+// Type: LandingWaitBehind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingWaitBehind {
+    pub task: u64,
+}
+
+// Record: LandingWaitBehind.
+impl LandingWaitBehind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for LandingWaitBehind {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_WAIT_BEHIND_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitBehind")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitBehind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.task, limits, out, paths::LANDING_WAIT_BEHIND_TASK)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            task: field::read(field::U64, limits, reader, paths::LANDING_WAIT_BEHIND_TASK)?,
+        })
+    }
+}
+
+// Type: LandingWaitUnbounded.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LandingWaitUnbounded {
+    NoDeadline,
+    Standing,
+    Behind(LandingWaitBehind),
+    OperatorHold,
+}
+
+// Record: LandingWaitUnbounded.
+impl LandingWaitUnbounded {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("LandingWaitBehind"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for LandingWaitUnbounded {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_WAIT_UNBOUNDED_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitUnbounded")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitUnbounded")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::NoDeadline => field::put(out, &[0], paths::LANDING_WAIT_UNBOUNDED_TAG),
+            Self::Standing => field::put(out, &[1], paths::LANDING_WAIT_UNBOUNDED_TAG),
+            Self::Behind(value) => { field::put(out, &[2], paths::LANDING_WAIT_UNBOUNDED_TAG)?; value.write(limits, out) },
+            Self::OperatorHold => field::put(out, &[3], paths::LANDING_WAIT_UNBOUNDED_TAG),
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::LANDING_WAIT_UNBOUNDED_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::NoDeadline),
+            1 => Ok(Self::Standing),
+            2 => Ok(Self::Behind(LandingWaitBehind::read(limits, reader)?)),
+            3 => Ok(Self::OperatorHold),
+            4..=u8::MAX => Err(Problem { path: paths::LANDING_WAIT_UNBOUNDED_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: LandingWaitNone.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingWaitNone {
+    pub reason: LandingWaitUnbounded,
+}
+
+// Record: LandingWaitNone.
+impl LandingWaitNone {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("LandingWaitUnbounded"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for LandingWaitNone {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_WAIT_NONE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitNone")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitNone")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.reason, limits, out, paths::LANDING_WAIT_NONE_REASON)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            reason: field::read(field::Nested, limits, reader, paths::LANDING_WAIT_NONE_REASON)?,
+        })
+    }
+}
+
+// Type: LandingWaitBound.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LandingWaitBound {
+    At(LandingWaitAt),
+    None(LandingWaitNone),
+}
+
+// Record: LandingWaitBound.
+impl LandingWaitBound {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("LandingWaitAt"),
+        skein_codec::bounds::Node::Named("LandingWaitNone"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
+impl Record for LandingWaitBound {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_WAIT_BOUND_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitBound")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingWaitBound")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::At(value) => { field::put(out, &[0], paths::LANDING_WAIT_BOUND_TAG)?; value.write(limits, out) },
+            Self::None(value) => { field::put(out, &[1], paths::LANDING_WAIT_BOUND_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::LANDING_WAIT_BOUND_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::At(LandingWaitAt::read(limits, reader)?)),
+            1 => Ok(Self::None(LandingWaitNone::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::LANDING_WAIT_BOUND_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: LandingWait.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingWait {
@@ -25615,6 +25969,8 @@ pub struct LandingWait {
     pub gate: Option<Box<[u8]>>,
     pub run: Option<u64>,
     pub landing: Option<u64>,
+    pub since: Option<u64>,
+    pub bound: Option<LandingWaitBound>,
 }
 
 // Record: LandingWait.
@@ -25629,11 +25985,15 @@ impl LandingWait {
         skein_codec::bounds::Node::Option { item: 5 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 7 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 8] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Named("LandingWaitBound"),
+        skein_codec::bounds::Node::Option { item: 11 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 8, 10, 12] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 33;
+    pub const ENCODED_AT_ZERO: u64 = 53;
 }
 
 impl Record for LandingWait {
@@ -25663,6 +26023,8 @@ impl Record for LandingWait {
         field::write(field::Optional { item: field::Bytes { limit: limits.landing_wait_gate_some.min(CEILINGS.landing_wait_gate_some) } }, &self.gate, limits, out, paths::LANDING_WAIT_GATE)?;
         field::write(field::Optional { item: field::U64 }, &self.run, limits, out, paths::LANDING_WAIT_RUN)?;
         field::write(field::Optional { item: field::U64 }, &self.landing, limits, out, paths::LANDING_WAIT_LANDING)?;
+        field::write(field::Optional { item: field::U64 }, &self.since, limits, out, paths::LANDING_WAIT_SINCE)?;
+        field::write(field::Optional { item: field::Nested }, &self.bound, limits, out, paths::LANDING_WAIT_BOUND)?;
         Ok(())
     }
 
@@ -25673,6 +26035,8 @@ impl Record for LandingWait {
             gate: field::read(field::Optional { item: field::Bytes { limit: limits.landing_wait_gate_some.min(CEILINGS.landing_wait_gate_some) } }, limits, reader, paths::LANDING_WAIT_GATE)?,
             run: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_WAIT_RUN)?,
             landing: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_WAIT_LANDING)?,
+            since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_WAIT_SINCE)?,
+            bound: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_WAIT_BOUND)?,
         })
     }
 }
@@ -25717,7 +26081,7 @@ impl LandingPanel {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 272;
+    pub const ENCODED_AT_ZERO: u64 = 292;
 }
 
 impl Record for LandingPanel {
@@ -25786,6 +26150,7 @@ pub struct LandingLine {
     pub repositories: List<Box<[u8]>>,
     pub landed: List<[u8; 32]>,
     pub train: Option<Train>,
+    pub waits: Option<LandingWait>,
 }
 
 // Record: LandingLine.
@@ -25805,11 +26170,13 @@ impl LandingLine {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_line_landed), item: 10, size: size_of::<[u8; 32]>() },
         skein_codec::bounds::Node::Named("Train"),
         skein_codec::bounds::Node::Option { item: 12 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 5, 7, 9, 11, 13] },
+        skein_codec::bounds::Node::Named("LandingWait"),
+        skein_codec::bounds::Node::Option { item: 14 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 5, 7, 9, 11, 13, 15] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 51;
+    pub const ENCODED_AT_ZERO: u64 = 105;
 }
 
 impl Record for LandingLine {
@@ -25842,6 +26209,7 @@ impl Record for LandingLine {
         field::write(field::Sequence { limit: limits.landing_line_repositories.min(CEILINGS.landing_line_repositories), minimum: 4, item: field::Bytes { limit: limits.landing_line_repositories_item.min(CEILINGS.landing_line_repositories_item) } }, &self.repositories, limits, out, paths::LANDING_LINE_REPOSITORIES)?;
         field::write(field::Sequence { limit: limits.landing_line_landed.min(CEILINGS.landing_line_landed), minimum: 32, item: field::Fixed::<32> }, &self.landed, limits, out, paths::LANDING_LINE_LANDED)?;
         field::write(field::Optional { item: field::Nested }, &self.train, limits, out, paths::LANDING_LINE_TRAIN)?;
+        field::write(field::Optional { item: field::Nested }, &self.waits, limits, out, paths::LANDING_LINE_WAITS)?;
         Ok(())
     }
 
@@ -25855,6 +26223,7 @@ impl Record for LandingLine {
             repositories: field::read(field::Sequence { limit: limits.landing_line_repositories.min(CEILINGS.landing_line_repositories), minimum: 4, item: field::Bytes { limit: limits.landing_line_repositories_item.min(CEILINGS.landing_line_repositories_item) } }, limits, reader, paths::LANDING_LINE_REPOSITORIES)?,
             landed: field::read(field::Sequence { limit: limits.landing_line_landed.min(CEILINGS.landing_line_landed), minimum: 32, item: field::Fixed::<32> }, limits, reader, paths::LANDING_LINE_LANDED)?,
             train: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_LINE_TRAIN)?,
+            waits: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_LINE_WAITS)?,
         })
     }
 }
@@ -25914,7 +26283,7 @@ impl Record for LandingsPanel {
         field::write(field::Optional { item: field::U64 }, &self.turn_since, limits, out, paths::LANDINGS_PANEL_TURN_SINCE)?;
         field::write(field::U32, &self.project, limits, out, paths::LANDINGS_PANEL_PROJECT)?;
         field::write(field::Optional { item: field::U64 }, &self.turn, limits, out, paths::LANDINGS_PANEL_TURN)?;
-        field::write(field::Sequence { limit: limits.landings_panel_landings.min(CEILINGS.landings_panel_landings), minimum: 24, item: field::Nested }, &self.landings, limits, out, paths::LANDINGS_PANEL_LANDINGS)?;
+        field::write(field::Sequence { limit: limits.landings_panel_landings.min(CEILINGS.landings_panel_landings), minimum: 25, item: field::Nested }, &self.landings, limits, out, paths::LANDINGS_PANEL_LANDINGS)?;
         Ok(())
     }
 
@@ -25925,7 +26294,7 @@ impl Record for LandingsPanel {
             turn_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDINGS_PANEL_TURN_SINCE)?,
             project: field::read(field::U32, limits, reader, paths::LANDINGS_PANEL_PROJECT)?,
             turn: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDINGS_PANEL_TURN)?,
-            landings: field::read(field::Sequence { limit: limits.landings_panel_landings.min(CEILINGS.landings_panel_landings), minimum: 24, item: field::Nested }, limits, reader, paths::LANDINGS_PANEL_LANDINGS)?,
+            landings: field::read(field::Sequence { limit: limits.landings_panel_landings.min(CEILINGS.landings_panel_landings), minimum: 25, item: field::Nested }, limits, reader, paths::LANDINGS_PANEL_LANDINGS)?,
         })
     }
 }
@@ -34692,7 +35061,13 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LandingStep", nodes: LandingStep::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingSubject", nodes: LandingSubject::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingWait", nodes: LandingWait::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingWaitAt", nodes: LandingWaitAt::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingWaitBehind", nodes: LandingWaitBehind::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingWaitBound", nodes: LandingWaitBound::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingWaitFor", nodes: LandingWaitFor::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingWaitNone", nodes: LandingWaitNone::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingWaitThen", nodes: LandingWaitThen::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingWaitUnbounded", nodes: LandingWaitUnbounded::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingsPanel", nodes: LandingsPanel::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingsSubject", nodes: LandingsSubject::SHAPE },
     skein_codec::bounds::Declaration { name: "LimitApplies", nodes: LimitApplies::SHAPE },

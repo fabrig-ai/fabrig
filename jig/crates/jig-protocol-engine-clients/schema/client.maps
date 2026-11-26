@@ -453,7 +453,7 @@ enum TaskWaitRefused = d::TaskWaitRefused { hello { at via s::wall } }
 record TaskRunWaitRefused stands for value
 record TaskWaitWorker
 enum TaskRunWait = d::TaskRunWait { refused tuple, worker { until via s::wall } }
-enum WaitKind = waits::WaitKind
+enum WaitKind = waits::WaitKind both ways
 record WaitResourceName = t::Name { path slice }
 record Thing = waits::Thing
 enum WaitObject by hand
@@ -512,6 +512,8 @@ record Task by hand
 record Tasks by hand
 enum EndedGroup by hand
 record TaskPage by hand
+record WaitRow by hand
+record WaitPage by hand
 record CurrentCall = v::Call { began via s::wall }
 enum LiveCall by hand
 record ProvisionalTurnName = v::TurnName both ways { number = turn }
@@ -772,6 +774,7 @@ enum Final by hand
 enum TaskTextField = r::TaskTextField both ways
 record ReadTaskText by hand
 record TaskText = r::TaskText { words = bytes }
+record ReadWaits by hand
 enum Read by hand
 enum Beyond by hand
 enum Admission by hand

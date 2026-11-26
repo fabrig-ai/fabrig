@@ -41,7 +41,7 @@ mod programs;
 mod project_note;
 mod settings;
 mod settings_review;
-mod small;
+pub(crate) mod small;
 mod task_lines;
 pub mod task_query;
 pub(crate) mod task_tree;

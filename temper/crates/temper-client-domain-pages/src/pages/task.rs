@@ -524,6 +524,8 @@ impl Task {
             | Act::DelegateFate { .. }
             | Act::ClosedChats
             | Act::MoreGoals
+            | Act::MoreWaits
+            | Act::RefreshWaits
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::Filter { .. }
@@ -681,6 +683,8 @@ impl Task {
             | Act::Latest
             | Act::ClosedChats
             | Act::MoreGoals
+            | Act::MoreWaits
+            | Act::RefreshWaits
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::Filter { .. }

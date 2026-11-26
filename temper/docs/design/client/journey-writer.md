@@ -220,8 +220,9 @@ Chromium, `SKEIN_TEST_CHROMIUM` naming it, as the browser tiers' does.
      temper-client-journeys -- look-render NAME C` (6.2), in the
      checkout, on the print in place. Its exit 0 makes the entry from
      its lines, and its line is `checked NAME: RESULT`.
-   - **A check that can't finish** (`look-render`'s exit but 0, a
-     fetch, git or a file failing) restores both roots as TIP holds
+   - **A check that can't finish** (`look-render`'s exit but 0, lines
+     the writer can't read (6.3), a fetch, git or a file failing)
+     restores both roots as TIP holds
      them, untracked files under them removed, so that no written file
      is left changed. The run names why, exits 1, commits and offers
      nothing and finishes no run, so the next tick starts again.
@@ -590,12 +591,24 @@ terminal.
      `dialog` start tags opened as above; it links the bundle beside it
      in DIR, whose stylesheets are the tree's own
      (`web/look-requests.md`, 2).
-4. **One Chromium,** started by the kit's command
+4. **One Chromium,** started by the kit's command with file access
    (`skein/docs/design/testing/browser.md`, 3), its profile under the
    scratch directory, with one person. Each page of step 2 is opened
    from each copy as a `file://` page kept to files (browser.md, 5), so
    that every request outside `file://` fails. A page's `Trouble` goes
    to stderr under the page, and the check judges none.
+   - **File access** lets a `file://` page read other `file://` URLs,
+     so that the images and masks a page names beside it in its copy
+     load, an icon a request draws among them (the shell's
+     `moon.svg`), which Chromium refuses a `file:` document otherwise,
+     as another origin's (`blocked by CORS policy`).
+   - **Trust:** a page's `file://` requests then reach any file the
+     user running the check may read, not its copy's alone; the
+     copies hold no credential (step 3), no request leaves `file://`,
+     and the writer's run renders only requests a `Look-landed` on
+     main names (section 4, step 5). Turned down: inlining each image
+     and mask into the copies, which changes the bytes the check
+     compares.
 5. **The elements the request touched,** in the request's copy:
    - **Its start tags are its elements:** the check numbers the page's
      start tags in source order, each a `<` then an ASCII letter outside
@@ -650,7 +663,9 @@ terminal.
    | `result RESULT` | last, once: `identical`, `differs`, `not compared` where no page was compared, or `nothing to render` |
 
    PAGE is the page's path below `temper/docs/design/client/`, as 6.1's
-   rows name it (`web/journeys/J/NN.html`); ELEMENT is `LINE TAG`, its
+   rows name it (`web/journeys/J/NN.html`), a page that is no
+   journey's by its own name in its directory
+   (`web/journeys/usage-model-week/accounts-after.html`); ELEMENT is `LINE TAG`, its
    start tag's line in the request's page and its local name with its
    classes (`41 button.temper-chip`). Pages go in path order, the
    browser's root first; a page's differences by width, widest first,
@@ -710,12 +725,21 @@ entry is in its root's page: the TUI's for a name starting `tui-`
   - for each page, a link to the print's page by its path from the
     root, then `identical`, why it was not compared, or a table of its
     differences (width, element, property, the request's value, the
-    landed one), and `N more` past them;
+    landed one), and `N more` past them. A page that is no journey's,
+    hand-made or drawn on a gallery state, is linked by its path from
+    the root as a printed page is (`usage-model-week/accounts-after.html`);
   - for `not checked`, why, in place of the pages;
   - `States the request names in words aren't rendered: its landing's
     account covers them.`;
   - under the TUI's root, `These are the browser's renders of the TUI's
     frames, not a terminal's.`
+- **A page's path,** as `look-render` writes it (6.2, step 8), is read
+  as `web/journeys/` or `tui/journeys/`, a directory J neither empty,
+  `.` nor `..`, `/`, then a file: `NN.html`, NN two or more ASCII
+  digits, a printed page; or a name without a `/`, not starting with
+  `.` and ending `.html`, a page that is no journey's. A line naming
+  any other path is a report the writer can't read: its check can't
+  finish (section 4, step 5).
 - **Escaped:** every value from `look-render`'s lines, its own escapes
   undone first, is written with `<`, `>`, `"` and `&` escaped, as
   `dom::print` writes text (`web/journeys.md`, 5.3), so that no value a
@@ -795,7 +819,10 @@ Focused and native: no box, browser or terminal starts.
   one is skipped; a newer `Look-landed` is checked again, the older
   entry kept below; a journey whose print stopped keeps its request
   pending, with no entry; a branch `origin` lacks gives `not checked`;
-  an `uncompared` page, hand-made, is listed as not compared; a
+  an `uncompared` page, hand-made, is listed as not compared; a page
+  that is no journey's, by its own name, linked as a printed page is,
+  and a path with a `/` below its directory, or a name starting `.`, a
+  check that can't finish; a
   landing that changes no page still offers its verdict, with
   `Printed:`; a check that can't finish restores the written files,
   exit 1, nothing committed or offered; a value holding `<`, `&`, `"`
@@ -840,10 +867,17 @@ Focused and native: no box, browser or terminal starts.
   `hand-made`; a state the gallery's print lacks, `nothing printed
   beside it`; the gallery's print failing, exit 3; a page on one line
   paired a tag a line. No Chromium starts.
+- **The render check's lines, read back,** one step test in the same
+  library: the lines of a printed page and of a page that is no
+  journey's, written by `look-render`'s own writer (6.2, step 8) and
+  read by the writer's reader (6.3), each page and its verdict as
+  written, so that the two forms can't part. It asks no effect.
 - **The kit's reads** of Chromium, in skein's browser suite
   (`skein/docs/design/testing/browser.md`, 9), in the session its
   viewport story starts: written and compiled in the plan, run after
-  landing. None is in temper's browser tier.
+  landing. None is in temper's browser tier. The command's file access
+  (6.2, step 4) is held by the kit's step tests of its arguments
+  (browser.md, 9); the tool's host asks for it at every start.
 - **The comparison's decisions,** step tests in the same library, the
   `look-compare` command on canned answers (git's output and exit, the
   print's lines and exit, the files read), then its rows, stderr and
@@ -860,15 +894,29 @@ Focused and native: no box, browser or terminal starts.
   beside another, from an only remote, and refused, exit 2, with no
   remote or several and neither. Each of its effects is a value these
   steps answer, so its script has no witness.
-- **The look commands' git,** one test in the same library: each git
-  argument list the step tests of `look-compare`, `look-render` and
-  `look-refresh` record, run with real git in one scratch repository
-  that holds the commits and refs they name, since git refuses an
-  unknown revision before it reads the options. A list git answers
-  with its usage, exit 129, fails it, naming the list: the canned
-  answers can't see git refuse one. It is in the library's own tests,
-  which the plans' focused suite runs, at the user's word of
-  2026-11-25, as `skein-codegen`'s own tests run `git merge-file`.
+- **The look commands' git,** in two halves, so that each argument
+  list a step test of `look-compare`, `look-render` or `look-refresh`
+  asks is one real git has accepted:
+  - **Listed** in one file of the library's sources, each list under
+    the name of the step test that asks it. Each of those step tests
+    checks that the file's lists under its name are exactly the git
+    lists it asked, and one step test that every name the file holds
+    is one of theirs. A list missing or left over fails its test,
+    naming the line to add or remove. None runs git or another step
+    test.
+  - **Run** by one test among the witnesses, in
+    `temper-client-journeys`'s suite: each listed list, with real git
+    in one scratch repository that holds the commits and refs they
+    name, since git refuses an unknown revision before it reads the
+    options. A list git answers with its usage, exit 129, fails it,
+    naming the list: the canned answers can't see git refuse one.
+
+  It starts git once per list, a process test's cost, so it runs where
+  the witnesses run, at the user's word of 2026-11-26, and the step
+  tests, which every delivery that selects the library runs, stay
+  cheap. Turned down: running every look step test again to gather
+  the lists, which a test outside the library can't, and which made
+  the one test many times a step test's reference.
 - **Their witnesses,** in `temper-client-journeys`'s suite, the
   shipped scripts in scratch repositories with real git, a fake `cargo`
   first on `PATH` that runs the built tool for `-p
@@ -893,3 +941,7 @@ Focused and native: no box, browser or terminal starts.
   (`temper/tests/playground/tests/fixtures/`), another recording on main
   that the merge job regenerates (`tools/merge/README.md`): the same
   rule would have a test make it and no file keep it.
+- **The render check's reads kept to its copies:** with file access a
+  page reads any file its user may (6.2, step 4); the kit's `files`
+  could continue only the `file://` URLs below the check's scratch
+  directory.

@@ -312,6 +312,7 @@ fn goals_text(ended: bool, goals: &Answer, reports: &Answer, names: &SeeNames, l
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Document(_)
             | Answer::Ended(_)
             | Answer::Page(_) => {}
@@ -372,6 +373,7 @@ fn report_head(task: u64, reports: &Answer, project: u64) -> Box<[u8]> {
         | Answer::Revision(_)
         | Answer::Revisions(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Document(_)
         | Answer::Ended(_)
         | Answer::Page(_) => {}
@@ -386,6 +388,7 @@ fn report_head(task: u64, reports: &Answer, project: u64) -> Box<[u8]> {
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Document(_)
             | Answer::Ended(_)
             | Answer::None(_) => b"no report yet".as_slice().into(),
@@ -544,6 +547,7 @@ fn inbox_words(entry: &d::InboxEntry, words: &[SeeWords]) -> Option<Box<[u8]>> {
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Page(_)
             | Answer::None(_) => None,
         };
@@ -606,6 +610,7 @@ fn task_document(answer: &Answer) -> Option<&d::Task> {
         | Answer::Revision(_)
         | Answer::Revisions(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Page(_)
         | Answer::None(_) => None,
     }
@@ -703,6 +708,7 @@ fn task_text(
         | Answer::Revision(_)
         | Answer::Revisions(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Page(_)
         | Answer::None(_) => None,
     };

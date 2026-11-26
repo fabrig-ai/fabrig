@@ -1182,6 +1182,31 @@ fn world_in_layout(
                             ways::follows(&mut root, watch, &mut out);
                             continue;
                         }
+                        w::Watch::Decided(subject) if w == Solo => {
+                            let bytes = wire::decisions(&w::Decisions {
+                                project: subject.project,
+                                rows: List::with_capacity(0),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            });
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::FamilyDelivered {
+                                            watch,
+                                            record: jig_client::Family {
+                                                family: wire::FORGE,
+                                                version: wire::CLIENT_VERSION,
+                                                bytes,
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
+                            continue;
+                        }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Away
                         | w::Watch::Landing(_)
@@ -2012,6 +2037,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         | c::Read::History { .. }
         | c::Read::Spend { .. }
         | c::Read::Project { .. }
+        | c::Read::Waits { .. }
         | c::Read::Deployment => None,
     }
 }
@@ -2449,6 +2475,7 @@ fn goal_inbox(
             object,
             activity: Some(1),
             at,
+            bound: None,
             unread: Some(true),
             cursor,
         })
@@ -2478,6 +2505,7 @@ fn goal_inbox(
                 object,
                 activity: Some(1),
                 at: Some(offset(w, f.at)),
+                bound: None,
                 unread: Some(true),
                 cursor,
             })
@@ -2848,6 +2876,7 @@ impl GoalPage {
                         object,
                         activity: Some(1),
                         at: Some(goal_wall(w, -40)),
+                        bound: None,
                         unread: Some(true),
                         cursor,
                     })
@@ -4425,6 +4454,7 @@ fn inbox_window(w: World, window: u32) -> c::Inbox {
             object,
             activity: row.activity,
             at: row.at,
+            bound: None,
             unread: Some(true),
             cursor,
         };

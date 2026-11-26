@@ -140,10 +140,9 @@ fn page_path(path: &str) -> Option<(bool, &str)> {
         .strip_prefix("web/journeys/")
         .map(|path| (false, path))
         .or_else(|| path.strip_prefix("tui/journeys/").map(|path| (true, path)))?;
-    let (name, file) = path.1.split_once('/')?;
-    let number = file.strip_suffix(".html")?;
-    (!matches!(name, "" | "." | "..") && number.len() >= 2 && number.bytes().all(|byte| byte.is_ascii_digit()))
-        .then_some(path)
+    let (directory, file) = path.1.split_once('/')?;
+    file.strip_suffix(".html")?;
+    (!matches!(directory, "" | "." | "..") && !file.contains('/') && !file.starts_with('.')).then_some(path)
 }
 
 fn url_path(path: &str) -> String {
@@ -156,4 +155,53 @@ fn url_path(path: &str) -> String {
         }
     }
     url
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::look_render::tests::report_with_printed_and_hand_made_pages;
+
+    use super::{Render, page_path};
+
+    #[test]
+    fn page_paths_accept_only_html_files_directly_in_a_journey_directory() {
+        for (path, expected) in [
+            (
+                "web/journeys/usage-model-week/accounts-after.html",
+                Some((false, "usage-model-week/accounts-after.html")),
+            ),
+            ("tui/journeys/hand/notes.html", Some((true, "hand/notes.html"))),
+            ("web/journeys/welcome/01.html", Some((false, "welcome/01.html"))),
+            ("web/journeys/J/sub/page.html", None),
+            ("web/journeys/J/.hidden.html", None),
+            ("web/journeys/J/page.htm", None),
+            ("web/journeys/../x.html", None),
+            ("web/journeys/./x.html", None),
+            ("web/journeys//x.html", None),
+            ("web/journeys/x.html", None),
+            ("other/journeys/J/page.html", None),
+        ] {
+            assert_eq!(page_path(path), expected, "{path}");
+        }
+    }
+
+    #[test]
+    fn look_render_reports_round_trip_printed_and_hand_made_pages() {
+        let bytes = report_with_printed_and_hand_made_pages();
+        let render = Render::read(&bytes).expect("writer reads look-render's report");
+        assert_eq!(render.result, "differs");
+        let mut html = String::new();
+        render.html(&mut html, false);
+        assert_eq!(
+            html,
+            concat!(
+                "<h3><a href=\"usage-model-week/accounts-after.html\">web/journeys/usage-model-week/accounts-after.html</a></h3>",
+                "<p>not compared: hand-made</p>",
+                "<h3><a href=\"welcome/01.html\">web/journeys/welcome/01.html</a></h3>",
+                "<table><thead><tr><th>Width</th><th>Element</th><th>Property</th><th>Requested</th><th>Landed</th></tr></thead><tbody>",
+                "<tr><td>1440</td><td>41 button.temper-chip</td><td>color</td><td>red</td><td>blue</td></tr>",
+                "</tbody></table>",
+            ),
+        );
+    }
 }

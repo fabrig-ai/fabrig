@@ -18,6 +18,7 @@ fn selected(value: &c::ReadValue) -> &c::Proposal {
         | c::ReadValue::Revisions(_)
         | c::ReadValue::TaskText(_)
         | c::ReadValue::Tasks(_)
+        | c::ReadValue::Waits(_)
         | c::ReadValue::Project(_)
         | c::ReadValue::Ended(_)
         | c::ReadValue::Me(_)

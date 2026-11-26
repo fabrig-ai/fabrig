@@ -1,4 +1,4 @@
-41 · question 2
+41 · question 2 · since 1970-01-01 00:00 UTC
 42 · result
 digest: inbox 4216384af591a7ec
 read on with: inbox --after 011122

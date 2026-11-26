@@ -29,7 +29,7 @@ fn startup_names_the_public_kinds_and_private_parts() {
         [(2, 1, 4, true), (2, 2, 4, false), (2, 3, 4, true)]
     );
     assert_eq!(expected.map(|kind| kind.layout), [temper_client_protocol_wire::PUBLIC_LAYOUT; 3]);
-    assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 8716]);
+    assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 8718]);
 }
 #[test]
 fn a_public_read_and_its_answer_cross_the_root_boundary() {

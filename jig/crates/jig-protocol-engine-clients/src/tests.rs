@@ -24,6 +24,8 @@ mod objects;
 
 #[path = "tests/pages.rs"]
 mod pages;
+#[path = "tests/project_waits.rs"]
+mod project_waits;
 
 #[path = "tests/reads.rs"]
 mod reads;

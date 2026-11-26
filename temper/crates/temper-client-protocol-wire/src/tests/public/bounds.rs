@@ -121,6 +121,7 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
         members.push(member(limits)).unwrap();
     }
     w::PublicLanding {
+        wait: Some(w::PublicLandingWait::Release),
         search: Some(w::PublicSearch {
             green: w::PublicSearchBound { member: 0, prefix: [255; 32] },
             red: w::PublicSearchBound { member: u16::MAX, prefix: [255; 32] },
@@ -233,5 +234,5 @@ fn public_limits_follow_the_panels() {
         (crate::PUBLIC_VERSION, crate::PUBLIC_CHANGE, crate::PUBLIC_LANDINGS, crate::PUBLIC_LANDING),
         (4, 1, 2, 3)
     );
-    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8716]);
+    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8718]);
 }

@@ -667,6 +667,7 @@ the public tasks jig's core hands it with the ask:
   | a gate's number, kind, whether it blocks, verdict | the landing rule's gates and their verdicts | never the gate's name |
   | counts used and allowed, stale proofs | the change's and landing's counters | public members alone |
   | when it became ready | the change's `ready_since` | to the second |
+  | a live landing's wait | the landing's latest wait (`../../domain/landing-waits.md`, 2) | its name alone, never what it names: no change, gate, run or landing, no since or bound |
 
 ### 9.4 Their records and golden
 

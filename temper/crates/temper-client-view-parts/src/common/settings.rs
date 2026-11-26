@@ -149,6 +149,7 @@ pub fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
         | Address::Settings { .. }

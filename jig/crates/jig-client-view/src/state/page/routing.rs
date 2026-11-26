@@ -459,6 +459,7 @@ pub(crate) fn read_result(
             false
         }
         Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Me
         | Read::Task { .. }
         | Read::Proposal { .. }
@@ -556,6 +557,7 @@ fn read_value(
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::TaskText(_)
+        | ReadValue::Waits(_)
         | ReadValue::Revisions(_) => {}
         ReadValue::Project(value) => crate::state::page::project::owner_document(domain, value),
         ReadValue::Notes(page) => crate::state::page::project::notes::page(domain, source, *page),
@@ -624,6 +626,7 @@ fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> b
         ReadResult::Value(value) => match value {
             ReadValue::Project(value) => value,
             ReadValue::Tasks(_)
+            | ReadValue::Waits(_)
             | ReadValue::Me(_)
             | ReadValue::Ended(_)
             | ReadValue::Task(_)
@@ -654,6 +657,7 @@ fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> b
     match &read.what {
         Read::Project { project } => *project == value.number,
         Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Me
         | Read::Task { .. }
         | Read::Proposal { .. }
@@ -690,6 +694,7 @@ fn owner_inbox_read_valid(
         ReadResult::Value(value) => match value {
             ReadValue::Inbox(page) => page,
             ReadValue::Tasks(_)
+            | ReadValue::Waits(_)
             | ReadValue::Me(_)
             | ReadValue::Task(_)
             | ReadValue::Ended(_)
@@ -720,6 +725,7 @@ fn owner_inbox_read_valid(
     let group = match &read.what {
         Read::Inbox { group, .. } => *group,
         Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Me
         | Read::Task { .. }
         | Read::Proposal { .. }
@@ -784,6 +790,7 @@ fn received_value(
                 }
             }
             Read::Tasks { .. }
+            | Read::Waits { .. }
             | Read::Me
             | Read::Task { .. }
             | Read::Proposal { .. }
@@ -815,6 +822,7 @@ fn received_value(
             let group = match &query {
                 Read::Inbox { group, .. } => *group,
                 Read::Tasks { .. }
+                | Read::Waits { .. }
                 | Read::Me
                 | Read::Task { .. }
                 | Read::Proposal { .. }
@@ -843,6 +851,7 @@ fn received_value(
             domain.changed();
         }
         ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Me(_)
         | ReadValue::Task(_)
         | ReadValue::Ended(_)
@@ -966,6 +975,7 @@ fn ended_read_valid(domain: &Ui, token: Token, result: &ReadResult, lent: &jig_c
             ended_funders_fit(page, project)
         }
         ReadValue::Tasks(_)
+        | ReadValue::Waits(_)
         | ReadValue::Me(_)
         | ReadValue::Task(_)
         | ReadValue::Ended(_)
@@ -992,6 +1002,7 @@ fn ended_read_task(what: &Read) -> Option<u64> {
     match what {
         Read::Ended { task, .. } => Some(*task),
         Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Me
         | Read::Task { .. }
         | Read::Proposal { .. }
@@ -1020,6 +1031,7 @@ fn spend_read_project(what: &Read) -> Option<u32> {
     match what {
         Read::Spend { project, .. } => Some(*project),
         Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Me
         | Read::Task { .. }
         | Read::Proposal { .. }
@@ -1064,6 +1076,7 @@ fn owner_escalation_read_valid(domain: &Ui, token: Token, result: &ReadResult, l
         ReadResult::Value(ReadValue::Escalation(document)) => document,
         ReadResult::Value(
             ReadValue::Tasks(_)
+            | ReadValue::Waits(_)
             | ReadValue::Me(_)
             | ReadValue::Task(_)
             | ReadValue::Ended(_)
@@ -1094,6 +1107,7 @@ fn owner_escalation_read_valid(domain: &Ui, token: Token, result: &ReadResult, l
     let task = match read.what {
         Read::Escalation { task } => task,
         Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Me
         | Read::Task { .. }
         | Read::Proposal { .. }

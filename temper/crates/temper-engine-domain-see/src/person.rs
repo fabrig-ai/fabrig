@@ -90,6 +90,7 @@ fn goal_rows(mut part: Part) -> Part {
         }
         Part::Jig(
             Answer::TaskText(_)
+            | Answer::Waits(_)
             | Answer::Setting(_)
             | Answer::Revision(_)
             | Answer::Revisions(_)
@@ -231,6 +232,7 @@ fn question(address: &Address, gathered: &Gathered) -> Option<(u64, u64)> {
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Document(_)
             | Answer::Ended(_)
             | Answer::None(_),
@@ -282,6 +284,7 @@ fn refused(part: &Part) -> Option<SeeNotRead> {
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Document(_)
             | Answer::Ended(_)
             | Answer::Page(_),
@@ -330,6 +333,7 @@ fn tracked(part: &Part) -> bool {
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Page(_)
             | Answer::None(_),
         )
@@ -399,6 +403,7 @@ fn forge(part: Option<Part>) -> Option<Box<forge::Document>> {
             | Answer::Revision(_)
             | Answer::Revisions(_)
             | Answer::Tasks(_)
+            | Answer::Waits(_)
             | Answer::Document(_)
             | Answer::Ended(_)
             | Answer::Page(_),

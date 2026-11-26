@@ -439,6 +439,19 @@ fn overlay(requested: &str) -> Effects {
     steps
 }
 
+pub(crate) fn report_with_printed_and_hand_made_pages() -> Vec<u8> {
+    use super::{Page, PageReport, Report};
+
+    let hand_made = Page::from_path(DRAWN_PAGE).expect("hand-made HTML page");
+    let printed = Page::from_path("temper/docs/design/client/web/journeys/welcome/01.html").expect("printed HTML page");
+    let mut report = Report::default();
+    report.uncompared(&hand_made, "hand-made");
+    let mut differences = PageReport::default();
+    differences.difference(&printed.item(), "1440", "41 button.temper-chip", b"color", (b"red", b"blue"));
+    report.compared(&printed, differences);
+    report.finish()
+}
+
 look_step_tests! {
 #[test]
 fn a_locally_held_request_is_render_checked_without_fetching() {

@@ -190,12 +190,29 @@ time ahead of the engine's reads `0s`.
   time in nanoseconds; `turn_since`, when the holder's turn began, or
   null; and, on each landing, `step`, null once ended, and
   `last_event`, its time or null.
+- **A wait's since and bound** (`../draft/bounded-waits.md`, 9): a
+  live landing's wait in `landing show` and in each live line of
+  `landing list` carries the *since* and the bound the forge reports to
+  jig for it (`forge/waits.md`, 5), from the one computation that makes
+  the report, so the two never disagree. The list's line goes on after
+  STEP with ` · since WALL · BOUND`, and `landing show`'s `waits for:`
+  line with the same, BOUND and the walls as ctl prints a wait's
+  (`../client/ctl/results.md`, 1, *`waits:`*). A wait the forge reports
+  none for (a live prepare, which is jig's `delegate` wait; a held
+  landing's release) prints neither. The forge's panels carry them
+  beside the wait, the landing's line its wait too: since and bound as
+  optional fields with their defaults, none, the bound in the forms
+  jig's record gives it (an instant and what happens then, or none and
+  why), since the forge family's wire names no record of jig's.
 - **`landing show`:** a line `waits for: WORDS`, after its round or its
   heading where it has none, in section 2's words, for a live landing.
   Its JSON adds `waits`: null once ended, otherwise `{"for": WAIT,
-  "change": C, "gate": NAME, "run": RUN, "landing": L}`, WAIT the
-  table's first column (`room` for the top's) or `nothing`, each other
-  field null where its words name none. A landing held past its wait on
+  "change": C, "gate": NAME, "run": RUN, "landing": L, "since": S,
+  "bound": B}`, WAIT the table's first column (`room` for the top's) or
+  `nothing`, S a wall in nanoseconds and B a bound as ctl's JSON prints
+  one (`../client/ctl/results.md`, 2), each other field null where its
+  words name none. `landing list`'s JSON adds `waits` to each landing in
+  the same form, null once ended. A landing held past its wait on
   the forge's bound (section 3) says `held: ` and the hold's words above
   it, `held: read: WHAT, for change C: WHY; ...`, as each other hold names
   its cause; the hold's kind is `read`, its words kept with it, a kind
@@ -227,7 +244,14 @@ time ahead of the engine's reads `0s`.
   A run a release, the landing's end or a restart ends logs no second
   line. A hold logs its line once.
 
+- **The public landing** shows a live landing's wait by its name alone,
+  the table's first column in section 2, with no since, bound or age
+  and nothing it names (`../client/web/public.md`, 3;
+  `../client/forge/README.md`, 9.3), on the user's word of 2026-11-24
+  (`../draft/bounded-waits.md`, 9). Its public record carries the name
+  as a field with its default, none.
+
 ## 5. Open questions
 
-- **The public landing,** a person's page of it, shows no wait or age;
-  whether it should is a later choice.
+- **A public landing's age:** whether a visitor sees how long a landing
+  has waited, as `landing list` shows it, is a later choice.

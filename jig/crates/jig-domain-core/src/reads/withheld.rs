@@ -79,6 +79,7 @@ pub(crate) fn person_answer(answer: Answer) -> Answer {
         | Answer::Revision(_)
         | Answer::Revisions(_)
         | Answer::Tasks(_)
+        | Answer::Waits(_)
         | Answer::Document(_)
         | Answer::None(_)) => answer,
     }

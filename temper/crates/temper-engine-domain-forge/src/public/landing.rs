@@ -4,9 +4,38 @@ use crate::{
     Check, Domain, PrefixJudgement, ReceiptKey,
     generated::public::{public_combined_to_record, public_judgement_to_record},
 };
+use policy::Awaited;
 use skein_lib::List;
 use temper_client_protocol_wire::v1::Record;
 impl Domain {
+    fn public_landing_wait(&self, row: &policy::Landing) -> Option<w::PublicLandingWait> {
+        if crate::views::is_ended(&row.phase) {
+            return None;
+        }
+        let kept = self.landing.rows.get(&row.task)?;
+        if kept.room.is_some() {
+            return Some(w::PublicLandingWait::Room);
+        }
+        Some(match kept.waiting? {
+            Awaited::Release => w::PublicLandingWait::Release,
+            Awaited::Ready { .. } => w::PublicLandingWait::Ready,
+            Awaited::Turn => w::PublicLandingWait::Turn,
+            Awaited::Prepare => w::PublicLandingWait::Prepare,
+            Awaited::Prefixes => w::PublicLandingWait::Prefixes,
+            Awaited::Open => w::PublicLandingWait::Open,
+            Awaited::Close => w::PublicLandingWait::Close,
+            Awaited::Delete { .. } => w::PublicLandingWait::Delete,
+            Awaited::Post { .. } => w::PublicLandingWait::Post,
+            Awaited::Run { .. } => w::PublicLandingWait::Run,
+            Awaited::Receipt { .. } => w::PublicLandingWait::Receipt,
+            Awaited::Judgement { .. } => w::PublicLandingWait::Judgement,
+            Awaited::Merge => w::PublicLandingWait::Merge,
+            Awaited::Record { .. } => w::PublicLandingWait::Record,
+            Awaited::Ancestry { .. } => w::PublicLandingWait::Ancestry,
+            Awaited::Read => w::PublicLandingWait::Read,
+        })
+    }
+
     pub(super) fn make_landing(&self, row: &policy::Landing, names: &mut Names) -> Option<w::PublicLanding> {
         let l = &w::CEILINGS;
         let mut members = List::with_capacity(l.public_landing_members);
@@ -47,6 +76,7 @@ impl Domain {
         }
         {
             let value = w::PublicLanding {
+                wait: self.public_landing_wait(row),
                 search: match &row.round.search {
                     Some(search) => Some(w::PublicSearch {
                         green: search_bound(row, search.green)?,

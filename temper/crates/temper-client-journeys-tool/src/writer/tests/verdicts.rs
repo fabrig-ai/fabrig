@@ -133,13 +133,28 @@ pub(super) fn start_with_print(code: i32, lines: &str, landings: &[(&str, &[&str
     script
 }
 
-#[test]
-fn a_landing_without_page_changes_still_offers_its_escaped_verdict() {
-    let mut script = start_with_print(0, FRESH, &[(TIP, &[NAME])]);
+fn with_web_render(print: &str, report: &str) -> Script {
+    let mut script = start_with_print(0, print, &[(TIP, &[NAME])]);
     script.blob(TIP, WEB_LOOKS, None);
     script.request();
-    script.render(
-        0,
+    script.render(0, report);
+    script
+}
+
+impl Script {
+    fn offers_web_verdict(mut self, result: &str, detail: &str) {
+        let html = section(NAME, REQUEST, TIP, result, detail);
+        self.write(&format!("{CHECKOUT}/{WEB_LOOKS}"), &page(&html));
+        let line = format!("checked {NAME}: {result}");
+        self.verdict_only(WEB_LOOKS, &line);
+        self.locked_run(PROJECT, 0, &format!("{FRESH}{line}\nwrote {BRANCH} {COMMIT}\n"), "");
+    }
+}
+
+#[test]
+fn a_landing_without_page_changes_still_offers_its_escaped_verdict() {
+    let script = with_web_render(
+        FRESH,
         concat!(
             "uncompared\tweb/journeys/old/01.html\thand-made\n",
             "differs\tweb/journeys/welcome/01.html\t1440\t41 button.temper-chip\tcontent\t<>&\"\\t\\\\\tlanded\n",
@@ -152,11 +167,28 @@ fn a_landing_without_page_changes_still_offers_its_escaped_verdict() {
         "<table>\n<thead>\n<tr>\n<th>Width</th>\n<th>Element</th>\n<th>Property</th>\n<th>Requested</th>\n<th>Landed</th>\n</tr>\n</thead>\n<tbody>\n",
         "<tr>\n<td>1440</td>\n<td>41 button.temper-chip</td>\n<td>content</td>\n<td>&lt;&gt;&amp;&quot;\t\\</td>\n<td>landed</td>\n</tr>\n</tbody>\n</table>\n",
     );
-    let html = section(NAME, REQUEST, TIP, "differs", detail);
-    script.write(&format!("{CHECKOUT}/{WEB_LOOKS}"), &page(&html));
-    let line = format!("checked {NAME}: differs");
-    script.verdict_only(WEB_LOOKS, &line);
-    script.locked_run(PROJECT, 0, &format!("{FRESH}{line}\nwrote {BRANCH} {COMMIT}\n"), "");
+    script.offers_web_verdict("differs", detail);
+}
+
+#[test]
+fn a_hand_made_pages_verdict_links_its_own_file() {
+    let script = with_web_render(
+        FRESH,
+        "uncompared\tweb/journeys/usage-model-week/accounts-after.html\thand-made\nresult\tnot compared\n",
+    );
+    let detail = concat!(
+        "<h3><a href=\"usage-model-week/accounts-after.html\">web/journeys/usage-model-week/accounts-after.html</a></h3>\n",
+        "<p>not compared: hand-made</p>\n",
+    );
+    script.offers_web_verdict("not compared", detail);
+}
+
+#[test]
+fn a_nested_report_path_restores_both_roots_without_finishing_or_offering() {
+    let mut script =
+        with_web_render(super::PRINTED, "uncompared\tweb/journeys/J/sub/page.html\thand-made\nresult\tnot compared\n");
+    script.restore_journeys();
+    script.locked_run(PROJECT, 1, super::PRINTED, "journey-pages: invalid look-render page path\n");
 }
 
 #[test]

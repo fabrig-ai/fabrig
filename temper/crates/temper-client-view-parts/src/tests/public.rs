@@ -444,3 +444,39 @@ fn a_retained_companion_has_its_own_read_time() {
     assert!(has_text(&view, b"Not available just now."));
     assert!(!has_text(&view, b"As of 00:00"));
 }
+
+#[test]
+fn the_public_page_words_a_live_wait_without_its_object() {
+    use temper_client_protocol_wire::public_v1 as w;
+    use w::Record;
+    for (phase, wait, expected) in [
+        (w::PublicLandingPhase::Proving, Some(w::PublicLandingWait::Run), Some(b"Waits for: a gate's run".as_slice())),
+        (w::PublicLandingPhase::Waiting, Some(w::PublicLandingWait::Turn), Some(b"Waits for: the turn".as_slice())),
+        (w::PublicLandingPhase::Waiting, None, None),
+        (w::PublicLandingPhase::Landed, Some(w::PublicLandingWait::Run), None),
+    ] {
+        let landing = w::PublicLanding {
+            wait,
+            phase,
+            hold: None,
+            preparation: 0,
+            members: List::with_capacity(0),
+            stale_proofs: 0,
+            holds_turn: false,
+            combined: None,
+            step: None,
+            search: None,
+        };
+        let body = records::application(landing.encode(&w::CEILINGS).unwrap());
+        let page = render(Public::Landing { project: PROJECT, task: TASK }, &[(Doc::ForgeLanding, body)], 0);
+        let runs = text_runs(page.tree().nodes());
+        let mut line = None;
+        for text in runs {
+            if text.starts_with(b"Waits for:") {
+                assert!(line.is_none(), "only one wait");
+                line = Some(text);
+            }
+        }
+        assert_eq!(line, expected);
+    }
+}

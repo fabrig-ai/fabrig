@@ -481,8 +481,8 @@ fn valid_duration(spec: &Argument, value: &Value, argument: u8, limits: &Limits)
     let Value::Duration(duration) = value else {
         return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
-    if let Bound::Seconds { most } = bound(spec, limits)
-        && *duration > Duration::from_secs(most)
+    if let Bound::Seconds { least, most } = bound(spec, limits)
+        && (*duration < Duration::from_secs(least) || *duration > Duration::from_secs(most))
     {
         return Err(Usage::Rows { tool: 0, form: 0, argument });
     }

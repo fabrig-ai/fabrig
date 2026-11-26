@@ -8,8 +8,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 4;
 pub const LAYOUT: [u8; 32] = [
-    0x7a, 0x82, 0x31, 0x63, 0xd0, 0x03, 0xfb, 0x93, 0xdf, 0x40, 0x98, 0xd6, 0x83, 0x07, 0xe1, 0xa6, 0xbd, 0x42, 0xf9,
-    0x1b, 0x80, 0x15, 0x5f, 0x88, 0x2f, 0xdc, 0x8b, 0xf2, 0x6c, 0xb9, 0xb4, 0xb8,
+    0xb5, 0x51, 0x7d, 0x91, 0x2c, 0xb4, 0x1a, 0x8b, 0x65, 0x65, 0xd4, 0xdc, 0x73, 0xb6, 0x41, 0xfe, 0x76, 0x69, 0x42,
+    0x2b, 0x58, 0x95, 0x47, 0x5a, 0x14, 0x24, 0xc0, 0x4d, 0x91, 0x2b, 0x5f, 0x36,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -192,6 +192,7 @@ pub mod paths {
     pub const PUBLIC_MEMBER_LEFT: Path = Path::new("PublicMember.left");
     pub const PUBLIC_MEMBER_JUDGEMENT: Path = Path::new("PublicMember.judgement");
     pub const PUBLIC_MEMBER_TAIL: Path = Path::new("PublicMember (tail)");
+    pub const PUBLIC_LANDING_WAIT_TAG: Path = Path::new("PublicLandingWait (tag)");
     pub const PUBLIC_LANDING_PHASE: Path = Path::new("PublicLanding.phase");
     pub const PUBLIC_LANDING_HOLD: Path = Path::new("PublicLanding.hold");
     pub const PUBLIC_LANDING_PREPARATION: Path = Path::new("PublicLanding.preparation");
@@ -201,6 +202,7 @@ pub mod paths {
     pub const PUBLIC_LANDING_COMBINED: Path = Path::new("PublicLanding.combined");
     pub const PUBLIC_LANDING_STEP: Path = Path::new("PublicLanding.step");
     pub const PUBLIC_LANDING_SEARCH: Path = Path::new("PublicLanding.search");
+    pub const PUBLIC_LANDING_WAIT: Path = Path::new("PublicLanding.wait");
     pub const PUBLIC_LANDING_VERSION: Path = Path::new("PublicLanding (version)");
     pub const PUBLIC_LANDING_TAIL: Path = Path::new("PublicLanding (tail)");
 }
@@ -2098,6 +2100,123 @@ impl Record for PublicMember {
     }
 }
 
+// Type: PublicLandingWait.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum PublicLandingWait {
+    Release,
+    Ready,
+    Turn,
+    Prepare,
+    Prefixes,
+    Open,
+    Close,
+    Delete,
+    Post,
+    Run,
+    Receipt,
+    Judgement,
+    Merge,
+    Record,
+    Ancestry,
+    Read,
+    Room,
+}
+
+// Record: PublicLandingWait.
+impl PublicLandingWait {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for PublicLandingWait {
+    type Limits = Limits;
+    const TAIL: Path = paths::PUBLIC_LANDING_WAIT_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingWait")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingWait")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Release => field::put(out, &[0], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Ready => field::put(out, &[1], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Turn => field::put(out, &[2], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Prepare => field::put(out, &[3], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Prefixes => field::put(out, &[4], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Open => field::put(out, &[5], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Close => field::put(out, &[6], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Delete => field::put(out, &[7], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Post => field::put(out, &[8], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Run => field::put(out, &[9], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Receipt => field::put(out, &[10], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Judgement => field::put(out, &[11], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Merge => field::put(out, &[12], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Record => field::put(out, &[13], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Ancestry => field::put(out, &[14], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Read => field::put(out, &[15], paths::PUBLIC_LANDING_WAIT_TAG),
+            Self::Room => field::put(out, &[16], paths::PUBLIC_LANDING_WAIT_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::PUBLIC_LANDING_WAIT_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Release),
+            1 => Ok(Self::Ready),
+            2 => Ok(Self::Turn),
+            3 => Ok(Self::Prepare),
+            4 => Ok(Self::Prefixes),
+            5 => Ok(Self::Open),
+            6 => Ok(Self::Close),
+            7 => Ok(Self::Delete),
+            8 => Ok(Self::Post),
+            9 => Ok(Self::Run),
+            10 => Ok(Self::Receipt),
+            11 => Ok(Self::Judgement),
+            12 => Ok(Self::Merge),
+            13 => Ok(Self::Record),
+            14 => Ok(Self::Ancestry),
+            15 => Ok(Self::Read),
+            16 => Ok(Self::Room),
+            17..=u8::MAX => Err(Problem { path: paths::PUBLIC_LANDING_WAIT_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: PublicLanding.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PublicLanding {
@@ -2110,6 +2229,7 @@ pub struct PublicLanding {
     pub combined: Option<PublicCombined>,
     pub step: Option<PublicLandingStep>,
     pub search: Option<PublicSearch>,
+    pub wait: Option<PublicLandingWait>,
 }
 
 // Record: PublicLanding.
@@ -2129,11 +2249,13 @@ impl PublicLanding {
         skein_codec::bounds::Node::Option { item: 10 },
         skein_codec::bounds::Node::Named("PublicSearch"),
         skein_codec::bounds::Node::Option { item: 12 },
-        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 5, 6, 7, 9, 11, 13] },
+        skein_codec::bounds::Node::Named("PublicLandingWait"),
+        skein_codec::bounds::Node::Option { item: 14 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 5, 6, 7, 9, 11, 13, 15] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 124;
+    pub const ENCODED_AT_ZERO: u64 = 126;
 }
 
 impl Record for PublicLanding {
@@ -2168,6 +2290,7 @@ impl Record for PublicLanding {
         field::write(field::Optional { item: field::Nested }, &self.combined, limits, out, paths::PUBLIC_LANDING_COMBINED)?;
         field::write(field::Optional { item: field::Nested }, &self.step, limits, out, paths::PUBLIC_LANDING_STEP)?;
         field::write(field::Optional { item: field::Nested }, &self.search, limits, out, paths::PUBLIC_LANDING_SEARCH)?;
+        field::write(field::Optional { item: field::Nested }, &self.wait, limits, out, paths::PUBLIC_LANDING_WAIT)?;
         Ok(())
     }
 
@@ -2183,6 +2306,7 @@ impl Record for PublicLanding {
             combined: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PUBLIC_LANDING_COMBINED)?,
             step: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PUBLIC_LANDING_STEP)?,
             search: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PUBLIC_LANDING_SEARCH)?,
+            wait: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PUBLIC_LANDING_WAIT)?,
         })
     }
 }
@@ -2204,6 +2328,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "PublicLandingLine", nodes: PublicLandingLine::SHAPE },
     skein_codec::bounds::Declaration { name: "PublicLandingPhase", nodes: PublicLandingPhase::SHAPE },
     skein_codec::bounds::Declaration { name: "PublicLandingStep", nodes: PublicLandingStep::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLandingWait", nodes: PublicLandingWait::SHAPE },
     skein_codec::bounds::Declaration { name: "PublicLandings", nodes: PublicLandings::SHAPE },
     skein_codec::bounds::Declaration { name: "PublicLeave", nodes: PublicLeave::SHAPE },
     skein_codec::bounds::Declaration { name: "PublicMember", nodes: PublicMember::SHAPE },

@@ -1,6 +1,7 @@
 //! temper's addresses and the pages' filters (client/pages/README.md), and their paths (client/web/addresses.md, 1).
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Writer};
+use jig_client::contract::WaitKind;
+use skein_lib::{Decimal, Writer, bytes::concat};
 /// Jig's raw authorization query ceiling, shared with its wire codec.
 pub const QUERY_BYTES: u32 = jig_client_protocol_wire::CEILINGS.authorize_query;
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,6 +21,7 @@ pub enum Address {
     AllHome,
     Goals { project: u32, filter: GoalsFilter },
     Changes { project: u32 },
+    Waits { project: u32, filter: WaitsFilter },
     Settings { project: u32 },
     Repositories { project: u32 },
     Models { project: u32 },
@@ -93,6 +95,18 @@ pub enum WorkFilter {
     All,
     Drafts,
 }
+/// A project's live waits (temper/docs/design/client/pages/waits.md, 1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WaitsFilter {
+    pub kind: Option<WaitKind>,
+    pub mine: bool,
+    pub due: Option<u32>,
+}
+impl WaitsFilter {
+    pub const ALL: Self = Self { kind: None, mine: false, due: None };
+}
+const WAIT_DUE_MAX: u32 = 2_592_000;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Filter {
     pub project: Option<u32>,
@@ -166,7 +180,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             return if *draft { b"/chats/new?draft=1".as_slice().into() } else { b"/chats/new".as_slice().into() };
         }
         Address::Talk { project, task } => {
-            return skein_lib::bytes::concat(&[
+            return concat(&[
                 b"/projects/",
                 Decimal::of(u64::from(*project)).as_bytes(),
                 b"/talk/",
@@ -179,7 +193,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Work { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"work".as_slice()),
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
         Address::Team { project, role: Some(role) } => {
-            return skein_lib::bytes::concat(&[
+            return concat(&[
                 b"/projects/",
                 Decimal::of(u64::from(*project)).as_bytes(),
                 b"/team?role=",
@@ -189,6 +203,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Team { project, role: None } => {
             (b"projects".as_slice(), Some(u64::from(*project)), b"team".as_slice())
         }
+        Address::Waits { project, filter } => return print_waits(*project, *filter),
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
         Address::Models { project } => {
@@ -198,7 +213,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/builders".as_slice())
         }
         Address::Role { project, charter } => {
-            return skein_lib::bytes::concat(&[
+            return concat(&[
                 b"/projects/",
                 Decimal::of(u64::from(*project)).as_bytes(),
                 b"/settings/roles/",
@@ -206,7 +221,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             ]);
         }
         Address::Rule { project, kind, number } => {
-            return skein_lib::bytes::concat(&[
+            return concat(&[
                 b"/projects/",
                 Decimal::of(u64::from(*project)).as_bytes(),
                 b"/settings/rules/",
@@ -341,6 +356,10 @@ pub fn parse(path: &[u8]) -> Place {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Team { project, role: parse_team(fields) }
         }
+        (b"projects", _, b"waits") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Waits { project, filter: parse_waits(fields) }
+        }
         (b"projects", _, b"changes") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Changes { project }
@@ -414,6 +433,86 @@ fn parse_chats(query: &[u8]) -> ChatsFilter {
                 b"state=closed" => ChatsFilter::Closed,
                 _ => ChatsFilter::All,
             };
+        }
+    }
+    filter
+}
+
+const WAIT_KINDS: [(WaitKind, &[u8]); 12] = [
+    (WaitKind::Party, b"party"),
+    (WaitKind::Question, b"question"),
+    (WaitKind::Dependency, b"dependency"),
+    (WaitKind::Resource, b"resource"),
+    (WaitKind::Account, b"account"),
+    (WaitKind::Host, b"host"),
+    (WaitKind::Delegate, b"delegate"),
+    (WaitKind::News, b"news"),
+    (WaitKind::Step, b"step"),
+    (WaitKind::Room, b"room"),
+    (WaitKind::Turn, b"turn"),
+    (WaitKind::SignOff, b"sign-off"),
+];
+
+fn print_waits(project: u32, filter: WaitsFilter) -> Box<[u8]> {
+    let mut kind = b"".as_slice();
+    for (value, name) in WAIT_KINDS {
+        if filter.kind == Some(value) {
+            kind = name;
+            break;
+        }
+    }
+    let due = Decimal::of(u64::from(filter.due.unwrap_or(0)));
+    concat(&[
+        b"/projects/",
+        Decimal::of(u64::from(project)).as_bytes(),
+        b"/waits",
+        if kind.is_empty() { b"" } else { b"?kind=" },
+        kind,
+        if !filter.mine {
+            b""
+        } else if kind.is_empty() {
+            b"?mine=1"
+        } else {
+            b"&mine=1"
+        },
+        if filter.due.is_none() {
+            b""
+        } else if kind.is_empty() && !filter.mine {
+            b"?due="
+        } else {
+            b"&due="
+        },
+        if filter.due.is_some() { due.as_bytes() } else { b"" },
+    ])
+}
+
+fn parse_waits(query: &[u8]) -> WaitsFilter {
+    let mut filter = WaitsFilter::ALL;
+    let mut rest = query;
+    for _ in 0..query.len() {
+        if rest.is_empty() {
+            break;
+        }
+        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
+        let field = rest.get(..end).expect("separator in query");
+        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
+        if field == b"mine=1" {
+            filter.mine = true;
+        } else if filter.kind.is_none()
+            && let Some(name) = field.strip_prefix(b"kind=")
+        {
+            for (kind, key) in WAIT_KINDS {
+                if name == key {
+                    filter.kind = Some(kind);
+                    break;
+                }
+            }
+        } else if filter.due.is_none()
+            && let Some(value) = field.strip_prefix(b"due=")
+            && let Some(seconds) = natural(value)
+            && seconds <= WAIT_DUE_MAX
+        {
+            filter.due = Some(seconds);
         }
     }
     filter

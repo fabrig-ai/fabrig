@@ -222,6 +222,12 @@ borrows the goal page's header and two columns, their classes and look
     its `Task` and its state's word, a waiting goal's being what it waits
     on, "waits on S6" (`work.md`, 1, *Goals*), in its token; under it its
     headline, `temper-goal-facts`, its report's where read or its row's;
+    then, where its line names a first wait (jig's
+    `domain/engine/waits.md`, 4), `temper-goal-wait`: that wait in a
+    wait's words (`waits.md`, 2), with its own bound and no hearer, led
+    by "TN: " where it waits at a task under the goal, "T833: question 3
+    at you · waiting 2 h · passes up in 20 min"
+    (`../../draft/bounded-waits.md`, 9);
   - its ended goals in folds, `Role::Disclosure` and
     `temper-goal-landed-fold`, folded: "N done", "N failed" and "N
     closed", each while above zero, each holding its goals' lines, newest

@@ -462,12 +462,19 @@ pub fn domain(name: &str) -> Domain {
 
 fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
     match name {
-        "needs-stop-asking" | "needs-stop-asking-set" => driver::step(
-            root,
-            Event::Act { action: Action::Pages(Act::StopAsking(stop_asking::Act::Open { object: object(1) })) },
-            out,
-        ),
+        "needs-stop-asking" | "needs-stop-asking-set" => {
+            let object = object(1);
+            act(root, needs::Act::Open { object }, out);
+            driver::step(
+                root,
+                Event::Act { action: Action::Pages(Act::StopAsking(stop_asking::Act::Open { object })) },
+                out,
+            );
+        }
         "needs-list-second" | "needs-tell" => {
+            if name == "needs-tell" {
+                act(root, needs::Act::Open { object: object(1) }, out);
+            }
             let sample = crate::samples::Sample {
                 name: "needs-list",
                 world: World::Solo,
@@ -501,11 +508,14 @@ fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
             driver::step(root, Event::Act { action }, out);
         }
         "needs-approval-first" => act(root, needs::Act::Open { object: c::ObjectKey::Task(81) }, out),
-        "needs-reply-open" => act(root, needs::Act::OpenReply { object: object(1) }, out),
-        "needs-second-answered" => {
-            act(root, needs::Act::Choose { object: object(1), words: "In jig’s store".as_bytes().into() }, out);
+        "needs-plain-words" | "needs-proposal" | "needs-saw-open" | "needs-why" => {
+            act(root, needs::Act::Open { object: first_object(name) }, out);
         }
-        "needs-later" => act(root, needs::Act::Open { object: object(2) }, out),
+        "needs-reply-open" => act(root, needs::Act::OpenReply { object: object(2) }, out),
+        "needs-second-answered" => {
+            act(root, needs::Act::Choose { object: object(2), words: b"Link the GitHub page".as_slice().into() }, out);
+        }
+        "needs-later" => act(root, needs::Act::Later { object: object(2) }, out),
         "needs-last" | "needs-done" => {
             for (task, words) in [(1, "In jig’s store"), (2, "Link the GitHub page")] {
                 act(root, needs::Act::Choose { object: object(task), words: words.as_bytes().into() }, out);

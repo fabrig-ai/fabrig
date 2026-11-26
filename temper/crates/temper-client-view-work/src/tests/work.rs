@@ -571,6 +571,7 @@ fn filters_count_link_and_keep_current_even_when_empty_or_overridden() {
             ("Drafts · 1", Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts }, true),
             ("Goals · 1", Address::Goals { project: f::PROJECT, filter: GoalsFilter::All }, goals_shown),
             ("Changes · 4", Address::Changes { project: f::PROJECT }, changes_shown),
+            ("Waits", Address::Waits { project: f::PROJECT, filter: temper_client_domain::WaitsFilter::ALL }, true),
             ("Chats · 1", Address::Chats { filter: temper_client_domain::ChatsFilter::All }, true),
         ] {
             let mut found = None;
@@ -610,7 +611,7 @@ fn filters_count_link_and_keep_current_even_when_empty_or_overridden() {
     empty.populate(false);
     empty.go(Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts });
     let (tree, _) = empty.tree(&f::browser_words());
-    assert_eq!(styled(&tree, look::WORK_CHIP).len(), 2);
+    assert_eq!(styled(&tree, look::WORK_CHIP).len(), 3, "All, Drafts, and Waits");
     assert!(has(&tree, "Drafts · 0"));
     assert!(has(&tree, "None."));
 }
@@ -629,8 +630,9 @@ fn the_terminal_numbers_filters_and_cards_with_their_from_headline_and_rows() {
         "[2] Drafts · 1",
         "[3] Goals · 1",
         "[4] Changes · 4",
-        "[5] Chats · 1",
-        "[6] goal membership-handoff",
+        "[5] Waits",
+        "[6] Chats · 1",
+        "[7] goal membership-handoff",
         "Six of nine tasks landed.",
         "Written by the goal at 07:54",
         "Witness retention",
@@ -799,7 +801,7 @@ fn landed_cards_draw_clock_provenance_and_the_three_choice_cases_in_both_shells(
                 assert!(from < title);
                 if let Some(label) = labels.first() {
                     assert!(title < skein_lib::bytes::find(printed, label).unwrap());
-                    let numbered = crate::accounts::words::join(&[b"[3] ", label]);
+                    let numbered = crate::accounts::words::join(&[b"[4] ", label]);
                     assert!(skein_lib::bytes::find(printed, &numbered).is_some(), "{printed:?}");
                 }
             }
@@ -983,7 +985,7 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
             let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
             skein_ui_text::render(&tree, b"temper", None, &mut print);
             let printed = print.text.as_slice();
-            assert!(skein_lib::bytes::find(printed, "[4] milestone · Store shape".as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(printed, "[5] milestone · Store shape".as_bytes()).is_some());
             assert!(skein_lib::bytes::find(printed, "▒■□× 1 done of 4".as_bytes()).is_some());
             assert!(
                 skein_lib::bytes::find(printed, b"1 waits").unwrap()
@@ -1499,7 +1501,7 @@ fn sections_draw_top_down_without_changing_earlier_sections_in_both_shells() {
             }
             assert!(has(&initial, "Shop · Work"));
             assert!(has(&initial, "Everything on Shop"));
-            assert_eq!(styled(&initial, look::WORK_CHIP).len(), 1);
+            assert_eq!(styled(&initial, look::WORK_CHIP).len(), 2, "All and Waits");
             section_trees(&initial)
         });
         for (index, (rank, up)) in order.iter().enumerate() {
@@ -1518,7 +1520,7 @@ fn sections_draw_top_down_without_changing_earlier_sections_in_both_shells() {
                     assert!(!has(&tree, "Drafts ·"));
                     assert!(!has(&tree, "Landed this week ·"));
                     assert!(!has(&tree, "Three in flight,"));
-                    assert_eq!(styled(&tree, look::WORK_CHIP).len(), 1);
+                    assert_eq!(styled(&tree, look::WORK_CHIP).len(), 2, "All and Waits");
                 }
                 *before = after;
             }
@@ -1551,6 +1553,6 @@ fn drafts_filter_waits_only_for_chats_and_drafts_before_claiming_none() {
         let (tree, _) = page.tree(&words);
         assert!(has(&tree, "None."));
         assert!(!has(&tree, "Nothing in flight yet."));
-        assert_eq!(styled(&tree, look::WORK_CHIP).len(), 2, "All and current Drafts, without counts");
+        assert_eq!(styled(&tree, look::WORK_CHIP).len(), 3, "All, current Drafts, and Waits");
     }
 }

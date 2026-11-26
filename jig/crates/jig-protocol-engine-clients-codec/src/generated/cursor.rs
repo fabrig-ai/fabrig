@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 2;
 pub const LAYOUT: [u8; 32] = [
-    0xc2, 0xee, 0x94, 0x55, 0xb9, 0x66, 0xef, 0xfb, 0x70, 0x58, 0x44, 0xb6, 0x4f, 0xb9, 0x14, 0x38, 0xa3, 0xe3, 0x7f,
-    0x7e, 0xce, 0x40, 0xc7, 0x47, 0xb9, 0x0d, 0x99, 0xc3, 0x55, 0x1a, 0x0a, 0xfd,
+    0xb8, 0x84, 0x41, 0xe5, 0x46, 0xef, 0x83, 0x9e, 0x71, 0x7f, 0xc8, 0xc6, 0x80, 0x2d, 0xfd, 0x19, 0x31, 0x55, 0x03,
+    0x79, 0x97, 0xe2, 0x53, 0xe3, 0xd2, 0x97, 0x9e, 0x2f, 0x0e, 0x5b, 0xe2, 0x52,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -176,6 +176,23 @@ pub mod paths {
     pub const STORE_CURSOR_SCOPE: Path = Path::new("StoreCursor.scope");
     pub const STORE_CURSOR_AFTER: Path = Path::new("StoreCursor.after");
     pub const STORE_CURSOR_TAIL: Path = Path::new("StoreCursor (tail)");
+    pub const WAIT_KIND_TAG: Path = Path::new("WaitKind (tag)");
+    pub const WAIT_QUERY_PROJECT: Path = Path::new("WaitQuery.project");
+    pub const WAIT_QUERY_KIND: Path = Path::new("WaitQuery.kind");
+    pub const WAIT_QUERY_PARTY: Path = Path::new("WaitQuery.party");
+    pub const WAIT_QUERY_DUE: Path = Path::new("WaitQuery.due");
+    pub const WAIT_QUERY_TAIL: Path = Path::new("WaitQuery (tail)");
+    pub const WAIT_AT_AT: Path = Path::new("WaitAt.at");
+    pub const WAIT_AT_TAIL: Path = Path::new("WaitAt (tail)");
+    pub const WAIT_PLACE_TAG: Path = Path::new("WaitPlace (tag)");
+    pub const WAIT_POSITION_PLACE: Path = Path::new("WaitPosition.place");
+    pub const WAIT_POSITION_TASK: Path = Path::new("WaitPosition.task");
+    pub const WAIT_POSITION_ORDER: Path = Path::new("WaitPosition.order");
+    pub const WAIT_POSITION_TAIL: Path = Path::new("WaitPosition (tail)");
+    pub const WAIT_CURSOR_QUERY: Path = Path::new("WaitCursor.query");
+    pub const WAIT_CURSOR_NOW: Path = Path::new("WaitCursor.now");
+    pub const WAIT_CURSOR_AFTER: Path = Path::new("WaitCursor.after");
+    pub const WAIT_CURSOR_TAIL: Path = Path::new("WaitCursor (tail)");
     pub const CURSOR_TAG: Path = Path::new("Cursor (tag)");
     pub const TREE_TASK: Path = Path::new("Tree.task");
     pub const TREE_WINDOW: Path = Path::new("Tree.window");
@@ -2059,11 +2076,401 @@ impl Record for StoreCursor {
     }
 }
 
+// Type: WaitKind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum WaitKind {
+    Party,
+    Question,
+    Dependency,
+    Resource,
+    Account,
+    Host,
+    Delegate,
+    News,
+    Step,
+    Room,
+    Turn,
+    SignOff,
+}
+
+// Record: WaitKind.
+impl WaitKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for WaitKind {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_KIND_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitKind")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Party => field::put(out, &[0], paths::WAIT_KIND_TAG),
+            Self::Question => field::put(out, &[1], paths::WAIT_KIND_TAG),
+            Self::Dependency => field::put(out, &[2], paths::WAIT_KIND_TAG),
+            Self::Resource => field::put(out, &[3], paths::WAIT_KIND_TAG),
+            Self::Account => field::put(out, &[4], paths::WAIT_KIND_TAG),
+            Self::Host => field::put(out, &[5], paths::WAIT_KIND_TAG),
+            Self::Delegate => field::put(out, &[6], paths::WAIT_KIND_TAG),
+            Self::News => field::put(out, &[7], paths::WAIT_KIND_TAG),
+            Self::Step => field::put(out, &[8], paths::WAIT_KIND_TAG),
+            Self::Room => field::put(out, &[9], paths::WAIT_KIND_TAG),
+            Self::Turn => field::put(out, &[10], paths::WAIT_KIND_TAG),
+            Self::SignOff => field::put(out, &[11], paths::WAIT_KIND_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::WAIT_KIND_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Party),
+            1 => Ok(Self::Question),
+            2 => Ok(Self::Dependency),
+            3 => Ok(Self::Resource),
+            4 => Ok(Self::Account),
+            5 => Ok(Self::Host),
+            6 => Ok(Self::Delegate),
+            7 => Ok(Self::News),
+            8 => Ok(Self::Step),
+            9 => Ok(Self::Room),
+            10 => Ok(Self::Turn),
+            11 => Ok(Self::SignOff),
+            12..=u8::MAX => Err(Problem { path: paths::WAIT_KIND_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: WaitQuery.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitQuery {
+    pub project: u32,
+    pub kind: Option<WaitKind>,
+    pub party: Option<u64>,
+    pub due: Option<u64>,
+}
+
+// Record: WaitQuery.
+impl WaitQuery {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("WaitKind"),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
+impl Record for WaitQuery {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_QUERY_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitQuery")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitQuery")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::WAIT_QUERY_PROJECT)?;
+        field::write(field::Optional { item: field::Nested }, &self.kind, limits, out, paths::WAIT_QUERY_KIND)?;
+        field::write(field::Optional { item: field::U64 }, &self.party, limits, out, paths::WAIT_QUERY_PARTY)?;
+        field::write(field::Optional { item: field::U64 }, &self.due, limits, out, paths::WAIT_QUERY_DUE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::WAIT_QUERY_PROJECT)?,
+            kind: field::read(field::Optional { item: field::Nested }, limits, reader, paths::WAIT_QUERY_KIND)?,
+            party: field::read(field::Optional { item: field::U64 }, limits, reader, paths::WAIT_QUERY_PARTY)?,
+            due: field::read(field::Optional { item: field::U64 }, limits, reader, paths::WAIT_QUERY_DUE)?,
+        })
+    }
+}
+
+// Type: WaitAt.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitAt {
+    pub at: u64,
+}
+
+// Record: WaitAt.
+impl WaitAt {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for WaitAt {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_AT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitAt")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitAt")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.at, limits, out, paths::WAIT_AT_AT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            at: field::read(field::U64, limits, reader, paths::WAIT_AT_AT)?,
+        })
+    }
+}
+
+// Type: WaitPlace.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum WaitPlace {
+    Overdue(WaitAt),
+    Bounded(WaitAt),
+    Unbounded,
+}
+
+// Record: WaitPlace.
+impl WaitPlace {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("WaitAt"),
+        skein_codec::bounds::Node::Named("WaitAt"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for WaitPlace {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_PLACE_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitPlace")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitPlace")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Overdue(value) => { field::put(out, &[0], paths::WAIT_PLACE_TAG)?; value.write(limits, out) },
+            Self::Bounded(value) => { field::put(out, &[1], paths::WAIT_PLACE_TAG)?; value.write(limits, out) },
+            Self::Unbounded => field::put(out, &[2], paths::WAIT_PLACE_TAG),
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::WAIT_PLACE_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Overdue(WaitAt::read(limits, reader)?)),
+            1 => Ok(Self::Bounded(WaitAt::read(limits, reader)?)),
+            2 => Ok(Self::Unbounded),
+            3..=u8::MAX => Err(Problem { path: paths::WAIT_PLACE_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: WaitPosition.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitPosition {
+    pub place: WaitPlace,
+    pub task: u64,
+    pub order: u32,
+}
+
+// Record: WaitPosition.
+impl WaitPosition {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("WaitPlace"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
+impl Record for WaitPosition {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_POSITION_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitPosition")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitPosition")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.place, limits, out, paths::WAIT_POSITION_PLACE)?;
+        field::write(field::U64, &self.task, limits, out, paths::WAIT_POSITION_TASK)?;
+        field::write(field::U32, &self.order, limits, out, paths::WAIT_POSITION_ORDER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            place: field::read(field::Nested, limits, reader, paths::WAIT_POSITION_PLACE)?,
+            task: field::read(field::U64, limits, reader, paths::WAIT_POSITION_TASK)?,
+            order: field::read(field::U32, limits, reader, paths::WAIT_POSITION_ORDER)?,
+        })
+    }
+}
+
+// Type: WaitCursor.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitCursor {
+    pub query: WaitQuery,
+    pub now: u64,
+    pub after: WaitPosition,
+}
+
+// Record: WaitCursor.
+impl WaitCursor {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("WaitQuery"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("WaitPosition"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 53;
+}
+
+impl Record for WaitCursor {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_CURSOR_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitCursor")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitCursor")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.query, limits, out, paths::WAIT_CURSOR_QUERY)?;
+        field::write(field::U64, &self.now, limits, out, paths::WAIT_CURSOR_NOW)?;
+        field::write(field::Nested, &self.after, limits, out, paths::WAIT_CURSOR_AFTER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            query: field::read(field::Nested, limits, reader, paths::WAIT_CURSOR_QUERY)?,
+            now: field::read(field::U64, limits, reader, paths::WAIT_CURSOR_NOW)?,
+            after: field::read(field::Nested, limits, reader, paths::WAIT_CURSOR_AFTER)?,
+        })
+    }
+}
+
 // Type: Cursor.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Cursor {
     Live(LiveCursor),
     Store(StoreCursor),
+    Waits(WaitCursor),
 }
 
 // Record: Cursor.
@@ -2071,7 +2478,8 @@ impl Cursor {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("LiveCursor"),
         skein_codec::bounds::Node::Named("StoreCursor"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+        skein_codec::bounds::Node::Named("WaitCursor"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -2103,6 +2511,7 @@ impl Record for Cursor {
         match self {
             Self::Live(value) => { field::put(out, &[0], paths::CURSOR_TAG)?; value.write(limits, out) },
             Self::Store(value) => { field::put(out, &[1], paths::CURSOR_TAG)?; value.write(limits, out) },
+            Self::Waits(value) => { field::put(out, &[2], paths::CURSOR_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -2111,7 +2520,8 @@ impl Record for Cursor {
         match tag {
             0 => Ok(Self::Live(LiveCursor::read(limits, reader)?)),
             1 => Ok(Self::Store(StoreCursor::read(limits, reader)?)),
-            2..=u8::MAX => Err(Problem { path: paths::CURSOR_TAG, reason: skein_codec::Reason::Tag }),
+            2 => Ok(Self::Waits(WaitCursor::read(limits, reader)?)),
+            3..=u8::MAX => Err(Problem { path: paths::CURSOR_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -2375,6 +2785,12 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "StoreCursor", nodes: StoreCursor::SHAPE },
     skein_codec::bounds::Declaration { name: "Tree", nodes: Tree::SHAPE },
     skein_codec::bounds::Declaration { name: "Turn", nodes: Turn::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitAt", nodes: WaitAt::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitCursor", nodes: WaitCursor::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitKind", nodes: WaitKind::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitPlace", nodes: WaitPlace::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitPosition", nodes: WaitPosition::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitQuery", nodes: WaitQuery::SHAPE },
 ];
 
 static CEILING_VALUES: &[u32] = &[

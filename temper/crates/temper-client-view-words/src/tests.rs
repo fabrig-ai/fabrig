@@ -7,6 +7,7 @@ mod frame;
 mod look;
 mod paths;
 pub(crate) mod times;
+mod waits;
 pub(crate) mod words;
 
 #[test]

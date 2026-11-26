@@ -32,6 +32,7 @@ mod turn;
 pub(crate) mod withheld;
 pub use task_text::task_text_from_row;
 pub mod vocabulary;
+mod waits;
 pub(crate) mod watches;
 
 pub(crate) use watches::start_watch;
@@ -117,6 +118,7 @@ pub(crate) fn scope(read: &Read) -> Option<Scope> {
         }
         Read::Spend { project, .. } => Some(Scope::Spend { project: *project }),
         Read::Frame
+        | Read::Waits { .. }
         | Read::Project { .. }
         | Read::Settings
         | Read::Setting { .. }
@@ -138,6 +140,7 @@ fn cursor(read: &Read) -> Option<&Cursor> {
         | Read::Spend { from, .. } => from.as_ref(),
         Read::Activity { before, .. } => before.as_ref(),
         Read::ActivityBeside { .. }
+        | Read::Waits { .. }
         | Read::Frame
         | Read::TaskText { .. }
         | Read::Task { .. }
@@ -173,6 +176,7 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
         Read::Inbox { .. } => Some(Subject::Inbox { party }),
         Read::Tasks { query, .. } => Some(Subject::Query { query: query.clone() }),
         Read::TaskText { .. }
+        | Read::Waits { .. }
         | Read::Setting { .. }
         | Read::Revision { .. }
         | Read::Revisions { .. }
@@ -248,6 +252,7 @@ fn refused_application(destination: Destination, read: &Read, why: Why) -> Queue
         | Read::ActivityBeside { .. }
         | Read::Inbox { .. }
         | Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Notes { .. }
         | Read::ScopedNotes { .. }
         | Read::Spend { .. }
@@ -337,6 +342,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         Read::Revisions { before } => settings::revisions(core, env, reply, sign_in, party, before),
         read @ (Read::Settings
         | Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Application { .. }
         | Read::Frame
         | Read::TaskText { .. }
@@ -386,6 +392,7 @@ fn bounded_query(read: &Read, limits: &Limits) -> bool {
         | Read::ActivityBeside { .. }
         | Read::Inbox { .. }
         | Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Project { .. }
         | Read::Notes { .. }
         | Read::Spend { .. }
@@ -408,7 +415,7 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
     if let Read::Tasks { ended: Some(cursor), .. } = read {
         match cursor {
             Cursor::Store { .. } => {}
-            Cursor::Live { .. } => return None,
+            Cursor::Live { .. } | Cursor::Waits { .. } => return None,
         }
     }
     let target = scope(read);
@@ -435,6 +442,7 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
         | Read::Activity { .. }
         | Read::Inbox { .. }
         | Read::Tasks { .. }
+        | Read::Waits { .. }
         | Read::Project { .. }
         | Read::Notes { .. }
         | Read::ScopedNotes { .. }
@@ -470,6 +478,7 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
             }
             after_store.clone_from(after);
         }
+        Some(Cursor::Waits { .. }) => return None,
         None => {}
     }
     Some(ReadStart { after_live, after_store, stored })
@@ -487,6 +496,9 @@ fn start_jig(
 ) -> Queue<Request> {
     if !bounded_query(&read, &env.limits) {
         return answer(destination, Answer::None(Why::Busy));
+    }
+    if let Read::Waits { query, after } = read {
+        return answer(destination, waits::read(core, env, party, query, after.as_ref()));
     }
     if let Read::Project { project } = &read
         && core.people.deleted(*project)
@@ -587,6 +599,7 @@ fn start_jig(
             | Read::Activity { .. }
             | Read::Inbox { .. }
             | Read::Tasks { .. }
+            | Read::Waits { .. }
             | Read::Project { .. }
             | Read::Notes { .. }
             | Read::ScopedNotes { .. }

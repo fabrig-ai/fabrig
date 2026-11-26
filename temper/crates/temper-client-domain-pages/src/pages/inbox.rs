@@ -742,6 +742,17 @@ impl Inbox {
         }
         true
     }
+    /// The party's row for a need, whether or not its card is read.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the step subset does not use closures")]
+    pub fn need_row(&self, object: ObjectKey) -> Option<&contract::InboxEntry> {
+        for row in &self.rows {
+            if row.card_key() == object {
+                return Some(row);
+            }
+        }
+        None
+    }
     /// The needs' groups in the inbox's order (temper/docs/design/client/pages/README.md, Home).
     #[expect(clippy::disallowed_methods, reason = "Home's contract exposes a filtered iterator over the inbox's cards")]
     pub fn needs(&self) -> impl Iterator<Item = &Card> {

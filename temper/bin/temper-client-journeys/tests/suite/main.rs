@@ -1,6 +1,7 @@
 //! The internal journeys binary's table (temper/docs/design/testing/tools.md, 6).
 mod arguments;
 mod journey_pages;
+mod look_git;
 mod look_refresh;
 
 use std::process::{Command, Stdio};

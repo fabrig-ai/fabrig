@@ -121,6 +121,7 @@ pub fn inbox_entry() -> d::InboxEntry {
         object: d::InboxObject::Reply { message: 11 },
         activity: Some(17),
         at: Some(Wall::from_nanos(13)),
+        bound: None,
         unread: Some(true),
         cursor: inbox_cursor(),
     }
@@ -129,6 +130,10 @@ pub fn inbox_document() -> d::Inbox {
     let mut need = inbox_entry();
     need.reply = None;
     need.object = d::InboxObject::PersonTask;
+    need.bound = Some(jig_domain_core_vocabulary::waits::Bound::At {
+        at: Wall::from_nanos(57),
+        then: jig_domain_core_vocabulary::waits::AtBound::Overdue,
+    });
     d::Inbox {
         party: 19,
         needs: List::from_boxed(Box::new([need])),

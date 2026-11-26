@@ -265,6 +265,7 @@ pub(crate) fn route_forge(
                     | Address::Repositories { .. }
                     | Address::Work { .. }
                     | Address::Goals { .. }
+                    | Address::Waits { .. }
                     | Address::Ask { .. }
                     | Address::Tell { .. }
                     | Address::Adopt { .. } => continue,
@@ -597,6 +598,7 @@ fn page_needs_model(root: &Domain) -> bool {
         | Address::Task { .. } => true,
         Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::AllHome
@@ -657,6 +659,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         Address::Settings { .. } => true,
         Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
         | Address::Home { .. }
@@ -879,6 +882,7 @@ fn trials(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         | Address::Home { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
+        | Address::Waits { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
         | Address::Settings { .. }

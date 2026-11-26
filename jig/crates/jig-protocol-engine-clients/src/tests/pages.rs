@@ -271,16 +271,25 @@ fn an_inbox_page_keeps_its_two_groups_apart() {
     let needs = fixtures::inbox_page(false);
     let updates = fixtures::inbox_page(true);
     let records = jig_client_test_records::selected_inbox_pages();
-    for (label, group, source, record) in [
-        ("needs", reads::Group::Needs, &needs, records[0].clone()),
-        ("updates", reads::Group::Updates, &updates, records[1].clone()),
+    let overdue = jig_client_domain::contract::waits::Bound::At {
+        at: skein_lib::Wall::from_nanos(57),
+        then: jig_client_domain::contract::AtBound::Overdue,
+    };
+    for (group, source, record, bound) in [
+        (reads::Group::Needs, &needs, records[0].clone(), Some(overdue)),
+        (reads::Group::Updates, &updates, records[1].clone(), None),
     ] {
         let read = reads::Read::Inbox { group, filter: reads::Filter { project: None, goal: None }, from: None };
-        assert_eq!(
-            pages::page(&fixtures::models(), &read, source, &crate::Private::none(), &limits),
-            Ok(w::ReadValue::Inbox(record)),
-            "{label}"
-        );
+        let w::ReadValue::Inbox(encoded) =
+            pages::page(&fixtures::models(), &read, source, &crate::Private::none(), &limits).unwrap()
+        else {
+            panic!("inbox page")
+        };
+        assert_eq!(encoded, record, "{group:?}");
+        let bytes = encoded.encode(&limits).unwrap();
+        let row = w::InboxPage::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
+        let page = jig_client_protocol_link::translate::pages::inbox_page(row, &fixtures::client_limits()).unwrap();
+        assert_eq!(page.rows.get(0).unwrap().bound, bound, "{group:?}");
     }
 }
 #[test]

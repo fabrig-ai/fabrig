@@ -340,6 +340,7 @@ forge, temper adds:
   - `client/pages/needs-you-terminal.md`: the terminal inbox and its cards.
   - `client/pages/needs-you-tell.md`: filing a person's words through Tell temper.
   - `client/pages/needs-you-state.md`: the needs, replies and decisions the client keeps.
+  - `client/pages/waits.md`: a project's waits, and the words a page says a wait in.
   - `client/pages/settings.md`: the settings and deployment frames.
   - `client/pages/settings-workflow.md`: How work runs and choosing a way.
   - `client/pages/settings-proposals.md`: proposing, reviewing and deciding settings.

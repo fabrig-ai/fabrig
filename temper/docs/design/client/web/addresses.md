@@ -13,6 +13,7 @@ The browser's addresses and navigation are split from [the browser overview](REA
   | `Home { project }` | `/projects/<project>` |
   | `AllHome` | `/home` (`../pages/README.md`, *Home on All projects*) |
   | `Changes { project }` | `/projects/<project>/changes` |
+  | `Waits { project, filter }` | `/projects/<project>/waits`, and its filter's query (`../pages/waits.md`, 1) |
   | `Work { project, filter }` | `/projects/<project>/work`, and its filter's query |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |

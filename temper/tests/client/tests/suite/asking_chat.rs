@@ -202,7 +202,12 @@ fn an_asking_proposal_is_named_and_titled_in_the_inbox() {
     let row = inbox.lines().find(|row| row.contains(title)).expect("inbox carries the proposal title");
     let key = row.split_once(" · ").expect("proposal row").0;
     assert!(key.starts_with('t'), "{inbox}");
-    assert_eq!(row, format!("{key} · proposal · {title} · projects: 1"));
+    assert_eq!(
+        row,
+        format!(
+            "{key} · proposal · {title} · projects: 1 · since 1970-01-01 00:00 UTC · overdue since 1970-01-01 00:00 UTC"
+        )
+    );
     let review = text(&mut world, agent, &[b"proposal", b"show", key.as_bytes()]);
     assert!(review.starts_with(&format!("proposal {key} · ")), "{review}");
     assert!(review.contains(REASON), "{review}");

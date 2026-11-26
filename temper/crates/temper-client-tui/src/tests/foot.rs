@@ -2127,6 +2127,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                             object,
                             activity: Some(1),
                             at: Some(f::NOW),
+                            bound: None,
                             unread: None,
                             cursor: c::InboxCursor::Inbox { task: number, object, at: Some(f::NOW) },
                             projects: List::with_capacity(0),

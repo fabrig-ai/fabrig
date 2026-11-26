@@ -107,12 +107,15 @@
     colour; nothing while the changes' watch hasn't answered.
   - **Its filters:** a navigation named "Work's filters", chips as the
     mockup's `.chips`, each a link: "All"; "Drafts · N"; "Goals · N";
-    "Changes · N"; "Chats · N". The current one is current, on the signal's
+    "Changes · N"; "Waits"; "Chats · N". The current one is current, on the signal's
     ground. A filter with nothing under it isn't drawn
     (`../../draft/surfaces.md`, section 12): Drafts while a draft is listed,
     Goals while the goals' reads list a goal, live or ended, Changes while
     a change is queued or landed recently, Chats while a chat started work;
-    All always, and the current one always. Kind 7's switches Goals and
+    All always, and the current one always. "Waits" is drawn always and
+    counts nothing: it goes to `Waits { project, filter }`, a page that
+    keeps its own head and read (`waits.md`, 1), and Work reads no waits,
+    so its budget stays as it is. Kind 7's switches Goals and
     Changes (`settings.md`, 2) hide their filters, as overrides that hide a filter its rule
     would show and never show one it would hide (`../../draft/surfaces.md`,
     section 12); until kind 7 is read, or with its read refused, neither hides,

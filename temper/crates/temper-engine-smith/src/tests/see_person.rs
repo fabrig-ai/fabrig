@@ -187,6 +187,7 @@ fn needs(more: bool) -> Answer {
             object,
             activity: None,
             at: Some(Wall::EPOCH),
+            bound: None,
             unread: None,
             cursor: d::Cursor::Inbox { task: 41, object, at: Some(Wall::EPOCH) },
             projects: List::uncapped(),
@@ -209,6 +210,7 @@ fn question_needs() -> Answer {
             object,
             activity: None,
             at: Some(Wall::EPOCH),
+            bound: None,
             unread: None,
             cursor: d::Cursor::Inbox { task, object, at: Some(Wall::EPOCH) },
             projects: List::uncapped(),
@@ -717,6 +719,7 @@ fn landings() -> Box<temper_engine_domain_forge::Document> {
         project: 7,
         turn: Some(50),
         landings: Box::new([f::LandingLine {
+            waits: None,
             step: None,
             last_event: None,
             train: None,

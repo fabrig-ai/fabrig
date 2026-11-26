@@ -77,8 +77,20 @@ fn a_milestone_admits_two_goals_with_delegation_room() {
     let shown = call(&mut front, &mut root, 4, &[b"milestone", b"show", milestone_arg.as_bytes()]);
     let shown = String::from_utf8(shown.stdout.into_vec()).expect("ctl UTF-8");
     assert!(shown.contains("goals: 0 / 2 done"), "{shown}");
-    assert!(shown.contains(&format!("  {first_task}  T1 · first  live\n")), "{shown}");
-    assert!(shown.contains(&format!("  {second_task}  T2 · second  live\n")), "{shown}");
+    assert!(
+        shown.contains(&format!(
+            "  {first_task}  T1 · first  live · party escalation 1 at you · \
+             since 1970-01-01 00:00 UTC · passes up at 1970-01-01 01:00 UTC\n"
+        )),
+        "{shown}"
+    );
+    assert!(
+        shown.contains(&format!(
+            "  {second_task}  T2 · second  live · dependency task {first_task} · \
+             since 1970-01-01 00:00 UTC · no bound: no deadline\n"
+        )),
+        "{shown}"
+    );
     let first = front.engine.task(first_task).expect("first goal live");
     let second = front.engine.task(second_task).expect("second goal live");
     assert!(first.authority.delegation.tasks > 0);
@@ -211,8 +223,12 @@ fn a_person_fills_and_concludes_a_milestone_with_a_waiting_goal() {
     let shown = String::from_utf8(shown.stdout.into_vec()).expect("ctl UTF-8");
     assert!(shown.starts_with(&format!("milestone {milestone} · Store shape · whole since ")), "{shown}");
     assert!(shown.contains("goals: 0 / 2 done · 0 failed · 0 closed · 2 live · 0 reds owed\n"), "{shown}");
-    let expected_goals =
-        format!("goals:\n  {first}  S1 Draft the layout  live\n  {second}  S2 Check the layout  live\n");
+    let expected_goals = format!(
+        "goals:\n  {first}  S1 Draft the layout  live · party escalation 1 at you · \
+         since 1970-01-01 00:00 UTC · passes up at 1970-01-01 01:00 UTC\n  \
+         {second}  S2 Check the layout  live · dependency task {first} · \
+         since 1970-01-01 00:00 UTC · no bound: no deadline\n"
+    );
     assert!(shown.contains(&expected_goals), "{shown}");
     for goal in [first, second] {
         let task = front.engine.task(goal).expect("goal live");

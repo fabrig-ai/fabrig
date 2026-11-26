@@ -93,20 +93,24 @@ pub(in crate::codec) fn wire_wait(value: &c::Wait) -> w::Wait {
         kind: wire_wait_kind(value.kind),
         object: wire_wait_object(&value.object),
         since: value.since.as_nanos(),
-        bound: match value.bound {
-            c::waits::Bound::At { at, then } => {
-                w::WaitBound::At(w::WaitAtBound { at: at.as_nanos(), then: wire_at_bound(then) })
-            }
-            c::waits::Bound::None(reason) => w::WaitBound::None(w::WaitNoBound {
-                reason: match reason {
-                    c::Unbounded::NoDeadline => w::Unbounded::NoDeadline,
-                    c::Unbounded::Standing => w::Unbounded::Standing,
-                    c::Unbounded::Behind(task) => w::Unbounded::Behind(w::UnboundedBehind { task }),
-                    c::Unbounded::OperatorHold => w::Unbounded::OperatorHold,
-                },
-            }),
-        },
+        bound: wire_wait_bound(value.bound),
         hears: value.hears.as_ref().map(super::wire_escalation_holder),
+    }
+}
+
+pub(in crate::codec) fn wire_wait_bound(value: c::waits::Bound) -> w::WaitBound {
+    match value {
+        c::waits::Bound::At { at, then } => {
+            w::WaitBound::At(w::WaitAtBound { at: at.as_nanos(), then: wire_at_bound(then) })
+        }
+        c::waits::Bound::None(reason) => w::WaitBound::None(w::WaitNoBound {
+            reason: match reason {
+                c::Unbounded::NoDeadline => w::Unbounded::NoDeadline,
+                c::Unbounded::Standing => w::Unbounded::Standing,
+                c::Unbounded::Behind(task) => w::Unbounded::Behind(w::UnboundedBehind { task }),
+                c::Unbounded::OperatorHold => w::Unbounded::OperatorHold,
+            },
+        }),
     }
 }
 

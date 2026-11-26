@@ -575,6 +575,7 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Goals { .. }
+            | Address::Waits { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Repositories { .. }

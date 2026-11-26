@@ -128,7 +128,7 @@ fn wait_in(d: &mut Domain, env: &Env<Limits>, task: u64, place: u64) {
 }
 
 fn room_wait(d: &Domain, env: &Env<Limits>, task: u64) -> jig_domain_core_vocabulary::waits::Reported {
-    room::waited(d, env, task, temper_client_protocol_wire::waits::CHANGE_OPENING).expect("blocked room wait")
+    room::waited(d, &env.limits, task, temper_client_protocol_wire::waits::CHANGE_OPENING).expect("blocked room wait")
 }
 
 #[test]

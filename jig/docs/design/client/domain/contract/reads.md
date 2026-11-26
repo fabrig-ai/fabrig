@@ -22,6 +22,7 @@ party reads is therefore never lost by a crash.
 | `turn{n, attempt, turn}`: one committed turn of a task's activity | the store: the task's transcript (`../../../protocol/store/transcripts.md`, 3) |
 | `inbox`: a group of it, a page, filtered by project, kind or root | needs: live state, every page; updates: live state, then the store past the engine's limit |
 | `tasks{query}`: a task query's page (1.1) | live state, then the store's indexes of ended tasks |
+| `waits{project, kind, party, due}`: a project's live waits, a page (1.2) | live state |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
 | `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, with `proposal`, as a pending proposal of settings would set it, or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../../domain/engine/settings-store.md`, 1) |
@@ -217,3 +218,59 @@ party reads is therefore never lost by a crash.
   (`../../../domain/people/README.md`, section 5); a kept one stays to the
   deployment's retention horizon, and whole while none is set
   (`../../../protocol/store/growth.md`, 1.1).
+
+### 1.2 A project's waits
+
+From `temper/docs/design/draft/bounded-waits.md`, 9: every live wait in
+a project, nearest bound first, for a person following a stalled tree
+and for the tools that replace the team's watchers.
+
+- **Which waits:** every wait of each live task of the project that the
+  party may read, as its document lists them (`../../../domain/engine/waits.md`,
+  4), a procedure's reported ones among them. Each is listed once, at
+  the task it waits at: a line's first wait, which may be a task's in
+  its subtree, is not listed again at the line's task, so a wait shows
+  at its own task and at no ancestor whose line summarizes it.
+- **Filters,** any conjunction, each optional:
+  - *kind:* one of the twelve (`../../../domain/engine/waits.md`, 3);
+  - *party:* a party's waits: an entry waiting at the party or at a
+    role it holds in the project, and a wait whose `hears` is the party
+    or such a role. A task holder is no party's;
+  - *due:* a duration; the waits whose bound is at or before the read's
+    *now* plus it, those already past included. A wait with no bound is
+    none's due.
+- **Its now:** the engine's wall time as it serves the first page. The
+  page carries it, and every later page of the same read carries and
+  uses the first's, kept in its cursor, so that one read's pages order
+  and filter by one instant.
+- **Order,** in three groups:
+  1. *overdue:* a wait whose bound's outcome is *overdue* and whose bound
+     is at or before *now*;
+  2. every other wait with a bound;
+  3. the waits with no bound.
+
+  The first two by bound, earliest first, then by task number; the third
+  by task number. Waits of one task with the same place keep the task's
+  own order (`../../../domain/engine/waits.md`, 4).
+- **A row** is the task's chip and the wait whole, the record a task's
+  document carries (`documents.md`, 1, *Its waits*). A page is its
+  rows, its *now* and a cursor for the next, or none after the last.
+- **Paged** as any page (`../../../domain/engine/decisions.md`, 1.3),
+  within `documents.rows` rows and the wire's bytes. The cursor is
+  opaque, as a task query's: it binds the project, the filters and the
+  first page's *now*, and continues after the last row's place (its
+  group, its bound, its task and its place in the task's order). A wait
+  that comes or goes between pages is shown or skipped by its place, as
+  a live task is by a task query's cursor; a cursor of another read is
+  malformed.
+- **Live tasks are scanned,** as a task query's live group is (1.1):
+  one scan of the project's live tasks, each task's own waits computed
+  as its document computes them, the page's window kept as the scan
+  goes. No secondary index and no stored state; nothing of it reaches
+  the store.
+- **Read, not watched:** a wait's place moves with the clock as well as
+  with commits, so a watch would need marks no commit makes. A client
+  reads it again when it wants it current; each answer is current as it
+  is made.
+- **Refused** as any read (1): unknown for a project the party holds no
+  role in, as a task query by project is.
