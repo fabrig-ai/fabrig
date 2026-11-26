@@ -950,8 +950,21 @@ fn empty_column_until_delivered_and_terminal_keeps_its_list() {
     let (pending, _, _) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &f::domain_limits());
     let view = f::browser_page_view(&pending);
     assert_eq!(main(&view).len(), 1);
-    let pending = f::inbox_root();
-    let view = f::browser_page_view(&pending);
+    let mut pending = f::ReadPage::new(Address::Inbox { filter: d::address::Filter::ALL });
+    let row = documents::entry(object(f::INBOX_QUESTION), f::PROJECT, f::INBOX_POSITION, Wall::EPOCH, None);
+    let rows = List::from_boxed(Box::new([row]));
+    let count = rows.len();
+    pending.up(jig_client::Up::Watched {
+        watch: pending.inbox.unwrap(),
+        event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
+            rows,
+            count,
+            c::Count { value: 0, limited: false },
+            0,
+            false,
+        )))),
+    });
+    let view = f::browser_page_view(&pending.root);
     assert_eq!(main(&view).len(), 1);
     let (mut root, _, decided) = fixture_watched(QUESTION, false, 1, false, d::address::Filter::ALL, None);
     assert_eq!(main(&f::browser_page_view(&root)).len(), 1);

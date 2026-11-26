@@ -951,94 +951,89 @@ fn inbox_read_at(
         },
         &mut out,
     );
-    if let Some((read, page)) = document {
-        let mut page = Some(page);
-        while let Some(request) = out.pop() {
-            if let temper_client_domain::Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
-            } = &request
-                && Some(subject) == forge::decided::watch(PROJECT, &env.limits.forge).as_ref()
-            {
-                let document = w::Decisions {
-                    project: PROJECT,
-                    rows: List::with_capacity(0),
-                    asked: List::with_capacity(0),
-                    cut: false,
-                };
-                temper_client_domain::step(
-                    &mut root,
-                    &env,
-                    temper_client_domain::Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::FamilyDelivered {
-                                watch: *watch,
-                                record: jig_client::Family {
-                                    family: wire::FORGE,
-                                    version: wire::CLIENT_VERSION,
-                                    bytes: wire::decisions(&document),
-                                },
+    let mut document = document;
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = &request
+            && Some(subject) == forge::decided::watch(PROJECT, &env.limits.forge).as_ref()
+        {
+            let document = w::Decisions {
+                project: PROJECT,
+                rows: List::with_capacity(0),
+                asked: List::with_capacity(0),
+                cut: false,
+            };
+            temper_client_domain::step(
+                &mut root,
+                &env,
+                temper_client_domain::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::FamilyDelivered {
+                            watch: *watch,
+                            record: jig_client::Family {
+                                family: wire::FORGE,
+                                version: wire::CLIENT_VERSION,
+                                bytes: wire::decisions(&document),
                             },
                         },
                     },
-                    &mut out,
-                );
-                continue;
-            }
+                },
+                &mut out,
+            );
+            continue;
+        }
 
-            if let temper_client_domain::Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) },
-                    },
-            } = &request
-            {
-                let rows = if *group == c::InboxReadGroup::Needs { query_rows.clone() } else { List::uncapped() };
-                temper_client_domain::step(
-                    &mut root,
-                    &env,
-                    temper_client_domain::Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::ReadDone {
-                                read: *read,
-                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
-                                    c::InboxPage { selection: None, cut: false, rows, before: None, after: None },
-                                )))),
-                            },
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) },
+                },
+        } = &request
+        {
+            let rows = if *group == c::InboxReadGroup::Needs { query_rows.clone() } else { List::uncapped() };
+            temper_client_domain::step(
+                &mut root,
+                &env,
+                temper_client_domain::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone {
+                            read: *read,
+                            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                                c::InboxPage { selection: None, cut: false, rows, before: None, after: None },
+                            )))),
                         },
                     },
-                    &mut out,
-                );
-                continue;
-            }
-            if let temper_client_domain::Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(what) },
-                    },
-            } = request
+                },
+                &mut out,
+            );
+            continue;
+        }
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(what) },
+                },
+        } = request
+        {
+            // The merged needs list waits for all inbox card reads, not just the supplied card.
+            let result = if let Some((wanted, _)) = &document
+                && what == *wanted
             {
-                let result = if what == read && page.is_some() {
-                    page.take().expect("one matching card read")
-                } else if finish {
-                    contract::ReadResult::None(contract::ReadNone::Unknown)
-                } else {
-                    continue;
-                };
-                temper_client_domain::step(
-                    &mut root,
-                    &env,
-                    temper_client_domain::Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::ReadDone { read: token, result: jig_client::Readout::Jig(result) },
-                        },
+                document.take().expect("one matching card read").1
+            } else {
+                contract::ReadResult::None(contract::ReadNone::Unknown)
+            };
+            temper_client_domain::step(
+                &mut root,
+                &env,
+                temper_client_domain::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone { read: token, result: jig_client::Readout::Jig(result) },
                     },
-                    &mut out,
-                );
-                if !finish {
-                    break;
-                }
-            }
+                },
+                &mut out,
+            );
         }
     }
     root
