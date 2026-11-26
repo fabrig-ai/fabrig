@@ -3255,6 +3255,9 @@ fn in_front_quitting_asks_while_work_runs() {
     assert!(failures.is_empty(), "front rows: {failures:?}");
 }
 
+#[path = "tests/quit.rs"]
+mod quit;
+
 #[test]
 fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
     use crate::host::Stop;

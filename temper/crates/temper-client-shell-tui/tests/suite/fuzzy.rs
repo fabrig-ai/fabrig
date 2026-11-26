@@ -1,4 +1,5 @@
-//! Seeded argument and loopback request bytes, with no resolver or network.
+//! Seeded host input order and argument and loopback request bytes, without a network.
+mod quit;
 use skein_lib::{
     Rng, Writer,
     base64::{self, Alphabet},

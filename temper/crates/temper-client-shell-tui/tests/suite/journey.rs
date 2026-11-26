@@ -1,6 +1,6 @@
 //! A recording through the shipped host, replayed and proved to its end (client/tui/journeys.md, 4).
 use temper_client_shell_tui::journey::{Facts, Recorder, Replay, lines, prove};
-mod fixture;
+pub(super) mod fixture;
 use fixture::{linked_walk_duties, replay_stale, same_frames, written};
 use temper_client_shell_tui::{host::Report, journey::Line};
 
