@@ -2010,6 +2010,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                     flake: false,
                     no_test: false,
                     failed: false,
+                    lost: false,
                     cancelled: true,
                     words: reason.into(),
                 },
@@ -5407,6 +5408,7 @@ fn every_change_hold_has_words_even_without_an_account() {
     };
     for why in [
         change::Hold::Stalled,
+        change::Hold::Runner,
         change::Hold::Repairs,
         change::Hold::Resolutions,
         change::Hold::Updates,
@@ -5433,6 +5435,25 @@ fn every_change_hold_has_words_even_without_an_account() {
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account: {why:?}") };
         assert!(!words.is_empty(), "empty hold: {why:?}");
     }
+}
+
+#[test]
+fn a_runner_hold_uses_its_own_account() {
+    use super::{StepEnd, forge, forge_change as change, tasks};
+    const TASK: u64 = 7;
+    const HEAD: [u8; 32] = [3; 32];
+    const WORDS: &[u8] =
+        b"CI's runner failed at 030303030303: job 1 of check build: set-up failed; the change wasn't judged.";
+    let (mut domain, env) = two_forges();
+    let mut row = change_row(Some(TASK));
+    row.change.state =
+        change::State::Held { was: Box::new(change::State::Checking { head: HEAD }), why: change::Hold::Runner };
+    row.runner_ci = Some(forge::RunnerCi::Held { words: WORDS.into() });
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    let step = super::hold_change_decision(&domain, &env, TASK, change::Hold::Runner, None, None);
+    let StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = step.end else { panic!("runner hold account") };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+    assert_eq!(words.as_ref(), WORDS);
 }
 
 #[test]

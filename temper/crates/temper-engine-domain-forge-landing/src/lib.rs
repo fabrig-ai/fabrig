@@ -27,6 +27,6 @@ pub use boundary::{
 };
 pub use domain::{claim, cleanup_hold, held, join, leave, probe, step, top};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};
-pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};
+pub use verdict::{Conclusion, Fault, Job, Judgement, Run, RunState, Shown, Verdict, job_fault, judge, verdict};
 
 pub use temper_engine_domain_forge_tiers::Format;

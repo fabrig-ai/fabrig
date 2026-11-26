@@ -87,6 +87,7 @@ fn change_row() -> top::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        runner_ci: None,
         close_at: None,
         report: Box::new([]),
         repairs: None,
@@ -1272,6 +1273,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 flake: false,
                                 no_test: false,
                                 failed: false,
+                                lost: false,
                                 cancelled: false,
                                 words: b"passed".as_slice().into(),
                             });

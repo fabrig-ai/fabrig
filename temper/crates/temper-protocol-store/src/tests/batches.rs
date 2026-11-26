@@ -9,6 +9,7 @@ use temper_engine_domain_forge_landing as landing;
 fn seed() -> forge::LandingRow {
     forge::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

@@ -1,7 +1,7 @@
 //! Settings taken at the next start (temper/docs/design/domain/landing-settings.md, 1.1).
 use crate::file::{Decoder, Error, Fields, error, field, optional};
 use alloc::boxed::Box;
-use skein_json::writer::Encoder;
+use skein_json::{Kind, writer::Encoder};
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 use temper_client_protocol_wire::v1::Record;
@@ -53,6 +53,21 @@ fn combine(
         Some(_) => Err(error(name, b"merge or squash required")),
     }
 }
+fn flakes(d: &Decoder<'_>, at: u32) -> Result<w::SettingsFlakes, Error> {
+    let kind = d.kind(at)?;
+    if kind == Kind::ObjectStart {
+        let f = d.object(at, &[b"rerun"])?;
+        let processes = match d.number(field(&f, b"rerun")?) {
+            Ok(n) => u32::try_from(n).or(Err(error(b"rerun", b"u32 bound")))?,
+            Err(why) => return Err(why.at(b"rerun")),
+        };
+        return Ok(w::SettingsFlakes::Rerun(w::SettingsFlakeRerun { processes }));
+    }
+    if kind == Kind::String && d.string(at)? == b"none" {
+        return Ok(w::SettingsFlakes::Never);
+    }
+    Err(error(b"", b"none or an object with rerun required"))
+}
 pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Error> {
     let f = d.object(
         at,
@@ -64,6 +79,7 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             b"close_job",
             b"landing_attempts",
             b"check_timeout_ms",
+            b"flakes",
             b"gate_retries",
             b"gate_timeout_ms",
             b"tier_retries",
@@ -106,6 +122,13 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             landing_attempts: u8::try_from(number(d, &f, b"landing_attempts", 3)?)
                 .or(Err(error(b"landing_attempts", b"u8 bound")))?,
             check_timeout_ms,
+            flakes: match optional(&f, b"flakes") {
+                None => None,
+                Some(at) => match flakes(d, at) {
+                    Ok(value) => Some(value),
+                    Err(why) => return Err(why.at(b"flakes")),
+                },
+            },
             gate_retries: u8::try_from(number(d, &f, b"gate_retries", 2)?)
                 .or(Err(error(b"gate_retries", b"u8 bound")))?,
             gate_timeout_ms: number(d, &f, b"gate_timeout_ms", 3_600_000)?,
@@ -314,6 +337,16 @@ pub(super) fn render_landing(v: &w::ProjectLanding, out: &mut Encoder) {
     }
     if let Some(ms) = &v.check_timeout_ms {
         uint(out, b"check_timeout_ms", *ms);
+    }
+    match &v.flakes {
+        None => {}
+        Some(w::SettingsFlakes::Never) => string(out, b"flakes", b"none"),
+        Some(w::SettingsFlakes::Rerun(rerun)) => {
+            out.key(b"flakes");
+            out.object_start();
+            uint(out, b"rerun", u64::from(rerun.processes));
+            out.object_end();
+        }
     }
     for (name, value, default) in [
         (b"gate_retries".as_slice(), u64::from(v.gate_retries), 2),

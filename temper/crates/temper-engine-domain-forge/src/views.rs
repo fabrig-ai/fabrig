@@ -130,7 +130,7 @@ impl Domain {
                     check: Check::Gate(gate.name.clone()),
                     key,
                 };
-                if let Some(receipt) = self.landing.receipts.get(&key) {
+                if let Some(receipt) = self.receipt(&key) {
                     proof = if receipt.passed {
                         GateProof::Passed(receipt.run.clone())
                     } else {

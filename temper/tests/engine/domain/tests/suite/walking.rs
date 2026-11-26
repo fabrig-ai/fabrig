@@ -241,7 +241,7 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: task.number,
-        workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
         transcript: Box::new([]),
         parts: Box::new([]),
         answered: Box::new([]),

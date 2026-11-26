@@ -493,6 +493,7 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     .expect("reference project rule codec");
     let bounds = settings::Bounds {
         landing_members: 4,
+        rerun_processes: 4,
         repositories: 2,
         landing_gates: 2,
         tiers: 2,

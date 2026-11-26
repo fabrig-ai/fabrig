@@ -203,6 +203,7 @@ fn a_start_conflict_is_kept_only_for_the_live_producing_delegate() {
             flake: false,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: true,
             words: Box::new([]),
         },

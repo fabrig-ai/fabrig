@@ -37,7 +37,7 @@ fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::As
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: 1,
-        workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
         transcript: Box::new([]),
         parts: Box::new([]),
         answered: Box::new([]),

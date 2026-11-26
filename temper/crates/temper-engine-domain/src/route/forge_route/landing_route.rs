@@ -332,6 +332,7 @@ fn create_landing(
     }
     let row = forge::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
@@ -728,7 +729,7 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
     };
     for word in &context.inbox {
         if let tasks::Party::Task(child) = word.from {
-            if super::close::failed(domain, child, &word.kind)
+            if super::close::failure(domain, child, &word.kind).is_some()
                 || (word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
                     && forge::preparation::outcomes(&word.words, members).is_none())
             {
@@ -939,7 +940,12 @@ fn prepare_delegate(
         llm: None,
     })
 }
-pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::RunWorkspace> {
+pub(super) fn prepare_workspace(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    project: u32,
+) -> Option<super::RunWorkspace> {
     let request = prepare_request(domain, task, env.limits.forge.landing_members, &[])?;
     let row = domain.forge.landing(task)?;
     let member = row.landing.members.first()?;
@@ -959,7 +965,8 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
     let mut checkout = super::workspace_repository(item, None, Box::new([]))?;
     checkout.prefixes = branches.into_boxed();
     checkout.save = None;
-    let workspace = super::ForgeWorkspace { repositories: Box::new([checkout]) };
+    let workspace =
+        super::ForgeWorkspace { rerun: super::rerun_bound(domain, project), repositories: Box::new([checkout]) };
     let mut writes = List::with_capacity(env.limits.forge.landing_members);
     let mut names = List::with_capacity(env.limits.forge.landing_members);
     for member in &request.members {

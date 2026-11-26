@@ -3,7 +3,10 @@ use alloc::boxed::Box;
 use skein_forge::api::{self, Check, Commit, JobAttempt, Read};
 use skein_lib::{Decimal, List, Map};
 use temper_engine_domain_forge_change::Fault;
-use temper_engine_domain_forge_landing::{Fault as RunFault, Verdict};
+use temper_engine_domain_forge_landing::{Fault as RunFault, Judgement, Shown, job_fault, judge};
+
+const HOLD_BYTES: u32 = jig_domain_tasks::HOLD_ACCOUNT_BYTES;
+const RECOVERY: &[u8] = b"; the change wasn't judged. Release it to run CI again, or cancel it.";
 
 #[derive(Hash, Debug)]
 pub(super) struct Failed {
@@ -35,30 +38,87 @@ impl Failed {
         }
     }
 
-    pub(super) fn fault(&self, head: Commit) -> Fault {
-        let mut found = false;
+    pub(super) fn fault(&self, head: Commit, baseline: &[JobAttempt]) -> Fault {
+        let counted = counts(baseline, head);
+        let mut shown = Shown::Nothing;
+        let mut first = None;
         let mut reruns = 0;
         for check in &self.checks {
             if check.check != Check::Failed {
                 continue;
             }
-            let Some(attempt) = check.job else { return Fault::Change };
-            let Some(Some(run)) = self.runs.get(&attempt.run) else { return Fault::Change };
-            if runner(run, attempt, head).is_none() {
-                return Fault::Change;
+            if let Some((attempt, fact)) = self.runner_check(check, head) {
+                if first.is_none() {
+                    first = Some(fact);
+                }
+                reruns = reruns.max(runs_again(&counted, attempt));
+            } else {
+                shown = Shown::Failures;
             }
-            found = true;
-            reruns = reruns.max(attempt.attempt.saturating_sub(1));
         }
-        if found { Fault::Runner { reruns } } else { Fault::Change }
+        // A failed aggregate with no readable red check also names no runner fact.
+        if first.is_none() {
+            shown = Shown::Failures;
+        }
+        match judge(shown, first) {
+            Judgement::Refused => Fault::Change,
+            Judgement::Runner(_) => Fault::Runner { reruns },
+            Judgement::Passed | Judgement::Broke => unreachable!("a failed CI read shows red or a runner fact"),
+        }
+    }
+
+    fn runner_check(&self, check: &api::Status, head: Commit) -> Option<(JobAttempt, RunFault)> {
+        let attempt = check.job?;
+        let run = self.runs.get(&attempt.run)?.as_ref()?;
+        Some((attempt, runner_fault(run, attempt, head)?))
+    }
+
+    pub(super) fn hold_words(&self, head: Commit, baseline: &[JobAttempt]) -> Box<[u8]> {
+        let counted = counts(baseline, head);
+        let mut words = List::with_capacity(HOLD_BYTES);
+        let commit = crate::commit_text(&head);
+        append(&mut words, b"CI's runner failed at ");
+        append(&mut words, commit.get(..12).expect("commit prefix"));
+        let mut separator: &[u8] = b": ";
+        let more = " …".as_bytes();
+        for check in &self.checks {
+            if check.check != Check::Failed {
+                continue;
+            }
+            let Some((attempt, fact)) = self.runner_check(check, head) else { continue };
+            let job = Decimal::of(attempt.job);
+            let times = runs_again(&counted, attempt);
+            let count = Decimal::of(u64::from(times));
+            let unit: &[u8] = if times == 1 { b" time" } else { b" times" };
+            let start = [separator, b"job ", job.as_bytes(), b" of check "];
+            let end = [b": ".as_slice(), reason(fact), b", run again ", count.as_bytes(), unit];
+            let mut room = skein_lib::usize_of(words.room()).saturating_sub(RECOVERY.len()).saturating_sub(more.len());
+            for parts in [start.as_slice(), end.as_slice()] {
+                for part in parts {
+                    room = room.saturating_sub(part.len());
+                }
+            }
+            if room < more.len() {
+                append(&mut words, more);
+                break;
+            }
+            for part in start {
+                append(&mut words, part);
+            }
+            append(&mut words, &crate::text::fit(&check.context, room, "…".as_bytes()));
+            for part in end {
+                append(&mut words, part);
+            }
+            separator = b"; ";
+        }
+        append(&mut words, RECOVERY);
+        words.into_boxed()
     }
 
     pub(super) fn job(&self, head: Commit) -> Option<JobAttempt> {
         for check in &self.checks {
             if check.check == Check::Failed
-                && let Some(attempt) = check.job
-                && let Some(Some(run)) = self.runs.get(&attempt.run)
-                && runner(run, attempt, head).is_some()
+                && let Some((attempt, _)) = self.runner_check(check, head)
             {
                 return Some(attempt);
             }
@@ -111,18 +171,73 @@ impl Failed {
         );
         let mut words = List::with_capacity(crate::EFFECT_ACCOUNT_BYTES);
         for bytes in [b"ran job ".as_slice(), job.as_bytes(), b" of ", &context, b" again at ", head, b": ", reason] {
-            for byte in bytes {
-                if words.room() > 0 {
-                    words.push(*byte).expect("account room");
-                }
-            }
+            append(&mut words, bytes);
         }
         Some(words.into_boxed())
     }
 }
 
-/// Use the landing's classifier on this check's job, not its run's other jobs.
+fn append(words: &mut List<u8>, part: &[u8]) {
+    for byte in part {
+        words.push(*byte).expect("fitted CI account");
+    }
+}
+
+// Every admitted check can contribute one attempt to the stored release baseline.
+pub(super) fn release_baseline(checks: &[api::Status], head: Commit) -> Box<[JobAttempt]> {
+    let mut attempts = List::with_capacity(u32::try_from(checks.len()).expect("bounded checks"));
+    for check in checks {
+        if let Some(attempt) = check.job
+            && attempt.head == head
+            && attempt.attempt > 1
+        {
+            attempts.push(attempt).expect("at most one attempt per check");
+        }
+    }
+    attempts.into_boxed()
+}
+
+pub(super) fn baseline(row: &crate::ChangeRow) -> &[JobAttempt] {
+    match &row.runner_ci {
+        Some(crate::RunnerCi::Counting { attempts }) => attempts,
+        Some(crate::RunnerCi::Released | crate::RunnerCi::Held { .. }) | None => &[],
+    }
+}
+
+fn counts(baseline: &[JobAttempt], head: Commit) -> Map<(u64, u64), u32> {
+    let mut counted = Map::with_capacity(u32::try_from(baseline.len()).expect("bounded baseline"));
+    for attempt in baseline {
+        if attempt.head == head {
+            let key = (attempt.run, attempt.job);
+            let latest = counted.get(&key).copied().unwrap_or(1).max(attempt.attempt);
+            counted.insert(key, latest).expect("at most one entry per baseline attempt");
+        }
+    }
+    counted
+}
+
+fn runs_again(counted: &Map<(u64, u64), u32>, attempt: JobAttempt) -> u32 {
+    attempt.attempt.saturating_sub(counted.get(&(attempt.run, attempt.job)).copied().unwrap_or(1))
+}
+
 pub(crate) fn runner(run: &api::Run, attempt: JobAttempt, head: Commit) -> Option<&'static [u8]> {
+    Some(reason(runner_fault(run, attempt, head)?))
+}
+
+fn reason(fault: RunFault) -> &'static [u8] {
+    match fault {
+        RunFault::SetUp => b"set-up failed",
+        RunFault::Completion => b"completion failed",
+        RunFault::NoStep => b"no step failed",
+        RunFault::Cancelled => b"cancelled",
+        RunFault::OtherCommit | RunFault::Lost | RunFault::MissingWorkflow | RunFault::Unreported => {
+            unreachable!("not a fact from a CI job at the head")
+        }
+    }
+}
+
+/// Use the shared classifier on this check's job, not its run's other jobs.
+fn runner_fault(run: &api::Run, attempt: JobAttempt, head: Commit) -> Option<RunFault> {
     if attempt.head != head || run.commit != head || run.id != attempt.run {
         return None;
     }
@@ -130,26 +245,14 @@ pub(crate) fn runner(run: &api::Run, attempt: JobAttempt, head: Commit) -> Optio
         if job.id != attempt.job {
             continue;
         }
-        if job.attempt != attempt.attempt
-            || job.state != api::RunState::Completed
-            || job.conclusion != Some(api::Conclusion::Failure)
-        {
+        if job.attempt != attempt.attempt || job.state != api::RunState::Completed {
             return None;
         }
-        let single =
-            api::Run { jobs: Box::new([job.clone()]), state: job.state, conclusion: job.conclusion, ..run.clone() };
-        return match crate::runs::verdict(&single, head) {
-            Verdict::Fault(RunFault::SetUp) => Some(b"set-up failed"),
-            Verdict::Fault(RunFault::Completion) => Some(b"completion failed"),
-            Verdict::Fault(RunFault::NoStep) => Some(b"no step failed"),
-            Verdict::Fault(RunFault::Unreported) => Some(b"no report uploaded"),
-            Verdict::Running
-            | Verdict::Passed
-            | Verdict::Failed
-            | Verdict::Fault(
-                RunFault::Cancelled | RunFault::OtherCommit | RunFault::Lost | RunFault::MissingWorkflow,
-            ) => None,
-        };
+        // Temper does not cancel a change's head CI.
+        return job_fault(crate::runs::run_job(job), false);
     }
     None
 }
+
+#[cfg(test)]
+mod tests;

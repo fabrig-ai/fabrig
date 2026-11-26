@@ -11,6 +11,7 @@ use temper_client_protocol_wire::v1::Record;
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
 const BOUNDS: Bounds = Bounds {
     landing_members: 4,
+    rerun_processes: 4,
     repositories: 2,
     landing_gates: 2,
     tiers: 2,

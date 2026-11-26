@@ -27,10 +27,11 @@ findings are `findings.md`'s, and a repair, its result and its release
   on that verdict for a person.
 - **A repair's no-test verdict** (`forge/change/repairs.md`, *A landing
   repair that finds no failed test*): a landing repair whose failure
-  names no failed test (its gate names no report, its report was not
-  read, or it names none) may end with verdict 2, saying no test failed
-  and nothing needs changing, rather than a no-change taken as a
-  failure. Its change holds on that verdict for a person, as on a
+  names no failed test comes only from a gate that promises no report.
+  A promised report that was not read or names none asks no repair
+  (`forge/judgement.md`, 2). The repair may end with verdict 2, saying
+  no test failed and nothing needs changing, rather than a no-change
+  taken as a failure. Its change holds on that verdict for a person, as on a
   flake's, and its release regates as a flake's does (section 3): a red
   no test caused is run once more, never repaired again for nothing
   (the requester, 2026-11-19).
@@ -50,9 +51,10 @@ findings are `findings.md`'s, and a repair, its result and its release
   receipt is made: the report names its failed tests (`landing-proof.md`,
   1.2's report ids: not unset, unread or past its bound), at least one
   and at most 64 (a signature's own bound, `findings.md`, section 4),
-  and each of them is named by an open flake finding; and this landing
-  has not rerun this key for flakes before. Otherwise the receipt is
-  made as 7.3 says, at once.
+  and each of them is named by an open flake finding; this landing
+  has not rerun this key for flakes before; and its project's checks
+  can flake, its `flakes` not `none` (`forge/judgement.md`, 4).
+  Otherwise the receipt is made as 7.3 says, at once.
 - **Named by an open flake finding:** a finding of kind `flake`, in
   any state but `dropped` (`findings.md`, section 4), whose signature's
   repository is the gate's, whose source is the gate's name or `check`
@@ -170,8 +172,9 @@ compiled, not run.
   red whose failed tests all match open flake findings runs once more,
   green proceeds and counts them; red publishes and repairs, never a
   third run; a restart between the rerun's write and its end neither
-  repeats nor loses it; a test no finding names, a report not read and
-  a gate with no report make the failed receipt at once.
+  repeats nor loses it; a test no finding names and a gate with no
+  report make the failed receipt at once. A promised report not read is
+  no verdict, retried and then held with no receipt (`forge/judgement.md`, 2).
 - **A regate:** a member naming a failed receipt's key and run is
   dispatched afresh across a restart, green proving with no new
   commit; a spent regate fails at once.
@@ -183,9 +186,12 @@ compiled, not run.
   flake's.
 - **A no-test verdict** (`temper-engine-domain-forge`'s and the
   engine's route tests): offered only to a landing repair whose
-  failure names no failed test, never beside the flake's, nor to one
-  naming tests or more than N, nor to a CI repair; read from the inbox
-  and recovered alike; its release regating once, across a restart,
+  failure names no failed test, which comes only from a gate that
+  promises no report. A promised report that was not read or names
+  none asks no repair (`forge/judgement.md`, 2). The verdict is never
+  offered beside the flake's, nor to a repair naming tests or more
+  than N, nor to a CI repair; read from the inbox and recovered alike;
+  its release regating once, across a restart,
   the same candidate dispatched afresh and green proving with no
   commit, and a red regate repaired and counted, whose next no-test
   verdict waits for another release.

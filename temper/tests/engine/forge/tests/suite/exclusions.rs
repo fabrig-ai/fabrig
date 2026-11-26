@@ -19,7 +19,6 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a change's reds",
         "a landing's gate red",
     ),
-    (temper_blame::STARVED, "ci/starved", "a_starved_gate_is_the_runners", "a change's reds", "a landing's gate"),
     (
         A_PATH_DELETED_ON_THE_BASE,
         "stale/a path deleted on the base",

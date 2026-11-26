@@ -106,7 +106,10 @@ fn run(seed: u64) -> (usize, ToDomain, Vec<String>) {
             let exit = if mode == 4 { run::Exit::Code { code: 1 } } else { run::Exit::TimedOut };
             assert_eq!(
                 done,
-                ToDomain::Checked { owner, ran: run::Ran { exit, output: Box::new([]), cut: 0 } },
+                ToDomain::Checked {
+                    owner,
+                    ran: run::Ran { exit, said_not_judged: false, output: Box::new([]), cut: 0 }
+                },
                 "seed {seed}"
             );
             done

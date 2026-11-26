@@ -1,14 +1,11 @@
 //! A check's held clock across the run and machine boundary (domain/run-delivery.md, 1.1).
 
 use super::*;
-use skein_io::{Event as IoEvent, Request as IoRequest, kernel};
-use skein_lib::{Rng, stream::Up};
+use skein_io::kernel;
+use skein_lib::Rng;
 use skein_world::streams::{Stream, Streams};
-use smith_protocol_machine::{Below, BelowEvent, Component, FromDomain, ToDomain};
-
-const CHILD: Token = Token::new(40);
-const STDOUT: Token = Token::new(41);
-const STDERR: Token = Token::new(42);
+use smith_protocol_machine::{FromDomain, ToDomain};
+use smith_protocol_machine_fixtures::{CheckProcess, SMALL, STDERR, STDOUT};
 
 /// Draw a marker and its read splits; faults choose which pipe it reaches.
 pub(crate) fn draw_marker(workload: &mut Rng, faults: &mut Rng) -> (Vec<Vec<u8>>, bool) {
@@ -46,10 +43,7 @@ fn check_workload_is_independent_of_prior_fault_draws() {
 
 pub(crate) struct Check {
     run: PendingCheck,
-    machine: Component,
-    env: Env<smith_protocol_machine::Limits>,
-    above: Queue<ToDomain>,
-    below: Queue<Below>,
+    process: CheckProcess,
 }
 
 impl Check {
@@ -61,81 +55,29 @@ impl Check {
 
     fn start(run: PendingCheck, request: Request) -> Self {
         let Request::Check { owner, program, results, bound, cap, tail } = request else { panic!("check") };
-        let limits = smith_protocol_machine::Limits { output_bytes: tail, ..smith_protocol_machine_fixtures::SMALL };
-        let mut machine = Component::new(
-            &limits,
-            smith_protocol_machine::Environment::encode(&[], &limits).expect("environment"),
-            Box::from(b"/usr/bin/rg".as_slice()),
-        );
-        machine.workspace(&run::Workspace {
-            directories: Box::new([run::Directory {
-                results: None,
-                host: b"/host".as_slice().into(),
-                name: b"code".as_slice().into(),
-                root: program.root,
-                writable: true,
-                git: true,
-                conflicts: Box::new([]),
-            }]),
-        });
-        let mut check = Self {
-            env: Env { now: run.env.now, wall: Wall::EPOCH, limits },
-            run,
-            machine,
-            above: Queue::uncapped(),
-            below: Queue::uncapped(),
-        };
-        check.machine.from_domain(
-            &check.env,
-            FromDomain::Check { owner, program, results, bound, cap, tail },
-            &mut check.above,
-            &mut check.below,
-        );
-        assert!(matches!(check.below.pop(), Some(Below::Spawn { .. })));
-        check.event(BelowEvent::Process(IoEvent::Spawned { owner, child: CHILD, pipes: Box::new([STDOUT, STDERR]) }));
-        check.clear_reads();
-        check
-    }
-
-    fn event(&mut self, event: BelowEvent) {
-        self.machine.from_below(&self.env, event, &mut self.above, &mut self.below);
+        let process = CheckProcess::start(FromDomain::Check { owner, program, results, bound, cap, tail }, run.env.now);
+        Self { run, process }
     }
 
     pub(crate) fn deadline(&self) -> Time {
-        self.machine.next_deadline().expect("live check deadline")
+        self.process.deadline()
     }
 
     pub(crate) fn at(&mut self, seconds: u64) {
-        self.env.now = Time::ZERO.saturating_add(Duration::from_secs(seconds));
-        self.run.env.now = self.env.now;
+        self.run.env.now = time(seconds);
+        self.process.at(self.run.env.now);
     }
 
     pub(crate) fn bytes(&mut self, pipe: Token, bytes: &[u8]) {
-        self.event(BelowEvent::Pipe(IoEvent::Stream { owner: pipe, up: Up::Bytes(bytes.into()) }));
-        self.clear_reads();
-    }
-
-    fn clear_reads(&mut self) {
-        while let Some(request) = self.below.pop() {
-            assert!(matches!(request, Below::Process(IoRequest::Stream { .. })), "unexpected stop: {request:?}");
-        }
+        self.process.bytes(pipe, bytes);
     }
 
     fn fire(&mut self) {
-        self.machine.fire(&self.env, &mut self.above, &mut self.below);
+        self.process.fire();
     }
 
     fn assert_stopped(&mut self) {
-        assert_eq!(
-            self.below.pop(),
-            Some(Below::Process(IoRequest::Signal {
-                child: CHILD,
-                to: kernel::Target::Group,
-                signal: kernel::Signal::Terminate,
-                reason: kernel::Reason::Unknown,
-            }))
-        );
-        assert!(self.below.is_empty());
+        self.process.assert_stopped();
     }
 
     pub(crate) fn settle_at_deadline(mut self, seconds: u64) {
@@ -147,15 +89,8 @@ impl Check {
     }
 
     fn finish(mut self) -> (PendingCheck, Vec<Request>) {
-        self.event(BelowEvent::Process(IoEvent::Exited { owner: self.run.owner, exit: kernel::Exit::Code(0) }));
-        for pipe in [STDOUT, STDERR] {
-            self.event(BelowEvent::Pipe(IoEvent::Closed { owner: pipe }));
-        }
-        self.event(BelowEvent::Process(IoEvent::Closed { owner: self.run.owner }));
-        let Some(ToDomain::Checked { owner, ran }) = self.above.pop() else { panic!("checked") };
-        assert!(self.above.is_empty());
-        self.machine.close(&mut self.below);
-        assert!(self.machine.closed());
+        self.process.exited(kernel::Exit::Code(0));
+        let ToDomain::Checked { owner, ran } = self.process.finish() else { panic!("checked") };
         let requests = self.run.step(Event::Checked { owner, ran });
         (self.run, requests)
     }
@@ -166,7 +101,7 @@ fn time(seconds: u64) -> Time {
 }
 
 fn assert_feedback(requests: &[Request], seconds: u64) {
-    let [Request::Return { result: Returned::ChecksFailed { given, ran, .. }, .. }, rest @ ..] = requests else {
+    let [Request::Return { result: Returned::ChecksNotJudged { given, ran, .. }, .. }, rest @ ..] = requests else {
         panic!("timeout feedback without a retry: {requests:?}");
     };
     assert!(rest.iter().all(|request| matches!(request, Request::Close { .. })), "no retry: {rest:?}");
@@ -181,7 +116,7 @@ fn a_check_waiting_for_a_place_delivers_with_its_held_time_left() {
     check.bytes(STDERR, b"smith-check: waiting\n");
     check.at(60);
     check.fire();
-    assert!(check.below.is_empty(), "the wait must not spend the 60-second bound: {:?}", check.below);
+    assert!(check.process.quiet(), "the wait must not spend the 60-second bound");
     check.at(100);
     check.bytes(STDERR, b"smith-check: admitted\n");
     assert_eq!(check.deadline(), time(159));
@@ -208,14 +143,14 @@ fn a_resumed_check_times_out_at_159_and_reports_60_seconds() {
     assert_eq!(check.deadline(), time(159));
     check.at(158);
     check.fire();
-    assert!(check.below.is_empty());
+    assert!(check.process.quiet());
     check.at(159);
     check.fire();
     check.assert_stopped();
     // A late marker while stopping is output, not another clock transition.
     check.at(160);
     check.bytes(STDERR, b"smith-check: waiting\n");
-    assert_eq!(check.deadline(), time(159).saturating_add(check.env.limits.group_stop));
+    assert_eq!(check.deadline(), time(159).saturating_add(SMALL.group_stop));
     check.at(170);
     let (_, requests) = check.finish();
     assert_feedback(&requests, 60);
@@ -230,7 +165,7 @@ fn an_unadmitted_check_times_out_at_the_call_or_run_cap_without_retry() {
         assert_eq!(check.deadline(), time(150));
         check.at(149);
         check.fire();
-        assert!(check.below.is_empty());
+        assert!(check.process.quiet());
         check.at(150);
         check.fire();
         check.assert_stopped();
@@ -309,7 +244,7 @@ fn a_waited_timeout_retries_with_twice_the_held_bound_and_omits_its_own_wait() {
     retry.bytes(STDERR, b"smith-check: waiting\n");
     retry.at(279);
     retry.fire();
-    assert!(retry.below.is_empty());
+    assert!(retry.process.quiet());
     retry.at(300);
     retry.bytes(STDERR, b"smith-check: admitted\n");
     assert_eq!(retry.deadline(), time(419));

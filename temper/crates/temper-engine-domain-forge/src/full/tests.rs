@@ -178,6 +178,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
                 50,
                 crate::LandingRow {
                     read_hold: None,
+                    gate_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,

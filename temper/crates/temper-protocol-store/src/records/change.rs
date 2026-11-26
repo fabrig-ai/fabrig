@@ -480,6 +480,10 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         asks.push(map::landing_handed_to_record(ask)).expect(FITS);
     }
     w::ChangeHot {
+        runner_ci: match &value.runner_ci {
+            Some(ci) => Some(map::runner_ci_to_record(ci).expect(FITS)),
+            None => None,
+        },
         settling: value.settling,
         close_at: match value.close_at.as_ref() {
             Some(value) => Some(map::close_at_to_record(value)),
@@ -582,6 +586,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         asks.push(map::landing_handed_to_domain(ask)).expect(FITS);
     }
     Ok(top::ChangeHot {
+        runner_ci: match value.runner_ci {
+            Some(ci) => Some(map::runner_ci_to_domain(ci)),
+            None => None,
+        },
         settling: value.settling,
         close_at: match value.close_at {
             Some(value) => Some(map::close_at_to_domain(value)),

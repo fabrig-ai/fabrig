@@ -58,14 +58,13 @@ sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, s
   a tier's report's read is, before its failed receipt is made. A
   passed run, or a runner's fault (`landing-proof.md`, 2.4), reads none.
 - **The gate's own verdict:** a report is what the gate writes once it
-  has judged, so a failed run whose artifact the forge answers absent
-  (skein's `Error::Missing`) is one whose gate wrote no verdict, cut by
-  a signal, a runner's shutdown or a lost job: `unreported`, a runner's
-  fault (`landing-proof.md`, 2.4), retried within `gate_retries` and holding
-  past them, with no receipt, no search and no repair. That answer
-  alone: an artifact past the read's bound, one in no form its format
-  reads, or a read that failed otherwise makes the failed receipt as
-  below, its ids many or not read. Every run of the landing's gates is
+  has judged. An artifact past the read's bound reads as "many" and
+  makes the failed receipt as below. An absent artifact (skein's
+  `Error::Missing`), one in no form its format reads, or a read that
+  failed otherwise names nothing and is no verdict (see **None**): the
+  runner's when the run was interrupted, broke otherwise
+  (`forge/judgement.md`, 2), with no receipt, no search and no repair.
+  Every run of the landing's gates is
   read so: a top, a
   probe, a baseline, a flake rerun and a superseding run
   (`landing-regate.md`, 2 and 3). A gate naming no report has no
@@ -84,12 +83,16 @@ sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, s
   control character (a byte below 32, or 127), or a file past the
   read's bound, each reads as "many".
 - **None:** an absent artifact, a file its format cannot read, an
-  answer of another shape, or a report that names no failed case. It
-  is no fault: the run still failed.
-- **The failed receipt** keeps the ids, or "many", or none, in its
-  `failures` (`landing-proof.md`, 1.2). Its failure stands as `landing-proof.md`,
-  2.3 reads it either way: its repair, its member's leaving and its
-  status are those of any failed receipt.
+  answer of another shape, or a report that names no failed case is no
+  verdict: the runner's when the run was interrupted, broke otherwise
+  (`forge/judgement.md`, 2). The gate is retried within `gate_retries`,
+  then holds the landing if blocking (`landing-proof.md`, 2.4), with no
+  receipt and no repair.
+- **The failed receipt** of a gate that promises a report is made only
+  from named ids or "many", kept in its `failures` (`landing-proof.md`,
+  1.2). Its failure stands as `landing-proof.md`, 2.3 reads it either way:
+  its repair, its member's leaving and its status are those of any failed
+  receipt.
 
 ## 3. The selection
 

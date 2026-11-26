@@ -1104,7 +1104,7 @@ pub(crate) fn run_workspace(
     if context.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
         && let tasks::Party::Task(parent) = context.requester
     {
-        return landing_route::prepare_workspace(domain, env, parent);
+        return landing_route::prepare_workspace(domain, env, parent, context.project);
     }
     let root = domain.core.tasks.root(context.task)?;
     let modify = match context.executor {
@@ -1285,13 +1285,26 @@ pub(crate) fn run_workspace(
         repositories.push(workspace_repository(item, push, save)?).ok()?;
     }
     Some(RunWorkspace {
-        workspace: ForgeWorkspace { repositories: repositories.into_boxed() },
+        workspace: ForgeWorkspace {
+            rerun: rerun_bound(domain, context.project),
+            repositories: repositories.into_boxed(),
+        },
         workstream: key,
         writes: writes.into_boxed(),
         names: names.into_boxed(),
         designs: designs.into_boxed(),
         own_holds: own_holds.into_boxed(),
     })
+}
+
+/// The run or job takes its project's bound from the settings built at restore.
+fn rerun_bound(domain: &Domain, project: u32) -> Option<u32> {
+    use forge::settings::Flakes;
+    match domain.forge.landing_settings(project)?.flakes {
+        Some(Flakes::Never) => Some(0),
+        Some(Flakes::Rerun(processes)) => Some(processes),
+        None => None,
+    }
 }
 
 /// Reconstruct the connector's provisional writer projection from the
@@ -2012,6 +2025,7 @@ pub(super) fn start_recovered_change(
                 questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
+                runner_ci: None,
                 close_at: None,
                 report: Box::new([]),
                 repairs,
@@ -2113,9 +2127,9 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
         if child != current {
             continue;
         }
-        let closing = domain.forge.change(task).expect("registered change").delegate
-            == Some((child, forge_change::Delegate::Close));
-        let held = closing && close::failed(domain, child, &word.kind);
+        let failure =
+            if kind == forge_change::Delegate::Close { close::failure(domain, child, &word.kind) } else { None };
+        let held = failure.is_some();
         let status = if held {
             Some((forge_change::Status::Failed, true, false))
         } else {
@@ -2142,6 +2156,7 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
                     false
                 },
                 failed,
+                lost: failure == Some(tasks::Class::Lost),
                 cancelled,
                 words: if held {
                     close::failure_words(domain, child).unwrap_or(&word.words).into()
@@ -3535,11 +3550,8 @@ fn hold_change_decision(
         return holds::decision_as(domain, env, task, category, words);
     }
     let check_hold = match domain.forge.change(task) {
-        Some(row) => match &row.follow_check {
-            Some(check) => check.held.clone(),
-            None => None,
-        },
-        None => None,
+        Some(forge::ChangeRow { follow_check: Some(check), .. }) => check.held.clone(),
+        Some(_) | None => None,
     };
     let account = if why == forge_change::Hold::Repairs
         && let Some(row) = domain.forge.change(task)
@@ -3595,7 +3607,8 @@ fn hold_change_decision(
             forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
         },
         forge_change::Hold::Stalled => tasks::Hold::Stalled,
-        forge_change::Hold::Repairs
+        forge_change::Hold::Runner
+        | forge_change::Hold::Repairs
         | forge_change::Hold::Resolutions
         | forge_change::Hold::Updates
         | forge_change::Hold::Questions

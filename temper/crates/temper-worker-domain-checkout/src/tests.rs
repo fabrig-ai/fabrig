@@ -36,7 +36,7 @@ fn merge_spec() -> Spec {
     let mut repo = repository(b"a", true);
     repo.start = Start::Merge { branch: bytes(b"main"), base: commit(7) };
     repo.expected = Some(commit(1));
-    Spec { key: bytes(b"merge"), repositories: Box::new([repo]) }
+    Spec { rerun: None, key: bytes(b"merge"), repositories: Box::new([repo]) }
 }
 
 /// The domain, its environment and its output queue.
@@ -286,7 +286,7 @@ fn store_token(name: &[u8]) -> Token {
 }
 
 fn spec(key: &[u8], repositories: Box<[Repository]>) -> Spec {
-    Spec { key: bytes(key), repositories }
+    Spec { rerun: None, key: bytes(key), repositories }
 }
 
 /// The workstream `key` with the writable `a` and the read-only `b`.
@@ -2578,7 +2578,7 @@ fn merged_spec(heads: &[Commit]) -> Spec {
     let mut repo = repository(b"a", true);
     repo.identity = 3;
     repo.start = Start::Merged { branch: bytes(b"main"), heads: heads.into() };
-    Spec { key: bytes(b"merged"), repositories: Box::new([repo]) }
+    Spec { rerun: None, key: bytes(b"merged"), repositories: Box::new([repo]) }
 }
 
 /// Complete the fetches and clean checkout; the first ancestry query is in flight.

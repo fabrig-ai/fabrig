@@ -158,17 +158,17 @@ pub(super) fn failure_words(domain: &Domain, child: u64) -> Option<&[u8]> {
 
 // Exhausted job tries hold the producer when its escalation reaches the change
 // (temper/docs/design/domain/forge/change/repairs.md).
-pub(super) fn failed(domain: &Domain, child: u64, kind: &tasks::MessageKind) -> bool {
-    let Some(task) = domain.core.tasks.task(child) else { return false };
+pub(super) fn failure(domain: &Domain, child: u64, kind: &tasks::MessageKind) -> Option<tasks::Class> {
+    let task = domain.core.tasks.task(child)?;
     if *kind != (tasks::MessageKind::Escalation { task: child, revision: task.revisions.hold }) {
-        return false;
+        return None;
     }
     match task.phase {
-        tasks::Phase::Held { why: tasks::Hold::Failures(_), .. } => true,
+        tasks::Phase::Held { why: tasks::Hold::Failures(class), .. } => Some(class),
         tasks::Phase::Held { .. }
         | tasks::Phase::Active(_)
         | tasks::Phase::Closing(_)
         | tasks::Phase::Waiting
-        | tasks::Phase::Ended(_) => false,
+        | tasks::Phase::Ended(_) => None,
     }
 }

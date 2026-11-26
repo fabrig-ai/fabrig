@@ -167,7 +167,7 @@ fn hold_kind(why: c::Hold) -> w::PublicHold {
         c::Hold::BranchMissing => w::PublicHold::Missing,
         c::Hold::PullClosed => w::PublicHold::Closed,
         c::Hold::Retargeted => w::PublicHold::Retargeted,
-        c::Hold::Failed => w::PublicHold::Failed,
+        c::Hold::Failed | c::Hold::Runner => w::PublicHold::Failed,
         c::Hold::Flake => w::PublicHold::Flake,
         c::Hold::NoTest => w::PublicHold::NoTest,
         c::Hold::Rejected => w::PublicHold::Rejected,

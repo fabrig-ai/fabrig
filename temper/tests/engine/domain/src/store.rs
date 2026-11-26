@@ -95,6 +95,11 @@ pub struct Store {
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
     // Only the live world's typed readback needs a copy of its writes.
     inflight: Option<BTreeMap<u64, Box<[Write]>>>,
+    // A drive drains these in order; the next drive reuses their buffers.
+    requests: VecDeque<Request>,
+    above: Queue<Event>,
+    below: Below,
+    outputs: Queue<Up>,
     replies: Vec<engine::StoreInput>,
     missing: Vec<(jig_domain_core::Key, jig_domain_core::Key)>,
     delayed: VecDeque<Delayed>,
@@ -238,6 +243,15 @@ impl Store {
             models,
             catalogue: None,
             inflight: Some(BTreeMap::new()),
+            requests: VecDeque::new(),
+            above: Queue::uncapped(),
+            below: Below {
+                store: Queue::uncapped(),
+                secrets: Queue::uncapped(),
+                transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
+            },
+            outputs: Queue::with_capacity(8),
             replies: Vec::new(),
             missing: Vec::new(),
             delayed: VecDeque::new(),
@@ -566,7 +580,8 @@ impl Store {
             return;
         }
         let request = route::down(&mut self.routes, request).expect("root store request admitted");
-        self.drive(VecDeque::from([request]), Queue::uncapped());
+        self.requests.push_back(request);
+        self.drive();
     }
     fn reopen(&mut self, stores: Stores) {
         let mut component = protocol::Store::over(&self.shape.checked, self.shape.application, &self.models, stores);
@@ -580,58 +595,57 @@ impl Store {
 
     fn open(&mut self) {
         let root = self.files.root();
-        self.drive(
-            VecDeque::from([Request::Open {
-                purpose: jig_protocol_store::Purpose::Serve,
-                owner: Token::new(0),
-                root,
-                installation: INSTALLATION,
-            }]),
-            Queue::uncapped(),
-        );
+        self.requests.push_back(Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
+            owner: Token::new(0),
+            root,
+            installation: INSTALLATION,
+        });
+        self.drive();
         assert!(!self.failed, "durable stores reopen");
     }
     fn env(&self) -> Env<Limits> {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.shape.checked.limits() }
     }
-    fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
-        let mut below = Below {
-            store: Queue::uncapped(),
-            secrets: Queue::uncapped(),
-            transcripts: Queue::uncapped(),
-            checkpoints: Queue::uncapped(),
-        };
+    fn drive(&mut self) {
+        let env = self.env();
         loop {
-            if let Some(event) = above.pop() {
-                self.event(event, &mut requests);
+            if let Some(event) = self.above.pop() {
+                self.event(event);
                 continue;
             }
-            if let Some(request) = requests.pop_front() {
-                let env = self.env();
+            if let Some(request) = self.requests.pop_front() {
                 protocol::down(
                     self.component.as_mut().expect("component exists"),
                     &env,
                     request,
-                    &mut above,
-                    &mut below,
+                    &mut self.above,
+                    &mut self.below,
                 );
                 continue;
             }
-            let io = if let Some(request) = below.transcripts.pop() {
+            let io = if let Some(request) = self.below.transcripts.pop() {
                 Io::Transcripts(self.files.answer(request))
-            } else if let Some(request) = below.store.pop() {
+            } else if let Some(request) = self.below.store.pop() {
                 Io::Store(self.files.answer(request))
-            } else if let Some(request) = below.secrets.pop() {
+            } else if let Some(request) = self.below.secrets.pop() {
                 Io::Secrets(self.files.answer(request))
             } else {
+                // The in-memory store does not use the checkpoint file queue.
+                self.below.checkpoints.clear();
                 break;
             };
-            let env = self.env();
-            protocol::up(self.component.as_mut().expect("component exists"), &env, io, &mut above, &mut below);
+            protocol::up(
+                self.component.as_mut().expect("component exists"),
+                &env,
+                io,
+                &mut self.above,
+                &mut self.below,
+            );
         }
     }
     #[expect(clippy::too_many_lines, reason = "the fixture forwards every checkpoint terminal without interpreting it")]
-    fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
+    fn event(&mut self, event: Event) {
         match event {
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
@@ -716,7 +730,7 @@ impl Store {
             }
             event @ Event::Corrupt { .. } => {
                 self.failed = true;
-                self.route(event, requests);
+                self.route(event);
             }
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
@@ -739,15 +753,14 @@ impl Store {
             | Event::Stale { .. }
             | Event::Erased { .. }
             | Event::Secret { .. }
-            | Event::SecretsLoaded { .. }) => self.route(event, requests),
+            | Event::SecretsLoaded { .. }) => self.route(event),
         }
     }
-    fn route(&mut self, event: Event, requests: &mut VecDeque<Request>) {
-        let mut outputs = Queue::with_capacity(8);
-        route::up(&mut self.routes, event, &mut outputs);
-        while let Some(output) = outputs.pop() {
+    fn route(&mut self, event: Event) {
+        route::up(&mut self.routes, event, &mut self.outputs);
+        while let Some(output) = self.outputs.pop() {
             match output {
-                Up::Ask(request) => requests.push_back(request),
+                Up::Ask(request) => self.requests.push_back(request),
                 Up::FrameTooLarge { .. } => self.failed = true,
                 Up::Failed { number, .. } => {
                     self.replies.push(engine::StoreInput::Uncommitted { number });
@@ -766,17 +779,16 @@ impl Store {
         if self.delayed.is_empty() {
             return;
         }
-        let mut requests = VecDeque::new();
         for _ in 0..self.delayed.len() {
             let mut delayed = self.delayed.pop_front().expect("counted pages");
             delayed.delay = delayed.delay.saturating_sub(1);
             if delayed.delay == 0 {
-                self.route(delayed.event, &mut requests);
+                self.route(delayed.event);
             } else {
                 self.delayed.push_back(delayed);
             }
         }
-        self.drive(requests, Queue::uncapped());
+        self.drive();
     }
 }
 fn routes(shape: &Shape) -> route::Routes {

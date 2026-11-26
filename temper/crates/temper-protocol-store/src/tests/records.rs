@@ -811,6 +811,35 @@ fn eight_wrapping_holds_keep_their_order_at_the_schema_ceiling() {
     assert_eq!(records::decode(&bytes, &bounds), Ok(row));
 }
 #[test]
+fn a_runner_hold_round_trips_with_its_account() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_vocabulary::RunnerCi;
+    const HEAD: [u8; 32] = [1; 32];
+    let mut row =
+        fixtures::change_row(State::Held { was: Box::new(State::Checking { head: HEAD }), why: Hold::Runner });
+    row.runner_ci = Some(RunnerCi::Held { words: b"CI's runner failed: set-up failed".as_slice().into() });
+    let row = fixtures::change_hot(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn a_runner_release_round_trips_before_and_after_its_read() {
+    use temper_engine_domain_forge_change::State;
+    use temper_engine_domain_forge_vocabulary::RunnerCi;
+    const HEAD: [u8; 32] = [1; 32];
+    const ATTEMPT: skein_forge::api::JobAttempt =
+        skein_forge::api::JobAttempt { head: HEAD, run: 66, job: 67, attempt: 2 };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for runner_ci in [RunnerCi::Released, RunnerCi::Counting { attempts: Box::new([ATTEMPT]) }] {
+        let mut row = fixtures::change_row(State::Checking { head: HEAD });
+        row.runner_ci = Some(runner_ci);
+        let row = fixtures::change_hot(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn each_change_delegate_round_trips_unchanged() {
     use temper_engine_domain_forge_change::{Delegate, Repair, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -1758,6 +1787,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
                     read_hold: None,
+                    gate_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,
@@ -1832,6 +1862,7 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
@@ -1868,13 +1899,14 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
 #[test]
 fn landing_own_holds_keep_their_exact_reasons() {
     use temper_engine_domain_forge_landing as l;
-    type HoldCase = (l::Hold, Option<&'static [u8]>, Option<&'static [u8]>);
+    type HoldCase = (l::Hold, Option<&'static [u8]>, Option<&'static [u8]>, Option<&'static [u8]>);
     const CASES: &[HoldCase] = &[
-        (l::Hold::Read, Some(b"read: branch main: no answer"), None),
-        (l::Hold::Cleanup, None, Some(b"close item: forge refused permission; resource org/repo #9")),
+        (l::Hold::Read, Some(b"read: branch main: no answer"), None, None),
+        (l::Hold::Cleanup, None, Some(b"close item: forge refused permission; resource org/repo #9"), None),
+        (l::Hold::Faults { member: 0, gate: 0 }, None, None, Some(b": the check broke: its report was missing")),
     ];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for &(why, read, cleanup) in CASES {
+    for &(why, read, cleanup, gate) in CASES {
         let mut row = landing_with_clock(None);
         let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
         landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why };
@@ -1883,6 +1915,9 @@ fn landing_own_holds_keep_their_exact_reasons() {
         }
         if let Some(cleanup) = cleanup {
             landing.landing.round.cleanup = Some(Box::from(cleanup));
+        }
+        if let Some(gate) = gate {
+            landing.gate_hold = Some(Box::from(gate));
         }
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
@@ -2010,6 +2045,7 @@ fn a_landing_written_before_read_holds_reads_as_before() {
     let before = before_landing_stuck(family.current)
         .replace("cleanup: option bytes 512 = none ", "")
         .replace(" read_hold: option bytes 256 = none", "")
+        .replace(" gate_hold: option bytes 512 = none", "")
         .replace("record LandingClaimed { change: u64 }\n", "")
         .replace(", read, claimed: LandingClaimed, cleanup", "");
     assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
@@ -2090,6 +2126,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             };
             let row = v25::LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,

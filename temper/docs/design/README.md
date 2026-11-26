@@ -198,6 +198,7 @@ forge, temper adds:
   - `domain/forge/README.md`: the forge connector and its documents.
   - `domain/forge/effects.md`: effects and recovery across restarts.
   - `domain/forge/releases.md`: a task's release: it finds first, and each failure's account.
+  - `domain/forge/judgement.md`: a check's judgement: passed, refused, the runner's or broke, and whether a project's checks can flake.
   - `domain/forge/topics.md`: topics and landings as news.
   - `domain/forge/updates.md`: lazy, mechanical updates.
   - `domain/forge/adoption.md`: adopting repositories, rules, workflows and landing branches.

@@ -3,9 +3,9 @@ use super::*;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 fn produced_goal() -> (World, u64, u64) {
-    produced_goal_with_checks(1000)
+    produced_goal_with_checks(1000, None)
 }
-fn produced_goal_with_checks(passes: u32) -> (World, u64, u64) {
+fn produced_goal_with_checks(passes: u32, message_bytes: Option<u32>) -> (World, u64, u64) {
     let world = World::configured_limits(
         true,
         true,
@@ -13,10 +13,21 @@ fn produced_goal_with_checks(passes: u32) -> (World, u64, u64) {
         1000,
         Gate::default(),
         None,
-        StoryLimits { turn: true, dispatch_passes: Some(passes), ..StoryLimits::default() },
+        StoryLimits { turn: true, dispatch_passes: Some(passes), message_bytes, ..StoryLimits::default() },
     );
     let (mut world, goal, producer, _) = change_world_in(world, Change { tracked: true, ..Change::default() });
-    world.send(hello_prepare(2));
+    let hello = if let Some(message_bytes) = message_bytes {
+        protocol::hello_with(
+            Token::new(7),
+            0,
+            2,
+            jig_domain_link::Bounds { message_bytes, ..protocol::bounds() },
+            Box::new([]),
+        )
+    } else {
+        hello_prepare(2)
+    };
+    world.send(hello);
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change requester") };
     push_change(&mut world, &producer, b"org/repo");
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"other", b"base moved", 2)
@@ -62,6 +73,11 @@ fn proving(row: &forge_top::LandingRow, change: u64) -> String {
         hex(&member.candidate.expect("candidate")),
         hex(&member.base.expect("base"))
     )
+}
+fn setup_fault_words(world: &World, row: &forge_top::LandingRow) -> String {
+    forge_world::landings::setup_fault_hold_words(row, |read| {
+        world.fake.inspect(&world.fake_env.limits, b"org/repo", read).expect("gate evidence")
+    })
 }
 #[test]
 fn a_members_goal_hears_joined_proving_and_landed_in_order() {
@@ -118,7 +134,9 @@ fn a_members_goal_hears_joined_proving_and_left_and_the_result_names_why() {
 }
 #[test]
 fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account() {
-    let (mut world, goal, change) = produced_goal();
+    // The full hold news, including the candidate and the retry count, must fit in a task message.
+    const HOLD_NEWS_BYTES: u32 = 256;
+    let (mut world, goal, change) = produced_goal_with_checks(1000, Some(HOLD_NEWS_BYTES));
     world.fake_env.limits.setup_faults = 1000;
     for _ in 0..1600 {
         world.prepare_tick();
@@ -128,11 +146,11 @@ fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account
     }
     let row = landing_rows(&world).into_iter().next().expect("held landing");
     let landing = row.landing.task;
-    let why = "gate gate of org/repo failed on its runner past its retries";
     assert!(matches!(
         row.landing.phase,
         forge_top::LandingPhase::Held { why: forge_top::LandingHold::Faults { .. }, .. }
     ));
+    let why = setup_fault_words(&world, row);
     assert_eq!(
         news(&world, goal, landing),
         [joined(landing, change), proving(row, change), format!("landing {landing}: held: {why}")]
@@ -144,7 +162,7 @@ fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account
 }
 
 fn candidate_repair() -> (World, u64, engine::Assignment) {
-    let (mut world, _, change) = produced_goal_with_checks(0);
+    let (mut world, _, change) = produced_goal_with_checks(0, None);
     for _ in 0..1200 {
         world.prepare_tick();
         if world.assigned.iter().any(|run| {
@@ -557,9 +575,10 @@ fn batch_goals_hear_member_leaves_and_each_members_landing_hold() {
         }
         let lines = news(&world, goal.task, landing);
         if held {
-            let expected =
-                format!("landing {landing}: held: gate gate of org/repo failed on its runner past its retries");
-            assert_eq!(lines.iter().filter(|line| **line == expected).count(), 3);
+            let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("held batch");
+            let why = setup_fault_words(&world, row);
+            let expected = format!("landing {landing}: held: {why}");
+            assert_eq!(lines.iter().filter(|line| **line == expected).count(), 3, "{lines:?}");
         } else {
             assert!(ended(&world, landing));
             let why = format!("head moved to {}", hex(&moved.expect("moved head")));

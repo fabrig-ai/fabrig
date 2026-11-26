@@ -261,6 +261,7 @@ fn terminal(child: u64) -> Event {
         flake: false,
         no_test: false,
         failed: false,
+        lost: false,
         cancelled: false,
         words: Box::new([]),
     }

@@ -235,13 +235,12 @@ impl Process {
     pub(crate) fn byte(&mut self, now: Time, pipe: Token, byte: u8) {
         let index = usize::from(self.pipes.first().copied().expect("pipe slot") != Some(pipe));
         assert_eq!(self.pipes.get(index).copied().expect("pipe slot"), Some(pipe), "byte belongs to child");
-        let running = match self.stop {
-            Stop::Running => self.exit.is_none() && !self.child_closed && now < self.deadline,
-            Stop::Terminating { .. } | Stop::Killing { .. } | Stop::Closing { .. } => false,
-        };
         match &mut self.work {
-            Work::Check(clock) if index == 1 && running => {
-                if let Some(deadline) = clock.byte(now, byte) {
+            Work::Check(clock) if index == 1 && self.stop == Stop::Running => {
+                // A natural exit can be observed before the last stderr read.
+                // Still recognize its verdict marker, but don't move the clock.
+                let clock_live = self.exit.is_none() && !self.child_closed && now < self.deadline;
+                if let Some(deadline) = clock.byte(now, byte, clock_live) {
                     self.deadline = deadline;
                 }
                 self.output.push(byte);
@@ -449,14 +448,17 @@ impl Process {
                 };
                 ToDomain::Done { owner, done }
             }
-            Work::Check(_) => {
+            Work::Check(clock) => {
                 if cancelled {
                     ToDomain::Aborted { owner }
                 } else {
                     let output = tail;
                     let cut = dropped.checked_add(skein_lib::len_u64(head.len())).expect("output count fits");
                     let exit = run_exit(self.exit, timed_out, self.failure.is_some());
-                    ToDomain::Checked { owner, ran: run::Ran { exit, output, cut } }
+                    ToDomain::Checked {
+                        owner,
+                        ran: run::Ran { exit, said_not_judged: clock.said_not_judged, output, cut },
+                    }
                 }
             }
         }

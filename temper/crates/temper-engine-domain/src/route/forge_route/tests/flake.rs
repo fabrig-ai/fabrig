@@ -195,10 +195,15 @@ fn an_inbox_repair_verdict_reaches_the_forge_as_a_flake_with_its_words() {
 const NO_TEST: &[u8] = b"\nNo test: if no test failed in the run below and nothing needs changing, finish with verdict 2, saying what its jobs show; a person then releases the change to run its gate once more.";
 
 #[test]
-fn only_landing_repairs_naming_no_failed_test_offer_the_no_test_choice() {
+fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice() {
+    const MISSING_FAILURE: &[u8] = b"Gate run: the landing no longer keeps its failure";
     let (mut domain, env, task, key) = contract_fixture();
-    for report in [forge::ReceiptReport::Unset, forge::ReceiptReport::Unread, forge::ReceiptReport::Tests(Box::new([]))]
-    {
+    // Restore the reportless receipt last so the dropped receipts cannot erase it.
+    for (report, reportless) in [
+        (forge::ReceiptReport::Unread, false),
+        (forge::ReceiptReport::Tests(Box::new([])), false),
+        (forge::ReceiptReport::Unset, true),
+    ] {
         forge::step(
             &mut domain.forge,
             &env.with(env.limits.forge),
@@ -213,7 +218,7 @@ fn only_landing_repairs_naming_no_failed_test_offer_the_no_test_choice() {
                         ended: env.wall,
                         jobs: Box::new([]),
                         logs: Box::new([]),
-                        report,
+                        report: report.clone(),
                         failures: None,
                     },
                 },
@@ -227,18 +232,23 @@ fn only_landing_repairs_naming_no_failed_test_offer_the_no_test_choice() {
         ] {
             let delegate = super::super::change_delegate(&domain, &env, task, change::Delegate::Repair(why)).unwrap();
             let tasks::Contract::Change { choices, words, .. } = delegate.contract else { panic!("change contract") };
-            let expected: Box<[tasks::Verdict]> = if why == change::Repair::Ci {
-                Box::new([])
-            } else {
+            let landing = why != change::Repair::Ci;
+            let offered = reportless && landing;
+            let expected: Box<[tasks::Verdict]> = if offered {
                 Box::new([tasks::Verdict { code: forge::REPAIR_NO_TEST, words, followups: 0, fields: Box::new([]) }])
+            } else {
+                Box::new([])
             };
-            assert_eq!(choices, expected, "{why:?}");
-            assert!(find(&delegate.spec.words, FLAKE).is_none());
+            assert_eq!(choices, expected, "{report:?}: {why:?}");
+            assert!(find(&delegate.spec.words, FLAKE).is_none(), "{report:?}: {why:?}");
             let line = find(&delegate.spec.words, NO_TEST);
-            assert_eq!(line.is_some(), why != change::Repair::Ci);
+            assert_eq!(line.is_some(), offered, "{report:?}: {why:?}");
             if let Some(at) = line {
                 assert!(delegate.spec.words[..at].ends_with(super::super::REPAIR_PRESERVATION));
                 assert!(delegate.spec.words[at + NO_TEST.len()..].starts_with(b"\nGate run:"));
+            }
+            if landing && !reportless {
+                assert!(find(&delegate.spec.words, MISSING_FAILURE).is_some(), "{report:?}: {why:?}");
             }
         }
     }
@@ -274,7 +284,7 @@ fn only_landing_repairs_naming_no_failed_test_offer_the_no_test_choice() {
     let tasks::Contract::Change { choices, .. } = delegate.contract else { panic!("change contract") };
     assert!(choices.is_empty());
     assert!(find(&delegate.spec.words, NO_TEST).is_none());
-    assert!(find(&delegate.spec.words, b"Gate run: the landing no longer keeps its failure").is_some());
+    assert!(find(&delegate.spec.words, MISSING_FAILURE).is_some());
 }
 
 #[test]

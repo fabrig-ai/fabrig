@@ -169,6 +169,7 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
         questions: change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        runner_ci: None,
         close_at: None,
         report: Box::new([]),
         repairs: None,

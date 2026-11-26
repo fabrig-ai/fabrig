@@ -65,8 +65,20 @@
   as below, `timed-out`, with the time its last run was given: a check
   that only ran out of time is told as that, never as a failing check's
   exit.
+- **A check judges by its exit:** 0 passed it, and any other exit
+  refused it, unless the check said it didn't judge. A check that met an
+  error of its own or of its machine, and so reached no verdict on the
+  tree, says so on its stderr before it exits: the whole line
+  `smith-check: not judged`, newline-ended, those bytes exactly, said
+  while it runs, as `waiting` is. A check that never exited didn't judge
+  either: one stopped at its deadline (after its retry, above), killed by
+  a signal, never started, or cancelled. One that said it and then
+  exited 0 passed.
 - **A failing check is feedback,** with its output's tail, like any
-  other. It names its directory and the check it ran there (the
+  other. It says which it was, `checks-failed` for a check that refused
+  and `checks-not-judged` for one that didn't judge, so the run knows
+  whether its tree was judged: one not judged may be delivered again as
+  it is. It names its directory and the check it ran there (the
   convention's path), how it ended, and the time it was given, for
   every exit: the checks' bound, or what was left of the call's
   own deadline when that came first. A stopped check keeps its output's

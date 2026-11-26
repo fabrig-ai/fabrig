@@ -83,6 +83,7 @@ pub fn change_row() -> top::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        runner_ci: None,
         close_at: None,
         report: Box::new([]),
         repairs: None,

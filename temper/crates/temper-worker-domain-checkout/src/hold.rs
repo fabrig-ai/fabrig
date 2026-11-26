@@ -247,6 +247,8 @@ struct Holding {
     preserve: bool,
     recovering: bool,
     recovered: bool,
+    /// The project's bound, or `u32::MAX` when only the worker's bound applies.
+    rerun_bound: u32,
     original_starts: Box<[(u32, Start)]>,
     arrived: Time,
     admitted: Time,
@@ -575,7 +577,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         refuse_prepare(&mut domain.facts, client, Refusal::Invalid, out);
         return;
     }
-    let Spec { key, repositories } = spec;
+    let Spec { key, rerun, repositories } = spec;
     let crate::cache::Granted { workspace, cached, stores, token: disk, kept } =
         match domain.cache.hold(key.clone(), &repositories) {
             Ok(holding) => holding,
@@ -601,6 +603,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         preserve: false,
         recovering: false,
         recovered: false,
+        rerun_bound: rerun.unwrap_or(u32::MAX),
         original_starts: Box::new([]),
         arrived: env.now,
         admitted: env.now,
@@ -2356,7 +2359,7 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             action: crate::git::Reds::Prepare {
                 wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait"),
-                rerun_processes: env.limits.rerun_processes,
+                rerun_processes: holding.rerun_bound.min(env.limits.rerun_processes),
             },
         },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),

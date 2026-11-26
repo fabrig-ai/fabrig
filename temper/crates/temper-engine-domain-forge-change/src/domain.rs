@@ -437,11 +437,12 @@ fn closed_pull_holds(state: &State) -> bool {
 /// A hold whose reason is CI failed at the head (temper/docs/design/domain/forge/change/repairs.md).
 /// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs` or `Authority`.
 /// `was` `Checking` or `CancellingGates`: `Repairs` or `Authority`.
-/// Every other pair is false: `Gating`, drift, `Questions`, `Rejected`, `Resolutions`, `Updates`.
+/// A `Runner` hold always belongs to CI.
 #[must_use]
 pub fn held_on_ci(state: &State) -> bool {
     let State::Held { was, why } = state else { return false };
     match why {
+        Hold::Runner => true,
         Hold::Repairs | Hold::Authority(_) => ci_state(was),
         Hold::Failed | Hold::Stalled => {
             if let State::Repairing { why, .. } = was.as_ref() {
@@ -476,10 +477,12 @@ pub fn released(change: &Change, now: Wall) -> Change {
                 next.released_resolution = true;
             }
             next.released = Some(*why);
-            next.gate_failures = Box::new([]);
-            next.repairs = 0;
-            next.resolutions = 0;
-            next.updates = 0;
+            if *why != Hold::Runner {
+                next.gate_failures = Box::new([]);
+                next.repairs = 0;
+                next.resolutions = 0;
+                next.updates = 0;
+            }
             next.since = now;
             next.owns_turn = false;
         }
@@ -605,6 +608,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
             Stepped { took: None, change, decision: Decision::None }
         }
         Hold::Stalled
+        | Hold::Runner
         | Hold::Repairs
         | Hold::Questions
         | Hold::Resolutions
@@ -651,6 +655,7 @@ fn released_state(change: &Change, was: &State, why: Hold, pull: Pull) -> State 
                 Pull::Missing | Pull::Open { .. } | Pull::Merged { .. } => State::Opening { requested: false },
             }
         }
+        State::Gating { .. } if why == Hold::Runner => was.clone(),
         State::Ready { head, .. }
         | State::Queued { head, .. }
         | State::First { head, .. }
@@ -1051,10 +1056,11 @@ fn reopening(
     }
 }
 
-fn rerun_due(facts: &Facts, limits: &Limits) -> bool {
+fn runner_ci(change: &Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Option<Stepped> {
     match facts.fault {
-        crate::Fault::Runner { reruns } => reruns < limits.reruns,
-        crate::Fault::Change => false,
+        crate::Fault::Runner { reruns } if reruns < limits.reruns => Some(rerun(change.clone(), head, now)),
+        crate::Fault::Runner { .. } => Some(hold(change.clone(), Hold::Runner)),
+        crate::Fault::Change => None,
     }
 }
 
@@ -1088,8 +1094,8 @@ fn checking(
             Stepped { took: None, change, decision: Decision::None }
         }
         Status::Failed => {
-            if rerun_due(facts, limits) {
-                return rerun(change, head, now);
+            if let Some(stepped) = runner_ci(&change, head, facts, now, limits) {
+                return stepped;
             }
             let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
             repair_due(change, why, facts, now, limits)
@@ -1200,8 +1206,8 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         return hold(change, Hold::BranchMoved);
     }
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
-        if rerun_due(facts, limits) {
-            return rerun(change, head, now);
+        if let Some(stepped) = runner_ci(&change, head, facts, now, limits) {
+            return stepped;
         }
         if facts.live_gate == Some(head) {
             change.state = State::CancellingGates { head };
@@ -1290,18 +1296,17 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
 }
 
 fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
-    if facts.branch == Some(head)
-        && facts.ci.head == head
-        && facts.ci.status == Status::Failed
-        && rerun_due(facts, limits)
-    {
-        return rerun(change, head, now);
-    }
     let Some(branch) = facts.branch else {
         return hold(change, Hold::BranchMissing);
     };
     if branch != head {
         return hold(change, Hold::BranchMoved);
+    }
+    if facts.ci.head == head
+        && facts.ci.status == Status::Failed
+        && let Some(stepped) = runner_ci(&change, head, facts, now, limits)
+    {
+        return stepped;
     }
     if facts.live_gate == Some(head) {
         return waiting(change, facts, now, limits);

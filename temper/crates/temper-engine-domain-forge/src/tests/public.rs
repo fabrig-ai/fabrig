@@ -302,6 +302,7 @@ fn change_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        runner_ci: None,
         close_at: None,
         report: Box::new([]),
         repairs: None,
@@ -444,6 +445,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             LANDING,
             LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
@@ -898,6 +900,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                 task,
                 LandingRow {
                     read_hold: None,
+                    gate_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,

@@ -25,14 +25,6 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             &["a landing's gate red"],
         ))?;
     }
-    if configured.contains(&temper_blame::STARVED) {
-        sweep.exclude(Exclusion::new(
-            "a_starved_gate_is_the_runners",
-            "a change's reds",
-            temper_blame::STARVED,
-            &["a landing's gate"],
-        ))?;
-    }
     if configured.contains(&A_PATH_DELETED_ON_THE_BASE) {
         sweep.exclude(Exclusion::new(
             "a_resolution_keeping_a_deleted_path_is_refused",

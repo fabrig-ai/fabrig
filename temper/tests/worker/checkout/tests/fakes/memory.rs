@@ -80,7 +80,7 @@ fn full_spec(limits: &Limits, n: u32) -> Spec {
             push: Some(bytes(limits.name_bytes)),
         });
     }
-    Spec { key: name(limits.name_bytes, n), repositories: repositories.into_boxed_slice() }
+    Spec { rerun: None, key: name(limits.name_bytes, n), repositories: repositories.into_boxed_slice() }
 }
 
 fn message(limits: &Limits) -> Message {
@@ -362,7 +362,7 @@ impl Fill {
 
 #[test]
 fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_heap_ceiling() {
-    // Measured peak: 126,776 bytes with retired preparations and live pushes retaining maximum conflict sets; 25% headroom, rounded up.
+    // Measured peak: 159,928 bytes with retired preparations and live pushes retaining maximum conflict sets.
     const CONFLICT_SETS_HEAP_CEILING: u64 = 160_000;
     let limits = Limits { workspaces: 8, preparations: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
     // World bookkeeping predates the meter; only the domain and its admitted

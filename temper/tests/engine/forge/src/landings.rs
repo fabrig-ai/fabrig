@@ -1,5 +1,6 @@
 //! Scripted root for landing-by-turn stories (domain/landing.md, 16).
 use crate::{REPO, World, changes};
+use skein_fake_forge_domain::{api as raw, commit_count};
 use skein_lib::Wall;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
@@ -8,6 +9,35 @@ use temper_engine_domain_forge_landing as landing;
 pub const PROJECT: u32 = 5;
 pub const CHANGE: u64 = 51;
 pub const LANDING: u64 = 61;
+
+/// Expected hold for the `org/repo` gate fixture when all its jobs fault in set-up.
+#[must_use]
+pub fn setup_fault_hold_words(row: &top::LandingRow, inspect: impl Fn(&raw::Read) -> raw::Answer) -> String {
+    let landing::Phase::Held { why: landing::Hold::Faults { member, gate }, .. } = row.landing.phase else {
+        panic!("fault hold")
+    };
+    let member = &row.landing.members[usize::from(member)];
+    let candidate = member.candidate.expect("candidate");
+    let retries = member.gates[usize::from(gate)].faults;
+    let raw::Answer::Runs(runs) = inspect(&raw::Read::Runs {
+        workflow: Some(b"gate.yml".as_slice().into()),
+        commit: Some(commit_count(&candidate).expect("fake candidate")),
+        number: None,
+        page: 1,
+        limit: 1,
+    }) else {
+        panic!("candidate gate run")
+    };
+    let raw::Answer::Jobs(jobs) = inspect(&raw::Read::Jobs { run: runs.first().expect("gate run").id }) else {
+        panic!("candidate gate jobs")
+    };
+    // When all jobs fault in set-up, the verdict names the first one.
+    let job = std::str::from_utf8(&jobs.first().expect("gate job").name).expect("job name");
+    let candidate = String::from_utf8(top::commit_text(&candidate).into_vec()).expect("hex commit");
+    format!(
+        "gate gate of org/repo: the runner's fault at {candidate}: job {job} failed in set-up; the change wasn't judged; retries: {retries}"
+    )
+}
 
 /// The scripted root takes the landing's branch holds as it forms the task
 /// (domain/landing.md, 4.2, domain/landing-prepare.md, 1.1).
@@ -55,6 +85,7 @@ pub fn turn_in(mut world: World) -> World {
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

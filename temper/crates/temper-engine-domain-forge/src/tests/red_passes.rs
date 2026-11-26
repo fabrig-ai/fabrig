@@ -129,6 +129,7 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
             d.landing
                 .remember(LandingRow {
                     read_hold: None,
+                    gate_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,

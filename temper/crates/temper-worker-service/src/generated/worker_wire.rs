@@ -148,7 +148,7 @@ pub fn repository_to_domain(record: temper_protocol_worker_wire::v1::Repository)
 
 #[must_use]
 pub fn items_to_domain(record: temper_protocol_worker_wire::v1::Items) -> temper_worker_domain::wire::Workspace {
-    let temper_protocol_worker_wire::v1::Items { repositories: field_000000 } = record;
+    let temper_protocol_worker_wire::v1::Items { repositories: field_000000, rerun: field_000001 } = record;
     temper_worker_domain::wire::Workspace {
         repositories: {
             let source = field_000000;
@@ -159,6 +159,13 @@ pub fn items_to_domain(record: temper_protocol_worker_wire::v1::Items) -> temper
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
+        },
+        rerun: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
         }
     }
 }

@@ -265,8 +265,11 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (`landing-prepare.md`, 1.2), `prepare job: WHY`;
-  - a gate's runner faults past `gate_retries` (`landing-proof.md`, 2.4), `gate NAME of
-    REPOSITORY failed on its runner past its retries`;
+  - a gate past `gate_retries` without judging the change (`landing-proof.md`, 2.4),
+    `gate NAME of REPOSITORY: the runner's fault at CANDIDATE: FACT`, naming
+    the runner's fact and the job if there is one, or `gate NAME of REPOSITORY:
+    the check broke at CANDIDATE: REPORT`, naming what its report showed;
+    either ends with `; the change wasn't judged; retries: N`;
   - a gate's run in flight past the project's `gate_timeout` (`landing-proof.md`, 2.1),
     `gate NAME of REPOSITORY: run RUN running past its bound`, or past
     the runner wait, `...: run RUN waiting for a runner past its bound`, then,

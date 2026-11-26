@@ -960,6 +960,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => bytes(words),
                 None => 0,
             })?
+            .checked_add(runner_ci_bytes(row.runner_ci.as_ref())?)?
             .checked_add(change_state_bytes(&row.change.state, 0)?),
         Stored::ChangeHot(row) => skein_lib::len_u64(row.signed.len())
             .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?
@@ -1010,6 +1011,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => bytes(words),
                 None => 0,
             })?
+            .checked_add(runner_ci_bytes(row.runner_ci.as_ref())?)?
             .checked_add(change_state_bytes(&row.change.state, 0)?),
         Stored::ChangeCold(row) => u64::try_from(size_of::<ChangeCold>())
             .ok()?
@@ -1146,6 +1148,15 @@ pub fn binding_address(address: &[u8]) -> bool {
         }
     }
     at
+}
+
+fn runner_ci_bytes(ci: Option<&RunnerCi>) -> Option<u64> {
+    match ci {
+        Some(RunnerCi::Held { words }) => Some(skein_lib::len_u64(words.len())),
+        Some(RunnerCi::Counting { attempts }) => skein_lib::len_u64(attempts.len())
+            .checked_mul(u64::try_from(size_of::<skein_forge::api::JobAttempt>()).ok()?),
+        Some(RunnerCi::Released) | None => Some(0),
+    }
 }
 
 fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u32) -> Option<u64> {

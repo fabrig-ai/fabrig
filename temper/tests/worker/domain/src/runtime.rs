@@ -569,7 +569,7 @@ impl World {
                 grants: Box::new([]),
             },
         };
-        let items = wire::Workspace { repositories: Box::new([repository]) };
+        let items = wire::Workspace { rerun: None, repositories: Box::new([repository]) };
         self.send(Event::Assign { assignment, items: Ok(items) })
     }
 

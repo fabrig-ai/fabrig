@@ -1017,26 +1017,36 @@ fn a_failed_ci_repair_keeps_its_branch_start_without_a_named_pin() {
 
 #[test]
 fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
+    const CHECKS: &[&[u8]] = &[b"build", b"lint"];
+    const CI_BYTES: u32 = 512; // Both check headings and their cut log tails must fit.
     let mut brief = World::configured_policy(true, true, false, 0, Gate::default(), None).env.limits.brief;
     // The required change context leaves the runner account and pull identity their room.
     brief.brief_bytes = 4096;
-    let world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief));
+    brief.budgets.ci = CI_BYTES;
+    let world = World::configured_limits(
+        true,
+        true,
+        false,
+        0,
+        Gate::default(),
+        None,
+        StoryLimits { brief: Some(brief), ci_contexts: Some(CHECKS), ..StoryLimits::default() },
+    );
     let (mut world, _chat, producer, branch) = change_world_in(world, Change::default());
     fake::set_failing(&mut world.fake, b"org/repo", b"build", raw::Failing::NoStep);
-    let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
-    let words = ci_words(&repair);
-    assert!(
-        contains(words, b"the runner's: no step failed; run again 1 time at this head, failed again"),
-        "{}",
-        String::from_utf8_lossy(words)
-    );
-    assert!(
-        contains(words, b"No step failed. End of the job's log:\n[log bytes cut]\n"),
-        "{}",
-        String::from_utf8_lossy(words)
-    );
-    assert!(contains(words, JOB_LOG_END), "{}", String::from_utf8_lossy(words));
-    assert!(!contains(words, b"Failed step: "), "{}", String::from_utf8_lossy(words));
+    // Lint's workflow failure asks for the repair; build's runner fault does not.
+    let repair = failed_ci_repair(&mut world, &producer, &branch, CHECKS);
+    let words = std::str::from_utf8(ci_words(&repair)).expect("CI text is UTF-8");
+    let check = |name| {
+        words.split("\nFailed check: ").skip(1).find(|part| part.starts_with(name)).unwrap_or_else(|| panic!("{words}"))
+    };
+    let build = check("build\n");
+    let lint = check("lint\n");
+    assert!(build.contains("the runner's: no step failed\n"), "{words}");
+    assert!(build.contains("No step failed. End of the job's log:\n[log bytes cut]\n"), "{words}");
+    assert!(contains(build.as_bytes(), JOB_LOG_END), "{words}");
+    assert!(!build.contains("Failed step: "), "{words}");
+    assert!(lint.contains("Failed step: 1 Run lint\n"), "{words}");
     world.close();
 }
 

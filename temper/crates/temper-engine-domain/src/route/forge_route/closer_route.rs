@@ -528,6 +528,7 @@ fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8
     use super::forge_change::Hold;
     match held {
         Some(Hold::Repairs) => Some(b"repairs"),
+        Some(Hold::Runner) => Some(b"its CI runner's re-runs"),
         Some(Hold::Resolutions) => Some(b"conflict resolutions"),
         Some(Hold::Rejected) => Some(b"a rejection"),
         Some(Hold::PullClosed) => Some(b"its pull request closed"),

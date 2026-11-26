@@ -973,6 +973,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
                     | run::Returned::Accepted
                     | run::Returned::Rejected { .. }
                     | run::Returned::ChecksFailed { .. }
+                    | run::Returned::ChecksNotJudged { .. }
                     | run::Returned::Stale
                     | run::Returned::DeliveryFailed { .. }
                     | run::Returned::Cancelled

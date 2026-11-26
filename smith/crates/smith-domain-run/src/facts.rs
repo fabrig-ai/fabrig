@@ -408,6 +408,7 @@ pub(crate) fn child_returned(facts: &mut Facts, run: Token, call: Token, result:
         | Returned::Accepted
         | Returned::Rejected { .. }
         | Returned::ChecksFailed { .. }
+        | Returned::ChecksNotJudged { .. }
         | Returned::Stale
         | Returned::DeliveryFailed { .. }
         | Returned::Cancelled
@@ -432,7 +433,7 @@ fn result_of(result: &Returned) -> Option<Return> {
         Returned::DeliveryRefused(_) => Return::DeliveryRefused,
         Returned::Accepted => Return::Accepted,
         Returned::Rejected { .. } => Return::Rejected,
-        Returned::ChecksFailed { .. } => Return::ChecksFailed,
+        Returned::ChecksFailed { .. } | Returned::ChecksNotJudged { .. } => Return::ChecksFailed,
         Returned::Stale => Return::Stale,
         Returned::DeliveryFailed { .. } => Return::DeliveryFailed,
         Returned::Cancelled => Return::Cancelled,

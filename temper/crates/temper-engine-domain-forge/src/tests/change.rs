@@ -1554,6 +1554,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             flake: false,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: words.as_bytes().into(),
         },
@@ -1679,6 +1680,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
                 flake: false,
                 no_test: false,
                 failed,
+                lost: false,
                 cancelled,
                 words: b"Adds changes/2.md".as_slice().into(),
             },
@@ -1727,6 +1729,7 @@ fn verdict_terminal(d: &mut Domain, child: u64, words: &[u8]) -> Box<[Request]> 
             flake: true,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: words.into(),
         },
@@ -1745,6 +1748,7 @@ fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
             flake: false,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: b"Nothing applies".as_slice().into(),
         },
@@ -2595,23 +2599,27 @@ fn head_ci_contexts_are_read_once_per_gather() {
     reason = "one table checks failed-job reads, classification, bounds and the emitted write"
 )]
 fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
+    use change::{Decision, Delegate, Effect, Hold, Repair};
     use skein_forge::api::{Answer, Check, Ci, CommitMessage, Conclusion, JobAttempt, Op, Read, Status, Write};
     use temper_engine_domain_forge_change as change;
-    for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, rerun) in [
-        ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, true),
-        ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, true),
-        ("one job exhausted", Some(0), 1, 1, Check::Failed, false, false, false, false),
-        ("completion", Some(3), 1, 1, Check::Failed, false, false, false, true),
-        ("no step", None, 1, 1, Check::Failed, false, false, false, true),
-        ("unreadable", Some(0), 1, 1, Check::Failed, false, false, false, false),
-        ("workflow", Some(1), 1, 1, Check::Failed, false, false, false, false),
-        ("mixed", Some(0), 1, 1, Check::Failed, false, true, false, false),
-        ("bound", Some(0), 2, 1, Check::Failed, false, false, false, false),
-        ("disabled", Some(0), 1, 0, Check::Failed, false, false, false, false),
-        ("cancelled", Some(0), 1, 1, Check::Failed, true, false, false, false),
-        ("no job", Some(0), 1, 1, Check::Failed, false, false, true, false),
-        ("passed", Some(0), 2, 1, Check::Passed, false, false, false, false),
-        ("pending", Some(0), 1, 1, Check::Pending, false, false, false, false),
+    let again = Decision::Effect(Effect::Rerun { head: fixtures::HEAD });
+    let repair = Decision::Delegate(Delegate::Repair(Repair::Ci));
+    let hold = Decision::Hold(Hold::Runner);
+    for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, expected, account) in [
+        ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
+        ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
+        ("one job exhausted", Some(0), 1, 1, Check::Failed, false, false, false, hold, None),
+        ("completion", Some(3), 1, 1, Check::Failed, false, false, false, again, Some("completion failed")),
+        ("no step", None, 1, 1, Check::Failed, false, false, false, again, Some("no step failed")),
+        ("unreadable", Some(0), 1, 1, Check::Failed, false, false, false, repair, None),
+        ("workflow", Some(1), 1, 1, Check::Failed, false, false, false, repair, None),
+        ("mixed", Some(0), 1, 1, Check::Failed, false, true, false, repair, None),
+        ("bound", Some(0), 2, 1, Check::Failed, false, false, false, hold, None),
+        ("disabled", Some(0), 1, 0, Check::Failed, false, false, false, hold, None),
+        ("cancelled", Some(0), 1, 1, Check::Failed, true, false, false, again, Some("cancelled")),
+        ("no job", Some(0), 1, 1, Check::Failed, false, false, true, repair, None),
+        ("passed", Some(0), 2, 1, Check::Passed, false, false, false, Decision::Ready, None),
+        ("pending", Some(0), 1, 1, Check::Pending, false, false, false, Decision::Wait { until: None }, None),
     ] {
         let mut clock = env();
         clock.limits.change_policy.reruns = bound;
@@ -2738,8 +2746,12 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
             "{name}"
         );
         let decision = decision.expect("gather decided");
-        if rerun {
-            assert_eq!(decision, change::Decision::Effect(change::Effect::Rerun { head: fixtures::HEAD }), "{name}");
+        if check_state == Check::Pending {
+            assert_ne!(decision, again, "{name}");
+        } else {
+            assert_eq!(decision, expected, "{name}");
+        }
+        if let Some(reason) = account {
             let row = d.change(fixtures::CHANGE).expect("change");
             assert_eq!(row.change.repairs, 0);
             assert_eq!(
@@ -2747,16 +2759,7 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
                 Write::Rerun { attempt: job }
             );
             let words = &row.effect_account.as_ref().expect("account").words;
-            let reason = match failed_step {
-                Some(0) => "set-up failed",
-                Some(3) => "completion failed",
-                _ => "no step failed",
-            };
             assert_eq!(words.as_ref(), format!("ran job 41 of ci/test again at 030303030303: {reason}").as_bytes());
-        } else if check_state == Check::Failed {
-            assert_eq!(decision, change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci)), "{name}");
-        } else {
-            assert!(!matches!(decision, change::Decision::Effect(change::Effect::Rerun { .. })));
         }
         if check_state == Check::Passed {
             assert_eq!(
@@ -3500,6 +3503,7 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
                     flake: false,
                     no_test: false,
                     failed: true,
+                    lost: false,
                     cancelled: false,
                     words: reason.into(),
                 },

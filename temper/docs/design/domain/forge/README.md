@@ -106,6 +106,7 @@ Documents:
 - `dependencies.md`: dependencies between projects.
 - `drafts.md`: landed drafts.
 - `reds.md`: a goal's reds.
+- `judgement.md`: a check's judgement: passed, refused, the runner's or broke, and whether a project's checks can flake.
 - `room.md`: the outbox's room.
 - `waits.md`: a procedure's waits, as the core's records, and their bounds.
 - `walkthrough.md`: a change through the forge connector.

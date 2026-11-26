@@ -429,6 +429,8 @@ record TemplateGoal = d::settings::TemplateGoal
 record ProjectQuestions stands for route
 enum SettingsLandingWay = c::Way
 enum SettingsLandingWait = c::Wait
+record SettingsFlakeRerun stands for processes
+enum SettingsFlakes = d::settings::Flakes { rerun tuple }
 enum SettingsCombine = l::Combine
 record NamedModel = d::settings::NamedModel
 record NamedLater = d::settings::NamedLater { subagents slice }
@@ -578,6 +580,9 @@ record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
 record CloseAt = c::CloseAt
+record RunnerHold
+record RunnerBaseline { attempts slice }
+enum RunnerCi = d::RunnerCi
 record ChangeHot by hand
 record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
 record FindingCount stands for number

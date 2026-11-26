@@ -129,6 +129,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             workspace: Some(host::Workspace { workstream: 81, items: Token::new(0) }),
         },
         items: Ok(wire::Workspace {
+            rerun: None,
             repositories: Box::new([wire::Repository {
                 tag: 0,
                 name: b"work".as_slice().into(),
@@ -363,6 +364,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
             workspace: Some(host::Workspace { workstream: 81, items: Token::new(0) }),
         },
         items: Ok(wire::Workspace {
+            rerun: None,
             repositories: Box::new([wire::Repository {
                 tag: 0,
                 name: b"work".as_slice().into(),

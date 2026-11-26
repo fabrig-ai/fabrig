@@ -406,7 +406,7 @@ fn fill_selected(limits: &Limits, selected: Option<&smith_domain_run::Convention
         let [Asked::Check { owner }, Asked::Other] = step(finish)[..] else {
             panic!("the change is being checked");
         };
-        let ran = Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 };
+        let ran = Ran { exit: Exit::Code { code: 0 }, said_not_judged: false, output: bytes(0), cut: 0 };
         assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is delivered");
         assert_eq!(step(Event::Delivered { owner, delivery: delivered() }), [Asked::Other, Asked::Other], "accepted");
     }
@@ -665,7 +665,10 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
     });
     let owner = owner.expect("first writable check");
     for _ in 0..smith_domain_run::MAX_DIRECTORIES {
-        take(Event::Checked { owner, ran: Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 } });
+        take(Event::Checked {
+            owner,
+            ran: Ran { exit: Exit::Code { code: 0 }, said_not_judged: false, output: bytes(0), cut: 0 },
+        });
     }
     take(Event::Cancel { run });
     let receipts = (0..smith_domain_run::MAX_DIRECTORIES)

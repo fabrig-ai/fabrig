@@ -72,6 +72,7 @@ fn verdict(world: &mut World, passed: bool) {
         child: 71,
         status: if passed { change::Status::Passed } else { change::Status::Failed },
         failed: false,
+        lost: false,
         cancelled: false,
         no_change: false,
         flake: false,

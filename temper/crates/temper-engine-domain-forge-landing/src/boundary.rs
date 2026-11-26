@@ -330,7 +330,11 @@ pub enum Outcome {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Flight {
     None,
-    Mine { run: Option<Verdict> },
+    Mine {
+        run: Option<Verdict>,
+    },
+    /// The owned check ended without a verdict or a runner fact.
+    Broke,
     Other,
 }
 

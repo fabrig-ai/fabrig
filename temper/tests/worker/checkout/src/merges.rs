@@ -274,6 +274,7 @@ impl World {
 
 fn merge_spec(world: &World, case: Case) -> Spec {
     Spec {
+        rerun: None,
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -422,7 +423,7 @@ pub fn replaced_pin(case: PinCase) {
         landing: Some(b"main".as_slice().into()),
         save: Some(b"saved".as_slice().into()),
     };
-    let spec = |repository| Spec { key: b"merge".as_slice().into(), repositories: Box::new([repository]) };
+    let spec = |repository| Spec { rerun: None, key: b"merge".as_slice().into(), repositories: Box::new([repository]) };
     let Request::Prepared { prepared: Prepared::Ready { workspace, .. }, .. } =
         world.finish(Event::Prepare { client: Token::new(1), spec: spec(repository()) }, false)
     else {
@@ -520,6 +521,7 @@ pub fn resolution_conflict(pushed: bool) {
     let expected = if pushed { Some(translate::commit(ours)) } else { None };
     assert_eq!(world.forge.branch(b"forge/temper", push), expected.map(translate::fake));
     let spec = Spec {
+        rerun: None,
         key: b"resolution".as_slice().into(),
         repositories: Box::new([Repository {
             save: None,
@@ -728,6 +730,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
     let hold = world.hold.expect("first held");
     world.finish(Event::Release { hold }, false);
     let spec = Spec {
+        rerun: None,
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -767,6 +770,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
     let mut world = World::new(91, Case::Unchanged, 64);
     let base = world.forge.advance(b"forge/temper", b"main", b"README.md", b"# app\n");
     let spec = |retry| Spec {
+        rerun: None,
         key: b"retry".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -843,6 +847,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
 
 fn heads_spec(heads: &[u64]) -> Spec {
     Spec {
+        rerun: None,
         key: b"heads".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -1001,6 +1006,7 @@ pub fn goal_later_run(case: Case) {
     }
     world.forge.moves();
     let spec = Spec {
+        rerun: None,
         key: b"goal".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -1112,6 +1118,7 @@ fn design_world() -> World {
 
 fn design_spec(tip: u64) -> Spec {
     Spec {
+        rerun: None,
         key: b"design".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),

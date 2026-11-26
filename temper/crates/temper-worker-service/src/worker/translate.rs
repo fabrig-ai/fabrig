@@ -43,7 +43,7 @@ pub type Assigned = worker::Workspace;
 pub fn workspace(items: Option<&v1::Items>) -> Assigned {
     match items {
         Some(items) => worker_wire::items_to_domain(items.clone()),
-        None => worker::Workspace { repositories: Box::new([]) },
+        None => worker::Workspace { rerun: None, repositories: Box::new([]) },
     }
 }
 
@@ -149,7 +149,7 @@ mod tests {
         };
         let mut repositories = List::with_capacity(1);
         repositories.push(repository).expect("fixture repository");
-        v1::Items { repositories }
+        v1::Items { repositories, rerun: None }
     }
 
     #[test]

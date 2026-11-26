@@ -10,6 +10,11 @@ pub(in super::super) fn account(
     evidence: Option<&forge::ChangeEvidence>,
 ) -> Option<Box<[u8]>> {
     let row = domain.forge.change(task)?;
+    if why == change::Hold::Runner
+        && let Some(forge::RunnerCi::Held { words }) = &row.runner_ci
+    {
+        return Some(words.clone());
+    }
     if why == change::Hold::Flake || why == change::Hold::NoTest {
         return row.producer_failure.clone();
     }
@@ -98,6 +103,7 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
         &mut words,
         match why {
             change::Hold::Stalled => b"its forge wait exceeded the stall bound",
+            change::Hold::Runner => b"CI's runner ran out of re-runs; the change wasn't judged",
             change::Hold::Repairs => b"its repair allowance is spent; amend the allowance before releasing",
             change::Hold::Resolutions => {
                 b"its conflict resolution allowance is spent; resolve the conflict or amend the allowance"

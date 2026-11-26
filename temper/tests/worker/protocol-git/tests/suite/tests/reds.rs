@@ -76,9 +76,12 @@ impl Check {
 #[test]
 fn prepare_and_start_clear_results_and_install_the_rerun_marker() {
     let mut check = Check::new();
-    for (processes, expected) in
-        [(4, b"temper-rerun 1 4\n".as_slice()), (0, b"temper-rerun 1 0\n"), (16, b"temper-rerun 1 16\n")]
-    {
+    for (processes, expected) in [
+        (4, b"temper-rerun 1 4\n".as_slice()),
+        (0, b"temper-rerun 1 0\n"),
+        (2, b"temper-rerun 1 2\n"),
+        (16, b"temper-rerun 1 16\n"),
+    ] {
         check.put(b"reds", b"stale".as_slice());
         check.put(b"check-results", b"stale".as_slice());
         check.put(b"rerun.tmp", b"unfinished".as_slice());

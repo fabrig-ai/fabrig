@@ -956,7 +956,7 @@ fn job_items(repository: temper_engine_domain::ForgeRepository) -> temper_protoc
     let engine = service.engine.as_mut().expect("engine");
     engine.workers.forges = fixtures::forge_table(&fixtures::forges());
     engine.workers.encoding = fixtures::encoding(&fixtures::engine());
-    let workspace = temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) };
+    let workspace = temper_engine_domain::ForgeWorkspace { rerun: None, repositories: Box::new([repository]) };
     let job = job_assignment(true);
     let event = crate::route::job_assignment(engine, Token::new(8), job, Some(&workspace)).expect("job encodes");
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {

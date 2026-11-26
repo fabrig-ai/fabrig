@@ -552,6 +552,7 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
         call_answer_bytes: jig.core.call_answer_bytes,
         host_reply_bytes: None,
         settings: jig.core.settings,
+        rerun_processes: limits.checkout.rerun_processes,
         call_records: jig.core.call_records,
         forge: forge::Limits {
             waits: jig.core.waits,

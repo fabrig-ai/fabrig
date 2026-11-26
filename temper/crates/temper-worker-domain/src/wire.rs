@@ -82,6 +82,7 @@ pub struct JobSpec {
 /// prepared or held.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Workspace {
+    pub rerun: Option<u32>,
     pub repositories: Box<[Repository]>,
 }
 

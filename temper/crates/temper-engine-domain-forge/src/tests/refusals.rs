@@ -225,6 +225,7 @@ fn review(words: &[u8]) -> Event {
         flake: false,
         no_test: false,
         failed: false,
+        lost: false,
         cancelled: false,
         words: words.into(),
     }

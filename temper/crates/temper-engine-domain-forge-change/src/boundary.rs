@@ -166,6 +166,8 @@ pub enum Hold {
     Stalled,
     /// Another repair would exceed the configured bound.
     Repairs,
+    /// CI's runner exhausted its re-runs without judging the head.
+    Runner,
     /// Another conflict resolution would exceed its bound.
     Resolutions,
     /// Another mechanical update would exceed its bound.

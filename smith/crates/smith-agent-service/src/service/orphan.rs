@@ -174,7 +174,12 @@ pub(super) fn refuse_start(service: &mut Stages, request: &domain::Request) -> b
         Request::Lower(Lower::Probe { owner, .. }) => Below::Probed { owner: *owner, executable: false },
         Request::Lower(Lower::Check { owner, .. }) => Below::Checked {
             owner: *owner,
-            ran: super::run::Ran { exit: super::run::Exit::Unstarted, output: Box::default(), cut: 0 },
+            ran: super::run::Ran {
+                exit: super::run::Exit::Unstarted,
+                said_not_judged: false,
+                output: Box::default(),
+                cut: 0,
+            },
         },
         Request::Lower(
             Lower::Cancel { .. }

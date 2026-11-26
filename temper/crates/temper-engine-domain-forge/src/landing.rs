@@ -22,6 +22,20 @@ mod saved_follow;
 pub(crate) use saved_follow::rebuild;
 pub(crate) mod members;
 
+#[derive(Clone, Copy, Hash, Debug)]
+pub(crate) enum GateProblem {
+    Runner { fault: policy::Fault, job: Option<u64> },
+    Broke(ReportProblem),
+}
+
+#[derive(Clone, Copy, Hash, Debug)]
+pub(crate) enum ReportProblem {
+    Missing,
+    Unread,
+    Empty,
+    NoVerdict,
+}
+
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
@@ -159,11 +173,10 @@ enum Stage {
         key: ReceiptKey,
         run: api::Run,
         report: policy::GateReport,
-        words: Box<[u8]>,
     },
     FailedJobs {
         key: ReceiptKey,
-        run: api::Run,
+        ended: GateEnd,
         next: u32,
         words: Box<[u8]>,
     },
@@ -177,6 +190,13 @@ enum Stage {
         reading_base: bool,
     },
 }
+#[derive(Clone, Hash, Debug)]
+struct GateEnd {
+    run: api::Run,
+    report: ReceiptReport,
+    failures: Option<temper_engine_domain_forge_tiers::Failures>,
+}
+
 #[derive(Clone, Copy, Hash, Debug)]
 enum RoundRead {
     Branch,
@@ -340,6 +360,14 @@ impl Domain {
     #[must_use]
     pub fn landing_settings(&self, project: u32) -> Option<&crate::settings::ProjectLanding> {
         self.landing.settings.get(&project)
+    }
+    #[must_use]
+    pub fn project_checks_can_flake(&self, project: u32) -> bool {
+        let Some(settings) = self.landing_settings(project) else { return true };
+        match settings.flakes {
+            Some(crate::settings::Flakes::Never) => false,
+            Some(crate::settings::Flakes::Rerun(_)) | None => true,
+        }
     }
     /// One start's resolution, supplied by the root with jig's current facts (red-repairs.md, 7).
     pub fn take_project_repairs(&mut self, project: u32, repairs: Result<crate::settings::Repairs, &'static [u8]>) {
@@ -879,7 +907,8 @@ impl Domain {
     }
     #[must_use]
     pub fn receipt(&self, key: &ReceiptKey) -> Option<&Receipt> {
-        self.landing.receipts.get(key)
+        let receipt = self.landing.receipts.get(key)?;
+        if empty_gate_receipt(key, receipt) { None } else { Some(receipt) }
     }
 }
 pub(crate) fn append_words(words: &mut List<u8>, bytes: &[u8]) {
@@ -1735,6 +1764,7 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
             if released {
                 clear_cleanup_results(d, &row);
                 row.read_hold = None;
+                row.gate_hold = None;
                 crate::room::release_place(d, crate::room::Waiter::Landing(task), env.wall);
             }
             stepped.decision
@@ -2165,18 +2195,8 @@ fn advance(
             }
             cleanup_branch(d, env, owner, p, &row, member.checked_add(1).expect("member bound"), out);
         }
-        Stage::FailedReport { key, run, report, words } => {
-            if let Err(api::Error::Missing) = answer {
-                d.landing.flights.get_mut(&key).expect("unreported flight").outcome =
-                    Some(policy::Verdict::Fault(policy::Fault::Unreported));
-                reported_end(d, env, &key, crate::history::GateVerdict::Fault, out);
-                retain_fault(d, env, &key, out);
-                p.polled.push(key).expect("one poll per flight");
-                p.stage = Stage::Collect;
-                collect(d, env, owner, p, out);
-                return;
-            }
-            reported_end(d, env, &key, crate::history::GateVerdict::Failed, out);
+        Stage::FailedReport { key, run, report } => {
+            let missing = answer == Err(api::Error::Missing);
             let failures = match &answer {
                 Ok(api::Answer::File { truncated: true, .. }) => Some(temper_engine_domain_forge_tiers::Failures::Many),
                 Ok(api::Answer::File { bytes, .. }) => temper_engine_domain_forge_tiers::selection(
@@ -2190,19 +2210,10 @@ fn advance(
                 Ok(_) | Err(_) => None,
             };
             let report = receipt_report(&report, env, answer);
-            let flight = d.landing.flights.get(&key).expect("failed flight");
-            let selected_failed = match tests_value(&flight.inputs) {
-                Some(selected) => selected_report(selected, failures.as_ref()),
-                None => true,
-            };
-            if selected_failed && start_flake_rerun(d, env, &key, &run, &report, out) {
-                p.polled.push(key).expect("one poll per flight");
-                collect(d, env, owner, p, out);
-                return;
-            }
-            failed_receipt(d, env, owner, p, key, run, report, failures, words, out);
+            let problem = if missing { ReportProblem::Missing } else { report_problem(&report) };
+            judge_end(d, env, owner, p, key, GateEnd { run, report, failures }, problem, out);
         }
-        Stage::FailedJobs { key, run, next, words } => {
+        Stage::FailedJobs { key, ended, next, words } => {
             let mut log = List::with_capacity(8192);
             append_words(&mut log, &words);
             match answer {
@@ -2221,7 +2232,7 @@ fn advance(
                 }
                 Ok(_) | Err(_) => append_words(&mut log, b"[job log could not be read]\n"),
             }
-            failed_jobs(d, env, owner, p, key, run, next, log.into_boxed(), out);
+            failed_jobs(d, env, owner, p, key, ended, next, log.into_boxed(), out);
         }
         Stage::Round { member, stage, candidate } => {
             round_read(d, env, owner, p, &row, member, stage, candidate, answer, out);
@@ -2256,8 +2267,7 @@ fn advance(
             let mut verdict = match &ended {
                 Some(ended) => match ended.outcome {
                     policy::Verdict::Passed => Some(crate::history::GateVerdict::Passed),
-                    policy::Verdict::Failed | policy::Verdict::Running => None,
-                    policy::Verdict::Fault(_) => Some(crate::history::GateVerdict::Fault),
+                    policy::Verdict::Failed | policy::Verdict::Running | policy::Verdict::Fault(_) => None,
                 },
                 None => None,
             };
@@ -2281,19 +2291,15 @@ fn advance(
             }
             if let Some(ended) = ended {
                 match ended.outcome {
-                    policy::Verdict::Passed | policy::Verdict::Failed => {
-                        let run = ended.run.expect("a verdict has a run");
-                        if ended.outcome == policy::Verdict::Failed {
-                            failed_jobs(d, env, owner, p, key, run, 0, Box::new([]), out);
-                            return;
-                        }
+                    policy::Verdict::Passed => {
+                        let run = ended.run.expect("a passed verdict has a run");
                         let receipt = Receipt {
                             report: ReceiptReport::Unset,
                             base: None,
                             jobs: Box::new([]),
                             logs: Box::new([]),
                             failures: None,
-                            passed: ended.outcome == policy::Verdict::Passed,
+                            passed: true,
                             candidate,
                             ended: env.wall,
                             run: ReceiptRun { id: run.id, number: run.number, url: run.url },
@@ -2304,7 +2310,28 @@ fn advance(
                         }
                         finish_flight(d, env, &key, Some((run.number, true)), out);
                     }
-                    policy::Verdict::Fault(_) => retain_fault(d, env, &key, out),
+                    policy::Verdict::Failed => {
+                        let run = ended.run.expect("a failed verdict has a run");
+                        judge_run(d, env, owner, p, key, run, out);
+                        return;
+                    }
+                    policy::Verdict::Fault(fault) => {
+                        let mut problem = GateProblem::Runner { fault, job: None };
+                        if let Some(run) = ended.run
+                            && run.commit == candidate
+                            && run.state == api::RunState::Completed
+                        {
+                            let (workflow_failed, job_fault) = runs::gate_jobs(&run);
+                            if workflow_failed {
+                                judge_run(d, env, owner, p, key, run, out);
+                                return;
+                            }
+                            if let Some((fault, job)) = job_fault {
+                                problem = GateProblem::Runner { fault, job: Some(job) };
+                            }
+                        }
+                        unjudged_end(d, env, &key, problem, out);
+                    }
                     policy::Verdict::Running => {}
                 }
             } else if let Some(read) = next {
@@ -3253,6 +3280,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     let preparation = p.heard.preparation.unwrap_or(policy::Preparation::Running);
     let outcomes = crate::preparation::outcomes(&row.landing.round.failure, env.limits.landing_members)
         .unwrap_or(p.heard.outcomes.clone());
+    let mut empty = List::with_capacity(env.limits.landing_members.saturating_mul(env.limits.gates));
     for (index, (member, fact)) in row.landing.members.iter().zip(p.facts.iter_mut()).enumerate() {
         let position = u16::try_from(index).expect("member position");
         fact.merge = result(d, p.task, position, 0, 5);
@@ -3328,7 +3356,11 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             if let Some(key) = proof_key(member.gates.get(usize::from(number)).expect("gate proof").proof).or(fact.key)
             {
                 let key = gate_key(&row, position, number, &gate.name, key);
-                fact.receipt = match d.landing.receipts.get(&key) {
+                let receipt = d.receipt(&key);
+                if receipt.is_none() && d.landing.receipts.contains_key(&key) {
+                    empty.push((key.clone(), position, number)).expect("bounded gate positions");
+                }
+                fact.receipt = match receipt {
                     Some(receipt) if receipt.passed => policy::Status::Passed,
                     Some(receipt) if superseded(d, &row, &key, receipt) || d.landing.flights.contains_key(&key) => {
                         policy::Status::Unknown
@@ -3336,7 +3368,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                     Some(_) => policy::Status::Failed,
                     None => policy::Status::Unknown,
                 };
-                if let Some(receipt) = d.landing.receipts.get(&key)
+                if let Some(receipt) = receipt
                     && !receipt.passed
                     && let Some(temper_engine_domain_forge_tiers::Failures::Tests(ids)) = &receipt.failures
                 {
@@ -3361,7 +3393,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 {
                     fact.flight = policy::Flight::Other;
                 }
-                if let Some(receipt) = d.landing.receipts.get(&key) {
+                if let Some(receipt) = receipt {
                     fact.run = receipt.run.number;
                 }
                 if let Some(flight) = d.landing.flights.get(&key) {
@@ -3391,6 +3423,34 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                     3
                 },
             );
+        }
+    }
+    for (key, member, gate) in empty.into_boxed() {
+        if d.landing.receipts.remove(&key).is_some() {
+            mark_key(d, &key, out);
+            emit(out, Request::Erase { key: Key::Receipt(key.clone()) });
+        }
+        let proof = row
+            .landing
+            .members
+            .get_mut(usize::from(member))
+            .expect("member")
+            .gates
+            .get_mut(usize::from(gate))
+            .expect("gate");
+        let reset = match proof.proof {
+            policy::Proof::Failed { .. } => true,
+            policy::Proof::Dispatched { .. } => {
+                !d.landing.flights.contains_key(&key) && !d.landing.faults.contains_key(&(p.task, member, gate))
+            }
+            policy::Proof::Unkeyed | policy::Proof::Keyed { .. } | policy::Proof::Passed { .. } => false,
+        };
+        if reset {
+            *proof = policy::GateProof {
+                proof: policy::Proof::Keyed { key: key.key },
+                posted: policy::Posted::Nothing,
+                faults: 0,
+            };
         }
     }
     let cleanup = cleanup_ownership(d, &row, &mut p.facts);
@@ -3459,6 +3519,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
+    if let policy::Decision::Hold(policy::Hold::Faults { member, gate }) = stepped.decision {
+        row.gate_hold = gate_hold(d, &row, member, gate);
+    }
     if stepped.decision == policy::Decision::Hold(policy::Hold::Cleanup) {
         row.landing.round.cleanup = cleanup;
     }
@@ -3784,11 +3847,11 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             let key = gate_key(&row, member, gate, &configured.name, key);
             let purpose = purpose_identity(&row, member, gate, 1, try_);
             if let Some(mut fault) = d.landing.faults.remove(&(p.task, member, gate)) {
-                runs::retry(&mut fault, try_);
+                retry_gate(&mut fault, try_);
                 fault.purpose.clone_from(&purpose);
                 d.landing.flights.insert(key.clone(), fault).expect("bounded key flights");
             } else if let Some(flight) = d.landing.flights.get_mut(&key) {
-                runs::retry(flight, try_);
+                retry_gate(flight, try_);
                 flight.purpose = purpose;
             } else {
                 let inputs =
@@ -3841,13 +3904,8 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 &configured.name,
                 proof_key(m.gates.get(usize::from(gate)).expect("gate proof").proof).expect("keyed posting"),
             );
-            let (write, operation) = posting_write(
-                m.candidate.expect("candidate"),
-                &configured.name,
-                &key,
-                posting,
-                d.landing.receipts.get(&key),
-            );
+            let (write, operation) =
+                posting_write(m.candidate.expect("candidate"), &configured.name, &key, posting, d.receipt(&key));
             keep(d, &mut row, p.entry, member, gate, operation, write, skein_forge_client::Condition::None, out);
             committed = Some(p.entry);
         }
@@ -4446,6 +4504,22 @@ fn keep(
     );
 }
 
+/// A previous build could retain a failed gate's report without a verdict.
+fn empty_gate_receipt(key: &ReceiptKey, receipt: &Receipt) -> bool {
+    if receipt.passed {
+        return false;
+    }
+    match key.check {
+        Check::Tier(_) => return false,
+        Check::Gate(_) => {}
+    }
+    match &receipt.report {
+        ReceiptReport::Unread => true,
+        ReceiptReport::Tests(tests) => tests.is_empty(),
+        ReceiptReport::Unset | ReceiptReport::Many { .. } => false,
+    }
+}
+
 pub(crate) fn put_receipt(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4951,6 +5025,9 @@ fn start_flake_rerun(
     report: &ReceiptReport,
     out: &mut Queue<Request>,
 ) -> bool {
+    if !d.project_checks_can_flake(key.project) {
+        return false;
+    }
     let tests = match report {
         ReceiptReport::Tests(tests) => tests,
         ReceiptReport::Unset | ReceiptReport::Unread | ReceiptReport::Many { .. } => return false,
@@ -5334,7 +5411,7 @@ pub(crate) fn judge(
                     return Some(crate::JudgeVerdict::Wait);
                 };
                 let key = gate_key(row, gate_position, u16::try_from(number).ok()?, &configured.name, key);
-                match d.landing.receipts.get(&key) {
+                match d.receipt(&key) {
                     Some(receipt) if receipt.passed => {}
                     Some(_) => return Some(crate::JudgeVerdict::Refuse),
                     None => return Some(crate::JudgeVerdict::Wait),
@@ -5370,7 +5447,10 @@ pub(crate) fn flight_fact(state: &State, key: &ReceiptKey, position: Position) -
         Some(flight) if flight.task == position.0 => policy::Flight::Mine { run: flight.outcome },
         Some(_) => policy::Flight::Other,
         None => match state.faults.get(&position) {
-            Some(fault) => policy::Flight::Mine { run: fault.outcome },
+            Some(fault) => match fault.gate_problem {
+                Some(GateProblem::Broke(_)) => policy::Flight::Broke,
+                Some(GateProblem::Runner { .. }) | None => policy::Flight::Mine { run: fault.outcome },
+            },
             None => policy::Flight::None,
         },
     }
@@ -5516,7 +5596,12 @@ impl Domain {
                     append_words(&mut words, part);
                 }
                 match why {
-                    policy::Hold::Faults { .. } => append_words(&mut words, b" failed on its runner past its retries"),
+                    policy::Hold::Faults { .. } => {
+                        append_words(
+                            &mut words,
+                            row.gate_hold.as_deref().unwrap_or(b" ran past its retries without judging the change"),
+                        );
+                    }
                     policy::Hold::Timeout { run, .. } => {
                         append_words(&mut words, b": run ");
                         append_words(&mut words, skein_lib::Decimal::of(run).as_bytes());
@@ -5714,6 +5799,7 @@ impl Domain {
                 && key.check == Check::Gate(name.clone())
                 && (candidate == Some(receipt.candidate) || kept_run == Some(receipt.run.number))
                 && !receipt.passed
+                && !empty_gate_receipt(key, receipt)
             {
                 return Some((key, name, receipt));
             }
@@ -6233,6 +6319,100 @@ fn reported_end(
     }
 }
 
+fn retry_gate(flight: &mut runs::Follow, try_: u16) {
+    if let Some(run) = &flight.run
+        && run.conclusion == Some(api::Conclusion::Cancelled)
+    {
+        runs::retry_run(flight, try_, false);
+    } else if let Some(GateProblem::Broke(_)) = flight.gate_problem {
+        runs::retry_run(flight, try_, true);
+    } else {
+        runs::retry(flight, try_);
+    }
+}
+
+fn gate_hold(d: &Domain, row: &LandingRow, member: u16, gate: u16) -> Option<Box<[u8]>> {
+    let m = row.landing.members.get(usize::from(member))?;
+    let proof = m.gates.get(usize::from(gate))?;
+    let configured = d.train_gates(row, repository(m)).get(usize::from(gate))?;
+    let key = gate_key(row, member, gate, &configured.name, proof_key(proof.proof)?);
+    let flight = d.landing.faults.get(&(row.landing.task, member, gate)).or(d.landing.flights.get(&key))?;
+    let problem = match flight.gate_problem {
+        Some(problem) => problem,
+        None => match flight.outcome {
+            Some(policy::Verdict::Fault(fault)) => GateProblem::Runner { fault, job: None },
+            Some(policy::Verdict::Passed | policy::Verdict::Failed | policy::Verdict::Running) | None => return None,
+        },
+    };
+    let candidate = commit_hex(flight.commit);
+    let tries = skein_lib::Decimal::of(u64::from(proof.faults));
+    let detail = match problem {
+        GateProblem::Broke(report) => concat(&[
+            b": the check broke at ",
+            &candidate,
+            match report {
+                ReportProblem::Missing => b": its report was missing",
+                ReportProblem::Unread => b": its report could not be read",
+                ReportProblem::Empty => b": its report names no failed test",
+                ReportProblem::NoVerdict => b": it showed no verdict",
+            },
+        ]),
+        GateProblem::Runner { fault, job } => {
+            let name = job_words(flight.run.as_ref(), job);
+            concat(&[b": the runner's fault at ", &candidate, b": ", &name, runner_words(fault, job.is_some())])
+        }
+    };
+    Some(concat(&[&detail, b"; the change wasn't judged; retries: ", tries.as_bytes()]))
+}
+
+fn job_words(run: Option<&api::Run>, job: Option<u64>) -> Box<[u8]> {
+    if let Some(run) = run
+        && let Some(id) = job
+    {
+        for job in &run.jobs {
+            if job.id == id {
+                return concat(&[b"job ", &crate::text::fit(&job.name, 256, b"..."), b" "]);
+            }
+        }
+    }
+    Box::new([])
+}
+
+fn runner_words(fault: policy::Fault, job: bool) -> &'static [u8] {
+    match fault {
+        policy::Fault::SetUp => b"failed in set-up",
+        policy::Fault::Completion => b"failed in completion",
+        policy::Fault::NoStep => {
+            if job {
+                b"failed with no failed step"
+            } else {
+                b"the run failed with no failed step"
+            }
+        }
+        policy::Fault::Cancelled => {
+            if job {
+                b"was cancelled by no one of temper's"
+            } else {
+                b"the run was interrupted"
+            }
+        }
+        policy::Fault::OtherCommit => b"the run was at another commit",
+        policy::Fault::Lost => b"the run could not be found",
+        policy::Fault::MissingWorkflow => b"the workflow was missing",
+        policy::Fault::Unreported => b"no report was uploaded",
+    }
+}
+
+fn unjudged_end(d: &mut Domain, env: &Env<Limits>, key: &ReceiptKey, problem: GateProblem, out: &mut Queue<Request>) {
+    let flight = d.landing.flights.get_mut(key).expect("unjudged flight");
+    flight.gate_problem = Some(problem);
+    if let GateProblem::Runner { fault, .. } = problem {
+        flight.outcome = Some(policy::Verdict::Fault(fault));
+    }
+    reported_end(d, env, key, crate::history::GateVerdict::Fault, out);
+    retain_fault(d, env, key, out);
+}
+
 /// Keep the failed run's job attempts for the policy's retry, never a receipt (domain/landing-proof.md, 2.4).
 fn retain_fault(d: &mut Domain, env: &Env<Limits>, key: &ReceiptKey, out: &mut Queue<Request>) {
     let flight = d.landing.flights.get(key).expect("faulting flight");
@@ -6287,6 +6467,37 @@ fn receipt_report(
     }
 }
 
+/// A gate's promised report is read before any logs, which only a refusal keeps.
+fn judge_run(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut p: Pending,
+    key: ReceiptKey,
+    run: api::Run,
+    out: &mut Queue<Request>,
+) {
+    let mut report = None;
+    for gate in d.landing.gates(key.project, key.repository) {
+        if key.check == Check::Gate(gate.name.clone()) {
+            report.clone_from(&gate.report);
+            break;
+        }
+    }
+    let evidence = if let Some(report) = report {
+        if let Some(read) = crate::tiers::parts::artifact_read(run.id, report.artifact.clone(), report.format, env) {
+            p.stage = Stage::FailedReport { key: key.clone(), run, report };
+            ask(d, env, owner, p, key.repository, read, out);
+            return;
+        }
+        ReceiptReport::Unread
+    } else {
+        ReceiptReport::Unset
+    };
+    let problem = report_problem(&evidence);
+    judge_end(d, env, owner, p, key, GateEnd { run, report: evidence, failures: None }, problem, out);
+}
+
 /// Snapshot each failed job before publishing the failed receipt (domain/landing-proof.md, 2.3).
 #[expect(clippy::too_many_arguments, reason = "one coherent failed run and its bounded log cursor")]
 fn failed_jobs(
@@ -6295,15 +6506,16 @@ fn failed_jobs(
     owner: Token,
     mut p: Pending,
     key: ReceiptKey,
-    run: api::Run,
+    ended: GateEnd,
     next: u32,
     words: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
+    let run = &ended.run;
     let mut log = List::with_capacity(8192);
     append_words(&mut log, &words);
-    let mut row = d.landing.rows.get(&p.task).expect("failed landing").clone();
-    let base = failed_run_base(d, &row, &key, &run).expect("run base");
+    let row = d.landing.rows.get(&p.task).expect("failed landing");
+    let base = failed_run_base(d, row, &key, run).expect("run base");
     if next == 0 {
         let name = match &key.check {
             Check::Gate(name) | Check::Tier(name) => name,
@@ -6340,62 +6552,97 @@ fn failed_jobs(
         };
         p.stage = Stage::FailedJobs {
             key: key.clone(),
-            run,
+            ended,
             next: index.checked_add(1).expect("bounded jobs"),
             words: log.into_boxed(),
         };
         ask(d, env, owner, p, key.repository, read, out);
         return;
     }
-    let row_logs = log.into_boxed();
-    row.landing.round.failure =
-        crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
-    save(d, env, row, out);
-    let mut report = None;
-    for gate in d.landing.gates(key.project, key.repository) {
-        if key.check == Check::Gate(gate.name.clone()) {
-            report.clone_from(&gate.report);
-            break;
-        }
-    }
-    let evidence = if let Some(report) = report {
-        if let Some(read) = crate::tiers::parts::artifact_read(run.id, report.artifact.clone(), report.format, env) {
-            p.stage = Stage::FailedReport { key: key.clone(), run, report, words: row_logs };
-            ask(d, env, owner, p, key.repository, read, out);
-            return;
-        }
-        ReceiptReport::Unread
-    } else {
-        ReceiptReport::Unset
-    };
-    reported_end(d, env, &key, crate::history::GateVerdict::Failed, out);
-    failed_receipt(d, env, owner, p, key, run, evidence, None, row_logs, out);
+    failed_receipt(d, env, owner, p, key, ended, log.into_boxed(), out);
 }
 
-/// An uploaded report keeps the gate's failure (domain/landing-proof.md, 2.3).
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the failed run and both report interpretations complete one landing read"
-)]
+fn report_problem(report: &ReceiptReport) -> ReportProblem {
+    match report {
+        ReceiptReport::Tests(_) => ReportProblem::Empty,
+        ReceiptReport::Unread => ReportProblem::Unread,
+        ReceiptReport::Unset | ReceiptReport::Many { .. } => ReportProblem::NoVerdict,
+    }
+}
+
+/// A promised report binds, while a gate without one can refuse by its own failed step.
+#[expect(clippy::too_many_arguments, reason = "a gate end carries the report result beside its run")]
+fn judge_end(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut p: Pending,
+    key: ReceiptKey,
+    ended: GateEnd,
+    problem: ReportProblem,
+    out: &mut Queue<Request>,
+) {
+    let flight = d.landing.flights.get(&key).expect("ended flight");
+    let (workflow_failed, job_fault) = runs::gate_jobs(&ended.run);
+    let shown = match &ended.report {
+        ReceiptReport::Unset if workflow_failed => policy::Shown::Failures,
+        ReceiptReport::Many { .. } => policy::Shown::Failures,
+        ReceiptReport::Tests(tests) if !tests.is_empty() => policy::Shown::Failures,
+        ReceiptReport::Unset | ReceiptReport::Unread | ReceiptReport::Tests(_) => policy::Shown::Nothing,
+    };
+    let (runner, job) = if let Some((fault, job)) = job_fault {
+        (Some(fault), Some(job))
+    } else {
+        match flight.outcome {
+            Some(policy::Verdict::Fault(fault)) => (Some(fault), None),
+            Some(policy::Verdict::Failed | policy::Verdict::Passed | policy::Verdict::Running) | None => (None, None),
+        }
+    };
+    let unjudged = match policy::judge(shown, runner) {
+        policy::Judgement::Refused => {
+            failed_jobs(d, env, owner, p, key, ended, 0, Box::new([]), out);
+            return;
+        }
+        policy::Judgement::Runner(fault) => GateProblem::Runner { fault, job },
+        policy::Judgement::Broke => GateProblem::Broke(problem),
+        policy::Judgement::Passed => unreachable!("only runs without a pass need failure evidence"),
+    };
+    unjudged_end(d, env, &key, unjudged, out);
+    p.polled.push(key).expect("one poll per flight");
+    p.stage = Stage::Collect;
+    collect(d, env, owner, p, out);
+}
+
+/// Only a refusal reaches here; the receipt and its repair carry the log snapshot.
+#[expect(clippy::too_many_arguments, reason = "the failed run and its bounded log snapshot complete one landing read")]
 fn failed_receipt(
     d: &mut Domain,
     env: &Env<Limits>,
     owner: Token,
-    p: Pending,
+    mut p: Pending,
     key: ReceiptKey,
-    run: api::Run,
-    report: ReceiptReport,
-    failures: Option<temper_engine_domain_forge_tiers::Failures>,
+    ended: GateEnd,
     words: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    let row = d.landing.rows.get(&p.task).expect("failed landing");
-    let base = failed_run_base(d, row, &key, &run).expect("run base");
+    let GateEnd { run, report, failures } = ended;
     let flight = d.landing.flights.get(&key).expect("failed flight");
     let no_verdict = match tests_value(&flight.inputs) {
         Some(selected) => !selected_report(selected, failures.as_ref()),
         None => false,
     };
+    reported_end(d, env, &key, crate::history::GateVerdict::Failed, out);
+    let mut row = d.landing.rows.get(&p.task).expect("failed landing").clone();
+    let base = failed_run_base(d, &row, &key, &run).expect("run base");
+    row.landing.round.failure =
+        crate::preparation::remember(&row.landing.round.failure, &words, env.limits.landing_members);
+    save(d, env, row, out);
+    p.stage = Stage::Collect;
+    if !no_verdict && start_flake_rerun(d, env, &key, &run, &report, out) {
+        p.polled.push(key).expect("one poll per flight");
+        collect(d, env, owner, p, out);
+        return;
+    }
     let number = run.number;
     let receipt = Receipt {
         report,
@@ -6465,7 +6712,7 @@ fn failed_candidate(d: &Domain, row: &LandingRow, member: u16, gate: u16) -> api
     if let Some(key) = proof_key(m.gates.get(usize::from(gate)).expect("gate").proof) {
         let configured = d.train_gates(row, repository(m)).get(usize::from(gate)).expect("configured gate");
         let key = gate_key(row, member, gate, &configured.name, key);
-        if let Some(receipt) = d.landing.receipts.get(&key) {
+        if let Some(receipt) = d.receipt(&key) {
             return receipt.candidate;
         }
     }

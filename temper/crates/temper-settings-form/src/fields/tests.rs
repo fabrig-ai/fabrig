@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 100] = [
+const SHAPES: [Shape; 101] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -86,6 +86,7 @@ const SHAPES: [Shape; 100] = [
     Shape::CharterWords,
     Shape::ProjectWords,
     Shape::ProjectLanding,
+    Shape::LandingFlakes,
     Shape::RepairSettings,
     Shape::RepairGoalSettings,
     Shape::ProjectGates,

@@ -6,7 +6,7 @@
 
 mod jobs;
 
-use std::collections::{BTreeMap, BTreeSet, hash_map::DefaultHasher};
+use std::collections::{BTreeMap, BTreeSet, VecDeque, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
 
 use skein_fake_checkout::Checkout;
@@ -225,7 +225,6 @@ enum Delivery {
     Terminal { family: Family, owner: Token, event: Event },
     Io { owner: Token, op: tools::Op, deadline: Time },
     Command { owner: Token, process: skein_fake_checkout::Process, head: u32, tail: u32, timed_out: bool },
-    Check { owner: Token, passed: bool, output: Vec<u8>, timed_out: bool, tail: u32 },
     Host { relay: run::RelayName, reply: run::HostReply },
     Job { owner: Token },
     Cancel,
@@ -339,6 +338,7 @@ pub struct World<B: Backend = Typed> {
     answer_detail: Box<[u8]>,
     answered: Option<Time>,
     checked: Vec<bool>,
+    scripted_checks: VecDeque<run::Ran>,
     check_marker: Option<Vec<u8>>,
     check_results: Vec<(Box<[u8]>, bool)>,
     check_notices: Vec<(Time, bool)>,
@@ -577,6 +577,7 @@ impl<B: Backend> World<B> {
             answer_detail: Box::new([]),
             answered: None,
             checked: Vec::new(),
+            scripted_checks: VecDeque::new(),
             check_marker: None,
             check_results: Vec::new(),
             check_notices: Vec::new(),
@@ -812,6 +813,11 @@ impl<B: Backend> World<B> {
     /// The abandoned activation must not be driven again.
     pub fn take_crashed_checkout(&mut self) -> Checkout {
         std::mem::take(&mut self.disk)
+    }
+
+    /// Supply the next check terminals at the typed machine boundary, in request order.
+    pub fn script_checks(&mut self, checks: Vec<run::Ran>) {
+        self.scripted_checks.extend(checks);
     }
 
     /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
@@ -1454,18 +1460,35 @@ impl<B: Backend> World<B> {
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
                 assert_eq!(&*program.path, fixture::CHECKS, "the host explicitly selected its Temper fixture checks");
-                let (passed, output) = fixture::check(&self.disk, program.root.raw());
+                let complete = self.now.saturating_add(self.settings.check.draw(&mut self.rng));
+                let ran = self.scripted_checks.pop_front().unwrap_or_else(|| {
+                    let (passed, output) = fixture::check(&self.disk, program.root.raw());
+                    let exit = if complete > deadline {
+                        run::Exit::TimedOut
+                    } else {
+                        run::Exit::Code { code: u8::from(!passed) }
+                    };
+                    let cut = output.len().saturating_sub(usize::try_from(tail).expect("fixture output bound fits"));
+                    run::Ran {
+                        exit,
+                        said_not_judged: false,
+                        output: output[cut..].into(),
+                        cut: skein_lib::len_u64(cut),
+                    }
+                });
+                let ended = if ran.exit == run::Exit::TimedOut { deadline } else { complete.min(deadline) };
+                let key = self.schedule.send(
+                    ended,
+                    Delivery::Terminal {
+                        family: Family::Check,
+                        owner,
+                        event: Event::Below(smith_domain::Below::Checked { owner, ran }),
+                    },
+                );
                 self.flights.open(
                     (Family::Check, owner),
-                    Flight { key: None, cancelled: false, completion_message: None, completion_index: None },
+                    Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
-                let duration = self.settings.check.draw(&mut self.rng);
-                let complete = self.now.saturating_add(duration);
-                let key = self.schedule.send(
-                    complete.min(deadline),
-                    Delivery::Check { owner, passed, output, timed_out: complete > deadline, tail },
-                );
-                self.flights.get_mut((Family::Check, owner)).expect("the check is pending").key = Some(key);
             }
             Request::Lower(smith_domain::Lower::Abort { owner }) => {
                 self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
@@ -1756,17 +1779,6 @@ impl<B: Backend> World<B> {
                 self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             }
             Delivery::Job { owner } => self.job_tick(owner),
-            Delivery::Check { owner, passed, output, timed_out, tail } => {
-                let exit = if timed_out { run::Exit::TimedOut } else { run::Exit::Code { code: u8::from(!passed) } };
-                let keep = usize::try_from(tail).expect("fixture output bound fits").min(output.len());
-                let cut = output.len() - keep;
-                let ran = run::Ran {
-                    exit,
-                    output: output[cut..].into(),
-                    cut: u64::try_from(cut).expect("fixture output fits"),
-                };
-                self.terminal(Family::Check, owner, Event::Below(smith_domain::Below::Checked { owner, ran }));
-            }
         }
     }
 

@@ -6,11 +6,13 @@ use skein_forge::api::Commit;
 use skein_json::{Kind, document::Document};
 use skein_lib::{Decimal, List, bytes};
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_landing::{Fault, Judgement, Shown, judge};
 
 const PREFIX: &[u8] = b"the close check refused the goal's branch at ";
 const BASE: &[u8] = b", against main at ";
 const MOVES: &[u8] = b"; it checks again once the goal's branch or main moves.";
 const BROKE: &[u8] = b"the close check broke and didn't judge the goal: ";
+const LOST: &[u8] = b"the close check's runner was lost and didn't judge the goal: ";
 const AGAIN: &[u8] = b"; its release runs it again.";
 const FINISHED: &[u8] = b"it finished with ";
 const RESULT_PREFIX_BYTES: usize = 64;
@@ -25,22 +27,57 @@ pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) {
         return;
     }
     let verdict = result(&row.report, row.close_at, pushed);
-    match verdict {
-        Some(Verdict::Settled) => {}
-        Some(Verdict::Refused { counts, words }) => {
+    match classify(verdict.as_ref(), false) {
+        Judgement::Passed => {}
+        Judgement::Refused => {
+            let Some(Verdict::Refused { counts, words }) = verdict else { unreachable!("a shown refusal") };
             // The refusal was validated against this attempt above.
             row.close_at.as_mut().expect("a refusal names its attempt").refused = Some(change::CloseRefused { counts });
             row.delegate_status = change::Status::Failed;
             row.producer_failure = Some(words);
             row.report = Box::new([]);
         }
-        None => {
+        Judgement::Broke => {
             let words = finished_words(&row.report);
             row.delegate_status = change::Status::Failed;
             row.producer_failure = Some(words);
             row.report = Box::new([]);
             clear_refusal(row);
         }
+        Judgement::Runner(_) => unreachable!("a finished job was not lost"),
+    }
+}
+
+fn classify(verdict: Option<&Verdict>, lost: bool) -> Judgement {
+    let shown = match verdict {
+        Some(Verdict::Settled) => Shown::Passed,
+        Some(Verdict::Refused { .. }) => Shown::Failures,
+        None => Shown::Nothing,
+    };
+    judge(shown, if lost { Some(Fault::Lost) } else { None })
+}
+
+pub(crate) fn failed_words(words: &[u8], failed: bool, lost: bool) -> Box<[u8]> {
+    match classify(None, lost) {
+        Judgement::Runner(Fault::Lost) => not_judged(LOST, words),
+        Judgement::Broke => {
+            if failed {
+                not_judged(BROKE, words)
+            } else {
+                finished_words(words)
+            }
+        }
+        Judgement::Passed
+        | Judgement::Refused
+        | Judgement::Runner(
+            Fault::SetUp
+            | Fault::Completion
+            | Fault::NoStep
+            | Fault::Cancelled
+            | Fault::OtherCommit
+            | Fault::MissingWorkflow
+            | Fault::Unreported,
+        ) => unreachable!("no close verdict and at most a lost job"),
     }
 }
 
@@ -50,20 +87,20 @@ pub(crate) fn clear_refusal(row: &mut ChangeRow) {
     }
 }
 
-pub(crate) fn broke_words(reason: &[u8]) -> Box<[u8]> {
-    let room = skein_lib::usize_of(HOLD_BYTES).saturating_sub(BROKE.len()).saturating_sub(AGAIN.len());
+fn not_judged(prefix: &[u8], reason: &[u8]) -> Box<[u8]> {
+    let room = skein_lib::usize_of(HOLD_BYTES).saturating_sub(prefix.len()).saturating_sub(AGAIN.len());
     let reason = bytes::utf8_replaced(reason);
-    bytes::concat(&[BROKE, bytes::utf8_prefix(&reason, room), AGAIN])
+    bytes::concat(&[prefix, bytes::utf8_prefix(&reason, room), AGAIN])
 }
 
-pub(crate) fn finished_words(result: &[u8]) -> Box<[u8]> {
+fn finished_words(result: &[u8]) -> Box<[u8]> {
     let end = result.len().min(RESULT_PREFIX_BYTES);
     let prefix = if bytes::is_utf8(result) {
         bytes::utf8_prefix(result, end)
     } else {
         result.get(..end).expect("bounded result prefix")
     };
-    broke_words(&bytes::concat(&[FINISHED, prefix]))
+    not_judged(BROKE, &bytes::concat(&[FINISHED, prefix]))
 }
 
 enum Verdict {
@@ -261,7 +298,11 @@ mod tests {
     #[test]
     fn an_unasked_or_pushed_refusal_is_not_a_judgment() {
         for (at, pushed) in [(change::CloseAt { asked: false, ..AT }, false), (AT, true)] {
-            assert!(result(REFUSAL, Some(at), pushed).is_none(), "{at:?}, pushed: {pushed}");
+            assert_eq!(
+                classify(result(REFUSAL, Some(at), pushed).as_ref(), false),
+                Judgement::Broke,
+                "{at:?}, pushed: {pushed}"
+            );
         }
     }
 }
