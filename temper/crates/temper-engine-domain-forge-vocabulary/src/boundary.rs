@@ -1852,6 +1852,12 @@ pub struct LandingEvidence {
     pub change: u64,
     pub facts: ChangeEvidence,
 }
+/// A landing member's head commit trailers, kept only for the prepare job.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct LandingHeadTrailers {
+    pub member: u16,
+    pub block: Box<[u8]>,
+}
 /// Identity supplied by the named-call owner, interpreted only for lookup.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct NamedCall {
@@ -3077,6 +3083,8 @@ pub enum Request {
         decision: landing::Decision,
         entry: Option<u64>,
         evidence: Option<Box<[LandingEvidence]>>,
+        /// Nonempty trailer blocks, only for Prepare.
+        head_trailers: Box<[LandingHeadTrailers]>,
     },
     /// The client finished sent entries or reached its bound; those without an outcome.
     Settled {

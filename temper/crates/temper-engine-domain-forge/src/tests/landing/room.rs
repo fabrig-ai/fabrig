@@ -211,6 +211,7 @@ fn assert_wait(out: &[Request], on: policy::Awaited) {
                 decision: policy::Decision::Wait { until: None, on: found },
                 entry: None,
                 evidence: None,
+                ..
             } if *found == on
         );
         assert!(

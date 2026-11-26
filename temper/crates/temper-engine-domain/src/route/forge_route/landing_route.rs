@@ -493,7 +493,13 @@ pub(super) fn describe_landing_effect(
     })
 }
 
-pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: landing::Decision) {
+pub(super) fn landing_decision(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    choice: landing::Decision,
+    head_trailers: &[forge::LandingHeadTrailers],
+) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
         return;
@@ -519,7 +525,7 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             StepEnd::Wait
         }
         landing::Decision::Prepare { .. } => {
-            let decision = match prepare_delegate(domain, env, task) {
+            let decision = match prepare_delegate(domain, env, task, head_trailers) {
                 Ok(delegate) => ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
                 Err(reason) => {
                     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
@@ -684,7 +690,12 @@ fn kept_prepare(domain: &Domain, task: u64) -> bool {
     }
     false
 }
-fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<PrepareRequest> {
+fn prepare_request(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    head_trailers: &[forge::LandingHeadTrailers],
+) -> Option<PrepareRequest> {
     let row = domain.forge.landing(task)?;
     let first = row.landing.members.first()?;
     let provider =
@@ -711,6 +722,14 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<Prep
         }
         let change = domain.forge.change(member.change)?;
         let head = member.head?;
+        let position = u16::try_from(index).expect("bounded members");
+        let mut trailers = b"".as_slice();
+        for read in head_trailers {
+            if read.member == position {
+                trailers = &read.block;
+                break;
+            }
+        }
         let text = forge::member_message::Member {
             title: &change.title,
             words: &change.report,
@@ -718,7 +737,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<Prep
             pull: member.pull,
             head,
             goal: change.goal,
-            head_trailers: &[],
+            head_trailers: trailers,
         };
         let message =
             forge::member_message::commit_message(&text, forge::member_message::Kind::Merge { into_main: main });
@@ -762,9 +781,14 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<Prep
         members: members.into_boxed(),
     })
 }
-fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Result<super::super::Delegate, &'static [u8]> {
+fn prepare_delegate(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    head_trailers: &[forge::LandingHeadTrailers],
+) -> Result<super::super::Delegate, &'static [u8]> {
     let bound = domain.config.prepare_kind.ok_or(b"prepare job kind 1 is not declared".as_slice())?;
-    let request = prepare_request(domain, env, task)
+    let request = prepare_request(domain, env, task, head_trailers)
         .ok_or(b"landing round or repository cannot form its prepare request".as_slice())?;
     let context = domain.core.tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
     let spec = prepare::spec(&request, bound.spec)
@@ -798,7 +822,7 @@ fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Result<sup
     })
 }
 pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::RunWorkspace> {
-    let request = prepare_request(domain, env, task)?;
+    let request = prepare_request(domain, env, task, &[])?;
     let row = domain.forge.landing(task)?;
     let member = row.landing.members.first()?;
     let provider =

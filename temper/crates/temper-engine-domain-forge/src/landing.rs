@@ -85,6 +85,7 @@ pub(crate) struct Pending {
     pub(crate) entry: u64,
     pub(crate) heard: LandingHeard,
     facts: Box<[policy::MemberFacts]>,
+    head_trailers: List<crate::LandingHeadTrailers>,
     stage: Stage,
     polled: List<ReceiptKey>,
     flight_entry: Option<u64>,
@@ -179,7 +180,7 @@ enum RoundRead {
     Branch,
     Prefix(u32),
     Head,
-    Contained,
+    Contained(u32),
     Pull,
     Upstream,
 }
@@ -1304,6 +1305,7 @@ pub(crate) fn step(
                 decision: policy::Decision::Wait { until: None, on: policy::Awaited::Release },
                 entry: None,
                 evidence: None,
+                head_trailers: Box::new([]),
             },
             d,
             env,
@@ -1349,7 +1351,13 @@ pub(crate) fn step(
         } else {
             emit_decision(
                 out,
-                Request::LandingDecision { task, decision: policy::Decision::Cancel, entry: None, evidence: None },
+                Request::LandingDecision {
+                    task,
+                    decision: policy::Decision::Cancel,
+                    entry: None,
+                    evidence: None,
+                    head_trailers: Box::new([]),
+                },
                 d,
                 env,
             );
@@ -1429,6 +1437,7 @@ pub(crate) fn step(
                 entry,
                 heard,
                 facts: facts.into_boxed(),
+                head_trailers: List::with_capacity(env.limits.landing_members),
                 stage: Stage::Branch(0),
                 polled: List::with_capacity(slots(&env.limits).expect("bounded gates")),
                 flight_entry: None,
@@ -1602,7 +1611,12 @@ fn claim_decision(d: &mut Domain, env: &Env<Limits>, task: u64, released: bool, 
     if let policy::Decision::Hold(policy::Hold::Claimed { .. }) = decision {
         held_news(task, &prior, out);
     }
-    emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
+    emit_decision(
+        out,
+        Request::LandingDecision { task, decision, entry: None, evidence: None, head_trailers: Box::new([]) },
+        d,
+        env,
+    );
     crate::waits::changed(d, task);
 }
 
@@ -1688,7 +1702,12 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
     if let policy::Decision::Hold(policy::Hold::Read) = decision {
         held_news(task, &prior, out);
     }
-    emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
+    emit_decision(
+        out,
+        Request::LandingDecision { task, decision, entry: None, evidence: None, head_trailers: Box::new([]) },
+        d,
+        env,
+    );
     crate::waits::changed(d, task);
 }
 
@@ -2352,6 +2371,7 @@ fn advance(
                                 decision: policy::Decision::Key { member, gate, candidate },
                                 entry: None,
                                 evidence: None,
+                                head_trailers: Box::new([]),
                             },
                             d,
                             env,
@@ -2576,7 +2596,7 @@ fn round_read(
             }
             match candidate {
                 Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }),
-                None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }),
+                None => (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 }),
             }
         }
         RoundRead::Prefix(page) => {
@@ -2617,7 +2637,7 @@ fn round_read(
             if merge {
                 (RoundRead::Head, api::Read::Commits { before: candidate.expect("prefix"), after: head, page: 1 })
             } else {
-                (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
+                (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
             }
         }
         RoundRead::Head => {
@@ -2630,14 +2650,40 @@ fn round_read(
                     return;
                 }
             }
-            (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
+            (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
         }
-        RoundRead::Contained => {
-            fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
-                policy::Status::Passed
-            } else {
-                policy::Status::Failed
+        RoundRead::Contained(page) => {
+            let (more, trailers) = match &answer {
+                Ok(api::Answer::Commits { commits, more }) => (*more, head_commit_trailers(commits, head)),
+                Err(api::Error::TooLarge(_)) => (false, None),
+                Ok(_) | Err(_) => {
+                    read_failed(d, row, &p, error, out);
+                    return;
+                }
             };
+            // The first page alone tells whether the base contains the head.
+            if page == 1 {
+                fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
+                    policy::Status::Passed
+                } else {
+                    policy::Status::Failed
+                };
+            }
+            if let Some(block) = trailers {
+                if !block.is_empty() {
+                    p.head_trailers
+                        .push(crate::LandingHeadTrailers { member: index, block })
+                        .expect("one block per member");
+                }
+            } else if more {
+                let Some(page) = page.checked_add(1) else {
+                    read_failed(d, row, &p, None, out);
+                    return;
+                };
+                p.stage = Stage::Round { member: index, stage: RoundRead::Contained(page), candidate };
+                ask(d, env, owner, p, repository(member), api::Read::Commits { before: base, after: head, page }, out);
+                return;
+            }
             round_member(d, env, owner, p, row, index.checked_add(1).expect("member bound"), out);
             return;
         }
@@ -2655,6 +2701,14 @@ fn round_read(
     p.stage = Stage::Round { member: index, stage, candidate };
     let repo = repository(member);
     ask(d, env, owner, p, repo, read, out);
+}
+fn head_commit_trailers(commits: &[api::CommitMessage], head: api::Commit) -> Option<Box<[u8]>> {
+    for commit in commits {
+        if commit.id == head {
+            return Some(crate::member_message::trailers(&commit.message));
+        }
+    }
+    None
 }
 fn path_candidate(row: &LandingRow, member: u16) -> Option<api::Commit> {
     if row.landing.round.branch.is_empty() {
@@ -3426,6 +3480,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         None
     };
     let mut committed = None;
+    let mut head_trailers: Box<[crate::LandingHeadTrailers]> = Box::new([]);
     match decision {
         policy::Decision::Open
         | policy::Decision::Close
@@ -3699,6 +3754,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                             decision: policy::Decision::None,
                             entry: None,
                             evidence: None,
+                            head_trailers: Box::new([]),
                         },
                         d,
                         env,
@@ -3730,6 +3786,8 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         policy::Decision::Prepare { member, head, main } => {
             if row.landing.round.branch.is_empty() {
                 members::hand(d, &row, member, change::Ask::Prepare { head, main }, out);
+            } else {
+                head_trailers = p.head_trailers.into_boxed();
             }
         }
         policy::Decision::None | policy::Decision::Stale | policy::Decision::Cancel | policy::Decision::Hold(_) => {}
@@ -3846,7 +3904,12 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     } else {
         decision
     };
-    emit_decision(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence }, d, env);
+    emit_decision(
+        out,
+        Request::LandingDecision { task: p.task, decision, entry: committed, evidence, head_trailers },
+        d,
+        env,
+    );
 }
 fn end_runs(
     d: &mut Domain,
@@ -4809,6 +4872,7 @@ fn continue_flake_rerun(
                 },
                 entry: None,
                 evidence: None,
+                head_trailers: Box::new([]),
             },
             d,
             env,
@@ -4857,6 +4921,7 @@ fn continue_flake_rerun(
             decision: policy::Decision::Retry { member, gate, key: key.key, try_ },
             entry: Some(entry),
             evidence: None,
+            head_trailers: Box::new([]),
         },
         d,
         env,
@@ -4908,27 +4973,8 @@ fn continue_retry(
     let Some((member, gate, try_)) = position else {
         return false;
     };
-    if result(d, row.landing.task, member, gate, 2) == policy::Status::Pending {
-        leave_room(d, row);
-        save(d, env, row.clone(), out);
-        emit_decision(
-            out,
-            Request::LandingDecision {
-                task: row.landing.task,
-                decision: policy::Decision::Wait {
-                    until: Some(poll_at(d, env, row.landing.task)),
-                    on: policy::Awaited::Run { member, gate },
-                },
-                entry: None,
-                evidence: None,
-            },
-            d,
-            env,
-        );
-        return true;
-    }
-    let flight = d.landing.flights.get(&key).expect("pending reruns");
-    if flight.waiting
+    if result(d, row.landing.task, member, gate, 2) == policy::Status::Pending
+        || flight.waiting
         || match &flight.run {
             Some(run) => run.state != api::RunState::Completed,
             None => true,
@@ -4946,6 +4992,7 @@ fn continue_retry(
                 },
                 entry: None,
                 evidence: None,
+                head_trailers: Box::new([]),
             },
             d,
             env,
@@ -4966,6 +5013,7 @@ fn continue_retry(
             decision: policy::Decision::Retry { member, gate, key: key.key, try_ },
             entry: Some(entry),
             evidence: None,
+            head_trailers: Box::new([]),
         },
         d,
         env,
@@ -5879,6 +5927,7 @@ fn admit_entry(
             decision: policy::Decision::Wait { until: None, on },
             entry: None,
             evidence: None,
+            head_trailers: Box::new([]),
         },
         d,
         env,
