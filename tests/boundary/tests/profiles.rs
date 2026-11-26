@@ -3,7 +3,8 @@
 //! `[profile.NAME]` headers and every `--profile NAME` in the listed trees' `*.sh`. A
 //! `--profile` with no name after it is a failure, never a skip. Each profile's own
 //! wall is three times the gate's (`tools/tiers/design.md`, 11.7). Every profile doubles
-//! its slow timeouts on macOS (`temper/docs/design/testing/macos.md`, 7).
+//! its slow timeouts on macOS; only the helper's `browser-temper` global timeout
+//! exceeds the root profile's (`temper/docs/design/testing/macos.md`, 7).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -54,6 +55,30 @@ fn a_profiles_own_wall_is_three_times_the_gates() {
             wall.checked_mul(3),
             "profile {name}: gate wall {wall} s, own global-timeout {own} s; expected three times the gate wall"
         );
+    }
+}
+
+#[test]
+fn macos_global_timeouts_name_browser_temper_alone() {
+    const MACOS: &str = "tools/macos/global-timeouts.toml";
+    const NEXTEST: &str = ".config/nextest.toml";
+    let root = skein_scratch::paths::workspace();
+    let overrides: toml::Table =
+        toml::from_str(&fs::read_to_string(root.join(MACOS)).expect("macOS timeouts are readable"))
+            .expect("macOS timeouts are TOML");
+    assert_eq!(overrides.len(), 1, "{MACOS}: only the profile table is allowed");
+    let overrides = overrides.get("profile").and_then(toml::Value::as_table).expect("macOS timeouts name profiles");
+    assert!(overrides.len() == 1 && overrides.contains_key("browser-temper"), "{MACOS}: only browser-temper is named");
+    let config: toml::Value =
+        toml::from_str(&fs::read_to_string(root.join(NEXTEST)).expect("nextest config is readable"))
+            .expect("nextest config is TOML");
+    let profiles = config.get("profile").and_then(toml::Value::as_table).expect("nextest defines profiles");
+    for (name, table) in overrides {
+        assert_eq!(table.as_table().map(toml::Table::len), Some(1), "{MACOS}: {name} must hold only global-timeout");
+        let profile = profiles.get(name).unwrap_or_else(|| panic!("{MACOS}: nextest does not define profile {name}"));
+        let macos = timeout_seconds(name, table, MACOS);
+        let linux = timeout_seconds(name, profile, NEXTEST);
+        assert!(macos > linux, "profile {name}: macOS global-timeout {macos} s must exceed Linux's {linux} s");
     }
 }
 

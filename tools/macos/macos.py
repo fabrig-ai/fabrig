@@ -30,6 +30,7 @@ PAIRS = {
     "live": ("live-temper", "live-skein"),
 }
 FAULT = 2
+GLOBAL_TIMEOUTS = Path(__file__).resolve().with_name("global-timeouts.toml")
 BOUNDS = {"process": 150, "browser": 150, "browser-temper": 150,
           "skein": 300, "smith": 300, "jig": 300, "temper": 300, "live": 60}
 RESERVE = 15 * 60
@@ -421,6 +422,52 @@ def run_arguments(part, selected, packages):
     return result
 
 
+def global_timeouts():
+    config = tomllib.loads(GLOBAL_TIMEOUTS.read_text(encoding="utf-8"))
+    if set(config) != {"profile"} or not isinstance(config["profile"], dict):
+        raise ValueError(f"{GLOBAL_TIMEOUTS}: expected only profile tables")
+    timeouts = {}
+    for profile, table in config["profile"].items():
+        if not isinstance(table, dict) or set(table) != {"global-timeout"}:
+            raise ValueError(f"{GLOBAL_TIMEOUTS}: profile {profile} must hold only global-timeout")
+        duration = table["global-timeout"]
+        if not isinstance(duration, str) or not re.fullmatch(r"[0-9]+[sm]", duration):
+            raise ValueError(f"{GLOBAL_TIMEOUTS}: profile {profile} global-timeout must be whole seconds or minutes")
+        timeouts[profile] = duration
+    return timeouts
+
+
+def nextest_config_files(root, selected):
+    """Apply the runner's global timeouts without editing the tested checkout (7)."""
+    timeouts = global_timeouts()
+    if not timeouts:
+        return {}
+    source = Path(".config/nextest.toml")
+    text = source.read_text(encoding="utf-8")
+    tested = tomllib.loads(text)
+    profiles = tested.get("profile")
+    files = {}
+    for profile, timeout in timeouts.items():
+        table = profiles.get(profile) if isinstance(profiles, dict) else None
+        if not isinstance(table, dict):
+            raise ValueError(f"{source}: nextest does not define profile {profile}")
+        if "global-timeout" not in table:
+            raise ValueError(f"{source}: profile {profile} has no global-timeout of its own")
+        if profile not in selected:
+            continue
+        line = (rf"(?m)(^[ \t]*\[profile\.{re.escape(profile)}\][ \t]*(?:#.*)?\n"
+                r"(?:(?![ \t]*\[).*\n)*?^[ \t]*global-timeout[ \t]*=[ \t]*)[^\n]*")
+        changed, count = re.subn(line, rf'\g<1>"{timeout}"', text, count=1)
+        expected = copy.deepcopy(tested)
+        expected["profile"][profile]["global-timeout"] = timeout
+        if count != 1 or tomllib.loads(changed) != expected:
+            raise ValueError(f"{source}: cannot replace only profile {profile}'s global-timeout")
+        path = root.resolve() / f"{profile}.toml"
+        path.write_text(changed, encoding="utf-8")
+        files[profile] = path
+    return files
+
+
 def run_part(part, destination):
     destination = Path(destination)
     destination.unlink(missing_ok=True)
@@ -428,19 +475,23 @@ def run_part(part, destination):
     root.mkdir()
     paths = []
     packages = package_map()
-    for profile, args, ignored in run_arguments(part, ids(os.environ.get("IDS", "")), packages):
+    runs = run_arguments(part, ids(os.environ.get("IDS", "")), packages)
+    configs = nextest_config_files(root, {profile for profile, _, _ in runs}) if part in PAIRS and runs else {}
+    for profile, args, ignored in runs:
         if part in PAIRS:
             listing = root / f"{profile}.json"
-            # list and run receive identical profile, package, filter and ignored flags.
+            config = ["--config-file", configs[profile]] if profile in configs else []
+            # List and run share configuration, profile, package, filter and ignored flags.
             require(f"list-{profile}", ["cargo", "nextest", "list", "--message-format", "json",
-                                      "--profile", profile, *[arg for arg in args if not arg.startswith("--no-tests=")]])
+                                      "--profile", profile, *config,
+                                      *[arg for arg in args if not arg.startswith("--no-tests=")]])
             shutil.copyfile(Path(os.environ["RUNNER_TEMP"]) / f"logs/list-{profile}.log", listing)
             path = Path("target/nextest") / profile / "junit.xml"
             path.unlink(missing_ok=True)
             tier, tree = profile.split("-", 1)
             # tools/tiers/run owns its package selection and prerequisites.
             extra = args[2 * len(packages[profile]):]
-            status = checked(f"run-{profile}", ["tools/tiers/run", tree, tier, "--", *extra])
+            status = checked(f"run-{profile}", ["tools/tiers/run", tree, tier, "--", *config, *extra])
             if profile.startswith("browser-"):
                 compiled = compilations(Path(os.environ["RUNNER_TEMP"]) / f"logs/run-{profile}.log")
                 if compiled:

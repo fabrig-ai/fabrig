@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline fixtures for macos.md, 4–5; no builds, network or credentials."""
+"""Offline fixtures for macos.md, 4–7; no builds, network or credentials."""
 
 import contextlib
 import hashlib
@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 from unittest import mock
 import xml.etree.ElementTree as ET
@@ -29,6 +30,21 @@ live-temper = ["temper-box"]
 live-skein = ["skein-llm-world"]
 [test-binaries]
 smith = [{ package = "smith-fake-claude", bin = "fake-claude" }]
+'''
+NEXTEST_CONFIG = '''[profile.default]
+global-timeout = "4m"
+
+[profile.browser-temper]
+global-timeout = "120s"
+default-filter = "binary(/^browser_/)"
+junit = { path = "junit.xml" }
+
+[[profile.browser-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "80s" }
+
+[profile.browser-jig]
+global-timeout = "20m"
 '''
 
 
@@ -466,10 +482,104 @@ source = "registry+https://example.invalid/index"
         self.assertIn("2 dependencies and 1 workspace", output.getvalue())
         self.assertEqual(envfile.read_text(), "MACOS_BUILT=true\n")
 
-    def test_browser_run_warns_on_compilation_without_changing_verdict(self):
-        previous = Path.cwd()
-        self.addCleanup(os.chdir, previous)
+    def write_tested_nextest(self):
+        self.addCleanup(os.chdir, Path.cwd())
         os.chdir(self.root)
+        return self.file(".config/nextest.toml", NEXTEST_CONFIG)
+
+    def run_nextest_part(self, part, temporary, calls, *, selected="", observed=("one", "two")):
+        listing = self.listing().read_text()
+        temporary.mkdir()
+
+        def command(name, argv):
+            calls.append((name, argv))
+            action, profile = name.split("-", 1)
+            self.file(f"{temporary.name}/logs/{name}.log", listing if action == "list" else "")
+            if action == "run":
+                cases = "".join(f'<testcase classname="a::suite" name="{case}"/>' for case in observed)
+                self.file(f"target/nextest/{profile}/junit.xml", f"<testsuites><testsuite>{cases}</testsuite></testsuites>")
+            return 0
+
+        with mock.patch.dict(os.environ, RUNNER_TEMP=str(temporary), IDS=selected, GIVEN=str(bool(selected)).lower()), \
+                mock.patch.dict(M["run_part"].__globals__, package_map=lambda: self.table, checked=command):
+            M["run_part"](part, self.destination)
+
+    def test_browser_temper_lists_and_runs_with_the_same_config_copy(self):
+        source = self.write_tested_nextest()
+        temporary = self.root / "runner"
+        calls = []
+        self.run_nextest_part("browser-temper", temporary, calls,
+                              selected="temper-client-browser-world::browser_all.story_a")
+        self.assertEqual([name for name, _ in calls], ["list-browser-temper", "run-browser-temper"])
+        (_, listing), (_, run) = calls
+        self.assertEqual(listing[:7], ["cargo", "nextest", "list", "--message-format", "json",
+                                       "--profile", "browser-temper"])
+        self.assertEqual(run[:4], ["tools/tiers/run", "temper", "browser", "--"])
+        path = Path(listing[listing.index("--config-file") + 1])
+        self.assertEqual(path, Path(run[run.index("--config-file", 4) + 1]))
+        self.assertTrue(path.is_relative_to(temporary))
+        self.assertEqual(source.read_text(), NEXTEST_CONFIG)
+        expected = tomllib.loads(NEXTEST_CONFIG)
+        configured = tomllib.loads(HELPER.with_name("global-timeouts.toml").read_text())
+        expected["profile"]["browser-temper"]["global-timeout"] = configured["profile"]["browser-temper"]["global-timeout"]
+        self.assertEqual(tomllib.loads(path.read_text()), expected)
+        self.assertTrue(self.destination.exists())
+
+    def test_other_macos_nextest_pairs_do_not_use_a_config_copy(self):
+        self.write_tested_nextest()
+        for part, profiles in [("browser", ("browser-jig", "browser-skein")), ("process", ("process-temper",))]:
+            with self.subTest(part=part):
+                calls = []
+                self.run_nextest_part(part, self.root / part, calls)
+                self.assertEqual([name for name, _ in calls],
+                                 [f"{action}-{profile}" for profile in profiles for action in ("list", "run")])
+                for _, argv in calls:
+                    self.assertNotIn("--config-file", argv)
+
+    def test_invalid_global_timeouts_are_faults_before_listing(self):
+        source = self.write_tested_nextest()
+        valid = '[profile.browser-temper]\nglobal-timeout = "3m"\n'
+        cases = [
+            (valid + 'slow-timeout = "1s"\n', NEXTEST_CONFIG, "must hold only global-timeout"),
+            (valid + '[unrelated]\n', NEXTEST_CONFIG, "expected only profile tables"),
+            (valid.replace('"3m"', '"2.5m"'), NEXTEST_CONFIG, "must be whole seconds or minutes"),
+            (valid.replace('"3m"', '"soon"'), NEXTEST_CONFIG, "must be whole seconds or minutes"),
+            (valid.replace('"3m"', '3'), NEXTEST_CONFIG, "must be whole seconds or minutes"),
+            (valid.replace("browser-temper", "unknown"), NEXTEST_CONFIG, "nextest does not define profile unknown"),
+            (valid, NEXTEST_CONFIG.replace('global-timeout = "120s"\n', ''), "has no global-timeout of its own"),
+            (valid, NEXTEST_CONFIG.replace('global-timeout = "120s"', '"global-timeout" = "120s"'), "cannot replace only"),
+            (valid, "note = '''\n" + NEXTEST_CONFIG + "'''\n" + NEXTEST_CONFIG, "cannot replace only"),
+        ]
+        for i, (text, tested, error) in enumerate(cases):
+            with self.subTest(text=text, error=error, case=i):
+                override = self.file("global-timeouts.toml", text)
+                source.write_text(tested)
+                temporary = self.root / f"runner-{i}"
+                temporary.mkdir()
+                self.file("out.xml", "<stale/>")
+                checked = mock.Mock()
+                with mock.patch.dict(os.environ, RUNNER_TEMP=str(temporary), IDS="", GIVEN="false"), \
+                        mock.patch.dict(M["main"].__globals__, GLOBAL_TIMEOUTS=override,
+                                        package_map=lambda: self.table, checked=checked), \
+                        mock.patch.object(sys, "argv", ["macos.py", "run", "browser-temper", str(self.destination)]), \
+                        contextlib.redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(M["main"](), 2)
+                self.assertIn(error, output.getvalue())
+                checked.assert_not_called()
+                self.assertFalse(self.destination.exists())
+
+    def test_browser_temper_cut_short_reports_unobserved_stories(self):
+        self.write_tested_nextest()
+        self.file("out.xml", "<stale/>")
+        with self.assertRaisesRegex(ValueError, r"^nextest cut short, unobserved: a::suite\.two$"):
+            self.run_nextest_part("browser-temper", self.root / "runner", [], observed=("one",))
+        self.assertFalse(self.destination.exists())
+
+    def test_shipped_global_timeouts_names_browser_temper_alone(self):
+        self.assertEqual(set(M["global_timeouts"]()), {"browser-temper"})
+
+    def test_browser_run_warns_on_compilation_without_changing_verdict(self):
+        self.write_tested_nextest()
         for status in (0, 100, 2):
             for compiling in (False, True):
                 with self.subTest(status=status, compiling=compiling):
@@ -587,9 +697,7 @@ source = "registry+https://example.invalid/index"
             return 100 if profile == "browser-jig" else 2
 
         globals_ = M["run_part"].__globals__
-        previous = Path.cwd()
-        self.addCleanup(os.chdir, previous)
-        os.chdir(self.root)
+        self.write_tested_nextest()
         selections = [(profile, ["-p", self.table[profile][0]], "default")
                       for profile in ("browser-jig", "browser-skein")]
         with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), IDS=""):
