@@ -1,5 +1,5 @@
 //! Job hosts in the fleet's scripted world (jig/docs/design/domain/engine/executors.md, 5).
-use jig_domain_fleet::{Answer, Call, Domain, Event, HelloRefusal, Limits, Message, Request, Undelivered};
+use jig_domain_fleet::{Answer, Call, Domain, Event, HelloRefusal, Limits, Message, Refusal, Request, Undelivered};
 use jig_domain_link::{Form, Grant, Hello, Hosting, JobBound, JobKind, Phase};
 use jig_fleet_world::{Settings, World, fixtures};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
@@ -11,6 +11,7 @@ const R1: Token = Token::new(1);
 const R2: Token = Token::new(2);
 const A1: Token = Token::new(11);
 const A2: Token = Token::new(12);
+const A3: Token = Token::new(13);
 fn to(attempt: Token) -> ReplyTo {
     ReplyTo::new(attempt)
 }
@@ -92,9 +93,14 @@ fn jobs_settle_in_the_workers_world_without_messages_relays_or_grants() {
         let stats = world.stats();
         assert!(stats.admitted > 0 && stats.assigned > 0, "{stats:?}");
         assert_eq!((stats.calls, stats.replies, stats.delivered, world.grants_sent()), (0, 0, 0, 0));
+        // Claims that find no free slot are refused before assignment.
+        let refused = stats.endings.get("refused").copied().unwrap_or(0);
+        assert_eq!(stats.starts, stats.assigned + refused, "{stats:?}");
+        assert_eq!(stats.assigned, stats.admitted, "{stats:?}");
         assert_eq!(
-            stats.starts,
-            stats.endings.get("ended").copied().unwrap_or(0) + stats.endings.get("failed").copied().unwrap_or(0)
+            stats.admitted,
+            stats.endings.get("ended").copied().unwrap_or(0) + stats.endings.get("failed").copied().unwrap_or(0),
+            "{stats:?}"
         );
     }
 }
@@ -140,12 +146,14 @@ fn a_job_is_placed_only_on_a_worker_whose_hello_declares_its_kind() {
         &[Request::AssignJob { channel: C2, run: R1, attempt: A1 }, Request::Placed { run: R1, attempt: A1 },]
     );
     let other = JobBound { kind: JobKind(9), ..JOB };
-    h.step(job(R2, A2, other, false));
-    assert_eq!(h.settle().len(), 0);
+    assert_eq!(h.step(job(R2, A2, other, false)), []);
+    assert_eq!(h.settle(), &[Request::Refused { to: to(A2), run: R2, attempt: A2, refusal: Refusal::Recheck }]);
     worker(&mut h, C3, Box::new([other]));
+    assert_eq!(h.settle(), []);
+    assert_eq!(h.step(job(R2, A3, other, false)), []);
     assert_eq!(
         h.settle(),
-        &[Request::AssignJob { channel: C3, run: R2, attempt: A2 }, Request::Placed { run: R2, attempt: A2 },]
+        &[Request::AssignJob { channel: C3, run: R2, attempt: A3 }, Request::Placed { run: R2, attempt: A3 },]
     );
 }
 
@@ -159,8 +167,8 @@ fn a_job_past_a_workers_bounds_for_its_kind_is_not_placed_there() {
     ] {
         let mut h = Harness::new(LIMITS);
         worker(&mut h, C1, Box::new([JOB]));
-        h.step(job(R1, A1, bound, false));
-        assert_eq!(h.settle().len(), 0);
+        assert_eq!(h.step(job(R1, A1, bound, false)), []);
+        assert_eq!(h.settle(), &[Request::Refused { to: to(A1), run: R1, attempt: A1, refusal: Refusal::Recheck }]);
     }
 }
 
