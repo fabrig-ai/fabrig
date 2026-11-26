@@ -575,7 +575,7 @@ Landing at the next start.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
 - verification_bound_ms:u64;? ms; default 7200000.
-- merge_job:t[4096];? relative, no NUL or .. segments; see configuration: merge command.
+- merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
 - close_job:t[4096];? relative, no NUL or .. segments.
 - repairs:repairs;? no repairs by default; needs wait landed.
 

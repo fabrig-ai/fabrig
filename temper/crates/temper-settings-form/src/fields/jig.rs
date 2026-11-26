@@ -1428,7 +1428,7 @@ pub static FIELDS: [Field; 373] = [
     Field { shape: Shape::ProjectLanding, name: b"check_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 1000 to 86400000; default none." },
     Field { shape: Shape::ProjectLanding, name: b"gate_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 60000 to 86400000; default 3600000." },
     Field { shape: Shape::ProjectLanding, name: b"verification_bound_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; ms; default 7200000." },
-    Field { shape: Shape::ProjectLanding, name: b"merge_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments; see configuration: merge command." },
+    Field { shape: Shape::ProjectLanding, name: b"merge_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments; see merge command in configuration." },
     Field { shape: Shape::ProjectLanding, name: b"close_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments." },
     Field { shape: Shape::ProjectLanding, name: b"repairs", value: Value::Shape(Shape::RepairSettings), list: None, null: false, line: b"Optional; no repairs by default; needs wait landed." },
     Field { shape: Shape::LandingFlakes, name: b"rerun", value: Value::Integer(Width::U32), list: None, null: false, line: b"0 to checkout.rerun_processes." },
