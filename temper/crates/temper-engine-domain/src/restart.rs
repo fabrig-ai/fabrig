@@ -24,7 +24,7 @@ pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Opti
     if let Some(decision) = decision {
         crate::decision::accept_routed(
             &mut domain.journal,
-            &mut domain.core.counters,
+            &mut domain.engine.core_mut().counters,
             &env.limits.journal,
             decision,
             false,
@@ -299,7 +299,7 @@ pub(crate) fn startup_page(
     for row in rows {
         restore_page_row(domain, env, row);
         route_into(domain, env, &mut decision);
-        if domain.start_stop().is_some() || domain.core.start_failure().is_some() {
+        if domain.start_stop().is_some() || domain.engine.core().start_failure().is_some() {
             if domain.start_stop().is_none() {
                 domain.stop_core();
             }
@@ -361,7 +361,7 @@ pub(crate) fn startup_page(
 
 /// Translate only the phase selected by the core (temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, action: Action) {
-    if domain.core.stopping() || domain.start_stop().is_some() {
+    if domain.engine.core().stopping() || domain.start_stop().is_some() {
         return;
     }
     match action {
@@ -377,7 +377,7 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
             match phase {
                 Phase::LoadCore => start_load(domain, env, decision, Range::Core(crate::CoreRange::Deployment)),
                 Phase::LoadInbox => {
-                    let census = domain.core.census(&core_limits(&env.limits));
+                    let census = domain.engine.core_mut().census(&core_limits(&env.limits));
                     start_load(domain, env, decision, Range::Census(census));
                 }
                 Phase::RestoreConnector { connector } => {
@@ -407,11 +407,11 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                     domain.work.push(Work::StartDone(phase));
                 }
                 Phase::Open => {
-                    for index in 0..domain.core.projects.len() {
-                        let project = *domain.core.projects.get(index).expect("bounded core project");
-                        let period = domain.core.period(project);
+                    for index in 0..domain.engine.core().projects.len() {
+                        let project = *domain.engine.core().projects.get(index).expect("bounded core project");
+                        let period = domain.engine.core().period(project);
                         if let Some(row) =
-                            domain.core.tasks.funding(jig_domain_tasks::Funder::Period { project, period })
+                            domain.engine.core().tasks.funding(jig_domain_tasks::Funder::Period { project, period })
                             && let Some(times) = row.period
                         {
                             crate::route::calendar::route(
@@ -447,7 +447,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     while let Some(row) = domain.sweep_rows.pop() {
         restore_page_row(domain, env, row);
         let mut output = Queue::uncapped();
-        let action = domain.core.start_sweep(&environment_core(env), SweepInput::Next, &mut output);
+        let action = domain.engine.core_mut().start_sweep(&environment_core(env), SweepInput::Next, &mut output);
         route_core_requests(domain, env, decision, output);
         match action {
             Action::Idle => {}
@@ -471,7 +471,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     } else {
         domain.startup_range = None;
         let mut output = Queue::uncapped();
-        let action = domain.core.start_sweep(&environment_core(env), SweepInput::Finished, &mut output);
+        let action = domain.engine.core_mut().start_sweep(&environment_core(env), SweepInput::Finished, &mut output);
         route_core_requests(domain, env, decision, output);
         domain.work.push(Work::Start(action));
     }
@@ -479,17 +479,17 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 
 pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
     use jig_domain_core::effects::connector::RestartStage;
-    if domain.core.stopping() || domain.settling.active() {
+    if domain.engine.core().stopping() || domain.settling.active() {
         return;
     }
     let connector = domain.config.forge_connector;
     match stage {
         RestartStage::Restored => domain.work.push(Work::StartDone(Phase::Link)),
         RestartStage::ReadAfresh => {
-            domain.core.catch_up_done(connector, stage);
+            domain.engine.core_mut().catch_up_done(connector, stage);
             crate::route::forge_route::limit_holds::restart(domain);
         }
-        RestartStage::Settled => domain.core.catch_up_done(connector, stage),
+        RestartStage::Settled => domain.engine.core_mut().catch_up_done(connector, stage),
     }
 }
 
@@ -518,7 +518,7 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
             } else {
                 None
             };
-            match domain.core.restore(&environment_core(env), row) {
+            match domain.engine.core_mut().restore(&environment_core(env), row) {
                 jig_domain_core::Restore::Deployment { commits } => {
                     domain.core_header_loaded = true;
                     domain.restored_commits = Some(commits);
@@ -563,7 +563,9 @@ fn census_page(
 ) {
     for row in rows {
         let restored = match row {
-            Record::Core(row) => domain.core.restore(&environment_core(env), row) == jig_domain_core::Restore::Kept,
+            Record::Core(row) => {
+                domain.engine.core_mut().restore(&environment_core(env), row) == jig_domain_core::Restore::Kept
+            }
             Record::Forge { .. } => false,
         };
         if !restored {

@@ -219,7 +219,7 @@ fn make(domain: &mut Domain, env: &Env<Limits>, party: u64, row: &TaskLine, kind
             }
             let milestone = match row.requester {
                 tasks::Party::Task(parent) => {
-                    let live = domain.core.tasks.task(parent);
+                    let live = domain.engine.core().tasks.task(parent);
                     let is_milestone = match live {
                         Some(parent) => parent.project == row.project && tasks::gathering::executor(parent.executor),
                         None => match domain.forge.milestone(parent) {

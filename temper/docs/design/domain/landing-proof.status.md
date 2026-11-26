@@ -1,6 +1,7 @@
 # landing-proof: status
 
-2026-11-22. Where the tree's code lags or departs from [landing-proof.md](landing-proof.md).
+2026-11-26. Where the tree's code lags or departs from [landing-proof.md](landing-proof.md).
+
 
 - **Not yet:** 1.1: the project's
   prepare and key commands, as jobs (`worker/jobs.md`). 1.2: the baseline

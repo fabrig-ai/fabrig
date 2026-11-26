@@ -490,8 +490,14 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                 PROJECT,
                 address.into(),
             );
-            crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false)
-                .unwrap();
+            crate::accept_routed(
+                &mut domain.journal,
+                &mut domain.engine.core_mut().counters,
+                &env.limits.journal,
+                decision,
+                false,
+            )
+            .unwrap();
             let mut released = Queue::uncapped();
             crate::resume(&mut domain.journal, &mut released);
             let Some(crate::JournalOutput::Deliver(crate::Delivery::ForgeRead {
@@ -810,7 +816,7 @@ fn roles_fixture(
         );
     }
     people::step(
-        &mut domain.core.people,
+        &mut domain.engine.core_mut().people,
         &env.with(env.limits.people),
         people::Event::SignedIn {
             until: None,
@@ -842,7 +848,7 @@ fn draft_first_requires_the_closer_and_close_job_in_both_delegations() {
     // Draft first's delegation occupies five executor places in each limit.
     limits.tasks.executor_kinds = 5;
     let (mut domain, _) = resume_fixture::root_with_config_and_limits(config, &limits);
-    let complete = domain.core.authority.policy(PROJECT).unwrap().clone();
+    let complete = domain.engine.core().authority.policy(PROJECT).unwrap().clone();
     assert!(!lacks_delegation(&domain, PROJECT));
     for missing in [Executor::Procedure(6), Executor::Job(4)] {
         for ceiling in [true, false] {
@@ -859,7 +865,7 @@ fn draft_first_requires_the_closer_and_close_job_in_both_delegations() {
             }
             let mut out = Queue::uncapped();
             authority::step(
-                &mut domain.core.authority,
+                &mut domain.engine.core_mut().authority,
                 authority::Event::Policy { project: PROJECT, policy },
                 &mut out,
             );
@@ -926,7 +932,7 @@ fn path_sets_and_people_word_the_document_and_rule_card() {
         );
     }
     people::step(
-        &mut domain.core.people,
+        &mut domain.engine.core_mut().people,
         &env.with(env.limits.people),
         people::Event::SignedIn {
             until: None,
@@ -949,7 +955,14 @@ fn path_sets_and_people_word_the_document_and_rule_card() {
         PROJECT,
         b"rule 2/1".as_slice().into(),
     );
-    crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false).unwrap();
+    crate::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        false,
+    )
+    .unwrap();
     let mut released = Queue::uncapped();
     crate::resume(&mut domain.journal, &mut released);
     let Some(crate::JournalOutput::Deliver(crate::Delivery::ForgeRead {

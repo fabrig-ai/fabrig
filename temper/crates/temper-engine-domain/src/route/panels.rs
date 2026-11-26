@@ -1,5 +1,5 @@
 //! Make the forge's whole document in the decision that asked (domain/routing.md, 1).
-use super::{Decision, Delivery, Domain, Env, Limits, Queue, Token, core, emit, environment_core};
+use super::{Decision, Delivery, Domain, Env, Limits, Queue, Token, core, emit};
 use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;
 use jig_domain_views as views;
@@ -20,7 +20,7 @@ pub(crate) fn document(
         ApplicationScope::Project(project)
             if connector == domain.config.forge_connector
                 && subject == Token::new(crate::ways::subject(project))
-                && domain.core.people.role(party, project).is_some() =>
+                && domain.engine.core().people.role(party, project).is_some() =>
         {
             Some(super::ways::document(domain, project, party))
         }
@@ -52,7 +52,7 @@ pub(crate) fn document(
     };
     let mut panel = if let ApplicationScope::Project(project) = scope
         && connector == domain.config.forge_connector
-        && domain.core.people.role(party, project).is_some()
+        && domain.engine.core().people.role(party, project).is_some()
         && let Some(filter) = temper_engine_domain_forge::findings::findings_filter(subject.raw(), project)
     {
         Some(temper_engine_domain_forge::Document::Findings(super::findings::document(domain, project, party, filter)))
@@ -69,11 +69,8 @@ pub(crate) fn document(
     } else {
         views::Made::Gone { why: views::End::Gone }
     };
-    let mut requests = core::step(
-        &mut domain.core,
-        &environment_core(env),
-        core::Event::View(views::Event::Made { watcher, outcome }),
-    );
+    let mut requests =
+        crate::engine::step(&mut domain.engine, env, core::Event::View(views::Event::Made { watcher, outcome }));
     for _ in 0..requests.len() {
         let request = requests.pop().expect("document completion output");
         if let core::Request::Held(held) = &request

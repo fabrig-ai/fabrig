@@ -563,6 +563,7 @@ fn producer_terminal(world: &mut World, task: u64, child: u64, words: &[u8]) {
         flake: false,
         no_test: false,
         failed: true,
+        lost: false,
         cancelled: false,
         words: words.into(),
     })));

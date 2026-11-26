@@ -170,7 +170,13 @@ listed in `service.md`, section 9.
    Workers may dial in and say hello during the restart, which needs
    them (`../domain/engine/restart.md`); the clients' component
    answers clients not ready until decisions open
-   (`../client/domain/contract/answers.md`, section 1). Where configuration
+   (`../client/domain/contract/answers.md`, section 1), but for a
+   stream's `me`: the watch a stream opens with, whose hello waits for
+   it (`client/default-http.md`, section 2), waits in the service until
+   decisions open and then reaches the root in its order, and its
+   unwatch meanwhile takes it unsent. Refused, it would end the stream
+   before its hello with a `409`, the want of room for its `me`, which
+   the start is not, and a failed load a browser logs. Where configuration
    enables the printed link, or a browser's approval, the startup first
    checks that the clients' listener, a member of the application's own,
    is on a loopback address, and refuses the start, naming both, if it

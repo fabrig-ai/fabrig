@@ -7,7 +7,11 @@ use skein_lib::{Decimal, Env, List, bytes};
 use temper_engine_domain_forge::wait_kind;
 
 pub(crate) fn report(domain: &mut Domain, env: &Env<Limits>) {
-    if domain.start_stop().is_some() || domain.journal.stopped() || domain.core.stopping() || domain.settling.active() {
+    if domain.start_stop().is_some()
+        || domain.journal.stopped()
+        || domain.engine.core().stopping()
+        || domain.settling.active()
+    {
         domain.start_report = None;
         return;
     }

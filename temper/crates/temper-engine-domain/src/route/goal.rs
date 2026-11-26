@@ -18,7 +18,7 @@ const ASK_PLAN: &[u8] =
 /// Work goals carry a tracked priority; advisors and chats are untracked.
 /// The caller owns its plan regardless of who requested it (domain/agent/tools-goal.md, 1).
 pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool, agree: bool) -> Option<&'static [u8]> {
-    let row = domain.core.tasks.task(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     if row.tracked.is_some()
         && row.spec.asks
         && (!row.asked_requester || requester_question(row).is_some())
@@ -45,7 +45,7 @@ pub(crate) fn goal(
     advisor: bool,
     person_words: Option<Box<[u8]>>,
 ) -> Result<Delegate, tasks::Refusal> {
-    let row = domain.core.tasks.task(task).ok_or(tasks::Refusal::Unknown)?;
+    let row = domain.engine.core().tasks.task(task).ok_or(tasks::Refusal::Unknown)?;
     let tasks::Executor::Agent { charter } = row.executor else { return Err(tasks::Refusal::Executor) };
     if context.tasks_left == 1 {
         return Err(tasks::Refusal::Tree);
@@ -63,7 +63,7 @@ pub(crate) fn goal(
         .checked_sub(context.numbers.reserved)
         .ok_or(tasks::Refusal::Funding)?
         / 2;
-    if spend <= domain.core.authority.rules().minimum_run_spend {
+    if spend <= domain.engine.core().authority.rules().minimum_run_spend {
         return Err(tasks::Refusal::Funding);
     }
     let mut authority =
@@ -71,7 +71,7 @@ pub(crate) fn goal(
     authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
     if advisor {
         authority.notes = tasks::Scopes(0);
-        authority.tools.0 &= domain.core.settings.tools.read.0;
+        authority.tools.0 &= domain.engine.core().settings.tools.read.0;
         authority.delegation.kinds = Box::new([]);
         authority.delegation.tasks = 0;
         authority.delegation.depth = 0;
@@ -84,7 +84,7 @@ pub(crate) fn goal(
         // Project queries order lower priorities first, then task number. At the
         // numeric ceiling, the new number follows existing goals of that priority.
         let mut priority = 0;
-        for goal in &domain.core.tasks.view_tasks() {
+        for goal in &domain.engine.core().tasks.view_tasks() {
             if goal.project == context.project
                 && let Some(existing) = goal.tracked
             {
@@ -98,7 +98,7 @@ pub(crate) fn goal(
     let (label, flags) = if advisor {
         (0, tasks::Flags::PLAIN)
     } else {
-        let template = domain.core.current.template(2).ok_or(tasks::Refusal::Unknown)?;
+        let template = domain.engine.core().current.template(2).ok_or(tasks::Refusal::Unknown)?;
         (template.label, template.flags)
     };
     Ok(Delegate {
@@ -153,7 +153,7 @@ fn brief(
 }
 
 pub(crate) fn change_refusal(domain: &Domain, task: u64) -> Option<Box<[u8]>> {
-    let row = domain.core.tasks.task(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     if !row.spec.asks {
         return None;
     }
@@ -190,7 +190,7 @@ pub(crate) fn request_words(
     key: crate::CallKey,
     words: Box<[u8]>,
 ) {
-    let Some(row) = domain.core.tasks.task(key.task) else {
+    let Some(row) = domain.engine.core().tasks.task(key.task) else {
         domain.work.push(super::Work::Core(jig_domain_core::Event::NamedAnswer {
             to,
             key,
@@ -224,7 +224,7 @@ pub(crate) fn request_words(
         .insert(Some(crate::boundary::Read::GoalWords(read)))
         .expect("goal read slot preflighted")
         .token();
-    assert!(domain.core.reserve_connector_call(key), "one root-owned agreed-goal read per call");
+    assert!(domain.engine.core_mut().reserve_connector_call(key), "one root-owned agreed-goal read per call");
     super::emit(decision, &env.limits, crate::Delivery::Load { waiter, range, after: None });
 }
 
@@ -235,7 +235,7 @@ pub(crate) fn ready(
     read: crate::boundary::GoalWords,
 ) {
     let to = skein_lib::ReplyTo::new(read.to);
-    let result = match domain.core.tasks.delegation(read.key.task) {
+    let result = match domain.engine.core().tasks.delegation(read.key.task) {
         Some(context) => goal(domain, env, read.key.task, &context, read.words, false, Some(read.person_words)),
         None => Err(tasks::Refusal::Unknown),
     };

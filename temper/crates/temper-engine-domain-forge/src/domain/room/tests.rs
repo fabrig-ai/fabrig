@@ -186,6 +186,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
         for phase in [landing::Phase::Waiting, landing::Phase::Landed, landing::Phase::Cancelled] {
             let row = crate::LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
@@ -370,6 +371,7 @@ fn erased_change_stays_while_a_landing_names_it() {
             60,
             crate::LandingRow {
                 read_hold: None,
+                gate_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,

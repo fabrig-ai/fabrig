@@ -178,8 +178,8 @@ fn authority() -> Hold {
 #[test]
 fn green_ci_ends_only_its_own_hold_without_resetting_counters() {
     for reason in [Repair::Ci, Repair::Semantic] {
-        for why in [Hold::Failed, Hold::Stalled, Hold::Repairs, authority()] {
-            let mut c = repairing(reason, true);
+        for why in [Hold::Failed, Hold::Stalled, Hold::Repairs, authority(), Hold::RedStands] {
+            let mut c = repairing(reason, why != Hold::RedStands);
             c.state = State::Held { was: Box::new(c.state), why };
             c.resolutions = 2;
             c.updates = 3;
@@ -209,7 +209,7 @@ fn green_ci_leaves_other_holds_and_reasons_held() {
         State::Repairing { requested: true, why: Repair::Landing { gate: 3 } },
         State::Gating { head: HEAD, asked: Box::new([]) },
     ] {
-        for why in [Hold::Failed, Hold::Stalled, Hold::Repairs, authority()] {
+        for why in [Hold::Failed, Hold::Stalled, Hold::Repairs, authority(), Hold::RedStands] {
             let c = change(State::Held { was: Box::new(was.clone()), why });
             assert_eq!(decide(&c, &facts(), &heard()).change, c);
         }

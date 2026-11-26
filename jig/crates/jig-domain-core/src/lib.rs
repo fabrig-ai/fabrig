@@ -14,6 +14,7 @@ mod admission;
 pub mod documents;
 pub mod effects;
 mod ended_groups;
+pub mod engine;
 mod funding;
 mod inbox;
 mod limits;

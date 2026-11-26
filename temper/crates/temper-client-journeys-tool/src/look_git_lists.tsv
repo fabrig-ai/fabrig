@@ -165,21 +165,23 @@ a_first_push_creates_the_branch	show	-s	--format=%(trailers:key=Look-request)	66
 a_first_push_creates_the_branch	show	-s	--format=%P	6666666666666666666666666666666666666666
 a_first_push_creates_the_branch	status	--porcelain	--untracked-files=no
 a_first_push_creates_the_branch	symbolic-ref	--quiet	--short	HEAD
-a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
-a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html
-a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
-a_gallery_drawing_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
-a_gallery_drawing_is_compared_with_the_opened_state	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
-a_gallery_drawing_is_compared_with_the_opened_state	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
-a_gallery_drawing_is_compared_with_the_opened_state	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
-a_gallery_drawing_is_compared_with_the_opened_state	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
-a_gallery_drawing_is_compared_with_the_opened_state	remote
-a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--path-format=absolute	--git-path	look-render
-a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--show-toplevel
-a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--verify	--quiet	abcdef0^{commit}
-a_gallery_drawing_is_compared_with_the_opened_state	rev-parse	--verify	FETCH_HEAD^{commit}
-a_gallery_drawing_is_compared_with_the_opened_state	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
-a_gallery_drawing_is_compared_with_the_opened_state	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_gallery_drawing_with_no_paired_selection_is_uncompared	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+a_gallery_drawing_with_no_paired_selection_is_uncompared	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+a_gallery_drawing_with_no_paired_selection_is_uncompared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+a_gallery_drawing_with_no_paired_selection_is_uncompared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+a_gallery_drawing_with_no_paired_selection_is_uncompared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+a_gallery_drawing_with_no_paired_selection_is_uncompared	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_gallery_drawing_with_no_paired_selection_is_uncompared	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+a_gallery_drawing_with_no_paired_selection_is_uncompared	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_gallery_drawing_with_no_paired_selection_is_uncompared	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_gallery_drawing_with_no_paired_selection_is_uncompared	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_gallery_drawing_with_no_paired_selection_is_uncompared	remote
+a_gallery_drawing_with_no_paired_selection_is_uncompared	rev-parse	--path-format=absolute	--git-path	look-render
+a_gallery_drawing_with_no_paired_selection_is_uncompared	rev-parse	--show-toplevel
+a_gallery_drawing_with_no_paired_selection_is_uncompared	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_gallery_drawing_with_no_paired_selection_is_uncompared	rev-parse	--verify	FETCH_HEAD^{commit}
+a_gallery_drawing_with_no_paired_selection_is_uncompared	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_gallery_drawing_with_no_paired_selection_is_uncompared	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 a_hand_made_directory_gets_one_row_and_walk_sources_get_none	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/mockup/walk
 a_hand_made_directory_gets_one_row_and_walk_sources_get_none	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sources/walk
 a_hand_made_directory_gets_one_row_and_walk_sources_get_none	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
@@ -385,7 +387,25 @@ a_selector_refused_by_chromium_selects_no_element	rev-parse	--verify	--quiet	abc
 a_selector_refused_by_chromium_selects_no_element	rev-parse	--verify	FETCH_HEAD^{commit}
 a_selector_refused_by_chromium_selects_no_element	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 a_selector_refused_by_chromium_selects_no_element	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+a_shorthand_can_set_longhands_with_different_prefixes	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+a_shorthand_can_set_longhands_with_different_prefixes	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+a_shorthand_can_set_longhands_with_different_prefixes	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+a_shorthand_can_set_longhands_with_different_prefixes	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+a_shorthand_can_set_longhands_with_different_prefixes	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+a_shorthand_can_set_longhands_with_different_prefixes	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+a_shorthand_can_set_longhands_with_different_prefixes	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+a_shorthand_can_set_longhands_with_different_prefixes	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+a_shorthand_can_set_longhands_with_different_prefixes	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+a_shorthand_can_set_longhands_with_different_prefixes	remote
+a_shorthand_can_set_longhands_with_different_prefixes	rev-parse	--path-format=absolute	--git-path	look-render
+a_shorthand_can_set_longhands_with_different_prefixes	rev-parse	--show-toplevel
+a_shorthand_can_set_longhands_with_different_prefixes	rev-parse	--verify	--quiet	abcdef0^{commit}
+a_shorthand_can_set_longhands_with_different_prefixes	rev-parse	--verify	FETCH_HEAD^{commit}
+a_shorthand_can_set_longhands_with_different_prefixes	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+a_shorthand_can_set_longhands_with_different_prefixes	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
 a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
 a_state_missing_from_the_gallery_is_not_compared	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
 a_state_missing_from_the_gallery_is_not_compared	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
@@ -456,6 +476,23 @@ a_web_walk_shadowing_the_tui_refuses_before_print	rev-parse	--verify	--quiet	abc
 a_web_walk_shadowing_the_tui_refuses_before_print	rev-parse	--verify	FETCH_HEAD^{commit}
 a_web_walk_shadowing_the_tui_refuses_before_print	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 a_web_walk_shadowing_the_tui_refuses_before_print	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	remote
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	rev-parse	--path-format=absolute	--git-path	look-render
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	rev-parse	--show-toplevel
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	rev-parse	--verify	--quiet	abcdef0^{commit}
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	rev-parse	--verify	FETCH_HEAD^{commit}
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 an_origin_tip_not_matching_c_is_refused_before_copies	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
 an_origin_tip_not_matching_c_is_refused_before_copies	remote
 an_origin_tip_not_matching_c_is_refused_before_copies	rev-parse	--verify	--quiet	abcdef0^{commit}
@@ -467,6 +504,22 @@ an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	rebase-me
 an_unsuitable_checkout_is_refused_before_fetching	rev-parse	--git-path	sequencer
 an_unsuitable_checkout_is_refused_before_fetching	status	--porcelain	--untracked-files=no
 an_unsuitable_checkout_is_refused_before_fetching	symbolic-ref	--quiet	--short	HEAD
+an_untouched_gallery_drawing_has_no_page_verdict	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+an_untouched_gallery_drawing_has_no_page_verdict	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+an_untouched_gallery_drawing_has_no_page_verdict	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+an_untouched_gallery_drawing_has_no_page_verdict	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+an_untouched_gallery_drawing_has_no_page_verdict	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+an_untouched_gallery_drawing_has_no_page_verdict	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+an_untouched_gallery_drawing_has_no_page_verdict	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+an_untouched_gallery_drawing_has_no_page_verdict	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+an_untouched_gallery_drawing_has_no_page_verdict	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+an_untouched_gallery_drawing_has_no_page_verdict	remote
+an_untouched_gallery_drawing_has_no_page_verdict	rev-parse	--path-format=absolute	--git-path	look-render
+an_untouched_gallery_drawing_has_no_page_verdict	rev-parse	--show-toplevel
+an_untouched_gallery_drawing_has_no_page_verdict	rev-parse	--verify	--quiet	abcdef0^{commit}
+an_untouched_gallery_drawing_has_no_page_verdict	rev-parse	--verify	FETCH_HEAD^{commit}
+an_untouched_gallery_drawing_has_no_page_verdict	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+an_untouched_gallery_drawing_has_no_page_verdict	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 box_coordinates_one_pixel_apart_are_equal	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
 box_coordinates_one_pixel_apart_are_equal	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
 box_coordinates_one_pixel_apart_are_equal	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
@@ -495,6 +548,36 @@ box_coordinates_two_pixels_apart_or_absent_differ	rev-parse	--verify	--quiet	abc
 box_coordinates_two_pixels_apart_or_absent_differ	rev-parse	--verify	FETCH_HEAD^{commit}
 box_coordinates_two_pixels_apart_or_absent_differ	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 box_coordinates_two_pixels_apart_or_absent_differ	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+box_difference_replaces_all_six_dependent_style_differences	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
+box_difference_replaces_all_six_dependent_style_differences	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
+box_difference_replaces_all_six_dependent_style_differences	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+box_difference_replaces_all_six_dependent_style_differences	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
+box_difference_replaces_all_six_dependent_style_differences	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+box_difference_replaces_all_six_dependent_style_differences	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+box_difference_replaces_all_six_dependent_style_differences	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+box_difference_replaces_all_six_dependent_style_differences	remote
+box_difference_replaces_all_six_dependent_style_differences	rev-parse	--path-format=absolute	--git-path	look-render
+box_difference_replaces_all_six_dependent_style_differences	rev-parse	--show-toplevel
+box_difference_replaces_all_six_dependent_style_differences	rev-parse	--verify	--quiet	abcdef0^{commit}
+box_difference_replaces_all_six_dependent_style_differences	rev-parse	--verify	FETCH_HEAD^{commit}
+box_difference_replaces_all_six_dependent_style_differences	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+box_difference_replaces_all_six_dependent_style_differences	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+changed_and_removed_rules_carry_their_parents_declared_names	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+changed_and_removed_rules_carry_their_parents_declared_names	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+changed_and_removed_rules_carry_their_parents_declared_names	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+changed_and_removed_rules_carry_their_parents_declared_names	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+changed_and_removed_rules_carry_their_parents_declared_names	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+changed_and_removed_rules_carry_their_parents_declared_names	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+changed_and_removed_rules_carry_their_parents_declared_names	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+changed_and_removed_rules_carry_their_parents_declared_names	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+changed_and_removed_rules_carry_their_parents_declared_names	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+changed_and_removed_rules_carry_their_parents_declared_names	remote
+changed_and_removed_rules_carry_their_parents_declared_names	rev-parse	--path-format=absolute	--git-path	look-render
+changed_and_removed_rules_carry_their_parents_declared_names	rev-parse	--show-toplevel
+changed_and_removed_rules_carry_their_parents_declared_names	rev-parse	--verify	--quiet	abcdef0^{commit}
+changed_and_removed_rules_carry_their_parents_declared_names	rev-parse	--verify	FETCH_HEAD^{commit}
+changed_and_removed_rules_carry_their_parents_declared_names	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+changed_and_removed_rules_carry_their_parents_declared_names	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 computed_color_differences_are_listed_widest_first	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/sign-in/02.html
 computed_color_differences_are_listed_widest_first	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/sign-in/walk
 computed_color_differences_are_listed_widest_first	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
@@ -607,7 +690,25 @@ field_values_escape_backslash_tab_and_line_endings	rev-parse	--verify	--quiet	ab
 field_values_escape_backslash_tab_and_line_endings	rev-parse	--verify	FETCH_HEAD^{commit}
 field_values_escape_backslash_tab_and_line_endings	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 field_values_escape_backslash_tab_and_line_endings	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+gallery_compares_only_selected_elements_and_their_declared_style	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+gallery_compares_only_selected_elements_and_their_declared_style	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+gallery_compares_only_selected_elements_and_their_declared_style	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+gallery_compares_only_selected_elements_and_their_declared_style	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+gallery_compares_only_selected_elements_and_their_declared_style	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+gallery_compares_only_selected_elements_and_their_declared_style	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+gallery_compares_only_selected_elements_and_their_declared_style	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+gallery_compares_only_selected_elements_and_their_declared_style	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+gallery_compares_only_selected_elements_and_their_declared_style	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+gallery_compares_only_selected_elements_and_their_declared_style	remote
+gallery_compares_only_selected_elements_and_their_declared_style	rev-parse	--path-format=absolute	--git-path	look-render
+gallery_compares_only_selected_elements_and_their_declared_style	rev-parse	--show-toplevel
+gallery_compares_only_selected_elements_and_their_declared_style	rev-parse	--verify	--quiet	abcdef0^{commit}
+gallery_compares_only_selected_elements_and_their_declared_style	rev-parse	--verify	FETCH_HEAD^{commit}
+gallery_compares_only_selected_elements_and_their_declared_style	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+gallery_compares_only_selected_elements_and_their_declared_style	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
 gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
 gallery_print_failure_aborts_before_chromium_without_stdout	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
 gallery_print_failure_aborts_before_chromium_without_stdout	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
@@ -635,22 +736,6 @@ hand_made_pages_receive_a_row_without_rendering	rev-parse	--verify	--quiet	abcde
 hand_made_pages_receive_a_row_without_rendering	rev-parse	--verify	FETCH_HEAD^{commit}
 hand_made_pages_receive_a_row_without_rendering	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 hand_made_pages_receive_a_row_without_rendering	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
-inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
-inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html
-inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
-inserting_one_inline_tag_keeps_the_following_pairs	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
-inserting_one_inline_tag_keeps_the_following_pairs	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
-inserting_one_inline_tag_keeps_the_following_pairs	diff	--no-index	--unified=0	--inter-hunk-context=0	--no-color	--no-ext-diff	--no-textconv	--text	--diff-algorithm=myers	--no-indent-heuristic	--	landed	requested
-inserting_one_inline_tag_keeps_the_following_pairs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
-inserting_one_inline_tag_keeps_the_following_pairs	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
-inserting_one_inline_tag_keeps_the_following_pairs	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
-inserting_one_inline_tag_keeps_the_following_pairs	remote
-inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--path-format=absolute	--git-path	look-render
-inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--show-toplevel
-inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--verify	--quiet	abcdef0^{commit}
-inserting_one_inline_tag_keeps_the_following_pairs	rev-parse	--verify	FETCH_HEAD^{commit}
-inserting_one_inline_tag_keeps_the_following_pairs	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
-inserting_one_inline_tag_keeps_the_following_pairs	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 invalid_prints_do_not_hide_the_last_valid_print	-c	rebase.autoStash=false	-c	rebase.updateRefs=false	-c	rebase.abbreviateCommands=false	rebase	--interactive	--no-autosquash	--no-autostash	--no-update-refs	--reapply-cherry-picks	--keep-empty	--empty=keep	--onto	origin/main	1111111111111111111111111111111111111111
 invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	2222222222222222222222222222222222222222
 invalid_prints_do_not_hide_the_last_valid_print	cat-file	-t	6666666666666666666666666666666666666666
@@ -747,6 +832,38 @@ moved_elements_do_not_report_generated_id_edits	rev-parse	--verify	--quiet	abcde
 moved_elements_do_not_report_generated_id_edits	rev-parse	--verify	FETCH_HEAD^{commit}
 moved_elements_do_not_report_generated_id_edits	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 moved_elements_do_not_report_generated_id_edits	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+naming_a_state_without_request_pages_never_prints_it	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+naming_a_state_without_request_pages_never_prints_it	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+naming_a_state_without_request_pages_never_prints_it	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+naming_a_state_without_request_pages_never_prints_it	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+naming_a_state_without_request_pages_never_prints_it	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+naming_a_state_without_request_pages_never_prints_it	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+naming_a_state_without_request_pages_never_prints_it	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+naming_a_state_without_request_pages_never_prints_it	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+naming_a_state_without_request_pages_never_prints_it	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+naming_a_state_without_request_pages_never_prints_it	remote
+naming_a_state_without_request_pages_never_prints_it	rev-parse	--path-format=absolute	--git-path	look-render
+naming_a_state_without_request_pages_never_prints_it	rev-parse	--show-toplevel
+naming_a_state_without_request_pages_never_prints_it	rev-parse	--verify	--quiet	abcdef0^{commit}
+naming_a_state_without_request_pages_never_prints_it	rev-parse	--verify	FETCH_HEAD^{commit}
+naming_a_state_without_request_pages_never_prints_it	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+naming_a_state_without_request_pages_never_prints_it	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
+only_the_named_request_is_compared_with_the_opened_state	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
+only_the_named_request_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+only_the_named_request_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
+only_the_named_request_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
+only_the_named_request_is_compared_with_the_opened_state	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
+only_the_named_request_is_compared_with_the_opened_state	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
+only_the_named_request_is_compared_with_the_opened_state	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys
+only_the_named_request_is_compared_with_the_opened_state	fetch	--no-tags	--no-recurse-submodules	--refmap=	origin	refs/heads/docs/look/look-request
+only_the_named_request_is_compared_with_the_opened_state	ls-tree	--full-tree	-rz	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys	temper/docs/design/client/tui/journeys	temper/crates/temper-client-shell-web
+only_the_named_request_is_compared_with_the_opened_state	remote
+only_the_named_request_is_compared_with_the_opened_state	rev-parse	--path-format=absolute	--git-path	look-render
+only_the_named_request_is_compared_with_the_opened_state	rev-parse	--show-toplevel
+only_the_named_request_is_compared_with_the_opened_state	rev-parse	--verify	--quiet	abcdef0^{commit}
+only_the_named_request_is_compared_with_the_opened_state	rev-parse	--verify	FETCH_HEAD^{commit}
+only_the_named_request_is_compared_with_the_opened_state	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
+only_the_named_request_is_compared_with_the_opened_state	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 overlay_selectors_drop_user_states_and_pseudo_elements	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
 overlay_selectors_drop_user_states_and_pseudo_elements	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
 overlay_selectors_drop_user_states_and_pseudo_elements	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111
@@ -939,8 +1056,8 @@ tui_rules_are_listed_to_read	rev-parse	--verify	FETCH_HEAD^{commit}
 tui_rules_are_listed_to_read	show	-s	--format=%(trailers:key=Look-request,unfold)	abcdef0123456789abcdef0123456789abcdef01
 tui_rules_are_listed_to_read	show	-s	--format=%P	abcdef0123456789abcdef0123456789abcdef01
 two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	diff-tree	--no-commit-id	--name-only	--no-renames	-r	-z	0123456789abcdef0123456789abcdef01234567	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week
-two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html
-two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/usage-model-week/accounts-before.html
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	0123456789abcdef0123456789abcdef01234567	--	temper/docs/design/client/web/journeys/overlay.css
+two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/overlay.css
 two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/README.md
 two_drawings_share_one_gallery_print_and_state_page	--literal-pathspecs	ls-tree	--full-tree	-z	abcdef0123456789abcdef0123456789abcdef01	--	temper/docs/design/client/web/journeys/usage-model-week/walk
 two_drawings_share_one_gallery_print_and_state_page	cat-file	blob	aaaaabbbbbcccccdddddeeeeefffff0000011111

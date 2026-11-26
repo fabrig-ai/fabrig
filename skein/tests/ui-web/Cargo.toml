@@ -22,7 +22,7 @@ skein-scratch.workspace = true
 [dev-dependencies]
 skein-ui-example-server.workspace = true
 skein-ui-example-shell-web.workspace = true
-flate2.workspace = true
+skein-deflate.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

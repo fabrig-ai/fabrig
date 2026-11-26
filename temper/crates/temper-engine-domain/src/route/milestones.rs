@@ -23,13 +23,13 @@ pub(super) fn read(domain: &Domain, project: u32, task: u64) -> Option<Milestone
             });
         }
     }
-    let record = domain.core.tasks.task(task)?;
+    let record = domain.engine.core().tasks.task(task)?;
     if record.project != project || !tasks::gathering::executor(record.executor) {
         return None;
     }
     let mut spent = record.numbers.spent.checked_add(record.numbers.spent_below).expect("task accounting fits");
     for goal in &record.delegates {
-        let goal = domain.core.tasks.task(*goal).expect("live delegate has a task record");
+        let goal = domain.engine.core().tasks.task(*goal).expect("live delegate has a task record");
         spent = spent.checked_add(goal.numbers.spent).expect("task accounting fits");
         spent = spent.checked_add(goal.numbers.spent_below).expect("task accounting fits");
     }

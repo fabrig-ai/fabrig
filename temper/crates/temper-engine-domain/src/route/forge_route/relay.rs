@@ -30,8 +30,8 @@ pub(crate) struct Passing {
 
 #[expect(clippy::too_many_lines, reason = "one change step assembles its relay with its existing decision")]
 pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decision: ProcedureStep) -> ProcedureStep {
-    let Some(row) = domain.core.tasks.task(task) else { return decision };
-    let offered = domain.core.tasks.procedure_offered(task).unwrap_or(0);
+    let Some(row) = domain.engine.core().tasks.task(task) else { return decision };
+    let offered = domain.engine.core().tasks.procedure_offered(task).unwrap_or(0);
     let change_row = domain.forge.change(task);
     let questions = match change_row {
         Some(row) => &row.questions,
@@ -71,7 +71,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     passing_questions.replies = replies.get(sent..).expect("sent reply prefix").into();
     let mut ended = List::with_capacity(u32::try_from(change::QUESTIONS_OPEN).expect("question bound fits u32"));
     for question in &questions.open {
-        let done = match domain.core.tasks.task(question.asker) {
+        let done = match domain.engine.core().tasks.task(question.asker) {
             Some(task) => match task.phase {
                 tasks::Phase::Ended(_) | tasks::Phase::Closing(_) => true,
                 tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => false,
@@ -82,7 +82,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
             ended.push(question.asker).expect("at most the open questions");
         }
     }
-    let (_, _, step) = domain.core.tasks.procedure_due(task).expect("an offered change step is due");
+    let (_, _, step) = domain.engine.core().tasks.procedure_due(task).expect("an offered change step is due");
     let released = match domain.forge_delegating.get(&(task, step)) {
         Some(pending) => pending.released,
         None => false,
@@ -271,7 +271,7 @@ fn held_notice(target: u64, question: u64, blocked: change::Blocked) -> StepMess
 
 pub(in crate::route) fn live_producer(domain: &Domain, delegate: Option<(u64, change::Delegate)>) -> Option<u64> {
     let (child, change::Delegate::Produce) = delegate? else { return None };
-    let record = domain.core.tasks.task(child)?;
+    let record = domain.engine.core().tasks.task(child)?;
     match record.phase {
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => Some(child),
         tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => None,
@@ -288,12 +288,12 @@ fn amend_delegate(
 ) {
     let Some(row) = domain.forge.change(task) else { return };
     let Some((child, kind)) = row.delegate else { return };
-    let Some(record) = domain.core.tasks.task(child) else { return };
+    let Some(record) = domain.engine.core().tasks.task(child) else { return };
     match record.phase {
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
         tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => return,
     }
-    let Some(change) = domain.core.tasks.task(task) else { return };
+    let Some(change) = domain.engine.core().tasks.task(task) else { return };
     let (words, reason) = match kind {
         change::Delegate::Produce => {
             let Some(words) = super::production_words(
@@ -441,8 +441,8 @@ fn keep_refused_answer(
     if first.stands != change::Stands::Asked {
         return None;
     }
-    let offered = domain.core.tasks.procedure_offered(task)?;
-    let row = domain.core.tasks.task(task)?;
+    let offered = domain.engine.core().tasks.procedure_offered(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     let tasks::Party::Task(target) = row.requester else { return None };
     for word in &row.inbox {
         if word.number <= offered
@@ -608,7 +608,7 @@ fn open_to<'a>(row: &tasks::TaskRecord, questions: &'a change::Questions, from: 
 /// Replace jig's reference refusal only at the two relays.
 pub(crate) fn refused_answer(domain: &Domain, from: u64, target: u64, named: u64, bound: u32) -> Option<Box<[u8]>> {
     let open = if let Some(change) = domain.forge.change(target) {
-        match domain.core.tasks.task(target) {
+        match domain.engine.core().tasks.task(target) {
             Some(row) => open_to(row, &change.questions, from),
             None => None,
         }
@@ -647,7 +647,7 @@ pub(super) fn continuing_asker(domain: &Domain, task: u64, kind: change::Delegat
     if kind != current {
         return false;
     }
-    let live = match domain.core.tasks.task(child) {
+    let live = match domain.engine.core().tasks.task(child) {
         Some(row) => match row.phase {
             tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => true,
             tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
@@ -677,7 +677,7 @@ mod tests {
         let (domain, mut env, task) =
             crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::super::CHANGE_CODE });
         env.limits.tasks.message_bytes = 128;
-        let mut row = domain.core.tasks.task(task).unwrap().clone();
+        let mut row = domain.engine.core().tasks.task(task).unwrap().clone();
         let requester = 48;
         row.requester = tasks::Party::Task(requester);
         row.inbox = Box::new([tasks::Word {

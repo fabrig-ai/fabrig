@@ -20,7 +20,7 @@ fn kept_tasks(domain: &crate::Domain) -> Box<[u64]> {
     tasks.into_boxed()
 }
 fn held(domain: &crate::Domain, task: u64) -> bool {
-    match domain.core.tasks.task(task).unwrap().phase {
+    match domain.engine.core().tasks.task(task).unwrap().phase {
         tasks::Phase::Held { .. } => true,
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     }
@@ -30,11 +30,11 @@ fn two_tasks() -> (crate::Domain, Env<crate::Limits>) {
 }
 fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>) {
     let (mut domain, env, source) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 1 });
-    let original = domain.core.tasks.task(source).unwrap().clone();
+    let original = domain.engine.core().tasks.task(source).unwrap().clone();
     let number = SECOND;
     {
         tasks::step(
-            &mut domain.core.tasks,
+            &mut domain.engine.core_mut().tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Make {
                 reads_project: false,
@@ -64,7 +64,7 @@ fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>)
             },
             &mut Queue::uncapped(),
         );
-        assert!(domain.core.tasks.task(number).is_some());
+        assert!(domain.engine.core().tasks.task(number).is_some());
     }
     let mut repository = adopted(1);
     repository.project = 1;
@@ -102,14 +102,15 @@ fn one_task_name_place_ends_only_the_oldest_limit_hold() {
     let kept = domain.forge_limit_holds();
     assert_eq!(kept_tasks(&domain).as_ref(), &[SECOND, FIRST]);
     assert_eq!((kept[0].configured, kept[0].needed), (1, 2));
-    assert_eq!(kept[0].revision, domain.core.tasks.task(SECOND).unwrap().revisions.hold);
-    let tasks::Phase::Held { source: Some(source), .. } = &domain.core.tasks.task(SECOND).unwrap().phase else {
+    assert_eq!(kept[0].revision, domain.engine.core().tasks.task(SECOND).unwrap().revisions.hold);
+    let tasks::Phase::Held { source: Some(source), .. } = &domain.engine.core().tasks.task(SECOND).unwrap().phase
+    else {
         panic!("held task")
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("limit account") };
     assert_eq!(words.as_ref(), b"watch resources: forge.tasks is 1, and this needs 2: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.");
     drive(&mut domain, &env, &mut decision, forge::Event::Unnamed { task: THIRD });
-    assert_eq!(domain.core.tasks.task(SECOND).unwrap().due_reason, tasks::Why::Released);
+    assert_eq!(domain.engine.core().tasks.task(SECOND).unwrap().due_reason, tasks::Why::Released);
     assert!(!held(&domain, SECOND));
     assert!(held(&domain, FIRST));
     assert_eq!(kept_tasks(&domain).as_ref(), &[FIRST]);
@@ -131,7 +132,7 @@ fn a_raise_ends_every_wait_even_when_only_one_operation_will_fit() {
     crate::route::route_into(&mut domain, &env, &mut decision);
     assert!(domain.forge_limit_holds().is_empty());
     for task in [FIRST, SECOND] {
-        assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released);
+        assert_eq!(domain.engine.core().tasks.task(task).unwrap().due_reason, tasks::Why::Released);
     }
 }
 
@@ -182,7 +183,7 @@ fn freed_resource_holds_and_task_names_resume_their_waiters() {
             forge::Event::Unnamed { task: FIRST }
         };
         drive(&mut domain, &env, &mut decision, freed);
-        assert_eq!(domain.core.tasks.task(SECOND).unwrap().due_reason, tasks::Why::Released, "holds={holds}");
+        assert_eq!(domain.engine.core().tasks.task(SECOND).unwrap().due_reason, tasks::Why::Released, "holds={holds}");
         assert!(domain.forge_limit_holds().is_empty());
     }
 }
@@ -268,20 +269,24 @@ fn a_stale_kept_revision_cannot_release_the_next_limit_hold() {
         },
     );
     refuse(&mut domain, &env, &mut decision, FIRST, 6);
-    let revision = domain.core.tasks.task(FIRST).unwrap().revisions.hold;
+    let revision = domain.engine.core().tasks.task(FIRST).unwrap().revisions.hold;
     assert!(revision > stale.revision);
     super::super::limit_holds::restore(&mut domain, stale);
     super::super::limit_holds::restart(&mut domain);
     crate::route::route_into(&mut domain, &env, &mut decision);
     assert!(domain.forge_limit_holds().is_empty());
-    let task = domain.core.tasks.task(FIRST).unwrap();
+    let task = domain.engine.core().tasks.task(FIRST).unwrap();
     assert_eq!(task.revisions.hold, revision);
     let tasks::Phase::Held { why, .. } = task.phase else { panic!("the next hold stays in place") };
     assert_eq!(why, tasks::Hold::ResourceUnavailable);
     task_event(&mut domain, &env, &mut decision, tasks::Event::Hold { task: FIRST, why: tasks::Hold::Stopped });
-    let stopped = domain.core.tasks.task(FIRST).unwrap().clone();
+    let stopped = domain.engine.core().tasks.task(FIRST).unwrap().clone();
     refuse(&mut domain, &env, &mut decision, FIRST, 7);
-    assert_eq!(domain.core.tasks.task(FIRST), Some(&stopped), "a late limit refusal cannot replace a party's stop");
+    assert_eq!(
+        domain.engine.core().tasks.task(FIRST),
+        Some(&stopped),
+        "a late limit refusal cannot replace a party's stop"
+    );
     assert!(domain.forge_limit_holds().is_empty());
 }
 

@@ -46,7 +46,7 @@ pub(crate) fn call(
     body: Box<[u8]>,
 ) {
     let right = to.into_token();
-    let Some(context) = domain.core.tasks.delegation(key.task) else {
+    let Some(context) = domain.engine.core().tasks.delegation(key.task) else {
         refused(domain, right, action, &body, DocumentRefusal::Unread);
         return;
     };
@@ -57,7 +57,7 @@ pub(crate) fn call(
         (crate::NoteFamily::Recall, ToolKind::Recall { by: notes::Recall::Search { scopes, query: Box::new([]) } }),
         (crate::NoteFamily::Note, ToolKind::Note { scope: scope.clone() }),
     ] {
-        if let Some(part) = domain.core.authorize_tool(key, kind) {
+        if let Some(part) = domain.engine.core().authorize_tool(key, kind) {
             let flight = domain.call_renders.get_mut(&right).expect("document flight");
             let super::host_route::FlightRender::Document(document) = &mut flight.render else {
                 unreachable!("document context")
@@ -169,7 +169,7 @@ fn index(
         };
         if !notes::valid_line(&line, &domain.limits.notes)
             || line.scope != read.scope
-            || !domain.core.note_readable(read.key.task, &line.scope)
+            || !domain.engine.core().note_readable(read.key.task, &line.scope)
             || Some(line.name) <= last
         {
             return Err(DocumentRefusal::Unread);
@@ -211,7 +211,7 @@ fn entry(
         || entry.scope != read.scope
         || entry.description.starts_with(b"work:")
         || !notes::valid_entry(&entry, &domain.limits.notes)
-        || !domain.core.note_readable(read.key.task, &entry.scope)
+        || !domain.engine.core().note_readable(read.key.task, &entry.scope)
     {
         return Err(DocumentRefusal::Unread);
     }

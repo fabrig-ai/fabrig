@@ -17,7 +17,7 @@ impl Phase {
 }
 
 pub(crate) fn start(domain: &mut Domain) {
-    if domain.settling.active() || domain.core.stopping() {
+    if domain.settling.active() || domain.engine.core().stopping() {
         return;
     }
     if !domain.start_runtime() {

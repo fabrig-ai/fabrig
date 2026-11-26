@@ -36,6 +36,7 @@ Kind 4's members, each with its default and the section it serves:
 | `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/updates.md`, 1 |
 | `close_job`: a path in each repository a goal's branch is in, or none; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches.md`, 2 |
 | `check_timeout`: the delivery checks' wall bound in a run delegated for one of the project's changes, or none | none: the agent's own | `../protocol/configuration/engine.md`, `landing` |
+| `flakes`: whether the project's checks can flake, `none` or `rerun N`, N from 0 to the deployment's `checkout.rerun_processes` | `rerun` at that figure | `forge/judgement.md`, 4 |
 | `dependencies_join` | yes | `landing.md`, 4.1 |
 | `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | `landing.md`, 4.1, `landing-prepare.md`, 1.3 |
 | `gate_retries`; `gate_timeout` | 2; one hour | `landing-proof.md`, 2.4; `landing-proof.md`, 2.1 |
@@ -46,9 +47,9 @@ Kind 4's members, each with its default and the section it serves:
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
 
 - **What is built:** kind 4's `by`, `batch`, `combine`, `merge_job`,
-  `close_job`, `landing_attempts`, `check_timeout`, `gate_retries`,
-  `gate_timeout`, `wait`, `tier_retries`, `verification_bound` and
-  `repairs`, and kind 5
+  `close_job`, `landing_attempts`, `check_timeout`, `flakes`,
+  `gate_retries`, `gate_timeout`, `wait`, `tier_retries`,
+  `verification_bound` and `repairs`, and kind 5
   whole. Each field keeps the form, bounds and default
   `../protocol/configuration/engine.md`'s `landing` gives it, where the
   document's `application.landing` held them. A start now refuses that
@@ -65,7 +66,8 @@ Kind 4's members, each with its default and the section it serves:
 - **Judged when proposed,** by the forge with the root's facts, each
   refusal naming its field. It refuses what a start checked of the
   document's member: a bound, a path's form, a gate's or a tier's name,
-  a repository given twice, `batch` past `landing_members`. It also
+  a repository given twice, `batch` past `landing_members`, `flakes`'
+  N past the deployment's `checkout.rerun_processes`. It also
   refuses `turn` without the limits its prepare job needs
   (`../protocol/configuration/engine.md`, *Prepare under `turn`*), and a
   repository that isn't the project's. A removal or a reset is always
@@ -85,7 +87,7 @@ Kind 4's members, each with its default and the section it serves:
   `propose_settings`. Their values are JSON with the names and forms of
   `../protocol/configuration/engine.md`'s `landing` members. Kind 4's is
   an object of its fields, as `{"by": "turn", "batch": 4, "merge_job":
-  "tools/merge"}`. Kind 5's is `{"repositories": [{"forge": F,
+  "tools/merge"}`, `flakes` as `"none"` or `{"rerun": N}`. Kind 5's is `{"repositories": [{"forge": F,
   "repository": R, "gates": [...], "tiers": [...]}]}`, each gate and
   tier as that section writes one.
 - **Read by a branch's path** (`forge/change/branch-path.md`): the project's `by`,

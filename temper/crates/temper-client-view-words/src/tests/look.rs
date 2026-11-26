@@ -403,6 +403,25 @@ fn account_rows_keep_the_requested_quiet_rules() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests pin the requested stylesheet rules as text")]
+fn welcome_column_keeps_the_requested_padding() {
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    assert!(css.contains(
+        "#app > .temper-welcome { width: min(680px, 100%); margin: 0 auto; padding: 40px 24px; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }"
+    ), "the wide welcome column has 40px top and bottom padding");
+    let mut phone_rule = false;
+    for block in css.split("\n@media (max-width: 760px) {\n").skip(1) {
+        let Some((rules, _)) = block.split_once("\n}") else { continue };
+        if rules.contains("#app > .temper-welcome { padding: 16px 20px 56px; }") {
+            phone_rule = true;
+            break;
+        }
+    }
+    assert!(phone_rule, "the phone welcome column keeps its padding inside the phone media query");
+    assert!(!css.contains("padding: 40px 24px 80px"), "the replaced welcome padding is gone");
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests pin the requested stylesheet rules as text")]
 fn account_usage_keeps_the_requested_rules_and_phrasing_elements() {
     let css = include_str!("../../../temper-client-shell-web/temper.css");
     for rule in [

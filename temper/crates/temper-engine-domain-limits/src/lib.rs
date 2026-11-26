@@ -79,6 +79,8 @@ pub struct Limits {
     pub host_reply_bytes: Option<u32>,
     /// Settings history and value bounds parsed by jig.
     pub settings: jig_domain_core::settings::Limits,
+    /// The deployment's `checkout.rerun_processes`, used to judge project landing settings.
+    pub rerun_processes: u32,
     /// Forge connector subtree and its bounded outbox.
     pub forge: forge::Limits,
 }

@@ -1,6 +1,6 @@
 # dialects: status
 
-2026-11-23. Where the tree's code lags or departs from [dialects.md](dialects.md).
+2026-11-26. Where the tree's code lags or departs from [dialects.md](dialects.md).
 
 - **Not yet:** 1.3: the artifact observations remain `forgejo.status.md`, 2.
   The job-log, comments-page and removed-file observations remain `forgejo.status.md`, 2.

@@ -97,6 +97,7 @@ impl ProjectLanding {
                 close_job: landing.close_job.clone(),
                 landing_attempts: landing.landing_attempts,
                 check_timeout_ms: landing.check_timeout.map(skein_lib::Duration::as_millis),
+                flakes: None,
                 gate_retries: landing.gate_retries,
                 gate_timeout_ms: landing.gate_timeout.as_millis(),
                 tier_retries: landing.tier_retries,

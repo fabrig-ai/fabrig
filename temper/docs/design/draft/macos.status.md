@@ -1,6 +1,6 @@
 # macos: status
 
-2026-11-20. Where the design lags or departs from [macos.md](macos.md).
+2026-11-26. Where the design lags or departs from [macos.md](macos.md).
 
 skein carries section 3: the readiness backend on epoll and kqueue (skein's `runtime/kernel.md`; `skein/docs/design/runtime/readiness.md`, 5). `macos.md`, section 6's steps 1 to 5 stand in the design: skein's `forge/dialects.md`, 1.3, `../protocol/setup/owned.md`, 1 and 6, and `../testing/macos.md`, 1 and 2 and `../testing/real-loop.md`'s story, this draft's acceptance, passes on the runner.
 
@@ -13,4 +13,5 @@ skein carries section 3: the readiness backend on epoll and kqueue (skein's `run
 - **Design departs:**
   - 4.1: smith finds `rg` on the commands' `PATH`, but where that environment has no `PATH`, or none of its directories holds `rg`, it still takes `/usr/bin/rg` (smith's `protocol/agent.md`, section 2), where the draft has tools found, not assumed. Many of smith's and temper's configurations, fixtures among them, give their commands no `PATH`, and refusing them would change Linux's runs and its gate. The goal's designer chose it, 2026-11-19; the draft's intent, `rg` found wherever a Mac has it, holds for any configuration that gives its commands a `PATH`.
   - 4.3: `../protocol/setup/box-supervision.md`, 1, and `../protocol/setup/init.md`, 5: the pipe check stays Linux's and asks the shell nothing, and macOS's login is what `/usr/bin/id -un` prints, where the draft has the shell's `getpwuid` answer on both. It needs no change to skein and leaves Linux as it is, by the user's rule of 2026-11-04; the cut of `macos-cheap` chose it.
+  - 1, 4.3, 6 and 7: `../protocol/setup/owned.md`, 6, and skein's `forge/dialects.md`, 1.3: a Mac's Forgejo and runner are Homebrew's builds, held to the same binary digests, fetched from fabrig.ai packed by zstd, as Linux's are, and unpacked by temper, where the draft has Homebrew's bottles fetched from `ghcr.io` by their archive digests, with an anonymous token, one redirect and `/usr/bin/tar`. When codeberg.org dropped out of DNS on 2026-11-17 every new box failed its forge's set-up, and the user asked on 2026-11-26 for the files from temper's own site. The draft's intent holds: no `brew`, and pins that hold the build. Its section 7's copy of temper's own is that site's, and its sources' offer is `../release.md`, 7.
   - 5.1: `../testing/macos.md`, 6, installs the toolchain the repository's `rust-toolchain.toml` pins, `nightly-2026-10-21` with LLVM, where the draft has Rust 1.95, the workspace's `rust-version`: the later draft `archive/crate-graph.md`, 2, moves the workspace to that nightly, by the user's choice of 2026-11-12.

@@ -15,6 +15,7 @@ const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };
 
 const BOUNDS: Bounds = Bounds {
     landing_members: 4,
+    rerun_processes: 4,
     repositories: 2,
     landing_gates: 2,
     tiers: 2,

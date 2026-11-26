@@ -84,7 +84,7 @@ mod tests;
 
 /// A closing task's saved-work branches, from its record's saved set.
 pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root: u64) -> Box<[forge::Name]> {
-    let Some(record) = domain.core.tasks.task(task) else { return Box::new([]) };
+    let Some(record) = domain.engine.core().tasks.task(task) else { return Box::new([]) };
     let Some(tags) = saved_tags(&record.saved, domain.config.forge_connector) else { return Box::new([]) };
     let mut branches = List::with_capacity(u32::try_from(tags.len()).expect("saved tags are bounded"));
     for tag in tags {
@@ -130,7 +130,7 @@ pub(crate) fn report_adoption(domain: &mut Domain, repository: &forge::Repositor
 /// The project's role for a collaborator's forge permission (domain/forge/adoption.md).
 fn seeded_role(domain: &Domain, project: u32, permission: skein_forge::api::Permission) -> Option<people::Role> {
     let number = permission_number(permission);
-    let mappings = domain.core.permission_roles.get(&project)?;
+    let mappings = domain.engine.core().permission_roles.get(&project)?;
     for mapping in mappings.as_ref() {
         if mapping.connector == domain.config.forge_connector && mapping.permission == number {
             return Some(people::Role::from_number(mapping.role));
@@ -146,10 +146,10 @@ pub(super) fn forge_person(domain: &Domain, project: u32, forge: u16, user: u64)
     if let Some(link) = domain.forge.link(forge)
         && link.user == user
     {
-        let role = domain.core.people.role(link.person, project)?;
+        let role = domain.engine.core().people.role(link.person, project)?;
         return Some((link.person, role));
     }
-    domain.core.people.role_for_identity(forge::user_key(forge, user), project)
+    domain.engine.core().people.role_for_identity(forge::user_key(forge, user), project)
 }
 
 /// The user a party is on a forge: the one `forge_person` answers them for, else unknown.
@@ -157,7 +157,7 @@ pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, perso
     let user = match domain.forge.link(forge) {
         Some(link) if link.person == person => link.user,
         Some(_) | None => {
-            let identity = domain.core.people.identity(person)?;
+            let identity = domain.engine.core().people.identity(person)?;
             let (identity_forge, user) = forge::key_user(&identity.key)?;
             if identity_forge != forge {
                 return None;
@@ -260,7 +260,7 @@ fn effect_key(domain: &Domain, key: CallKey) -> Box<[u8]> {
         completion: key.completion,
         position: key.position,
     }
-    .key(&domain.core.counters.deployment().id, 44)
+    .key(&domain.engine.core().counters.deployment().id, 44)
     .expect("fixed call key fits its frame")
 }
 
@@ -290,7 +290,7 @@ pub(crate) fn effect_call(
     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "admitted forge effect handoff");
     let deadline = skein_lib::Wall::from_nanos(
         // A call's timeout is its task's charter's (jig's `domain/engine/executors.md`, 1).
-        env.wall.as_nanos().saturating_add(domain.core.charter_of(key.task).policy.call_timeout.as_nanos()),
+        env.wall.as_nanos().saturating_add(domain.engine.core().charter_of(key.task).policy.call_timeout.as_nanos()),
     );
     let origin = match proposal {
         Some((reason, as_holder)) => jig_domain_core::EffectOrigin::Propose { to, key, reason, as_holder },
@@ -313,7 +313,7 @@ fn describe_agent(
     write: skein_forge::api::Write,
 ) -> Result<(Token, EffectFlight), skein_forge::api::Error> {
     let adopted = domain.forge.repository(repository).ok_or(skein_forge::api::Error::Missing)?;
-    if !domain.core.connector_project(key.task, adopted.project) {
+    if !domain.engine.core().connector_project(key.task, adopted.project) {
         return Err(skein_forge::api::Error::Forbidden);
     }
     let described = match forge::describe_agent_effect(
@@ -389,7 +389,8 @@ pub(crate) fn subscribe_named_call(
     own_change: Option<u64>,
     paths: Box<[Box<[u8]>]>,
 ) {
-    let project = domain.core.tasks.delegation(key.task).expect("authorized current subscription task").project;
+    let project =
+        domain.engine.core().tasks.delegation(key.task).expect("authorized current subscription task").project;
     let Ok(adopted) = named_repository(domain, project, repository.as_deref()) else {
         decide_call(
             domain,
@@ -435,7 +436,7 @@ fn subscription_problem(
         | forge::Topic::Pull { repository, .. }
         | forge::Topic::Participation { repository, .. } => *repository,
     };
-    let context = domain.core.tasks.delegation(subscriber.task)?;
+    let context = domain.engine.core().tasks.delegation(subscriber.task)?;
     let readable = domain.forge.readable_repositories(context.project);
     let mut adopted = false;
     for candidate in &readable {
@@ -445,7 +446,7 @@ fn subscription_problem(
         return Some((b"repository is not readable in this project; select an adopted owner/name", None));
     }
     let room = tasks::subscription_capacity(&limits.tasks).expect("validated subscriptions");
-    if let Some(task) = domain.core.tasks.task(subscriber.task)
+    if let Some(task) = domain.engine.core().tasks.task(subscriber.task)
         && task.subscriptions.len() >= skein_lib::usize_of(room)
     {
         return Some((b"task subscription room exhausted: tasks.subscriptions", Some(room)));
@@ -496,7 +497,7 @@ pub(crate) fn subscribe_call(
         return;
     }
     let token = to.into_token();
-    let flight = domain.core.reserve_connector_subscription(token, key, number).expect("one routed call");
+    let flight = domain.engine.core_mut().reserve_connector_subscription(token, key, number).expect("one routed call");
     assert!(domain.forge_subscribing.insert(token, subscriber) == Ok(None), "one connector interest");
     domain.work.push(Work::Tasks(tasks::Event::SubscribeTopic {
         reply_to: ReplyTo::new(flight),
@@ -515,7 +516,7 @@ fn subscription_number(
     to: Token,
     key: CallKey,
 ) -> Option<u64> {
-    let Some(number) = crate::fresh(&mut domain.core.counters, Family::Message) else {
+    let Some(number) = crate::fresh(&mut domain.engine.core_mut().counters, Family::Message) else {
         decide_call(
             domain,
             &env.limits,
@@ -559,7 +560,7 @@ pub(crate) fn task_holdings(
 pub(crate) fn holdings_scope<'a>(domain: &'a Domain, env: &'a Env<Limits>) -> Holdings<'a> {
     Holdings {
         forge: &domain.forge,
-        tasks: &domain.core.tasks,
+        tasks: &domain.engine.core().tasks,
         connector: domain.config.forge_connector,
         forge_limits: &env.limits.forge,
         task_limits: &env.limits.tasks,
@@ -670,7 +671,7 @@ pub(crate) fn project_goal(
         let words = if words.is_empty() { "Task milestone" } else { words };
         milestones.push(forge_issues::Milestone { key, text: Box::from(words) }).expect("feed capacity");
     }
-    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
+    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return };
     domain.work.push(Work::Forge(forge::Event::Project {
         entry,
         repository: provider,
@@ -754,7 +755,7 @@ fn goal_topics(domain: &mut Domain, env: &Env<Limits>, feed: &jig_domain_core::P
         return;
     }
     for child in &feed.plan {
-        let Some(task) = domain.core.tasks.task(child.number) else { continue };
+        let Some(task) = domain.engine.core().tasks.task(child.number) else { continue };
         let relevant = match task.executor {
             tasks::Executor::Procedure { connector, code: CHANGE_CODE } => connector == domain.config.forge_connector,
             tasks::Executor::Procedure { .. }
@@ -791,7 +792,7 @@ fn change_topic(domain: &Domain, task: &tasks::TaskRecord) -> Option<forge::Topi
 }
 
 pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, topic: forge::Topic) {
-    let Some(task) = domain.core.tasks.task(goal) else { return };
+    let Some(task) = domain.engine.core().tasks.task(goal) else { return };
     match task.flags.ended_by {
         tasks::EndedBy::Closer(_) => match &topic {
             forge::Topic::Landings { repository, branch } => {
@@ -852,7 +853,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
     let Some(members) = goal_members(domain, env, goal, &topic, previous.as_ref()) else { return };
     let number = match &previous {
         Some(previous) => previous.number,
-        None => match crate::fresh(&mut domain.core.counters, Family::Message) {
+        None => match crate::fresh(&mut domain.engine.core_mut().counters, Family::Message) {
             Some(number) => number,
             None => return,
         },
@@ -910,9 +911,9 @@ fn goal_members(
             }
         }
     }
-    for view in domain.core.tasks.view_tasks() {
-        let Some(task) = domain.core.tasks.task(view.number) else { continue };
-        if !in_subtree(&domain.core.tasks, task, goal) {
+    for view in domain.engine.core().tasks.view_tasks() {
+        let Some(task) = domain.engine.core().tasks.task(view.number) else { continue };
+        if !in_subtree(&domain.engine.core().tasks, task, goal) {
             continue;
         }
         match task.executor {
@@ -970,7 +971,7 @@ fn goal_members(
 }
 
 pub(crate) fn goal_subscribed(domain: &mut Domain, env: &Env<Limits>, subscriber: forge::Subscriber) {
-    let Some(task) = domain.core.tasks.task(subscriber.task) else { return };
+    let Some(task) = domain.engine.core().tasks.task(subscriber.task) else { return };
     let mut present = false;
     for subscription in &task.subscriptions {
         if subscription.number == subscriber.number {
@@ -996,7 +997,7 @@ fn may_push(
     let Some(what) = branch_what(branch, env.limits.forge.name_bytes) else { return false };
     let Some(name) = resource_name(repository, &what, env.limits.authority.segments) else { return false };
     let mut findings = Queue::uncapped();
-    domain.core.connector_run_write_admit(
+    domain.engine.core().connector_run_write_admit(
         context,
         authority::Effect {
             connector: domain.config.forge_connector,
@@ -1034,7 +1035,7 @@ fn tracked_ancestor(domain: &Domain, requester: tasks::Party) -> Option<u64> {
             tasks::Party::Task(task) => task,
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => return None,
         };
-        let row = domain.core.tasks.task(task)?;
+        let row = domain.engine.core().tasks.task(task)?;
         if row.tracked.is_some() && !tasks::gathering::executor(row.executor) {
             return Some(task);
         }
@@ -1050,21 +1051,21 @@ pub(crate) fn unheld_run_branch(
     task: u64,
     repository: &forge::Repository,
 ) -> Option<bool> {
-    let root = domain.core.tasks.root(task)?;
+    let root = domain.engine.core().tasks.root(task)?;
     let branch = tree_branch(repository, root, b'r', task, None, limits.forge.name_bytes)?;
     let name = forge::Name {
         forge: repository.provider.forge,
         repository: repository.provider.repository,
         what: branch_what(&branch, limits.forge.name_bytes)?,
     };
-    Some(domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &limits.tasks)?).is_none())
+    Some(domain.engine.core().tasks.holder(&hub_name(domain.config.forge_connector, &name, &limits.tasks)?).is_none())
 }
 
 /// Read the change project's checks' bound anew for each assignment
 /// (temper/docs/design/domain/agent/charter.md, 4).
 /// Reviews and runs outside a change's coding delegates name no bound.
 pub(crate) fn check_timeout(domain: &Domain, task: u64) -> Option<skein_lib::Duration> {
-    let context = domain.core.tasks.task(task)?;
+    let context = domain.engine.core().tasks.task(task)?;
     let tasks::Party::Task(parent) = context.requester else { return None };
     let row = domain.forge.change(parent)?;
     let (child, kind) = row.delegate?;
@@ -1105,11 +1106,11 @@ pub(crate) fn run_workspace(
     if context.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
         && let tasks::Party::Task(parent) = context.requester
     {
-        return landing_route::prepare_workspace(domain, env, parent);
+        return landing_route::prepare_workspace(domain, env, parent, context.project);
     }
-    let root = domain.core.tasks.root(context.task)?;
+    let root = domain.engine.core().tasks.root(context.task)?;
     let modify = match context.executor {
-        tasks::Executor::Agent { charter } => match domain.core.charter(charter) {
+        tasks::Executor::Agent { charter } => match domain.engine.core().charter(charter) {
             Some(charter) => {
                 if crate::no_workspace(&charter.policy) {
                     return Some(status_route::workspace(context.task));
@@ -1233,8 +1234,11 @@ pub(crate) fn run_workspace(
             };
             let held = match holder {
                 Some(owner) => {
-                    if domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)
-                        != Some(owner)
+                    if domain.engine.core().tasks.holder(&hub_name(
+                        domain.config.forge_connector,
+                        &name,
+                        &env.limits.tasks,
+                    )?) != Some(owner)
                     {
                         return None;
                     }
@@ -1245,8 +1249,11 @@ pub(crate) fn run_workspace(
                     None
                 }
                 None => {
-                    if domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)
-                        != Some(context.task)
+                    if domain.engine.core().tasks.holder(&hub_name(
+                        domain.config.forge_connector,
+                        &name,
+                        &env.limits.tasks,
+                    )?) != Some(context.task)
                     {
                         return None;
                     }
@@ -1286,13 +1293,26 @@ pub(crate) fn run_workspace(
         repositories.push(workspace_repository(item, push, save)?).ok()?;
     }
     Some(RunWorkspace {
-        workspace: ForgeWorkspace { repositories: repositories.into_boxed() },
+        workspace: ForgeWorkspace {
+            rerun: rerun_bound(domain, context.project),
+            repositories: repositories.into_boxed(),
+        },
         workstream: key,
         writes: writes.into_boxed(),
         names: names.into_boxed(),
         designs: designs.into_boxed(),
         own_holds: own_holds.into_boxed(),
     })
+}
+
+/// The run or job takes its project's bound from the settings built at restore.
+fn rerun_bound(domain: &Domain, project: u32) -> Option<u32> {
+    use forge::settings::Flakes;
+    match domain.forge.landing_settings(project)?.flakes {
+        Some(Flakes::Never) => Some(0),
+        Some(Flakes::Rerun(processes)) => Some(processes),
+        None => None,
+    }
 }
 
 /// Reconstruct the connector's provisional writer projection from the
@@ -1321,8 +1341,11 @@ pub(crate) fn claimed_writes(
                 repository: repository.provider.repository,
                 what: branch_what(push, env.limits.forge.name_bytes)?,
             };
-            let holder =
-                domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)?;
+            let holder = domain.engine.core().tasks.holder(&hub_name(
+                domain.config.forge_connector,
+                &name,
+                &env.limits.tasks,
+            )?)?;
             if holder != task {
                 holders.push(holder).ok()?;
             }
@@ -1417,7 +1440,7 @@ fn describe_change_effect(
 ) -> Option<EffectDescription> {
     let row = domain.forge.change(task)?;
     let repository = domain.forge.repository(row.repository)?;
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     if repository.project != context.project || repository.role == forge::Role::Context {
         return None;
     }
@@ -1494,7 +1517,7 @@ fn change_effect_hold(domain: &Domain, env: &Env<Limits>, task: u64, kind: u16) 
         },
         &env.limits.tasks,
     )?;
-    domain.core.tasks.holder(&resource)?;
+    domain.engine.core().tasks.holder(&resource)?;
     Some(resource)
 }
 
@@ -1537,18 +1560,19 @@ pub(crate) fn step_core(
     event: jig_domain_core::Event,
 ) -> Queue<jig_domain_core::Request> {
     let mut makings = List::with_capacity(env.limits.forge.holds);
-    for view in domain.core.tasks.view_tasks() {
-        if making_held(domain, env, view.number)
-            || (domain.forge.making_waits(view.number) && making_unavailable(domain, view.number))
-        {
-            makings.push(view.number).expect("goal makings bounded by holds");
+    for task in &domain.forge.making_retry_candidates() {
+        let Some(row) = domain.engine.core().tasks.task(*task) else { continue };
+        if making_held(domain, env, row) || (domain.forge.making_waits(*task) && making_unavailable(row)) {
+            makings.push(*task).expect("goal makings bounded by holds");
         }
     }
-    let requests = jig_domain_core::step(&mut domain.core, &super::environment_core(env), event);
+    let requests = crate::engine::step(&mut domain.engine, env, event);
     // Released or lifted, a passed-over making is asked again in its place
     // (temper/docs/design/domain/forge/room.md, 3).
     for task in makings.into_boxed() {
-        if !making_unavailable(domain, task) {
+        if let Some(row) = domain.engine.core().tasks.task(task)
+            && !making_unavailable(row)
+        {
             domain.work.push(Work::Forge(forge::Event::RetryGoalBranch { task }));
         }
     }
@@ -1581,16 +1605,15 @@ pub(super) fn dependency_releases_change(domain: &mut Domain, env: &Env<Limits>,
     }
 }
 
-fn making_unavailable(domain: &Domain, task: u64) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return true };
+fn making_unavailable(row: &tasks::TaskRecord) -> bool {
     match row.phase {
         tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
         tasks::Phase::Waiting | tasks::Phase::Active(_) => row.placed.is_some(),
     }
 }
 
-fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+fn making_held(domain: &Domain, env: &Env<Limits>, row: &tasks::TaskRecord) -> bool {
+    let task = row.number;
     let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } = &row.phase else {
         return false;
     };
@@ -1599,8 +1622,7 @@ fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
         return false;
     }
     let Some(home) = domain.forge.home(row.project) else { return false };
-    let Some(root) = domain.core.tasks.root(task) else { return false };
-    let Some(branch) = tree_branch(home, root, b'g', task, None, env.limits.forge.name_bytes) else { return false };
+    let Some(branch) = tree_branch(home, row.root, b'g', task, None, env.limits.forge.name_bytes) else { return false };
     let Some(what) = branch_what(&branch, env.limits.forge.name_bytes) else { return false };
     let name = forge::Name { forge: home.provider.forge, repository: home.provider.repository, what };
     let Some(hold) = domain.forge.hold(&name) else { return false };
@@ -1625,7 +1647,7 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     if domain.forge.names(task).is_some() {
         return;
     }
-    let Some(owner) = domain.core.tasks.task(task) else { return };
+    let Some(owner) = domain.engine.core().tasks.task(task) else { return };
     if owner.due_reason != tasks::Why::Released {
         return;
     }
@@ -1664,10 +1686,10 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 // Every live pushing child counts, even after a gate takes the current delegate slot
 // (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
-    let Some(owner) = domain.core.tasks.task(task) else { return false };
+    let Some(owner) = domain.engine.core().tasks.task(task) else { return false };
     for child in &owner.delegates {
         if change_pushing_child(domain, *child)
-            && let Some(child) = domain.core.tasks.task(*child)
+            && let Some(child) = domain.engine.core().tasks.task(*child)
         {
             match child.phase {
                 tasks::Phase::Ended(_) => {}
@@ -1682,7 +1704,7 @@ fn change_delegate_live(domain: &Domain, task: u64) -> bool {
 }
 
 pub(crate) fn change_pushing_child(domain: &Domain, child: u64) -> bool {
-    let Some(child) = domain.core.tasks.task(child) else { return false };
+    let Some(child) = domain.engine.core().tasks.task(child) else { return false };
     match child.contract {
         tasks::Contract::Change { connector, kind, .. } => connector == domain.config.forge_connector && kind == 2,
         tasks::Contract::Job { .. } => {
@@ -1697,7 +1719,7 @@ pub(crate) fn change_pushing_child(domain: &Domain, child: u64) -> bool {
 fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return false };
     let Some((child, _)) = row.delegate else { return false };
-    let Some(child) = domain.core.tasks.task(child) else { return false };
+    let Some(child) = domain.engine.core().tasks.task(child) else { return false };
     match &child.phase {
         tasks::Phase::Active(active) | tasks::Phase::Held { was: tasks::Was::Active(active), .. } => match active {
             tasks::Active::Claimed { .. } | tasks::Active::Running { .. } => true,
@@ -1721,7 +1743,7 @@ fn change_unpinned(domain: &Domain, task: u64) -> bool {
         None => tracked_ancestor(domain, tasks::Party::Task(task)),
     };
     match goal {
-        Some(goal) => domain.core.tasks.task(goal).is_none(),
+        Some(goal) => domain.engine.core().tasks.task(goal).is_none(),
         None => true,
     }
 }
@@ -1887,7 +1909,7 @@ pub(super) fn start_recovered_change(
     let branch = match branch {
         Some(branch) => branch,
         None => {
-            let Some(root) = domain.core.tasks.root(task) else { return false };
+            let Some(root) = domain.engine.core().tasks.root(task) else { return false };
             let Some(branch) = tree_branch(adopted, root, b'c', task, None, env.limits.forge.name_bytes) else {
                 return false;
             };
@@ -1912,7 +1934,7 @@ pub(super) fn start_recovered_change(
         let mut draft = None;
         if let Some(goal) = goal {
             person = super::decided::person(domain, goal);
-            if let Some(row) = domain.core.tasks.task(goal) {
+            if let Some(row) = domain.engine.core().tasks.task(goal) {
                 let title = temper_engine_domain_forge_closer::first_line(&row.spec.words);
                 if !title.is_empty() {
                     goal_title = Some(forge::text::fit(title, forge::LOGGED_TITLE_BYTES, "…".as_bytes()));
@@ -1927,6 +1949,7 @@ pub(super) fn start_recovered_change(
                 room: None,
                 kept: None,
                 regate: None,
+                ci_recheck: None,
                 source: source.clone(),
                 task_release: None,
                 job: None,
@@ -1992,6 +2015,7 @@ pub(super) fn start_recovered_change(
                 delegate_flake: false,
                 delegate_no_test: false,
                 delegate_head: None,
+                delegate_words: None,
                 verdicts: Box::new([]),
                 goal,
                 milestone,
@@ -2014,6 +2038,7 @@ pub(super) fn start_recovered_change(
                 questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
+                runner_ci: None,
                 close_at: None,
                 report: Box::new([]),
                 repairs,
@@ -2054,7 +2079,7 @@ pub(super) fn start_recovered_change(
         // Registration can persist before its branch hold meets a limit. A
         // release retries that entrance before the first producer claims it.
         let resource = forge::branch_name(provider, &branch);
-        let released = match domain.core.tasks.task(task) {
+        let released = match domain.engine.core().tasks.task(task) {
             Some(owner) => owner.due_reason == tasks::Why::Released,
             None => false,
         };
@@ -2069,7 +2094,7 @@ pub(super) fn start_recovered_change(
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
     if waits_word {
-        let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
+        let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else { return true };
         let mut out = Queue::uncapped();
         domain.forge.set_settling(task, false, &mut out);
         if !out.is_empty() {
@@ -2084,12 +2109,12 @@ pub(super) fn start_recovered_change(
         }));
         return true;
     }
-    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
-    let released_questions = match (domain.forge.change(task), domain.core.tasks.task(task)) {
+    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return false };
+    let released_questions = match (domain.forge.change(task), domain.engine.core().tasks.task(task)) {
         (Some(row), Some(task)) => relay::questions_held(&row.change.state) && task.due_reason == tasks::Why::Released,
         _ => false,
     };
-    if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
+    if released_questions && let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) {
         domain
             .forge_delegating
             .insert(
@@ -2097,7 +2122,7 @@ pub(super) fn start_recovered_change(
                 ChangeStep { delegate: None, relayed: None, refusal: None, released: true, passing: None },
             )
             .expect("one released relay per change step");
-        let record = domain.core.tasks.task(task).expect("released change");
+        let record = domain.engine.core().tasks.task(task).expect("released change");
         let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
         domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
@@ -2115,9 +2140,9 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
         if child != current {
             continue;
         }
-        let closing = domain.forge.change(task).expect("registered change").delegate
-            == Some((child, forge_change::Delegate::Close));
-        let held = closing && close::failed(domain, child, &word.kind);
+        let failure =
+            if kind == forge_change::Delegate::Close { close::failure(domain, child, &word.kind) } else { None };
+        let held = failure.is_some();
         let status = if held {
             Some((forge_change::Status::Failed, true, false))
         } else {
@@ -2144,6 +2169,7 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
                     false
                 },
                 failed,
+                lost: failure == Some(tasks::Class::Lost),
                 cancelled,
                 words: if held {
                     close::failure_words(domain, child).unwrap_or(&word.words).into()
@@ -2160,10 +2186,10 @@ fn closer_waiting(domain: &Domain, task: u64) -> bool {
     if change.close.is_none() {
         return false;
     }
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
     let tasks::Party::Task(closer) = row.requester else { return false };
     domain.forge.closer(closer).is_some()
-        && match domain.core.tasks.task(closer) {
+        && match domain.engine.core().tasks.task(closer) {
             Some(row) => !row.waiting_on.is_empty(),
             None => false,
         }
@@ -2181,7 +2207,7 @@ fn change_step(
 ) -> forge::Event {
     let released = !held_read && delegate_record::is_release(domain, task);
     forge::Event::StepChange {
-        merge_job: match domain.core.tasks.delegation(task) {
+        merge_job: match domain.engine.core().tasks.delegation(task) {
             Some(context) => {
                 context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND))
             }
@@ -2210,7 +2236,7 @@ fn change_step(
         },
         gates: Box::new([]),
         queue_repair_active: match domain.forge.queue_repair(provider, base) {
-            Some((_, repair)) => domain.core.tasks.task(repair).is_some(),
+            Some((_, repair)) => domain.engine.core().tasks.task(repair).is_some(),
             None => false,
         },
     }
@@ -2613,8 +2639,8 @@ fn change_goal_branch(
     task: u64,
     repository: &forge::Repository,
 ) -> Result<Option<Box<[u8]>>, ChangeRefused> {
-    let Some(mut current) = domain.core.tasks.task(task) else { return Ok(None) };
-    let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
+    let Some(mut current) = domain.engine.core().tasks.task(task) else { return Ok(None) };
+    let root = domain.engine.core().tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
     // Each step visits one requester, including the calling task itself.
     for _ in 0..=current.depth {
         let branch = tree_branch(repository, root, b'g', current.number, None, env.limits.forge.name_bytes)
@@ -2631,7 +2657,7 @@ fn change_goal_branch(
             return Ok(Some(branch));
         }
         let tasks::Party::Task(parent) = current.requester else { break };
-        let Some(parent) = domain.core.tasks.task(parent) else { break };
+        let Some(parent) = domain.engine.core().tasks.task(parent) else { break };
         current = parent;
     }
     Ok(None)
@@ -2710,7 +2736,7 @@ fn change_branch(
             b"branch mine with landing goal: a branch cannot land into itself.".as_slice(),
         )));
     }
-    let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
+    let root = domain.engine.core().tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
     let branch = tree_branch(repository, root, b'g', task, None, env.limits.forge.name_bytes)
         .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
     let name = forge::Name {
@@ -2738,7 +2764,7 @@ fn change_branch(
     }
     for number in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
         let row = domain.forge.change(number).expect("listed change");
-        if row.branch == branch && domain.core.tasks.task(number).is_some() {
+        if row.branch == branch && domain.engine.core().tasks.task(number).is_some() {
             let mut words = List::with_capacity(70); // Fixed words plus a u64 task number's twenty digits.
             append(&mut words, b"branch ");
             append(&mut words, choice);
@@ -2794,14 +2820,16 @@ pub(super) fn chat_change(
     let ChangeOrigin { authority: held, tasks_left, source } = origin;
     let producer_charter = change.producer.unwrap_or(domain.forge.charters().change);
     let review_charter = domain.forge.charters().review;
-    if domain.core.charter(producer_charter).is_none() || domain.core.charter(review_charter).is_none() {
+    if domain.engine.core().charter(producer_charter).is_none()
+        || domain.engine.core().charter(review_charter).is_none()
+    {
         return Err(tasks::Refusal::Executor);
     }
     if let Some(choice) = &change.llm.producer {
-        domain.core.tasks.check_llm(producer_charter, held.models, choice)?;
+        domain.engine.core().tasks.check_llm(producer_charter, held.models, choice)?;
     }
     if let Some(choice) = &change.llm.review {
-        domain.core.tasks.check_llm(review_charter, held.models, choice)?;
+        domain.engine.core().tasks.check_llm(review_charter, held.models, choice)?;
     }
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
@@ -2811,7 +2839,7 @@ pub(super) fn chat_change(
     if held.delegation.depth == 1 {
         return Err(tasks::Refusal::Depth);
     }
-    if spend <= domain.core.authority.rules().minimum_run_spend {
+    if spend <= domain.engine.core().authority.rules().minimum_run_spend {
         return Err(tasks::Refusal::Funding);
     }
     let mut authority = held.clone();
@@ -2944,7 +2972,7 @@ fn opening_person_gate(domain: &Domain, repository: &forge::Repository, base: &[
 /// jig owns both the descendant ledger and remaining spend; take a fresh snapshot.
 fn change_authority_lack(domain: &Domain, task: u64) -> Option<forge_change::AuthorityHold> {
     use forge_change::{AuthorityHold, AuthorityLack};
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     let (lack, had) = if context.tasks_left == 0 {
         (AuthorityLack::Tasks, u64::from(context.authority.delegation.tasks))
     } else if context.authority.delegation.depth == 0 {
@@ -2956,7 +2984,7 @@ fn change_authority_lack(domain: &Domain, task: u64) -> Option<forge_change::Aut
             .saturating_sub(context.numbers.spent)
             .saturating_sub(context.numbers.spent_below)
             .saturating_sub(context.numbers.reserved);
-        if available > domain.core.authority.rules().minimum_run_spend {
+        if available > domain.engine.core().authority.rules().minimum_run_spend {
             return None;
         }
         (AuthorityLack::Spend, available)
@@ -2965,7 +2993,7 @@ fn change_authority_lack(domain: &Domain, task: u64) -> Option<forge_change::Aut
 }
 
 fn change_recovery(domain: &Domain, task: u64) -> Option<forge_change::AuthorityRecovery> {
-    let row = domain.core.tasks.task(task)?;
+    let row = domain.engine.core().tasks.task(task)?;
     Some(forge_change::AuthorityRecovery {
         task,
         spec: row.revisions.spec,
@@ -2976,7 +3004,7 @@ fn change_recovery(domain: &Domain, task: u64) -> Option<forge_change::Authority
 }
 
 fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpend> {
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     let row = domain.forge.change(task)?;
     let left = context
         .numbers
@@ -2987,8 +3015,10 @@ fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpen
     Some(forge_change::DelegateSpend {
         recovery: change_recovery(domain, task)?,
         left,
-        coding: jig_domain_core::reserve_floor(&domain.core.charter(row.producing_charter)?.policy).unwrap_or(u64::MAX),
-        review: jig_domain_core::reserve_floor(&domain.core.charter(row.review_charter)?.policy).unwrap_or(u64::MAX),
+        coding: jig_domain_core::reserve_floor(&domain.engine.core().charter(row.producing_charter)?.policy)
+            .unwrap_or(u64::MAX),
+        review: jig_domain_core::reserve_floor(&domain.engine.core().charter(row.review_charter)?.policy)
+            .unwrap_or(u64::MAX),
     })
 }
 
@@ -3000,11 +3030,11 @@ fn change_delegate(
     kind: forge_change::Delegate,
 ) -> Option<super::Delegate> {
     let row = domain.forge.change(task)?;
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     let mut authority =
         if kind == forge_change::Delegate::Close { close::authority(&context) } else { child_authority(&context)? };
     // domain/agent/agents.md: only producing, repairs and resolutions may ask.
-    authority.tools.0 &= !domain.core.settings.tools.settings;
+    authority.tools.0 &= !domain.engine.core().settings.tools.settings;
     let asking = match kind {
         forge_change::Delegate::Produce
         | forge_change::Delegate::Repair(_)
@@ -3014,7 +3044,7 @@ fn change_delegate(
         }
     };
     if !asking {
-        authority.tools.0 &= !domain.core.settings.tools.message.0;
+        authority.tools.0 &= !domain.engine.core().settings.tools.message.0;
     }
     if let forge_change::Delegate::Merge { base, from } = kind {
         let bound = domain.config.merge_kind?;
@@ -3181,7 +3211,7 @@ fn change_delegate(
             )
         }
     };
-    let change = domain.core.tasks.task(task)?;
+    let change = domain.engine.core().tasks.task(task)?;
     let words = delegate_words(
         row,
         kind,
@@ -3220,7 +3250,7 @@ fn gate_authority(
     if kind != forge_change::GateKind::Agent {
         return Some(());
     }
-    authority.tools.0 &= domain.core.settings.tools.read.0;
+    authority.tools.0 &= domain.engine.core().settings.tools.read.0;
     let mut grants = List::with_capacity(env.limits.tasks.authority_grants);
     for grant in &authority.grants {
         if grant.connector == domain.config.forge_connector && forge::READ_KINDS.contains(&grant.kind) {
@@ -3232,7 +3262,7 @@ fn gate_authority(
 }
 
 fn context_questions<'a>(domain: &'a Domain, task: u64, row: &'a forge::ChangeRow) -> &'a forge_change::Questions {
-    if let Some((_, _, step)) = domain.core.tasks.procedure_due(task)
+    if let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task)
         && let Some(pending) = domain.forge_delegating.get(&(task, step))
         && let Some(relayed) = &pending.relayed
     {
@@ -3275,7 +3305,7 @@ pub(super) fn append_change_replies(
 fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return false };
     if let Some((_, repair)) = domain.forge.queue_repair(row.repository, &row.base)
-        && domain.core.tasks.task(repair).is_some()
+        && domain.engine.core().tasks.task(repair).is_some()
     {
         return true;
     }
@@ -3284,7 +3314,7 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
     }
     let Some(repository) = domain.forge.repository(row.repository) else { return false };
     let project = repository.project;
-    let Some(seed) = domain.core.repair_seed(project) else { return false };
+    let Some(seed) = domain.engine.core_mut().repair_seed(project) else { return false };
     let repair = seed.number();
     let provider = row.repository;
     let base = row.base.clone();
@@ -3408,7 +3438,7 @@ fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::ap
 }
 
 fn change_cancelled(domain: &Domain, task: u64) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
     let ending = match &row.phase {
         tasks::Phase::Closing(closing) | tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => {
             &closing.ending
@@ -3427,7 +3457,7 @@ fn change_cancelled(domain: &Domain, task: u64) -> bool {
 /// Explain a failed review in the same decision that holds its change.
 fn review_failure_message(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<jig_domain_core::StepMessage> {
     let row = domain.forge.change(task)?;
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     let tasks::Party::Task(requester) = context.requester else { return None };
     let mut reason = None;
     for failure in &row.change.gate_failures {
@@ -3463,7 +3493,7 @@ fn authority_hold_message(
     task: u64,
     cause: forge_change::AuthorityHold,
 ) -> Option<jig_domain_core::StepMessage> {
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     let tasks::Party::Task(target) = context.requester else { return None };
     let mut words = List::with_capacity(env.limits.tasks.message_bytes);
     append(&mut words, &forge_change::authority_words(cause));
@@ -3537,11 +3567,8 @@ fn hold_change_decision(
         return holds::decision_as(domain, env, task, category, words);
     }
     let check_hold = match domain.forge.change(task) {
-        Some(row) => match &row.follow_check {
-            Some(check) => check.held.clone(),
-            None => None,
-        },
-        None => None,
+        Some(forge::ChangeRow { follow_check: Some(check), .. }) => check.held.clone(),
+        Some(_) | None => None,
     };
     let account = if why == forge_change::Hold::Repairs
         && let Some(row) = domain.forge.change(task)
@@ -3597,7 +3624,9 @@ fn hold_change_decision(
             forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
         },
         forge_change::Hold::Stalled => tasks::Hold::Stalled,
-        forge_change::Hold::Repairs
+        forge_change::Hold::Runner
+        | forge_change::Hold::RedStands
+        | forge_change::Hold::Repairs
         | forge_change::Hold::Resolutions
         | forge_change::Hold::Updates
         | forge_change::Hold::Questions
@@ -3656,7 +3685,9 @@ fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureS
 fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
     let child = match domain.forge.change(task) {
         Some(row) => match row.delegate {
-            Some((child, forge_change::Delegate::Repair(_))) if domain.core.tasks.task(child).is_some() => Some(child),
+            Some((child, forge_change::Delegate::Repair(_))) if domain.engine.core().tasks.task(child).is_some() => {
+                Some(child)
+            }
             Some((
                 _,
                 forge_change::Delegate::Produce
@@ -3686,7 +3717,7 @@ fn cancel_moved_change_delegate(domain: &Domain, task: u64, head: [u8; 32]) -> P
     let child = match domain.forge.change(task) {
         Some(row) => match row.delegate {
             Some((child, forge_change::Delegate::Resolve { .. } | forge_change::Delegate::Repair(_)))
-                if domain.core.tasks.task(child).is_some() =>
+                if domain.engine.core().tasks.task(child).is_some() =>
             {
                 Some(child)
             }
@@ -3716,7 +3747,7 @@ fn cancel_moved_change_delegate(domain: &Domain, task: u64, head: [u8; 32]) -> P
 }
 
 fn change_result_bound(domain: &Domain, task: u64) -> u32 {
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(row) => match row.contract {
             tasks::Contract::Change { words, .. } => words.saturating_sub(
                 u32::try_from(crate::link::CHANGE_RESULT_ENVELOPE_BYTES).expect("result envelope fits u32"),
@@ -3764,7 +3795,7 @@ fn wait_change_decision(
 // A completed change cancels its live delegates, then waits for their terminals
 // before offering its result; their terminals wake the waiting procedure.
 fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(row) => !row.delegates.is_empty(),
         None => false,
     }
@@ -3772,7 +3803,7 @@ fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
 
 fn cancel_completed_change(domain: &Domain, env: &Env<Limits>, task: u64, reason: &[u8]) -> ProcedureStep {
     let mut cancels = List::with_capacity(env.limits.tasks.delegates);
-    if let Some(row) = domain.core.tasks.task(task) {
+    if let Some(row) = domain.engine.core().tasks.task(task) {
         for delegate in &row.delegates {
             if !change_cancelled(domain, *delegate) {
                 cancels
@@ -3787,7 +3818,7 @@ fn cancel_completed_change(domain: &Domain, env: &Env<Limits>, task: u64, reason
 // The deployment cancels the procedure through its task control path
 // (temper/docs/design/domain/forge/adoption-connection.md, 1).
 fn cancel_change(domain: &mut Domain, task: u64) {
-    let Some(row) = domain.core.tasks.task(task) else { return };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Cancel {
         reply_to: super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: row.project },
@@ -3797,7 +3828,7 @@ fn cancel_change(domain: &mut Domain, task: u64) {
 
 // The deployment records the vanished CI cause through the task's release path (domain/forge/change/repairs.md).
 fn end_change_hold(domain: &mut Domain, task: u64) {
-    let Some(row) = domain.core.tasks.task(task) else { return };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Release {
         reply_to: super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: row.project },
@@ -3935,15 +3966,17 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
             let Some(change) = domain.forge.change(task) else { continue };
             if change.delegate.is_none()
                 && change.change.state == (forge_change::State::Producing { requested: false })
-                && let Some(row) = domain.core.tasks.task(task)
+                && let Some(row) = domain.engine.core().tasks.task(task)
                 && row.waiting_on.contains(&dependency)
                 && let tasks::Phase::Active(_) = row.phase
             {
-                if !domain.core.settling() && domain.core.tasks.procedure_due(task).is_some() {
+                if !domain.engine.core().settling() && domain.engine.core().tasks.procedure_due(task).is_some() {
                     // An idle-only wake cannot refresh a step already reading its facts.
                     let repository = change.repository;
                     let base = change.base.clone();
-                    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
+                    let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else {
+                        return;
+                    };
                     let step = change_step(domain, env, task, entry, repository, &base, false);
                     domain.work.push(Work::Forge(step));
                 } else {
@@ -3956,7 +3989,7 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
 
 // Every hold reaches its task, including a later wake or restore (change/repairs.md).
 fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
-    let task_row = domain.core.tasks.task(task)?;
+    let task_row = domain.engine.core().tasks.task(task)?;
     if task_row.due_reason == tasks::Why::Released {
         return None;
     }
@@ -3991,7 +4024,7 @@ fn change_decision_from_read(
     } else {
         None
     };
-    let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
+    let (connector, code, step) = match domain.engine.core().tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
@@ -4209,7 +4242,9 @@ pub(crate) fn outputs(
             }
             forge::Request::StepDependents { task } => step_dependents(domain, env, task),
             forge::Request::CloserChecked { task } => {
-                if domain.forge.closer_stall_words(task).is_some() && domain.core.tasks.procedure_due(task).is_none() {
+                if domain.forge.closer_stall_words(task).is_some()
+                    && domain.engine.core().tasks.procedure_due(task).is_none()
+                {
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
                 } else {
                     resume_closer_step(domain, env, decision, task);
@@ -4217,7 +4252,7 @@ pub(crate) fn outputs(
             }
             forge::Request::WakeProcedure { task } => {
                 if domain.forge.room_asked(task) {
-                    let can_step = match domain.core.tasks.task(task) {
+                    let can_step = match domain.engine.core().tasks.task(task) {
                         Some(row) => match row.phase {
                             tasks::Phase::Active(_) => row.placed.is_none(),
                             tasks::Phase::Waiting
@@ -4231,9 +4266,9 @@ pub(crate) fn outputs(
                         domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
                         continue;
                     }
-                    if domain.core.tasks.procedure_due(task).is_some()
+                    if domain.engine.core().tasks.procedure_due(task).is_some()
                         && let Some(row) = domain.forge.change(task).cloned()
-                        && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
+                        && let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow)
                     {
                         let step = change_step(domain, env, task, entry, row.repository, &row.base, false);
                         domain.work.push(Work::Forge(step));
@@ -4243,11 +4278,11 @@ pub(crate) fn outputs(
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
                     watch_change(domain, env, &row);
-                    if !domain.core.settling()
+                    if !domain.engine.core().settling()
                         && forge_change::held_on_ci(&row.change.state)
-                        && let Some(record) = domain.core.tasks.task(task)
+                        && let Some(record) = domain.engine.core().tasks.task(task)
                         && own_hold(record)
-                        && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
+                        && let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow)
                     {
                         let step = change_step(domain, env, task, entry, row.repository, &row.base, true);
                         domain.work.push(Work::Forge(step));
@@ -4255,7 +4290,7 @@ pub(crate) fn outputs(
                 }
                 // A due change refreshes its own coherent gather. Other
                 // procedures retain changed facts through their pending step.
-                if domain.forge.change(task).is_none() || domain.core.tasks.procedure_due(task).is_none() {
+                if domain.forge.change(task).is_none() || domain.engine.core().tasks.procedure_due(task).is_none() {
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
                 }
             }
@@ -4410,7 +4445,7 @@ pub(crate) fn outputs(
                                     .expect("bounded collaborators");
                             }
                         }
-                        match domain.core.connector_adopt_parties(
+                        match domain.engine.core_mut().connector_adopt_parties(
                             &env.limits.people,
                             adopted.repository.project,
                             forge::FORGE_PROVIDER,
@@ -4470,7 +4505,7 @@ pub(crate) fn outputs(
                     forge::Class::Kept => tasks::NewsClass::Kept,
                     forge::Class::Dropped => tasks::NewsClass::Dropped,
                 };
-                if let Some(event) = domain.core.connector_news(
+                if let Some(event) = domain.engine.core_mut().connector_news(
                     task,
                     subscription,
                     class,
@@ -4564,7 +4599,7 @@ pub(crate) fn outputs(
             forge::Request::Outcome { entry, task, outcome, account } => {
                 domain.forge_effecting.remove(&entry);
                 if let Some(words) = account {
-                    let procedure = match domain.core.tasks.task(task) {
+                    let procedure = match domain.engine.core().tasks.task(task) {
                         Some(row) => match row.executor {
                             tasks::Executor::Procedure { .. } => true,
                             tasks::Executor::Agent { .. }
@@ -4584,7 +4619,7 @@ pub(crate) fn outputs(
                     };
                     if failed
                         && domain.forge.landing_effect_needs_hold(task, entry)
-                        && domain.core.tasks.task(task).is_some()
+                        && domain.engine.core().tasks.task(task).is_some()
                     {
                         let mut account = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
                         append(&mut account, &words);
@@ -4594,7 +4629,7 @@ pub(crate) fn outputs(
                             why: tasks::Hold::EffectFailed,
                             source: Box::new(holds::source(domain, Some(entry), account.into_boxed())),
                         }));
-                    } else if let Some(tasks::Event::HoldFrom { why, .. }) = domain.core.connector_outbox(
+                    } else if let Some(tasks::Event::HoldFrom { why, .. }) = domain.engine.core().connector_outbox(
                         task,
                         domain.config.forge_connector,
                         entry,
@@ -4623,7 +4658,7 @@ pub(crate) fn outputs(
             }
             forge::Request::ContinueGoalBranch { task } => {
                 if domain.forge.room_asked(task)
-                    && let Some(record) = domain.core.tasks.task(task)
+                    && let Some(record) = domain.engine.core().tasks.task(task)
                 {
                     let held = match record.phase {
                         tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
@@ -4634,7 +4669,7 @@ pub(crate) fn outputs(
                         continue;
                     }
                 }
-                if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
+                if let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) {
                     domain.work.push(Work::Forge(forge::Event::ContinueGoalBranch { task, entry }));
                 } else {
                     holds::hold(domain, task, b"connector entry numbers exhausted while making a goal branch");
@@ -4642,7 +4677,7 @@ pub(crate) fn outputs(
             }
             forge::Request::ContinueRelease { task } => {
                 if domain.forge.room_asked(task)
-                    && let Some(record) = domain.core.tasks.task(task)
+                    && let Some(record) = domain.engine.core().tasks.task(task)
                 {
                     let held = match record.phase {
                         tasks::Phase::Held { .. } | tasks::Phase::Ended(_) => true,
@@ -4653,7 +4688,7 @@ pub(crate) fn outputs(
                         continue;
                     }
                 }
-                if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
+                if let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) {
                     domain.work.push(Work::Forge(forge::Event::ContinueRelease { task, entry }));
                 } else {
                     holds::hold(domain, task, b"connector entry numbers exhausted while releasing resources");
@@ -4760,7 +4795,7 @@ pub(crate) fn outputs(
                 }));
             }
             forge::Request::ProjectionFailed { goal } => {
-                projection_failed(domain, goal, domain.core.tasks.task(goal).is_none());
+                projection_failed(domain, goal, domain.engine.core().tasks.task(goal).is_none());
             }
             forge::Request::Drift { task, resource } => {
                 if domain.forge.change(task).is_some() {
@@ -4788,7 +4823,7 @@ pub(crate) fn outputs(
             }
             forge::Request::TierDecision { task, decision: choice, entry, projection } => {
                 if let Some(entry) = entry {
-                    let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                    let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) else { continue };
                     if let Some(description) = describe_tier_effect(domain, env, task, entry) {
                         let owner = effect_owner(domain);
                         domain
@@ -4809,7 +4844,7 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::LandingReady { task } => {
-                let due = match domain.core.tasks.procedure_due(task) {
+                let due = match domain.engine.core().tasks.procedure_due(task) {
                     Some((connector, code, _)) => connector == domain.config.forge_connector && code == LANDING_CODE,
                     None => false,
                 };
@@ -4817,8 +4852,12 @@ pub(crate) fn outputs(
             }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence, head_trailers } => {
                 if let Some(entry) = entry {
-                    let (_, _, step) =
-                        domain.core.tasks.procedure_due(task).expect("landing decision admitted before commit");
+                    let (_, _, step) = domain
+                        .engine
+                        .core()
+                        .tasks
+                        .procedure_due(task)
+                        .expect("landing decision admitted before commit");
                     if let Some(description) = describe_landing_effect(domain, env, task, entry) {
                         let owner = effect_owner(domain);
                         domain
@@ -4862,10 +4901,12 @@ pub(crate) fn outputs(
                     {
                         match describe_change_effect(domain, env, task, effect, &evidence) {
                             Some(description) => {
-                                let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                                let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) else {
+                                    continue;
+                                };
                                 let writer = change_effect_hold(domain, env, task, description.effect.kind);
                                 if let Some(resource) = &writer
-                                    && !domain.core.tasks.effect_writer_ready(
+                                    && !domain.engine.core().tasks.effect_writer_ready(
                                         &env.limits.tasks,
                                         task,
                                         resource,
@@ -4884,9 +4925,9 @@ pub(crate) fn outputs(
                                 let owner = effect_owner(domain);
                                 if let Some(resource) = &writer {
                                     // Reserve before yielding to authority; another admission must see this slot.
-                                    let routed = jig_domain_core::step(
-                                        &mut domain.core,
-                                        &crate::limits::environment_core(env),
+                                    let routed = crate::engine::step(
+                                        &mut domain.engine,
+                                        env,
                                         jig_domain_core::Event::Tasks(tasks::Event::EffectInFlight {
                                             reply_to: ReplyTo::new(owner),
                                             task,
@@ -4973,7 +5014,8 @@ pub(crate) fn outputs(
                 } else if match domain.forge.issue(goal) {
                     Some(row) => row.pending.is_none(),
                     None => false,
-                } && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
+                } && let Some(entry) =
+                    crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow)
                 {
                     domain.work.push(Work::Forge(forge::Event::ProjectDesired { entry, goal }));
                 }
@@ -5022,7 +5064,7 @@ pub(crate) enum EffectFlight {
 }
 
 fn admission_refused(domain: &mut Domain, task: u64) -> bool {
-    if domain.core.claiming.contains_key(&task) {
+    if domain.engine.core().claiming.contains_key(&task) {
         domain.work.push(Work::Core(jig_domain_core::Event::ClaimRefused { task }));
         return false;
     }
@@ -5049,7 +5091,7 @@ fn admission_refused(domain: &mut Domain, task: u64) -> bool {
 }
 
 fn effect_owner(domain: &mut Domain) -> Token {
-    domain.core.effect_owner()
+    domain.engine.core_mut().effect_owner()
 }
 
 fn return_call_room(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, owner: Token) {
@@ -5139,7 +5181,7 @@ pub(crate) fn effect_ask(
         jig_domain_core::effects::connector::Ask::DescribeProposal { owner, proposal } => {
             let flight = match domain.forge.proposed_effect(proposal).cloned() {
                 Some(row) => {
-                    let key = match domain.core.tasks.proposal(row.entry.task, proposal) {
+                    let key = match domain.engine.core().tasks.proposal(row.entry.task, proposal) {
                         Some(pending) => match pending.action {
                             tasks::ProposalAction::Effect { attempt, completion, position, .. } => {
                                 CallKey { task: pending.proposer, attempt, completion, position }
@@ -5227,7 +5269,7 @@ pub(crate) fn effect_ask(
                     assert!(
                         core_key
                             == jig_domain_core::EffectKey {
-                                deployment: domain.core.counters.deployment().id,
+                                deployment: domain.engine.core().counters.deployment().id,
                                 task: key.task,
                                 origin: jig_domain_core::EffectPurpose::Call {
                                     attempt: key.attempt,
@@ -5320,7 +5362,7 @@ pub(crate) fn effect_ask(
                     } else if let Some(head) = request {
                         domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                     } else if answer != authority::Answer::Refuse
-                        || domain.core.tasks.waiting_effect_problem(task).is_none()
+                        || domain.engine.core().tasks.waiting_effect_problem(task).is_none()
                     {
                         let words = holds::effect_refusal(domain, task, &description, why, &findings);
                         domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
@@ -5460,7 +5502,7 @@ fn task_leaves_queue(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
     if landing_route::kept(domain, env, task) {
         return true;
     }
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(row) => match row.phase {
             tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
             tasks::Phase::Waiting | tasks::Phase::Active(_) => false,

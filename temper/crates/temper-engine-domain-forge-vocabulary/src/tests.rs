@@ -2,6 +2,7 @@ use crate::*;
 mod effect_words;
 mod forge_user;
 mod history_read;
+mod landing_settings;
 mod purpose;
 mod rules_by_path;
 #[test]

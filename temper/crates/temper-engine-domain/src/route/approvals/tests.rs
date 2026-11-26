@@ -10,8 +10,8 @@ use skein_lib::Queue;
 
 fn fixture(role: Option<Role>, known: bool) -> (Domain, Env<Limits>) {
     let (mut domain, env) = crate::tests::resume_fixture::root();
-    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.engine.core_mut().people.start_restore(env.wall);
     let mut holdings = List::with_capacity(2);
     if let Some(role) = role {
         holdings.push(people::Holding { person: 1, role }).unwrap();
@@ -34,15 +34,15 @@ fn fixture(role: Option<Role>, known: bool) -> (Domain, Env<Limits>) {
         people::Stored::Roles { project: 1, holdings: holdings.into_boxed() },
     ] {
         people::step(
-            &mut domain.core.people,
+            &mut domain.engine.core_mut().people,
             &env.with(env.limits.people),
             people::Event::Restore { record },
             &mut Queue::uncapped(),
         );
     }
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&env.with(env.limits.people)));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&env.with(env.limits.people)));
     (domain, env)
 }
 
@@ -111,13 +111,13 @@ fn a_watcher_sees_the_waits_of_their_role_and_whether_their_review_counts() {
     for tracked in [None, Some(1)] {
         let (domain, env, task) =
             crate::tests::live_task(tracked, jig_domain_tasks::Executor::Procedure { connector: 0, code: 1 });
-        let parent = domain.core.tasks.task(task).unwrap().clone();
+        let parent = domain.engine.core().tasks.task(task).unwrap().clone();
         let mut child = parent.clone();
         child.number = task + 1;
         child.depth = 1;
         child.requester = jig_domain_tasks::Party::Task(task);
         child.tracked = None;
-        let funding = *domain.core.tasks.funding(parent.funder).unwrap();
+        let funding = *domain.engine.core().tasks.funding(parent.funder).unwrap();
         let child_task = child.number;
         let records = [
             crate::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ledger(funding))),
@@ -129,8 +129,8 @@ fn a_watcher_sees_the_waits_of_their_role_and_whether_their_review_counts() {
             &env.limits,
             &records,
         );
-        let (people, _) = fixture(Some(Maintainer), true);
-        domain.core.people = people.core.people;
+        let (mut people, _) = fixture(Some(Maintainer), true);
+        ::core::mem::swap(&mut domain.engine.core_mut().people, &mut people.engine.core_mut().people);
         let mut wait = wait(Box::new([approval(1, 1, false)]));
         wait.task = child_task;
         let expected = match tracked {
@@ -228,14 +228,14 @@ pub(crate) fn members_fixture(members: &[(u64, Role, bool, &str, &str)]) -> (Dom
     env.limits.people.people = 32;
     env.limits.people.holdings = 32;
     env.limits.people.identity_bytes = 128;
-    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
-    domain.core.people.start_restore(env.wall);
+    domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.engine.core_mut().people.start_restore(env.wall);
     let mut holdings = List::uncapped();
     let mut out = Queue::uncapped();
     for &(person, role, account, name, login) in members {
         holdings.push(people::Holding { person, role }).unwrap();
         people::step(
-            &mut domain.core.people,
+            &mut domain.engine.core_mut().people,
             &env.with(env.limits.people),
             people::Event::Restore {
                 record: people::Stored::Person {
@@ -251,14 +251,14 @@ pub(crate) fn members_fixture(members: &[(u64, Role, bool, &str, &str)]) -> (Dom
         );
     }
     people::step(
-        &mut domain.core.people,
+        &mut domain.engine.core_mut().people,
         &env.with(env.limits.people),
         people::Event::Restore { record: people::Stored::Roles { project: 1, holdings: holdings.into_boxed() } },
         &mut out,
     );
-    assert!(domain.core.people.start_link());
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&env.with(env.limits.people)));
+    assert!(domain.engine.core_mut().people.start_link());
+    domain.engine.core_mut().people.start_sweep();
+    assert!(domain.engine.core_mut().people.start_complete(&env.with(env.limits.people)));
     (domain, env)
 }
 

@@ -5,6 +5,7 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
+use jig_domain_core::engine::Out;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -18,107 +19,131 @@ pub(super) fn route_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
-    requests: Queue<core::Request>,
+    mut requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    let mut requests = requests;
     for _ in 0..requests.len() {
-        match requests.pop().expect("core request count") {
-            core::Request::Write(core::Write::DropHistory { task }) => {
-                write(domain, decision, Write::DropHistory { task });
-            }
-            core::Request::Write(core::Write::DropTranscript { task }) => {
-                write(domain, decision, Write::DropTranscript { task });
-            }
-            core::Request::Write(core::Write::CopySettingsRevision(number)) => {
-                write(domain, decision, Write::CopySettingsRevision(number));
-            }
-            core::Request::Write(core::Write::Save(record)) => {
-                write(domain, decision, Write::Save(Record::Core(record)));
-            }
-            core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
-            core::Request::Held(held) => match *held {
-                held @ (core::Held::PublicRead { .. } | core::Held::PublicWait { .. }) => {
-                    hold(decision, Delivery::Core(held));
-                }
-                core::Held::ApplicationDelivery { .. } => {
-                    unreachable!("document assembly owns this synchronous output")
-                }
-                core::Held::ApplicationWatchEnded { watcher, connector: number, subject, why } => {
-                    work.push(Work::Connector { number, event: connector::Event::DocumentForget { subject } });
-                    hold(decision, Delivery::Core(core::Held::WatchEnded { watcher, why }));
-                }
-                core::Held::Applied { to, connector: number, token } => {
-                    let outcome = crate::numbered(domain, number)
-                        .application_outcome(token)
-                        .expect("the connector retains every kept people token");
-                    hold(decision, Delivery::Application { to, number, outcome });
-                }
-                core::Held::Assign { channel, run, attempt, .. } => crate::link::held(
-                    domain,
-                    env.now,
-                    decision,
-                    jig_domain_hub_link::Event::Assign { channel, run, attempt },
-                ),
-                core::Held::SettledCall { to, call, .. } => {
-                    crate::link::held(domain, env.now, decision, jig_domain_hub_link::Event::SettledCall { to, call });
-                }
-                core::Held::Relayed { channel, run, attempt, call, answer } => crate::link::held(
-                    domain,
-                    env.now,
-                    decision,
-                    jig_domain_hub_link::Event::Relayed { channel, run, attempt, call, answer },
-                ),
-                core::Held::MakeEffect { connector, entry } => {
-                    hold(decision, Delivery::Core(core::Held::MakeEffect { connector, entry }));
-                }
-                core::Held::Inbound { channel, run, attempt, message } => crate::link::held(
-                    domain,
-                    env.now,
-                    decision,
-                    jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
-                ),
-                other @ (core::Held::ReadLoad { .. }
-                | core::Held::Read { .. }
-                | core::Held::Delivery { .. }
-                | core::Held::WatchEnded { .. }
-                | core::Held::Relay { .. }
-                | core::Held::PeopleReply { .. }
-                | core::Held::CarriedUnused { .. }
-                | core::Held::CallAnswer { .. }
-                | core::Held::NeedArrived { .. }
-                | core::Held::Result { .. }
-                | core::Held::Acknowledge { .. }
-                | core::Held::TaskTerminalAcknowledged { .. }
-                | core::Held::TaskPartKept { .. }
-                | core::Held::AcknowledgePart { .. }
-                | core::Held::PartBusy { .. }
-                | core::Held::TaskTurnKept { .. }
-                | core::Held::AcknowledgeTurn { .. }
-                | core::Held::Drained
-                | core::Held::Restarting { .. }
-                | core::Held::Grant { .. }
-                | core::Held::Cancel { .. }
-                | core::Held::ReadUsage { .. }
-                | core::Held::ReadList { .. }
-                | core::Held::Sources { .. }
-                | core::Held::PauseWorker { .. }
-                | core::Held::CheckSource { .. }
-                | core::Held::SignOutSource { .. }
-                | core::Held::SourceSignedOut { .. }
-                | core::Held::Refuse { .. }
-                | core::Held::TurnBusy { .. }
-                | core::Held::StopRun { .. }
-                | core::Held::Load(..)
-                | core::Held::NotesLoad { .. }
-                | core::Held::NotesWritten { .. }
-                | core::Held::Acted { .. }
-                | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),
-            },
-            core::Request::Now(now) => route_now(domain, env, decision, *now, work),
-            core::Request::Ask { connector, ask } => route_ask(domain, env, decision, connector, ask, work),
-            core::Request::ProjectMade { project } => hold(decision, Delivery::ProjectMade { project }),
+        let request = requests.pop().expect("core request count");
+        route_request(domain, env, decision, request, work);
+    }
+}
+
+pub(super) fn route_engine(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Delivery>,
+    mut out: Queue<Out>,
+    work: &mut Queue<Work>,
+) {
+    for _ in 0..out.len() {
+        match out.pop().expect("engine output count") {
+            Out::Core(request) => route_request(domain, env, decision, request, work),
         }
+    }
+}
+
+pub(super) fn route_request(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Delivery>,
+    request: core::Request,
+    work: &mut Queue<Work>,
+) {
+    match request {
+        core::Request::Write(core::Write::DropHistory { task }) => {
+            write(domain, decision, Write::DropHistory { task });
+        }
+        core::Request::Write(core::Write::DropTranscript { task }) => {
+            write(domain, decision, Write::DropTranscript { task });
+        }
+        core::Request::Write(core::Write::CopySettingsRevision(number)) => {
+            write(domain, decision, Write::CopySettingsRevision(number));
+        }
+        core::Request::Write(core::Write::Save(record)) => {
+            write(domain, decision, Write::Save(Record::Core(record)));
+        }
+        core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
+        core::Request::Held(held) => match *held {
+            held @ (core::Held::PublicRead { .. } | core::Held::PublicWait { .. }) => {
+                hold(decision, Delivery::Core(held));
+            }
+            core::Held::ApplicationDelivery { .. } => {
+                unreachable!("document assembly owns this synchronous output")
+            }
+            core::Held::ApplicationWatchEnded { watcher, connector: number, subject, why } => {
+                work.push(Work::Connector { number, event: connector::Event::DocumentForget { subject } });
+                hold(decision, Delivery::Core(core::Held::WatchEnded { watcher, why }));
+            }
+            core::Held::Applied { to, connector: number, token } => {
+                let outcome = crate::numbered(domain, number)
+                    .application_outcome(token)
+                    .expect("the connector retains every kept people token");
+                hold(decision, Delivery::Application { to, number, outcome });
+            }
+            core::Held::Assign { channel, run, attempt, .. } => crate::link::held(
+                domain,
+                env.now,
+                decision,
+                jig_domain_hub_link::Event::Assign { channel, run, attempt },
+            ),
+            core::Held::SettledCall { to, call, .. } => {
+                crate::link::held(domain, env.now, decision, jig_domain_hub_link::Event::SettledCall { to, call });
+            }
+            core::Held::Relayed { channel, run, attempt, call, answer } => crate::link::held(
+                domain,
+                env.now,
+                decision,
+                jig_domain_hub_link::Event::Relayed { channel, run, attempt, call, answer },
+            ),
+            core::Held::MakeEffect { connector, entry } => {
+                hold(decision, Delivery::Core(core::Held::MakeEffect { connector, entry }));
+            }
+            core::Held::Inbound { channel, run, attempt, message } => crate::link::held(
+                domain,
+                env.now,
+                decision,
+                jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
+            ),
+            other @ (core::Held::ReadLoad { .. }
+            | core::Held::Read { .. }
+            | core::Held::Delivery { .. }
+            | core::Held::WatchEnded { .. }
+            | core::Held::Relay { .. }
+            | core::Held::PeopleReply { .. }
+            | core::Held::CarriedUnused { .. }
+            | core::Held::CallAnswer { .. }
+            | core::Held::NeedArrived { .. }
+            | core::Held::Result { .. }
+            | core::Held::Acknowledge { .. }
+            | core::Held::TaskTerminalAcknowledged { .. }
+            | core::Held::TaskPartKept { .. }
+            | core::Held::AcknowledgePart { .. }
+            | core::Held::PartBusy { .. }
+            | core::Held::TaskTurnKept { .. }
+            | core::Held::AcknowledgeTurn { .. }
+            | core::Held::Drained
+            | core::Held::Restarting { .. }
+            | core::Held::Grant { .. }
+            | core::Held::Cancel { .. }
+            | core::Held::ReadUsage { .. }
+            | core::Held::ReadList { .. }
+            | core::Held::Sources { .. }
+            | core::Held::PauseWorker { .. }
+            | core::Held::CheckSource { .. }
+            | core::Held::SignOutSource { .. }
+            | core::Held::SourceSignedOut { .. }
+            | core::Held::Refuse { .. }
+            | core::Held::TurnBusy { .. }
+            | core::Held::StopRun { .. }
+            | core::Held::Load(..)
+            | core::Held::NotesLoad { .. }
+            | core::Held::NotesWritten { .. }
+            | core::Held::Acted { .. }
+            | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),
+        },
+        core::Request::Now(now) => route_now(domain, env, decision, *now, work),
+        core::Request::Ask { connector, ask } => route_ask(domain, env, decision, connector, ask, work),
+        core::Request::ProjectMade { project } => hold(decision, Delivery::ProjectMade { project }),
     }
 }
 
@@ -334,7 +359,7 @@ fn route_ask(
             work.push(Work::Connector { number, event: connector::Event::HandOver { token: section } });
         }
         core::Ask::Lost { task, attempt } => {
-            for resource in domain.core.tasks.lost_writes(task, attempt) {
+            for resource in domain.engine.core().tasks.lost_writes(task, attempt) {
                 if resource.connector == number {
                     let call = connector::SystemRequest::ReadFact {
                         resource: path(resource.path.clone()),
@@ -529,7 +554,7 @@ fn route_now(
             grants,
             ..
         } => {
-            let answered = domain.core.settled_calls(task, attempt);
+            let answered = domain.engine.core().settled_calls(task, attempt);
             let writes = domain.workspace_writes.remove(&task).expect("assembled workspace writes");
             crate::link::route(
                 domain,
@@ -747,7 +772,7 @@ pub(super) fn route_connector(
                 }
             }
             connector::Request::ReadAfreshDone => {
-                domain.core.catch_up_done(number, core::effects::connector::RestartStage::ReadAfresh);
+                domain.engine.core_mut().catch_up_done(number, core::effects::connector::RestartStage::ReadAfresh);
             }
             connector::Request::RestartDone => work.push(Work::ConnectorRestartDone { number }),
             connector::Request::Save { record } => {
@@ -900,10 +925,10 @@ pub(super) fn route_connector(
 
 /// Translate the core's choice without choosing a judge or admitting a write.
 fn procedure_tasks(domain: &Domain, number: u16) -> Box<[u64]> {
-    let rows = domain.core.tasks.view_tasks();
+    let rows = domain.engine.core().tasks.view_tasks();
     let mut procedures = List::with_capacity(u32::try_from(rows.len()).expect("bounded live tasks"));
     for row in rows {
-        if let Some(tasks::Executor::Procedure { connector, .. }) = domain.core.tasks.executor(row.number)
+        if let Some(tasks::Executor::Procedure { connector, .. }) = domain.engine.core().tasks.executor(row.number)
             && connector == number
         {
             procedures.push(row.number).expect("one report per live task");

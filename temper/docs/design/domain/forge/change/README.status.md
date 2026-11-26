@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-24. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-26. Where the tree's code lags or departs from [README.md](README.md).
+
+
 
 
 

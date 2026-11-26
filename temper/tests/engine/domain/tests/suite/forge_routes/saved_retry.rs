@@ -205,6 +205,7 @@ impl Workspace {
             }
         };
         let spec = checkout::Spec {
+            rerun: None,
             key: run.workstream.to_be_bytes().into(),
             repositories: Box::new([checkout::Repository {
                 admit: repository.push.is_some() || !repository.prefixes.is_empty(),

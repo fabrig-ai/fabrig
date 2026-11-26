@@ -2,6 +2,7 @@
 //! (jig/docs/design/domain/people/public-reading.md, 10).
 use super::{World, delegate, delete, move_out, read, untrack, visibility};
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, In, Out};
 use skein_lib::{Queue, ReplyTo, Token};
 
 #[derive(Clone, Copy, Debug)]
@@ -28,14 +29,15 @@ fn change(world: &mut World, revocation: Change, goal: u64, child: u64) {
     }
 }
 
-fn step(world: &mut World, event: core::Event) -> Queue<core::Request> {
+fn step(world: &mut World, event: core::Event) -> Queue<Out> {
     let env = world.env();
     let mut root_event = jig_test_domain::Event::Core(event);
     world.public_rule_input(&mut root_event);
     let jig_test_domain::Event::Core(event) = root_event else { unreachable!() };
-    let mut raw = core::step(world.domain.core_mut(), &env.with(env.limits.core), event);
+    let mut raw = Queue::uncapped();
+    engine::step(world.domain.engine_mut(), &env.with(env.limits.core), In::Core(event), &mut raw);
     let mut out = Queue::uncapped();
-    while let Some(request) = raw.pop() {
+    while let Some(Out::Core(request)) = raw.pop() {
         if let core::Request::Held(held) = request {
             if matches!(*held, core::Held::PublicRead { .. }) {
                 let mut output = jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(*held));
@@ -43,25 +45,25 @@ fn step(world: &mut World, event: core::Event) -> Queue<core::Request> {
                 let jig_test_domain::Request::Deliver(jig_test_domain::Delivery::Core(held)) = output else {
                     unreachable!()
                 };
-                out.push(core::Request::Held(Box::new(held)));
+                out.push(Out::Core(core::Request::Held(Box::new(held))));
             } else {
-                out.push(core::Request::Held(held));
+                out.push(Out::Core(core::Request::Held(held)));
             }
         } else {
-            out.push(request);
+            out.push(Out::Core(request));
         }
     }
     out
 }
 
-fn waiting(mut out: Queue<core::Request>) -> Token {
-    let Some(core::Request::Held(held)) = out.pop() else { panic!("durability callback") };
+fn waiting(mut out: Queue<Out>) -> Token {
+    let Some(Out::Core(core::Request::Held(held))) = out.pop() else { panic!("durability callback") };
     let core::Held::PublicWait { read } = *held else { panic!("public wait") };
     assert!(out.is_empty(), "read makes no other output");
     read
 }
-fn unknown(mut out: Queue<core::Request>) {
-    let Some(core::Request::Held(held)) = out.pop() else { panic!("terminal") };
+fn unknown(mut out: Queue<Out>) {
+    let Some(Out::Core(core::Request::Held(held))) = out.pop() else { panic!("terminal") };
     let core::Held::PublicRead { answer, .. } = *held else { panic!("public terminal") };
     assert_eq!(answer, core::PublicAnswer::Unknown);
     assert!(out.is_empty(), "whole output is only unknown");
@@ -117,7 +119,8 @@ pub fn play(revocation: Change) {
                     continue;
                 }
                 let mut out = step(&mut world, core::Event::PublicRead { reply: ReplyTo::new(Token::new(600)), read });
-                let Some(core::Request::Ask { connector: 1, ask: core::Ask::Public { reply, public, .. } }) = out.pop()
+                let Some(Out::Core(core::Request::Ask { connector: 1, ask: core::Ask::Public { reply, public, .. } })) =
+                    out.pop()
                 else {
                     panic!("connector public ask")
                 };

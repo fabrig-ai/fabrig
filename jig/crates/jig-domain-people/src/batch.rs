@@ -1,6 +1,7 @@
 //! A party's batch (domain/tasks/README.md, sections 3 and 4).
 use crate::{Authority, Grant, Parameter, PersonAddress, WakePolicy};
 use alloc::boxed::Box;
+pub use jig_domain_contract::procedures::Budget;
 use skein_lib::length::len_u64;
 /// A party's explicitly proposed action.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -74,12 +75,7 @@ pub enum Contract {
     Change { connector: u16, kind: u16, words: u32 },
     Verdict { choices: Box<[Verdict]> },
 }
-/// How much of the party's available budget to give a member.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Budget {
-    Named,
-    AsAllowed { cap: Option<u64> },
-}
+
 /// The request deadline retained until the task-making decision.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Deadline {

@@ -158,25 +158,37 @@ impl World {
                 {
                     continue;
                 }
-                let kind = if run.workflow.is_none() {
-                    blame.scripted
-                } else {
-                    let reads_report = self.landing_config.as_ref().is_some_and(|(_, _, repos)| {
-                        repos.iter().any(|repo| {
-                            repo.gates
-                                .iter()
-                                .any(|gate| Some(&gate.workflow) == run.workflow.as_ref() && gate.report.is_some())
-                        })
-                    });
-                    let no_report = matches!(self.inspect(&raw::Read::Artifacts { run: run.id }), raw::Answer::Artifacts(artifacts) if artifacts.is_empty());
-                    (reads_report && no_report).then_some(temper_blame::MISSING_REPORT)
-                };
+                let kind = if run.workflow.is_none() { blame.scripted } else { self.gate_report_fault(&run) };
                 if let Some(kind) = kind {
                     self.inject(kind, Struck { gate_run: Some(run.id.to_string()), ..Struck::default() });
                 }
             }
         }
         self.blame = Some(blame);
+    }
+
+    fn gate_report_fault(&self, run: &raw::Run) -> Option<Kind> {
+        let report = self
+            .landing_config
+            .as_ref()?
+            .2
+            .iter()
+            .flat_map(|repo| &repo.gates)
+            .find(|gate| Some(&gate.workflow) == run.workflow.as_ref())?
+            .report
+            .as_ref()?;
+        let raw::Answer::Artifacts(artifacts) = self.inspect(&raw::Read::Artifacts { run: run.id }) else {
+            panic!("a known run lists its artifacts")
+        };
+        let Some(artifact) = artifacts.iter().find(|artifact| artifact.name == report.artifact) else {
+            return Some(temper_blame::MISSING_REPORT);
+        };
+        if report.format == landing::Format::Lines
+            && matches!(self.inspect(&raw::Read::ArtifactById { id: artifact.id }), raw::Answer::Artifact { artifact, .. } if artifact.bytes.is_empty())
+        {
+            return Some(temper_blame::STARVED);
+        }
+        None
     }
 
     fn observed(&mut self, reaction: Reaction) {
@@ -248,8 +260,12 @@ impl World {
                     change::Decision::Hold(hold) => {
                         let names = match hold {
                             _ if cold.base_repair => Some(Names::Base),
+                            change::Hold::Runner => Some(Names::Runner),
                             change::Hold::Stalled if checking(&row.change.state) => Some(Names::Runner),
-                            change::Hold::Repairs | change::Hold::Failed | change::Hold::NoTest => Some(Names::Change),
+                            change::Hold::Repairs
+                            | change::Hold::Failed
+                            | change::Hold::NoTest
+                            | change::Hold::RedStands => Some(Names::Change),
                             _ => None,
                         };
                         names.map(|names| Reaction::Hold {

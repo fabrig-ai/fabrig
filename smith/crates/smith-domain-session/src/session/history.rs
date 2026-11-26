@@ -142,16 +142,23 @@ pub(super) fn minimum(limits: &Limits) -> u64 {
         .max(37)
 }
 
-/// Give future calls their smallest answer before sharing this batch's room.
-pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: bool, limits: &Limits) -> u64 {
+/// The reserved batch's block range ends before the first call that did not join.
+pub(super) struct Batch {
+    pub(super) end: u32,
+    pub(super) share: u64,
+}
+
+/// Fix the batch before its calls run, leaving future calls their smallest answer.
+pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: bool, limits: &Limits) -> Batch {
     let message = conversation.transcript.last().expect("assistant awaiting results");
+    let start = usize::try_from(next).expect("u32 fits");
+    let mut end = message.content.len();
     let mut batch = None;
     let mut count = 0_u32;
     let mut following = 0_u32;
     let mut wanted = 0_u64;
-    let mut ended = false;
     let mut blocked = failed;
-    for block in message.content.iter().skip(usize::try_from(next).expect("u32 fits")) {
+    for (index, block) in message.content.iter().enumerate().skip(start) {
         if let Some(result) = super::restore::result(conversation, block) {
             blocked |= super::batching::failed(block, &result);
             continue;
@@ -165,8 +172,8 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
             Decoded::Delegated { effect, .. } => (*effect, super::delegated_credit(limits)),
             Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => continue,
         };
-        if ended || !super::joins(batch, effect, count, limits.parallel_tools) {
-            ended = true;
+        if index >= end || !joins(batch, effect, count, limits.parallel_tools) {
+            end = end.min(index);
             following = following.checked_add(1).expect("bounded calls");
         } else {
             wanted = wanted.checked_add(credit).expect("bounded batch credit");
@@ -174,8 +181,9 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
             batch = Some(effect);
         }
     }
+    let batch_end = u32::try_from(end).expect("bounded completion blocks");
     if count == 0 {
-        return u64::MAX;
+        return Batch { end: batch_end, share: u64::MAX };
     }
     let held = conversation.bytes.checked_add(conversation.reserved).expect("bounded retained bytes");
     let left = limits.history_bytes.checked_sub(held).expect("retained history fits");
@@ -197,17 +205,13 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
     };
     assert!(share >= minimum(limits), "each scheduled result has a minimum answer");
     let mut reserved = 0_u64;
-    let mut reached = 0_u32;
     let mut blocked = failed;
-    for block in message.content.iter().skip(usize::try_from(next).expect("u32 fits")) {
+    for block in message.content.iter().take(end).skip(start) {
         if let Some(result) = super::restore::result(conversation, block) {
             blocked |= super::batching::failed(block, &result);
             continue;
         }
-        if reached == count
-            || !super::chosen(&conversation.choice, block)
-            || !super::batching::scheduled(block, &mut blocked)
-        {
+        if !super::chosen(&conversation.choice, block) || !super::batching::scheduled(block, &mut blocked) {
             continue;
         }
         let Some(call) = block.tool_call() else { continue };
@@ -217,10 +221,21 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
             Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => continue,
         };
         reserved = reserved.checked_add(credit).expect("batch credit within room");
-        reached = reached.checked_add(1).expect("bounded width");
     }
     conversation.reserved = conversation.reserved.checked_add(reserved).expect("reserved batch fits history");
-    share
+    Batch { end: batch_end, share }
+}
+
+/// A read joins reads while there is room, and a write runs alone.
+const fn joins(batch: Option<tools::Effect>, effect: tools::Effect, count: u32, parallel: u32) -> bool {
+    match batch {
+        None => true,
+        Some(tools::Effect::Write) => false,
+        Some(tools::Effect::Read) => match effect {
+            tools::Effect::Read => count < parallel,
+            tools::Effect::Write => false,
+        },
+    }
 }
 
 /// Estimate the guard's room, retaining overhead beyond the last prompt's payload baseline.

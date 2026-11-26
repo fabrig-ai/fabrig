@@ -55,6 +55,7 @@ fn a_review_ending_after_amendment_reports_at_its_asked_revision() {
             status: c::Status::Passed,
             no_change: false,
             failed: false,
+            lost: false,
             flake: false,
             no_test: false,
             cancelled: false,

@@ -21,6 +21,8 @@ record ProjectQuestions by hand
 
 enum SettingsLandingWay = c::Way both ways
 enum SettingsLandingWait = c::Wait both ways
+record SettingsFlakeRerun stands for processes
+enum SettingsFlakes = s::Flakes both ways { rerun tuple }
 enum SettingsCombine = l::Combine both ways
 record NamedModel = s::NamedModel both ways
 record NamedLater = s::NamedLater both ways { subagents slice }

@@ -1,10 +1,10 @@
-//! The gzip encoder swept (testing-strategy.md, 8; http.md, 3.1): many
+//! The gzip encoder swept (testing-strategy.md, 8; skein/docs/design/data/gzip.md, 3): many
 //! bodies drawn from each seed, random, repetitive and mixed, of lengths
 //! about the blocks' edges, each encoded into room of its bound and more.
 //! The member never passes the bound, room short of the bound is refused,
 //! the same body gives the same bytes, and the frame holds the header, the
 //! body's CRC-32 and its length. Round trips through an inflater are the
-//! focused tests' (skein-http's `tests/gzip.rs`).
+//! focused tests' (skein-deflate's `src/tests/gzip.rs`).
 //!
 //! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
 //! kind of body, a body past one block, and members stored at the bound
@@ -12,7 +12,7 @@
 
 use std::collections::BTreeMap;
 
-use skein_http::gzip;
+use skein_deflate::gzip;
 use skein_lib::Rng;
 
 const ROUNDS: u64 = 100;

@@ -986,7 +986,7 @@ pub fn head_bytes(headers: &[Header]) -> Option<u64> {
 /// few bytes larger.
 fn room(limits: &Limits) -> Option<u32> {
     let request = limits.documents.anthropic.request.max(limits.documents.openai.request);
-    u32::try_from(skein_http::gzip::bound(usize::try_from(request).ok()?)?).ok()
+    u32::try_from(skein_deflate::gzip::bound(usize::try_from(request).ok()?)?).ok()
 }
 
 /// Whether these limits are representable: every edge bound they size is finite

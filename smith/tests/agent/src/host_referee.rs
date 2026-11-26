@@ -170,6 +170,7 @@ impl History {
             | run::Returned::Accepted
             | run::Returned::Rejected { .. }
             | run::Returned::ChecksFailed { .. }
+            | run::Returned::ChecksNotJudged { .. }
             | run::Returned::Stale
             | run::Returned::DeliveryFailed { .. }
             | run::Returned::Answered { .. }
@@ -326,6 +327,7 @@ impl History {
                     | run::Returned::Accepted
                     | run::Returned::Rejected { .. }
                     | run::Returned::ChecksFailed { .. }
+                    | run::Returned::ChecksNotJudged { .. }
                     | run::Returned::Stale
                     | run::Returned::DeliveryFailed { .. }
                     | run::Returned::Answered { .. }

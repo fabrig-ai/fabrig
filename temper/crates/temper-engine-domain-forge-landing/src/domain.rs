@@ -1049,7 +1049,7 @@ fn gate_step(
         Flight::Mine { run: Some(Verdict::Passed | Verdict::Failed) } => {
             Decision::Wait { until: Some(poll), on: Awaited::Receipt { member, gate: number } }
         }
-        Flight::Mine { run: Some(Verdict::Fault(_)) } => {
+        Flight::Broke | Flight::Mine { run: Some(Verdict::Fault(_)) } => {
             if gate.faults >= project.gate_retries {
                 if fact.blocking {
                     return Decision::Hold(Hold::Faults { member, gate: number });

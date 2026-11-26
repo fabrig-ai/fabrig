@@ -182,10 +182,23 @@ impl ChangeResult {
     }
     /// Retain a successful repair account with its task identity in completion order.
     pub fn completed(&mut self, child: u64, report: &[u8], bound: u32) {
+        self.completion(child, bound);
+        self.repairs.add(report, bound);
+    }
+
+    /// Record a landing repair after its fresh branch read, retaining any cut from the terminal.
+    pub fn completed_read(&mut self, child: u64, prefix: &[u8], report: &ResultText, bound: u32) {
+        if !prefix.is_empty() || !report.bytes.is_empty() || report.cut != 0 {
+            self.completion(child, bound);
+            self.repairs.add(prefix, bound);
+            self.repairs.join(report, bound);
+        }
+    }
+
+    fn completion(&mut self, child: u64, bound: u32) {
         self.repairs.add(b"\nsuccessful repair task ", bound);
         self.repairs.add(Decimal::of(child).as_bytes(), bound);
         self.repairs.add(b": ", bound);
-        self.repairs.add(report, bound);
     }
     /// Repair accounts precede the producer's historical report, then the landing's observations; cut from the end.
     #[must_use]

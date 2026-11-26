@@ -25,7 +25,7 @@ fn an_ask_for_the_catalogue_tells_the_store_then_the_clients() {
     super::ask(&mut domain, &env, &mut decision, 0, core::Ask::Catalogue { models: models.clone() });
     crate::decision::accept_routed(
         &mut domain.journal,
-        &mut domain.core.counters,
+        &mut domain.engine.core_mut().counters,
         &env.limits.journal,
         decision,
         false,

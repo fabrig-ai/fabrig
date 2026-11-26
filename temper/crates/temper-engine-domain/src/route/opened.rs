@@ -90,7 +90,7 @@ fn member(
             bound: env.limits.forge.name_bytes,
         }));
     }
-    let offer = match domain.core.creating_offer(call.project, person, env.limits.tasks.tree_tasks) {
+    let offer = match domain.engine.core().creating_offer(call.project, person, env.limits.tasks.tree_tasks) {
         Ok(offer) => offer,
         Err(why) => return Err(forge::ApplicationOutcome::CoreRefused(why)),
     };
@@ -168,7 +168,10 @@ fn refusal(domain: &Domain, origin: &forge_route::ChangeOrigin, spend: u64, why:
     } else if why == tasks::Refusal::Depth {
         people::Lack::Depth { most: origin.authority.delegation.depth.saturating_sub(1) }
     } else if why == tasks::Refusal::Funding {
-        people::Lack::Budget { needs: domain.core.authority.rules().minimum_run_spend.saturating_add(1), left: spend }
+        people::Lack::Budget {
+            needs: domain.engine.core().authority.rules().minimum_run_spend.saturating_add(1),
+            left: spend,
+        }
     } else if why == tasks::Refusal::Executor {
         people::Lack::TaskKind { executor: None }
     } else {

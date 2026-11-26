@@ -70,7 +70,7 @@ fn admit(domain: &Domain, limits: &Limits, key: CallKey, repository: Repository,
     let Some(adopted) = domain.forge.repository(repository) else {
         return Err(local("repository not adopted", Error::Missing));
     };
-    let Some(context) = domain.core.tasks.delegation(key.task) else {
+    let Some(context) = domain.engine.core().tasks.delegation(key.task) else {
         return Err(local("task context missing", Error::Forbidden));
     };
     if context.project != adopted.project {
@@ -83,7 +83,7 @@ fn admit(domain: &Domain, limits: &Limits, key: CallKey, repository: Repository,
         return Err(local("read name exceeds authority bounds", Error::Forbidden));
     };
     let mut findings = Queue::uncapped();
-    let answer = domain.core.connector_read_admit(
+    let answer = domain.engine.core().connector_read_admit(
         key.task,
         authority::Effect {
             connector: domain.config.forge_connector,
@@ -126,7 +126,7 @@ fn landing_failure(
     repository: Repository,
     commit: api::Commit,
 ) -> Option<forge::LandingFailure> {
-    let super::tasks::Party::Task(parent) = domain.core.tasks.delegation(task)?.requester else { return None };
+    let super::tasks::Party::Task(parent) = domain.engine.core().tasks.delegation(task)?.requester else { return None };
     domain.forge.landing_failure_at(parent, task, repository, commit)
 }
 

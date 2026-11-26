@@ -1554,6 +1554,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             flake: false,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: words.as_bytes().into(),
         },
@@ -1623,15 +1624,15 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
 }
 
 #[test]
-fn only_empty_ci_repairs_keep_their_successful_delegate_status() {
+fn only_ci_and_landing_repairs_that_change_nothing_keep_their_successful_delegate_status() {
     use temper_engine_domain_forge_change as change;
     for (why, expected) in [
         (change::Repair::Ci, change::Status::Passed),
         (change::Repair::Semantic, change::Status::Passed),
         (change::Repair::Gate(9), change::Status::Failed),
         (change::Repair::Review { head: fixtures::HEAD }, change::Status::Failed),
-        (change::Repair::Landing { gate: 9 }, change::Status::Failed),
-        (change::Repair::LandingAt { gate: 9, candidate: fixtures::HEAD, below: None }, change::Status::Failed),
+        (change::Repair::Landing { gate: 9 }, change::Status::Passed),
+        (change::Repair::LandingAt { gate: 9, candidate: fixtures::HEAD, below: None }, change::Status::Passed),
     ] {
         let mut d = delegate_waiting(change::State::Repairing { requested: true, why }, change::Delegate::Repair(why));
         producer_terminal(&mut d, true);
@@ -1646,7 +1647,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         (52, change::Status::Passed, false, false, false, true),
         (52, change::Status::Failed, false, true, false, false),
         (52, change::Status::Failed, false, false, true, false),
-        (52, change::Status::Passed, true, false, false, false),
+        (52, change::Status::Passed, true, false, false, true),
         (52, change::Status::Passed, false, true, false, false),
         (52, change::Status::Passed, false, false, true, false),
         (53, change::Status::Passed, false, false, false, false),
@@ -1656,6 +1657,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         let mut row = fixtures::opening_row();
         row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
         row.delegate_status = change::Status::Pending;
+        row.change.state = change::State::Repairing { requested: true, why: change::Repair::Ci };
         row.result.repaired(change::Repair::Ci, Some(fixtures::HEAD), LIMITS.client.answer_bytes);
         row.report = b"exports CSV".as_slice().into();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -1679,14 +1681,21 @@ fn only_the_active_successful_repair_supplies_an_account() {
                 flake: false,
                 no_test: false,
                 failed,
+                lost: false,
                 cancelled,
                 words: b"Adds changes/2.md".as_slice().into(),
             },
         );
         let row = d.change(fixtures::CHANGE).expect("retained change");
-        let account =
-            skein_lib::bytes::find(&row.result.repairs.bytes, b"successful repair task 52: Adds changes/2.md");
-        assert_eq!(account.is_some(), retained);
+        let account = match row.delegate_words.as_ref() {
+            Some(words) => Some(words.bytes.as_ref()),
+            None => None,
+        };
+        assert_eq!(account, if retained { Some(b"Adds changes/2.md".as_slice()) } else { None });
+        assert!(
+            skein_lib::bytes::find(&row.result.repairs.bytes, b"successful repair task").is_none(),
+            "not yet classified at a fresh head"
+        );
         assert_eq!(row.title.as_ref(), b"Small fix");
         assert_eq!(row.report.as_ref(), b"exports CSV");
     }
@@ -1727,6 +1736,7 @@ fn verdict_terminal(d: &mut Domain, child: u64, words: &[u8]) -> Box<[Request]> 
             flake: true,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: words.into(),
         },
@@ -1745,6 +1755,7 @@ fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
             flake: false,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: b"Nothing applies".as_slice().into(),
         },
@@ -2595,23 +2606,27 @@ fn head_ci_contexts_are_read_once_per_gather() {
     reason = "one table checks failed-job reads, classification, bounds and the emitted write"
 )]
 fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
+    use change::{Decision, Delegate, Effect, Hold, Repair};
     use skein_forge::api::{Answer, Check, Ci, CommitMessage, Conclusion, JobAttempt, Op, Read, Status, Write};
     use temper_engine_domain_forge_change as change;
-    for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, rerun) in [
-        ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, true),
-        ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, true),
-        ("one job exhausted", Some(0), 1, 1, Check::Failed, false, false, false, false),
-        ("completion", Some(3), 1, 1, Check::Failed, false, false, false, true),
-        ("no step", None, 1, 1, Check::Failed, false, false, false, true),
-        ("unreadable", Some(0), 1, 1, Check::Failed, false, false, false, false),
-        ("workflow", Some(1), 1, 1, Check::Failed, false, false, false, false),
-        ("mixed", Some(0), 1, 1, Check::Failed, false, true, false, false),
-        ("bound", Some(0), 2, 1, Check::Failed, false, false, false, false),
-        ("disabled", Some(0), 1, 0, Check::Failed, false, false, false, false),
-        ("cancelled", Some(0), 1, 1, Check::Failed, true, false, false, false),
-        ("no job", Some(0), 1, 1, Check::Failed, false, false, true, false),
-        ("passed", Some(0), 2, 1, Check::Passed, false, false, false, false),
-        ("pending", Some(0), 1, 1, Check::Pending, false, false, false, false),
+    let again = Decision::Effect(Effect::Rerun { head: fixtures::HEAD });
+    let repair = Decision::Delegate(Delegate::Repair(Repair::Ci));
+    let hold = Decision::Hold(Hold::Runner);
+    for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, expected, account) in [
+        ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
+        ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
+        ("one job exhausted", Some(0), 1, 1, Check::Failed, false, false, false, hold, None),
+        ("completion", Some(3), 1, 1, Check::Failed, false, false, false, again, Some("completion failed")),
+        ("no step", None, 1, 1, Check::Failed, false, false, false, again, Some("no step failed")),
+        ("unreadable", Some(0), 1, 1, Check::Failed, false, false, false, repair, None),
+        ("workflow", Some(1), 1, 1, Check::Failed, false, false, false, repair, None),
+        ("mixed", Some(0), 1, 1, Check::Failed, false, true, false, repair, None),
+        ("bound", Some(0), 2, 1, Check::Failed, false, false, false, hold, None),
+        ("disabled", Some(0), 1, 0, Check::Failed, false, false, false, hold, None),
+        ("cancelled", Some(0), 1, 1, Check::Failed, true, false, false, again, Some("cancelled")),
+        ("no job", Some(0), 1, 1, Check::Failed, false, false, true, repair, None),
+        ("passed", Some(0), 2, 1, Check::Passed, false, false, false, Decision::Ready, None),
+        ("pending", Some(0), 1, 1, Check::Pending, false, false, false, Decision::Wait { until: None }, None),
     ] {
         let mut clock = env();
         clock.limits.change_policy.reruns = bound;
@@ -2738,25 +2753,21 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
             "{name}"
         );
         let decision = decision.expect("gather decided");
-        if rerun {
-            assert_eq!(decision, change::Decision::Effect(change::Effect::Rerun { head: fixtures::HEAD }), "{name}");
+        if check_state == Check::Pending {
+            assert_ne!(decision, again, "{name}");
+        } else {
+            assert_eq!(decision, expected, "{name}");
+        }
+        if let Some(reason) = account {
             let row = d.change(fixtures::CHANGE).expect("change");
             assert_eq!(row.change.repairs, 0);
+            assert!(row.ci_recheck.is_none(), "runner reruns do not owe a repair measurement");
             assert_eq!(
                 d.entries.get(&row.pending.expect("entry")).expect("entry").entry.effect.write,
                 Write::Rerun { attempt: job }
             );
             let words = &row.effect_account.as_ref().expect("account").words;
-            let reason = match failed_step {
-                Some(0) => "set-up failed",
-                Some(3) => "completion failed",
-                _ => "no step failed",
-            };
             assert_eq!(words.as_ref(), format!("ran job 41 of ci/test again at 030303030303: {reason}").as_bytes());
-        } else if check_state == Check::Failed {
-            assert_eq!(decision, change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci)), "{name}");
-        } else {
-            assert!(!matches!(decision, change::Decision::Effect(change::Effect::Rerun { .. })));
         }
         if check_state == Check::Passed {
             assert_eq!(
@@ -3500,6 +3511,7 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
                     flake: false,
                     no_test: false,
                     failed: true,
+                    lost: false,
                     cancelled: false,
                     words: reason.into(),
                 },

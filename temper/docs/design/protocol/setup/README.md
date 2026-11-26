@@ -491,7 +491,6 @@ Each is intended; what it needs is named with it.
   a real terminal to the user's try. skein's end-to-end kit starts a binary
   under a pseudo-terminal (skein's `examples.md`, section 6), so a story started
   so would read the link's OSC 8 from a real box, at the process tier's budget.
-- A copy of a bottle of temper's own: `owned.md`, section 10.
 - **One percentage for both binaries** (`owned.md`, 6): from sizes pinned beside
   their digests (skein's `forge/dialects.md`, 1.3), known before the first byte,
   so that the bar does not start again for the runner

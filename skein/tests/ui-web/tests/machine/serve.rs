@@ -2,7 +2,6 @@
 use skein_ui_example_server::{State, bundle, bundle::Bundle, routes};
 use skein_ui_web_tests::get_with_headers;
 use std::collections::BTreeMap;
-use std::io::Read;
 use std::path::Path;
 
 const DIGEST: &str = "0123456789abcdef";
@@ -63,9 +62,9 @@ fn a_client_asking_gets_the_compressed_answer() {
         let answer = routes::route(&mut State::new(), &bundle, &call, &[]);
         assert_eq!(answer.head.status, 200, "{name}");
         assert_eq!(answer.body.as_ref(), gzip, "{name}");
-        let mut decoded = Vec::new();
-        flate2::read::GzDecoder::new(answer.body.as_ref()).read_to_end(&mut decoded).expect("gzip body");
-        assert_eq!(decoded, plain, "{name}");
+        let mut decoded = skein_lib::List::allocated(u32::try_from(plain.len()).expect("fixture fits u32"));
+        skein_deflate::gzip::decode(&answer.body, &mut decoded).expect("gzip body");
+        assert_eq!(decoded.as_slice(), plain, "{name}");
         assert_eq!(field(&answer, b"Content-Type"), Some(kind), "{name}");
         assert_eq!(field(&answer, b"Content-Encoding"), Some(b"gzip".as_slice()), "{name}");
         assert_eq!(field(&answer, b"Vary"), Some(b"Accept-Encoding".as_slice()), "{name}");

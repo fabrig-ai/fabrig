@@ -27,6 +27,7 @@ fn advance(world: &mut World, task: u64, entry: u64) -> bool {
             flake: false,
             no_test: false,
             failed: false,
+            lost: false,
             cancelled: false,
             words: b"done".as_slice().into(),
         });

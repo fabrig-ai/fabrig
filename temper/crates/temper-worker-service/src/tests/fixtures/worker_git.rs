@@ -115,7 +115,7 @@ pub fn github_assignment(account: Option<u64>) -> jig_protocol_worker_link::Requ
     let mut repository = items.repositories.get(0).unwrap().clone();
     repository.account = account;
     repositories.push(repository).unwrap();
-    parts[0].bytes = payload::items(&v1::Items { repositories });
+    parts[0].bytes = payload::items(&v1::Items { repositories, rerun: None });
     jig_protocol_worker_link::Request::Down { down, parts }
 }
 

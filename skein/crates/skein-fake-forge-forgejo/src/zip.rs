@@ -12,11 +12,10 @@ pub(crate) fn write(path: &[u8], bytes: &[u8], deflated: bool, bound: u32) -> Re
     }
     let inflated = u32::try_from(bytes.len()).or(Err(Error::TooLarge))?;
     let payload = if deflated {
-        let length = skein_http::gzip::bound(bytes.len()).ok_or(Error::TooLarge)?;
-        let mut gzip = skein_lib::bytes::zeroed(length);
-        let length = skein_http::gzip::encode(bytes, &mut gzip).ok_or(Error::TooLarge)?;
-        let end = length.checked_sub(8).ok_or(Error::TooLarge)?;
-        copy_of(gzip.get(10..end).ok_or(Error::Refused)?)
+        let length = skein_deflate::bound(bytes.len()).ok_or(Error::TooLarge)?;
+        let mut stream = skein_lib::bytes::zeroed(length);
+        let length = skein_deflate::encode(bytes, &mut stream).ok_or(Error::TooLarge)?;
+        copy_of(stream.get(..length).ok_or(Error::Refused)?)
     } else {
         copy_of(bytes)
     };

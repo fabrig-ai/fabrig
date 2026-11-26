@@ -124,7 +124,7 @@ pub(crate) fn prepare_staged(
             word.hits = old.hits.saturating_add(1);
             word.eligible = old.eligible;
             // A later quiet hint cannot erase an earlier unread wake.
-            match old.kind.family() {
+            match crate::message_family(&old.kind) {
                 MessageFamily::Hint(Hint::News { subscription, class: NewsClass::Wakes }) => {
                     word.kind = MessageKind::News { subscription, class: NewsClass::Wakes };
                 }
@@ -236,8 +236,8 @@ fn waiting_room(inbox: &[Word], unrecorded: &[Word], bytes: usize) -> Option<Wai
     // Amendment, grace and Met each have a separately priced slot. A notice
     // that the task may go on cannot consume a sender's room (domain/tasks/messages.md, 2).
     for word in inbox {
-        used.bytes = used.bytes.checked_add(word.payload_bytes()?)?;
-        match word.kind.family() {
+        used.bytes = used.bytes.checked_add(crate::word_payload_bytes(word)?)?;
+        match crate::message_family(&word.kind) {
             MessageFamily::Separate(_) => {
                 used.extra_count = used.extra_count.checked_add(1).expect("bounded merged slots");
                 used.extra_bytes = used.extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
@@ -251,7 +251,7 @@ fn waiting_room(inbox: &[Word], unrecorded: &[Word], bytes: usize) -> Option<Wai
         used.reminder |= word.kind == MessageKind::QuestionOwed;
     }
     for word in unrecorded {
-        used.bytes = used.bytes.checked_add(word.payload_bytes()?)?;
+        used.bytes = used.bytes.checked_add(crate::word_payload_bytes(word)?)?;
     }
     Some(used)
 }
@@ -372,7 +372,7 @@ fn check(
         Party::Task(source) => kept.is_some() || task_answer || crate::refs::allows(domain, source, number),
         Party::Deployment { .. } => false,
     };
-    let spoken = match word.kind.family() {
+    let spoken = match crate::message_family(&word.kind) {
         MessageFamily::Spoken(spoken) if task.project == project && requester => spoken,
         MessageFamily::Spoken(_)
         | MessageFamily::Hint(_)
@@ -614,7 +614,7 @@ pub(crate) fn delegate_result(
     if word.kind.result().is_none() {
         return;
     }
-    let Some(payload_bytes) = word.payload_bytes() else { return };
+    let Some(payload_bytes) = crate::word_payload_bytes(&word) else { return };
     if !match word.from {
         Party::Task(_) => true,
         Party::Person(_) | Party::Deployment { .. } => false,

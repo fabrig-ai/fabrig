@@ -344,7 +344,12 @@ fn copy_terminal(terminal: &ToDomain) -> ToDomain {
         ToDomain::Probed { owner, executable } => ToDomain::Probed { owner: *owner, executable: *executable },
         ToDomain::Checked { owner, ran } => ToDomain::Checked {
             owner: *owner,
-            ran: run::Ran { exit: ran.exit, output: ran.output.clone(), cut: ran.cut },
+            ran: run::Ran {
+                exit: ran.exit,
+                said_not_judged: ran.said_not_judged,
+                output: ran.output.clone(),
+                cut: ran.cut,
+            },
         },
         ToDomain::Aborted { owner } => ToDomain::Aborted { owner: *owner },
     }

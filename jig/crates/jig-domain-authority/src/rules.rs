@@ -1,6 +1,7 @@
 //! Configuration held in force (domain/authority.md, section 6, and domain/authority-checks.md, section 1, and domain/authority.md, section 10).
 
 use alloc::boxed::Box;
+pub use jig_domain_contract::effects::Judge;
 
 use skein_lib::Duration;
 
@@ -56,15 +57,6 @@ pub struct Role {
     pub requests: Requests,
     /// Proposal kinds this role may accept.
     pub decides: Proposals,
-}
-
-/// A judge selected by policy. Its parameters name configuration held by that connector.
-/// (domain/authority.md, section 10).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Judge {
-    pub connector: u16,
-    pub requirement: u16,
-    pub parameters: u32,
 }
 
 /// Whether a verdict holds at application or was observed before the decision.

@@ -60,7 +60,7 @@ impl Entry {
         self.next = match row.requester {
             tasks::Party::Task(parent) => Some(parent),
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => {
-                for template in domain.core.project_templates(self.project) {
+                for template in domain.engine.core().project_templates(self.project) {
                     if template.number == 1 {
                         match template.executor {
                             jig_domain_people::TemplateExecutor::Charter(charter)
@@ -126,7 +126,7 @@ fn live(domain: &Domain, project: u32, task: u64) -> Option<Entry> {
     let mut entry = Entry::new(project, task);
     for _ in 0..=domain.limits.tasks.depth {
         let Some(next) = entry.next else { return Some(entry) };
-        entry.accept(domain, domain.core.tasks.task(next)?);
+        entry.accept(domain, domain.engine.core().tasks.task(next)?);
     }
     if entry.next.is_none() { Some(entry) } else { None }
 }
@@ -150,7 +150,7 @@ fn get(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, project:
 fn advance(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, entry: &mut Entry) {
     for _ in 0..=env.limits.tasks.depth {
         let Some(task) = entry.next else { return };
-        if let Some(row) = domain.core.tasks.task(task) {
+        if let Some(row) = domain.engine.core().tasks.task(task) {
             entry.accept(domain, row);
             continue;
         }
@@ -227,7 +227,7 @@ pub(crate) fn fill(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             row.chat = from.chat;
             row.milestone = from.milestone;
             for sign in &mut row.signed {
-                sign.name = match domain.core.people.member_name(view.project, sign.person) {
+                sign.name = match domain.engine.core().people.member_name(view.project, sign.person) {
                     Some(name) => Some(fit(name)),
                     None => None,
                 };

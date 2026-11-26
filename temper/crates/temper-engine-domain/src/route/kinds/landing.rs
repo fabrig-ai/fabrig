@@ -40,7 +40,7 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
         if let Err(field) = repairs::resolve(domain, settings) {
             return Some(words(&[b"repairs.", field, b": not offered by the deployment or charter"]));
         }
-        if settings.goal.budget <= domain.core.authority.rules().minimum_run_spend {
+        if settings.goal.budget <= domain.engine.core().authority.rules().minimum_run_spend {
             return Some(words(&[b"repairs.goal.budget: must be above minimum_run_spend"]));
         }
     }

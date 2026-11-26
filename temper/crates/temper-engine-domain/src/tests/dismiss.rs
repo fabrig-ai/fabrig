@@ -79,7 +79,10 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
             } else if let Request::ToChild(released) = request {
                 crate::try_step(domain, env, Event::Released(released)).unwrap();
             } else if let Request::Store(StoreRequest::Read { range, .. }) = request {
-                assert!(domain.core.people.deletions().contains_key(&1), "only deletion reads in this fixture");
+                assert!(
+                    domain.engine.core().people.deletions().contains_key(&1),
+                    "only deletion reads in this fixture"
+                );
                 assert_eq!(range.scope, jig_domain_core::reads::Scope::TaskSummaries);
                 // Leave the deletion's store walk pending while checking admission.
             } else {
@@ -105,8 +108,8 @@ fn refused(domain: &mut Domain, env: &Env<Limits>, project: u32) {
 #[test]
 fn a_dismissal_is_of_the_project_it_names() {
     let (mut domain, env) = signed_in(Some(people::Role::Observer), false);
-    assert_eq!(domain.core.people.role(PARTY, 1), Some(people::Role::Observer));
-    assert_eq!(domain.core.people.role(PARTY, 2), None);
+    assert_eq!(domain.engine.core().people.role(PARTY, 1), Some(people::Role::Observer));
+    assert_eq!(domain.engine.core().people.role(PARTY, 2), None);
     refused(&mut domain, &env, 2);
 }
 #[test]
@@ -117,7 +120,7 @@ fn a_party_with_no_role_is_refused_before_the_connector() {
 #[test]
 fn a_project_being_deleted_refuses_a_dismissal() {
     let (mut domain, env) = signed_in(Some(people::Role::Observer), true);
-    assert!(domain.core.people.deletions().contains_key(&1));
+    assert!(domain.engine.core().people.deletions().contains_key(&1));
     refused(&mut domain, &env, 1);
 }
 #[test]

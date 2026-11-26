@@ -1,6 +1,6 @@
 # owned: status
 
-2026-11-19. Where the tree's code lags or departs from [owned.md](owned.md).
+2026-11-26. Where the tree's code lags or departs from [owned.md](owned.md).
 
 
 - **Departs:** 6: off the box, a forge's fetch comes after its first

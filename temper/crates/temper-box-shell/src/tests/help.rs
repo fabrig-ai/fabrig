@@ -358,7 +358,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: 1,
-        workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
         transcript: Box::new([]),
         parts: Box::new([]),
         answered: Box::new([]),

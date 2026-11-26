@@ -2,19 +2,26 @@ use super::*;
 use crate::git::Reds;
 #[test]
 fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_failures() {
+    for (rerun, expected) in [(Some(0), 0), (Some(2), 2), (Some(6), 4), (None, 4)] {
+        prepare_marker(rerun, expected);
+    }
+}
+
+fn prepare_marker(rerun: Option<u32>, expected: u32) {
     let mut h = Harness::new(LIMITS);
     h.observe_reds = true;
-    let (hold, mut op) = h.begin(1, two(b"reds"));
+    let (hold, mut op) = h.begin(1, Spec { rerun, ..two(b"reds") });
     let mut pinned = false;
-    let mut marked = 0_u32;
+    let mut marked = false;
     for _ in 0..32_u32 {
         let done = match &op {
             Op::Reds { at, action: Reds::Prepare { wait_ms, rerun_processes } } => {
                 assert!(pinned);
                 assert_eq!(at.repository.as_ref(), b"a");
                 assert_eq!(*wait_ms, 6000);
-                assert_eq!(*rerun_processes, 4);
-                marked += 1;
+                assert_eq!(*rerun_processes, expected, "project bound {rerun:?}");
+                assert!(!marked, "each writable repository is marked once");
+                marked = true;
                 Done::Failed { fault: Fault::Broken }
             }
             Op::Point { into: Into::Landing, .. } => {
@@ -44,7 +51,7 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
         match h.one(Event::Done { owner: hold, done }) {
             Request::Io { op: next, .. } => op = next,
             Request::Prepared { prepared: Prepared::Ready { .. }, .. } => {
-                assert_eq!(marked, 1);
+                assert!(marked);
                 return;
             }
             other @ (Request::Results { .. }

@@ -32,7 +32,7 @@ pub fn valid(policy: &WakePolicy) -> bool {
 }
 
 pub(crate) fn category(kind: &MessageKind) -> u8 {
-    match kind.family() {
+    match crate::message_family(kind) {
         MessageFamily::Spoken(Spoken::Words) => 0,
         MessageFamily::Spoken(Spoken::Question) => 1,
         MessageFamily::Spoken(Spoken::Answer { .. }) => 2,
@@ -134,7 +134,7 @@ pub(crate) fn offered(domain: &Domain, number: u64, word: &Word) -> bool {
     if crate::offered(word, task.offered) {
         return true;
     }
-    match word.kind.family() {
+    match crate::message_family(&word.kind) {
         MessageFamily::Result => rule(domain, number, word) == WakeRule::Immediate,
         MessageFamily::Spoken(_)
         | MessageFamily::Hint(_)

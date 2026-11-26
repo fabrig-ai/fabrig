@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, bytes};
 
 pub(super) fn draw(domain: &Domain, project: u32, party: u64, number: u32) -> ways::View {
-    let Some(charter) = domain.core.current.charter(number) else {
+    let Some(charter) = domain.engine.core().current.charter(number) else {
         return not_drawn(&[b"no charter ", Decimal::of(u64::from(number)).as_bytes(), b"."]);
     };
     let inputs = super::super::inputs(domain, project, party, &[], None, None);
@@ -58,10 +58,10 @@ fn models(domain: &Domain, charter: &jig_domain_core::Charter) -> Box<[u8]> {
     let mut words = Box::from(b"".as_slice());
     for model in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
         let mut name = model.name.clone();
-        for (at, configured) in domain.core.settings.models.iter().enumerate() {
+        for (at, configured) in domain.engine.core().settings.models.iter().enumerate() {
             if configured.name == model.name {
                 let number = u32::try_from(at).expect("model index").checked_add(1).expect("model number");
-                match domain.core.current.value(jig_domain_core::settings::Setting::Model(number)) {
+                match domain.engine.core().current.value(jig_domain_core::settings::Setting::Model(number)) {
                     Some(jig_domain_core::settings::Value::Model(row)) => {
                         if let Some(shown) = &row.shown {
                             name.clone_from(shown);

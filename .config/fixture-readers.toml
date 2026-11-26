@@ -967,7 +967,7 @@ paths = [
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"
-filter = "binary(=suite) & (test(=upgrade::the_settled_image_matches_the_story) | test(=upgrade::a_story_keeps_its_history_through_a_settled_upgrade) | test(=upgrade::power_lost_at_a_drawn_moment_keeps_a_whole_generation))"
+filter = "binary(=suite) & (test(=upgrade::the_settled_image_matches_the_story) | test(=upgrade::a_story_keeps_its_history_through_a_settled_upgrade) | test(=upgrade::power_lost_at_a_drawn_moment_keeps_a_whole_generation) | test(=upgrade::live_opening::a_live_change_and_uncertain_write_reach_the_opening_without_network) | test(=upgrade::a_held_source_refuses_a_rehearsal_after_its_scratch_is_made) | test(=upgrade::a_configured_floor_goes_back_to_no_previous_generation))"
 [[fixture.reader]]
 pair = "fuzzy"
 package = "temper-one-process-world"
@@ -1016,7 +1016,7 @@ filter = "binary(=proof_live) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 [[fixture.reader]]
 pair = "default"
 package = "temper-twin-tool"
-filter = "binary(=suite) & (test(/b0_plan_scripts_are_exactly_the_twins_cued_and_asked_in_box_form/) | test(/ctl_hello_scripts_are_only_the_twins_review_with_qa_verdict_text_in_box_form/))"
+filter = "binary(=suite) & (test(/b0_plan_scripts_match_the_twin_without_the_chat_wakeup/) | test(/ctl_hello_scripts_are_only_the_twins_review_with_qa_verdict_text_in_box_form/))"
 [[fixture.reader]]
 pair = "default"
 package = "temper-client-journeys-tool"

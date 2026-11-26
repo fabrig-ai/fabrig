@@ -1101,6 +1101,7 @@ pub struct ChangeRow {
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
+    pub ci_recheck: Option<CiRecheck>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1147,6 +1148,8 @@ pub struct ChangeRow {
     pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
+    /// A successful CI or landing repair's account, awaiting classification at a fresh head.
+    pub delegate_words: Option<crate::ResultText>,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
@@ -1167,6 +1170,7 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
     pub report: Box<[u8]>,
@@ -1185,11 +1189,30 @@ pub struct ChangeRow {
     /// Open intervals and the last event (landing-history.md, 3.2).
     pub history: Option<crate::history::ChangeHistory>,
 }
-/// A failed receipt superseded by a change's release (temper/docs/design/domain/landing-regate.md, 3–5).
+/// A change's runner hold and its renewed allowance (domain/forge/change/README.md, 2, step 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RunnerCi {
+    Held {
+        words: Box<[u8]>,
+    },
+    /// Read the head's check attempts afresh before spending this release's allowance.
+    Released,
+    Counting {
+        attempts: Box<[skein_forge::api::JobAttempt]>,
+    },
+}
+/// A failed receipt superseded by a repair that changed nothing (temper/docs/design/domain/landing-regate.md, 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Regate {
     pub receipt: ReceiptKey,
     pub run: u64,
+    pub taken: Option<u64>,
+}
+/// The job an unchanged CI repair ran again, and its first completed measurement (temper/docs/design/domain/forge/change/repairs.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CiRecheck {
+    pub job: skein_forge::api::JobAttempt,
+    pub taken: Option<u32>,
 }
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1225,6 +1248,7 @@ pub struct ChangeHot {
     pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
+    pub ci_recheck: Option<CiRecheck>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1254,6 +1278,8 @@ pub struct ChangeHot {
     pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
+    /// A successful CI or landing repair's account, awaiting classification at a fresh head.
+    pub delegate_words: Option<crate::ResultText>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
     pub drift: Option<change::Hold>,
@@ -1261,6 +1287,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
     pub follow_check: Option<FollowCheck>,
@@ -1279,6 +1306,7 @@ impl ChangeRow {
             source,
             kept,
             regate,
+            ci_recheck,
             task_release,
             job,
             signed,
@@ -1313,6 +1341,7 @@ impl ChangeRow {
             delegate_flake,
             delegate_no_test,
             delegate_head,
+            delegate_words,
             verdicts,
             gate_remarks,
             drift,
@@ -1325,6 +1354,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            runner_ci,
             close_at,
             report,
             questions,
@@ -1367,6 +1397,7 @@ impl ChangeRow {
                 room,
                 kept,
                 regate,
+                ci_recheck,
                 task_release,
                 job,
                 signed,
@@ -1391,6 +1422,7 @@ impl ChangeRow {
                 delegate_flake,
                 delegate_no_test,
                 delegate_head,
+                delegate_words,
                 verdicts,
                 gate_remarks,
                 drift,
@@ -1398,6 +1430,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                runner_ci,
                 close_at,
                 questions,
                 follow_check,
@@ -1440,6 +1473,7 @@ impl ChangeRow {
             room,
             kept,
             regate,
+            ci_recheck,
             task_release,
             job,
             signed,
@@ -1464,6 +1498,7 @@ impl ChangeRow {
             delegate_flake,
             delegate_no_test,
             delegate_head,
+            delegate_words,
             verdicts,
             gate_remarks,
             drift,
@@ -1471,6 +1506,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            runner_ci,
             close_at,
             questions,
             follow_check,
@@ -1485,6 +1521,7 @@ impl ChangeRow {
             source,
             kept,
             regate,
+            ci_recheck,
             task_release,
             job,
             signed,
@@ -1519,6 +1556,7 @@ impl ChangeRow {
             delegate_flake,
             delegate_no_test,
             delegate_head,
+            delegate_words,
             verdicts,
             gate_remarks,
             drift,
@@ -1531,6 +1569,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            runner_ci,
             close_at,
             report,
             questions,
@@ -1658,6 +1697,8 @@ pub enum LandingReadNoteKind {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
     pub read_hold: Option<Box<[u8]>>,
+    /// The check's reason for a gate hold, independent of the followed run.
+    pub gate_hold: Option<Box<[u8]>>,
     pub last_event: Option<skein_lib::Wall>,
     pub turn_since: Option<skein_lib::Wall>,
     pub waiting: Option<landing::Awaited>,
@@ -2799,6 +2840,7 @@ pub enum Event {
         no_test: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
+        lost: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.
         cancelled: bool,
         words: Box<[u8]>,

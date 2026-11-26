@@ -168,11 +168,22 @@ reference project's check reads and writes them as
   MS the decimal milliseconds the check waits for `temper/reds` at its
   start, `checkout.reds_read_ms` plus 1,000. The worker writes it in each
   such repository at prepare, so a check knows the file is coming.
-- **`temper/rerun`,** beside it: the line `temper-rerun 1 N`, N the
-  decimal `checkout.rerun_processes`, the most failing tests' processes
-  the check runs again after its run (5.5). Written at prepare with the
-  marker, written to `temper/rerun.tmp` and renamed; a check that finds
-  none runs nothing again.
+- **`temper/rerun`,** beside it: the line `temper-rerun 1 N`, N in
+  decimal, the most failing tests' processes the check runs again after
+  its run (5.5): the worker's `checkout.rerun_processes`, or the bound
+  the run's or job's items carry from its project's `flakes` where it is
+  lower (`judgement.md`, 4): 0 for `none`, N for `rerun N`. Items that
+  carry none, a project's with `flakes` unset or a previous build
+  engine's, leave the worker's own. Written at prepare with the marker,
+  written to `temper/rerun.tmp` and renamed; a check that finds none
+  runs nothing again.
+- **The bound on the wire:** `temper-worker-wire`'s `Items` gains
+  `rerun`, an `option u32` defaulting to none, set by the engine only
+  for a project whose `flakes` is set. A worker whose layout lacks it
+  can't keep a set bound, so a run or job that carries one waits for a
+  worker of this build, as a close's typed refusal does
+  (`../../protocol/wires.md`, 8); a project with `flakes` unset runs
+  anywhere.
 
 ### 5.3 When
 
@@ -356,7 +367,10 @@ with the check. The reference's check writes it as
 
 - **Each `flake KEY`** of a report, of a passed or a refused check, files
   or counts a `flake` finding in the run's task's project
-  (`../findings.md`, 4), in the decision on the report. Its signature:
+  (`../findings.md`, 4), in the decision on the report, unless that
+  project's checks can't flake (`judgement.md`, 4): with its `flakes`
+  `none`, a report's flakes are neither filed nor counted, and the rest
+  of the report stands. Its signature:
   the repository `tag` names, the source `check`, the key as its one id,
   no first line.
 - **Counted:** where the project has an open finding, of kind `flake`

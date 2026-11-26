@@ -22,10 +22,10 @@ impl Domain {
             return None;
         };
         let parts = self.answer_parts.get(&payload)?;
-        if !self.core.current_proof(*task, *attempt) || !parts_within(parts, &self.limits) {
+        if !self.engine.core().current_proof(*task, *attempt) || !parts_within(parts, &self.limits) {
             return None;
         }
-        let tasks::Contract::Change { connector, kind, .. } = self.core.tasks.task(*task)?.contract else {
+        let tasks::Contract::Change { connector, kind, .. } = self.engine.core().tasks.task(*task)?.contract else {
             return None;
         };
         let heads = self.forge.reported_heads(&self.limits.forge, *task, *attempt, &parts.pushed);
@@ -187,7 +187,7 @@ pub(crate) fn answer(
                     host::JobEnding::Finished { .. } => None,
                 };
                 if let Some(ending) = ending {
-                    let executor = domain.core.tasks.executor(*task).expect("an accepted answer has a task");
+                    let executor = domain.engine.core().tasks.executor(*task).expect("an accepted answer has a task");
                     let kind = match executor {
                         tasks::Executor::Job { kind } => Some(kind),
                         tasks::Executor::Agent { .. }
@@ -258,7 +258,7 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
 // A run that cannot judge supplies no verdict (temper/docs/design/domain/forge/change/gates.md, 1).
 fn fail_review(domain: &Domain, event: &mut core::Event) {
     let core::Event::AnswerPayload { run, attempt, payload, end, .. } = event else { return };
-    if !domain.core.current_proof(run.raw(), attempt.raw()) || !current_review(domain, run.raw()) {
+    if !domain.engine.core().current_proof(run.raw(), attempt.raw()) || !current_review(domain, run.raw()) {
         return;
     }
     let Some(Payload::Answer {
@@ -280,7 +280,7 @@ fn fail_review(domain: &Domain, event: &mut core::Event) {
 }
 
 fn current_review(domain: &Domain, task: u64) -> bool {
-    let Some(task_row) = domain.core.tasks.task(task) else { return false };
+    let Some(task_row) = domain.engine.core().tasks.task(task) else { return false };
     let tasks::Party::Task(parent) = task_row.requester else { return false };
     let Some(row) = domain.forge.change(parent) else { return false };
     let Some((child, temper_engine_domain_forge_change::Delegate::Gate { number, head })) = row.delegate else {
@@ -574,7 +574,7 @@ mod tests {
             });
             domain.answer_parts.insert(payload, Parts::none()).unwrap();
             assert!(current_review(&domain, task));
-            assert!(domain.core.current_proof(task, 1));
+            assert!(domain.engine.core().current_proof(task, 1));
             route(
                 &mut domain,
                 hub::Event::AnswerPayload {
@@ -628,7 +628,7 @@ mod tests {
             },
             &mut out,
         );
-        let items = crate::ForgeWorkspace { repositories: Box::new([]) };
+        let items = crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) };
         let kept = crate::boundary::JobWorkspace { attempt: 1, workspace: items.clone(), offered: false };
         domain.job_workspaces.insert(task, kept).unwrap();
         assert!(!domain.job_workspaces_offered(), "a job not yet offered is unfinished work");
@@ -659,7 +659,7 @@ mod tests {
     fn review_root() -> (Domain, u64) {
         use crate::tests::{live_task, resume_fixture};
         let (source, env, task) = live_task(None, tasks::Executor::Agent { charter: 1 });
-        let mut child = source.core.tasks.task(task).unwrap().clone();
+        let mut child = source.engine.core().tasks.task(task).unwrap().clone();
         let mut parent = child.clone();
         parent.number = 7;
         child.requester = tasks::Party::Task(7);
@@ -669,14 +669,15 @@ mod tests {
             &env.limits,
             &[
                 crate::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(
-                    *source.core.tasks.funding(child.funder).unwrap(),
+                    *source.engine.core().tasks.funding(child.funder).unwrap(),
                 ))),
                 crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(parent)))),
                 crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(child)))),
             ],
         );
         domain
-            .core
+            .engine
+            .core_mut()
             .proofs
             .insert(
                 task,
@@ -724,6 +725,7 @@ mod tests {
             source: None,
             kept: None,
             regate: None,
+            ci_recheck: None,
             task_release: None,
             job: None,
             signed: Box::new([]),
@@ -778,6 +780,7 @@ mod tests {
             delegate_flake: false,
             delegate_no_test: false,
             delegate_head: None,
+            delegate_words: None,
             verdicts: Box::new([]),
             milestone: None,
             person: None,
@@ -800,6 +803,7 @@ mod tests {
             questions: change::Questions::default(),
             effect_account: None,
             producer_failure: None,
+            runner_ci: None,
             close_at: None,
             report: Box::new([]),
             repairs: None,

@@ -1427,6 +1427,7 @@ fn tells_budget(result: &Returned) -> bool {
         | Returned::Accepted
         | Returned::Rejected { .. }
         | Returned::ChecksFailed { .. }
+        | Returned::ChecksNotJudged { .. }
         | Returned::Stale
         | Returned::DeliveryFailed { .. }
         | Returned::Cancelled

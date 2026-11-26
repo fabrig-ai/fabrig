@@ -1,6 +1,7 @@
 //! Owned authority data (domain/authority.md, sections 3 and 4).
 
 use alloc::boxed::Box;
+pub use jig_domain_contract::effects::Name;
 
 use skein_lib::{Duration, Wall};
 
@@ -153,17 +154,6 @@ pub struct Grant {
     pub kind: u16,
     /// Covered resources, bounded by segment and byte limits.
     pub pattern: Pattern,
-}
-
-/// A connector's resource path. Bytes and segment boundaries are literal:
-/// empty segments are permitted, with no parsing or normalization here.
-/// Owned literal resource segments; callers admit segment count and bytes before value queries
-/// that do not perform admission themselves. (domain/authority.md, sections 3–5).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Name {
-    /// Literal ordered segments, bounded by `Limits::segments` and `Limits::segment_bytes` when
-    /// admitted.
-    pub segments: Box<[Box<[u8]>]>,
 }
 
 /// Exact base segments, followed by the terminal's matching rule.

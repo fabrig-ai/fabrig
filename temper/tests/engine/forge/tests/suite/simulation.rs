@@ -1140,14 +1140,14 @@ fn a_failed_ci_head_is_repaired_then_checked_again() {
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one table follows runner and workflow faults through retries, repair and landing"
+    reason = "one table follows runner and workflow faults through retries, holds, repair and landing"
 )]
-fn runner_faults_run_again_before_repair_and_keep_their_gates() {
+fn runner_reruns_keep_gates_and_only_a_workflow_red_asks_repair() {
     use skein_fake_forge_domain::api::{self as raw, Failing};
     use skein_forge::api;
     for (fault, passes, repairs, lost) in [
         (Failing::Setup, 500, false, false),
-        (Failing::NoStep, 0, true, false),
+        (Failing::NoStep, 0, false, false),
         (Failing::Workflow, 0, true, false),
         (Failing::Setup, 500, false, true),
     ] {
@@ -1214,22 +1214,19 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
             assert_eq!(first, change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci)));
         }
         assert_eq!(world.writes(), reruns);
+        if fault == Failing::NoStep {
+            assert_eq!(
+                change_step(&mut world, 2, change::Status::Passed, Box::new([])),
+                change::Decision::Hold(change::Hold::Runner)
+            );
+            let Some(top::RunnerCi::Held { words }) = &world.change(51).runner_ci else { panic!("runner hold") };
+            assert!(String::from_utf8_lossy(words).contains("no step failed, run again 1 time"));
+            world.status(b"temper/51", raw::Check::Passed);
+            assert_eq!(change_step(&mut world, 3, change::Status::Passed, Box::new([])), change::Decision::EndHold);
+        }
         if repairs {
-            if reruns > 0 {
-                assert_eq!(
-                    change_step(&mut world, 2, change::Status::Passed, Box::new([])),
-                    change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
-                );
-            }
             let brief = world.ci_brief(51, head);
-            if reruns > 0 {
-                assert!(
-                    String::from_utf8_lossy(&brief)
-                        .contains("the runner's: no step failed; run again 1 time at this head, failed again")
-                );
-            } else {
-                assert!(!String::from_utf8_lossy(&brief).contains("the runner's:"));
-            }
+            assert!(!String::from_utf8_lossy(&brief).contains("the runner's:"));
             repair_push(&mut world, 53, b"repaired");
             world.run_for(1);
             world.status(b"temper/51", raw::Check::Passed);
@@ -1240,6 +1237,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
                 child: 52,
                 status: change::Status::Passed,
                 failed: false,
+                lost: false,
                 cancelled: false,
                 no_change: false,
                 flake: false,
@@ -1254,7 +1252,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
             Box::new([verdict, change::GateReport { revision: 0, number: 10, head, status: change::Status::Passed }])
         };
         let mut landed = false;
-        for entry in 3..20 {
+        for entry in 4..20 {
             let decision = change_step(&mut world, entry, change::Status::Passed, gates.clone());
             assert!(!matches!(decision, change::Decision::Delegate(_)), "{fault:?}: {decision:?}");
             if matches!(decision, change::Decision::Finish { .. }) {
@@ -1300,6 +1298,7 @@ fn failed_ci_repair_world() -> World {
         child: 52,
         status: change::Status::Failed,
         failed: true,
+        lost: false,
         cancelled: false,
         no_change: false,
         flake: false,
@@ -1339,6 +1338,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         child: 52,
         status: change::Status::Failed,
         failed: true,
+        lost: false,
         cancelled: false,
         no_change: false,
         flake: false,
@@ -1360,6 +1360,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         child: 53,
         status: change::Status::Passed,
         failed: false,
+        lost: false,
         cancelled: false,
         no_change: false,
         flake: false,
@@ -3478,6 +3479,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
         flake: false,
         no_test: false,
         failed: true,
+        lost: false,
         cancelled: false,
         words: REASON.into(),
     });

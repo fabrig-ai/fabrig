@@ -870,6 +870,8 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
         (Some(change::Hold::PullClosed), Some(w::Hold::Closed)),
         (Some(change::Hold::Retargeted), Some(w::Hold::Retargeted)),
         (Some(change::Hold::Failed), Some(w::Hold::Failed)),
+        (Some(change::Hold::Runner), Some(w::Hold::Failed)),
+        (Some(change::Hold::RedStands), Some(w::Hold::Failed)),
         (Some(change::Hold::Rejected), Some(w::Hold::Rejected)),
     ] {
         let mut value = panel();
@@ -2517,7 +2519,7 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
     use forge::settings::{Edit, SettingKey, SettingSlot, SizedValue, Value};
     let value = SizedValue { size: 4, value: Value::Charter(6) };
     let record = family::forge_read(
-        root::ForgeReadAnswer::Setting { value: Some(value.clone()), revision: Some(4) },
+        root::ForgeReadAnswer::Setting { value: Some(Box::new(value.clone())), revision: Some(4) },
         &[],
         &w::CEILINGS,
     )

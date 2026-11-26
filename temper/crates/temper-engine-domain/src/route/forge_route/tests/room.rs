@@ -11,7 +11,7 @@ fn a_release_room_ask_takes_a_fresh_number_unless_cleanup_is_held() {
     for held in [false, true] {
         let (mut domain, env, context) = change_start_fixture();
         let task = context.task;
-        let mut record = domain.core.tasks.task(task).unwrap().clone();
+        let mut record = domain.engine.core().tasks.task(task).unwrap().clone();
         let closing = tasks::Closing {
             stage: tasks::Stage::Releases,
             ending: tasks::Ending::Failed { reason: b"failed".as_slice().into() },
@@ -21,10 +21,10 @@ fn a_release_room_ask_takes_a_fresh_number_unless_cleanup_is_held() {
         } else {
             tasks::Phase::Closing(closing)
         };
-        domain.core.tasks =
-            crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
+        let mut fresh = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
+        ::core::mem::swap(&mut domain.engine.core_mut().tasks, &mut fresh.engine.core_mut().tasks);
         tasks::step(
-            &mut domain.core.tasks,
+            &mut domain.engine.core_mut().tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
             &mut Queue::uncapped(),
@@ -276,11 +276,12 @@ fn pin_goal(
     explicit: bool,
 ) {
     use jig_domain_tasks as tasks;
-    let mut goal = domain.core.tasks.task(context.task).unwrap().clone();
-    domain.core.tasks = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap().core.tasks;
+    let mut goal = domain.engine.core().tasks.task(context.task).unwrap().clone();
+    let mut fresh = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
+    ::core::mem::swap(&mut domain.engine.core_mut().tasks, &mut fresh.engine.core_mut().tasks);
     goal.tracked = Some(1);
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal.clone())) },
         &mut Queue::uncapped(),
@@ -292,7 +293,7 @@ fn pin_goal(
         goal.tracked = None;
         goal.requester = tasks::Party::Task(context.task);
         tasks::step(
-            &mut domain.core.tasks,
+            &mut domain.engine.core_mut().tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) },
             &mut Queue::uncapped(),
@@ -401,7 +402,8 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
     }
     run_start(&mut domain, &env, &context);
     assert!(domain.forge.change(context.task).is_none());
-    let tasks::Phase::Held { source: Some(source), .. } = &domain.core.tasks.task(context.task).unwrap().phase else {
+    let tasks::Phase::Held { source: Some(source), .. } = &domain.engine.core().tasks.task(context.task).unwrap().phase
+    else {
         panic!("the new change is held")
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("forge hold words") };
@@ -415,7 +417,7 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
         &mut Queue::uncapped(),
     );
     tasks::step(
-        &mut domain.core.tasks,
+        &mut domain.engine.core_mut().tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Release {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(999)),
@@ -424,7 +426,7 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
         },
         &mut Queue::uncapped(),
     );
-    assert_eq!(domain.core.tasks.task(context.task).unwrap().due_reason, tasks::Why::Released);
+    assert_eq!(domain.engine.core().tasks.task(context.task).unwrap().due_reason, tasks::Why::Released);
     run_start(&mut domain, &env, &context);
     assert!(domain.forge.change(context.task).is_some());
     assert!(domain.forge.change(FIRST).is_none());

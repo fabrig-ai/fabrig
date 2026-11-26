@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0x37, 0x2d, 0xcb, 0xa0, 0x03, 0x08, 0x2d, 0x40, 0x48, 0x73, 0xa1, 0xbc, 0xfa, 0x88, 0x0a, 0xeb, 0x14, 0x44, 0xcb,
-    0xff, 0x1a, 0x50, 0x4f, 0x6b, 0xdc, 0x68, 0x5b, 0x98, 0x27, 0xea, 0x14, 0x1c,
+    0xf3, 0x2f, 0xde, 0x6b, 0xf6, 0x81, 0xc2, 0xfa, 0x22, 0x53, 0xe1, 0x79, 0xd6, 0x8d, 0x62, 0x2f, 0x39, 0x7d, 0x1f,
+    0x97, 0xc5, 0xee, 0xa3, 0xef, 0x04, 0xdd, 0x10, 0x87, 0x61, 0x65, 0x10, 0x4e,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -333,6 +333,7 @@ pub mod paths {
     pub const REPOSITORY_ADMIT: Path = Path::new("Repository.admit");
     pub const REPOSITORY_TAIL: Path = Path::new("Repository (tail)");
     pub const ITEMS_REPOSITORIES: Path = Path::new("Items.repositories");
+    pub const ITEMS_RERUN: Path = Path::new("Items.rerun");
     pub const ITEMS_VERSION: Path = Path::new("Items (version)");
     pub const ITEMS_TAIL: Path = Path::new("Items (tail)");
     pub const JOB_SPEC_COMMAND: Path = Path::new("JobSpec.command");
@@ -974,6 +975,7 @@ impl Record for Repository {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Items {
     pub repositories: List<Repository>,
+    pub rerun: Option<u32>,
 }
 
 // Record: Items.
@@ -981,11 +983,13 @@ impl Items {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("Repository"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, items_repositories), item: 0, size: size_of::<Repository>() },
-        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 6;
+    pub const ENCODED_AT_ZERO: u64 = 11;
 }
 
 impl Record for Items {
@@ -1012,6 +1016,7 @@ impl Record for Items {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::ITEMS_VERSION)?;
         field::write(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 30, item: field::Nested }, &self.repositories, limits, out, paths::ITEMS_REPOSITORIES)?;
+        field::write(field::Optional { item: field::U32 }, &self.rerun, limits, out, paths::ITEMS_RERUN)?;
         Ok(())
     }
 
@@ -1019,6 +1024,7 @@ impl Record for Items {
         field::version(reader, VERSION, paths::ITEMS_VERSION)?;
         Ok(Self {
             repositories: field::read(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 30, item: field::Nested }, limits, reader, paths::ITEMS_REPOSITORIES)?,
+            rerun: field::read(field::Optional { item: field::U32 }, limits, reader, paths::ITEMS_RERUN)?,
         })
     }
 }

@@ -59,7 +59,8 @@ code is from this design and how to roll up the status files.
 | server-sent events | `skein-http` | reader and writer machines over body streams | [net/http/sse.md](net/http/sse.md) |
 | testing HTTP | `skein-http` | step tests and worlds for HTTP and server-sent events | [net/http/testing.md](net/http/testing.md) |
 | JSON | `skein-json` | a bounded tokenizer, a sized writer | [data/json.md](data/json.md) |
-| DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
+| DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, at the fast or the best level, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
+| gzip | `skein-deflate` | one gzip member around a DEFLATE stream: written at either level within a bound, and read back whole, its CRC-32 and length checked | [data/gzip.md](data/gzip.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
 | codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs and bounds generated from them, their bytes pinned once by the `every` fixture | [data/codec/README.md](data/codec/README.md), [data/codec/golden.md](data/codec/golden.md), [data/codec/run-time.md](data/codec/run-time.md), [data/codec/fingerprints.md](data/codec/fingerprints.md) |
 | layouts and derived plans | `skein-codec` | a value type's layout, and the plan, in Read or Keep mode, that converts a value from one layout to another, either way, for the store and every wire | [data/codec/layouts.md](data/codec/layouts.md) |

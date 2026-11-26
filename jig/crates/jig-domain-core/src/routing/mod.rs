@@ -352,10 +352,12 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
+    // The input takes the first route; only its continuations need queuing.
+    let remaining = env.limits.routes.checked_sub(1).expect("sibling_routes_drained");
     let mut work = Queue::uncapped();
-    let mut out = Queue::uncapped();
-    work.push(Work::Event(event));
-    for _ in 0..env.limits.routes {
+    let mut out = step_one(core, env, event, &mut work);
+    out.raise(u32::MAX);
+    for _ in 0..remaining {
         // A resumed preparation may be stale or need no notes operation.
         // Drain its continuations before waking the next waiter while notes is idle.
         if work.is_empty() && !core.stopping && !core.settling {
@@ -363,9 +365,14 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
         }
         let Some(next) = work.pop() else { break };
         let mut batch = step_work(core, env, next, &mut work);
-        for _ in 0..batch.len() {
-            let request = batch.pop().expect("core route output count");
-            out.push(request);
+        if out.is_empty() {
+            batch.raise(out.capacity());
+            out = batch;
+        } else {
+            for _ in 0..batch.len() {
+                let request = batch.pop().expect("core route output count");
+                out.push(request);
+            }
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");

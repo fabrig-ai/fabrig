@@ -366,7 +366,7 @@ ProgramEnvironmentAnswer: ceilings encoded=49222 decoded=49216; at_most(3) encod
 ProjectAreas: ceilings encoded=8468 decoded=8960; at_most(3) encoded=73 decoded=162
 ProjectClasses: ceilings encoded=5866 decoded=6912; at_most(3) encoded=137 decoded=429
 ProjectGates: ceilings encoded=1114244 decoded=1114240; at_most(3) encoded=7 decoded=3
-ProjectLanding: ceilings encoded=546088 decoded=548928; at_most(3) encoded=212 decoded=246
+ProjectLanding: ceilings encoded=546094 decoded=548928; at_most(3) encoded=218 decoded=246
 ProjectQuestions: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ProjectStatus: ceilings encoded=1899 decoded=1824; at_most(3) encoded=84 decoded=9
 ProjectTriager: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
@@ -443,6 +443,8 @@ SettingUp: ceilings encoded=21 decoded=0; at_most(3) encoded=21 decoded=0
 SettingValue: ceilings encoded=1048580 decoded=1048576; at_most(3) encoded=7 decoded=3
 SettingsBranch: ceilings encoded=1048580 decoded=1048576; at_most(3) encoded=7 decoded=3
 SettingsCombine: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+SettingsFlakeRerun: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+SettingsFlakes: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 SettingsFollows: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
 SettingsGate: ceilings encoded=1145439128 decoded=1158809983; at_most(3) encoded=58 decoded=69
 SettingsGateReport: ceilings encoded=106 decoded=96; at_most(3) encoded=16 decoded=6

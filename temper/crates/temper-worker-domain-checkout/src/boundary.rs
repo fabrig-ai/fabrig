@@ -151,6 +151,8 @@ pub struct Spec {
     /// that a later one finds the repositories already cloned. Compared byte
     /// for byte, never interpreted.
     pub key: Box<[u8]>,
+    /// The project's rerun bound, if it states one.
+    pub rerun: Option<u32>,
     /// The repositories, side by side, each named once.
     pub repositories: Box<[Repository]>,
 }

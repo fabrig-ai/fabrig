@@ -166,6 +166,10 @@ pub enum Hold {
     Stalled,
     /// Another repair would exceed the configured bound.
     Repairs,
+    /// CI's runner exhausted its re-runs without judging the head.
+    Runner,
+    /// An unchanged repair's one check failed again or could not be made.
+    RedStands,
     /// Another conflict resolution would exceed its bound.
     Resolutions,
     /// Another mechanical update would exceed its bound.
@@ -180,9 +184,9 @@ pub enum Hold {
     Retargeted,
     /// A delegate or effect failed permanently.
     Failed,
-    /// A landing repair found only flakes; release runs its gate once more.
+    /// Previous build: a landing repair found only flakes; release runs its gate once more.
     Flake,
-    /// A landing repair found no failed test; release runs its gate once more.
+    /// Previous build: a landing repair found no failed test; release runs its gate once more.
     NoTest,
     /// A person rejected a required gate.
     Rejected,
@@ -412,6 +416,17 @@ pub enum Verification {
     Cleared,
 }
 
+/// The unchanged repair's one check at the change's last head.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Recheck {
+    /// No check is owed at the change's last head.
+    None,
+    /// Asked and not taken: a red read now is not its measurement.
+    Owed,
+    /// Taken: the red this step reads is its measurement.
+    Taken,
+}
+
 /// Fresh forge and queue facts gathered by the top.
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -425,6 +440,11 @@ pub struct Facts {
     pub fault: Fault,
     /// A failed check at `ci.head` names a job read at that head, and the change's forge writes a re-run.
     pub rerun: bool,
+    /// Whether the landing repair's reason still resolves to a failed receipt.
+    pub regate: bool,
+    pub recheck: Recheck,
+    /// The head its current repair was asked to repair, even after a push.
+    pub repair_head: Option<Commit>,
     /// Pending dependencies in the order of the change's dependencies.
     pub pending: Box<[Pending]>,
     pub ask: Option<Handed>,

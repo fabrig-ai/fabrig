@@ -1,5 +1,8 @@
 //! Raw DEFLATE encoding (skein/docs/design/data/deflate.md, 2; RFC 1951).
 
+mod best;
+pub use best::encode_best;
+
 #[cfg(test)]
 mod tests;
 
@@ -59,7 +62,7 @@ const STORED: usize = 5;
 /// A code with no bits: a symbol that does not occur.
 const NONE: Code = Code { bits: 0, width: 0 };
 
-/// The worst case of [`encode`]'s output for `length` bytes, or `None`
+/// The worst case of [`encode`] or [`encode_best`] for `length` bytes, or `None`
 /// past `usize`: stored blocks of at most 65535 bytes, at least one.
 #[must_use]
 pub fn bound(length: usize) -> Option<usize> {
@@ -80,9 +83,8 @@ pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
     encoder.fixed = fixed()?;
     let blocks = blocks(body.len());
     for index in 0..blocks {
-        let start = index.checked_mul(BLOCK)?;
-        let end = start.checked_add(BLOCK)?.min(body.len());
-        let block = Block { start, end, last: index.checked_add(1)? == blocks };
+        let block = block_at(index, blocks, body.len())?;
+        parse(&mut encoder, body, block)?;
         write(&mut encoder, body, block, out)?;
     }
     align(out, &mut encoder.bits)?;
@@ -99,7 +101,7 @@ const EMPTY: Encoder = Encoder {
         starts: [0; MATCHES],
         lengths: [0; MATCHES],
         distances: [0; MATCHES],
-        counts: Counts { literals: [0; SYMBOLS], distances: [0; DISTANCES], extra: 0 },
+        counts: EMPTY_COUNTS,
     },
     fixed: Codes { literals: [NONE; SYMBOLS], distances: [NONE; DISTANCES] },
     own: Codes { literals: [NONE; SYMBOLS], distances: [NONE; DISTANCES] },
@@ -120,13 +122,19 @@ fn blocks(length: usize) -> usize {
     length.div_ceil(BLOCK).max(1)
 }
 
+fn block_at(index: usize, blocks: usize, length: usize) -> Option<Block> {
+    let start = index.checked_mul(BLOCK)?;
+    let end = start.checked_add(BLOCK)?.min(length);
+    Some(Block { start, end, last: index.checked_add(1)? == blocks })
+}
+
 /// The encoder's state through one body: the match table, the block being
 /// written, its codes, and where the output stands.
 #[derive(Debug)]
 struct Encoder {
-    /// By the hash of four bytes, the low 16 bits of where they last began.
-    /// A head names a candidate whose bytes are compared before it is taken,
-    /// so a stale or empty head costs a match, never a wrong one.
+    /// At the fast level, the low 16 bits of the latest position for a hash.
+    /// Its bytes are compared before it is taken, so a stale or empty head
+    /// costs a match, never a wrong one. The best level uses window slots.
     heads: [u16; HEADS],
     parse: Parse,
     /// The fixed codes (RFC 1951, 3.2.6).
@@ -158,6 +166,15 @@ struct Parse {
     distances: [u16; MATCHES],
     counts: Counts,
 }
+
+impl Parse {
+    fn reset(&mut self) {
+        self.count = 0;
+        self.counts = EMPTY_COUNTS;
+    }
+}
+
+const EMPTY_COUNTS: Counts = Counts { literals: [0; SYMBOLS], distances: [0; DISTANCES], extra: 0 };
 
 /// How often each literal/length and each distance symbol occurs in a block,
 /// the end once, and the extra bits of its lengths and distances.
@@ -230,11 +247,10 @@ enum Way {
     Own,
 }
 
-/// Parses `body[block.start..block.end]` and writes it in the shortest of
-/// the three ways, the bit at which each would end reckoned first.
+/// Writes the parsed block in the shortest of the three ways, the bit at
+/// which each would end reckoned first.
 fn write(encoder: &mut Encoder, body: &[u8], block: Block, out: &mut [u8]) -> Option<()> {
     let data = body.get(block.start..block.end)?;
-    parse(encoder, body, block)?;
     let from = encoder.bits;
     let coded = from.position()?.checked_add(3)?;
     let mut way = Way::Stored;
@@ -275,8 +291,7 @@ fn write(encoder: &mut Encoder, body: &[u8], block: Block, out: &mut [u8]) -> Op
 /// turns; the bytes inside a match become heads as they are passed.
 fn parse(encoder: &mut Encoder, body: &[u8], block: Block) -> Option<()> {
     let parse = &mut encoder.parse;
-    parse.count = 0;
-    parse.counts = Counts { literals: [0; SYMBOLS], distances: [0; DISTANCES], extra: 0 };
+    parse.reset();
     let mut at = block.start;
     for _ in block.start..block.end {
         if at >= block.end {
@@ -524,6 +539,11 @@ fn longest(body: &[u8], at: usize, end: usize, earlier: u16, bytes: u32) -> Opti
         return None;
     }
     let most = end.checked_sub(at)?.min(LONGEST);
+    matched(extent(body, at, from, most)?, distance)
+}
+
+/// How many of at most `most` bytes at the two positions agree.
+fn extent(body: &[u8], at: usize, from: usize, most: usize) -> Option<usize> {
     // Eight bytes at a time, the first that differs found in their XOR,
     // then the last few one by one.
     let mut length = 0_usize;
@@ -533,7 +553,7 @@ fn longest(body: &[u8], at: usize, end: usize, earlier: u16, bytes: u32) -> Opti
         let differ = old ^ new;
         if differ != 0 {
             let same = usize::try_from(differ.trailing_zeros().checked_div(8)?).ok()?;
-            return matched(length.checked_add(same)?, distance);
+            return length.checked_add(same);
         }
         length = length.checked_add(8)?;
     }
@@ -544,7 +564,7 @@ fn longest(body: &[u8], at: usize, end: usize, earlier: u16, bytes: u32) -> Opti
         }
         length = length.checked_add(1)?;
     }
-    matched(length, distance)
+    Some(length)
 }
 
 /// A match of `length` bytes, if it is no shorter than [`SHORTEST`].

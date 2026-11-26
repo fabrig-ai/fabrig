@@ -16,14 +16,15 @@ fn tier_run_words() -> Box<[u8]> {
 }
 
 fn serve_specification(root: &mut f::Harness, call: u32, words: &[u8]) {
-    let (core, limits, row) = f::source_task(words);
+    let (engine, limits, row) = f::source_task(words);
     for _ in 0..words.len() {
         let Some((_, c::Read::TaskText { task: 1, field: c::TaskTextField::Specification, from })) =
             root.reads.get(&call)
         else {
             break;
         };
-        let chunk = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Specification, *from);
+        let chunk =
+            f::source_chunk(engine.core(), &limits, &row, jig_domain_core::reads::TaskTextField::Specification, *from);
         root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(chunk))));
     }
     assert!(root.reads.is_empty(), "sequential source reads finish within their byte bound");
@@ -35,8 +36,8 @@ fn source_wait(
     end: Option<c::WatchEnd>,
     json: bool,
 ) -> (f::Harness, u32, Box<[u8]>) {
-    let (core, limits, row) = f::source_task(words);
-    let mut task = f::source_summary(&core, &limits, &row);
+    let (engine, limits, row) = f::source_task(words);
+    let mut task = f::source_summary(engine.core(), &limits, &row);
     task.chip.phase = c::Phase::Done;
     let digest = f::task_digest(&c::Delivery::Task(Box::new(task.clone()))).hex();
     let mut root = f::signed_in(f::PARTY);
@@ -79,8 +80,8 @@ fn settled_source_wait(root: &mut f::Harness, call: u32) {
 #[test]
 fn task_wait_fills_the_tier_run_identity_after_the_terminal_read() {
     let words = tier_run_words();
-    let (core, limits, row) = f::source_task(&words);
-    let task = f::source_summary(&core, &limits, &row);
+    let (engine, limits, row) = f::source_task(&words);
+    let task = f::source_summary(engine.core(), &limits, &row);
     assert!(task.spec.specification.words.cut);
     assert!(task.spec.specification.words.bytes().ends_with(b"branch temper/tier/sl"));
     let (plain, _) = f::source_show(&words, &crate::limits::tools(), false);
@@ -102,8 +103,8 @@ fn task_wait_fills_the_tier_run_identity_after_the_terminal_read() {
 #[test]
 fn task_wait_fills_a_meeting_delivery_without_changing_its_digest() {
     let words = tier_run_words();
-    let (core, limits, row) = f::source_task(&words);
-    let mut task = f::source_summary(&core, &limits, &row);
+    let (engine, limits, row) = f::source_task(&words);
+    let mut task = f::source_summary(engine.core(), &limits, &row);
     task.chip.phase = c::Phase::Running;
     let delivery = c::Delivery::Task(Box::new(task));
     let digest = f::task_digest(&delivery).hex();

@@ -336,7 +336,11 @@ them.
   the engine sends it none and the job waits for a worker that can,
   spending no try (jig's `protocol/channel/layouts.md`, 5.1). A spec of
   an earlier engine, without it, reads as `false`, so a worker of this
-  build runs that close as before. A new kind was turned down: every
+  build runs that close as before. `Items`' `rerun`, a project's bound
+  on the checks' reruns (`../domain/forge/reds.md`, 5.2), goes the same
+  way: set only for a project that states its `flakes`, kept by no
+  worker whose layout lacks it, and none from an earlier engine, which
+  leaves the worker's own figure. A new kind was turned down: every
   project's policy grants the job kinds its goals may make (the close
   job, job 4, `configuration/stock.md`), so a kind 5 would be refused
   until each deployment's settings granted it.

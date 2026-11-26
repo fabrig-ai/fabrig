@@ -105,7 +105,9 @@ place (jig's `domain/engine/overlays.md`).
   hold every merge into a goal's branch (`stock.md`).
   `docs/examples/reference/landing.json` is the document's
   `application.landing` (`engine.md`), which the walk's document carries:
-  project 1's `merge_job`, `.temper/merge`, and its tiers (below).
+  project 1's `merge_job`, `.temper/merge`, its `flakes`, `none`, since
+  fabrig's checks run only tests that replay
+  (`../../domain/forge/judgement.md`, 4), and its tiers (below).
 
 ## 3. Tiers and the limit profile
 

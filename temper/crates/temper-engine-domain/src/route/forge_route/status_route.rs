@@ -22,14 +22,14 @@ pub(super) fn start_status_run(
 
 pub(crate) fn admission(domain: &Domain, project: u32, party: u64, task: u64) -> forge::Event {
     // ConnectorRepair drains OpenPeriod and Make before the queued StatusTask.
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(_) => forge::Event::StatusTask { project, party, task },
         None => forge::Event::StatusRefused { project, party },
     }
 }
 
 fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, party: u64, words: &[u8]) {
-    let Some(seed) = domain.core.pool_seed(project, party) else {
+    let Some(seed) = domain.engine.core_mut().pool_seed(project, party) else {
         domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
         return;
     };
@@ -57,8 +57,8 @@ fn goal_words(
     let mut words = super::List::uncapped();
     super::append(&mut words, facts);
     super::append(&mut words, b"Live goals:\n");
-    for candidate in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.core.tasks.task(candidate.number) else { continue };
+    for candidate in domain.engine.core().tasks.view_tasks() {
+        let Some(row) = domain.engine.core().tasks.task(candidate.number) else { continue };
         if row.project != project || row.tracked.is_none() || tasks::gathering::executor(row.executor) {
             continue;
         }
@@ -106,7 +106,7 @@ fn delegate_total(row: &tasks::TaskRecord) -> u32 {
 fn open_to_a_person(domain: &Domain, row: &tasks::TaskRecord) -> u32 {
     let mut count = 0_u32;
     for number in &row.delegates {
-        if let Some(delegate) = domain.core.tasks.task(*number)
+        if let Some(delegate) = domain.engine.core().tasks.task(*number)
             && let tasks::Executor::Person(_) = delegate.executor
         {
             count = count.checked_add(1).expect("bounded live delegates");
@@ -129,12 +129,12 @@ fn milestone_parent(domain: &Domain, requester: tasks::Party) -> Option<&tasks::
         tasks::Party::Task(number) => number,
         tasks::Party::Person(_) | tasks::Party::Deployment { .. } => return None,
     };
-    let row = domain.core.tasks.task(number)?;
+    let row = domain.engine.core().tasks.task(number)?;
     if tasks::gathering::executor(row.executor) { Some(row) } else { None }
 }
 
 fn signer_name(domain: &Domain, project: u32, person: u64) -> &[u8] {
-    match domain.core.people.member_name(project, person) {
+    match domain.engine.core().people.member_name(project, person) {
         Some(name) => name,
         None => b"no longer a member",
     }
@@ -142,8 +142,8 @@ fn signer_name(domain: &Domain, project: u32, person: u64) -> &[u8] {
 
 pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
-    let Some(row) = domain.core.tasks.task(task) else { return };
-    let offered = domain.core.tasks.procedure_offered(task).unwrap_or(0);
+    let Some(row) = domain.engine.core().tasks.task(task) else { return };
+    let offered = domain.engine.core().tasks.procedure_offered(task).unwrap_or(0);
     for word in &row.inbox {
         if word.number > offered {
             continue;
@@ -204,9 +204,10 @@ pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context:
 }
 
 pub(crate) fn check_account(domain: &mut Domain, procedure: u64) {
-    let Some(row) = domain.core.tasks.task(procedure) else { return };
+    let Some(row) = domain.engine.core().tasks.task(procedure) else { return };
     let Some(delegate) = row.delegates.first() else { return };
-    let Err(jig_domain_core::RunWait::Account { account: None, .. }) = domain.core.run_choice(*delegate) else {
+    let Err(jig_domain_core::RunWait::Account { account: None, .. }) = domain.engine.core().run_choice(*delegate)
+    else {
         return;
     };
     let Some((party, project)) = domain.forge.status_owner(procedure) else { return };
@@ -224,7 +225,7 @@ pub(crate) fn check_account(domain: &mut Domain, procedure: u64) {
 }
 
 fn delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {
-    let context = domain.core.tasks.delegation(task)?;
+    let context = domain.engine.core().tasks.delegation(task)?;
     let mut authority = super::child_authority(&context)?;
     authority.tools = tasks::Tools(0);
     authority.grants = Box::new([]);
@@ -235,7 +236,7 @@ fn delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::supe
         spec: tasks::Spec {
             job: None,
             asks: false,
-            words: domain.core.tasks.task(task)?.spec.words.clone(),
+            words: domain.engine.core().tasks.task(task)?.spec.words.clone(),
             parameters: Box::new([]),
             inputs: Box::new([]),
         },
@@ -254,7 +255,7 @@ fn delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::supe
 }
 
 fn step(domain: &mut Domain, task: u64, decision: ProcedureStep) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else { return };
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 fn finish(domain: &mut Domain, task: u64, report: Option<Box<[u8]>>) {
@@ -263,7 +264,7 @@ fn finish(domain: &mut Domain, task: u64, report: Option<Box<[u8]>>) {
 }
 
 pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::StepRefusal) -> bool {
-    let Some((connector, code, _)) = domain.core.tasks.procedure_due(task) else { return false };
+    let Some((connector, code, _)) = domain.engine.core().tasks.procedure_due(task) else { return false };
     if connector != domain.config.forge_connector || code != STATUS_CODE {
         return false;
     }
@@ -278,7 +279,7 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::Ste
 
 pub(super) fn workspace(task: u64) -> RunWorkspace {
     RunWorkspace {
-        workspace: super::ForgeWorkspace { repositories: Box::new([]) },
+        workspace: super::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
         workstream: task,
         writes: Box::new([]),
         names: Box::new([]),

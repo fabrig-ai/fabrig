@@ -21,6 +21,7 @@ skein-json.workspace = true
 skein-checks.workspace = true
 
 [dev-dependencies]
+skein-deflate.workspace = true
 # The counting allocator, for tests/memory.rs only.
 skein-heap.workspace = true
 # The JSON reference parser, which the stacked test checks each event's

@@ -53,7 +53,9 @@ pub(crate) fn connector_read(
     let number = jig_ops_domain_connectors::number(Connector::Observability);
     let description = crate::translate::read_description(number, &read, &env.limits.observability.vocabulary);
     let mut findings = Queue::uncapped();
-    if domain.core.connector_read_admit(task, description, &mut findings) == jig_domain_authority::Answer::Allow {
+    if domain.engine.core().connector_read_admit(task, description, &mut findings)
+        == jig_domain_authority::Answer::Allow
+    {
         let token = domain.token();
         domain.hub_link.keep_read_call(token, binding);
         work.push(Work::Observability(jig_ops_domain_observability::Event::Read { token, read }));

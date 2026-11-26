@@ -1,14 +1,14 @@
 # setup: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-26. Where temper's code lags or departs from [README.md](README.md).
 
 `owned.md`, section 6, and `crate-layout.md`, section 1's shared fetch and launcher are present:
 `temper-fetch` owns the machine and Claude pin, `temper-fetch-shell`
 the TLS host and Claude Code's fetch under its lock, with no smith
 crate, and `temper-launcher` the launcher, the placing of its links in
 a private directory through `smith-agent-document`, and the
-substitution. Forgejo's pins and bottle extraction stay with forge
-setup, whose old fetch paths are re-exports. The pin/progress tests in
+substitution. Forgejo's pins stay with forge setup, whose old fetch
+paths are re-exports. The pin/progress tests in
 `temper-fetch`, the substitution's in `temper-launcher`, the retained
 local-TLS fetch suite and the agent's launcher rows cover the split; the
 process scan exempts `temper-launcher/src/lib.rs` for the launcher's

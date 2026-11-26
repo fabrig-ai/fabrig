@@ -1,10 +1,17 @@
 recipe 1
 after "project-landing"
+ctl chat start --project Hello --key qa-chat-first "What can you tell me about Hello?"
+ctl task show 1 --until phase:idle
 web reload "/chats"
 web press link "+ New chat"
 web input textbox "What do you want done?" "Let us design Away mode."
 web press button "Send"
 web see "Hello from the local fake model."
-web press button "+ Draft"
+web press button "Draft"
+web press button "Write it up from this chat"
+ctl task show 2 --until phase:idle --timeout 300
+web press button "Split"
 web see "I wrote an Away mode draft with its purpose, return flow and open questions."
 web see "docs/design/draft/away-mode.md"
+check
+ctl chat show 2

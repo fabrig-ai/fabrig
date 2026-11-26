@@ -158,6 +158,7 @@ mod tests {
         let asking = Asking { channel: Token::new(7), run: Token::new(7), attempt: Token::new(1), number: 1 };
         let tag = 3;
         let workspace = ForgeWorkspace {
+            rerun: None,
             repositories: Box::new([crate::ForgeRepository {
                 prefixes: Box::new([]),
                 delivers: false,

@@ -406,7 +406,7 @@ fn a_decision_with_more_outputs_than_the_door_releases_them_all_in_order() {
 fn a_refused_commit_stops_the_root_once() {
     for (durable, sent, number) in [(0, 0, 0), (0, 0, 1), (0, 0, u64::MAX), (8, 9, 7), (8, 9, 10)] {
         let (mut domain, env) = resume_fixture::root();
-        domain.core.counters = Counters::new(Deployment { commits: durable, ..domain.deployment() });
+        domain.engine.core_mut().counters = Counters::new(Deployment { commits: durable, ..domain.deployment() });
         domain.journal = SkeinJournal::uncapped(1, durable);
         domain.sent_commit = durable;
         domain.durable_commit = durable;
@@ -468,7 +468,7 @@ fn a_sign_in_cap_routes_from_the_party_input_to_the_core() {
             until: Some(cap),
         }),
     );
-    assert_eq!(domain.core.people.next_wall_expiry(), Some(cap));
+    assert_eq!(domain.engine.core().people.next_wall_expiry(), Some(cap));
 }
 
 #[test]
@@ -490,7 +490,7 @@ fn new_work_waits_at_the_watermark_and_admitted_work_is_always_taken() {
     let (mut domain, env) = resume_fixture::root_with_config_and_limits(resume_fixture::config(1), &limits);
     // Header-only commits give an exact backlog without held-output entries.
     for _ in 0..u64::from(env.limits.watermark) - 1 {
-        crate::fresh(&mut domain.core.counters, Family::Message).unwrap();
+        crate::fresh(&mut domain.engine.core_mut().counters, Family::Message).unwrap();
         crate::try_step(&mut domain, &env, Event::Resume).unwrap();
     }
     assert_eq!(crate::limits::backlog(&domain), u64::from(env.limits.watermark) - 1);
@@ -535,7 +535,7 @@ fn counter_and_commit_overflow_cannot_reuse_names() {
     assert_eq!(j.deployment().tasks, u64::MAX);
 
     let (mut domain, env) = resume_fixture::root();
-    domain.core.counters = Counters::new(Deployment { commits: u64::MAX, ..domain.deployment() });
+    domain.engine.core_mut().counters = Counters::new(Deployment { commits: u64::MAX, ..domain.deployment() });
     domain.journal = SkeinJournal::uncapped(1, u64::MAX);
     domain.sent_commit = u64::MAX;
     domain.durable_commit = u64::MAX;
@@ -735,7 +735,7 @@ fn held_assignment() -> crate::Assignment {
         }]),
         messages: Box::new([]),
         saved: Box::new([]),
-        workspace: crate::ForgeWorkspace { repositories: Box::new([]) },
+        workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
         workstream: 1,
         transcript: Box::new([]),
         answered: Box::new([]),
@@ -829,7 +829,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
             fixture.task,
             WorkspacePreparation::Ready(PreparedWorkspace {
                 workspace: RunWorkspace {
-                    workspace: crate::ForgeWorkspace { repositories: Box::new([]) },
+                    workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
                     workstream: fixture.task,
                     writes: Box::new([]),
                     names: Box::new([]),
@@ -928,7 +928,8 @@ fn bulk_task_drops_cross_the_journal_without_replacing_record_erases() {
         requests.push(core::Request::Write(core::Write::Erase(key.clone())));
     }
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
-    accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true).unwrap();
+    accept_routed(&mut domain.journal, &mut domain.engine.core_mut().counters, &env.limits.journal, decision, true)
+        .unwrap();
     let Some(Output::Commit { writes, .. }) = crate::decision::commit(&mut domain.journal, &env.limits.journal) else {
         panic!("the erasure reaches the store through its journal commit");
     };

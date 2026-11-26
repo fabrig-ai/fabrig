@@ -863,9 +863,9 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     assert_eq!(rows.len(), texts.len(), "one rendering per stored turn");
     let settings = fixtures::engine();
     let config = jig_protocol_config::core(&settings.jig, [7; 16], 7);
-    let mut core = core::Core::new(config, &settings.jig.limits.core).unwrap();
-    core.begin_transcript(7, 1, None);
-    core.transcripts.get_mut(&7).unwrap().window = Some((1, 1));
+    let mut jig = core::engine::Engine::new(config, &settings.jig.limits.core).unwrap();
+    jig.core_mut().begin_transcript(7, 1, None);
+    jig.core_mut().transcripts.get_mut(&7).unwrap().window = Some((1, 1));
     for (row, text) in rows.into_iter().zip(texts) {
         let engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row else { panic!("turn row") };
         let text = match text {
@@ -873,10 +873,10 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
             engine::TurnText::Unrendered => None,
             engine::TurnText::Cut(_) => panic!("whole turn rendering"),
         };
-        assert!(core.append_transcript(7, turn, text));
+        assert!(jig.core_mut().append_transcript(7, turn, text));
     }
     core::read_brief_part(
-        &core,
+        jig.core(),
         core::BriefTextLimits { parts: 1, read_bytes: 2048, brief_bytes: 4096 },
         7,
         core::BriefPart::TranscriptTail,

@@ -46,7 +46,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     temper_engine_domain_forge::findings::mark_findings(item.scope, &mut out);
                 }
             }
-            let projects = domain.core.projects.clone();
+            let projects = domain.engine.core().projects.clone();
             for &project in &projects {
                 let mut affected = false;
                 for item in &asked {
@@ -88,7 +88,7 @@ pub(super) fn worker_figures(domain: &Domain, env: &Env<Limits>, decision: &mut 
 
 pub(super) fn restored_figures(domain: &Domain, env: &Env<Limits>, decision: &mut Decision) {
     let setting = jig_domain_core::settings::Setting::Application { kind: 21, scope: 0, number: 1 };
-    let revision = match domain.core.current.applications.get(&setting) {
+    let revision = match domain.engine.core().current.applications.get(&setting) {
         Some(state) => match state.follows {
             application::Follows::Default => 1,
             application::Follows::Changed { revision } | application::Follows::Removed { revision } => revision,
@@ -245,8 +245,8 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         return None;
     }
     let templates = match owner {
-        Some(owner) => domain.core.settings_project_templates(owner, asked.scope),
-        None => domain.core.project_templates(asked.scope),
+        Some(owner) => domain.engine.core().settings_project_templates(owner, asked.scope),
+        None => domain.engine.core().project_templates(asked.scope),
     };
     for template in templates {
         if template.number == ways.way {
@@ -265,7 +265,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
 
 // temper/docs/design/domain/forge/change/gates.md, 3: eligibility joins the forge's rule with the core's people.
 fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
-    approval_for_projects(domain, asked, domain.core.projects.as_slice())
+    approval_for_projects(domain, asked, domain.engine.core().projects.as_slice())
 }
 
 /// Acceptance's approval refusal, judged for one project at the call
@@ -378,7 +378,7 @@ pub(super) fn eligible_people(domain: &Domain, project: u32, forge: u16, role: u
 /// Eligible members in the people domain's order (domain/forge/change/questions.md, 2).
 pub(super) fn eligible_members(domain: &Domain, project: u32, forge: u16, role: u32) -> List<u64> {
     let mut people = List::uncapped();
-    let Some(members) = domain.core.people.project_members(project) else { return people };
+    let Some(members) = domain.engine.core().people.project_members(project) else { return people };
     for member in members {
         if member.role.number() == role && super::forge_route::forge_human(domain, project, forge, member.person) {
             people.push(member.person).expect("project members bound eligible people");
@@ -423,6 +423,7 @@ fn fake_approval_words(project: u32) -> Box<[u8]> {
 fn bounds(limits: &Limits) -> settings::Bounds {
     settings::Bounds {
         landing_members: limits.forge.landing_members,
+        rerun_processes: limits.rerun_processes,
         repositories: limits.forge.repositories,
         landing_gates: limits.forge.gates,
         tiers: limits.forge.tiers.tiers,
@@ -548,7 +549,7 @@ pub(super) fn read(
                 crate::ForgeRead::LimitHolds { after } => limit_holds(domain, env, sign_in, scope, after),
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
-                    let inventory = jig_domain_core::documents::settings_inventory(&domain.core);
+                    let inventory = jig_domain_core::documents::settings_inventory(domain.engine.core());
                     let mut revision = None;
                     for line in &inventory.settings {
                         if line.setting == (jig_domain_core::settings::Setting::Application { kind, scope, number }) {
@@ -557,7 +558,10 @@ pub(super) fn read(
                         }
                     }
                     crate::ForgeReadAnswer::Setting {
-                        value: domain.forge.setting(kind, scope, number).cloned(),
+                        value: match domain.forge.setting(kind, scope, number) {
+                            Some(value) => Some(Box::new(value.clone())),
+                            None => None,
+                        },
                         revision,
                     }
                 }
@@ -585,18 +589,22 @@ fn read_refusal(
 ) -> Option<jig_domain_core::reads::Why> {
     use jig_domain_core::reads::Why;
     use jig_domain_people::{ApplicationScope, DEPLOYMENT};
-    let party = domain.core.people.person(sign_in, env.now, env.wall);
+    let party = domain.engine.core().people.person(sign_in, env.now, env.wall);
     match party {
-        None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
+        None => Some(if domain.engine.core().people.ready() { Why::SignedOut } else { Why::Unknown }),
         Some(party) => {
             let permitted = match scope {
                 ApplicationScope::Deployment => match query {
-                    crate::ForgeRead::History(query) => domain.core.people.role(party, query.project).is_some(),
+                    crate::ForgeRead::History(query) => {
+                        domain.engine.core().people.role(party, query.project).is_some()
+                    }
                     crate::ForgeRead::View { project, .. }
                     | crate::ForgeRead::Finding { project, .. }
-                    | crate::ForgeRead::Milestone { project, .. } => domain.core.people.role(party, *project).is_some(),
+                    | crate::ForgeRead::Milestone { project, .. } => {
+                        domain.engine.core().people.role(party, *project).is_some()
+                    }
                     crate::ForgeRead::ProgramEnvironment => {
-                        domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
+                        domain.engine.core().people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
                     crate::ForgeRead::LimitHolds { .. }
                     | crate::ForgeRead::Setting { kind: 20, scope: 0, number: 1 }
@@ -604,7 +612,9 @@ fn read_refusal(
                     crate::ForgeRead::Limits { .. }
                     | crate::ForgeRead::Setting { .. }
                     | crate::ForgeRead::RevisionSetting { .. }
-                    | crate::ForgeRead::ProposalItems { .. } => domain.core.people.role(party, DEPLOYMENT).is_some(),
+                    | crate::ForgeRead::ProposalItems { .. } => {
+                        domain.engine.core().people.role(party, DEPLOYMENT).is_some()
+                    }
                 },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
@@ -630,7 +640,7 @@ fn read_refusal(
                         | crate::ForgeRead::ProposalItems { .. }
                         | crate::ForgeRead::ProgramEnvironment => false,
                     };
-                    project != DEPLOYMENT && own_kind && domain.core.people.role(party, project).is_some()
+                    project != DEPLOYMENT && own_kind && domain.engine.core().people.role(party, project).is_some()
                 }
                 ApplicationScope::Own => false,
             };
@@ -648,16 +658,18 @@ fn limit_holds(
     after: Option<u64>,
 ) -> crate::ForgeReadAnswer {
     use jig_domain_people::{ApplicationScope, DEPLOYMENT};
-    let party = domain.core.people.person(sign_in, env.now, env.wall).expect("authorized hold read");
-    let deployment = domain.core.people.role(party, DEPLOYMENT).is_some();
+    let party = domain.engine.core().people.person(sign_in, env.now, env.wall).expect("authorized hold read");
+    let deployment = domain.engine.core().people.role(party, DEPLOYMENT).is_some();
     let mut ordered = skein_lib::Map::with_capacity(domain.forge_limit_holds.len());
     for row in domain.forge_limit_holds() {
         if row.task <= after.unwrap_or(0) {
             continue;
         }
-        let Some(task) = domain.core.tasks.task(row.task) else { continue };
+        let Some(task) = domain.engine.core().tasks.task(row.task) else { continue };
         let visible = match scope {
-            ApplicationScope::Deployment => deployment || domain.core.people.role(party, task.project).is_some(),
+            ApplicationScope::Deployment => {
+                deployment || domain.engine.core().people.role(party, task.project).is_some()
+            }
             ApplicationScope::Project(project) => task.project == project,
             ApplicationScope::Own => false,
         };
@@ -705,7 +717,7 @@ fn revision_begin(
     match scope {
         jig_domain_people::ApplicationScope::Project(project) => {
             let requests = jig_domain_core::reads::settings::revision_metadata(
-                &mut domain.core,
+                domain.engine.core_mut(),
                 &super::environment_core(env),
                 reply,
                 sign_in,
@@ -751,7 +763,7 @@ pub(super) fn revision_answer(
                 record,
                 (kind, scope, number),
                 revision,
-                jig_domain_core::reads::settings::oldest(&domain.core, &super::environment_core(env).limits),
+                jig_domain_core::reads::settings::oldest(domain.engine.core(), &super::environment_core(env).limits),
             ),
             jig_domain_core::reads::RevisionAnswer::Unknown
             | jig_domain_core::reads::RevisionAnswer::Forgotten { .. } => {
@@ -781,7 +793,9 @@ fn revision_value(
         if (item.kind, item.scope, item.number) == selector
             && let application::SizedEdit::Set { .. } = item.edit
         {
-            value = domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+            if let Some(kept) = domain.forge.revision_setting(item.kind, item.scope, item.number, revision) {
+                value = Some(Box::new(kept.clone()));
+            }
             break;
         }
     }
@@ -841,7 +855,7 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
 fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {
     match owner {
         settings::AreaOwner::Task(number) => {
-            let Some(task) = domain.core.tasks.task(number) else { return false };
+            let Some(task) = domain.engine.core().tasks.task(number) else { return false };
             if task.project != project {
                 return false;
             }
@@ -853,7 +867,7 @@ fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, ow
                 | jig_domain_tasks::Phase::Held { .. } => true,
             }
         }
-        settings::AreaOwner::Party(number) => domain.core.people.role(number, project).is_some(),
+        settings::AreaOwner::Party(number) => domain.engine.core().people.role(number, project).is_some(),
         settings::AreaOwner::Role(number) => number < bounds.roles,
         settings::AreaOwner::Charter(number) => number > 0 && number <= jig_domain_people::NUMBERS,
     }

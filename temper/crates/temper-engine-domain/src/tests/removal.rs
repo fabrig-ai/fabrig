@@ -6,7 +6,7 @@ use temper_engine_domain_forge as forge;
 
 fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
     let (mut domain, env) = super::resume_fixture::root();
-    let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
+    let goal = crate::fresh(&mut domain.engine.core_mut().counters, crate::Family::Task).unwrap();
     let task_env = env.with(env.limits.tasks);
     let mut out = Queue::uncapped();
     for event in [
@@ -45,7 +45,7 @@ fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
             }]),
         },
     ] {
-        tasks::step(&mut domain.core.tasks, &task_env, event, &mut out);
+        tasks::step(&mut domain.engine.core_mut().tasks, &task_env, event, &mut out);
         while out.pop().is_some() {}
     }
 
@@ -60,7 +60,7 @@ fn a_removed_changes_cancel_ends_its_procedure_even_while_held() {
         let mut out = Queue::uncapped();
         if held {
             tasks::step(
-                &mut domain.core.tasks,
+                &mut domain.engine.core_mut().tasks,
                 &task_env,
                 tasks::Event::Hold { task, why: tasks::Hold::Effects },
                 &mut out,
@@ -79,7 +79,7 @@ fn a_removed_changes_cancel_ends_its_procedure_even_while_held() {
         let Some(crate::Work::Tasks(control)) = domain.work.pop() else { panic!("task cancel routed") };
         assert!(domain.work.is_empty());
         for event in [control, tasks::Event::EffectsSettled { task }, tasks::Event::Settled { task }] {
-            tasks::step(&mut domain.core.tasks, &task_env, event, &mut out);
+            tasks::step(&mut domain.engine.core_mut().tasks, &task_env, event, &mut out);
         }
         let mut cancelled = false;
         while let Some(request) = out.pop() {

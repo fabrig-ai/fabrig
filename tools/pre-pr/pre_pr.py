@@ -84,7 +84,8 @@ def stderr_line(text):
 
 
 def print_broke(detail):
-    print(stderr_line(f'pre-pr: broke: {detail}'), end='', file=sys.stderr, flush=True)
+    sys.stderr.write('smith-check: not judged\n' + stderr_line(f'pre-pr: broke: {detail}'))
+    sys.stderr.flush()
 
 
 def run(arguments, cwd, env, output=None, stdout=False):

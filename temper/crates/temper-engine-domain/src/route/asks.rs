@@ -98,8 +98,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 // without a deadline; its dependency's Met wakes it (jig's domain/tasks/lifecycle-endings.md, 1).
                 if !held
                     && connector == domain.config.forge_connector
-                    && domain.core.tasks.waiting_effect_problem(task).as_ref() == Some(&problem)
-                    && let Some((owner, code @ 2, current)) = domain.core.tasks.procedure_due(task)
+                    && domain.engine.core().tasks.waiting_effect_problem(task).as_ref() == Some(&problem)
+                    && let Some((owner, code @ 2, current)) = domain.engine.core().tasks.procedure_due(task)
                     && owner == connector
                     && current == step
                 {
@@ -215,7 +215,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Adopt { request, project, adoption } => {
             if connector == domain.config.forge_connector
-                && domain.core.application_part_request(request).is_none()
+                && domain.engine.core().application_part_request(request).is_none()
                 && let Some((adoption, repository)) = super::making::asked(domain, project, &adoption)
             {
                 if domain.adoption_restore.len() < env.limits.forge.adoptions {
@@ -234,7 +234,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 return;
             }
             let located = if connector == domain.config.forge_connector
-                && let Some(application) = domain.core.application_part_request(request)
+                && let Some(application) = domain.engine.core().application_part_request(request)
                 && let Some(repository) = domain.forge.applying(application)
             {
                 Some((application, repository))
@@ -566,7 +566,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StartProcedure { context, step } => {
-            if domain.core.settling() {
+            if domain.engine.core().settling() {
                 return;
             }
             let task = context.task;
@@ -587,7 +587,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
                 forge_route::start_landing_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::GOAL_CLOSER_CODE {
-                if let Some(row) = domain.core.tasks.task(task)
+                if let Some(row) = domain.engine.core().tasks.task(task)
                     && row.due_reason == tasks::Why::Released
                 {
                     domain.forge.release_closer_wait(task, env.wall);
@@ -621,7 +621,7 @@ fn hold_changed_charter(
     refusal: &core::StepRefusal,
 ) -> bool {
     use temper_engine_domain_forge_change::{Delegate, GateKind};
-    let Some((owner, 2, current)) = domain.core.tasks.procedure_due(task) else { return false };
+    let Some((owner, 2, current)) = domain.engine.core().tasks.procedure_due(task) else { return false };
     if owner != domain.config.forge_connector || current != step {
         return false;
     }
@@ -650,14 +650,15 @@ fn hold_changed_charter(
         core::StepRefusal::Denied { findings, .. }
             if executor_refused(findings)
                 && (!domain
-                    .core
+                    .engine
+                    .core()
                     .authority
                     .rules()
                     .ceiling
                     .delegation
                     .kinds
                     .contains(&jig_domain_authority::Executor::Charter(charter))
-                    || domain.core.charter(charter).is_none()) =>
+                    || domain.engine.core().charter(charter).is_none()) =>
         {
             None
         }
@@ -675,7 +676,7 @@ fn hold_changed_charter(
     match model {
         Some(model) => {
             append_hold(&mut words, b" choice names model ");
-            let Some(model) = domain.core.settings.models.get(usize::from(model)) else { return false };
+            let Some(model) = domain.engine.core().settings.models.get(usize::from(model)) else { return false };
             append_hold(&mut words, &model.name);
             append_hold(&mut words, b", which charter ");
             append_hold(&mut words, &forge_route::decimal(u64::from(charter)));
@@ -728,7 +729,7 @@ fn step_made(
     forge_route::follow_route::made(domain, task, step, child);
     forge_route::closer_made(domain, task, step, child);
     if domain.forge.tier_task(task).is_some()
-        && let Some(row) = domain.core.tasks.task(task)
+        && let Some(row) = domain.engine.core().tasks.task(task)
     {
         domain.work.push(Work::Forge(forge::Event::TierWords { task, words: row.spec.words.clone() }));
     }
@@ -762,7 +763,7 @@ fn release_reason(domain: &Domain, task: u64, ending: &tasks::Ending) -> Option<
         tasks::Ending::Cancelled { .. } => {}
         tasks::Ending::Done(_) | tasks::Ending::Failed { .. } => return None,
     }
-    let task = domain.core.tasks.task(task)?;
+    let task = domain.engine.core().tasks.task(task)?;
     let closing = match &task.phase {
         tasks::Phase::Closing(closing) | tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => closing,
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } | tasks::Phase::Ended(_) => {

@@ -31,9 +31,9 @@ fn ending_wakes(choice: landing::Decision) {
     // Admit one main member without driving other trains or starting any reads.
     super::super::start_landing(&mut domain, &env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
+    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), resource));
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event));
     let Some(Work::LandingAdmission { mut row, .. }) = domain.work.pop() else { panic!("landing admission") };
     assert_eq!(row.landing.members.len(), 1);
     assert_eq!(row.landing.members[0].change, 7);
@@ -65,8 +65,8 @@ fn ending_wakes(choice: landing::Decision) {
         assert_eq!(*by, tasks::Party::Deployment { project: 1 });
         assert_eq!(operation.task, task);
         assert_eq!(operation.reason.as_ref(), REASON);
-        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
-        let tasks::Phase::Closing(closing) = &domain.core.tasks.task(task).expect("landing task").phase else {
+        tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        let tasks::Phase::Closing(closing) = &domain.engine.core().tasks.task(task).expect("landing task").phase else {
             panic!("jig accepted the cancel")
         };
         let tasks::Ending::Cancelled { reason, .. } = &closing.ending else { panic!("cancelled ending") };

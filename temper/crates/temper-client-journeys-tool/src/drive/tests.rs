@@ -374,7 +374,7 @@ fn startup_orders_sign_ins_and_confines_programs() {
         let text = format!("{program:?}");
         assert!(!text.contains("cargo") && !text.contains("scripts/bundle.sh"));
     }
-    let browser = skein_browser::command::command(b"/browser/chromium", b"/scratch/session/browser", false);
+    let browser = skein_browser::command::command(b"/browser/chromium", b"/scratch/session/browser", false, false);
     assert!(browser.args.iter().any(|a| a.as_ref() == b"--user-data-dir=/scratch/session/browser"));
 }
 #[test]

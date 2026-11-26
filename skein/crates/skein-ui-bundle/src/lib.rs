@@ -66,6 +66,7 @@ pub enum Refusal {
     Type { file: PathBuf },
     ReservedName { file: PathBuf },
     SameName { file: PathBuf },
+    Compress { file: PathBuf },
     Glue,
     NoMarker { page: PathBuf },
     NoNoscriptMarker { markup: PathBuf },
@@ -165,11 +166,13 @@ fn compress(files: &mut BTreeMap<String, Vec<u8>>) -> Result<(), Refusal> {
 }
 
 fn compressed(name: &str, bytes: &[u8]) -> Result<Vec<u8>, Refusal> {
-    use std::io::Write;
-    let path = Path::new(name);
-    let mut encoder = flate2::GzBuilder::new().mtime(0).write(Vec::new(), flate2::Compression::best());
-    io(path, encoder.write_all(bytes))?;
-    io(path, encoder.finish())
+    use skein_deflate::gzip;
+    let refusal = || Refusal::Compress { file: PathBuf::from(name) };
+    let bound = gzip::bound(bytes.len()).ok_or_else(refusal)?;
+    let mut member = vec![0; bound];
+    let length = gzip::encode_best(bytes, &mut member).ok_or_else(refusal)?;
+    member.truncate(length);
+    Ok(member)
 }
 
 fn collect(directory: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Result<(), Refusal> {
@@ -210,6 +213,7 @@ impl fmt::Display for Refusal {
             Self::Type { file } => write!(f, "unsupported bundle type: {}", file.display()),
             Self::ReservedName { file } => write!(f, "reserved stylesheet name: {}", file.display()),
             Self::SameName { file } => write!(f, "duplicate bundle name: {}", file.display()),
+            Self::Compress { file } => write!(f, "cannot compress bundle file: {}", file.display()),
             Self::NoNoscriptMarker { markup } => {
                 write!(f, "placeholder has no {{noscript}} marker: {}", markup.display())
             }

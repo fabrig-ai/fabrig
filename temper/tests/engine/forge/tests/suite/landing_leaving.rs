@@ -276,10 +276,8 @@ fn runner_faults_past_the_projects_retries_hold_without_repair() {
         world.landing(LANDING).landing.phase,
         landing::Phase::Held { why: landing::Hold::Faults { member: 0, gate: 0 }, .. }
     ));
-    assert_eq!(
-        world.landing_hold_words(LANDING).as_deref(),
-        Some(b"gate gate of org/repo failed on its runner past its retries".as_slice())
-    );
+    let expected = landings::setup_fault_hold_words(world.landing(LANDING), |read| world.inspect(read));
+    assert_eq!(world.landing_hold_words(LANDING).as_deref(), Some(expected.as_bytes()));
     assert_eq!(world.change(CHANGE).change.repairs, 0);
     assert_eq!(
         world.take_calls().iter().filter(|op| matches!(op, api::Op::Write(api::Write::Rerun { .. }))).count(),

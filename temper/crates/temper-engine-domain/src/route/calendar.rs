@@ -14,7 +14,7 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: calendar::Eve
             calendar::Request::Next { project, period, next } => (project, period, next, source_budget),
             calendar::Request::Open { project, period, next } => (project, period, next, None),
         };
-        if let Some(policy) = domain.core.authority.policy(project) {
+        if let Some(policy) = domain.engine.core().authority.policy(project) {
             let budget = supplied.unwrap_or(policy.period_spend);
             domain.work.push(Work::Core(jig_domain_core::Event::Period { project, period, budget, next: Some(next) }));
         }

@@ -7,18 +7,17 @@ use skein_lib::{
     stream::{Down, Read, Up},
 };
 use std::{collections::VecDeque, io, path::Path};
-use temper_fetch::fetch::Extraction;
 
 pub(super) const FILE: &[u8] = b"/cache/binary";
 pub(super) const PART: &[u8] = b"/cache/binary.part";
-pub(super) const ARCHIVE: &[u8] = b"/cache/binary.archive";
+pub(super) const PACKED: &[u8] = b"/cache/binary.zst.part";
 const PARENT: &str = "/cache";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Name {
     Binary,
     Part,
-    Archive,
+    Packed,
 }
 
 impl Name {
@@ -26,7 +25,7 @@ impl Name {
         match path.as_os_str().as_encoded_bytes() {
             FILE => Self::Binary,
             PART => Self::Part,
-            ARCHIVE => Self::Archive,
+            PACKED => Self::Packed,
             other => panic!("unexpected cache path: {other:?}"),
         }
     }
@@ -34,7 +33,7 @@ impl Name {
         match self {
             Self::Binary => b"binary",
             Self::Part => b"binary.part",
-            Self::Archive => b"binary.archive",
+            Self::Packed => b"binary.zst.part",
         }
     }
 }
@@ -46,42 +45,33 @@ pub(super) enum Effect {
     Open(Name, bool, u32),
     Mode(Name, u32),
     Write(Name, u64, usize),
-    Extract,
+    ReadPacked,
     Sync(Name),
     Rename(Name, Name),
     SyncParent,
     Remove(Name),
 }
 
-pub(super) struct Extracted<'a> {
-    pub archive: &'a [u8],
-    pub member: &'a [u8],
-    pub bound: u64,
-    pub written: &'a [u8],
-    pub verdict: Extraction,
-}
-
-pub(super) struct CacheScript<'a> {
+pub(super) struct CacheScript {
     disk: Machine,
     root: Opened,
     pub effects: Vec<Effect>,
-    pub extraction: Option<Extracted<'a>>,
 }
 
-impl CacheScript<'_> {
-    pub fn new(initial: Option<&[u8]>, stale: Option<&[u8]>, stale_archive: Option<&[u8]>) -> Self {
+impl CacheScript {
+    pub fn new(initial: Option<&[u8]>, stale: Option<&[u8]>, stale_packed: Option<&[u8]>) -> Self {
         let mut disk = Machine::new();
         let mut items = Vec::new();
-        if initial.is_some() || stale.is_some() || stale_archive.is_some() {
+        if initial.is_some() || stale.is_some() || stale_packed.is_some() {
             items.push(Item::directory(b"cache"));
         }
-        for (name, bytes) in [(FILE, initial), (PART, stale), (ARCHIVE, stale_archive)] {
+        for (name, bytes) in [(FILE, initial), (PART, stale), (PACKED, stale_packed)] {
             if let Some(bytes) = bytes {
                 items.push(Item::file(&name[1..], bytes));
             }
         }
         let root = disk.lay(&items);
-        Self { disk, root, effects: Vec::new(), extraction: None }
+        Self { disk, root, effects: Vec::new() }
     }
 
     pub fn bytes(&mut self, name: Name) -> Option<Vec<u8>> {
@@ -89,7 +79,6 @@ impl CacheScript<'_> {
     }
     pub fn settled(&self) {
         assert_eq!(self.disk.open_handles(), 1, "only the root is still open");
-        assert!(self.extraction.is_none(), "the extraction was consumed");
     }
     fn read(&mut self, name: Name) -> io::Result<Option<Vec<u8>>> {
         let Some(directory) = self.directory()? else { return Ok(None) };
@@ -124,14 +113,18 @@ fn unexpected(why: Refusal) -> io::Error {
     io::Error::other(format!("fixture cache: {why:?}"))
 }
 
-impl Cache for CacheScript<'_> {
+impl Cache for CacheScript {
     type Input = io::Cursor<Vec<u8>>;
     type Part = (Name, Opened);
 
-    fn open_cached(&mut self, file: &Path) -> io::Result<Self::Input> {
-        assert_eq!(Name::at(file), Name::Binary);
-        self.effects.push(Effect::Hash);
-        Ok(io::Cursor::new(self.read(Name::Binary)?.ok_or(io::ErrorKind::NotFound)?))
+    fn open_input(&mut self, file: &Path) -> io::Result<Self::Input> {
+        let name = Name::at(file);
+        self.effects.push(match name {
+            Name::Binary => Effect::Hash,
+            Name::Packed => Effect::ReadPacked,
+            Name::Part => panic!("an unpacked staging file is not read"),
+        });
+        Ok(io::Cursor::new(self.read(name)?.ok_or(io::ErrorKind::NotFound)?))
     }
     fn make_parent(&mut self, parent: &Path, mode: u32) -> io::Result<()> {
         assert_eq!(parent, Path::new(PARENT));
@@ -165,16 +158,6 @@ impl Cache for CacheScript<'_> {
     fn write_at(&mut self, (name, part): &mut Self::Part, offset: u64, bytes: &[u8]) -> io::Result<()> {
         self.effects.push(Effect::Write(*name, offset, bytes.len()));
         self.disk.write(*part, offset, bytes).map_err(unexpected)
-    }
-    fn extract(&mut self, archive: &[u8], member: &[u8], (name, part): &mut Self::Part, bound: u64) -> Extraction {
-        self.effects.push(Effect::Extract);
-        let script = self.extraction.take().expect("scripted extraction");
-        assert_eq!(*name, Name::Part);
-        assert_eq!(archive, ARCHIVE);
-        assert_eq!(self.bytes(Name::Archive).as_deref(), Some(script.archive));
-        assert_eq!((member, bound), (script.member, script.bound));
-        self.disk.write(*part, 0, script.written).expect("write extracted bytes");
-        script.verdict
     }
     fn sync(&mut self, &(name, part): &Self::Part) -> io::Result<()> {
         self.effects.push(Effect::Sync(name));
@@ -217,9 +200,9 @@ impl<'a> Wire<'a> {
 
     pub fn answer(&mut self, request: WireRequest) -> Result<Event, Failed> {
         let plaintext = match request {
-            WireRequest::Get { origin, path, authorization } => {
+            WireRequest::Get { origin, path } => {
                 let response = self.responses.pop_front().expect("no unscripted Get");
-                self.active.insert(Plain::new(&origin, &path, authorization, response))
+                self.active.insert(Plain::new(&origin, &path, response))
             }
             WireRequest::Read => {
                 let plaintext = self.active.as_mut().expect("Read follows Get");
@@ -252,7 +235,7 @@ struct Plain {
 }
 
 impl Plain {
-    fn new(origin: &temper_fetch::Origin, path: &[u8], auth: Option<Box<[u8]>>, response: &[u8]) -> Self {
+    fn new(origin: &temper_fetch::Origin, path: &[u8], response: &[u8]) -> Self {
         let cap = u32::try_from(response.len()).expect("small fixture").max(http::largest_read(&HTTP));
         let mut input = Intake::with_capacity(cap);
         input.append(response).expect("room for the fixture");
@@ -264,7 +247,7 @@ impl Plain {
             sent: Vec::new(),
             url: temper_fetch::fetch::url(origin, path),
         };
-        plain.down(http::Request::Call(request_head(origin, path, auth)));
+        plain.down(http::Request::Call(request_head(origin, path)));
         plain
     }
     fn down(&mut self, request: http::Request) {

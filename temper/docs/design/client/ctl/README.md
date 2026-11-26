@@ -225,8 +225,10 @@ Moved to [`command-line.md`](command-line.md), section 1.
     service's DIRECTORY in again. The link is never an argument, in a
     log or in an error.
   - *Answered:* `reissued: party N; its sign-ins have ended; sign its
-    directory in with temper ctl DIRECTORY sign-in FILE`, FILE as given,
-    exit 0; `--json`, `{"operation": "reissue-service", "outcome":
+    directory in with temper ctl DIRECTORY sign-in FILE`, FILE as given
+    and DIRECTORY printed as the word: it stands for the service's own
+    directory, which the owner's never knows, and never names the
+    owner's, which that line would sign in as the service. Exit 0; `--json`, `{"operation": "reissue-service", "outcome":
     {"reissued": {"party": N}}}`. Sent again under its key, it reissues
     again (jig's `domain/people/acts.md`, 1).
   - *Refused:* PARTY the party DIRECTORY is signed in as, before

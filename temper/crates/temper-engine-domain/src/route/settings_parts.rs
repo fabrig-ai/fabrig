@@ -15,9 +15,9 @@ pub(crate) struct Held {
 }
 
 fn asking(domain: &Domain, task: u64) -> bool {
-    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let Some(row) = domain.engine.core().tasks.task(task) else { return false };
     match row.executor {
-        tasks::Executor::Agent { charter } => match domain.core.charter(charter) {
+        tasks::Executor::Agent { charter } => match domain.engine.core().charter(charter) {
             Some(charter) => crate::asking(charter.policy.tools),
             None => false,
         },
@@ -27,7 +27,7 @@ fn asking(domain: &Domain, task: u64) -> bool {
 
 /// Keep the restored asking runs that may have lost parts, once per run.
 pub(crate) fn restored(domain: &mut Domain) {
-    for (&task, proof) in &domain.core.proofs {
+    for (&task, proof) in &domain.engine.core().proofs {
         if asking(domain, task) {
             domain.settings_restarted.insert((task, proof.attempt)).expect("one restart guard per live task");
         }
@@ -148,7 +148,7 @@ fn propose(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: Tool, asking: b
         return;
     }
     if asking
-        && let Some(context) = domain.core.tasks.delegation(key.task)
+        && let Some(context) = domain.engine.core().tasks.delegation(key.task)
         && let Some(why) = super::kinds::call_approval_refusal(domain, context.project, &kinds)
     {
         answer(domain, to, PartsAnswer::Approvals { why });

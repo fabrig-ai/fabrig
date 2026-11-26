@@ -1593,6 +1593,7 @@ impl World {
                 let keep = usize::try_from(tail).expect("small check output").min(output.len());
                 let ran = run::Ran {
                     exit: run::Exit::Code { code: u8::from(!passed) },
+                    said_not_judged: false,
                     output: output[output.len() - keep..].into(),
                     cut: skein_lib::len_u64(output.len() - keep),
                 };

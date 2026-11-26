@@ -13,7 +13,7 @@ pub fn message(run: Token, attempt: Token, word: &tasks::Word) -> host::LinkDown
         name: Token::new(word.number),
         sender: inbox_sender(word),
         words: inbox_words(run.raw(), word),
-        finish_requested: word.finish_requested(),
+        finish_requested: tasks::finish_requested(word),
     }
 }
 

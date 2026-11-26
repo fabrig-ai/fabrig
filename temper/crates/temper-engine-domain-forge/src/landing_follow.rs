@@ -326,8 +326,8 @@ fn legacy(d: &Domain, row: &LandingRow, flights: &mut List<(ReceiptKey, runs::Fo
 }
 
 fn already_proved(d: &Domain, row: &LandingRow, key: &ReceiptKey, inputs: &[api::Input]) -> bool {
-    if let Some(receipt) = d.landing.receipts.get(key)
-        && !super::superseded(d, row, key, receipt)
+    if let Some(receipt) = d.receipt(key)
+        && !super::superseded(d, row, key)
     {
         match super::tests_value(inputs) {
             None => true,

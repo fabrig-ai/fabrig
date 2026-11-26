@@ -11,7 +11,12 @@ This document holds a change's holds and releases, split from [`repairs.md`](rep
   verdict is posted there.
 - **Bounded apart:** repairs past their limit, resolutions past theirs,
   updates past theirs, hold the change, saying why, and its requester
-  hears.
+  hears. So does CI whose runner's faults outlast `reruns` at a head
+  (`README.md`, 2, step 3): its cause the runner's, `Runner`, its words
+  naming each job, its check and its fact (`set-up failed`, `completion
+  failed`, `no step failed`, `cancelled`) and that the change wasn't
+  judged. Its release counts the jobs' re-runs afresh from their
+  attempts at the release, as a repairs hold's counts repairs afresh.
 - **A step its authority no longer covers holds it too.** A change's
   delegates (its producer, a review, a review asked again, a repair, a
   resolution) are made under the change's own authority, its tasks
@@ -119,9 +124,11 @@ This document holds a change's holds and releases, split from [`repairs.md`](rep
   exhaustion. Released at a head CI has not passed at (a green head ends
   its CI repair, above), it asks for a fresh repair with the same reason
   and current forge facts, under its current authority, counted against
-  the reset repair allowance; held on its repair's flake verdict, it asks
-  none and names its regate instead (*A landing repair that finds only
-  flakes*, above). The
+  the reset repair allowance, as it does when held because its red
+  stands after a repair that changed nothing (`repairs.md`, 1, *A repair
+  that changes nothing is checked once more*); held on a previous
+  build's flake or no-test verdict, it asks none and names its regate
+  instead (`repairs.md`, 1, *The previous build's holds*). The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
   Released from a resolution or a merge job that failed or was

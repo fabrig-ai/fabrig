@@ -75,6 +75,7 @@ fn the_reference_landing_settings_are_project_kinds() {
         if let settings::Value::Landing(v) = value.value {
             assert_eq!(v.merge_job.as_deref(), Some(b".temper/merge".as_slice()));
             assert_eq!(v.close_job.as_deref(), Some(b".temper/close".as_slice()));
+            assert_eq!(v.flakes, Some(settings::Flakes::Never));
         } else if let settings::Value::Gates(v) = value.value {
             assert_eq!(v.repositories.len(), 1);
             assert_eq!(v.repositories[0].tiers.len(), 2);

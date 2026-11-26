@@ -45,7 +45,7 @@ pub(crate) fn claimed(domain: &mut Domain, task: u64, attempt: u64, kind: u32) {
     } else {
         return;
     };
-    let Some(child) = domain.core.tasks.task(task) else { return };
+    let Some(child) = domain.engine.core().tasks.task(task) else { return };
     let tasks::Party::Task(owner) = child.requester else { return };
     if domain.forge.landing(owner).is_none() && domain.forge.change(owner).is_none() {
         return;
@@ -124,7 +124,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record, answe
     }));
 }
 fn attempt_ended(domain: &mut Domain, row: &tasks::AttemptRow, answer: Option<Answer>) {
-    let Some(child) = domain.core.tasks.task(row.task) else { return };
+    let Some(child) = domain.engine.core().tasks.task(row.task) else { return };
     let tasks::Party::Task(owner) = child.requester else { return };
     let job = match child.executor {
         tasks::Executor::Job { kind } if kind == forge::PREPARE_KIND => Job::Prepare,

@@ -50,5 +50,7 @@ pub struct ForgeRepository {
 /// their cache is the hub's (jig's `domain/hosts/README.md`, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeWorkspace {
+    /// The project's rerun bound, if it states one.
+    pub rerun: Option<u32>,
     pub repositories: Box<[ForgeRepository]>,
 }

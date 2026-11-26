@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 
 pub(super) fn is_release(domain: &Domain, task: u64) -> bool {
-    let Some(record) = domain.core.tasks.task(task) else { return false };
+    let Some(record) = domain.engine.core().tasks.task(task) else { return false };
     let Some(row) = domain.forge.change(task) else { return false };
     if record.due_reason != tasks::Why::Released {
         return false;
@@ -29,7 +29,7 @@ pub(crate) fn start(
     context: &tasks::RunContext,
 ) -> bool {
     let task = context.task;
-    let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { return false };
+    let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) else { return false };
     let released = is_release(domain, task);
     if released {
         super::close::retire_on_release(domain, env, decision, task);
@@ -47,8 +47,8 @@ pub(crate) fn start(
             forge::Event::ReleaseChange {
                 task,
                 release: Some(forge::TaskRelease {
-                    revision: domain.core.tasks.task(task).expect("released task").revisions.hold,
-                    at: domain.core.tasks.task(task).expect("released task").phase_since,
+                    revision: domain.engine.core().tasks.task(task).expect("released task").revisions.hold,
+                    at: domain.engine.core().tasks.task(task).expect("released task").phase_since,
                 }),
             },
         );
@@ -68,12 +68,12 @@ pub(crate) fn start(
             return false;
         }
     }
-    if domain.core.tasks.task(child).is_some()
+    if domain.engine.core().tasks.task(child).is_some()
         || (!released && row.delegate_status != forge_change::Status::Unknown && !stale_question)
     {
         return false;
     }
-    let revision = domain.core.tasks.task(task).expect("due change").revisions.hold;
+    let revision = domain.engine.core().tasks.task(task).expect("due change").revisions.hold;
     let read = Read::ChangeDelegate { task, child, step, revision };
     match domain.archive_reads.insert(Some(read)) {
         Ok(waiter) => emit(
@@ -96,7 +96,7 @@ fn retry(domain: &mut Domain, env: &Env<Limits>, task: u64, step: u64) {
             row.change.since.as_nanos().saturating_add(env.limits.forge.change_policy.stall.as_nanos()),
         );
         if env.wall >= bound {
-            if let Some(context) = domain.core.tasks.run_context(task)
+            if let Some(context) = domain.engine.core().tasks.run_context(task)
                 && !super::start_change(domain, env, &context)
             {
                 super::start_refused(domain, task);
@@ -126,8 +126,8 @@ pub(crate) fn loaded(
         return;
     };
     domain.archive_reads.retire(skein_lib::Id::from_token(waiter));
-    let Some(record) = domain.core.tasks.task(task) else { return };
-    let Some((_, _, due)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some(record) = domain.engine.core().tasks.task(task) else { return };
+    let Some((_, _, due)) = domain.engine.core().tasks.procedure_due(task) else { return };
     let Some(row) = domain.forge.change(task) else { return };
     let Some((expected, kind)) = row.delegate else { return };
     let released_at = match &row.task_release {
@@ -186,11 +186,12 @@ pub(crate) fn loaded(
             flake,
             no_test,
             failed,
+            lost: false,
             cancelled,
             words,
         },
     );
-    if let Some(context) = domain.core.tasks.run_context(task)
+    if let Some(context) = domain.engine.core().tasks.run_context(task)
         && !super::start_recovered_change(domain, env, &context, Some((child, ended_at)))
     {
         super::start_refused(domain, task);

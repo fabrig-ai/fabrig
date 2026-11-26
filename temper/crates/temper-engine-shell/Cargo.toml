@@ -48,6 +48,7 @@ temper-protocol-store.workspace = true
 temper-protocol-worker-wire.workspace = true
 
 [dev-dependencies]
+temper-fetch-shell.workspace = true
 skein-codec.workspace = true
 temper-worker-shell.workspace = true
 jig-protocol-config-fixtures.workspace = true

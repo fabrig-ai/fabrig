@@ -1,6 +1,7 @@
 //! Open acceptance scenarios (design/testing/engine-checks.md, 5.1).
 mod p124;
 mod p37;
+pub(super) use p37::check_starved_gate;
 mod p67;
 mod p88;
 mod p90;
@@ -16,7 +17,7 @@ use temper_engine_forge_world::{
 };
 
 /// A failed workflow step whose uploaded report is independent of its exit status.
-fn reported_gate(failing_tests: &[&[u8]]) -> World {
+pub(super) fn reported_gate(seed: u64, failing_tests: &[&[u8]], blame: bool) -> World {
     let workflow = raw::Workflow {
         requirements: Box::new([]),
         fails: failing_tests.iter().map(|test| Box::from(*test)).collect(),
@@ -35,7 +36,11 @@ fn reported_gate(failing_tests: &[&[u8]]) -> World {
         passes: 0,
         cue: None,
     };
-    let mut world = landings::turn_in(World::batch_turn(31, Some(workflow)));
+    let mut world = World::batch_turn(seed, Some(workflow));
+    if blame {
+        world.watch_blame();
+    }
+    let mut world = landings::turn_in(world);
     assert!(world.project_landing(
         PROJECT,
         change::Way::Turn,

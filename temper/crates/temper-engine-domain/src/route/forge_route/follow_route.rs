@@ -47,10 +47,10 @@ pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, follow
     append(&mut words, &super::repository_name(target));
     append(&mut words, b" ");
     append(&mut words, branch(&setting.target.branch, target));
-    let seed = match domain.core.repair_seed(project) {
+    let seed = match domain.engine.core_mut().repair_seed(project) {
         Some(seed) => seed,
         None => {
-            let Some(seed) = domain.core.procedure_seed(project) else { return };
+            let Some(seed) = domain.engine.core_mut().procedure_seed(project) else { return };
             seed
         }
     };
@@ -76,7 +76,7 @@ pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, follow
             domain.work.push(Work::Forge(forge::Event::Follow { row }));
         }
         forge::settings::FollowOwner::Task(owner) => {
-            let Some(context) = domain.core.tasks.delegation(owner) else {
+            let Some(context) = domain.engine.core().tasks.delegation(owner) else {
                 stop(domain, row, owner, b"lifetime task capacity or unavailable owner");
                 return;
             };
@@ -111,7 +111,7 @@ fn refusal(why: tasks::Refusal) -> &'static [u8] {
     }
 }
 pub(crate) fn make_refused(domain: &mut Domain, task: u64, why: tasks::Refusal) -> bool {
-    if domain.core.tasks.task(task).is_some() {
+    if domain.engine.core().tasks.task(task).is_some() {
         return false;
     }
     let Some(row) = domain.forge.follow_task(task).cloned() else { return false };
@@ -140,7 +140,7 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
         super::holds::hold(domain, task, b"the follow cannot apply its owner act within the specification bound");
         return;
     }
-    let Some(delegation) = domain.core.tasks.delegation(task) else { return };
+    let Some(delegation) = domain.engine.core().tasks.delegation(task) else { return };
     // A remake is one batch, including the tail. No held task is released.
     let mut remake = None;
     for (at, entry) in row.queue.iter().enumerate() {
@@ -230,9 +230,9 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
         super::holds::hold(domain, task, &words);
         return;
     }
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.engine.core().tasks.procedure_due(task) else { return };
     let mut credits = List::uncapped();
-    for credit in &domain.core.tasks.task(task).expect("live follow").questions {
+    for credit in &domain.engine.core().tasks.task(task).expect("live follow").questions {
         credits.push(credit.number).expect("live credits");
     }
     let credits = credits.into_boxed();
@@ -266,7 +266,7 @@ pub(crate) fn remake_tail(domain: &Domain, row: &mut forge::FollowRow, from: usi
     cancels.into_boxed()
 }
 fn live(domain: &Domain, task: u64) -> bool {
-    match domain.core.tasks.task(task) {
+    match domain.engine.core().tasks.task(task) {
         Some(row) => match row.phase {
             tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => true,
             tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
@@ -281,7 +281,7 @@ fn refresh(domain: &Domain, row: &mut forge::FollowRow) {
         if matches_owner_hold(&entry.state) || entry.remake {
             continue;
         }
-        let Some(task) = domain.core.tasks.task(change) else { continue };
+        let Some(task) = domain.engine.core().tasks.task(change) else { continue };
         entry.state = match &task.phase {
             tasks::Phase::Held { source, .. } => forge::FollowState::Held(match source.as_deref() {
                 Some(tasks::HoldSource::Account { words, .. }) => words.clone(),
@@ -392,8 +392,8 @@ fn describe(
     Some(spec)
 }
 fn take_questions(domain: &Domain, task: u64, row: &mut forge::FollowRow) {
-    let Some(record) = domain.core.tasks.task(task) else { return };
-    let offered = domain.core.tasks.procedure_offered(task).unwrap_or(0);
+    let Some(record) = domain.engine.core().tasks.task(task) else { return };
+    let offered = domain.engine.core().tasks.procedure_offered(task).unwrap_or(0);
     let mut questions = List::uncapped();
     for question in &row.questions {
         questions.push(question.clone()).expect("retained questions");
@@ -451,7 +451,7 @@ fn relay(
 ) -> (Box<[u64]>, bool) {
     let mut asked = List::uncapped();
     let mut more = false;
-    let Some(record) = domain.core.tasks.task(task) else { return (asked.into_boxed(), more) };
+    let Some(record) = domain.engine.core().tasks.task(task) else { return (asked.into_boxed(), more) };
     let tasks::Party::Task(owner) = record.requester else { return (asked.into_boxed(), more) };
     let mut messages = List::with_capacity(env.limits.tasks.batch);
     for message in core::mem::replace(&mut decision.messages, Box::new([])) {
@@ -600,7 +600,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, first: Option<u64>
             }
         }
     }
-    let record = domain.core.tasks.task(task).expect("admitted follow step");
+    let record = domain.engine.core().tasks.task(task).expect("admitted follow step");
     let mut credits = List::uncapped();
     for credit in &record.questions {
         if !pending.credits.contains(&credit.number) {
@@ -620,7 +620,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, first: Option<u64>
     }
     for entry in &pending.row.queue {
         if let Some(task) = entry.change
-            && let Some(record) = domain.core.tasks.task(task)
+            && let Some(record) = domain.engine.core().tasks.task(task)
             && let Some(change) = domain.forge.change(task)
         {
             for parameter in &record.spec.parameters {

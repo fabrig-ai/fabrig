@@ -1,5 +1,6 @@
 //! Child timers available to the root's fire pass, on the injected clock.
 use crate::{Domain, Limits};
+use jig_domain_core::engine::{self, Admit};
 use skein_lib::{Duration, Env, Time, Wall};
 
 impl Domain {
@@ -10,7 +11,7 @@ impl Domain {
         if self.journal.stopped() || self.start_stop().is_some() {
             return None;
         }
-        let report = if self.core.stopping() || self.settling.active() {
+        let report = if self.engine.core().stopping() || self.settling.active() {
             None
         } else {
             match &self.start_report {
@@ -21,12 +22,12 @@ impl Domain {
         if !self.start_runtime() {
             return report;
         }
-        let mut next = earliest(report, self.core.next_deadline(env.now, env.wall));
-        if self.core.stopping() {
+        let mut next = earliest(report, engine::next_deadline(&self.engine, env.now, env.wall, Admit::All));
+        if self.engine.core().stopping() {
             return next;
         }
-        if self.ready() && !self.core.settling() {
-            next = earliest(next, wall_deadline(self.core.effect_deadline(), env.now, env.wall));
+        if self.ready() && !self.engine.core().settling() {
+            next = earliest(next, wall_deadline(self.engine.core().effect_deadline(), env.now, env.wall));
             next = earliest(
                 next,
                 wall_deadline(crate::route::forge_route::landing_refusal_deadline(self), env.now, env.wall),
@@ -36,7 +37,7 @@ impl Domain {
             next = earliest(next, self.forge.next_deadline());
             next = earliest(next, wall_deadline(self.forge.next_wall_deadline(), env.now, env.wall));
         }
-        if self.ready() && !self.core.settling() {
+        if self.ready() && !self.engine.core().settling() {
             next = earliest(next, wall_deadline(self.calendar.next_start(), env.now, env.wall));
             next = earliest(next, wall_deadline(self.trials.next_due(), env.now, env.wall));
         }

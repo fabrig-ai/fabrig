@@ -1123,7 +1123,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app:has(> .temper-welcome) .temper-flow-step[aria-current] > a::before { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
 #app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > a::before { content: '✓'; border-color: var(--gf-good-line); background: var(--gf-good-pale); color: var(--gf-good); }
 /* The page: one column, the tagline above the heading. */
-#app > .temper-welcome { width: min(680px, 100%); margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
+#app > .temper-welcome { width: min(680px, 100%); margin: 0 auto; padding: 40px 24px; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
 #app > .temper-welcome .temper-welcome-tagline { order: -1; margin: 0 0 12px; font: 14px/1.6 var(--gf-sans); font-style: normal; color: var(--gf-muted); }
 #app > .temper-welcome h1, #app > .temper-welcome h1.temper-welcome-intro { margin: 0 0 12px; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
 #app > .temper-welcome .temper-welcome-lead, #app > .temper-welcome .temper-welcome-tagline + .temper-welcome-lead { margin: 0 0 32px; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }

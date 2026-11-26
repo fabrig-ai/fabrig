@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-24. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-26. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 4: the file's secret on no log: the fresh box's story

@@ -110,7 +110,7 @@ pub(crate) fn workspace_items(
         let value = repository_item(repository, save, forges, tokens, limits)?;
         repositories.push(value).or(Err(problem(v1::paths::ITEMS_REPOSITORIES)))?;
     }
-    Ok(Some(v1::Items { repositories }))
+    Ok(Some(v1::Items { repositories, rerun: workspace.rerun }))
 }
 fn repository_item(
     repository: &engine::ForgeRepository,
@@ -327,7 +327,8 @@ mod tests {
             second.provider.forge = forge;
             let mut third = fixtures::repository(3, b"acme", b"third");
             third.provider.forge = UNKNOWN_FORGE;
-            let workspace = engine::ForgeWorkspace { repositories: Box::new([first.clone(), second, third]) };
+            let workspace =
+                engine::ForgeWorkspace { rerun: None, repositories: Box::new([first.clone(), second, third]) };
             assert_eq!(workspace_items(&workspace, false, &forges, &tokens, &limits), Err(problem(path)));
         }
     }

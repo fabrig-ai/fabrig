@@ -81,7 +81,7 @@ fn task_show_continues_from_the_bytes_that_fit_its_printed_output() {
 
 #[test]
 fn task_show_keeps_its_overview_when_a_supplemental_read_cannot_advance() {
-    let (core, limits, row) = f::source_task(&[b'x'; 300]);
+    let (engine, limits, row) = f::source_task(&[b'x'; 300]);
     for result in [
         c::ReadResult::None(c::ReadNone::Unknown),
         c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
@@ -95,7 +95,7 @@ fn task_show_keeps_its_overview_when_a_supplemental_read_cannot_advance() {
     ] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(&["task", "show", "1"]);
-        root.serve(call, f::task_result(f::source_summary(&core, &limits, &row)));
+        root.serve(call, f::task_result(f::source_summary(engine.core(), &limits, &row)));
         let Some((_, c::Read::TaskText { from: 128, .. })) = root.reads.get(&call) else {
             panic!("supplemental read follows the overview");
         };
@@ -122,7 +122,7 @@ fn continuation_line(from: u64, out: &mut crate::jig::render::Text) {
 
 #[expect(clippy::disallowed_methods, reason = "test argv converts decimal bytes into command arguments")]
 fn text_read(words: &[u8], from: u64, limits: &crate::jig::Limits, json: bool) -> crate::jig::Printed {
-    let (core, bounds, row) = f::source_task(words);
+    let (engine, bounds, row) = f::source_task(words);
     let mut root = f::signed_in(f::PARTY);
     root.limits.tools = *limits;
     let offset = skein_lib::Decimal::of(from);
@@ -132,7 +132,8 @@ fn text_read(words: &[u8], from: u64, limits: &crate::jig::Limits, json: bool) -
     for _ in 0..words.len().max(1) {
         let Some((_, c::Read::TaskText { from, field, .. })) = root.reads.get(&call) else { break };
         assert_eq!(*field, c::TaskTextField::Instructions);
-        let page = f::source_chunk(&core, &bounds, &row, jig_domain_core::reads::TaskTextField::Instructions, *from);
+        let page =
+            f::source_chunk(engine.core(), &bounds, &row, jig_domain_core::reads::TaskTextField::Instructions, *from);
         root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))));
     }
     root.answer(call).expect("bounded text retrieval completes")
@@ -238,12 +239,13 @@ fn task_text_cut_pages_say_so_first() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the step table inspects rendered UTF-8 lines")]
 fn task_text_keeps_a_continuation_when_retrieval_stalls_or_is_refused() {
-    let (core, limits, row) = f::source_task(&[b'x'; 300]);
+    let (engine, limits, row) = f::source_task(&[b'x'; 300]);
     let mut failures = skein_lib::List::with_capacity(2); // Stalled and refused retrievals.
     for refused in [false, true] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(&["task", "text", "1", "--field", "instructions"]);
-        let page = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Instructions, 0);
+        let page =
+            f::source_chunk(engine.core(), &limits, &row, jig_domain_core::reads::TaskTextField::Instructions, 0);
         root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))));
         assert_eq!(
             root.reads.get(&call).expect("join next page").1,

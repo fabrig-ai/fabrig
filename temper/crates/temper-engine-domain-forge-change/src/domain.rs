@@ -9,8 +9,8 @@ use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
-    GateFailure, GateKind, Handed, Heard, Hold, Limits, PendingKind, Pull, Repair, StartedFrom, State, Status, Stepped,
-    Took, Verification, Wait, Way,
+    GateFailure, GateKind, Handed, Heard, Hold, Limits, PendingKind, Pull, Recheck, Repair, StartedFrom, State, Status,
+    Stepped, Took, Verification, Wait, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -347,6 +347,9 @@ fn advance_phase(
         {
             waiting(next, facts, now, limits)
         }
+        State::Checking { head } if facts.recheck == Recheck::Owed && standing.effect == EffectResult::Failed => {
+            checking(next, *head, facts, standing, now, limits)
+        }
         State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
             if standing.effect == EffectResult::Failed =>
         {
@@ -419,15 +422,16 @@ fn step_head(state: &State, last: Option<[u8; 32]>, effect: EffectResult, update
 }
 
 /// A hold whose reason is CI failed at the head (temper/docs/design/domain/forge/change/repairs.md).
-/// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs` or `Authority`.
+/// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs`, `Authority` or `RedStands`.
 /// `was` `Checking` or `CancellingGates`: `Repairs` or `Authority`.
-/// Every other pair is false: `Gating`, drift, `Questions`, `Rejected`, `Resolutions`, `Updates`.
+/// A `Runner` hold always belongs to CI.
 #[must_use]
 pub fn held_on_ci(state: &State) -> bool {
     let State::Held { was, why } = state else { return false };
     match why {
+        Hold::Runner => true,
         Hold::Repairs | Hold::Authority(_) => ci_state(was),
-        Hold::Failed | Hold::Stalled => {
+        Hold::Failed | Hold::Stalled | Hold::RedStands => {
             if let State::Repairing { why, .. } = was.as_ref() {
                 ci_reason(*why)
             } else {
@@ -460,10 +464,12 @@ pub fn released(change: &Change, now: Wall) -> Change {
                 next.released_resolution = true;
             }
             next.released = Some(*why);
-            next.gate_failures = Box::new([]);
-            next.repairs = 0;
-            next.resolutions = 0;
-            next.updates = 0;
+            if *why != Hold::Runner {
+                next.gate_failures = Box::new([]);
+                next.repairs = 0;
+                next.resolutions = 0;
+                next.updates = 0;
+            }
             next.since = now;
             next.owns_turn = false;
         }
@@ -589,6 +595,8 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
             Stepped { took: None, change, decision: Decision::None }
         }
         Hold::Stalled
+        | Hold::Runner
+        | Hold::RedStands
         | Hold::Repairs
         | Hold::Questions
         | Hold::Resolutions
@@ -601,6 +609,11 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
             if why == Hold::Flake || why == Hold::NoTest {
                 change.clean = Box::new([]);
                 change.last_head = facts.branch.or(change.last_head);
+                if !facts.regate
+                    && let State::Repairing { why, .. } = was
+                {
+                    return red_stands(change, *why);
+                }
             }
             change.state = released_state(&change, was, why, facts.pull);
             Stepped { took: None, change, decision: Decision::None }
@@ -635,6 +648,7 @@ fn released_state(change: &Change, was: &State, why: Hold, pull: Pull) -> State 
                 Pull::Missing | Pull::Open { .. } | Pull::Merged { .. } => State::Opening { requested: false },
             }
         }
+        State::Gating { .. } if why == Hold::Runner => was.clone(),
         State::Ready { head, .. }
         | State::Queued { head, .. }
         | State::First { head, .. }
@@ -1026,10 +1040,11 @@ fn reopening(
     }
 }
 
-fn rerun_due(facts: &Facts, limits: &Limits) -> bool {
+fn runner_ci(change: &Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Option<Stepped> {
     match facts.fault {
-        crate::Fault::Runner { reruns } => reruns < limits.reruns,
-        crate::Fault::Change => false,
+        crate::Fault::Runner { reruns } if reruns < limits.reruns => Some(rerun(change.clone(), head, now)),
+        crate::Fault::Runner { .. } => Some(hold(change.clone(), Hold::Runner)),
+        crate::Fault::Change => None,
     }
 }
 
@@ -1042,7 +1057,7 @@ fn checking(
     mut change: Change,
     head: [u8; 32],
     facts: &Facts,
-    _standing: &Heard,
+    standing: &Heard,
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
@@ -1053,6 +1068,22 @@ fn checking(
     if facts.ci.head != head {
         return waiting(change, facts, now, limits);
     }
+    if facts.recheck == Recheck::Owed {
+        match standing.effect {
+            EffectResult::Failed | EffectResult::Conflict if facts.ci.status == Status::Failed => {
+                return red_stands(change, Repair::Ci);
+            }
+            EffectResult::Failed | EffectResult::Conflict if facts.ci.status == Status::Passed => {
+                return repair_ended(change, head, now);
+            }
+            EffectResult::Failed
+            | EffectResult::Conflict
+            | EffectResult::None
+            | EffectResult::Stale
+            | EffectResult::Pending
+            | EffectResult::Made => return wait_for_ci(change, head, facts, now, limits),
+        }
+    }
     match facts.ci.status {
         Status::Passed => {
             change.state = State::Gating { head, asked: Box::new([]) };
@@ -1060,13 +1091,19 @@ fn checking(
             Stepped { took: None, change, decision: Decision::None }
         }
         Status::Failed => {
-            if rerun_due(facts, limits) {
-                return rerun(change, head, now);
+            if let Some(stepped) = runner_ci(&change, head, facts, now, limits) {
+                return stepped;
+            }
+            if facts.recheck == Recheck::Taken {
+                return red_stands(change, Repair::Ci);
             }
             let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
             repair_due(change, why, facts, now, limits)
         }
         Status::Unknown | Status::Pending => {
+            if facts.recheck == Recheck::Taken {
+                return wait_for_ci(change, head, facts, now, limits);
+            }
             if behind_unchecked(&change, facts, limits) {
                 let ready_since = change.ready_since.unwrap_or(now);
                 return update_due(change, head, facts.base_tip, ready_since, now, limits);
@@ -1074,14 +1111,20 @@ fn checking(
             if has_eager_gate(&change) {
                 change.state = State::Gating { head, asked: Box::new([]) };
                 Stepped { took: None, change, decision: Decision::None }
-            } else if let Some(reading) = facts.execution {
-                let clock = crate::Clock::observe(change.clock, change.since, head, reading, now);
-                change.clock = Some(clock);
-                checking_clock(change, clock, facts, now, limits)
             } else {
-                settling(change, facts, now, limits)
+                wait_for_ci(change, head, facts, now, limits)
             }
         }
+    }
+}
+
+fn wait_for_ci(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    if let Some(reading) = facts.execution {
+        let clock = crate::Clock::observe(change.clock, change.since, head, reading, now);
+        change.clock = Some(clock);
+        checking_clock(change, clock, facts, now, limits)
+    } else {
+        settling(change, facts, now, limits)
     }
 }
 
@@ -1169,8 +1212,8 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         return waiting(change, facts, now, limits);
     }
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
-        if rerun_due(facts, limits) {
-            return rerun(change, head, now);
+        if let Some(stepped) = runner_ci(&change, head, facts, now, limits) {
+            return stepped;
         }
         if facts.live_gate == Some(head) {
             change.state = State::CancellingGates { head };
@@ -1259,15 +1302,14 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
 }
 
 fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
-    if facts.branch == Some(head)
-        && facts.ci.head == head
-        && facts.ci.status == Status::Failed
-        && rerun_due(facts, limits)
-    {
-        return rerun(change, head, now);
-    }
     if facts.branch.is_none() {
         return waiting(change, facts, now, limits);
+    }
+    if facts.ci.head == head
+        && facts.ci.status == Status::Failed
+        && let Some(stepped) = runner_ci(&change, head, facts, now, limits)
+    {
+        return stepped;
     }
     if facts.live_gate == Some(head) {
         return waiting(change, facts, now, limits);
@@ -1666,22 +1708,18 @@ fn repairing(
     if ci_reason(why)
         && standing.delegate == Status::Passed
         && let Some(head) = facts.branch
-        && Some(head) == change.last_head
+        && Some(head) == facts.repair_head.or(change.last_head)
         && facts.ci.head == head
         && facts.ci.status == Status::Failed
     {
+        let mut next = change;
+        next.last_head = Some(head);
         if facts.rerun {
-            let owned = change.owns_turn;
-            let mut next = take_pushed_head(change, head, now).change;
             next.state = State::Checking { head };
-            next.owns_turn = owned;
+            next.clock = None;
             return rerun(next, head, now);
         }
-        if facts.contains_base == Status::Failed {
-            let ready_since = change.ready_since.unwrap_or(now);
-            return update_due(change, head, facts.base_tip, ready_since, now, limits);
-        }
-        return take_pushed_head(change, head, now);
+        return red_stands(next, why);
     }
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
 }
@@ -1822,11 +1860,12 @@ fn delegated(
     match standing.delegate {
         Status::Passed => {
             let Some(head) = facts.branch else { return waiting_on_agent(change, facts, standing, now, limits) };
-            if (standing.flake || standing.no_test)
-                && Some(head) == change.last_head
-                && let Delegate::Repair(Repair::Landing { .. } | Repair::LandingAt { .. }) = delegate
+            if !facts.regate
+                && Some(head) == facts.repair_head.or(change.last_head)
+                && let Delegate::Repair(why @ (Repair::Landing { .. } | Repair::LandingAt { .. })) = delegate
             {
-                return hold(change, if standing.no_test { Hold::NoTest } else { Hold::Flake });
+                change.last_head = Some(head);
+                return red_stands(change, why);
             }
             take_pushed_head(change, head, now)
         }
@@ -2100,20 +2139,34 @@ fn ready(
             }
             stepped
         }
-        Ask::Repair { gate, candidate, below } => take_delegate(
-            repair_due(
-                change,
-                Repair::LandingAt { gate: *gate, candidate: *candidate, below: *below },
-                facts,
-                now,
-                limits,
-            ),
+        Ask::Repair { gate, candidate, below } => handed_repair(
+            change,
+            Repair::LandingAt { gate: *gate, candidate: *candidate, below: *below },
             handed.number,
+            facts,
+            now,
+            limits,
         ),
         Ask::Resolve { base } => {
             take_delegate(conflict_due(change, *base, Some(head), facts, standing, now, limits), handed.number)
         }
         Ask::Landed { .. } => unreachable!("landed ask returned before the phase"),
+    }
+}
+
+fn red_stands(mut change: Change, why: Repair) -> Stepped {
+    change.state = State::Repairing { requested: false, why };
+    hold(change, Hold::RedStands)
+}
+
+fn handed_repair(change: Change, why: Repair, number: u32, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    match facts.recheck {
+        Recheck::Taken => {
+            let mut stepped = red_stands(change, why);
+            stepped.took = Some(Took::Taken(number));
+            stepped
+        }
+        Recheck::Owed | Recheck::None => take_delegate(repair_due(change, why, facts, now, limits), number),
     }
 }
 
@@ -2243,10 +2296,7 @@ fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limit
         if facts.live_gate.is_some() {
             return Stepped { took: None, change, decision: Decision::CancelGates { head: target.prefix } };
         }
-        return take_delegate(
-            repair_due(change, Repair::LandingAt { gate, candidate, below }, facts, now, limits),
-            number,
-        );
+        return handed_repair(change, Repair::LandingAt { gate, candidate, below }, number, facts, now, limits);
     }
     if let Some(Handed { number, ask: Ask::Resolve { base }, .. }) = facts.ask {
         if standing.delegate_live {

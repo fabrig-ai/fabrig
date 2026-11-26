@@ -1,5 +1,8 @@
 //! Finding this build's temper-box (temper/docs/design/client/box-binary.md, 2, 3, 6).
-use crate::fetch::{self, Connection};
+use crate::{
+    fetch::{self, Connection},
+    zstd::{Magic, UnpackError, decode_zstd as decode_frame},
+};
 use skein_lib::{Queue, sha256::Sha256};
 use std::os::unix::{
     ffi::OsStrExt,
@@ -13,11 +16,9 @@ use std::{
 };
 use temper_fetch::{
     Origin,
-    box_binary::{self as machine, Build, Candidate, Event, Request, Unpacked},
+    box_binary::{self as machine, Build, Candidate, Event, Request},
+    fetch::Unpacked,
 };
-
-mod zstd;
-use zstd::{UnpackError, decode_zstd};
 
 /// Inputs already captured and resolved by the client.
 pub struct Find<'a> {
@@ -233,6 +234,10 @@ fn unpack(archive: &Path, part: &Path, bound: u64) -> Result<Unpacked, Failed> {
     })
 }
 
+fn decode_zstd(input: impl Read, output: &mut impl Write, bound: u64) -> Result<Unpacked, UnpackError> {
+    decode_frame(input, output, bound, Magic::Complete)
+}
+
 fn unpack_with<W: Write>(
     input: impl Read,
     output: &mut W,
@@ -274,7 +279,7 @@ fn transport(event: temper_fetch::fetch::Event) -> Event {
         temper_fetch::fetch::Event::Begin
         | temper_fetch::fetch::Event::Done
         | temper_fetch::fetch::Event::Hashed(_)
-        | temper_fetch::fetch::Event::Extracted(_) => unreachable!("connection returns HTTP events"),
+        | temper_fetch::fetch::Event::Unpacked(_) => unreachable!("connection returns HTTP events"),
     }
 }
 fn tls_config(trust: &skein_shell::Trust) -> Result<skein_tls::Config, Failed> {
@@ -405,7 +410,7 @@ pub fn find(limits: &skein_io::Limits, find: &Find<'_>, out: &mut dyn Write) -> 
                 }
             };
             match next {
-                Ok(config) => match Connection::new(limits, config, &origin, &path, None) {
+                Ok(config) => match Connection::new(limits, config, &origin, &path) {
                     Ok(new) => {
                         connection = Some(new);
                         connection

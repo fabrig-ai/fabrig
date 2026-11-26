@@ -244,6 +244,7 @@ pub fn synthetic_cancelled_landing(entries: &[u64]) -> top::LandingRow {
     use temper_engine_domain_forge_landing as landing;
     top::LandingRow {
         read_hold: None,
+        gate_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

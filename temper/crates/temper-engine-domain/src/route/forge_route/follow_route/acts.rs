@@ -72,7 +72,7 @@ fn amend(
     dependencies: Option<Box<[u64]>>,
     reason: &[u8],
 ) -> Option<()> {
-    let record = domain.core.tasks.task(task)?;
+    let record = domain.engine.core().tasks.task(task)?;
     let mut amendments = List::uncapped();
     for item in core::mem::replace(&mut decision.amendments, Box::new([])) {
         amendments.push(item).expect("amendments");
@@ -119,7 +119,7 @@ fn amend_spec(
     task: u64,
     entries: &[forge::FollowEntry],
 ) -> Option<()> {
-    let spec = describe(domain, env, row, entries, domain.core.tasks.task(task)?.spec.clone())?;
+    let spec = describe(domain, env, row, entries, domain.engine.core().tasks.task(task)?.spec.clone())?;
     let mut commits = List::uncapped();
     for entry in entries {
         commits.push(entry.after).expect("merged commits");

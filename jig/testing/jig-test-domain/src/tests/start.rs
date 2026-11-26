@@ -259,7 +259,7 @@ fn rehearsal_stops_at_switch_without_wires_or_system_reads() {
     assert_eq!(host.domain.start_phase(), Some(Phase::Switch));
     assert_eq!(host.domain.start_failure(), None);
     assert_eq!(host.phases.last(), Some(&Phase::Sweep));
-    assert!(host.domain.core.tasks.task(1).is_some(), "the live fixture was restored and linked");
+    assert!(host.domain.engine.core().tasks.task(1).is_some(), "the live fixture was restored and linked");
     assert!(!host.domain.ready());
     assert!(host.reads.is_empty(), "no connector reached its system");
     assert!(host.wires.is_none());
@@ -360,9 +360,9 @@ fn populated_rows() -> Vec<Record> {
             }]),
         },
     ] {
-        tasks::step(&mut source.core.tasks, &task_env, event, &mut out);
+        tasks::step(&mut source.engine.core_mut().tasks, &task_env, event, &mut out);
     }
-    assert!(source.core.tasks.task(1).is_some());
+    assert!(source.engine.core().tasks.task(1).is_some());
     for _ in 0..out.len() {
         let request = out.pop().expect("fixture task output");
         if let tasks::Request::Save { record } = request {
@@ -391,7 +391,7 @@ fn people_project_and_live_task_open_in_the_core_phase_order() {
             Phase::Switch
         ]
     );
-    assert!(host.domain.core.tasks.task(1).is_some());
+    assert!(host.domain.engine.core().tasks.task(1).is_some());
 }
 
 #[test]
@@ -442,7 +442,7 @@ fn missing_link_is_retained_until_the_core_link_pass() {
         core::Key::People(people::Key::Roles(1)),
         core::Key::People(people::Key::Person(1)),
     );
-    assert_eq!(host.domain.core.start_phase(), Some(Phase::LoadCore));
+    assert_eq!(host.domain.engine.core().start_phase(), Some(Phase::LoadCore));
     assert_eq!(host.domain.start_failure(), None);
     assert!(!host.domain.ready());
 }
@@ -472,18 +472,20 @@ fn wires_commit_holds_its_continuation_before_any_connector_read() {
     let env = host.env.with(host.env.limits.core);
     let mut out = Queue::uncapped();
     // Prepare the core at Wires without asking the host for an inbox census.
-    let mut action = host.domain.core.start_begin(false, env.wall);
+    let mut action = host.domain.engine.core_mut().start_begin(false, env.wall);
     for _ in 0..32_u32 {
         action = match action {
             Action::Step(Phase::Wires) => break,
-            Action::Step(Phase::Sweep) => host.domain.core.start_sweep(&env, SweepInput::Finished, &mut out),
-            Action::Step(phase) => host.domain.core.start_done(&env, phase, &mut out),
-            Action::Commit(continuation) => host.domain.core.start_resume(&env, continuation, &mut out),
+            Action::Step(Phase::Sweep) => {
+                host.domain.engine.core_mut().start_sweep(&env, SweepInput::Finished, &mut out)
+            }
+            Action::Step(phase) => host.domain.engine.core_mut().start_done(&env, phase, &mut out),
+            Action::Commit(continuation) => host.domain.engine.core_mut().start_resume(&env, continuation, &mut out),
             Action::Idle | Action::Refused(_) => panic!("prepared core reaches Wires"),
         };
         while out.pop().is_some() {}
     }
-    assert_eq!(host.domain.core.start_phase(), Some(Phase::Wires));
+    assert_eq!(host.domain.engine.core().start_phase(), Some(Phase::Wires));
     crate::step(&mut host.domain, &host.env, Event::StartDone(Phase::Wires));
     let commit = host.domain.journal.commit().expect("Wires asks for durability");
     let mut held = Queue::uncapped();
@@ -495,7 +497,7 @@ fn wires_commit_holds_its_continuation_before_any_connector_read() {
     let Some(Delivery::Start(continuation)) = held.pop() else { panic!("Wires holds its own continuation") };
     assert!(held.is_empty());
     crate::decide(&mut host.domain, &host.env, Work::Start(StartInput::Resume(continuation)));
-    assert_eq!(host.domain.core.start_phase(), None);
+    assert_eq!(host.domain.engine.core().start_phase(), None);
     let mut released = Queue::uncapped();
     crate::release(&mut host.domain, &host.env, &mut released);
     let mut read = false;

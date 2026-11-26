@@ -894,8 +894,8 @@ fn an_items_hold_names_the_call_declaration_and_other_bounds_keep_their_way_out(
 #[test]
 fn core_cut_task_words_offer_reads_and_preserve_the_failure_suffix() {
     let words = FAILURE_BRIEF;
-    let (core, limits, row) = f::source_task(words);
-    let summary = f::source_summary(&core, &limits, &row);
+    let (engine, limits, row) = f::source_task(words);
+    let summary = f::source_summary(engine.core(), &limits, &row);
     assert!(summary.spec.specification.words.cut);
     assert!(summary.instructions.as_ref().unwrap().cut);
     for argv in [&["task", "show", "1"][..], &["task", "show", "1", "--json"][..]] {
@@ -910,7 +910,7 @@ fn core_cut_task_words_offer_reads_and_preserve_the_failure_suffix() {
     ] {
         let mut whole = skein_lib::Writer::new(words.len());
         for (offset, from) in [("0", 0), ("127", 127)] {
-            let page = f::source_chunk(&core, &limits, &row, field, from);
+            let page = f::source_chunk(engine.core(), &limits, &row, field, from);
             let (mut root, call) = f::read_call(&["task", "text", "1", "--field", name, "--from", offset]);
             root.limits.tools.part = u32::try_from(page.text.bytes().len()).unwrap();
             root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page.clone()))));
@@ -933,8 +933,8 @@ fn core_cut_task_words_offer_reads_and_preserve_the_failure_suffix() {
 #[test]
 fn core_task_text_json_keeps_utf8_suffix_and_terminal_offset() {
     let words = FAILURE_BRIEF;
-    let (core, limits, row) = f::source_task(words);
-    let page = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Specification, 127);
+    let (engine, limits, row) = f::source_task(words);
+    let page = f::source_chunk(engine.core(), &limits, &row, jig_domain_core::reads::TaskTextField::Specification, 127);
     let answer = f::read_answer(
         &["task", "text", "1", "--field", "specification", "--from", "127", "--json"],
         c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))),
@@ -962,12 +962,13 @@ fn task_activity_points_to_the_brief_outside_its_event_log() {
 
 #[test]
 fn task_text_render_cuts_at_its_own_window_and_never_repeats_an_offset() {
-    let (core, limits, row) = f::source_task("éZ CI failed".as_bytes());
+    let (engine, limits, row) = f::source_task("éZ CI failed".as_bytes());
     for (part, status, expected) in [(3, 0, b"--from 3".as_slice()), (1, 1, b"result limit".as_slice())] {
         let mut root = f::signed_in(f::PARTY);
         root.limits.tools.part = part;
         let call = root.submit(&["task", "text", "1"]);
-        let page = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Specification, 0);
+        let page =
+            f::source_chunk(engine.core(), &limits, &row, jig_domain_core::reads::TaskTextField::Specification, 0);
         root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))));
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, status);
@@ -1133,7 +1134,7 @@ fn task_show_keeps_the_ended_at_landing_line_whole_before_an_optional_pull_addre
 #[test]
 fn task_result_document_cut_and_ctl_json_budget_are_independent() {
     let words = cleared_words();
-    let (core, mut limits, mut row) = f::source_task(b"Make a change");
+    let (engine, mut limits, mut row) = f::source_task(b"Make a change");
     row.phase = jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Change {
         connector: FORGE,
         kind: 1,
@@ -1143,7 +1144,7 @@ fn task_result_document_cut_and_ctl_json_budget_are_independent() {
     }));
     for upstream_bound in [128, 4096] {
         limits.documents.text_bytes = upstream_bound;
-        let result = jig_domain_core::documents::result_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
+        let result = jig_domain_core::documents::result_from_row(engine.core(), &limits, 1, &row, Wall::EPOCH).unwrap();
         let jig_domain_core::documents::Ending::Done(jig_domain_core::documents::ResultValue::Change { words, .. }) =
             result.ending
         else {
@@ -1202,12 +1203,12 @@ const KEPT_REPORT: &[u8] = concat!(
 
 #[test]
 fn ended_report_is_readable_beyond_task_show_preview() {
-    let (core, limits, mut row) = f::source_task(b"Finish the goal");
+    let (engine, limits, mut row) = f::source_task(b"Finish the goal");
     row.phase = jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Report {
         words: Box::from(KEPT_REPORT),
     }));
     row.ended_at = Some(Wall::EPOCH);
-    let summary = f::source_summary(&core, &limits, &row);
+    let summary = f::source_summary(engine.core(), &limits, &row);
     let Some(c::TaskResult::Ending(ending)) = summary.result.clone() else { panic!("kept report ending") };
     let c::ChipEnding::Done(c::ResultValue::Report(preview)) = ending.as_ref() else { panic!("typed report") };
     assert_eq!(preview.bytes().len(), 128);
@@ -1222,7 +1223,7 @@ fn ended_report_is_readable_beyond_task_show_preview() {
             assert!(f::has(&printed, b"\"cut\":true"));
         }
     }
-    assert_eq!(report_chunks(&core, &limits, &row).as_ref(), KEPT_REPORT);
+    assert_eq!(report_chunks(engine.core(), &limits, &row).as_ref(), KEPT_REPORT);
 }
 
 #[expect(clippy::disallowed_methods, reason = "test argv converts decimal bytes into command arguments")]

@@ -2,6 +2,7 @@
 use crate::settings_support::{self as support, ask, run_configuration, settings_run_with_limits};
 use jig_core_world::fixtures;
 use jig_domain_authority as authority;
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_core::{self as core, reads};
 use jig_domain_people as people;
 
@@ -72,7 +73,7 @@ use jig_domain_core::documents;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{Duration, List, ReplyTo, Token};
+use skein_lib::{Duration, List, Queue, ReplyTo, Token};
 
 const PROJECT: u32 = fixtures::PROJECT;
 const OTHER_PROJECT: u32 = 2;
@@ -327,10 +328,11 @@ fn person_application_reads_reach_the_connector_as_the_person() {
         let window = documents::Window { rows: 1, after: None };
         let stored = world.store.rows.clone();
         let env = world.env();
-        let mut out = core::step(
-            world.domain.core_mut(),
+        let mut out = Queue::uncapped();
+        engine::step(
+            world.domain.engine_mut(),
             &env.with(env.limits.core),
-            core::Event::NamedAction {
+            In::Core(core::Event::NamedAction {
                 to: ReplyTo::new(token),
                 key,
                 action: core::NamedAction::PersonRead(Box::new(reads::Read::Application {
@@ -339,9 +341,10 @@ fn person_application_reads_reach_the_connector_as_the_person() {
                     read: name,
                     window,
                 })),
-            },
+            }),
+            &mut out,
         );
-        let request = out.pop().expect("connector read or unknown");
+        let Out::Core(request) = out.pop().expect("connector read or unknown");
         if allowed {
             let core::Request::Ask { connector, ask: core::Ask::Read { reply, scope, read, party, window: received } } =
                 request

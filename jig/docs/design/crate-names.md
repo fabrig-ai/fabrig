@@ -45,7 +45,7 @@
 
 | Layer | Crates |
 |---|---|
-| a domain's step code | the core, `jig-domain-core`, and its children `jig-domain-accounts`, `-authority`, `-brief`, `-fleet`, `-notes`, `-people`, `-tasks`, `-views` (`domain/engine/README.md`, section 3); the hub, `jig-domain-host` (`domain/hosts/hub.md`); the engine's link between them, `jig-domain-hub-link` (`domain/hosts/hub.md`, 1); their shared link values, `jig-domain-link` (`domain/root.md`, section 2) |
+| a domain's step code | the core, `jig-domain-core`, and its children `jig-domain-accounts`, `-authority`, `-brief`, `-fleet`, `-notes`, `-people`, `-tasks`, `-views` (`domain/engine/README.md`, section 3); the hub, `jig-domain-host` (`domain/hosts/hub.md`); the engine's link between them, `jig-domain-hub-link` (`domain/hosts/hub.md`, 1); their shared link values, `jig-domain-link` (`domain/root.md`, section 2); the values the core and its connectors exchange, `jig-domain-contract` (`domain/connectors.md`, section 2) |
 | the protocol layer's | `jig-protocol-charter`, `jig-protocol-transcript`, and the codecs, components and parsing `protocol/components.md`, section 1 lists; among them the clients' component, `jig-protocol-engine-clients` (`protocol/client/README.md`, section 2), and the default HTTP mapping's engine end, with its example guards, `jig-protocol-engine-clients-http` (`protocol/client/default-http.md`, 4; `protocol/browser/serving.md`, 1.2) |
 
 - **jig's client crates,** with `ops`'s and an application's browser

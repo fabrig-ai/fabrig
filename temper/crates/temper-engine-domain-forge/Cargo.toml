@@ -31,6 +31,7 @@ temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-lan
 jig-tasks-kit.workspace = true
 temper-engine-domain-trials.workspace = true
 temper-engine-domain-ways.workspace = true
+temper-protocol-store.workspace = true
 skein-rows.workspace = true
 skein-world.workspace = true
 skein-forge-setup.workspace = true

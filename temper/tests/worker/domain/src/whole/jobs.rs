@@ -264,7 +264,7 @@ impl World {
                 grants: Box::new([]),
                 workspace: Some(host::Workspace { workstream: 81, items: Token::new(0) }),
             },
-            items: Ok(wire::Workspace { repositories }),
+            items: Ok(wire::Workspace { rerun: None, repositories }),
             spec,
         })?;
         Ok(())
