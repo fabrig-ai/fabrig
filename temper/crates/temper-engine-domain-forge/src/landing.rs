@@ -1,7 +1,10 @@
 //! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::domain::read_line::{self, Waiter};
-use crate::domain::writes::outbox::{self, Pin};
+use crate::domain::writes::{
+    self,
+    outbox::{self, Pin},
+};
 use crate::domain::{child, emit, keep_entry};
 use crate::{
     Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
@@ -13,6 +16,7 @@ use skein_lib::{Env, List, Map, Queue, Token, Wall};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as policy;
 pub use temper_engine_domain_forge_vocabulary::landing::*;
+use temper_engine_domain_forge_vocabulary::writes::{Actor, Seen};
 
 #[path = "landing_read_wait.rs"]
 pub(crate) mod read_wait;
@@ -100,6 +104,7 @@ pub(crate) struct Pending {
     opened: Option<u64>,
     closed: policy::Status,
     round_pull: policy::RoundPull,
+    turn_tip: Seen,
     cleaned: bool,
     upstream: Option<api::Commit>,
     paths: Box<[Paths]>,
@@ -1500,6 +1505,7 @@ pub(crate) fn step(
                 opened: None,
                 closed: policy::Status::Unknown,
                 round_pull: policy::RoundPull::Unread,
+                turn_tip: Seen::Current,
                 cleaned: false,
                 upstream: None,
                 stall: None,
@@ -1981,13 +1987,24 @@ fn advance(
                     };
                     fact.head = head;
                     p.stage = Stage::Main(index);
-                    api::Read::Branch { branch: change.base.clone() }
+                    let branch = if turn_top(&row) == Some(index) { &row.landing.branch } else { &change.base };
+                    api::Read::Branch { branch: branch.clone() }
                 }
                 Stage::Main(_) => {
                     let Ok(api::Answer::Commit(main)) = answer else {
                         read_failed(d, &row, &p, error, out);
                         return;
                     };
+                    if turn_top(&row) == Some(index) {
+                        p.turn_tip = observe_tip(d, &env.limits, repo, &row.landing.branch, Some(main), out);
+                        if wait_for_record(d, &row, &p, p.turn_tip, out) {
+                            return;
+                        }
+                        if member.candidate == Some(main) {
+                            settle_turn_merge(d, &env.limits, &row, index, true, out);
+                        }
+                    }
+                    let fact = p.facts.get_mut(usize::from(index)).expect("member fact");
                     fact.main = main;
                     if let Some(candidate) = member.candidate
                         && !row.landing.round.branch.is_empty()
@@ -2025,6 +2042,9 @@ fn advance(
                             return;
                         }
                     };
+                    if fact.contains_candidate == policy::Status::Passed && turn_top(&row) == Some(index) {
+                        settle_turn_merge(d, &env.limits, &row, index, true, out);
+                    }
                     p.stage = Stage::Pull(index);
                     api::Read::Pull { number: member.pull, ci: false }
                 }
@@ -2134,13 +2154,9 @@ fn advance(
                 read_failed(d, &row, &p, error, out);
                 return;
             };
-            p.round_pull = if let Some(commit) = pull.merged {
-                policy::RoundPull::Merged(commit)
-            } else if pull.state == api::State::Closed {
-                policy::RoundPull::Closed
-            } else {
-                policy::RoundPull::Open
-            };
+            if !judge_turn_pull(d, &env.limits, &row, &mut p, &pull, out) {
+                return;
+            }
             collect(d, env, owner, p, out);
         }
         Stage::CleanupPull => {
@@ -3034,13 +3050,122 @@ fn cleanup_branch(
     p.cleaned = true;
     collect(d, env, owner, p, out);
 }
+fn turn_top(row: &LandingRow) -> Option<u16> {
+    if let policy::Phase::Turn { .. } = row.landing.phase
+        && !row.landing.round.branch.is_empty()
+        && row.landing.round.ending.is_none()
+    {
+        return policy::top(&row.landing);
+    }
+    None
+}
+
+pub(crate) fn observe_tip(
+    d: &mut Domain,
+    limits: &Limits,
+    repository: api::Repository,
+    branch: &[u8],
+    tip: Option<api::Commit>,
+    out: &mut Queue<Request>,
+) -> Seen {
+    let Some(name) = writes::branch(limits, repository, branch) else { return Seen::Current };
+    d.observe(&name, tip, Actor::Unknown, out)
+}
+
+fn wait_for_record(d: &mut Domain, row: &LandingRow, p: &Pending, seen: Seen, out: &mut Queue<Request>) -> bool {
+    let cause = match seen {
+        Seen::Behind { order } => read_wait::Cause::Behind { order },
+        Seen::Owed => read_wait::Cause::NotThere,
+        Seen::Current | Seen::Explained { .. } | Seen::Drift { .. } => return false,
+    };
+    wait(d, p.task, p.entry, read_wait::Failure::pending(row, p, cause), out);
+    true
+}
+
+pub(crate) fn settle_turn_merge(
+    d: &mut Domain,
+    limits: &Limits,
+    row: &LandingRow,
+    top: u16,
+    made: bool,
+    out: &mut Queue<Request>,
+) {
+    if row.landing.round.merges == 0 || result(d, row.landing.task, top, 0, 5) == policy::Status::Passed {
+        return;
+    }
+    let member = row.landing.members.get(usize::from(top)).expect("turn merge member");
+    if let Some(pull) = row.landing.round.pull
+        && let Some(candidate) = member.candidate
+        && let Some(train) = writes::branch(limits, repository(member), &row.landing.branch)
+    {
+        outbox::merge_readback(d, &train, row.landing.task, pull, candidate, made, out);
+    }
+}
+
+fn judge_turn_pull(
+    d: &mut Domain,
+    limits: &Limits,
+    row: &LandingRow,
+    p: &mut Pending,
+    pull: &api::Pull,
+    out: &mut Queue<Request>,
+) -> bool {
+    let top = turn_top(row).expect("turn pull has a top");
+    let member = row.landing.members.get(usize::from(top)).expect("top");
+    let number = row.landing.round.pull.expect("turn pull");
+    let name = writes::branch(limits, repository(member), &member.branch).expect("admitted prefix branch");
+    let seen = d.observe_pull(&name, number, pull, out);
+    if wait_for_record(d, row, p, seen, out) {
+        return false;
+    }
+    p.round_pull = if pull.number != number || pull.head != member.branch || pull.base != row.landing.branch {
+        policy::RoundPull::Changed
+    } else if let Some(commit) = pull.merged {
+        if Some(commit) == member.candidate {
+            settle_turn_merge(d, limits, row, top, true, out);
+        }
+        policy::RoundPull::Merged(commit)
+    } else if pull.state == api::State::Closed {
+        // An outside close is drift, but it still ends this round unlanded.
+        settle_turn_merge(d, limits, row, top, false, out);
+        policy::RoundPull::Closed
+    } else if Some(pull.commit) == member.candidate && (pull.base_commit.is_none() || pull.base_commit == member.base) {
+        policy::RoundPull::Open
+    } else {
+        policy::RoundPull::Changed
+    };
+    true
+}
+
+fn turn_drift_words(row: &LandingRow, facts: &policy::Facts, top: u16, seen: Seen) -> Option<Box<[u8]>> {
+    let Seen::Drift { nearest } = seen else { return None };
+    let base = row.landing.members.get(usize::from(top))?.base?;
+    let tip = facts.members.get(usize::from(top))?.main;
+    if base == tip {
+        return None;
+    }
+    let entry = match nearest {
+        Some(order) => concat(&[b"; nearest write entry ", skein_lib::Decimal::of(order).as_bytes()]),
+        None => Box::from(b"; no write entry".as_slice()),
+    };
+    Some(concat(&[
+        b"drift: ",
+        &row.landing.branch,
+        b" reads ",
+        &commit_hex(tip),
+        b", round base ",
+        &commit_hex(base),
+        &entry,
+    ]))
+}
+
 fn merge_readback_words(row: &LandingRow, facts: &policy::Facts, top: u16) -> Box<[u8]> {
     let number = skein_lib::Decimal::of(row.landing.round.pull.expect("turn pull"));
     let state = match facts.round_pull {
         policy::RoundPull::Open => Box::from(b"open".as_slice()),
         policy::RoundPull::Merged(commit) => concat(&[b"merged at ", &commit_hex(commit)]),
-        policy::RoundPull::Unread | policy::RoundPull::Closed => {
-            unreachable!("a turn holds only a read, unclosed pull")
+        policy::RoundPull::Unread | policy::RoundPull::Closed | policy::RoundPull::Changed => {
+            unreachable!("a turn holds only a read, unchanged open or merged pull")
         }
     };
     concat(&[
@@ -3072,14 +3197,17 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
         }
         return;
     }
-    if let policy::Phase::Turn { .. } = row.landing.phase
-        && p.round_pull == policy::RoundPull::Unread
+    if p.round_pull == policy::RoundPull::Unread
         && let Some(number) = row.landing.round.pull
-        && let Some(top) = round_top(row)
-        && result(d, p.task, top, 0, 5) == policy::Status::Failed
+        && let Some(top) = turn_top(row)
+        && let Some(member) = row.landing.members.get(usize::from(top))
+        && let Some(fresh) = p.facts.get(usize::from(top))
+        && member.base == Some(fresh.main)
+        && member.candidate != Some(fresh.main)
+        && let policy::Status::Unknown | policy::Status::Failed = result(d, p.task, top, 0, 5)
     {
         p.stage = Stage::TurnPull;
-        let repo = p.repository;
+        let repo = repository(member);
         ask(d, env, owner, p, repo, api::Read::Pull { number, ci: false }, out);
         return;
     }
@@ -3507,6 +3635,13 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         && facts.round_pull != policy::RoundPull::Unread
     {
         let words = merge_readback_words(&row, &facts, top);
+        row.landing.round.failure =
+            crate::preparation::remember(&row.landing.round.failure, &words, env.limits.landing_members);
+    }
+    if prior.landing.round.ending.is_none()
+        && row.landing.round.ending == Some(policy::RoundEnd::Stale)
+        && let Some(words) = turn_drift_words(&prior, &facts, top, p.turn_tip)
+    {
         row.landing.round.failure =
             crate::preparation::remember(&row.landing.round.failure, &words, env.limits.landing_members);
     }
@@ -4684,7 +4819,7 @@ pub(crate) fn outcome(
         if let Some(name) = super::domain::from_client(&resource, &d.landing.limits) {
             // The next round's new branch has no ancestry to the deleted candidate.
             if d.heads.remove(&name).is_some() {
-                crate::domain::writes::remove(d, &name, out);
+                writes::remove(d, &name, out);
                 emit(out, Request::Erase { key: Key::BranchHead(name) });
             }
         }

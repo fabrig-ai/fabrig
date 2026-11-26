@@ -144,8 +144,10 @@ pub mod restarts;
 mod store_check;
 mod tasks;
 
+type BranchReply = Result<skein_forge::api::Commit, skein_forge::api::Error>;
+
 struct ReadScript {
-    branch_error: Option<(Box<[u8]>, skein_forge::api::Error)>,
+    branch_read: Option<(Box<[u8]>, BranchReply)>,
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
     files_excess: Option<skein_forge::api::Excess>,
@@ -737,7 +739,12 @@ impl World {
     }
 
     pub fn script_branch_error(&mut self, branch: &[u8], error: Option<skein_forge::api::Error>) {
-        self.read_script.branch_error = error.map(|error| (branch.into(), error));
+        self.read_script.branch_read = error.map(|error| (branch.into(), Err(error)));
+    }
+
+    /// Keep serving an earlier branch view until the script is cleared, without changing the fake forge's ref.
+    pub fn script_branch_tip(&mut self, branch: &[u8], tip: Option<u64>) {
+        self.read_script.branch_read = tip.map(|tip| (branch.into(), Ok(translate::commit(tip))));
     }
 
     /// Script each ancestry range's terminal result until the script is cleared.
@@ -952,7 +959,7 @@ impl World {
             pull_snapshot: None,
             held_compares: None,
             read_script: ReadScript {
-                branch_error: None,
+                branch_read: None,
                 ancestry: None,
                 comparisons_too_large: false,
                 files_excess: None,
@@ -2428,9 +2435,16 @@ impl World {
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
             skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch })
-                if self.read_script.branch_error.as_ref().is_some_and(|(named, _)| named == branch) =>
+                if self.read_script.branch_read.as_ref().is_some_and(|(named, _)| named == branch) =>
             {
-                Some(Err(self.read_script.branch_error.as_ref().expect("scripted branch error").1))
+                Some(
+                    self.read_script
+                        .branch_read
+                        .as_ref()
+                        .expect("scripted branch view")
+                        .1
+                        .map(skein_forge::api::Answer::Commit),
+                )
             }
             skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { page, .. })
                 if self.read_script.files_excess.is_some()

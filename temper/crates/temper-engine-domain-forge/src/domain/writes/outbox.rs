@@ -150,6 +150,39 @@ pub(crate) fn outcome(d: &mut Domain, task: u64, entry: u64, outcome: Outcome, o
     }
 }
 
+/// Settle both records of a round merge proved by its tip or pull. A fresh
+/// closed, unmerged pull at the round's base rules out its uncertain sends.
+pub(crate) fn merge_readback(
+    d: &mut Domain,
+    train: &Name,
+    task: u64,
+    pull: u64,
+    candidate: Commit,
+    made: bool,
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = d.writes.get(train) else { return };
+    let mut senders = List::with_capacity(super::write_limit());
+    for entry in &row.entries {
+        if let Operation::MergedInto { pull: number, after: Some(after), .. } = entry.operation
+            && let Sender::Entry { task: owner, .. } = entry.sender
+            && owner == task
+            && number == pull
+            && after == candidate
+        {
+            senders.push(entry.sender).expect("one sender per write");
+        }
+    }
+    let outcome = if made {
+        Outcome::Made { made: Made::Merged(candidate), found: true }
+    } else {
+        Outcome::Failed(skein_forge::api::Error::Closed)
+    };
+    for sender in senders.into_boxed() {
+        mark(d, sender, Progress::Outcome(outcome), out);
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Progress {
     Sent,

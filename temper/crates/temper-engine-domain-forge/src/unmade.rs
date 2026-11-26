@@ -4,6 +4,7 @@ use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Env, List, Queue, Set, Time, Token};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as policy;
+use temper_engine_domain_forge_vocabulary::writes::Seen;
 
 impl Domain {
     /// End unmade landings and drop taskless holds that no live task writes under.
@@ -74,6 +75,15 @@ enum Stage {
     Reading { owner: Token, tip: Option<Commit> },
 }
 
+impl Readback {
+    pub(crate) const fn due(&self) -> Option<Time> {
+        match self.stage {
+            Stage::Due { at, .. } => Some(at),
+            Stage::Fresh | Stage::Reading { .. } => None,
+        }
+    }
+}
+
 fn unknown_merge(row: &LandingRow) -> Option<u16> {
     let at_turn = match &row.landing.phase {
         policy::Phase::Turn { .. } => true,
@@ -96,14 +106,11 @@ fn target(row: &LandingRow) -> Option<Repository> {
 pub(crate) fn deadline(d: &Domain) -> Option<Time> {
     let mut next: Option<Time> = None;
     for (_, readback) in &d.landing.unmade {
-        match readback.stage {
-            Stage::Due { at, .. } => {
-                next = Some(match next {
-                    Some(old) => at.min(old),
-                    None => at,
-                });
-            }
-            Stage::Fresh | Stage::Reading { .. } => {}
+        if let Some(at) = readback.due() {
+            next = Some(match next {
+                Some(old) => at.min(old),
+                None => at,
+            });
         }
     }
     next
@@ -175,19 +182,42 @@ pub(crate) fn answered(
                 readback.stage = Stage::Due { at: env.now.saturating_add(env.limits.client.backoff), tip };
             }
         }
-    } else if let Ok(Answer::Commit(tip)) = result {
-        let row = d.landing.rows.get(&task).expect("readback keeps its row");
-        if tip == candidate(row, top) {
-            end_unmade(d, env, task, Some(top), true, out);
-        } else if row.landing.members.get(usize::from(top)).expect("turn's top").base == Some(tip) {
-            end_unmade(d, env, task, None, false, out);
-        } else {
-            readback.stage = Stage::Due { at: env.now, tip: Some(tip) };
+    } else {
+        tip_answered(d, env, task, top, result, out);
+    }
+}
+
+fn tip_answered(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    top: u16,
+    result: Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) {
+    let due = Stage::Due { at: env.now.saturating_add(env.limits.client.backoff), tip: None };
+    let tip = match result {
+        Ok(Answer::Commit(tip)) => Some(tip),
+        Err(Error::Missing) => None,
+        Ok(_) | Err(_) => {
+            d.landing.unmade.get_mut(&task).expect("readback").stage = due;
+            return;
         }
-    } else if result == Err(Error::Missing) {
+    };
+    let row = d.landing.rows.get(&task).expect("readback keeps its row");
+    let member = row.landing.members.get(usize::from(top)).expect("turn's top");
+    let base = member.base;
+    let candidate = candidate(row, top);
+    let branch = row.landing.branch.clone();
+    let seen = landing::observe_tip(d, &env.limits, landing::repository(member), &branch, tip, out);
+    if let Seen::Behind { .. } | Seen::Owed = seen {
+        d.landing.unmade.get_mut(&task).expect("readback").stage = due;
+    } else if tip == Some(candidate) {
+        end_unmade(d, env, task, Some(top), true, out);
+    } else if tip == base || tip.is_none() {
         end_unmade(d, env, task, None, false, out);
     } else {
-        readback.stage = Stage::Due { at: env.now.saturating_add(env.limits.client.backoff), tip: None };
+        d.landing.unmade.get_mut(&task).expect("readback").stage = Stage::Due { at: env.now, tip };
     }
 }
 
@@ -205,6 +235,7 @@ fn end_unmade(
     let mut landed = List::with_capacity(env.limits.landing_members);
     let mut unrecorded = List::with_capacity(env.limits.landing_members);
     if let Some(top) = landed_top {
+        landing::settle_turn_merge(d, &env.limits, &row, top, true, out);
         let prior = row.clone();
         for (index, member) in row.landing.members.iter_mut().enumerate() {
             if index <= usize::from(top) && member.left.is_none() && member.landed.is_none() {

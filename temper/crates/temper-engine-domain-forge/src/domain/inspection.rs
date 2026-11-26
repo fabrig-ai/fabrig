@@ -101,6 +101,12 @@ impl Domain {
         self.landing.unmade.contains_key(&task)
     }
 
+    /// The start's next read for a taskless turn (temper/docs/design/domain/landing-liveness.md, 6.2).
+    #[must_use]
+    pub fn inspection_landing_readback_due(&self, task: u64) -> Option<Time> {
+        self.landing.unmade.get(&task)?.due()
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     /// A turn change has settled its gates, without a delegate terminal guessed by the reader.
     #[must_use]
@@ -133,6 +139,11 @@ impl Domain {
                 Some(row) => Some(row.repository),
                 None => None,
             }
+        } else if self.inspection_landing_readback(task)
+            && let Some(row) = self.landing.rows.get(&task)
+            && let Some(member) = row.landing.members.first()
+        {
+            Some(crate::landing::repository(member))
         } else {
             None
         };
@@ -227,7 +238,7 @@ impl Domain {
         }
         match self.makings.get(&owner) {
             Some(making) => Some(making.task),
-            None => None,
+            None => crate::unmade::reader(self, owner),
         }
     }
 

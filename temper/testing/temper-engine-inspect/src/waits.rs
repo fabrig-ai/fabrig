@@ -155,19 +155,30 @@ fn person_release(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
     }
 }
 
+fn train_wakes(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
+    if let Some(at) = view.forge.inspection_landing_readback_due(task) {
+        wakes.push(Wake::Timer(at));
+    } else if view.forge.inspection_landing_readback(task) {
+        // The start owns the readback; no live procedure owns the train yet.
+        wakes.extend(view.read_wakes(task));
+    } else {
+        wakes.push(view.waiter(task));
+    }
+}
+
 fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Vec<Wake> {
     let mut wakes = Vec::new();
     match row.change.state {
         State::Held { .. } => wakes.push(Wake::Party("person".into())),
         State::Ready { .. } | State::Preparing { .. } => {
             if let Some(task) = view.forge.landing_of(row.task) {
-                wakes.push(view.waiter(task));
+                train_wakes(view, task, &mut wakes);
             } else if matches!(row.change.state, State::Ready { .. }) && !cohort_wakes(view, row, &mut wakes) {
                 if view.forge.landing_held() {
                     wakes.push(Wake::Party("operator restart".into()));
                 } else if row.change.way == temper_engine_domain_forge_change::Way::Turn {
                     if let Some(task) = view.forge.train_holder(row.repository, &row.base) {
-                        wakes.push(view.waiter(task));
+                        train_wakes(view, task, &mut wakes);
                     } else {
                         refused_train(view, row, &mut wakes);
                     }
