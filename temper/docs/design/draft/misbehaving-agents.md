@@ -6,139 +6,157 @@ Draft, 2026-11-26, on the user's word. The prompt was an agent crash on the refe
 
 The worlds that run smith's real session draw faults, timing, restarts and people. But an agent's own tool calls are either a fixed script or random picks from a few fixed argument bodies that can name nothing the run made. On 2026-11-26 a model's reply polled a job its session no longer had, beside a write and a read, and the agent crashed. No seed of any world could draw that reply. This draft makes the worlds' agents do what real models do, and makes each domain say at once when it is wrong:
 
-1. **Two bodies first** (4.1). smith's session world's menu gains a `shell` body that asks to yield, and a `job` body. With them its existing seeds draw both answers the tools give at their entrance that a batch can't foresee. This is the widening 11-26's repair should have made.
-2. **A domain checks what it conserves where it changes** (3). Wherever a quantity is reserved, taken, given back or released, the step that moves it checks it, fail-stop, with the invariant named. A breach fails at its cause in every world and in production, not later at a debit.
-3. **The fake model names what the run made** (4.2 to 4.4). A menu body may hold a reference slot, which the fake fills from the conversation with an id seen earlier (live or ended) or one never issued. The fake's answers and its failures draw from two seeds, and a drawn agent prints as a script that replays.
-4. **Each tree's vocabulary** (5). smith's tools, jig's tasks, questions and messages, and temper's producer turns, with weights toward the shapes that reach a domain's refusals.
-5. **Parks against wakes, as a table** (6). jig's kinds of park and answer are one half, smith's states of a session at its park the other. Their pairs are kinds of a family of their own, drawn where real smith runs under jig.
-6. **Agreements across components, at quiet points** (7). What no single domain can see, such as jig's call records against smith's open calls, is checked by the composed worlds through the inspection adapters.
-7. **Production as the coverage target** (8). A reader counts the shapes runs on a deployment hit, as abstract tuples over 5's vocabulary and 6's cells, and names those no world draws.
+1. **The escaped shape, drawn** (4.1). smith's session world offers and decodes `job` and yielding commands, its menu's bodies gain the fields they need, and its sweep counts the shape that escaped, and its outcome.
+2. **A domain checks what it conserves where it changes** (3). Admission refuses, as a value. A step that takes, moves or gives back what the domain reserved asserts that the reservation is its own. A breach fails at its cause.
+3. **The fake model names what the run made** (4.2 to 4.4). A menu body may hold a reference slot, which the fake fills with a value the conversation holds, or one never issued. Each answer draws from its agent's own seed, keyed by its request. A drawn agent is captured as it plays, and the capture replays.
+4. **Each tree's vocabulary** (5). smith's tools, and jig's and temper's tasks, questions and messages, with each refusal they target named with its setup, and with stretches of drawn turns inside stories that still deliver and finish.
+5. **Parks against wakes, as a table** (6). jig's kinds of park and answer are one half, smith's states of a session at its park the other. A table states what each pair expects, and a driver in each world that runs both observes the pairs as kinds of a family of their own.
+6. **Relations across components, at quiet points** (7). What no single domain can see, such as jig's call records against smith's open calls, is checked by the composed worlds through the inspection adapters. The relations allow every state a valid quiet point can be in.
+7. **Production as the coverage target** (8). The worlds report the shapes they reached, and a reader counts the shapes a deployment's runs hit, both in one abstract vocabulary. It names the shapes a deployment hits that the worlds' samples didn't reach.
 
-Fresh seeds, replay, reach counted over a campaign, the generated producer for landings and goals, and the rule that an escape widens its world are the fresh-seed campaigns draft's (section 9).
+Fresh seeds, a case's replay, reach counted over a campaign, and the rule that an escape widens its world are the fresh-seed campaigns draft's (section 9).
 
 ## 2. Where it starts
 
 | What happened | Why it went on | Section |
 |---|---|---|
-| On 11-26 the agent shell panicked ten times, in three runs, at `smith/crates/smith-domain-session/src/session/accounting.rs` ("call owned result credit"). A resumed model batched a poll of a job ended at the park, an edit and a read. The tools answered the poll invalid at their entrance, the batch was marked failed, and the read started with no room reserved for its result. One goal stuck for five hours | smith's session world draws random batches over 2000 seeds, but its menu's five bodies hold no `job` and no `yield_seconds` (`smith/tests/session/src/provider.rs`). Only a call the tools refuse at their entrance escapes the batch's forecast of its room (`smith/crates/smith-domain-session/src/session/batching.rs`, `scheduled`). The two such answers, an unknown job and full job cells, need those two fields | 4.1, 5.1 |
+| On 11-26 the agent shell panicked ten times, in three runs, at `smith/crates/smith-domain-session/src/session/accounting.rs` ("call owned result credit"). A resumed model batched a poll of a job ended at the park, an edit and a read. The tools answered the poll invalid at their entrance, the batch was marked failed, and the read started with no room reserved for its result. One goal stuck for five hours | smith's session world draws random batches over 1000 noisy seeds. But its translator neither offers nor decodes `job`, it builds every shell call without a yield, and its menu's bodies hold no `job` and no `yield_seconds` (`smith/tests/session/src/provider.rs`, `translate.rs`). Only a call the tools refuse at their entrance escapes the batch's forecast of its room (`smith/crates/smith-domain-session/src/session/batching.rs`, `scheduled`), and the two such answers, an unknown job and full job cells, need both | 4.1 |
 | The fix pinned its case in two scripted run-world stories and a session step test, and widened no world (a0f6f9d91b) | A repair's rule asks for the instance, not the class | 4.1 |
-| The underflow was caught where the read's result arrived, not where the read started without room | The session checks room at a result, and dispatch didn't check that a call lay within its reserved batch | 3 |
-| smith's agent, host and local worlds use the same menu. jig's channel and one-process worlds and temper's one-process and system worlds play scripted turns with an empty menu | A script names its calls and values. The fake's random answers copy whole bodies and ignore the conversation's values | 4, 5 |
+| smith's agent, host and local worlds use the same menu. jig's channel and one-process worlds and temper's one-process world play scripted turns. temper's composed workload plays scripted turns too, with smith's menu on its typed provider and an empty one on its wire provider | A script names its calls and values. The fake's random answers copy whole bodies and ignore the conversation's values | 4, 5 |
 | A drawn agent's tool picks change whenever a fault's chance changes | The fake draws answers, faults, cache routing and latency from one seed (`skein_fake_llm_domain`, `Domain::played`) | 4.3 |
-| jig's parks and answers are drawn with scripted run answers, and smith's park states with scripted wakes. No sweep crosses the two, and smith's inspection adapter reads none of a session's room | Each half was built in its own tree | 6, 7 |
+| jig's parks and answers are drawn with scripted run answers, and smith's park states with scripted wakes. No sweep crosses the two. smith's inspection adapter is designed but not built (`smith/docs/design/testing.status.md`) | Each half was built in its own tree | 6, 7 |
 
 ## 3. A domain checks what it conserves where it changes
 
 ### 3.1 The rule
 
-- **Every conserved quantity changes only in a step that checks it:** room reserved and taken, credit admitted and released, a cell held and freed, a slot given and returned, a member joined and gone. The step that reserves checks that the room exists. The step that takes checks that the room was reserved for this taker. The step that gives back checks that it was taken and not already given. Each is fail-stop, its `expect` naming the invariant (`skein/docs/foundation/programming-model.md`, 10.4).
+- **Admission refuses, as a value.** A step asked to reserve room, a cell, a slot or a credit it doesn't have answers full, busy or refused, and its caller handles that (`skein/docs/foundation/programming-model.md`, 10.4).
+- **A step that uses a reservation asserts it.** Taking reserved room, moving it, giving it back, or freeing a cell or slot is done only by the step that holds the reservation the domain made. That step asserts what it relies on: the room was reserved for this taker, it was taken and not already given back, the cell is held. Each is fail-stop, its `expect` naming the invariant. A breach is the domain's own bug.
 - **At the cause, not at a later debit.** A read started with no room reserved for its result fails as it starts, naming the read and its batch. It doesn't fail when its result arrives, naming a subtraction.
-- **Expected limits stay values.** Full, busy and refused are answers a caller handles. The rule is for what only the domain's own bug can break (the same section).
-- **Written into skein's programming model,** beside the assertions it already describes, so every tree's domains follow it and its reviews check it.
+- **Tested by what it guards, never by tripping it.** Tests show each check's valid edge and the admission's refusal through their observable effects, as the fix's step test does: the read starts only after the batch's reclaim, and the credit balances (`smith-domain-session`'s `tests/batched_change.rs`). In a world, a seed that breaches a check fails that world at the transfer.
+- **Written into skein's programming model,** beside the assertions it describes, so every tree's domains follow it and its reviews check it.
 
 ### 3.2 Where it applies first
 
-Each of these is read against 3.1, and a check is added where a transfer has none. Each added check gets a step test showing that a breach fails at the transfer:
-- **smith's session:** the provider credit, `reserved` for a batch's results, the transcript's room, and each call's share of its batch. Since a0f6f9d91b, a batch's calls are fixed when it starts (`smith/docs/design/domain/session.md`, 5). Dispatch checks that a call it starts lies within its batch's reserved end, and a result checks that its call held room.
+Each owner is read against 3.1, and an assertion is added where a use of a reservation has none:
+- **smith's session:** the provider credit, a batch's reserved room and each call's share of it, and the transcript's room. Dispatch already starts only the calls in its batch's reserved range (a0f6f9d91b). A call's result now asserts that its call held room in that batch, and the batch's reclaim asserts that each share is given back once (`smith/docs/design/domain/session.md`, 5).
 - **smith's tools:** job cells, held on insertion and freed by a terminal read or the session's close (`smith/docs/design/domain/tools.md`, 5).
-- **jig's core:** call records, pending calls and kept parts, each against its own cap. A sum is checked only where a design states one.
-- **temper's forge:** write room and its reservations, branch writer slots, and a landing's members.
+- **jig's core:** the one admission bound shared by pending and retained calls, and kept parts in their own room.
+- **jig's tasks:** the branch writer slots they hold.
+- **temper's landing child:** a landing's members, at insertion and departure.
+- **temper's forge room:** the outbox's room over all its holders: live entries, reservations, asked waiters, agent calls, goal projections, and entries of ended owners still settling (`temper/docs/design/domain/forge/room.md`, 2). Each holder's share is compared with its owner's lifecycle state.
 
 ## 4. The fake model draws what a model can say
 
-### 4.1 Two bodies first
+### 4.1 The escaped shape, drawn
 
-- **smith's session world's menu gains two bodies:** a `shell` body with `yield_seconds`, and a `job` body naming job 1. The world gives a yielding command a run past its yield, so its job is held in one of the world's four cells. Its existing seeds then draw both answers the tools give at their entrance: an unknown job, where job 1 was never started or has ended, and full cells.
-- **The sweep shows they fall.** It counts the answers its cases got, and its existing reach check asks for both kinds. The world's agent, host and local siblings share the menu, so they gain the bodies too.
-- **No new machinery:** the bodies are menu entries, and the world's seeds and counts stay as they are.
+- **smith's session world offers `job` and decodes it,** and decodes a shell call's `yield_seconds`, as the product's decoder does.
+- **Its menu's bodies gain both fields.** Each body already carries the fields of every tool (a path, a content, a command, a pattern, edits), and a call reads the fields of its own tool. So some bodies gain `"job": 1` and a `yield_seconds` of 0, and a drawn `job`, `shell`, `read` or `write` call reads its own fields from any of them.
+- **A yielding command outlasts its yield** by the world's scheduling of its completion (`Settings::tool`), not by a real sleep. A drawn yielding shell then holds a job in one of the world's four cells, and the world's referee accepts a running job's answer.
+- **The sweep counts the escaped shape and its outcome:** a completion in which the tools refuse a call at their entrance, before a write, with a read after it. The write is answered not run, and the read starts in the next reserved batch. It also counts unknown jobs, and full cells from four held jobs and a fifth yielding shell. Its reach check asks for all three.
+- **The agent, host and local worlds** share the menu, so they gain the bodies.
 
 ### 4.2 Reference slots
 
-- **A body may hold a slot,** a placeholder the fake fills as it draws the call. It is declared with `before` and `after` delimiters, as a scripted turn's take is (`skein/docs/design/testing/fakes/llm.md`, 2.6), and the placeholder forms are the take's: `"{{#NAME}}"` for a number, `{{NAME}}` in a string.
-- **The fake fills it by drawing among:**
-  - every value the conversation holds between those delimiters, in any message, not only the newest, since a stale id is the point;
-  - with its own weight, a value never issued: one past the largest seen, or the slot's declared far value.
+- **A body may hold a slot,** a placeholder the fake fills as it draws the call. It is declared by `before` and `after` delimiters, and its placeholder forms are the take's: `"{{#NAME}}"` for a number, `{{NAME}}` in a string (`skein/docs/design/testing/fakes/llm.md`, 2.6).
+- **Where it looks:** the parts a take reads (each text part's text and each tool output's output, never a tool call or an opaque block), from the newest back. Each distinct value counts once, between 1 and 256 bytes, and where two slots' delimiters overlap, the first declared wins. The scan stops at a bounded number of candidates. The fake keeps the candidates' places, not copies of them.
+- **What it draws:** a candidate the conversation holds, or, by its own weight, the slot's declared value that the world never issues. A numeric slot has a checked range, and a candidate outside it is skipped. An empty set of candidates gives the never-issued value.
+- **Sized before it is copied.** The answer is measured with each slot filled, against the fake's admission (`script_bytes`), before the body is copied. An answer past it is drawn again without the slot.
+- **The fake knows only delimiters.** It stays the application's servant: no tool's name, meaning or lifetime.
+- **The world classifies what was drawn.** Whether a drawn reference was live, ended and held, consumed, from before the last opening, foreign, or never issued is known only to the world, which records it beside the answer the domain gave, `unknown` where it can't tell. A mention isn't a lifetime: a job can end and still be held until its end is read, and a number one past the largest the model saw may already be issued.
+- **The renderer shows what the product shows.** smith's session world renders a job's result and a read's continuation as the product's renderer does, so the model sees `job N` and the continuation, and its slots can find them.
 
-  A slot may also declare an `ended` pattern, a second pair of delimiters marking a value as ended (`job 1 ended`). The fake then weighs ended values on their own.
-- **The fake stays the application's servant.** It reads the query it already holds, and knows no tool's name or meaning: the application declares each slot's delimiters and weights. An empty conversation fills a slot with its never-issued value.
-- **Freshness is the world's to count.** Whether a drawn id was live, ended, from before the last opening, or foreign is known only to the world, which counts it beside the answer the domain gave.
+### 4.3 Each answer from its agent's own seed
 
-### 4.3 Two seeds
+- **An agent's draws are a part of `Parties`,** `agent/NAME` (`skein/docs/design/testing/sweeps.md`, 2). The fake's failures draw from `Faults` (`llm`), and its cache routing and latency from `Scheduling`.
+- **A named draw for each request.** The answer to a request is drawn from the agent's part, keyed by its conversation, its logical turn and the request's attempt. So the same request draws the same answer whatever the faults. A fault that prevents a request or adds a retry changes which requests are made, not what any one of them draws.
+- **A world not yet on streams** derives the three seeds from its own seed, as it now derives one.
+- **The move changes every random-mode world's draws once.** Before it, each world's cases pinned on a behaviour are listed and kept as scenarios, or their draw is kept by name. Then each world runs at its gate seeds. Where a reach check then misses a kind, its seeds are picked again by the rule they were picked by (`temper/docs/design/testing/workloads.md`, 8.4). Each affected binary's seed and check counts, CPU and instructions are given before and after the move.
 
-- **The fake's answers draw from their own seed,** an agent's part of `Parties` (`agent/NAME`, `skein/docs/design/testing/sweeps.md`, 2). Its failures, cache routing and latency draw from `Faults` (`llm`) and `Scheduling`. So adding a fault kind, or changing a chance, moves no agent's draws, and the reverse.
-- **A world not yet on streams** derives the two seeds from its own seed, as it now derives one.
-- **The split moves every random-mode world's draws once.** Each such world is run at its gate seeds after the split. Where a reach check then misses a kind, it re-picks its seeds by the rule it was picked by (`temper/docs/design/testing/workloads.md`, 8.4), its counts staying within its budget.
+### 4.4 A drawn agent is captured as it plays
 
-### 4.4 A drawn agent prints as a script
-
-- **A failing case prints the turns its fake drew** as a `Turn` list: each call with its tool, its filled body and its slot's draw, and each text. The list replays as a fixed script, without the menu or the seed.
-- **A finding is pinned as that script,** since a seed draws another agent once a menu or a weight changes (the fresh-seed campaigns draft, its section on pinning).
+- **The capture:** each answer the fake drew, keyed by its conversation, logical turn and attempt, with its lines, its finish and its tokens, as a `Turn` holds them (`skein_fake_llm_domain`'s `api.rs`). Beside each answer, not in it, go each slot's draw and the world's classification of it. The capture is bounded by a count of answers and of bytes, and a capture that hits its bound says so.
+- **The capture replays.** Played back, it answers each request by the same keys, so a retried or cut request gets the answer it got before, and two conversations keep their own answers. Faults, timing and every input the fake didn't draw still come from the case's seed, as the fresh-seed campaigns draft replays a case.
+- **A finding is pinned as its capture,** a fixed scenario, since a seed draws another agent once a menu or a weight changes.
 
 ## 5. Each tree's vocabulary
 
 ### 5.1 smith's tools
 
-- **Its menu becomes the session's vocabulary:** a body or more for each tool the world grants, with slots where a tool names what the run made:
+- **The menu becomes the session's vocabulary:** bodies for each tool the world grants, with slots where a tool names what the run made:
   - `job` from a shell's `job N`;
   - `read`'s offset from its continuation;
   - a path from an earlier input, listing or search hit.
-- **Weights toward the shapes a domain refuses:** a batch with a call the tools refuse at their entrance before a write, with reads after it; calls past the view; a path not yet read; a stale version; an oversized body. Each refusal the tools give is reached by some body, and the sweep counts the answers it reached.
+- **Each refusal it targets is listed** with the setup it needs and the answer that shows it. Most need no more than a body: a path past the view, a write to a protected path, an oversized body, a NUL byte. Some need prior state (a stale version, a path not yet read), timing (an expired deadline) or scarce capacity (busy, full cells), and their setup says how the world provides it.
+- **Weights toward the shapes a domain refuses,** above all a completion whose earlier call is refused before a write, with reads after it.
 - **The agent, host and local worlds** take the same vocabulary with their own grants (`smith/docs/design/testing.md`, 4).
 
 ### 5.2 jig's and temper's runs
 
-- **Task numbers, questions and messages.** A run's creation replies, inbox labels and `read_task` show task numbers. `Message N sent` shows message numbers, and a question's number comes from its label. These fill slots in `read_task`, `message`, `cancel`, `amend`, `release`, `subscribe` and an answer's `question`. Each slot draws stale, foreign and never-issued numbers as well as live ones, and a domain's refusals (an unrelated task, an answered question, an ended recipient) are counted as answers reached.
-- **Generated turns beside scripted ones.** jig's one-process and temper's one-process and system worlds build turns from stories. A story keeps its scripted turns where it depends on a cue, a hold or a value. Beside those, a script kind whose turns the fake draws from the producer's tools joins each world's workload, starting with temper's composed workload (`temper/docs/design/testing/workloads.md`, 5).
-- **The forge's references** (branches, heads, pulls, CI runs) are the vocabulary of the fresh-seed campaigns draft's generated producer for landings and goals. It uses this draft's slots.
+- **Task numbers, questions and messages.** A run's creation replies, inbox labels and `read_task` show task numbers. `Message N sent` shows message numbers, and a question's number comes from its label. These fill slots in `read_task`, `message`, `subscribe` and an answer's `question`, and a domain's refusals (an unrelated task, an answered question, an ended recipient) are counted as answers reached. A question's slot draws from its own task's labels, and a foreign one, by its own weight.
+- **Drawn stretches inside a story.** A story's contract holds: it writes its files, sets its CI outcome, delivers, parks where it says, and finishes. At stated points between its steps, a bounded number of drawn turns from the producer's reading and messaging tools are played. After the stretch, the story's next scripted turn plays. The drawn turns never deliver, finish, cancel or amend.
+- **Where:** temper's composed workload, through the provider it actually plays: its typed provider takes a menu and a round count, and its wire provider, `temper-fake`, takes them too. Then jig's one-process world. The workload's goals' expectations stay as they are, and a drawn stretch adds its own: each drawn call answered once, each refusal of a reachable kind.
+- **The forge's references** (branches, heads, pulls, CI runs) belong to a generated producer for landings and goals. That producer isn't this draft's (section 9). It would use these slots.
 
 ## 6. Parks against wakes
 
-### 6.1 Two halves
+### 6.1 The two halves
 
-- **jig's half,** unchanged: its family of runs that park, resume and move, with what is open at the park (a question, a watch, nothing) and how the answer comes (while parked, after the end, to a successor, a coordinator ending, a circle). See `jig/docs/design/domain/testing-workloads.md`, 4.
-- **smith's half,** a family of its own, of what a session holds as its run parks:
-  - a withheld `wait`;
-  - jobs ended by the park;
-  - a cut turn with kept parts;
-  - a delegated call answered or not;
-  - a sub-agent's conversation kept.
+- **jig's half,** unchanged: its family of runs that park, resume and move (`jig/docs/design/domain/testing-workloads.md`, 4). Some of its kinds resume the run: an answer while parked, one to its successor, a park on nothing, a watch that can answer. Others end it without a resume: an answer after its end, which is dropped, a coordinator's end, a circle held.
+- **smith's half,** a family of its own. Each kind is a state observed as the run's park is answered, with what the design says becomes of it:
 
-  It is drawn in smith's session, run and agent worlds. Each kind is restored on resume as `smith/docs/design/domain/run-messages.md`, 1 says, and a resumed model's slots then draw ids from before the opening.
+| A session's state at the park | Observed | If the run resumes | If it ends |
+|---|---|---|---|
+| a withheld `wait` | the last turn told without its result | answered by the waking messages, once (`smith/docs/design/domain/run-messages.md`, 1) | nothing owed |
+| a job running | ended by the session's close, before the park is answered | its number unknown to the resumed kit; a model naming it is refused (`smith/docs/design/domain/tools.md`, 5) | ended already |
+| a cut turn with kept parts | the parts told before the cut | rebuilt from its eligible parts, else planned afresh (`smith/docs/design/domain/turn-parts.md`, 5) | parts dropped with the task |
+| a host call answered or unanswered | its part told or not | an answered call replays, an unanswered one is sent again (the same, 5) | dropped with the task |
+| a sub-agent's conversation kept | its parts told | it continues from its eligible parts (the same, 6) | dropped with the task |
 
-### 6.2 The cells
+- **Where it is drawn:** in smith's run and agent worlds, which own a run's park and wake. The session world drives what a session alone does, its close and its restore.
 
-- **A cell is a pair,** one kind of each half that can fall on the same run. The table lists every pair, and the reason for each pair that can't occur.
-- **The cells are kinds of a third family,** one kind per cell. A world that runs both halves injects a cell's kind when both its kinds fall on the same run. The fault ledger keeps sets of kinds and has no run identity (`skein/docs/design/testing/sweeps.md`, 3), so the pair is the world's to see, and the ledger stays as it is.
-- **Where they're drawn:** the worlds that run real smith under jig's wakes, which are jig's channel and one-process worlds and temper's one-process and system worlds. At the gate each sweep configures cells as it configures any family, one kind each in the composed sweep (`temper/docs/design/testing/workloads.md`, 8.2). The rest are for campaigns, counted as any kind.
+### 6.2 The cells and their driver
 
-## 7. Agreements across components, at quiet points
+- **A cell is one kind of each half, for the same park:** one run, one attempt's park, and the answer or end that follows it, in that attempt or its successor.
+- **Its expectation is the table's row,** under its column's outcome. A pair that can't occur is listed with its reason.
+- **The cells are kinds of a third family,** one kind per cell. A driver in each world that runs both halves chooses an eligible target and arms both halves for it. It keys the park by its task, its attempt and the park's number, and injects the cell's kind once per park, when it has seen both halves fall for that key. The fault ledger records what it is given and keeps sets of kinds, with no run identity (`skein/docs/design/testing/sweeps.md`, 3), so the pairing is the driver's.
+- **Its tests:** two tasks that hit opposite halves in one seed make no cell, and neither do two parks of one task, each with one half.
+- **Where they're drawn:** the worlds that run real smith under jig's wakes, which are jig's one-process world and temper's one-process and system worlds. At the gate a sweep configures a cell only where its held seeds show it falls within their sample. One kind per family is drawn in the composed sweep (`temper/docs/design/testing/workloads.md`, 8.2). The rest wait for a sweep adopted by the fresh-seed campaigns draft, which counts them as any kind.
 
-- **What no single domain sees is checked by the worlds,** at each world's quiet point, through the inspection adapters (`skein/docs/design/testing/inspection.md`, 5):
-  - each delegated call smith holds open for a run has its record or pending call in jig's core, and each of jig's records for a run's open call has its call in smith's session;
-  - the engine's placements on a worker match the worker's hosted slots;
-  - temper's forge write room taken matches the outbox entries and reservations of its live changes and landings.
-- **smith's inspection adapter reads a session's room:** its reserved room, its provider credit, its open calls and their batches, and its job cells, so the session world checks 3.2's sums at each quiet point too.
-- **A finding names both sides,** each component's reading and the run or entry they disagree on.
+## 7. Relations across components, at quiet points
+
+- **What no single domain sees is checked by the worlds,** at each world's quiet point, through the inspection adapters (`skein/docs/design/testing/inspection.md`, 5).
+- **Relations, not equalities.** A valid quiet point can hold a relay in flight, an answer jig retains for replay after smith has used it, or a terminal answer a worker holds until it is acknowledged. So each relation is keyed by task, attempt, completion and position, and allows each such state by name:
+  - each call smith's session holds open for a run has its record in jig's core, or its relay is in flight;
+  - each of jig's records for a run's call is matched by smith's open call, or is an answer retained for replay, or its relay is in flight, or its run was cancelled;
+  - the engine's placements on a worker match the worker's hosted slots, or a placement's answer awaits its acknowledgement;
+  - temper's forge room taken matches 3.2's holders.
+- **An orphan** is a record on one side that matches none of these, and is a finding naming both sides.
+- **Its tests:** each relation's valid skews pass, and a planted orphan fails.
+- **smith's inspection adapter is built,** as `smith/docs/design/testing.md`, 6 designs it, with readings of a session's reserved room, provider credit, open calls and their batches, and job cells. The session world wires it in, so 3.2's sums are read at its quiet points too. The composed worlds' inspection reads jig's core placements and flights as well as its task child.
 
 ## 8. Production as the coverage target
 
-- **A shape** is an abstract tuple read from a run's activity on a deployment, never its text:
-  - the tools of each assistant message, in order, and the calls per batch;
-  - which calls the domain refused, and with what kind of answer;
-  - whether a call named an id from before the last opening, or never issued;
+- **One vocabulary for both sides.** A shape is an abstract tuple:
+  - the tools of each completion, in order;
+  - each call's answer kind;
+  - whether a drawn reference was live, stale, foreign or never issued;
   - the run's end class, its next begin reason, and the kind of message that woke it.
 
-  Its words are 5's vocabulary and 6's cells, so the repository holds the vocabulary and no deployment's data.
-- **A reader,** `tools/shapes/`, reads a deployment's task activity (`temper ctl task activity --json`). It counts each shape over a window, and compares with what the worlds reach, as a campaign's report counts it. Its report lists the shapes a deployment hit that no world draws, by how often, and goes to the user, never into the repository.
-- **Each such shape** becomes a menu body, a slot, a weight or a cell, in the world that should draw it.
+  Its words are an allowlist from 5's vocabulary and 6's cells, with `unknown` for anything else. It is versioned, and the repository holds it, never a deployment's data.
+- **The worlds report what they reached:** each sweep that draws agents counts, per case, the shapes its cases reached, in that vocabulary, beside its sample's size.
+- **A reader,** `tools/shapes/`, reads a deployment's task activity (`temper ctl task activity --json`), every page of each task in a window, so that an id issued before a turn is seen. A field the activity doesn't carry is `unknown`, as is a page cut or a turn unread. Each call's answer kind is read from the archived turn, which holds it typed, and the activity's call rows gain that kind where they now give only a failed flag.
+- **Its report** lists the shapes a deployment hit that the worlds' samples didn't reach, by how often, with the samples' sizes and the incomplete cases counted. Absence from a sample isn't proof that no world can draw a shape. The report goes to the user, never into the repository.
+- **Nothing raw escapes.** The reader keeps only allowlisted labels and counts. Its tests show that no input text, value or id reaches its report, its fixtures or its error lines.
+- **Each shape the worlds missed** becomes a menu body, a slot, a weight or a cell, in the world that should draw it.
 - **The reader runs after landing,** on the user's word, never in a plan.
 
 ## 9. Not in this draft
 
-- **Fresh seeds after landing,** one case replayed, a finding's words and pinning, reach counted over a campaign, and the rule that a fault found outside the worlds widens the nearest world's draws: the fresh-seed campaigns draft's.
-- **The generated producer for landings and goals** in temper's forge and engine worlds: the same draft's first temper workload, with 5.2's forge vocabulary.
+- **Fresh seeds after landing,** a case replayed, a finding's words and pinning, reach counted over a campaign, and the rule that a fault found outside the worlds widens the nearest world's draws: the fresh-seed campaigns draft's.
+- **A generated producer for landings and goals** in temper's forge and engine worlds, drawing the forge's references through this draft's slots. It is named in the fresh-seed campaigns draft, but neither draft schedules it yet.
 - **Real models in tests:** benchmarks, outside the suites (`smith/docs/design/testing.md`, 2.4).
 - **Coverage-guided fuzzing** of decoders, and conversion across two releases under a crash.
-- **Shrinking** a drawn agent's script before it is pinned.
+- **Shrinking** a captured agent before it is pinned.
 
-**Tests stay cheap.** The suites are the check. A goal runs a test it adds or changes by name, alone, at most. The gate keeps its seeds and its counts: widened menus change what those seeds draw, not how many run. A plan runs the focused and fuzzy suites alone and is complete when it lands. walk = false.
+**Tests stay cheap.** The suites are the check. A goal runs a test it adds or changes by name, alone, at most. Widened menus change what the gate's seeds draw, not how many run. A plan runs the focused and fuzzy suites alone and is complete when it lands. walk = false.
