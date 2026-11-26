@@ -8,10 +8,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-deflate.workspace = true
 skein-fail-stop.workspace = true
 skein-lib.workspace = true
 wasm-bindgen-cli-support.workspace = true
-flate2.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

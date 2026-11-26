@@ -237,8 +237,8 @@ fn a_gzip_endpoint_sends_its_rendered_body_gzip_encoded_with_its_length() {
     let world = World::started_with(gzip_call());
     let (head, body) = split(&world.sent);
     let rendered = translate::encode_request(Provider::OpenAi, &call().prompt, &limits().native()).unwrap();
-    let mut room = bytes::zeroed(skein_http::gzip::bound(rendered.len()).unwrap());
-    let end = skein_http::gzip::encode(&rendered, &mut room).unwrap();
+    let mut room = bytes::zeroed(skein_deflate::gzip::bound(rendered.len()).unwrap());
+    let end = skein_deflate::gzip::encode(&rendered, &mut room).unwrap();
     assert!(head.contains("\r\nContent-Encoding: gzip\r\n"), "{head}");
     assert_eq!(content_length(head), body.len());
     assert_eq!(body, &room[..end], "the body is the encoder's member of the rendered body");
@@ -498,7 +498,7 @@ fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
                     assert_eq!(actual, &rendered, "{provider:?}/{enabled}/{encoding:?}");
                 } else {
                     let mut room = bytes::zeroed(usize::try_from(expected.compressed).unwrap());
-                    let end = skein_http::gzip::encode(&rendered, &mut room).unwrap();
+                    let end = skein_deflate::gzip::encode(&rendered, &mut room).unwrap();
                     assert_eq!(prepared.upload_end, end);
                     assert_eq!(actual, &room, "{provider:?}/{enabled}/{encoding:?}");
                 }

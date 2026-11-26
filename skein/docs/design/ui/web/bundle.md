@@ -63,9 +63,11 @@
   compressor's best level, its header holding no time and no name, so
   that the same inputs give the same bytes. Gzip alone: every browser
   accepts it, on plain http too, where browsers offer no Brotli. A
-  `.woff2` or a picture is compressed already. The compressor, `flate2`
-  on its Rust backend, is the bundler's alone, never linked into a
-  service or a module. An application whose host compresses for it
+  `.woff2` or a picture is compressed already. The compressor is
+  skein's own gzip member at its best level
+  (`../../data/gzip.md`, 2), the level for what is compressed once and
+  served many times, its ratio about zlib's best
+  (`../../data/deflate.md`, 2). An application whose host compresses for it
   turns the forms off (`--gzip off`; `temper/docs/design/playground.md`,
   7), and its directory holds `NAME` alone.
 - **The same inputs give the same bundle,** byte for byte; a change to

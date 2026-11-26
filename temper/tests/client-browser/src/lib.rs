@@ -284,8 +284,8 @@ impl Tier {
             )
             .as_bytes(),
         );
-        let mut compressed = vec![0; skein_http::gzip::bound(css.len()).expect("stylesheet gzip bound")];
-        let length = skein_http::gzip::encode(&css, &mut compressed).expect("compressed private stylesheet");
+        let mut compressed = vec![0; skein_deflate::gzip::bound(css.len()).expect("stylesheet gzip bound")];
+        let length = skein_deflate::gzip::encode(&css, &mut compressed).expect("compressed private stylesheet");
         compressed.truncate(length);
         fs::write(path.with_extension("css.gz"), compressed).expect("private compressed stylesheet");
         fs::write(path, css).expect("private stylesheet");

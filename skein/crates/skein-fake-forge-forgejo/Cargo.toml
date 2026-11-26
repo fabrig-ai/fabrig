@@ -11,6 +11,7 @@ publish.workspace = true
 skein-fake-forge-http.workspace = true
 skein-forge.workspace = true
 skein-lib.workspace = true
+skein-deflate.workspace = true
 skein-http.workspace = true
 skein-json.workspace = true
 skein-fake-forge-domain.workspace = true

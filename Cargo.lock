@@ -3,12 +3,6 @@
 version = 4
 
 [[package]]
-name = "adler2"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -73,15 +67,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "crc32fast"
-version = "1.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f97d3416d5337d15c4b0d78c8c91df922ca143f57ec20e2d1c188333047ef04"
-dependencies = [
- "cfg-if",
 ]
 
 [[package]]
@@ -188,16 +173,6 @@ name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
-
-[[package]]
-name = "flate2"
-version = "1.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfe33edd8e85a12a67454e37f8c75e730830d83e313556ab9ebf9ee7fbeb3bfb"
-dependencies = [
- "crc32fast",
- "miniz_oxide",
-]
 
 [[package]]
 name = "foldhash"
@@ -2830,16 +2805,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "miniz_oxide"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
-dependencies = [
- "adler2",
- "simd-adler32",
-]
-
-[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3114,12 +3079,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
-name = "simd-adler32"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
-
-[[package]]
 name = "skein-browser"
 version = "0.0.0"
 dependencies = [
@@ -3359,6 +3318,7 @@ dependencies = [
 name = "skein-fake-forge-forgejo"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-http",
  "skein-forge",
@@ -3417,6 +3377,7 @@ dependencies = [
 name = "skein-fake-llm-protocol"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-fake-llm-domain",
  "skein-http",
  "skein-json",
@@ -3492,6 +3453,7 @@ name = "skein-fake-peers-tests"
 version = "0.0.0"
 dependencies = [
  "rustls",
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
@@ -3748,7 +3710,6 @@ dependencies = [
 name = "skein-http"
 version = "0.0.0"
 dependencies = [
- "skein-deflate",
  "skein-lib",
  "skein-rows",
 ]
@@ -3765,6 +3726,7 @@ name = "skein-http-world"
 version = "0.0.0"
 dependencies = [
  "skein-checks",
+ "skein-deflate",
  "skein-heap",
  "skein-http",
  "skein-http-kit",
@@ -3889,6 +3851,7 @@ dependencies = [
 name = "skein-llm"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-fake-llm-protocol",
  "skein-http",
  "skein-json",
@@ -4256,7 +4219,7 @@ dependencies = [
 name = "skein-ui-bundle"
 version = "0.0.0"
 dependencies = [
- "flate2",
+ "skein-deflate",
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
@@ -4389,8 +4352,8 @@ dependencies = [
 name = "skein-ui-web-tests"
 version = "0.0.0"
 dependencies = [
- "flate2",
  "skein-browser",
+ "skein-deflate",
  "skein-fail-stop",
  "skein-fake-person",
  "skein-fake-person-browser",
@@ -5971,6 +5934,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "serde_json",
  "skein-browser",
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-oauth",
