@@ -510,6 +510,40 @@ fn main_reserve_turn_keeps_a_named_host_tool() {
 }
 
 #[test]
+fn finite_commits_no_completion_past_its_turn_bound() {
+    const ORDINARY: u32 = 3;
+    const RESERVE: u32 = 1;
+    const BOUND: u32 = ORDINARY + RESERVE;
+    let settings = settings(713, false, false);
+    let (disk, workspace) = workspace(false);
+    let mut charter = charter(&settings, b"@finite-turn-bound", &MODEL_RATES);
+    charter.budget.turns = BOUND;
+    charter.reserve = run::charter::Reserve { turns: RESERVE, time: Duration::from_secs(300) };
+    let scripts =
+        Box::new([script(b"@finite-turn-bound", (0..=BOUND).map(|_| calls(vec![call(b"read", READ)], 3)).collect())]);
+    let mut world = World::with_workspace_scripts_charter(settings, None, Some(workspace), disk, scripts, charter);
+    world.run(20_000);
+
+    assert_eq!(world.prompts().len(), BOUND as usize, "a fifth completion is scripted but never requested");
+    assert_eq!(world.turns().len(), BOUND as usize);
+    for (index, query) in world.prompts().iter().enumerate() {
+        let has_note = query.messages.iter().flat_map(|message| &message.parts).any(
+            |part| matches!(part, Part::Text { text } if text.starts_with(b"The ordinary budget is spent. Finish now")),
+        );
+        assert_eq!(has_note, index == ORDINARY as usize, "finishing note at request {index}");
+    }
+    assert_eq!(conservation(&world, &MODEL_RATES).turns, BOUND);
+    assert!(
+        matches!(world.answer(), run::Answer::Failed {
+        failure: run::RunFailure::Budget { exhausted: run::Exhausted::Turns, used: Some(used), bound: Some(bound) },
+        turns: BOUND, ..
+    } if *used == u64::from(BOUND) && *bound == u64::from(BOUND)),
+        "{:?}",
+        world.answer()
+    );
+}
+
+#[test]
 fn main_final_turns_keep_definitions_append_one_note_and_skip_outside_workspace_calls() {
     let mut settings = settings(711, true, false);
     settings.budget.turns = 4;

@@ -12,6 +12,10 @@ const ORDINARY_TURNS: u32 = 8;
 const WAITING: Duration = Duration::from_millis(10);
 
 fn open_charter() -> Box<[u8]> {
+    open_charter_with_turns(ORDINARY_TURNS, RESERVE_TURNS)
+}
+
+fn open_charter_with_turns(ordinary_turns: u32, reserve_turns: u32) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&opening::charter(), |parts| {
         parts.mode = smith_charter::Mode::Open;
         parts.waiting = WAITING;
@@ -21,9 +25,9 @@ fn open_charter() -> Box<[u8]> {
         tools.deliver = None;
         parts.tools = tools;
         let mut budget = parts.budget.clone();
-        budget.turns = ORDINARY_TURNS + RESERVE_TURNS;
+        budget.turns = ordinary_turns + reserve_turns;
         budget.spend = 20; // Same small allowance as the existing program-turn fixture.
-        budget.reserve = smith_charter::Reserve { turns: RESERVE_TURNS, time: Duration::from_secs(1) };
+        budget.reserve = smith_charter::Reserve { turns: reserve_turns, time: Duration::from_secs(1) };
         parts.budget = budget;
     })
 }
@@ -155,6 +159,33 @@ fn a_parked_open_run_resumes_its_program_session() {
     assert_eq!(prints(&run).len(), 1);
     assert_eq!(argument(prints(&run)[0], "--resume"), argument(prints(&old)[0], "--session-id"));
     assert!(!received_text(&run, 0).starts_with("(The agent paused"), "the saved turn ended naturally");
+}
+
+#[test]
+fn a_resumed_open_program_parks_at_its_fresh_turn_bound() {
+    const ORDINARY: u32 = 4;
+    const RESERVE: u32 = 1;
+    const BOUND: u32 = ORDINARY + RESERVE;
+    const LAST_REPLY: &str = "The last reply.";
+    let charter = open_charter_with_turns(ORDINARY, RESERVE);
+    let old = program_world::open(&story(vec![text("First activation.")]), &charter, &[]);
+    let saved = program_world::from_frames(&old.frames);
+    let calls = (0..=ORDINARY)
+        .map(|index| Step::Call { tool: "unoffered".into(), input: serde_json::json!({"attempt": index}) })
+        .collect();
+    let next =
+        program_world::open_with_window(&story(vec![turn(calls), text(LAST_REPLY)]), &charter, &[], Some(&saved));
+
+    parked(&old);
+    parked(&next);
+    let answer = next.answer().expect("parked");
+    assert_eq!(answer.turns, BOUND);
+    assert_eq!(answer.spent, u64::from(BOUND), "the saved turn is not charged to this activation");
+    assert_eq!(argument(prints(&next)[0], "--resume"), argument(prints(&old)[0], "--session-id"));
+    assert_eq!(next.received.len(), 2, "resume followed by one finishing prompt");
+    assert!(received_text(&next, 1).contains("The ordinary budget is spent. Reply now"));
+    assert_eq!(texts(&next), ["", "", "", "", LAST_REPLY]);
+    assert_eq!(turns(&next).last().expect("last reply").last_read, Some(0));
 }
 
 #[test]

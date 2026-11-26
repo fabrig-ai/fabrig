@@ -630,6 +630,140 @@ fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
     );
 }
 
+const CHAT_ORDINARY: u32 = 4;
+const CHAT_RESERVE: u32 = 1;
+const CHAT_BOUND: u32 = CHAT_ORDINARY + CHAT_RESERVE;
+const CHAT_CUE: &str = "@bounded-chat";
+const CHAT_REPLY: &[u8] = b"Task 2 landed.";
+const DELEGATE_RESULT: Token = Token::new(73);
+const DELEGATE_WORDS: &[u8] = b"Result from task 2: landed.";
+
+fn bounded_chat(settings: &Settings) -> run::Charter {
+    let mut charter = charter(settings, CHAT_CUE);
+    charter.mode = run::Mode::Open;
+    charter.budget.turns = CHAT_BOUND;
+    charter.reserve = run::charter::Reserve { turns: CHAT_RESERVE, time: skein_lib::Duration::from_secs(300) };
+    charter.grants.host_tools = Box::new([run::HostTool {
+        reserve: false,
+        name: b"recall".as_slice().into(),
+        description: b"Read a note from the host".as_slice().into(),
+        schema: br#"{"type":"object"}"#.as_slice().into(),
+        effect: run::HostEffect::Read,
+        timeout: skein_lib::Duration::from_secs(1),
+    }]);
+    charter
+}
+
+fn wake_bounded_chat(seed: u64, after_wait: Vec<Turn>, message: run::Message) -> (World, World) {
+    let settings = Settings {
+        job: Job::Reporting,
+        waiting: skein_lib::Duration::from_secs(1),
+        network: Span::millis(0, 0),
+        ..Settings::calm(seed)
+    };
+    let scripts = Box::new([Script {
+        cue: CHAT_CUE.as_bytes().into(),
+        turns: std::iter::once(calls(vec![call(b"wait", b"{}")], 1)).chain(after_wait).collect(),
+    }]);
+    let first = parked_wait(&settings, scripts.clone(), bounded_chat(&settings));
+    let (saved, _) = saved_wait(&first);
+    let resumed = Settings { resume: true, ..settings };
+    let mut next = resume_on_message(&resumed, scripts, bounded_chat(&resumed), saved, message);
+    next.run(10_000);
+    (first, next)
+}
+
+fn assert_bounded_chat_reply(world: &World, completions: u32, fence: Token, note: &[u8], reply_text: &[u8]) {
+    use skein_fake_llm_domain::api::ToolChoice;
+    assert_eq!(world.completions().len(), completions as usize);
+    assert_eq!(world.turns().len(), completions as usize);
+    let (last, ordinary) = world.prompts().split_last().expect("the last reply was requested");
+    assert_eq!(ordinary.len(), completions as usize - 1);
+    assert!(ordinary.iter().all(|query| query.choice == ToolChoice::Auto));
+    assert_eq!(last.choice, ToolChoice::None);
+    assert!(
+        last.messages
+            .iter()
+            .flat_map(|message| &message.parts)
+            .any(|part| { matches!(part, Part::Text { text } if text.starts_with(note)) })
+    );
+    let reply = world.turns().last().expect("the last reply was committed");
+    assert!(
+        reply
+            .messages
+            .iter()
+            .flat_map(|message| &message.content)
+            .any(|block| { matches!(block, llm::Block::Text { text, .. } if text.as_ref() == reply_text) })
+    );
+    assert_eq!(world.turn_metadata().last().expect("last reply metadata").1, Some(fence));
+    assert!(matches!(world.waiting(), [(_, read)] if *read == Some(fence)));
+    assert!(
+        matches!(world.answer(), run::Answer::Parked { turns, spent }
+        if *turns == completions && spent.turns == completions),
+        "{:?}",
+        world.answer()
+    );
+}
+
+#[test]
+fn a_delegate_result_wakes_open_with_a_fresh_turn_budget() {
+    let ordinary =
+        (0..CHAT_ORDINARY).map(|note| calls(vec![call(b"recall", format!(r#"{{"note":{note}}}"#).as_bytes())], 1));
+    let after_wait = ordinary.chain([says(CHAT_REPLY, 1), says(b"Must not be requested", 1)]).collect();
+    let (first, next) = wake_bounded_chat(
+        1196,
+        after_wait,
+        run::Message {
+            finish_requested: false,
+            name: DELEGATE_RESULT,
+            label: b"2".as_slice().into(),
+            text: DELEGATE_WORDS.into(),
+        },
+    );
+
+    assert_bounded_chat_reply(
+        &next,
+        CHAT_BOUND,
+        DELEGATE_RESULT,
+        b"The ordinary budget is spent. Reply now",
+        CHAT_REPLY,
+    );
+    for (turn, query) in next.turns().iter().zip(next.prompts()).take(CHAT_ORDINARY as usize) {
+        assert!(query.tools.iter().any(|tool| tool.name.as_ref() == b"recall"));
+        assert!(
+            turn.messages
+                .iter()
+                .flat_map(|message| &message.content)
+                .any(|block| { matches!(block, llm::Block::ToolCall(call) if call.name.as_ref() == b"recall") })
+        );
+    }
+    let (saved, _) = saved_wait(&first);
+    let prefix = saved_prompt_messages(&saved);
+    let opening = &next.prompts()[0];
+    assert_eq!(&opening.messages[..prefix.len()], prefix.as_slice(), "saved turns stay an unchanged prefix");
+    assert!(matches!(opening.messages.last().expect("waking result").parts.as_ref(),
+        [Part::ToolOutput { output, .. }] if output.ends_with(DELEGATE_WORDS)));
+    assert!(matches!(first.answer(), run::Answer::Parked { turns: 1, .. }));
+    assert_eq!(next.turns()[0].sequence, saved.turns[0].sequence + 1);
+}
+
+#[test]
+fn a_start_carried_finish_request_spends_only_the_open_reserve() {
+    const CLOSE: Token = Token::new(74);
+    const GOODBYE: &[u8] = b"Goodbye.";
+    let (_, next) = wake_bounded_chat(
+        1197,
+        vec![says(GOODBYE, 1), says(b"Must not be requested", 1)],
+        run::Message {
+            finish_requested: true,
+            name: CLOSE,
+            label: b"person".as_slice().into(),
+            text: b"Close the conversation".as_slice().into(),
+        },
+    );
+    assert_bounded_chat_reply(&next, CHAT_RESERVE, CLOSE, b"The host requested wind-down. Reply now", GOODBYE);
+}
+
 #[test]
 fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
     use skein_fake_llm_domain::api::{Message, Role};
@@ -655,30 +789,7 @@ fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
     assert!(matches!(first.prompts()[0].messages[0].parts.as_ref(),
         [Part::Text { text }] if text.as_ref() == SECTIONS.as_bytes()));
     let (saved, wait_id) = saved_wait(&first);
-    let saved_messages: Vec<_> = saved
-        .turns
-        .iter()
-        .flat_map(|turn| &turn.messages)
-        .map(|message| Message {
-            role: match message.role {
-                llm::Role::User => Role::User,
-                llm::Role::Assistant => Role::Assistant,
-            },
-            parts: message
-                .content
-                .iter()
-                .map(|block| match block {
-                    llm::Block::Text { text, .. } => Part::Text { text: text.clone() },
-                    llm::Block::ToolCall(llm::ToolCall { id, name, input, .. }) => {
-                        Part::ToolCall { id: id.clone(), name: name.clone(), arguments: input.clone() }
-                    }
-                    llm::Block::Opaque { .. } | llm::Block::Refusal { .. } | llm::Block::ToolResult { .. } => {
-                        panic!("the seen first turn contains only its opening and unanswered wait")
-                    }
-                })
-                .collect(),
-        })
-        .collect();
+    let saved_messages = saved_prompt_messages(&saved);
     let resumed = Settings { resume: true, ..settings };
     let mut opening = charter(&resumed, "@parked-delegate-result");
     opening.mode = run::Mode::Open;
@@ -727,4 +838,32 @@ fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
         [Some(RESULT_MESSAGE)],
         "the seen told turn reads the result exactly once"
     );
+}
+
+fn saved_prompt_messages(saved: &smith_domain::Transcript) -> Vec<skein_fake_llm_domain::api::Message> {
+    use skein_fake_llm_domain::api::{Message, Role};
+    saved
+        .turns
+        .iter()
+        .flat_map(|turn| &turn.messages)
+        .map(|message| Message {
+            role: match message.role {
+                llm::Role::User => Role::User,
+                llm::Role::Assistant => Role::Assistant,
+            },
+            parts: message
+                .content
+                .iter()
+                .map(|block| match block {
+                    llm::Block::Text { text, .. } => Part::Text { text: text.clone() },
+                    llm::Block::ToolCall(llm::ToolCall { id, name, input, .. }) => {
+                        Part::ToolCall { id: id.clone(), name: name.clone(), arguments: input.clone() }
+                    }
+                    llm::Block::Opaque { .. } | llm::Block::Refusal { .. } | llm::Block::ToolResult { .. } => {
+                        panic!("the seen first turn contains only its opening and unanswered wait")
+                    }
+                })
+                .collect(),
+        })
+        .collect()
 }
