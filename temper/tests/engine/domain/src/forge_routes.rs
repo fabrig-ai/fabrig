@@ -128,6 +128,8 @@ pub struct World {
     pub env: Env<engine::Limits>,
     pub out: Queue<engine::Request>,
     pub events: VecDeque<engine::Event>,
+    /// Let a story inspect and fault note answers before they reach the root.
+    pub defer_note_answers: bool,
     pub store: Store,
     /// Task row keys saved by the most recent tick's durable transaction.
     pub changed_tasks: Vec<Key>,
@@ -1838,6 +1840,7 @@ impl World {
             approvals: Vec::new(),
             protocol: Protocol::default(),
             immediate: VecDeque::new(),
+            defer_note_answers: false,
             period: None,
             period_budget,
             fail_job_reads: false,
@@ -4466,9 +4469,14 @@ impl World {
                 | engine_store::Range::Notes(_)),
         })) = request
         {
+            let defer = self.defer_note_answers && matches!(range, engine_store::Range::Notes(_));
             let result = self.store.load(range);
-            self.immediate
-                .push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })));
+            let answer = engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
+            if defer {
+                self.events.push_back(answer);
+            } else {
+                self.immediate.push_back(answer);
+            }
             None
         } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
             load,

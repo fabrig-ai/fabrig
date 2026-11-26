@@ -108,11 +108,9 @@ fn completed_history_callbacks_precede_a_later_party_change() {
 
 fn take_history_load(driver: &mut Driver) -> engine::Event {
     for _ in 0..STEPS {
-        if let Some(index) = driver
-            .events
-            .iter()
-            .position(|event| matches!(event, engine::Event::Store(engine::StoreInput::Loaded { .. })))
-        {
+        if let Some(index) = driver.events.iter().position(|event| {
+            matches!(event, engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { .. })))
+        }) {
             return driver.events.remove(index).expect("historical load terminal");
         }
         driver.advance(true);
