@@ -9,6 +9,7 @@ use crate::{bound, decode, encode, encode_best};
 
 mod best;
 mod golden;
+mod gzip;
 mod huffman;
 
 const BLOCK: usize = 65_535;

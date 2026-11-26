@@ -34,11 +34,10 @@ fn a_worker_is_bundled_beside_the_page() {
     for (name, bytes) in &expected {
         assert_eq!(files.get(name), Some(bytes), "{name}");
         if crate::types::gzipped(Path::new(name)) {
-            use std::io::Read;
             let compressed = files.get(&format!("{name}.gz")).expect("worker form");
-            let mut decoded = Vec::new();
-            flate2::read::GzDecoder::new(compressed.as_slice()).read_to_end(&mut decoded).expect("worker gzip");
-            assert_eq!(&decoded, bytes, "{name}");
+            let mut decoded = skein_lib::List::allocated(u32::try_from(bytes.len()).expect("fixture fits u32"));
+            skein_deflate::gzip::decode(compressed, &mut decoded).expect("worker gzip");
+            assert_eq!(decoded.as_slice(), bytes, "{name}");
         }
     }
     assert_eq!(files.len(), 23);

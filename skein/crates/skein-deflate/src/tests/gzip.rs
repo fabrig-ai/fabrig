@@ -1,10 +1,11 @@
-//! The gzip encoder (http.md, 3.1): every member read back by a small
+//! The gzip encoder (skein/docs/design/data/gzip.md, 3): every member read back by a small
 //! inflater of the tests' own (RFC 1951 and 1952), which checks the CRC
 //! and ISIZE as it goes and that every code is complete; the empty body,
 //! one byte, runs of the longest match, a match at both ends of the window,
 //! a body of several blocks, incompressible bytes stored at exactly the
 //! bound, each block written the shortest way, the room asked for from both
-//! sides, determinism, and one golden member.
+//! sides, determinism, and one golden member. The bounded decoder reads
+//! back valid members and refuses malformed ones.
 
 #![expect(clippy::disallowed_types, reason = "a test builds bodies and inflates members in a Vec")]
 #![expect(
@@ -12,9 +13,7 @@
     reason = "the inflater's cursor and the fixtures' sizes use ordinary test arithmetic"
 )]
 
-use alloc::vec::Vec;
-
-use skein_lib::{Rng, bytes};
+use skein_lib::{List, Rng, bytes};
 
 use crate::gzip::{self, CRC};
 
@@ -550,4 +549,85 @@ fn a_small_request_body_gives_its_golden_member() {
     let member = gzip(GOLDEN_BODY);
     assert_eq!(member, GOLDEN, "{member:?}");
     assert_eq!(round_trip(GOLDEN_BODY).blocks, [OWN]);
+}
+
+fn reads_back(member: &[u8], body: &[u8]) {
+    let capacity = u32::try_from(body.len()).unwrap();
+    let mut out = List::allocated(capacity);
+    if capacity != 0 {
+        out.push(0xff).unwrap();
+    }
+    assert_eq!(gzip::decode(member, &mut out), Some(()));
+    assert_eq!(out.as_slice(), body, "replaces the previous contents");
+    assert_eq!(out.capacity(), capacity);
+}
+
+#[test]
+fn the_decoder_reads_whole_members() {
+    let crossing = wordy(9, BLOCK + 1);
+    for body in [b"".as_slice(), b"abc", &crossing] {
+        reads_back(&gzip(body), body);
+    }
+    reads_back(GOLDEN, GOLDEN_BODY);
+    let mut member = GOLDEN.to_vec();
+    member[4..10].clone_from_slice(&[1, 2, 3, 4, 2, 3]);
+    reads_back(&member, GOLDEN_BODY);
+}
+
+#[test]
+fn invalid_headers_are_refused_before_inflating() {
+    let member = gzip(b"abc");
+    let mut out = List::allocated(3);
+    for end in 0..18 {
+        out.push(0xff).unwrap();
+        assert_eq!(gzip::decode(&member[..end], &mut out), None, "short member: {end} bytes");
+        assert!(out.is_empty(), "cleared even on refusal");
+    }
+    for (at, value) in [(0, 0), (1, 0), (2, 7)] {
+        let mut wrong = member.clone();
+        wrong[at] = value;
+        assert_eq!(gzip::decode(&wrong, &mut out), None, "invalid header byte {at}");
+        assert!(out.is_empty());
+    }
+    for bit in 0_u32..8 {
+        let mut wrong = member.clone();
+        wrong[3] = 1 << bit;
+        assert_eq!(gzip::decode(&wrong, &mut out), None, "flag bit {bit}");
+        assert!(out.is_empty());
+    }
+    assert_eq!(out.capacity(), 3);
+}
+
+#[test]
+fn the_stream_must_end_at_the_trailer() {
+    let member = gzip(b"abc");
+    let mut out = List::allocated(3);
+    let mut extra = member.clone();
+    extra.insert(member.len() - 8, 0);
+    assert_eq!(gzip::decode(&extra, &mut out), None, "byte between stream and trailer");
+    assert_eq!(out.as_slice(), b"abc", "the stream itself was valid");
+    assert_eq!(gzip::decode(&member[..member.len() - 1], &mut out), None, "short trailer");
+    let pair = [member.as_slice(), &member].concat();
+    assert_eq!(gzip::decode(&pair, &mut out), None, "a second member");
+}
+
+#[test]
+fn the_trailer_must_match_the_inflated_body() {
+    let mut out = List::allocated(3);
+    let member = gzip(b"abc");
+    for (from_end, change, field) in [(8, 1, "CRC-32"), (4, 7, "ISIZE")] {
+        let mut wrong = member.clone();
+        wrong[member.len() - from_end] ^= change;
+        assert_eq!(gzip::decode(&wrong, &mut out), None, "wrong {field}");
+        assert_eq!(out.as_slice(), b"abc", "the stream itself was valid");
+    }
+}
+
+#[test]
+fn inflation_stops_at_the_lists_capacity() {
+    let member = gzip(b"abc");
+    let mut out = List::allocated(2);
+    assert_eq!(gzip::decode(&member, &mut out), None, "one byte past capacity");
+    assert_eq!(out.capacity(), 2);
+    assert_eq!(out.as_slice(), b"ab");
 }

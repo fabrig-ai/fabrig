@@ -3359,6 +3359,7 @@ dependencies = [
 name = "skein-fake-forge-forgejo"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-http",
  "skein-forge",
@@ -3417,6 +3418,7 @@ dependencies = [
 name = "skein-fake-llm-protocol"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-fake-llm-domain",
  "skein-http",
  "skein-json",
@@ -3492,6 +3494,7 @@ name = "skein-fake-peers-tests"
 version = "0.0.0"
 dependencies = [
  "rustls",
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
@@ -3748,7 +3751,6 @@ dependencies = [
 name = "skein-http"
 version = "0.0.0"
 dependencies = [
- "skein-deflate",
  "skein-lib",
  "skein-rows",
 ]
@@ -3765,6 +3767,7 @@ name = "skein-http-world"
 version = "0.0.0"
 dependencies = [
  "skein-checks",
+ "skein-deflate",
  "skein-heap",
  "skein-http",
  "skein-http-kit",
@@ -3889,6 +3892,7 @@ dependencies = [
 name = "skein-llm"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-fake-llm-protocol",
  "skein-http",
  "skein-json",
@@ -4257,6 +4261,7 @@ name = "skein-ui-bundle"
 version = "0.0.0"
 dependencies = [
  "flate2",
+ "skein-deflate",
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
@@ -4389,8 +4394,8 @@ dependencies = [
 name = "skein-ui-web-tests"
 version = "0.0.0"
 dependencies = [
- "flate2",
  "skein-browser",
+ "skein-deflate",
  "skein-fail-stop",
  "skein-fake-person",
  "skein-fake-person-browser",
@@ -5970,6 +5975,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "serde_json",
  "skein-browser",
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-oauth",

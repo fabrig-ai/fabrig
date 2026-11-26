@@ -411,7 +411,7 @@ pub fn largest_reservation(limits: &Limits) -> Option<u64> {
 fn compressed(endpoint: &Endpoint, body: u32, limits: &Limits) -> u32 {
     let room = match endpoint.encoding {
         Encoding::Identity => return 0,
-        Encoding::Gzip => match skein_http::gzip::bound(usize_of(body)) {
+        Encoding::Gzip => match skein_deflate::gzip::bound(usize_of(body)) {
             Some(room) => u64::try_from(room).expect("usize fits u64"),
             None => return 0,
         },
@@ -536,7 +536,7 @@ impl Client {
             }
             Encoding::Gzip => {
                 let mut room = bytes::zeroed(usize_of(compressed));
-                let end = skein_http::gzip::encode(&rendered, &mut room).expect("the room holds the body's bound");
+                let end = skein_deflate::gzip::encode(&rendered, &mut room).expect("the room holds the body's bound");
                 drop(rendered);
                 (room, end)
             }

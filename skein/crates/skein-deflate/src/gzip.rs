@@ -1,24 +1,20 @@
-//! A gzip encoder (http.md, section 3.1): a whole request body to its gzip
-//! member (RFC 1952), DEFLATE inside (RFC 1951), for a caller whose server
-//! takes a compressed body (RFC 9110, 8.4.1; llm/wire.md, section 1.8).
-//!
-//! [`bound`] is the worst case of the output from the body's length: the
-//! caller sets that much room aside, and [`encode`] writes the member into
-//! its front. The raw DEFLATE encoder is `skein_deflate` (data/deflate.md,
-//! section 2); this module keeps the member's header, CRC-32 and trailer.
+//! One gzip member with no optional fields (skein/docs/design/data/gzip.md, 2; RFC 1952).
+//! The caller supplies the encoder's room and the decoder's output capacity.
+
+use skein_lib::List;
 
 /// The member's header (RFC 1952, 2.3): gzip, DEFLATE, no flags, no time,
 /// no extra flags, an unknown system.
 const HEADER: [u8; 10] = [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 255];
 
-/// What the member adds to its blocks: the header, and the trailer's CRC-32
-/// and ISIZE (RFC 1952, 2.2).
-const FRAME: usize = 18;
+/// The trailer's CRC-32 and ISIZE (RFC 1952, 2.2).
+const TRAILER: usize = 8;
+const FRAME: usize = HEADER.len() + TRAILER;
 
 /// The worst case of the member's length, including its header and trailer.
 #[must_use]
 pub fn bound(length: usize) -> Option<usize> {
-    skein_deflate::bound(length)?.checked_add(FRAME)
+    crate::bound(length)?.checked_add(FRAME)
 }
 
 /// Writes `body`'s deterministic gzip member into `out`'s front.
@@ -29,10 +25,28 @@ pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
         return None;
     }
     let start = copy(out, 0, &HEADER)?;
-    let length = skein_deflate::encode(body, out.get_mut(start..)?)?;
+    let length = crate::encode(body, out.get_mut(start..)?)?;
     let at = copy(out, start.checked_add(length)?, &crc(body)?.to_le_bytes())?;
     let [a, b, c, d, ..] = skein_lib::len_u64(body.len()).to_le_bytes();
     copy(out, at, &[a, b, c, d])
+}
+
+/// Inflates exactly one member, clearing `out` first and checking its CRC-32 and ISIZE.
+/// On refusal, `out` holds any bytes already inflated, never past its capacity.
+#[must_use]
+pub fn decode(member: &[u8], out: &mut List<u8>) -> Option<()> {
+    out.clear();
+    let (header, framed) = member.split_at_checked(HEADER.len())?;
+    let [0x1f, 0x8b, 8, 0, ..] = header else {
+        return None;
+    };
+    let (stream, trailer) = framed.split_last_chunk::<TRAILER>()?;
+    let (checksum, size) = trailer.split_at_checked(4)?;
+    crate::decode(stream, out)?;
+    if crc(out.as_slice())?.to_le_bytes() != checksum || out.len().to_le_bytes() != size {
+        return None;
+    }
+    Some(())
 }
 
 /// Writes `bytes` into `out` at `at`, and returns where they end.
