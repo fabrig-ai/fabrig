@@ -3,7 +3,7 @@
 use skein_lib::{List, Rng};
 
 use crate::decode;
-use crate::tests::{random, round_trip};
+use crate::tests::{random, round_trip, round_trip_best};
 
 #[test]
 fn generated_inputs_round_trip_within_their_bound() {
@@ -19,6 +19,23 @@ fn generated_inputs_round_trip_within_their_bound() {
             }
         }
         round_trip(&input);
+    }
+}
+
+#[test]
+fn best_generated_inputs_round_trip_within_their_bound() {
+    // The chain does more work on small alphabets, so draw shorter inputs.
+    for seed in 0..24 {
+        let mut rng = Rng::new(seed);
+        let length = usize::try_from(rng.between(2048, 12_000)).unwrap();
+        let mut input = random(&mut rng, length);
+        if seed % 3 != 0 {
+            let alphabet = u8::try_from(rng.between(1, 16)).unwrap();
+            for byte in &mut input {
+                *byte %= alphabet;
+            }
+        }
+        round_trip_best(&input);
     }
 }
 

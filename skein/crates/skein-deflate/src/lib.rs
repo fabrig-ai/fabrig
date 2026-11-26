@@ -8,7 +8,7 @@ mod decoder;
 mod encoder;
 
 pub use decoder::decode;
-pub use encoder::{bound, encode};
+pub use encoder::{bound, encode, encode_best};
 
 #[cfg(test)]
 mod fuzzy;

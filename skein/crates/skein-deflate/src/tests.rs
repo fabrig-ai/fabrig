@@ -5,8 +5,9 @@
 
 use skein_lib::{List, Rng};
 
-use crate::{bound, decode, encode};
+use crate::{bound, decode, encode, encode_best};
 
+mod best;
 mod golden;
 mod huffman;
 
@@ -26,6 +27,16 @@ pub(crate) fn random(rng: &mut Rng, length: usize) -> Vec<u8> {
 pub(crate) fn round_trip(input: &[u8]) -> Vec<u8> {
     let mut out = vec![0; bound(input.len()).unwrap()];
     let n = encode(input, &mut out).unwrap();
+    check_round_trip(input, out, n)
+}
+
+pub(crate) fn round_trip_best(input: &[u8]) -> Vec<u8> {
+    let mut out = vec![0; bound(input.len()).unwrap()];
+    let n = encode_best(input, &mut out).unwrap();
+    check_round_trip(input, out, n)
+}
+
+fn check_round_trip(input: &[u8], mut out: Vec<u8>, n: usize) -> Vec<u8> {
     assert!(n <= bound(input.len()).unwrap(), "output stays within bound");
     let mut back = List::with_capacity(u32::try_from(input.len()).unwrap());
     assert_eq!(decode(&out[..n], &mut back), Some(()));
