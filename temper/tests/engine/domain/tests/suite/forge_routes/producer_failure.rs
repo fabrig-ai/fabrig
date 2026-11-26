@@ -616,9 +616,8 @@ fn pushed_failure() -> (World, engine::Assignment, u64, u64) {
 fn pushed_failure_with_message(message: &[u8]) -> (World, engine::Assignment, u64, u64) {
     let (mut world, _, first, task) = producing_goal();
     let branch = change_row(&world, task).branch.clone();
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"partial", message, 1)
-        .expect("producer pushes partial work");
+    let head = world.worker_commit(1, b"partial", message);
+    world.run_push(&first, &branch, head, 1);
     // Read the pushed branch before the terminal result reaches the connector.
     refresh(&mut world, task);
     world.advance_ticks(20);
@@ -664,8 +663,7 @@ fn a_released_failed_producer_with_a_head_makes_a_fresh_one() {
     let branch = change_row(&world, task).branch.clone();
     assert_eq!(fresh.workspace.repositories[0].start, engine::ForgeStart::Branch(branch.clone()));
     assert_eq!(live_task(&world, task).made, 3, "change and exactly two producers");
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"finished", b"complete", 1)
-        .expect("replacement pushes atop partial work");
+    world.run_push_edit(&fresh, &branch, b"finished", b"complete", 1);
     let title = b"Finish the partial update";
     let event = world.protocol.answer(
         CHANNEL,

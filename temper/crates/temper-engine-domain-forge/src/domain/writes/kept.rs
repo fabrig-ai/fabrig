@@ -111,12 +111,17 @@ pub(in crate::domain) fn sync_heads(d: &mut Domain, env: &Env<Limits>, out: &mut
         let Some(record) = d.writes.get(&name) else { continue };
         let Some(commit) = record.head else { continue };
         let previous = d.branch_head(&name);
-        if previous != Some(commit) && (d.holds.contains_key(&name) || super::super::owned_head(d, &name)) {
+        let owned = d.holds.contains_key(&name) || super::super::owned_head(d, &name);
+        if previous != Some(commit) && owned {
             super::super::record_owned_head(d, env, &name, commit, None, out);
         }
         let Some(resource) = super::super::to_client(&name, &env.limits) else { continue };
-        if d.client.cached(&resource).is_some() && d.client.expected(&resource) != Some(commit) {
-            // This is the only place we set the client's expected tip.
+        if let Some(cached) = d.client.cached(&resource)
+            && (owned || cached.tip == Some(commit))
+            && d.client.expected(&resource) != Some(commit)
+        {
+            // Pushed also sets the client's cached tip. On a shared landing
+            // branch, let the keep report the move before setting its expectation.
             skein_forge_client::step(
                 &mut d.client,
                 &super::super::child_env(env),

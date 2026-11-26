@@ -39,13 +39,8 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
     let event =
         world.protocol.answer(Token::new(7), chat.task, chat.attempt, 5, tasks::End::Parked, engine::Parts::none());
     world.send(event);
-    assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
-        raw::Answer::Branch(raw::Created::Created)
-    ));
-    let h1 =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"src/main.rs", b"fn main() {}\n", 1)
-            .expect("producer pushed its first source");
+    let h1 = world.worker_commit(1, b"src/main.rs", b"fn main() {}\n");
+    world.run_push(&producer, &branch, h1, 1);
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {

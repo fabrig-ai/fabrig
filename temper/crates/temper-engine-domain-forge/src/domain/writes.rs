@@ -28,6 +28,35 @@ pub(super) fn record_head(d: &Domain, name: &Name) -> Option<Commit> {
     d.writes.get(name)?.head
 }
 
+/// The ending writer's fresh read may confirm its push before the write's
+/// own readback, or find it already confirmed by another observation.
+pub(super) fn observed_push(
+    d: &mut Domain,
+    name: &Name,
+    sender: Sender,
+    commit: Commit,
+    out: &mut Queue<Request>,
+) -> bool {
+    let Some(row) = d.writes.get(name) else { return false };
+    let mut order = None;
+    for entry in &row.entries {
+        if entry.sender == sender
+            && let Operation::Push { after, .. } = entry.operation
+            && after == commit
+        {
+            order = Some(entry.order);
+        }
+    }
+    let Some(order) = order else { return false };
+    if let Seen::Current | Seen::Explained { .. } = d.observe(name, Some(commit), Actor::Unknown, out)
+        && let Some(entry) = d.write_entry(name, order)
+    {
+        entry.state == WriteState::Confirmed
+    } else {
+        false
+    }
+}
+
 pub(super) fn nearest_order(d: &Domain, name: &Name) -> Option<u64> {
     Some(d.writes.get(name)?.entries.last()?.order)
 }

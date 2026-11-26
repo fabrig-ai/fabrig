@@ -3766,8 +3766,7 @@ fn retired_reading(d: &Domain, name: &Name) -> bool {
     false
 }
 
-/// Read a lost slot before releasing it. The result does not prove a push;
-/// the attempt's admitted writes have their own readbacks.
+/// Read a lost slot before releasing it; only the record can explain its tip.
 fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
     let Some(pending) = d.lost.get_mut(&owner) else { return };
     pending.state = LostReadState::Asked;
@@ -3816,7 +3815,12 @@ fn lost_read(
         return;
     }
     match result {
-        Ok(Answer::Commit(_)) | Err(Error::Missing) => {}
+        Ok(Answer::Commit(commit)) => {
+            if pending.kind == LostWriterKind::Slot && row.drift.is_none() {
+                pin_ending_push(d, env, &pending, commit, out);
+            }
+        }
+        Err(Error::Missing) => {}
         Err(error) => {
             failed_lost_read(d, owner, pending, error, out);
             return;
@@ -3831,6 +3835,20 @@ fn lost_read(
     save_hold(out, row.clone());
     branch_due_for(d, &pending.name);
     lost_release(d, env, &pending.name, pending.task, out);
+}
+
+/// Pin the delegate's admitted save before making the slot claimable again.
+fn pin_ending_push(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    pending: &PendingLost,
+    commit: skein_forge::api::Commit,
+    out: &mut Queue<Request>,
+) {
+    let sender = crate::Sender::Attempt { task: pending.task, attempt: pending.attempt };
+    if writes::observed_push(d, &pending.name, sender, commit, out) {
+        record_delegate_head(d, env, pending.task, &pending.name, commit, false, out);
+    }
 }
 
 fn branch_due_for(d: &mut Domain, name: &Name) {
@@ -9597,6 +9615,12 @@ fn branch_changed(
     if let Some(record) = d.writes.get(&name) {
         if record.head == Some(commit) {
             d.kept_moves.remove(&name);
+            if d.client.expected(&resource) != Some(commit)
+                && let Some(cached) = d.client.cached(&resource)
+                && cached.tip == Some(commit)
+            {
+                d.write_heads.insert(name.clone()).expect("uncapped head changes");
+            }
         } else if d.holds.contains_key(&name) || owned_head(d, &name) {
             // Raw Changed news is not ownership. A held or owned branch
             // only advances its workspace tip through the record.
