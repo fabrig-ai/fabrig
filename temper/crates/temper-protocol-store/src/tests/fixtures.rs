@@ -949,6 +949,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         delegate_flake: false,
         delegate_no_test: false,
         delegate_head: None,
+        delegate_words: None,
         verdicts: Box::new([GateReport { revision: 0, number: 21, head: [22; 32], status: Status::Failed }]),
         milestone: None,
         person: None,

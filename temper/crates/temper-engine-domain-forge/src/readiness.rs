@@ -278,6 +278,7 @@ fn reason(why: c::Hold) -> Box<[u8]> {
         c::Hold::Stalled => b"stalled".as_slice(),
         c::Hold::Failed => b"failed".as_slice(),
         c::Hold::Runner => b"runner".as_slice(),
+        c::Hold::RedStands => b"red_stands".as_slice(),
         c::Hold::Flake => b"flake".as_slice(),
         c::Hold::NoTest => b"no_test".as_slice(),
         c::Hold::Questions => b"questions".as_slice(),

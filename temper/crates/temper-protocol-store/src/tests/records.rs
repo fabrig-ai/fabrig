@@ -824,6 +824,19 @@ fn a_runner_hold_round_trips_with_its_account() {
 }
 
 #[test]
+fn red_stands_round_trips_with_its_repair_reason_and_account() {
+    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    let mut row = fixtures::change_row(State::Held {
+        was: Box::new(State::Repairing { requested: false, why: Repair::Landing { gate: 0 } }),
+        why: Hold::RedStands,
+    });
+    row.producer_failure = Some(b"its red stands".as_slice().into());
+    let row = fixtures::change_hot(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
 fn a_runner_release_round_trips_before_and_after_its_read() {
     use temper_engine_domain_forge_change::State;
     use temper_engine_domain_forge_vocabulary::RunnerCi;
@@ -4288,6 +4301,7 @@ fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
         row.regate = Some(forge::Regate {
             receipt: forge::ReceiptKey { project: 5, repository: row.repository, check, key: [7; 32] },
             run: u64::MAX,
+            taken: Some(18),
         });
         let (cold, hot) = row.clone().split();
         let stored = forge::Stored::ChangeHot(Box::new(hot.clone()));
@@ -4366,6 +4380,7 @@ fn a_no_test_terminal_and_hold_round_trip_in_the_hot_part() {
         let mut row = fixtures::change_row(state);
         row.delegate_no_test = true;
         row.delegate_head = Some([6; 32]);
+        row.delegate_words = Some(forge::ResultText { bytes: b"nothing to change".as_slice().into(), cut: 0 });
         let (cold, hot) = row.clone().split();
         let stored = forge::Stored::ChangeHot(Box::new(hot));
         let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();

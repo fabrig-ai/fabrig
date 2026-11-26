@@ -15,7 +15,7 @@ pub(in super::super) fn account(
     {
         return Some(words.clone());
     }
-    if why == change::Hold::Flake || why == change::Hold::NoTest {
+    if why == change::Hold::Flake || why == change::Hold::NoTest || why == change::Hold::RedStands {
         return row.producer_failure.clone();
     }
     let change::State::Held { was, .. } = &row.change.state else { return None };
@@ -114,6 +114,9 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
             change::Hold::PullClosed => b"its pull request closed without merging; release to reopen it",
             change::Hold::Retargeted => b"its pull request targets another base; release to restore its target",
             change::Hold::Failed => b"its delegate or forge effect failed without an account",
+            change::Hold::RedStands => {
+                b"its repair changed nothing and its red stands; release to ask a fresh repair, or cancel it"
+            }
             change::Hold::Flake => b"its repair found only flakes; release to run its gate once more",
             change::Hold::NoTest => b"its repair found no failed test; release to run its gate once more",
             change::Hold::Rejected => b"a person rejected its required gate; resolve the rejection before releasing",

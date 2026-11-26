@@ -493,6 +493,10 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         delegate_head: value.delegate_head,
         delegate_flake: value.delegate_flake,
         delegate_no_test: value.delegate_no_test,
+        delegate_words: match value.delegate_words.as_ref() {
+            Some(words) => Some(map::result_text_to_record(words)),
+            None => None,
+        },
         regate: match value.regate.as_ref() {
             Some(value) => Some(map::regate_to_record(value)),
             None => None,
@@ -599,6 +603,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         delegate_head: value.delegate_head,
         delegate_flake: value.delegate_flake,
         delegate_no_test: value.delegate_no_test,
+        delegate_words: match value.delegate_words {
+            Some(words) => Some(map::result_text_to_domain(words)),
+            None => None,
+        },
         regate: match value.regate {
             Some(value) => Some(map::regate_to_domain(value)),
             None => None,

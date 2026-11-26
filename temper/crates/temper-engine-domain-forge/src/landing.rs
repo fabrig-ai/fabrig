@@ -2306,7 +2306,7 @@ fn advance(
                         };
                         count_gate_flakes(d, env, flight.task, &key, out);
                         if tests_value(&flight.inputs).is_none() {
-                            put_receipt(d, env, key.clone(), receipt, out);
+                            put_gate_receipt(d, env, &key, receipt, out);
                         }
                         finish_flight(d, env, &key, Some((run.number, true)), out);
                     }
@@ -3360,13 +3360,14 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 if receipt.is_none() && d.landing.receipts.contains_key(&key) {
                     empty.push((key.clone(), position, number)).expect("bounded gate positions");
                 }
-                fact.receipt = match receipt {
-                    Some(receipt) if receipt.passed => policy::Status::Passed,
-                    Some(receipt) if superseded(d, &row, &key, receipt) || d.landing.flights.contains_key(&key) => {
-                        policy::Status::Unknown
+                fact.receipt = if superseded(d, &row, &key) || d.landing.flights.contains_key(&key) {
+                    policy::Status::Unknown
+                } else {
+                    match receipt {
+                        Some(receipt) if receipt.passed => policy::Status::Passed,
+                        Some(_) => policy::Status::Failed,
+                        None => policy::Status::Unknown,
                     }
-                    Some(_) => policy::Status::Failed,
-                    None => policy::Status::Unknown,
                 };
                 if let Some(receipt) = receipt
                     && !receipt.passed
@@ -4914,16 +4915,63 @@ pub(crate) fn input_commit(inputs: &[api::Input], name: &[u8]) -> Option<api::Co
     None
 }
 
-/// A regate names the whole key and the failed run, not a later receipt (domain/landing-regate.md, 3–5).
-fn superseded(d: &Domain, row: &LandingRow, key: &ReceiptKey, receipt: &Receipt) -> bool {
-    if receipt.passed {
-        return false;
-    }
+/// An owed regate proves the key afresh, regardless of the receipt it finds there.
+fn superseded(d: &Domain, row: &LandingRow, key: &ReceiptKey) -> bool {
     for member in &row.landing.members {
         if let Some(change) = d.changes.get(&member.change)
             && let Some(regate) = &change.regate
+            && regate.taken.is_none()
             && &regate.receipt == key
-            && regate.run == receipt.run.id
+            && member.left.is_none()
+            && member.head == change.change.last_head
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// A gate's flight identifies the landing that made the receipt. Only members
+/// there take it; other landings that see this receipt still owe their dispatch.
+fn put_gate_receipt(d: &mut Domain, env: &Env<Limits>, key: &ReceiptKey, receipt: Receipt, out: &mut Queue<Request>) {
+    let run = receipt.run.id;
+    put_receipt(d, env, key.clone(), receipt, out);
+    let Some(kept) = d.receipt(key) else { return };
+    if kept.run.id != run {
+        return;
+    }
+    let Some(flight) = d.landing.flights.get(key) else { return };
+    let Some(row) = d.landing.rows.get(&flight.task) else { return };
+    let mut taken = List::with_capacity(env.limits.landing_members);
+    for member in &row.landing.members {
+        if member.left.is_none()
+            && let Some(change) = d.changes.get_mut(&member.change)
+            && member.head == change.change.last_head
+            && let Some(regate) = &mut change.regate
+            && regate.taken.is_none()
+            && &regate.receipt == key
+            && regate.run != run
+        {
+            regate.taken = Some(run);
+            taken.push(change.clone()).expect("the landing's bounded members");
+        }
+    }
+    for row in taken.into_boxed() {
+        crate::domain::save_change(d, out, row);
+    }
+}
+
+/// The single-prefix path hands a failed proof without a `Leave` run number.
+/// Its saved observation, not the run currently cached at the key, pins that ask.
+fn followed_measurement(row: &LandingRow, round: u16, member: u16, gate: u16, run: u64) -> bool {
+    for follow in row.follows() {
+        let entry = follow.entry;
+        if entry.preparation == Some(round)
+            && entry.member == member
+            && entry.gate == gate
+            && let Some(mark) = entry.run
+            && mark.ended
+            && mark.id == run
         {
             return true;
         }
@@ -5741,7 +5789,53 @@ impl Domain {
 
     pub(super) fn landing_regate(&self, change: u64, why: change::Repair) -> Option<crate::Regate> {
         let (key, _, receipt) = self.repair_receipt(change, why)?;
-        Some(crate::Regate { receipt: key.clone(), run: receipt.run.id })
+        Some(crate::Regate { receipt: key.clone(), run: receipt.run.id, taken: None })
+    }
+    pub(super) fn regate_failure(&self, row: &crate::ChangeRow, ask: &change::Handed) -> Option<&Receipt> {
+        let regate = row.regate.as_ref()?;
+        let taken = regate.taken?;
+        let change::Ask::Repair { gate, candidate, .. } = ask.ask else { return None };
+        let landing = self.landing.rows.get(&ask.landing)?;
+        let receipt = self.receipt(&regate.receipt)?;
+        if receipt.passed || receipt.run.id != taken || regate.receipt.project != landing.landing.project {
+            return None;
+        }
+        for (position, member) in landing.landing.members.iter().enumerate() {
+            if member.change != row.task || repository(member) != regate.receipt.repository {
+                continue;
+            }
+            let name = &self.train_gates(landing, repository(member)).get(usize::from(gate))?.name;
+            if regate.receipt.check != Check::Gate(name.clone()) {
+                return None;
+            }
+            let measured = match member.left {
+                Some(policy::Leave::Failed { gate: failed, run }) => failed == gate && run == receipt.run.number,
+                Some(policy::Leave::Blamed { gate: failed, run, red, .. }) => {
+                    failed == gate && red == candidate && run == receipt.run.number
+                }
+                // A single landing may hand the repair from the failed proof without leaving.
+                None => {
+                    let fact = member.gates.get(usize::from(gate))?;
+                    fact.proof == (policy::Proof::Failed { key: regate.receipt.key })
+                        && member.candidate == Some(candidate)
+                        && followed_measurement(landing, ask.round, u16::try_from(position).ok()?, gate, taken)
+                }
+                Some(
+                    policy::Leave::Conflict
+                    | policy::Leave::EarlierConflict
+                    | policy::Leave::Unit { .. }
+                    | policy::Leave::Dependency { .. }
+                    | policy::Leave::HeadMoved { .. }
+                    | policy::Leave::Cancelled
+                    | policy::Leave::Held
+                    | policy::Leave::Refused { .. },
+                ) => false,
+            };
+            if measured {
+                return Some(receipt);
+            }
+        }
+        None
     }
     fn repair_receipt(&self, change: u64, why: change::Repair) -> Option<(&ReceiptKey, &[u8], &Receipt)> {
         let (gate, candidate) = match why {
@@ -5772,7 +5866,8 @@ impl Domain {
                         }
                     }
                     Some(policy::Leave::Failed { gate: failed, run }) => {
-                        if failed == gate && candidate.is_none() {
+                        let prefix = row.landing.members.get(usize::from(round_effect_top(row)));
+                        if failed == gate && (candidate.is_none() || matches_candidate(prefix, candidate)) {
                             kept_run = Some(run);
                         }
                     }
@@ -5797,7 +5892,10 @@ impl Domain {
             if key.project == project
                 && key.repository == change.repository
                 && key.check == Check::Gate(name.clone())
-                && (candidate == Some(receipt.candidate) || kept_run == Some(receipt.run.number))
+                && match kept_run {
+                    Some(run) => run == receipt.run.number,
+                    None => candidate == Some(receipt.candidate),
+                }
                 && !receipt.passed
                 && !empty_gate_receipt(key, receipt)
             {
@@ -6294,6 +6392,13 @@ fn refuse_entry(task: u64, row: &LandingRow, member: u16, out: &mut Queue<Reques
     crate::refusal::read(out, task, b"reserve landing effect", repo, &api::Read::Settings, api::Error::Exists);
 }
 
+fn matches_candidate(member: Option<&policy::Member>, candidate: Option<api::Commit>) -> bool {
+    match member {
+        Some(member) => member.candidate == candidate,
+        None => false,
+    }
+}
+
 fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
     if let Some(policy::Leave::Failed { gate: failed, .. } | policy::Leave::Blamed { gate: failed, .. }) = left {
         gate == failed
@@ -6656,7 +6761,7 @@ fn failed_receipt(
         run: ReceiptRun { id: run.id, number: run.number, url: run.url },
     };
     if !no_verdict {
-        put_receipt(d, env, key.clone(), receipt, out);
+        put_gate_receipt(d, env, &key, receipt, out);
     }
     finish_flight(d, env, &key, if no_verdict { Some((number, false)) } else { None }, out);
     collect(d, env, owner, p, out);

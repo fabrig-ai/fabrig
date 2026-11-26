@@ -270,6 +270,7 @@ fn opening_row() -> ChangeRow {
         delegate_flake: false,
         delegate_no_test: false,
         delegate_head: None,
+        delegate_words: None,
         verdicts: Box::new([]),
         milestone: None,
         person: None,

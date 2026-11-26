@@ -1005,13 +1005,11 @@ pub const REPAIR_PRESERVATION: &[u8] = concat!(
 const REPAIR_FLAKE_LINE: &[u8] = b"\nFlake: if every failed test below is a flake (an open \
 flake finding names it, or it passes when run again at this head) and \
 nothing needs changing, finish with verdict 1, naming each test and how \
-you saw it pass; a person then releases the change to run its gate once \
-more.";
+you saw it pass; its gate then runs once more at the same content.";
 
 const REPAIR_NO_TEST_LINE: &[u8] = b"\nNo test: if no test failed in the run below \
 and nothing needs changing, finish with verdict 2, saying what its \
-jobs show; a person then releases the change to run its gate once \
-more.";
+jobs show; its gate then runs once more at the same content.";
 
 fn append(out: &mut List<u8>, bytes: &[u8]) {
     for byte in bytes {

@@ -79,20 +79,42 @@ fn an_empty_ci_repair_at_green_ends_as_a_green_repair() {
     }
 }
 
+const LANDING_REASONS: [Repair; 2] =
+    [Repair::Landing { gate: 9 }, Repair::LandingAt { candidate: NEW, gate: 9, below: None }];
+
+fn landing_endings() -> [Heard; 3] {
+    let passed = Heard { delegate: Status::Passed, ..heard() };
+    [passed, Heard { flake: true, ..passed }, Heard { no_test: true, ..passed }]
+}
+
 #[test]
-fn a_landing_repair_flake_holds_only_at_its_unchanged_head() {
-    for why in [Repair::Landing { gate: 9 }, Repair::LandingAt { candidate: NEW, gate: 9, below: None }] {
-        let c = repairing(why);
-        let h = Heard { delegate: Status::Passed, flake: true, ..heard() };
-        let held = decide(&c, &facts(), &h);
-        assert_eq!(held.decision, Decision::Hold(Hold::Flake));
-        assert_eq!(held.change.state, State::Held { was: Box::new(c.state.clone()), why: Hold::Flake });
-        assert_eq!(held.change.repairs, 1);
-        assert!(!held.change.owns_turn);
-        assert_eq!(decide(&held.change, &facts(), &h).decision, Decision::None);
-        let pushed = decide(&c, &Facts { branch: Some(NEW), ..facts() }, &h);
-        assert_eq!(pushed.change.state, State::Checking { head: NEW });
-        assert_eq!(pushed.change.repairs, 1);
+fn unchanged_landing_repairs_check_again_at_the_same_head() {
+    for why in LANDING_REASONS {
+        for terminal in landing_endings() {
+            let next = decide(&repairing(why), &Facts { regate: true, ..facts() }, &terminal);
+            assert_eq!(next.decision, Decision::None);
+            assert_eq!(next.change.state, State::Checking { head: HEAD });
+            assert_eq!(next.change.last_head, Some(HEAD));
+            assert_eq!(next.change.repairs, 1);
+        }
+    }
+}
+
+#[test]
+fn a_landing_repair_without_its_receipt_holds_red_stands() {
+    for why in LANDING_REASONS {
+        for terminal in landing_endings() {
+            let held = decide(&repairing(why), &facts(), &terminal);
+            assert_eq!(held.decision, Decision::Hold(Hold::RedStands));
+            assert_eq!(
+                held.change.state,
+                State::Held { was: Box::new(State::Repairing { requested: false, why }), why: Hold::RedStands }
+            );
+            assert_eq!(held.change.repairs, 1);
+            assert!(!held.change.owns_turn);
+            assert!(!crate::held_on_ci(&held.change.state));
+            assert_eq!(decide(&held.change, &facts(), &terminal).decision, Decision::None);
+        }
     }
 }
 
@@ -102,7 +124,7 @@ fn a_flake_release_checks_then_gates_without_a_repair() {
     c.state = State::Held { was: Box::new(c.state), why: Hold::Flake };
     c.clean = Box::new([BASE]);
     let lifted = released(&c, at(1));
-    let checked = decide(&lifted, &facts(), &heard());
+    let checked = decide(&lifted, &Facts { regate: true, ..facts() }, &heard());
     assert_eq!(checked.decision, Decision::None);
     assert_eq!(checked.change.state, State::Checking { head: HEAD });
     assert!(checked.change.clean.is_empty());
@@ -113,7 +135,7 @@ fn a_flake_release_checks_then_gates_without_a_repair() {
 }
 
 #[test]
-fn a_landing_no_change_release_asks_a_fresh_repair() {
+fn a_failed_landing_repair_release_asks_a_fresh_repair() {
     let why = Repair::Landing { gate: 9 };
     let held = decide(&repairing(why), &facts(), &Heard { delegate: Status::Failed, ..heard() });
     assert_eq!(held.decision, Decision::Hold(Hold::Failed));
@@ -126,8 +148,8 @@ fn a_landing_no_change_release_asks_a_fresh_repair() {
 
 #[test]
 fn failed_repairs_and_non_ci_empty_repairs_still_hold() {
-    // Failed and cancelled terminals both arrive as Failed; non-CI
-    // no_change results keep that coercion at the forge boundary.
+    // Failed and cancelled terminals both arrive as Failed; non-CI and
+    // non-landing no_change results keep that coercion at the forge boundary.
     for why in [
         Repair::Ci,
         Repair::Semantic,
@@ -143,20 +165,53 @@ fn failed_repairs_and_non_ci_empty_repairs_still_hold() {
 }
 
 #[test]
-fn a_landing_repair_no_test_holds_only_at_its_unchanged_head() {
-    for why in [Repair::Landing { gate: 9 }, Repair::LandingAt { candidate: NEW, gate: 9, below: None }] {
-        let c = repairing(why);
-        let h = Heard { delegate: Status::Passed, no_test: true, ..heard() };
-        let held = decide(&c, &facts(), &h);
-        assert_eq!(held.decision, Decision::Hold(Hold::NoTest));
-        assert_eq!(held.change.state, State::Held { was: Box::new(c.state.clone()), why: Hold::NoTest });
-        assert_eq!(held.change.repairs, 1);
-        assert!(!held.change.owns_turn);
-        assert_eq!(decide(&held.change, &facts(), &h).decision, Decision::None);
-        let pushed = decide(&c, &Facts { branch: Some(NEW), ..facts() }, &h);
-        assert_eq!(pushed.change.state, State::Checking { head: NEW });
-        assert_eq!(pushed.change.repairs, 1);
+fn a_moved_landing_repair_is_a_push_not_a_regate() {
+    for why in LANDING_REASONS {
+        for terminal in landing_endings() {
+            let mut c = repairing(why);
+            // A push report can already have updated the policy's last head.
+            c.last_head = Some(NEW);
+            let f = Facts { branch: Some(NEW), repair_head: Some(HEAD), ..facts() };
+            let pushed = decide(&c, &f, &terminal);
+            assert_eq!(pushed.decision, Decision::None);
+            assert_eq!(pushed.change.state, State::Checking { head: NEW });
+            assert_eq!(pushed.change.repairs, 1);
+        }
     }
+}
+
+fn failed_landing_ask(recheck: crate::Recheck) -> Facts {
+    Facts { ask: Some(handed(crate::Ask::Repair { gate: 9, candidate: NEW, below: None })), recheck, ..facts() }
+}
+
+#[test]
+fn only_the_taken_measurement_holds_at_the_landing_ask() {
+    let c = change(State::Ready { head: HEAD, ready_since: at(0) });
+    let why = LANDING_REASONS[1];
+    for (recheck, expected) in [
+        (crate::Recheck::None, Decision::Delegate(Delegate::Repair(why))),
+        (crate::Recheck::Owed, Decision::Delegate(Delegate::Repair(why))),
+        (crate::Recheck::Taken, Decision::Hold(Hold::RedStands)),
+    ] {
+        let next = decide(&c, &failed_landing_ask(recheck), &heard());
+        assert_eq!(next.decision, expected);
+        assert_eq!(next.took, Some(crate::Took::Taken(17)));
+    }
+}
+
+#[test]
+fn releasing_red_stands_asks_a_fresh_repair_for_that_red() {
+    let why = LANDING_REASONS[1];
+    let was = State::Repairing { requested: false, why };
+    let mut held = change(State::Held { was: Box::new(was.clone()), why: Hold::RedStands });
+    (held.repairs, held.resolutions, held.updates) = (LIMITS.repairs, LIMITS.resolutions, LIMITS.updates);
+    let released = released(&held, at(1));
+    assert_eq!(released.state, was);
+    assert_eq!((released.repairs, released.resolutions, released.updates), (0, 0, 0));
+    let lifted = decide(&released, &facts(), &heard());
+    let repair = decide(&lifted.change, &facts(), &heard());
+    assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
+    assert_eq!(repair.change.repairs, 1);
 }
 
 #[test]
@@ -165,7 +220,7 @@ fn a_no_test_release_checks_then_gates_without_a_repair() {
     c.state = State::Held { was: Box::new(c.state), why: Hold::NoTest };
     c.clean = Box::new([BASE]);
     let lifted = released(&c, at(1));
-    let checked = decide(&lifted, &facts(), &heard());
+    let checked = decide(&lifted, &Facts { regate: true, ..facts() }, &heard());
     assert_eq!(checked.decision, Decision::None);
     assert_eq!(checked.change.state, State::Checking { head: HEAD });
     assert!(checked.change.clean.is_empty());

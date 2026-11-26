@@ -1,4 +1,4 @@
-//! P58 residual: a no-test repair should regate without a person's release.
+//! A no-test repair regates without a person's release.
 //! temper/docs/design/domain/forge/change/repairs.md, A landing repair.
 use super::*;
 use crate::forge_routes::{landing::produced_turn_change_with, reviews::finish_review};
@@ -19,7 +19,6 @@ fn finish_no_test(world: &mut World, repair: &engine::Assignment) {
 }
 
 #[test]
-#[ignore = "a change's reds: P58, passing repair regates without release"]
 fn a_repair_whose_tests_pass_regates_by_itself() {
     let (mut world, task) = produced_turn_change_with(&StoryLimits {
         turn: true,
@@ -67,5 +66,23 @@ fn a_repair_whose_tests_pass_regates_by_itself() {
         change_row(&world, task).change.state
     );
     assert!(!matches!(task_row(&world, task).expect("change").phase, tasks::Phase::Held { .. }));
+    // This fixture keeps the gate red. Settle the measurement and the round's cleanup
+    // before the world's restart oracle (which compares quiescent rows).
+    for _ in 0..SETTLE_TICKS {
+        world.prepare_tick();
+        if matches!(task_row(&world, task).expect("change").phase, tasks::Phase::Held { .. })
+            && landing_rows(&world).iter().all(|landing| {
+                task_row(&world, landing.landing.task).is_none_or(|row| matches!(row.phase, tasks::Phase::Ended(_)))
+            })
+        {
+            break;
+        }
+    }
+    let row = change_row(&world, task);
+    assert!(matches!(row.change.state, change::State::Held { why: change::Hold::RedStands, .. }));
+    assert_eq!(row.repair_tasks.as_ref(), [repair.task]);
+    assert_eq!(dispatches(&world), before + 1);
+    let held_task = task_row(&world, task).expect("held change");
+    assert!(matches!(held_task.phase, tasks::Phase::Held { .. }));
     world.close();
 }

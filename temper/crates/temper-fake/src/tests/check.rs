@@ -239,6 +239,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         delegate_flake: false,
         delegate_no_test: false,
         delegate_head: None,
+        delegate_words: None,
         verdicts: Box::new([]),
         milestone: None,
         person: None,

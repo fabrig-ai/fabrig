@@ -1981,6 +1981,7 @@ pub fn change_hold_to_record(value: &temper_engine_domain_forge_change::Hold) ->
         temper_engine_domain_forge_change::Hold::Flake => crate::v25::ChangeHold::Flake,
         temper_engine_domain_forge_change::Hold::NoTest => crate::v25::ChangeHold::NoTest,
         temper_engine_domain_forge_change::Hold::Runner => crate::v25::ChangeHold::Runner,
+        temper_engine_domain_forge_change::Hold::RedStands => crate::v25::ChangeHold::RedStands,
     }
 }
 
@@ -2002,6 +2003,7 @@ pub fn change_hold_to_domain(record: crate::v25::ChangeHold) -> temper_engine_do
         crate::v25::ChangeHold::Flake => temper_engine_domain_forge_change::Hold::Flake,
         crate::v25::ChangeHold::NoTest => temper_engine_domain_forge_change::Hold::NoTest,
         crate::v25::ChangeHold::Runner => temper_engine_domain_forge_change::Hold::Runner,
+        crate::v25::ChangeHold::RedStands => temper_engine_domain_forge_change::Hold::RedStands,
     }
 }
 
@@ -9745,19 +9747,33 @@ pub fn change_cold_to_domain(record: crate::v25::ChangeCold) -> temper_engine_do
 
 #[must_use]
 pub fn regate_to_record(value: &temper_engine_domain_forge_vocabulary::Regate) -> crate::v25::Regate {
-    let temper_engine_domain_forge_vocabulary::Regate { receipt: field_000000, run: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::Regate { receipt: field_000000, run: field_000001, taken: field_000002 } = value;
     crate::v25::Regate {
         receipt: receipt_key_to_record(field_000000),
-        run: *field_000001
+        run: *field_000001,
+        taken: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
 #[must_use]
 pub fn regate_to_domain(record: crate::v25::Regate) -> temper_engine_domain_forge_vocabulary::Regate {
-    let crate::v25::Regate { receipt: field_000000, run: field_000001 } = record;
+    let crate::v25::Regate { receipt: field_000000, run: field_000001, taken: field_000002 } = record;
     temper_engine_domain_forge_vocabulary::Regate {
         receipt: receipt_key_to_domain(field_000000),
-        run: field_000001
+        run: field_000001,
+        taken: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 

@@ -27,8 +27,8 @@ pub use boundary::{
     Blocked, Change, Ci, CloseAt, CloseRefused, Decision, Delegate, DelegateSpend, Early, Effect, EffectResult,
     FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Handed, Heard, Hold,
     Judgement, Landed, Limits, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready,
-    Repair, Reply, Route, Stands, StartedFrom, State, Status, Stepped, Took, Verification, WORDS_WAITING, Wait,
-    Waiting, Way,
+    Recheck, Repair, Reply, Route, Stands, StartedFrom, State, Status, Stepped, Took, Verification, WORDS_WAITING,
+    Wait, Waiting, Way,
 };
 pub use clock::{Clock, Execution, Reading};
 pub use domain::{authority_words, gates_pass, held_on_ci, prefix_verdict, released, review_failed, step};

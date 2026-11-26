@@ -288,6 +288,43 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
 }
 
 #[test]
+fn an_older_regate_has_not_taken_its_measurement() {
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    use temper_engine_domain_forge_vocabulary::{Check, ReceiptKey, Regate};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before =
+        family.current.replacen(" taken: option u64 = none }\nrecord CloseRefused", " }\nrecord CloseRefused", 1);
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"change_hot")).unwrap();
+    let new_root = new.root(b"Row", Some(b"change_hot")).unwrap();
+    let mut row = super::fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+    row.regate = Some(Regate {
+        receipt: ReceiptKey {
+            project: 1,
+            repository: row.repository,
+            check: Check::Gate(b"gate".as_slice().into()),
+            key: [5; 32],
+        },
+        run: 41,
+        taken: None,
+    });
+    let stored = super::fixtures::change_hot(row);
+    let mut work = Workspace::new();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(stored));
+}
+
+#[test]
 fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
     use super::fixtures;
     use crate::records;

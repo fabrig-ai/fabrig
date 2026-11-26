@@ -186,6 +186,7 @@ fn hold(value: c::Hold) -> &'static [u8] {
         c::Hold::Retargeted => b"the pull request was retargeted",
         c::Hold::Failed => b"a delegate or effect failed",
         c::Hold::Runner => b"its CI runner ran out of re-runs; the change was not judged",
+        c::Hold::RedStands => b"its repair changed nothing and its red stands",
         c::Hold::Flake => b"its repair found only flakes",
         c::Hold::NoTest => b"its repair found no failed test",
         c::Hold::Rejected => b"a required gate was rejected",

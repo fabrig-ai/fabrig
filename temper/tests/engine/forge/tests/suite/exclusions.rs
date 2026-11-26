@@ -13,25 +13,11 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "the holds and pending prepares, including the new change or train, exceed capacity",
     ),
     (
-        A_REPAIR_ENDS_WITH_NO_CHANGE,
-        "runs/a repair ends with no change",
-        "a_no_change_landing_repair_regates_once",
-        "a change's reds",
-        "a landing's gate red",
-    ),
-    (
         A_PATH_DELETED_ON_THE_BASE,
         "stale/a path deleted on the base",
         "a_resolution_keeping_a_deleted_path_is_refused",
         "a change's reds",
         "a resolution under way",
-    ),
-    (
-        A_REPAIR_FINDS_ITS_TESTS_PASSING,
-        "runs/a repair finds its tests passing",
-        "a_repair_whose_tests_pass_regates_by_itself",
-        "a change's reds",
-        "a landing's gate red",
     ),
     (
         temper_faults::people::CANCELS_A_GOAL,
@@ -93,12 +79,12 @@ fn a_crash_with_an_unfit_stored_charter_is_not_excluded() {
 #[test]
 fn engine_exclusions_return_the_first_refusal_without_adding_later_rows() {
     let mut sweep = Sweep::new("missing configured fault");
-    sweep.configure(A_REPAIR_ENDS_WITH_NO_CHANGE);
-    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::BRANCH_HOLDS, A_REPAIR_ENDS_WITH_NO_CHANGE])
+    sweep.configure(A_PATH_DELETED_ON_THE_BASE);
+    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::BRANCH_HOLDS, A_PATH_DELETED_ON_THE_BASE])
         .expect_err("the first fault is absent from the sweep");
     assert_eq!(
         refusal,
         "sweep missing configured fault: exclusion \"a_prepare_is_admitted_when_branch_holds_are_released\": fault is not configured"
     );
-    assert!(sweep.leaves_out(A_REPAIR_ENDS_WITH_NO_CHANGE, &["a landing's gate red"]).is_none());
+    assert!(sweep.leaves_out(A_PATH_DELETED_ON_THE_BASE, &["a resolution under way"]).is_none());
 }

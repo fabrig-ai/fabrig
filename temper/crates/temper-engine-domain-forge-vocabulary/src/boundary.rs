@@ -1146,6 +1146,8 @@ pub struct ChangeRow {
     pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
+    /// A successful landing repair's account, awaiting classification at a fresh head.
+    pub delegate_words: Option<crate::ResultText>,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
@@ -1197,11 +1199,12 @@ pub enum RunnerCi {
         attempts: Box<[skein_forge::api::JobAttempt]>,
     },
 }
-/// A failed receipt superseded by a change's release (temper/docs/design/domain/landing-regate.md, 3–5).
+/// A failed receipt superseded by a repair that changed nothing (temper/docs/design/domain/landing-regate.md, 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Regate {
     pub receipt: ReceiptKey,
     pub run: u64,
+    pub taken: Option<u64>,
 }
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1265,6 +1268,8 @@ pub struct ChangeHot {
     pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
+    /// A successful landing repair's account, awaiting classification at a fresh head.
+    pub delegate_words: Option<crate::ResultText>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
     pub drift: Option<change::Hold>,
@@ -1324,6 +1329,7 @@ impl ChangeRow {
             delegate_flake,
             delegate_no_test,
             delegate_head,
+            delegate_words,
             verdicts,
             gate_remarks,
             drift,
@@ -1402,6 +1408,7 @@ impl ChangeRow {
                 delegate_flake,
                 delegate_no_test,
                 delegate_head,
+                delegate_words,
                 verdicts,
                 gate_remarks,
                 drift,
@@ -1475,6 +1482,7 @@ impl ChangeRow {
             delegate_flake,
             delegate_no_test,
             delegate_head,
+            delegate_words,
             verdicts,
             gate_remarks,
             drift,
@@ -1530,6 +1538,7 @@ impl ChangeRow {
             delegate_flake,
             delegate_no_test,
             delegate_head,
+            delegate_words,
             verdicts,
             gate_remarks,
             drift,

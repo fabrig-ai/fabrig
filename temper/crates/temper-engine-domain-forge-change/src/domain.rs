@@ -9,8 +9,8 @@ use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
-    GateFailure, GateKind, Handed, Heard, Hold, Limits, PendingKind, Pull, Repair, StartedFrom, State, Status, Stepped,
-    Took, Verification, Wait, Way,
+    GateFailure, GateKind, Handed, Heard, Hold, Limits, PendingKind, Pull, Recheck, Repair, StartedFrom, State, Status,
+    Stepped, Took, Verification, Wait, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -459,6 +459,7 @@ pub fn held_on_ci(state: &State) -> bool {
         | Hold::Updates
         | Hold::Rejected
         | Hold::Questions
+        | Hold::RedStands
         | Hold::Flake
         | Hold::NoTest => false,
     }
@@ -609,6 +610,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         }
         Hold::Stalled
         | Hold::Runner
+        | Hold::RedStands
         | Hold::Repairs
         | Hold::Questions
         | Hold::Resolutions
@@ -621,6 +623,11 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
             if why == Hold::Flake || why == Hold::NoTest {
                 change.clean = Box::new([]);
                 change.last_head = facts.branch.or(change.last_head);
+                if !facts.regate
+                    && let State::Repairing { why, .. } = was
+                {
+                    return red_stands(change, *why);
+                }
             }
             change.state = released_state(&change, was, why, facts.pull);
             Stepped { took: None, change, decision: Decision::None }
@@ -1873,11 +1880,12 @@ fn delegated(
     match standing.delegate {
         Status::Passed => {
             let Some(head) = facts.branch else { return waiting_on_agent(change, facts, standing, now, limits) };
-            if (standing.flake || standing.no_test)
-                && Some(head) == change.last_head
-                && let Delegate::Repair(Repair::Landing { .. } | Repair::LandingAt { .. }) = delegate
+            if !facts.regate
+                && Some(head) == facts.repair_head.or(change.last_head)
+                && let Delegate::Repair(why @ (Repair::Landing { .. } | Repair::LandingAt { .. })) = delegate
             {
-                return hold(change, if standing.no_test { Hold::NoTest } else { Hold::Flake });
+                change.last_head = Some(head);
+                return red_stands(change, why);
             }
             take_pushed_head(change, head, now)
         }
@@ -2160,20 +2168,34 @@ fn ready(
             }
             stepped
         }
-        Ask::Repair { gate, candidate, below } => take_delegate(
-            repair_due(
-                change,
-                Repair::LandingAt { gate: *gate, candidate: *candidate, below: *below },
-                facts,
-                now,
-                limits,
-            ),
+        Ask::Repair { gate, candidate, below } => handed_repair(
+            change,
+            Repair::LandingAt { gate: *gate, candidate: *candidate, below: *below },
             handed.number,
+            facts,
+            now,
+            limits,
         ),
         Ask::Resolve { base } => {
             take_delegate(conflict_due(change, *base, Some(head), facts, standing, now, limits), handed.number)
         }
         Ask::Landed { .. } => unreachable!("landed ask returned before the phase"),
+    }
+}
+
+fn red_stands(mut change: Change, why: Repair) -> Stepped {
+    change.state = State::Repairing { requested: false, why };
+    hold(change, Hold::RedStands)
+}
+
+fn handed_repair(change: Change, why: Repair, number: u32, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    match facts.recheck {
+        Recheck::Taken => {
+            let mut stepped = red_stands(change, why);
+            stepped.took = Some(Took::Taken(number));
+            stepped
+        }
+        Recheck::Owed | Recheck::None => take_delegate(repair_due(change, why, facts, now, limits), number),
     }
 }
 
@@ -2310,10 +2332,7 @@ fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limit
         if facts.live_gate.is_some() {
             return Stepped { took: None, change, decision: Decision::CancelGates { head: target.prefix } };
         }
-        return take_delegate(
-            repair_due(change, Repair::LandingAt { gate, candidate, below }, facts, now, limits),
-            number,
-        );
+        return handed_repair(change, Repair::LandingAt { gate, candidate, below }, number, facts, now, limits);
     }
     if let Some(Handed { number, ask: Ask::Resolve { base }, .. }) = facts.ask {
         if standing.delegate_live {

@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xde, 0xb5, 0x6a, 0x94, 0x4c, 0x6b, 0xde, 0xac, 0x74, 0x34, 0x11, 0x93, 0xa1, 0x47, 0xec, 0x4b, 0x48, 0x14, 0x85,
-    0xf5, 0x68, 0x64, 0xab, 0x8b, 0xaa, 0x99, 0xcc, 0x3c, 0x63, 0xfe, 0xf9, 0x98,
+    0x06, 0x78, 0x6b, 0xab, 0x7f, 0xe3, 0x57, 0x42, 0x8d, 0xc5, 0x1c, 0xe2, 0xfd, 0xcc, 0x32, 0x38, 0x12, 0xd0, 0xbf,
+    0x8d, 0xf7, 0xd9, 0xd5, 0xa7, 0xb3, 0x33, 0xc7, 0x61, 0x76, 0x30, 0x97, 0x30,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -4179,6 +4179,7 @@ pub mod paths {
     pub const CHANGE_COLD_TAIL: Path = Path::new("ChangeCold (tail)");
     pub const REGATE_RECEIPT: Path = Path::new("Regate.receipt");
     pub const REGATE_RUN: Path = Path::new("Regate.run");
+    pub const REGATE_TAKEN: Path = Path::new("Regate.taken");
     pub const REGATE_TAIL: Path = Path::new("Regate (tail)");
     pub const CLOSE_REFUSED_COUNTS: Path = Path::new("CloseRefused.counts");
     pub const CLOSE_REFUSED_TAIL: Path = Path::new("CloseRefused (tail)");
@@ -4199,6 +4200,7 @@ pub mod paths {
     pub const CHANGE_HOT_DELEGATE_HEAD: Path = Path::new("ChangeHot.delegate_head");
     pub const CHANGE_HOT_DELEGATE_FLAKE: Path = Path::new("ChangeHot.delegate_flake");
     pub const CHANGE_HOT_DELEGATE_NO_TEST: Path = Path::new("ChangeHot.delegate_no_test");
+    pub const CHANGE_HOT_DELEGATE_WORDS: Path = Path::new("ChangeHot.delegate_words");
     pub const CHANGE_HOT_REGATE: Path = Path::new("ChangeHot.regate");
     pub const CHANGE_HOT_KEPT: Path = Path::new("ChangeHot.kept");
     pub const CHANGE_HOT_TASK_RELEASE: Path = Path::new("ChangeHot.task_release");
@@ -13305,6 +13307,7 @@ pub enum ChangeHold {
     Flake,
     NoTest,
     Runner,
+    RedStands,
 }
 
 // Record: ChangeHold.
@@ -13325,7 +13328,8 @@ impl ChangeHold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -13370,6 +13374,7 @@ impl Record for ChangeHold {
             Self::Flake => field::put(out, &[12], paths::CHANGE_HOLD_TAG),
             Self::NoTest => field::put(out, &[13], paths::CHANGE_HOLD_TAG),
             Self::Runner => field::put(out, &[14], paths::CHANGE_HOLD_TAG),
+            Self::RedStands => field::put(out, &[15], paths::CHANGE_HOLD_TAG),
         }
     }
 
@@ -13391,7 +13396,8 @@ impl Record for ChangeHold {
             12 => Ok(Self::Flake),
             13 => Ok(Self::NoTest),
             14 => Ok(Self::Runner),
-            15..=u8::MAX => Err(Problem { path: paths::CHANGE_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            15 => Ok(Self::RedStands),
+            16..=u8::MAX => Err(Problem { path: paths::CHANGE_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -37206,6 +37212,7 @@ impl Record for ChangeCold {
 pub struct Regate {
     pub receipt: ReceiptKey,
     pub run: u64,
+    pub taken: Option<u64>,
 }
 
 // Record: Regate.
@@ -37213,11 +37220,13 @@ impl Regate {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("ReceiptKey"),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 55;
+    pub const ENCODED_AT_ZERO: u64 = 64;
 }
 
 impl Record for Regate {
@@ -37244,6 +37253,7 @@ impl Record for Regate {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.receipt, limits, out, paths::REGATE_RECEIPT)?;
         field::write(field::U64, &self.run, limits, out, paths::REGATE_RUN)?;
+        field::write(field::Optional { item: field::U64 }, &self.taken, limits, out, paths::REGATE_TAKEN)?;
         Ok(())
     }
 
@@ -37251,6 +37261,7 @@ impl Record for Regate {
         Ok(Self {
             receipt: field::read(field::Nested, limits, reader, paths::REGATE_RECEIPT)?,
             run: field::read(field::U64, limits, reader, paths::REGATE_RUN)?,
+            taken: field::read(field::Optional { item: field::U64 }, limits, reader, paths::REGATE_TAKEN)?,
         })
     }
 }
@@ -37541,6 +37552,7 @@ pub struct ChangeHot {
     pub delegate_head: Option<[u8; 32]>,
     pub delegate_flake: bool,
     pub delegate_no_test: bool,
+    pub delegate_words: Option<ResultText>,
     pub regate: Option<Regate>,
     pub kept: Option<[u8; 32]>,
     pub task_release: Option<TaskRelease>,
@@ -37590,66 +37602,68 @@ impl ChangeHot {
         skein_codec::bounds::Node::Option { item: 7 },
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
-        skein_codec::bounds::Node::Named("Regate"),
+        skein_codec::bounds::Node::Named("ResultText"),
         skein_codec::bounds::Node::Option { item: 11 },
-        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Named("Regate"),
         skein_codec::bounds::Node::Option { item: 13 },
-        skein_codec::bounds::Node::Named("TaskRelease"),
+        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Option { item: 15 },
-        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Named("TaskRelease"),
         skein_codec::bounds::Node::Option { item: 17 },
+        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Option { item: 19 },
         skein_codec::bounds::Node::Named("SignOff"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 19, size: size_of::<SignOff>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_signed), item: 21, size: size_of::<SignOff>() },
         skein_codec::bounds::Node::Named("ChangeEnding"),
-        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Option { item: 23 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 23, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_repair_tasks), item: 25, size: size_of::<u64>() },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 25, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_resolution_tasks), item: 27, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("ChangeResult"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Change"),
         skein_codec::bounds::Node::Named("ChangeCi"),
-        skein_codec::bounds::Node::Option { item: 31 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 33 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 35 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 37 },
         skein_codec::bounds::Node::Named("EffectResult"),
         skein_codec::bounds::Node::Named("DelegateRef"),
-        skein_codec::bounds::Node::Option { item: 38 },
+        skein_codec::bounds::Node::Option { item: 40 },
         skein_codec::bounds::Node::Named("ChangeStatus"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("GateReport"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 43, size: size_of::<GateReport>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_verdicts), item: 45, size: size_of::<GateReport>() },
         skein_codec::bounds::Node::Named("GateRemark"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 45, size: size_of::<GateRemark>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_gate_remarks), item: 47, size: size_of::<GateRemark>() },
         skein_codec::bounds::Node::Named("ChangeHold"),
-        skein_codec::bounds::Node::Option { item: 47 },
-        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 49 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 51 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("EffectAccount"),
-        skein_codec::bounds::Node::Option { item: 52 },
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_producer_failure_some) },
         skein_codec::bounds::Node::Option { item: 54 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_producer_failure_some) },
+        skein_codec::bounds::Node::Option { item: 56 },
         skein_codec::bounds::Node::Named("Questions"),
         skein_codec::bounds::Node::Named("FollowCheckProgress"),
-        skein_codec::bounds::Node::Option { item: 57 },
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
         skein_codec::bounds::Node::Option { item: 59 },
-        skein_codec::bounds::Node::Named("ChangeHistory"),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_hot_merge_result_some) },
         skein_codec::bounds::Node::Option { item: 61 },
+        skein_codec::bounds::Node::Named("ChangeHistory"),
+        skein_codec::bounds::Node::Option { item: 63 },
         skein_codec::bounds::Node::Named("LandingHanded"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 63, size: size_of::<LandingHanded>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_hot_asks), item: 65, size: size_of::<LandingHanded>() },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 27, 28, 29, 30, 32, 34, 36, 37, 39, 40, 41, 42, 44, 46, 48, 50, 51, 53, 55, 56, 58, 60, 62, 64, 65] },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 29, 30, 31, 32, 34, 36, 38, 39, 41, 42, 43, 44, 46, 48, 50, 52, 53, 55, 57, 58, 60, 62, 64, 66, 67] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1535;
+    pub const ENCODED_AT_ZERO: u64 = 1557;
 }
 
 impl Record for ChangeHot {
@@ -37681,6 +37695,7 @@ impl Record for ChangeHot {
         field::write(field::Optional { item: field::Fixed::<32> }, &self.delegate_head, limits, out, paths::CHANGE_HOT_DELEGATE_HEAD)?;
         field::write(field::Boolean, &self.delegate_flake, limits, out, paths::CHANGE_HOT_DELEGATE_FLAKE)?;
         field::write(field::Boolean, &self.delegate_no_test, limits, out, paths::CHANGE_HOT_DELEGATE_NO_TEST)?;
+        field::write(field::Optional { item: field::Nested }, &self.delegate_words, limits, out, paths::CHANGE_HOT_DELEGATE_WORDS)?;
         field::write(field::Optional { item: field::Nested }, &self.regate, limits, out, paths::CHANGE_HOT_REGATE)?;
         field::write(field::Optional { item: field::Fixed::<32> }, &self.kept, limits, out, paths::CHANGE_HOT_KEPT)?;
         field::write(field::Optional { item: field::Nested }, &self.task_release, limits, out, paths::CHANGE_HOT_TASK_RELEASE)?;
@@ -37726,6 +37741,7 @@ impl Record for ChangeHot {
             delegate_head: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::CHANGE_HOT_DELEGATE_HEAD)?,
             delegate_flake: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_DELEGATE_FLAKE)?,
             delegate_no_test: field::read(field::Boolean, limits, reader, paths::CHANGE_HOT_DELEGATE_NO_TEST)?,
+            delegate_words: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_DELEGATE_WORDS)?,
             regate: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_REGATE)?,
             kept: field::read(field::Optional { item: field::Fixed::<32> }, limits, reader, paths::CHANGE_HOT_KEPT)?,
             task_release: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_HOT_TASK_RELEASE)?,
@@ -41795,7 +41811,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1536;
+    pub const ENCODED_AT_ZERO: u64 = 1558;
 }
 
 impl Record for Value {
@@ -41948,7 +41964,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1538;
+    pub const ENCODED_AT_ZERO: u64 = 1560;
 }
 
 impl Record for Row {
