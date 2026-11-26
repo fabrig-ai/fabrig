@@ -3,10 +3,6 @@
 2026-11-26. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 
-- **Not yet:** 4: `squash` carries no TRAILERS, and the bound cuts no
-  description to make room for them. [in flight: change 18412]
-- **Not yet:** 4: TRAILERS from the head commit's message: the round
-  reads none, so only the producer's words give them. [in flight: change 18414]
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract (`../domain/worker/jobs.md`): no project names one, and the
   worker's prepare kind is temper's own alone, with no key kind,
