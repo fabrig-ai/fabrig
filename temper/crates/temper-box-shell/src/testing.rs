@@ -55,7 +55,6 @@ pub mod serve {
     use temper_shell::directories::{Directories, EnvironmentEntry};
 
     use crate::Service;
-    #[cfg(target_os = "linux")]
     pub use crate::serve::{
         PipeKind, agents_setting_over, configured_agent, local_setting_over, operations_with_copies, pipe_kind,
         prepare_with_limits,
