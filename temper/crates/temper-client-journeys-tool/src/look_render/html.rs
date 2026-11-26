@@ -9,6 +9,17 @@ pub(super) struct Tag<'a> {
 }
 
 pub(super) fn tags(source: &str) -> Vec<Tag<'_>> {
+    scan(source, None)
+}
+
+pub(super) fn comparable(source: &str) -> String {
+    let mut lines = Comparable { source, output: String::with_capacity(source.len()), at: 0 };
+    scan(source, Some(&mut lines));
+    lines.copy_to(source.len());
+    temper_client_walk_lines::print::numbered_ids(&lines.output)
+}
+
+fn scan<'a>(source: &'a str, mut comparable: Option<&mut Comparable<'a>>) -> Vec<Tag<'a>> {
     let mut tags = Vec::new();
     let mut cursor = source;
     let mut position = Position { line: 1, column: 0 };
@@ -18,32 +29,43 @@ pub(super) fn tags(source: &str) -> Vec<Tag<'_>> {
         let tail = if let Some(name) = raw {
             if let Some(end) = closing(after, name) {
                 raw = None;
-                end
+                after_tag(end, &mut comparable)
             } else {
                 after
             }
         } else if let Some(end) = declaration(after) {
             end
         } else if let Some(end) = after.strip_prefix('/') {
-            Attributes::new(name_and_tail(end).1).end()
+            after_tag(Attributes::new(name_and_tail(end).1).end(), &mut comparable)
         } else if after.as_bytes().first().is_some_and(u8::is_ascii_alphabetic) {
             let (name, rest) = name_and_tail(after);
             let mut attributes = Attributes::new(rest);
             let mut has_open = false;
             let mut classes = None;
-            while let Some((attribute, value)) = attributes.take() {
-                has_open |= attribute.eq_ignore_ascii_case("open");
-                if attribute.eq_ignore_ascii_case("class") && classes.is_none() {
-                    classes = Some(value);
+            loop {
+                let before = attributes.tail;
+                let Some((attribute, value)) = attributes.take() else { break };
+                if let Some(lines) = comparable.as_deref_mut() {
+                    if attribute.eq_ignore_ascii_case("data-node") {
+                        lines.remove_attribute(before, attributes.tail);
+                    }
+                } else {
+                    has_open |= attribute.eq_ignore_ascii_case("open");
+                    if attribute.eq_ignore_ascii_case("class") && classes.is_none() {
+                        classes = Some(value);
+                    }
                 }
             }
             if !attributes.tail.starts_with('>') {
                 break; // No start tag was emitted before EOF.
             }
-            let disclosure = name.eq_ignore_ascii_case("details") || name.eq_ignore_ascii_case("dialog");
-            let open_at = (disclosure && !has_open).then_some(source.len() - rest.len());
-            let Position { line, column } = position;
-            tags.push(Tag { line, column, name, classes: classes.unwrap_or_default(), open_at });
+            if comparable.is_none() {
+                let disclosure = name.eq_ignore_ascii_case("details") || name.eq_ignore_ascii_case("dialog");
+                let open_at = (disclosure && !has_open).then_some(source.len() - rest.len());
+                let Position { line, column } = position;
+                tags.push(Tag { line, column, name, classes: classes.unwrap_or_default(), open_at });
+            }
+            let end = after_tag(attributes.tail, &mut comparable);
             if name.eq_ignore_ascii_case("plaintext") {
                 break;
             }
@@ -53,7 +75,7 @@ pub(super) fn tags(source: &str) -> Vec<Tag<'_>> {
             {
                 raw = Some(name);
             }
-            &attributes.tail[1..]
+            end
         } else {
             after
         };
@@ -62,6 +84,39 @@ pub(super) fn tags(source: &str) -> Vec<Tag<'_>> {
         cursor = tail;
     }
     tags
+}
+
+// Keep the doctype, text, comments and quoted values as written. Only the
+// boundaries of tags and the printer's unstable node numbers are changed.
+struct Comparable<'a> {
+    source: &'a str,
+    output: String,
+    at: usize,
+}
+
+impl Comparable<'_> {
+    fn copy_to(&mut self, until: usize) {
+        self.output.push_str(&self.source[self.at..until]);
+        self.at = until;
+    }
+
+    fn remove_attribute(&mut self, before: &str, after: &str) {
+        let start = before.len() - before.trim_start_matches(|c| space(c) || c == '/').len();
+        let leading = before[..start].trim_end_matches(space).len();
+        self.copy_to(self.source.len() - before.len() + leading);
+        self.at = self.source.len() - after.len();
+    }
+}
+
+fn after_tag<'a>(end: &'a str, comparable: &mut Option<&mut Comparable<'a>>) -> &'a str {
+    let Some(tail) = end.strip_prefix('>') else { return end };
+    if let Some(lines) = comparable {
+        lines.copy_to(lines.source.len() - end.len());
+        if !lines.output.ends_with('\n') {
+            lines.output.push('\n');
+        }
+    }
+    tail
 }
 
 pub(super) fn opened(source: &str) -> String {
@@ -163,8 +218,7 @@ impl<'a> Attributes<'a> {
         let from = usize::from(tail.starts_with('='));
         let end = tail[from..].find(|c| space(c) || matches!(c, '/' | '>' | '=')).map_or(tail.len(), |at| at + from);
         let (name, tail) = tail.split_at(end);
-        let tail = tail.trim_start_matches(space);
-        let Some(value) = tail.strip_prefix('=') else {
+        let Some(value) = tail.trim_start_matches(space).strip_prefix('=') else {
             self.tail = tail;
             return Some((name, ""));
         };
@@ -181,6 +235,6 @@ impl<'a> Attributes<'a> {
 
     fn end(mut self) -> &'a str {
         while self.take().is_some() {}
-        self.tail.strip_prefix('>').unwrap_or(self.tail)
+        self.tail
     }
 }

@@ -1,6 +1,6 @@
 # look-requests: status
 
-2026-11-25. Where temper's code lags or departs from [look-requests.md](look-requests.md).
+2026-11-26. Where temper's code lags or departs from [look-requests.md](look-requests.md).
 
 - **Not yet:**
   - 2, 7: nothing reads `Look-hold`. Whoever starts requests' goals

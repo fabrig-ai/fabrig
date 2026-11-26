@@ -141,18 +141,21 @@ impl Copy {
         Ok(copy)
     }
 
-    pub(super) fn url(&self, page: &Page) -> Box<[u8]> {
-        let path = self.directory.join(page.path());
-        let mut url = String::from("file://");
-        for &byte in path.as_os_str().as_bytes() {
-            if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'.' | b'_' | b'~') {
-                url.push(char::from(byte));
-            } else {
-                write!(url, "%{byte:02X}").expect("write string");
-            }
-        }
-        url.into_bytes().into_boxed_slice()
+    pub(super) fn path(&self, page: &Page) -> PathBuf {
+        self.directory.join(page.path())
     }
+}
+
+pub(super) fn file_url(path: &Path) -> Box<[u8]> {
+    let mut url = String::from("file://");
+    for &byte in path.as_os_str().as_bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'.' | b'_' | b'~') {
+            url.push(char::from(byte));
+        } else {
+            write!(url, "%{byte:02X}").expect("write string");
+        }
+    }
+    url.into_bytes().into_boxed_slice()
 }
 
 fn in_root(path: &str) -> Option<(Side, &str)> {

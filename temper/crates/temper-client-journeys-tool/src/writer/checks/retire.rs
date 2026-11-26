@@ -9,12 +9,12 @@ use temper_client_walk_lines::{
 };
 
 use crate::{
-    host::{Host, Program, Stream},
+    host::Host,
     look_compare::{Journey, Side, git_ok, request, text, version_two},
     looks,
 };
 
-use super::{Checkout, Stop, child, diagnostic};
+use super::{Checkout, Stop, diagnostic};
 
 type Candidates = [Vec<(String, String)>; 2];
 
@@ -56,7 +56,7 @@ impl Checkout {
         }
         let branch = request::branch(name);
         let why = if self.request_branch_exists(host, name, &branch)? {
-            request::fetch(host, Some(&self.root), &branch).map_err(Stop::Host)?;
+            request::fetch(host, Some(&self.root), "origin", &branch).map_err(Stop::Host)?;
             // The branch may have moved; the standing entry names the commit to read.
             if self.has_commit(host, commit)? {
                 return Ok(true);
@@ -70,14 +70,10 @@ impl Checkout {
     }
 
     fn has_commit(&self, host: &mut Host, commit: &str) -> Result<bool, Stop> {
-        let revision = format!("{commit}^{{commit}}");
-        let mut git = self.here(Program::new(b"git", &[b"rev-parse", b"--verify", b"--quiet", revision.as_bytes()]));
-        git.stderr = Stream::Keep;
-        let ran = child(host, git)?;
-        match ran.code {
-            Some(0) if ran.stdout.strip_suffix(b"\n") == Some(commit.as_bytes()) => Ok(true),
-            Some(1) if ran.stderr.is_empty() => Ok(false),
-            Some(_) | None => Err(Stop::Host(format!("cannot look up commit {commit}"))),
+        match request::lookup_commit(host, Some(&self.root), commit).map_err(Stop::Host)? {
+            Some(stdout) if stdout.strip_suffix(b"\n") == Some(commit.as_bytes()) => Ok(true),
+            None => Ok(false),
+            Some(_) => Err(Stop::Host(format!("cannot look up commit {commit}"))),
         }
     }
 

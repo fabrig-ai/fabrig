@@ -5,11 +5,13 @@ use skein_lib::Token;
 
 use crate::{
     host::{
-        self, Answer, Ask, Gathered, Host,
+        self, Answer, Ask, Gathered, Host, Program, Ran, Stream,
         browser::{Command, Observation, Reply},
     },
     look_compare::tests::{NAME, ON_DISK_WALK, PARENT, ROOT, SHELL_WEB, SHORT, SIGN_IN_PAGE, Steps, TIP, TUI, WEB},
 };
+
+use crate::look_git::{look_step_tests, record};
 
 use super::run;
 
@@ -21,6 +23,20 @@ const OVERLAY: &str = "temper/docs/design/client/web/journeys/overlay.css";
 const TUI_OVERLAY: &str = "temper/docs/design/client/tui/journeys/overlay.css";
 const HAND_MADE_DIR: &str = "temper/docs/design/client/web/journeys/not-a-walk";
 const HAND_MADE_PAGE: &str = "temper/docs/design/client/web/journeys/not-a-walk/index.html";
+const GALLERY: &str = "/landing tree/.git/look-render/gallery";
+const STATE_FILE: &str = "accounts-usage-filling.html";
+const STATE_README: &str = "Hand-made from the gallery's state `accounts-usage-filling`, printed by `temper-client-gallery` at main `ed505074e5`: an account's folded row with its 5 h and week windows.";
+const DRAWN_DIR: &str = "temper/docs/design/client/web/journeys/usage-model-week";
+const DRAWN_README: &str = "temper/docs/design/client/web/journeys/usage-model-week/README.md";
+const DRAWN_PAGE: &str = "temper/docs/design/client/web/journeys/usage-model-week/accounts-after.html";
+const DRAWN_ITEM: &str = "web/journeys/usage-model-week/accounts-after.html";
+const STATE_SOURCE: &str =
+    "<!doctype html>\n<html><head></head><body><details><dialog></dialog></details></body></html>\n";
+const STATE_OPENED: &str =
+    "<!doctype html>\n<html><head></head><body><details open><dialog open></dialog></details></body></html>\n";
+const STATE_TAGS: &[(&str, u32)] = &[("html", 0), ("head", 1), ("body", 1), ("details", 2), ("dialog", 3)];
+const FIRST_REQUEST_NODE: Node = 11;
+const FIRST_PRINT_NODE: Node = 111;
 const ITEM: &str = "web/journeys/sign-in/02.html";
 const PERSON: Token = Token::new(1);
 const REQUEST: Token = Token::new(2);
@@ -30,6 +46,9 @@ const LANDED_BUTTON: Node = 115;
 const LINE: usize = 41; // The button follows the five header lines and this fixture's blank lines.
 const HEADER: &str =
     "<!doctype html>\n<html>\n<head><title>Sign in</title></head>\n<!-- press to continue -->\n<body>\n";
+const COMPARABLE_HEADER: &str =
+    "<!doctype html>\n<html\n>\n<head\n><title\n>Sign in</title\n></head\n>\n<!-- press to continue -->\n<body\n>\n";
+const DIFF_LINE: usize = LINE + 6; // Six tag boundaries in HEADER put the button on a later line in the diff.
 const WIDTHS: [u32; 3] = [1440, 1000, 420]; // journey-writer.md, 6.2, step 7.
 const HEIGHT: u32 = 900;
 const BOX: Rect = Rect { x: -5, y: 20, width: 80, height: 30 };
@@ -39,6 +58,7 @@ const IDENTICAL: &str = "identical\tweb/journeys/sign-in/02.html\nresult\tidenti
 const DIFFERS: &str = "result\tdiffers\n";
 const NOTHING: &str = "result\tnothing to render\n";
 
+#[derive(Clone, Copy)]
 struct Files<'a> {
     path: &'a str,
     source: &'a str,
@@ -56,8 +76,12 @@ struct Effects(Steps);
 
 impl Effects {
     fn begin(&mut self, changed: &[&str]) {
+        self.0.fetch(TIP);
+        self.request_changes(changed);
+    }
+
+    fn request_changes(&mut self, changed: &[&str]) {
         let s = &mut self.0;
-        s.fetch(TIP);
         s.git(&["show", "-s", "--format=%P", TIP], None, &format!("{PARENT}\n"));
         s.git(
             &["show", "-s", "--format=%(trailers:key=Look-request,unfold)", TIP],
@@ -130,6 +154,49 @@ impl Effects {
         self.0.write(copy, file.path, file.copy);
     }
 
+    fn hand_made_paths(&mut self, directory: &str, changed: &[&str]) {
+        let mut paths = String::new();
+        for path in changed {
+            paths.push_str(path);
+            paths.push('\0');
+        }
+        self.0.git(
+            &[
+                "--literal-pathspecs",
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "--no-renames",
+                "-r",
+                "-z",
+                PARENT,
+                TIP,
+                "--",
+                directory,
+            ],
+            Some(ROOT),
+            &paths,
+        );
+    }
+
+    fn gallery_print(&mut self, code: i32, stderr: &str) {
+        let mut program = Program::new(
+            b"cargo",
+            &[b"run", b"--locked", b"--quiet", b"-p", b"temper-client-gallery", b"--", GALLERY.as_bytes()],
+        );
+        program.directory = Some(ROOT.into());
+        program.environment.push((b"TEMPER_INTERNAL_BUNDLE".as_slice().into(), b"none".as_slice().into()));
+        program.stderr = Stream::Keep;
+        let mut ran = Ran::new(Some(code), b"gallery output\n");
+        ran.stderr = stderr.as_bytes().into();
+        self.0.step(Ask::Run(program), Answer::Ran(ran));
+    }
+
+    fn gallery_page(&mut self, source: &str, opened: &str) {
+        self.0.read(&format!("{GALLERY}/{STATE_FILE}"), Some(source));
+        self.0.write(GALLERY, STATE_FILE, opened);
+    }
+
     fn chrome(&mut self, command: Command, reply: Reply) {
         self.chrome_with(command, reply, Vec::new());
     }
@@ -155,7 +222,11 @@ impl Effects {
     }
 
     fn open(&mut self, page: Token, copy: &str) {
-        let url = format!("file:///landing%20tree/.git/look-render/{copy}/{SIGN_IN_PAGE}");
+        self.open_file(page, copy, SIGN_IN_PAGE);
+    }
+
+    fn open_file(&mut self, page: Token, copy: &str, leaf: &str) {
+        let url = format!("file:///landing%20tree/.git/look-render/{copy}/{leaf}");
         self.done(Command::Open { person: PERSON, page, url: url.into_bytes().into_boxed_slice(), files: true });
     }
 
@@ -165,17 +236,47 @@ impl Effects {
     }
 
     fn close_pair(&mut self) {
-        self.done(Command::Close { page: PRINT });
-        self.done(Command::Close { page: REQUEST });
+        self.close_pages([REQUEST, PRINT]);
+    }
+
+    fn close_pages(&mut self, [request, print]: [Token; 2]) {
+        self.done(Command::Close { page: print });
+        self.done(Command::Close { page: request });
+    }
+
+    fn open_gallery_pair(&mut self, path: &str, [request, print]: [Token; 2], requested: &[(&str, u32)]) {
+        self.open_file(request, "request", path);
+        self.open_file(print, "gallery", STATE_FILE);
+        self.elements_of(request, FIRST_REQUEST_NODE, requested);
+        self.elements_of(print, FIRST_PRINT_NODE, STATE_TAGS);
+        self.0.blob(PARENT, path, None);
+    }
+
+    fn measure_gallery(&mut self, [request, print]: [Token; 2], paired_request_indices: &[Node]) {
+        for width in WIDTHS {
+            self.viewport_pair([request, print], width);
+            for (index, &left) in paired_request_indices.iter().enumerate() {
+                let right = u64::try_from(index).expect("fixture index");
+                self.measure_pair(
+                    [(request, FIRST_REQUEST_NODE + left), (print, FIRST_PRINT_NODE + right)],
+                    [&[]; 2],
+                    [None; 2],
+                );
+            }
+        }
     }
 
     fn elements(&mut self, page: Token, tag: &str) {
-        let offset = if page == PRINT { LANDED_BUTTON - BUTTON } else { 0 };
-        let elements = [("html", 0), ("head", 1), ("title", 2), ("body", 1), (tag, 2)]
-            .into_iter()
+        let last = if page == PRINT { LANDED_BUTTON } else { BUTTON };
+        self.elements_of(page, last - 4, &[("html", 0), ("head", 1), ("title", 2), ("body", 1), (tag, 2)]);
+    }
+
+    fn elements_of(&mut self, page: Token, first: Node, tags: &[(&str, u32)]) {
+        let elements = tags
+            .iter()
             .enumerate()
-            .map(|(at, (name, depth))| Element {
-                node: BUTTON - 4 + offset + u64::try_from(at).expect("fixture index"),
+            .map(|(at, &(name, depth))| Element {
+                node: first + u64::try_from(at).expect("fixture index"),
                 name: name.as_bytes().into(),
                 depth,
             })
@@ -183,9 +284,9 @@ impl Effects {
         self.chrome(Command::Elements { page, selector: None }, Reply::Elements { elements, more: 0 });
     }
 
-    fn edit(&mut self, parent: &str, request: &str, patch: &str) {
+    fn edit(&mut self, parent: &str, [from, to]: [&str; 2], patch: &str) {
         self.0.blob(PARENT, SIGN_IN_PAGE, Some(parent));
-        self.diff(parent, request, patch);
+        self.diff(from, to, patch);
     }
 
     fn diff(&mut self, from: &str, to: &str, patch: &str) {
@@ -195,21 +296,29 @@ impl Effects {
     }
 
     fn viewport(&mut self, width: u32) {
-        for page in [REQUEST, PRINT] {
+        self.viewport_pair([REQUEST, PRINT], width);
+    }
+
+    fn viewport_pair(&mut self, pages: [Token; 2], width: u32) {
+        for page in pages {
             self.done(Command::Viewport { page, width, height: HEIGHT });
         }
     }
 
     fn measure(&mut self, width: u32, styles: [&[(&str, &str)]; 2], boxes: [Option<Rect>; 2]) {
         self.viewport(width);
-        for ((page, node), properties) in [(REQUEST, BUTTON), (PRINT, LANDED_BUTTON)].into_iter().zip(styles) {
+        self.measure_pair([(REQUEST, BUTTON), (PRINT, LANDED_BUTTON)], styles, boxes);
+    }
+
+    fn measure_pair(&mut self, pair: [(Token, Node); 2], styles: [&[(&str, &str)]; 2], boxes: [Option<Rect>; 2]) {
+        for ((page, node), properties) in pair.into_iter().zip(styles) {
             let style = properties
                 .iter()
                 .map(|(name, value)| Property { name: name.as_bytes().into(), value: value.as_bytes().into() })
                 .collect();
             self.chrome(Command::Style { page, node }, Reply::Style(style));
         }
-        for ((page, node), rect) in [(REQUEST, BUTTON), (PRINT, LANDED_BUTTON)].into_iter().zip(boxes) {
+        for ((page, node), rect) in pair.into_iter().zip(boxes) {
             self.chrome(Command::Rect { page, node }, Reply::Rect(rect));
         }
     }
@@ -226,6 +335,7 @@ impl Effects {
 
     fn check(self, code: u8, out: &str, err: &str) {
         let Steps(steps) = self.0;
+        record(&steps);
         let mut host = Host::canned(steps);
         let args = [NAME.as_bytes().into(), SHORT.as_bytes().into()];
         assert_eq!(run(&args, &mut host), code);
@@ -235,8 +345,34 @@ impl Effects {
     }
 }
 
+fn drawn_request(readme: &str, pages: &[Files<'_>]) -> Effects {
+    let mut steps = Effects::default();
+    let mut changed = vec![DRAWN_README];
+    changed.extend(pages.iter().map(|file| file.path));
+    steps.begin(&changed);
+    steps.0.blob(TIP, &format!("{DRAWN_DIR}/walk"), None);
+    let mut files = vec![Files::same(DRAWN_README, readme)];
+    files.extend_from_slice(pages);
+    steps.copy_request(&files);
+    steps.copy_print(&[]);
+    steps.hand_made_paths(DRAWN_DIR, &changed);
+    steps.0.blob(TIP, DRAWN_README, Some(readme));
+    steps
+}
+
+fn drawn_page(path: &str) -> Files<'_> {
+    Files { path, source: STATE_SOURCE, copy: STATE_OPENED }
+}
+
 fn page(tag: &str, class: &str) -> String {
     format!("{HEADER}{}<{tag} class=\"{class}\">Continue</{tag}>\n</body>\n</html>\n", "\n".repeat(LINE - 6))
+}
+
+fn comparable_page(tag: &str, class: &str) -> String {
+    format!(
+        "{COMPARABLE_HEADER}{}<{tag} class=\"{class}\"\n>Continue</{tag}\n>\n</body\n>\n</html\n>\n",
+        "\n".repeat(LINE - 6)
+    )
 }
 
 fn fixture(landed: Option<&str>) -> (Effects, String) {
@@ -251,9 +387,7 @@ fn fixture(landed: Option<&str>) -> (Effects, String) {
 }
 
 fn button_patch() -> String {
-    format!(
-        "@@ -{LINE} +{LINE} @@\n-<button class=\"old\">Continue</button>\n+<button class=\"temper-chip\">Continue</button>\n"
-    )
+    format!("@@ -{DIFF_LINE} +{DIFF_LINE} @@\n-<button class=\"old\"\n+<button class=\"temper-chip\"\n")
 }
 
 fn prepared(landed: &str, tag: &str) -> (Effects, String) {
@@ -267,9 +401,17 @@ fn prepared(landed: &str, tag: &str) -> (Effects, String) {
 
 fn edited_button() -> Effects {
     let document = page("button", "temper-chip");
-    let (mut steps, edited) = prepared(&document, "button");
-    steps.edit(&page("button", "old"), &edited, &button_patch());
+    let (mut steps, _) = prepared(&document, "button");
+    button_edit(&mut steps);
     steps
+}
+
+fn button_edit(steps: &mut Effects) {
+    steps.edit(
+        &page("button", "old"),
+        [&comparable_page("button", "old"), &comparable_page("button", "temper-chip")],
+        &button_patch(),
+    );
 }
 
 fn difference(width: u32, property: &str, left: &str, right: &str) -> String {
@@ -278,6 +420,35 @@ fn difference(width: u32, property: &str, left: &str, right: &str) -> String {
 
 fn uncompared(item: &str, reason: &str) -> String {
     format!("uncompared\t{item}\t{reason}\nresult\tnot compared\n")
+}
+
+fn overlay(requested: &str) -> Effects {
+    let source = page("button", "temper-chip");
+    let mut steps = Effects::default();
+    steps.begin(&[OVERLAY]);
+    steps.copy_request(&[
+        Files::same(OVERLAY, requested),
+        Files::same(SIGN_IN_PAGE, &source),
+        Files::same(WEB_WALK, ON_DISK_WALK),
+    ]);
+    steps.copy_print(&[Files::same(SIGN_IN_PAGE, &source)]);
+    steps.0.blob(PARENT, OVERLAY, Some(""));
+    steps.0.blob(TIP, OVERLAY, Some(requested));
+    steps.start();
+    steps.open(REQUEST, "request");
+    steps
+}
+
+look_step_tests! {
+#[test]
+fn a_locally_held_request_is_render_checked_without_fetching() {
+    let mut steps = Effects::default();
+    steps.0.local_request();
+    steps.request_changes(&[]);
+    steps.copy_request(&[]);
+    steps.copy_print(&[]);
+    steps.start();
+    steps.stop_and_check(0, NOTHING, "");
 }
 
 #[test]
@@ -328,28 +499,15 @@ fn box_coordinates_two_pixels_apart_or_absent_differ() {
 
 #[test]
 fn a_touched_tag_with_no_pair_reports_one_difference() {
-    let landed = page("p", "temper-chip");
-    let (mut steps, edited) = prepared(&landed, "p");
-    steps.edit(&page("button", "old"), &edited, &button_patch());
-    steps.diff(&edited, &landed, &format!("@@ -{LINE} +{LINE} @@\n-<button class=\"temper-chip\">Continue</button>\n+<p class=\"temper-chip\">Continue</p>\n"));
+    let landed = comparable_page("p", "temper-chip");
+    let (mut steps, _) = prepared(&landed, "p");
+    button_edit(&mut steps);
+    steps.diff(
+        &comparable_page("button", "temper-chip"),
+        &comparable_page("p", "temper-chip"),
+        &format!("@@ -{DIFF_LINE},2 +{DIFF_LINE},2 @@\n-<button class=\"temper-chip\"\n->Continue</button\n+<p class=\"temper-chip\"\n+>Continue</p\n"),
+    );
     steps.verdict(&format!("differs\t{ITEM}\t-\t41 button.temper-chip\tpair\tpresent\tnone\n{DIFFERS}"));
-}
-
-fn overlay(requested: &str) -> Effects {
-    let source = page("button", "temper-chip");
-    let mut steps = Effects::default();
-    steps.begin(&[OVERLAY]);
-    steps.copy_request(&[
-        Files::same(OVERLAY, requested),
-        Files::same(SIGN_IN_PAGE, &source),
-        Files::same(WEB_WALK, ON_DISK_WALK),
-    ]);
-    steps.copy_print(&[Files::same(SIGN_IN_PAGE, &source)]);
-    steps.0.blob(PARENT, OVERLAY, Some(""));
-    steps.0.blob(TIP, OVERLAY, Some(requested));
-    steps.start();
-    steps.open(REQUEST, "request");
-    steps
 }
 
 #[test]
@@ -411,24 +569,106 @@ fn hand_made_pages_receive_a_row_without_rendering() {
     steps.0.blob(TIP, &format!("{HAND_MADE_DIR}/walk"), Some("walk 1\n"));
     steps.copy_request(&[Files::same(HAND_MADE_PAGE, "<p>Hello</p>")]);
     steps.copy_print(&[]);
-    steps.0.git(
-        &[
-            "--literal-pathspecs",
-            "diff-tree",
-            "--no-commit-id",
-            "--name-only",
-            "--no-renames",
-            "-rz",
-            PARENT,
-            TIP,
-            "--",
-            HAND_MADE_DIR,
-        ],
-        Some(ROOT),
-        &format!("{HAND_MADE_PAGE}\0"),
-    );
+    steps.hand_made_paths(HAND_MADE_DIR, &[HAND_MADE_PAGE]);
+    steps.0.blob(TIP, &format!("{HAND_MADE_DIR}/README.md"), None);
     steps.start();
     steps.stop_and_check(0, &uncompared("web/journeys/not-a-walk/index.html", "hand-made"), "");
+}
+
+#[test]
+fn a_gallery_drawing_is_compared_with_the_opened_state() {
+    let mut steps = drawn_request(STATE_README, &[drawn_page(DRAWN_PAGE)]);
+    steps.gallery_print(0, "");
+    steps.gallery_page(STATE_SOURCE, STATE_OPENED);
+    steps.start();
+    steps.open_gallery_pair(DRAWN_PAGE, [REQUEST, PRINT], STATE_TAGS);
+    steps.measure_gallery([REQUEST, PRINT], &[0, 1, 2, 3, 4]); // Every tag is new against the parent.
+    steps.verdict(&format!("identical\t{DRAWN_ITEM}\nresult\tidentical\n"));
+}
+
+#[test]
+fn two_drawings_share_one_gallery_print_and_state_page() {
+    const BEFORE: &str = "temper/docs/design/client/web/journeys/usage-model-week/accounts-before.html";
+    const BEFORE_ITEM: &str = "web/journeys/usage-model-week/accounts-before.html";
+    let readme = format!("{STATE_README}\nAlso drawn on the gallery's state `accounts-usage-filling`.");
+    let mut steps = drawn_request(&readme, &[drawn_page(DRAWN_PAGE), drawn_page(BEFORE)]);
+    steps.gallery_print(0, "");
+    steps.gallery_page(STATE_SOURCE, STATE_OPENED);
+    steps.start();
+    for (path, pair) in [(DRAWN_PAGE, [REQUEST, PRINT]), (BEFORE, [Token::new(4), Token::new(5)])] {
+        steps.open_gallery_pair(path, pair, STATE_TAGS);
+        steps.measure_gallery(pair, &[0, 1, 2, 3, 4]);
+        steps.close_pages(pair);
+    }
+    steps.stop_and_check(0, &format!("identical\t{DRAWN_ITEM}\nidentical\t{BEFORE_ITEM}\nresult\tidentical\n"), "");
+}
+
+#[test]
+fn a_readme_must_name_one_distinct_valid_gallery_state() {
+    for readme in [
+        "Hand-made from an account's folded row.",
+        "Two examples: the gallery's state `accounts-usage-filling` and the gallery's state `account-2`.",
+        "Not a state name: the gallery's state `../accounts-usage-filling`.",
+    ] {
+        let mut steps = drawn_request(readme, &[drawn_page(DRAWN_PAGE)]);
+        steps.start();
+        steps.stop_and_check(0, &uncompared(DRAWN_ITEM, "hand-made"), "");
+    }
+}
+
+#[test]
+fn a_tui_hand_made_page_cannot_name_a_gallery_state() {
+    const DIR: &str = "temper/docs/design/client/tui/journeys/usage-model-week";
+    const README: &str = "temper/docs/design/client/tui/journeys/usage-model-week/README.md";
+    const PAGE: &str = "temper/docs/design/client/tui/journeys/usage-model-week/accounts-after.html";
+    let mut steps = Effects::default();
+    steps.begin(&[README, PAGE]);
+    steps.0.blob(TIP, &format!("{DIR}/walk"), None);
+    steps.copy_request(&[Files::same(README, STATE_README), drawn_page(PAGE)]);
+    steps.copy_print(&[]);
+    steps.hand_made_paths(DIR, &[README, PAGE]);
+    steps.start();
+    steps.stop_and_check(0, &uncompared("tui/journeys/usage-model-week/accounts-after.html", "hand-made"), "");
+}
+
+#[test]
+fn a_state_missing_from_the_gallery_is_not_compared() {
+    let mut steps = drawn_request(STATE_README, &[drawn_page(DRAWN_PAGE)]);
+    steps.gallery_print(0, "");
+    steps.0.read(&format!("{GALLERY}/{STATE_FILE}"), None);
+    steps.start();
+    steps.stop_and_check(0, &uncompared(DRAWN_ITEM, "nothing printed beside it"), "");
+}
+
+#[test]
+fn gallery_print_failure_aborts_before_chromium_without_stdout() {
+    let mut steps = drawn_request(STATE_README, &[drawn_page(DRAWN_PAGE)]);
+    steps.gallery_print(1, "error: gallery could not print\nsecond cargo diagnostic line\n");
+    steps.check(3, "", "look-render: gallery print: exit 1: error: gallery could not print\n");
+}
+
+#[test]
+fn inserting_one_inline_tag_keeps_the_following_pairs() {
+    const DRAWING: &str = "<!doctype html>\n<html><head></head><body><hr class=\"new\" data-node=7><details DATA-NODE='8'><dialog data-node=\"9\"></dialog></details></body></html>\n";
+    const DRAWING_OPEN: &str = "<!doctype html>\n<html><head></head><body><hr class=\"new\" data-node=7><details open DATA-NODE='8'><dialog open data-node=\"9\"></dialog></details></body></html>\n";
+    const STATE: &str = "<!doctype html>\n<html><head></head><body><details data-node=\"1\"><dialog data-node=\"2\"></dialog></details></body></html>\n";
+    const OPEN: &str = "<!doctype html>\n<html><head></head><body><details open data-node=\"1\"><dialog open data-node=\"2\"></dialog></details></body></html>\n";
+    const LINE_HEADER: &str = "<!doctype html>\n<html\n><head\n></head\n><body\n";
+    const LINE_TAIL: &str = "><details\n><dialog\n></dialog\n></details\n></body\n></html\n>\n";
+    let mut steps = drawn_request(STATE_README, &[Files { path: DRAWN_PAGE, source: DRAWING, copy: DRAWING_OPEN }]);
+    steps.gallery_print(0, "");
+    steps.gallery_page(STATE, OPEN);
+    steps.start();
+    let mut tags = STATE_TAGS.to_vec();
+    tags.insert(3, ("hr", 2)); // Insert between <body> and <details>.
+    steps.open_gallery_pair(DRAWN_PAGE, [REQUEST, PRINT], &tags);
+    steps.diff(
+        &format!("{LINE_HEADER}><hr class=\"new\"\n{LINE_TAIL}"),
+        &format!("{LINE_HEADER}{LINE_TAIL}"),
+        "@@ -6 +5,0 @@\n-><hr class=\"new\"\n",
+    );
+    steps.measure_gallery([REQUEST, PRINT], &[0, 1, 2, 4, 5]);
+    steps.verdict(&format!("differs\t{DRAWN_ITEM}\t-\t2 hr.new\tpair\tpresent\tnone\n{DIFFERS}"));
 }
 
 #[test]
@@ -443,7 +683,9 @@ fn edits_to_lines_with_no_start_tag_touch_nothing() {
     let document = page("button", "temper-chip");
     let (mut steps, edited) = prepared(&document, "button");
     let parent = edited.replace("press to continue", "press to sign in");
-    steps.edit(&parent, &edited, "@@ -4 +4 @@\n-<!-- press to sign in -->\n+<!-- press to continue -->\n");
+    let comparable = comparable_page("button", "temper-chip");
+    let before = comparable.replace("press to continue", "press to sign in");
+    steps.edit(&parent, [&before, &comparable], "@@ -9 +9 @@\n-<!-- press to sign in -->\n+<!-- press to continue -->\n");
     steps.verdict(NOTHING);
 }
 
@@ -589,4 +831,5 @@ fn touching_a_parent_touches_descendants_but_not_its_siblings() {
     let mut selected = [false, true, false, false, false, false];
     super::descendants(&elements, &mut selected);
     assert_eq!(selected, [false, true, true, true, false, false]);
+}
 }
