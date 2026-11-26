@@ -23,6 +23,39 @@ pub(super) fn known_head(d: &Domain, name: &Name) -> Option<Commit> {
     }
 }
 
+pub(super) fn record_head(d: &Domain, name: &Name) -> Option<Commit> {
+    d.writes.get(name)?.head
+}
+
+// The existing release explicitly takes the freshly observed head. Retain
+// the previous writes for judging later reads; the release itself is no write.
+pub(super) fn accept_head(d: &mut Domain, name: &Name, head: Commit, out: &mut Queue<Request>) {
+    if let Some(row) = d.writes.get_mut(name)
+        && row.head != Some(head)
+    {
+        row.head = Some(head);
+        save(row, out);
+    }
+}
+
+pub(super) fn nearest_order(d: &Domain, name: &Name) -> Option<u64> {
+    Some(d.writes.get(name)?.entries.last()?.order)
+}
+
+impl Domain {
+    /// The entry named by a deciding change's read (drift.md, 1).
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "step code searches the bounded record without a closure")]
+    pub fn write_entry(&self, name: &Name, order: u64) -> Option<&Written> {
+        for entry in &self.writes.get(name)?.entries {
+            if entry.order == order {
+                return Some(entry);
+            }
+        }
+        None
+    }
+}
+
 /// Absence is a branch state. A pull-only operation, or an unfilled
 /// intent, names no branch state at all.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -331,6 +364,15 @@ fn matches_pull(op: &Operation, pull: &Pull) -> bool {
     }
 }
 
+/// Keep the pull's structural verdict separate from its commits. A pull
+/// commit cannot be the found head of a change's branch drift.
+pub(super) struct PullSeen {
+    pub(super) state: Seen,
+    pub(super) head: Seen,
+    pub(super) base: Seen,
+    seen: Seen,
+}
+
 impl Domain {
     /// Judge a branch observation without deciding its caller's policy.
     pub fn observe(&mut self, name: &Name, observed: Option<Commit>, actor: Actor, out: &mut Queue<Request>) -> Seen {
@@ -390,8 +432,20 @@ impl Domain {
 
     /// Judge the pull's own state and base, and the two commits in its view.
     pub fn observe_pull(&mut self, head_branch: &Name, number: u64, read: &Pull, out: &mut Queue<Request>) -> Seen {
+        self.observe_pull_state(head_branch, number, read, None, out).seen
+    }
+
+    pub(super) fn observe_pull_state(
+        &mut self,
+        head_branch: &Name,
+        number: u64,
+        read: &Pull,
+        target: Option<&[u8]>,
+        out: &mut Queue<Request>,
+    ) -> PullSeen {
         if read.number != number || !crate::items::branch_matches(head_branch, &read.head) {
-            return self.pull_drift(head_branch);
+            let drift = self.pull_drift(head_branch);
+            return PullSeen { state: drift, head: Seen::Current, base: Seen::Current, seen: drift };
         }
         let head = self.observe(head_branch, Some(read.commit), Actor::Unknown, out);
         // The provider's names have already passed the read bound. Use the
@@ -413,8 +467,10 @@ impl Domain {
             None => Seen::Current,
         };
         let state = match self.writes.get(head_branch) {
-            Some(row) => pull::judge(row, read),
-            None if read.state == State::Closed || read.merged.is_some() => self.pull_drift(head_branch),
+            Some(row) => pull::judge(row, read, target),
+            None if read.state == State::Closed || read.merged.is_some() || pull::target_changed(read, target) => {
+                self.pull_drift(head_branch)
+            }
             None => Seen::Current,
         };
         let seen = pull::combined(pull::combined(head, base), state);
@@ -423,7 +479,7 @@ impl Domain {
         {
             readback::settle(self, head_branch, order, WriteState::Confirmed, None, Some(number), out);
         }
-        seen
+        PullSeen { state, head, base, seen }
     }
 
     fn pull_drift(&self, name: &Name) -> Seen {

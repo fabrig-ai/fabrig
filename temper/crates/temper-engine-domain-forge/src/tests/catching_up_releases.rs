@@ -599,6 +599,8 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
     use temper_engine_domain_forge_landing as policy;
     let change = fixtures::opening_row();
     let evidence = ChangeEvidence {
+        behind: None,
+        nearest_write: None,
         touched: Touched::UNKNOWN,
         size: None,
         prior: change.change.clone(),

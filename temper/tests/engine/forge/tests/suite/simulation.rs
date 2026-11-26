@@ -2466,6 +2466,11 @@ fn cancelling_a_change_comments_its_reason_then_closes_its_pull_and_deletes_its_
             Write::DeleteBranch { branch: Box::from(b"temper/51".as_slice()) },
         ]
     );
+    assert!(!world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::ChangeDecision { decision: change::Decision::Hold(_), .. }
+            | top::Request::Drift { task: RELEASE_TASK, .. }
+    )));
     assert_eq!(world.writes(), 3);
 }
 

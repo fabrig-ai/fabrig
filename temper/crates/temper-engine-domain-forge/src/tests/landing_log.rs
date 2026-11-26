@@ -117,6 +117,8 @@ fn a_pull_seen_merged_is_logged() {
         pending: Box::new([]),
         branch: Some(HEAD),
         branch_fresh: false,
+        drift: None,
+        behind: None,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
         close_landing: None,

@@ -93,6 +93,8 @@ fn facts() -> Facts {
         writer_taken: false,
         requester_branch: false,
         drift: None,
+        behind: None,
+        update_head: true,
         first: false,
         may_merge: true,
         queue_repair_active: false,
@@ -1348,12 +1350,19 @@ fn a_requesters_branch_move_during_opening_still_opens_the_pull() {
 fn a_released_missing_requester_branch_without_a_head_has_no_producer() {
     let mut c = change(State::Held { was: Box::new(State::Opening { requested: false }), why: Hold::BranchMissing });
     c.last_head = None;
-    let mut f = Facts { requester_branch: true, branch: None, pull: Pull::Missing, ..facts() };
+    let mut f = Facts {
+        requester_branch: true,
+        branch: None,
+        pull: Pull::Missing,
+        drift: Some(Hold::BranchMissing),
+        ..facts()
+    };
     let lifted = decide(&c, &f, &Heard { released: true, ..heard() });
     assert_eq!(lifted.change.state, State::Opening { requested: false });
     let missing = decide(&lifted.change, &f, &heard());
     assert_eq!(missing.decision, Decision::Hold(Hold::BranchMissing));
     f.branch = Some(NEW);
+    f.drift = None;
     let lifted = decide(&missing.change, &f, &Heard { released: true, ..heard() });
     let opening = decide(&lifted.change, &f, &heard());
     assert_eq!(opening.change.last_head, Some(NEW));
@@ -1362,6 +1371,7 @@ fn a_released_missing_requester_branch_without_a_head_has_no_producer() {
 
     f.requester_branch = false;
     f.branch = None;
+    f.drift = Some(Hold::BranchMissing);
     let produced = decide(&c, &f, &Heard { released: true, ..heard() });
     assert_eq!(produced.change.state, State::Producing { requested: false });
 }
@@ -1490,12 +1500,17 @@ fn a_move_of_a_requesters_held_branch_is_its_new_head_in_each_phase() {
 }
 
 #[test]
-fn a_move_of_its_own_branch_still_holds_it() {
+fn a_move_of_its_own_branch_holds_only_when_unexplained() {
     for (state, _) in movable_phases() {
         let c = change(state);
-        let next = decide(&c, &moved_branch(false), &heard());
-        assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::BranchMoved });
-        assert_eq!(next.decision, Decision::Hold(Hold::BranchMoved));
+        let mut f = moved_branch(false);
+        let explained = decide(&c, &f, &heard());
+        assert_eq!(explained.change.state, State::Checking { head: NEW });
+        assert_eq!(explained.decision, Decision::None);
+        f.drift = Some(Hold::BranchMoved);
+        let unexplained = decide(&c, &f, &heard());
+        assert_eq!(unexplained.change.state, State::Held { was: Box::new(c.state), why: Hold::BranchMoved });
+        assert_eq!(unexplained.decision, Decision::Hold(Hold::BranchMoved));
     }
 }
 
@@ -2247,6 +2262,7 @@ fn an_update_let_go_holds_a_moved_head_not_holding_the_base() {
     let mut f = facts();
     f.branch = Some(NEW);
     f.contains_base = Status::Failed;
+    f.drift = Some(Hold::BranchMoved);
     assert_eq!(decide(&updating_change(), &f, &heard()).decision, Decision::Hold(Hold::BranchMoved));
 }
 

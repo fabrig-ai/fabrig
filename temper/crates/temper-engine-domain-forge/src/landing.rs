@@ -1281,6 +1281,8 @@ fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvid
     crate::LandingEvidence {
         change: member,
         facts: crate::ChangeEvidence {
+            behind: None,
+            nearest_write: None,
             touched: crate::Touched::UNKNOWN,
             prior: change.change.clone(),
             head: None,

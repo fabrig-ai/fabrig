@@ -3,7 +3,7 @@ use super::{Operation, WriteState, Writes, judge::drift, matches_pull, pull_numb
 use skein_forge::api::{Pull, State};
 use temper_engine_domain_forge_vocabulary::writes::Seen;
 
-pub(super) fn judge(row: &Writes, pull: &Pull) -> Seen {
+pub(super) fn judge(row: &Writes, pull: &Pull, target: Option<&[u8]>) -> Seen {
     let mut state = None;
     let mut base = None;
     let mut was_closed = false;
@@ -41,7 +41,37 @@ pub(super) fn judge(row: &Writes, pull: &Pull) -> Seen {
             | Operation::Compare { .. } => {}
         }
     }
-    let state = if let Some(entry) = state {
+    let state = state_seen(row, pull, state, was_closed, opening);
+    let base = if let Some((entry, from, to)) = base {
+        if pull.base.as_ref() == to {
+            if entry.state.unsettled()
+                && let Operation::Retarget { .. } = entry.operation
+            {
+                Seen::Explained { order: entry.order }
+            } else {
+                Seen::Current
+            }
+        } else if from == Some(pull.base.as_ref()) {
+            if entry.state == WriteState::Confirmed { Seen::Behind { order: entry.order } } else { Seen::Current }
+        } else {
+            drift(row)
+        }
+    } else if target_changed(pull, target) {
+        drift(row)
+    } else {
+        Seen::Current
+    };
+    combined(state, base)
+}
+
+fn state_seen(
+    row: &Writes,
+    pull: &Pull,
+    state: Option<&super::Written>,
+    was_closed: bool,
+    opening: Option<u64>,
+) -> Seen {
+    if let Some(entry) = state {
         if matches_pull(&entry.operation, pull) {
             if entry.state.unsettled() { Seen::Explained { order: entry.order } } else { Seen::Current }
         } else if pull.merged.is_some() {
@@ -86,25 +116,11 @@ pub(super) fn judge(row: &Writes, pull: &Pull) -> Seen {
         Seen::Current
     } else {
         drift(row)
-    };
-    let base = if let Some((entry, from, to)) = base {
-        if pull.base.as_ref() == to {
-            if entry.state.unsettled()
-                && let Operation::Retarget { .. } = entry.operation
-            {
-                Seen::Explained { order: entry.order }
-            } else {
-                Seen::Current
-            }
-        } else if from == Some(pull.base.as_ref()) {
-            if entry.state == WriteState::Confirmed { Seen::Behind { order: entry.order } } else { Seen::Current }
-        } else {
-            drift(row)
-        }
-    } else {
-        Seen::Current
-    };
-    combined(state, base)
+    }
+}
+
+pub(super) fn target_changed(pull: &Pull, target: Option<&[u8]>) -> bool {
+    if let Some(target) = target { pull.base.as_ref() != target } else { false }
 }
 
 pub(super) fn combined(a: Seen, b: Seen) -> Seen {

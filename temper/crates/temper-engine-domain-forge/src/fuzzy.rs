@@ -80,6 +80,8 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
     let head = [1; 32];
     let clean = [[2; 32], [3; 32]];
     let evidence = ChangeEvidence {
+        behind: None,
+        nearest_write: None,
         touched: crate::Touched::UNKNOWN,
         prior: tests::fixtures::opening_row().change,
         head: Some(head),

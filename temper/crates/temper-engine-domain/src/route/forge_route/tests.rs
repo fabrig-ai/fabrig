@@ -610,6 +610,8 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
             evidence: Some(forge::ChangeEvidence {
+                behind: None,
+                nearest_write: None,
                 touched: forge::Touched::UNKNOWN,
                 size: None,
                 prior,
@@ -780,6 +782,8 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
+            behind: None,
+            nearest_write: None,
             touched: forge::Touched::UNKNOWN,
             size: None,
             prior: row.change.clone(),
@@ -1255,6 +1259,8 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
         row.ci = Some(change::Ci { head: stale, status: change::Status::Passed });
         row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::BranchMoved };
         let evidence = forge::ChangeEvidence {
+            behind: None,
+            nearest_write: None,
             touched: forge::Touched::UNKNOWN,
             prior: row.change.clone(),
             head: Some(observed),
@@ -2759,6 +2765,72 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
         let decision = super::hold_change_decision(&domain, &env, 7, why, None, None);
         let category = if why == change::Hold::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
+        assert_eq!(
+            decision.end,
+            super::StepEnd::HoldFrom {
+                why: category,
+                source: Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.into() }),
+            }
+        );
+    }
+}
+
+#[test]
+fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
+    use super::{forge, forge_change as change, tasks};
+    let expected = [0x12; 32];
+    let found = [0x89; 32];
+    let saved = [0x34; 32];
+    for (behind, why, category, words) in [
+        (
+            None,
+            change::Hold::BranchMoved,
+            tasks::Hold::Drift,
+            b"its branch moved: expected 121212121212, found 898989898989; temper's last write on it: push of 121212121212 by task 412 attempt 2, confirmed".as_slice(),
+        ),
+        (
+            Some(forge::ReadBehind { read: forge::BehindRead::Branch, expected: Some(expected), found: Some(found) }),
+            change::Hold::Stalled,
+            tasks::Hold::Stalled,
+            b"its branch reads 898989898989, an older head of temper's (expected 121212121212): the read may be stale or another's write".as_slice(),
+        ),
+    ] {
+        let mut row = change_row(Some(1));
+        row.change.last_head = Some(saved);
+        row.change.state = change::State::Checking { head: expected };
+        let prior = row.change.clone();
+        row.change.state = change::State::Held { was: Box::new(row.change.state), why };
+        let name = change_names(None)[0].clone();
+        let (domain, env, _) = restored_change([
+            forge::Stored::Change(Box::new(row)),
+            forge::Stored::BranchHead(forge::BranchHead { name: name.clone(), commit: saved, owned: true }),
+            forge::Stored::Writes(forge::Writes {
+                name,
+                head: Some(expected),
+                next: 4,
+                entries: Box::new([forge::Written {
+                    order: 3,
+                    operation: forge::writes::Operation::Push { before: Some(found), after: expected },
+                    sender: forge::Sender::Attempt { task: 412, attempt: 2 },
+                    state: forge::WriteState::Confirmed,
+                }]),
+            }),
+        ]);
+        let evidence = forge::ChangeEvidence {
+            behind,
+            nearest_write: Some(3),
+            touched: forge::Touched::UNKNOWN,
+            prior,
+            head: Some(found),
+            base_tip: [0; 32],
+            contains_base: change::Status::Unknown,
+            ci: change::Status::Unknown,
+            gates: Box::new([]),
+            reviews: Box::new([]),
+            reviews_complete: false,
+            size: None,
+        };
+        let decision = super::hold_change_decision(&domain, &env, 7, why, Some(&evidence), None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -4978,6 +5050,8 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     )
     .unwrap();
     let evidence = forge::ChangeEvidence {
+        behind: None,
+        nearest_write: None,
         touched: forge::Touched::UNKNOWN,
         size: None,
         prior: row.change.clone(),

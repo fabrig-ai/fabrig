@@ -470,10 +470,13 @@ pub struct Facts {
     /// The head of the top's outstanding gate delegate, until its terminal result.
     pub live_gate: Option<Commit>,
     pub writer_taken: bool,
-    /// Its branch is its requester's held branch (domain/forge/change/README.md, 1): a move with no
-    /// drift and no writer in the slot is its new head, checked again (8.5).
+    /// Its branch is its requester's held branch (domain/forge/change/README.md, 1).
     pub requester_branch: bool,
     pub drift: Option<Hold>,
+    /// The step is reading a state older than the record, counted from its first read.
+    pub behind: Option<Wall>,
+    /// The observed head is the outstanding update or prepare's write.
+    pub update_head: bool,
     pub first: bool,
     pub may_merge: bool,
     pub queue_repair_active: bool,
@@ -784,6 +787,37 @@ pub struct Ready {
 }
 
 impl State {
+    /// The commit named by this step, if it pins one.
+    #[must_use]
+    pub fn pinned_head(&self) -> Option<Commit> {
+        match self {
+            Self::Checking { head }
+            | Self::Gating { head, .. }
+            | Self::Queued { head, .. }
+            | Self::First { head, .. }
+            | Self::Ready { head, .. }
+            | Self::Judging { head, .. }
+            | Self::CancellingGates { head }
+            | Self::Recreating { head }
+            | Self::Landing { head } => Some(*head),
+            Self::Updating { from, .. } | Self::Preparing { from, .. } => Some(*from),
+            Self::Taking { .. }
+            | Self::Producing { .. }
+            | Self::Opening { .. }
+            | Self::Reopening { .. }
+            | Self::WaitingProducer { .. }
+            | Self::Resolving { .. }
+            | Self::Repairing { .. }
+            | Self::Landed { .. }
+            | Self::Red { .. }
+            | Self::Cleared { .. }
+            | Self::Uncleared { .. }
+            | Self::NoChange { .. }
+            | Self::Held { .. }
+            | Self::Ended => None,
+        }
+    }
+
     /// The change's procedure step, in accounts (domain/forge/waits.md, 9).
     #[must_use]
     pub fn step_name(&self) -> &'static [u8] {

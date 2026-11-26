@@ -1859,10 +1859,29 @@ pub struct GateRemark {
     pub head: skein_forge::api::Commit,
     pub words: Box<[u8]>,
 }
+/// A step read these commits before the forge's view caught up.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum BehindRead {
+    Branch,
+    Base,
+    PullHead,
+    PullBase,
+    PullState,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ReadBehind {
+    pub read: BehindRead,
+    pub expected: Option<skein_forge::api::Commit>,
+    pub found: Option<skein_forge::api::Commit>,
+}
+
 /// Coherent provider facts used by the root to check a change effect before
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
+    pub behind: Option<ReadBehind>,
+    pub nearest_write: Option<u64>,
     pub touched: crate::Touched,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,

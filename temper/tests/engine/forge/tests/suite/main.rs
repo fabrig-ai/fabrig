@@ -6,6 +6,7 @@ mod blame_open;
 mod brief;
 mod catching_up_outbox;
 mod change_history;
+mod change_reads;
 mod changes;
 mod check_record_open;
 mod delivered;

@@ -9,6 +9,7 @@ use skein_lib::{List, Queue, Wall};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Session {
     since: Wall,
+    behind: Option<crate::ReadBehind>,
     until: Wall,
     exempt: bool,
     ended: bool,
@@ -19,6 +20,7 @@ impl Session {
     fn new(env: &Env<Limits>, since: Wall) -> Self {
         Self {
             since,
+            behind: None,
             until: Wall::from_nanos(since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos())),
             exempt: false,
             ended: false,
@@ -59,6 +61,8 @@ pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) 
     let mut exempt = !super::fresh_reads_in(d)
         || row.room.is_some()
         || pending.heard.delegate_live
+        || (pending.behind.is_some() || last_behind(d, pending.task).is_some())
+            && super::change_writers(d, row, pending).0
         || waits_for_dependencies(row, pending)
         || connection_wait::waiting(d, row.task, row.repository.forge);
     if let Some(owner) = step_owner(d, row.task) {
@@ -85,6 +89,21 @@ pub(super) fn until(d: &Domain, task: u64) -> Option<Wall> {
     }
     let session = d.read_sessions.get(&task)?;
     if session.exempt { None } else { Some(session.until) }
+}
+
+pub(super) fn since(d: &Domain, task: u64) -> Option<Wall> {
+    until(d, task)?;
+    Some(d.read_sessions.get(&task)?.since)
+}
+
+pub(super) fn behind(d: &mut Domain, task: u64, read: crate::ReadBehind) {
+    if let Some(session) = d.read_sessions.get_mut(&task) {
+        session.behind = Some(read);
+    }
+}
+
+pub(super) fn last_behind(d: &Domain, task: u64) -> Option<crate::ReadBehind> {
+    d.read_sessions.get(&task)?.behind
 }
 
 /// The active read count is independent of any wait the policy last took.

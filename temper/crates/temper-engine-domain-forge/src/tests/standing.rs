@@ -48,6 +48,8 @@ fn fixture() -> (Domain, ChangeEvidence) {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let row = opening_row();
     let evidence = ChangeEvidence {
+        behind: None,
+        nearest_write: None,
         touched: Touched::UNKNOWN,
         size: None,
         prior: row.change.clone(),

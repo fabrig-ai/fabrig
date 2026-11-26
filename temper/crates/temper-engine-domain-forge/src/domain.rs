@@ -20,6 +20,7 @@ use crate::{adoption, brief, held, topics};
 mod admission;
 #[path = "catching_up.rs"]
 mod catching_up;
+mod change_reads;
 mod ci_news;
 pub(crate) mod connection_wait;
 #[cfg(test)]
@@ -137,6 +138,8 @@ pub(crate) struct PendingStep {
     pending: Box<[change::Pending]>,
     branch: Option<skein_forge::api::Commit>,
     branch_fresh: bool,
+    drift: Option<change_reads::Drift>,
+    behind: Option<crate::ReadBehind>,
     base_tip: Option<skein_forge::api::Commit>,
     base_read: Option<skein_forge::api::Commit>,
     close_landing: Option<skein_forge::api::Commit>,
@@ -5280,6 +5283,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.heard.delegate = heard.delegate;
         pending.heard.delegate_running = heard.delegate_running;
         pending.heard.delegate_live = heard.delegate_live;
+        pending.heard.cancelled = heard.cancelled;
         pending.heard.closer_waiting = heard.closer_waiting;
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
@@ -5337,6 +5341,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending: dependencies,
         branch: None,
         branch_fresh: read_branch,
+        drift: None,
+        behind: None,
         base_tip: None,
         base_read: None,
         close_landing: None,
@@ -5470,6 +5476,8 @@ fn step_verified(
         pending: Box::new([]),
         branch: d.branch_head(&crate::tiers::name(row.repository, &row.branch)).or(row.change.last_head),
         branch_fresh: false,
+        drift: None,
+        behind: None,
         base_tip: Some(merge),
         base_read: Some(merge),
         close_landing: None,
@@ -5649,14 +5657,21 @@ fn step_read(
             {
                 read.branch.at = Some(env.now);
             }
-            match result {
-                Ok(skein_forge::api::Answer::Commit(commit)) => {
-                    pending.branch = Some(commit);
-                    crate::settling::head_seen(d, pending.task, Some(commit), out);
+            pending.branch = match result {
+                Ok(skein_forge::api::Answer::Commit(commit)) => Some(commit),
+                Err(skein_forge::api::Error::Missing) => None,
+                Ok(_) | Err(_) => unreachable!("fresh read answer checked"),
+            };
+            let judgement = change_reads::branch(d, env, &pending, out);
+            if !change_reads::keep(d, env, &mut pending, judgement, out) {
+                return;
+            }
+            if pending.drift.is_none() && pending.behind.is_none() {
+                crate::settling::head_seen(d, pending.task, pending.branch, out);
+                if let Some(commit) = pending.branch {
                     if let Some(read) = d.settling.get_mut(&pending.task) {
                         read.branch.present = true;
                     }
-                    settled_update_drift(d, env, pending.task, commit, out);
                     if !made_update && rebase::pending(d, pending.task).is_none() {
                         branch_changed(
                             d,
@@ -5670,13 +5685,9 @@ fn step_read(
                         );
                     }
                 }
-                Err(skein_forge::api::Error::Missing) => {
-                    pending.branch = None;
-                    crate::settling::head_seen(d, pending.task, None, out);
-                }
-                Ok(_) | Err(_) => {
-                    unreachable!("fresh read answer checked");
-                }
+            } else if pending.behind.is_some() {
+                finish_step(d, env, pending, out);
+                return;
             }
             if goal_branch::base_wait(d, repository, &base) {
                 wait_fresh(d, pending.task, &[repository]);
@@ -5706,6 +5717,15 @@ fn step_read(
                     let tip = if let change::State::Preparing { main, .. } = preparing { main } else { commit };
                     pending.base_tip = Some(tip);
                     pending.base_read = Some(commit);
+                    let judgement = change_reads::base(d, env, &pending, commit, out);
+                    if !change_reads::keep(d, env, &mut pending, judgement, out) {
+                        return;
+                    }
+                    if pending.behind.is_some() {
+                        finish_step(d, env, pending, out);
+                        return;
+                    }
+
                     branch_changed(
                         d,
                         env,
@@ -5770,23 +5790,23 @@ fn step_read(
                     // Branch names can repeat across deployments and a repository's past.
                     let own = (pull.state == skein_forge::api::State::Open && pull.merged.is_none())
                         || row.pull == Some(pull.number);
-                    if own {
-                        crate::change_history::observed_pull(d, env.wall, pending.task, &pull, out);
-                    }
                     pending.pull = if own { Some(pull) } else { None };
                 }
-                Err(skein_forge::api::Error::Missing) => {
-                    if pull_number.is_some() {
-                        let mut row = row.clone();
-                        hold_owned_pull(d, env, &mut row, out);
-                        d.read_sessions.remove(&pending.task);
-                        return;
-                    }
-                    pending.pull = None;
-                }
+                Err(skein_forge::api::Error::Missing) => pending.pull = None,
                 Ok(_) | Err(_) => {
                     unreachable!("fresh read answer checked");
                 }
+            }
+            let judgement = change_reads::pull(d, env, &pending, out);
+            if !change_reads::keep(d, env, &mut pending, judgement, out) {
+                return;
+            }
+            if pending.behind.is_some() {
+                finish_step(d, env, pending, out);
+                return;
+            }
+            if let Some(pull) = &pending.pull {
+                crate::change_history::observed_pull(d, env.wall, pending.task, pull, out);
             }
             pending.stage = StepStage::Ci;
             let Some(commit) = pending.branch else {
@@ -6267,6 +6287,13 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
         Some(until) => env.wall >= until,
         None => false,
     };
+    if let Some(behind) = pending.behind {
+        read_session::behind(d, pending.task, behind);
+        if !pending.woken || expired {
+            change_reads::wait(d, env, pending, out);
+            return;
+        }
+    }
     if pending.woken && expired {
         wait_for_forge(d, env, &pending, None, out);
         return;
@@ -6373,6 +6400,8 @@ fn hold_read_session(
     let evidence = match pending {
         Some(pending) => step_evidence(d, &row, pending, prior),
         None => crate::ChangeEvidence {
+            behind: read_session::last_behind(d, task),
+            nearest_write: None,
             touched: crate::Touched::UNKNOWN,
             prior,
             head: row.change.last_head,
@@ -6534,31 +6563,6 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         Some(pull) => Some(pull.number),
         None => row.pull,
     };
-    if let Some(pull) = &pending.pull {
-        let changed = if pull.base != row.base {
-            Some(crate::DriftChange::Retargeted {
-                number: pull.number,
-                before: row.base.clone(),
-                after: pull.base.clone(),
-            })
-        } else if pull.state == skein_forge::api::State::Closed && pull.merged.is_none() {
-            Some(crate::DriftChange::PullClosed { number: pull.number })
-        } else {
-            None
-        };
-        if let Some(change) = changed {
-            let resource = skein_forge_client::Resource {
-                repository: row.repository,
-                what: skein_forge_client::What::Branch(row.branch.clone()),
-            };
-            if let Some(name) = from_client(&resource, &env.limits)
-                && let Some(hold) = d.holds.get_mut(&name)
-            {
-                hold.drift = Some(crate::Drift { at: env.wall, change });
-                save_hold(out, hold.clone());
-            }
-        }
-    }
     if let Some(base_tip) = pending.base_tip {
         crate::settle::observe(d, env, &row, pending.pull.as_ref(), base_tip);
     }
@@ -6996,6 +7000,17 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
 
 // The change's ended pushing child leaves no wait after its branch read.
 // Other holders and effect entries keep their own settlement.
+fn change_writers(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> (bool, bool) {
+    match change_branch_hold(d, row) {
+        Some((holder, taken)) => (
+            taken && !change_requester_writing(d, row) && !ended_branch_writer(d, row, pending)
+                || held_branch_merge(d, row),
+            holder != row.task,
+        ),
+        None => (false, false),
+    }
+}
+
 fn ended_branch_writer(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> bool {
     if pending.heard.delegate_live || !pending.branch_fresh {
         return false;
@@ -7029,42 +7044,7 @@ fn change_facts(
         Some(pull) => change::Pull::Open { head: pull.commit, base: pull.base_commit.unwrap_or(base_tip) },
         None => change::Pull::Missing,
     };
-    let retargeted = match &pending.pull {
-        Some(pull) => pull.base != row.base,
-        None => false,
-    };
-    let requester_writing = change_requester_writing(d, row);
-    let (writer_taken, requester_branch) = match change_branch_hold(d, row) {
-        Some((holder, taken)) => (
-            taken && !requester_writing && !ended_branch_writer(d, row, pending) || held_branch_merge(d, row),
-            holder != row.task,
-        ),
-        None => (false, false),
-    };
-    // A fresh procedure read can precede the keep's drift read. Only a head
-    // confirmed by the branch's writer is a requester's new head, except while
-    // its requester's own run writes it. A read of the change's previous head
-    // can still precede that confirmation.
-    let mut branch_moved = false;
-    if requester_branch
-        && !requester_writing
-        && !writer_taken
-        && pending.branch.is_some()
-        && pending.branch != row.change.last_head
-        && !matches_updating(&row.change.state)
-        && !updating_entry(d, row.task)
-    {
-        for (name, head) in &d.heads {
-            if name.forge == row.repository.forge
-                && name.repository == row.repository.repository
-                && crate::items::branch_matches(name, &row.branch)
-                && pending.branch != Some(head.commit)
-            {
-                branch_moved = true;
-                break;
-            }
-        }
-    }
+    let (writer_taken, requester_branch) = change_writers(d, row, pending);
     let may_merge = match d.repositories.get(&row.repository) {
         Some(repository) => repository.kinds.land,
         None => false,
@@ -7145,13 +7125,15 @@ fn change_facts(
         },
         writer_taken,
         requester_branch,
-        drift: if retargeted {
-            Some(change::Hold::Retargeted)
-        } else if branch_moved {
-            Some(change::Hold::BranchMoved)
-        } else {
-            row.drift
+        drift: match pending.drift {
+            Some(drift) => Some(drift.why),
+            None => None,
         },
+        behind: match pending.behind {
+            Some(_) => read_session::since(d, pending.task),
+            None => None,
+        },
+        update_head: change_reads::update_head(d, env, row, pending.branch),
         first: queue_first(d, row, env.wall, &env.limits),
         may_merge,
         queue_repair_active: pending.queue_repair_active,
@@ -7180,6 +7162,11 @@ fn has_agent_question(row: &ChangeRow) -> bool {
 
 fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: change::Change) -> crate::ChangeEvidence {
     crate::ChangeEvidence {
+        behind: pending.behind.or(read_session::last_behind(d, pending.task)),
+        nearest_write: match pending.drift {
+            Some(drift) => drift.nearest,
+            None => None,
+        },
         touched: step_touched(d, row, pending),
         prior,
         head: pending.branch,
@@ -7265,10 +7252,6 @@ fn emit_change_effect(
     };
     let Some(write) = write else {
         leave_room_change(d, row.task, out);
-        if effect == change::Effect::Open && row.pull.is_some() {
-            hold_owned_pull(d, env, row, out);
-            return;
-        }
         emit(
             out,
             Request::ChangeDecision {
@@ -7415,29 +7398,6 @@ fn emit_change_effect(
             decision: change::Decision::Effect(effect),
             entry: Some(pending.entry),
             evidence: Some(step_evidence(d, row, pending, prior)),
-        },
-    );
-}
-
-/// A numbered change never opens another pull (domain/forge/change/README.md, 2, and domain/forge/change/drift.md, 1).
-fn hold_owned_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, out: &mut Queue<Request>) {
-    let before = crate::panel::ready(row);
-    let prior = row.change.clone();
-    row.change.state = relay_hold(&row.change.state, change::Hold::PullClosed);
-    row.change.released = None;
-    row.change.owns_turn = false;
-    crate::change_history::advanced(d, env.wall, row, &prior, out);
-    crate::landing::change_advanced(d, row, &prior, out);
-    d.changes.insert(row.task, row.clone()).expect("retained change");
-    wake_after_turn(d, row, prior.owns_turn);
-    save_queue_change(d, env, before, row.clone(), out);
-    emit(
-        out,
-        Request::ChangeDecision {
-            task: row.task,
-            decision: change::Decision::Hold(change::Hold::PullClosed),
-            entry: None,
-            evidence: None,
         },
     );
 }
@@ -7685,34 +7645,6 @@ pub(crate) fn change_outcome(
     emit(out, Request::ChangeDecision { task, decision: change::Decision::None, entry: None, evidence: None });
 }
 
-/// The old head may still be read while an asynchronous update appears; a third head is not its answer.
-fn settled_update_drift(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    task: u64,
-    observed: skein_forge::api::Commit,
-    out: &mut Queue<Request>,
-) {
-    let Some(row) = d.changes.get(&task) else { return };
-    let (change::State::Updating { from, .. } | change::State::Preparing { from, .. }) = row.change.state else {
-        return;
-    };
-    if row.pending.is_some() || row.effect != change::EffectResult::Made || observed == from {
-        return;
-    }
-    let resource = skein_forge_client::Resource {
-        repository: row.repository,
-        what: skein_forge_client::What::Branch(row.branch.clone()),
-    };
-    let Some(name) = from_client(&resource, &env.limits) else { return };
-    if let Some(head) = d.heads.get(&name)
-        && head.commit != observed
-    {
-        let expected = head.commit;
-        drift(d, env, resource, crate::DriftChange::Branch { expected, observed: Some(observed) }, out);
-    }
-}
-
 pub(crate) fn matches_updating(state: &change::State) -> bool {
     updating_base(state).is_some()
 }
@@ -7851,6 +7783,7 @@ fn accept_released_branch(
         what: skein_forge_client::What::Branch(row.branch.clone()),
     };
     let Some(name) = from_client(&resource, &env.limits) else { return };
+    writes::accept_head(d, &name, head, out);
     if let Some(hold) = d.holds.get_mut(&name) {
         hold.drift = None;
         save_hold(out, hold.clone());
@@ -10216,28 +10149,6 @@ fn publish(d: &Domain, topic: Topic, news: News, out: &mut Queue<Request>) {
                 },
             );
         }
-    }
-}
-
-#[expect(
-    clippy::match_like_matches_macro,
-    clippy::wildcard_enum_match_arm,
-    reason = "the outbox test uses explicit matches in this strict subset"
-)]
-fn updating_entry(d: &Domain, task: u64) -> bool {
-    let Some(change) = d.changes.get(&task) else { return false };
-    // domain/landing-prepare.md, 1.2: the pending prepare's rebase moves its own branch.
-    if !match change.change.state {
-        change::State::Updating { .. } | change::State::Preparing { .. } => true,
-        _ => false,
-    } {
-        return false;
-    }
-    let Some(number) = change.pending else { return false };
-    let Some(Outboxed { entry, .. }) = d.entries.get(&number) else { return false };
-    match entry.effect.write {
-        skein_forge::api::Write::Update { .. } => true,
-        _ => false,
     }
 }
 

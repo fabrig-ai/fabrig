@@ -563,6 +563,8 @@ fn held_landing_judgements_wait_and_are_woken_by_fresh_reads() {
     let mut row = fixtures::opening_row();
     row.change.state = c::State::Landing { head: HEAD };
     let evidence = ChangeEvidence {
+        behind: None,
+        nearest_write: None,
         touched: Touched::UNKNOWN,
         prior: row.change.clone(),
         head: Some(HEAD),
