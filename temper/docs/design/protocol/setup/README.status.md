@@ -1,6 +1,6 @@
 # setup: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-26. Where temper's code lags or departs from [README.md](README.md).
 
 `owned.md`, section 6, and `crate-layout.md`, section 1's shared fetch and launcher are present:
 `temper-fetch` owns the machine and Claude pin, `temper-fetch-shell`

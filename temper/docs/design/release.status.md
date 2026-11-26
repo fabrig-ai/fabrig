@@ -1,6 +1,6 @@
 # release: status
 
-2026-11-25. Where temper's code lags or departs from [release.md](release.md).
+2026-11-26. Where temper's code lags or departs from [release.md](release.md).
 
 5.1's workflow, `.github/workflows/release-macos.yml`, is built, its
 strip and ad hoc signature with it, and has not yet run: no dispatch
@@ -21,3 +21,6 @@ through their tables, the client's through `line`.
   its start; only `temper-box init` warns of a missing git
   (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
+- **Not yet:** 4: the box's forge fetch taking the packed files from
+  fabrig.ai; it still fetches from the projects' sites and Homebrew's
+  bottles [in flight: change 18878].

@@ -1,6 +1,10 @@
 # limits: status
 
-2026-11-18. Where the tree's code lags or departs from [limits.md](limits.md).
+2026-11-26. Where the tree's code lags or departs from [limits.md](limits.md).
+
+- **Not yet:** 4: `setup.fetch_bytes` bounding a packed binary's
+  unpacked bytes; the fetch still bounds a bottle's extraction with it
+  [in flight: change 18878].
 
 
 
