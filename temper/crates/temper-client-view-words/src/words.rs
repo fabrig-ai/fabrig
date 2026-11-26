@@ -2025,6 +2025,23 @@ pub enum Word {
     PublicLanded,
     PublicFolded,
     PublicStaleProofs,
+    PublicWaitRelease,
+    PublicWaitReady,
+    PublicWaitTurn,
+    PublicWaitPrepare,
+    PublicWaitPrefixes,
+    PublicWaitOpen,
+    PublicWaitClose,
+    PublicWaitDelete,
+    PublicWaitPost,
+    PublicWaitRun,
+    PublicWaitReceipt,
+    PublicWaitJudgement,
+    PublicWaitMerge,
+    PublicWaitRecord,
+    PublicWaitAncestry,
+    PublicWaitRead,
+    PublicWaitRoom,
     PublicTitleCut,
     PublicAsOf,
     PublicBoardLede,
@@ -2332,7 +2349,8 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2908;
+// Landing waits add 17 literal phrases (client/web/public.md, 3).
+const PHRASES: u32 = 2925;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2359,10 +2377,11 @@ const PHRASES: u32 = 2908;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5445;
+// Landing waits add 17 literal segments (client/web/public.md, 3).
+const SEGMENTS: u32 = 5462;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 67859;
-const ALL: [Word; 2155] = [
+const ENGLISH_BYTES: u32 = 68496;
+const ALL: [Word; 2172] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -4290,6 +4309,23 @@ const ALL: [Word; 2155] = [
     Word::PublicLanded,
     Word::PublicFolded,
     Word::PublicStaleProofs,
+    Word::PublicWaitRelease,
+    Word::PublicWaitReady,
+    Word::PublicWaitTurn,
+    Word::PublicWaitPrepare,
+    Word::PublicWaitPrefixes,
+    Word::PublicWaitOpen,
+    Word::PublicWaitClose,
+    Word::PublicWaitDelete,
+    Word::PublicWaitPost,
+    Word::PublicWaitRun,
+    Word::PublicWaitReceipt,
+    Word::PublicWaitJudgement,
+    Word::PublicWaitMerge,
+    Word::PublicWaitRecord,
+    Word::PublicWaitAncestry,
+    Word::PublicWaitRead,
+    Word::PublicWaitRoom,
     Word::PublicTitleCut,
     Word::PublicAsOf,
     Word::PublicBoardLede,
@@ -6535,6 +6571,23 @@ impl Word {
             Self::PublicLanded => 3021,
             Self::PublicFolded => 3022,
             Self::PublicStaleProofs => 3023,
+            Self::PublicWaitRelease => 9120,
+            Self::PublicWaitReady => 9121,
+            Self::PublicWaitTurn => 9122,
+            Self::PublicWaitPrepare => 9123,
+            Self::PublicWaitPrefixes => 9124,
+            Self::PublicWaitOpen => 9125,
+            Self::PublicWaitClose => 9126,
+            Self::PublicWaitDelete => 9127,
+            Self::PublicWaitPost => 9128,
+            Self::PublicWaitRun => 9129,
+            Self::PublicWaitReceipt => 9130,
+            Self::PublicWaitJudgement => 9131,
+            Self::PublicWaitMerge => 9132,
+            Self::PublicWaitRecord => 9133,
+            Self::PublicWaitAncestry => 9134,
+            Self::PublicWaitRead => 9135,
+            Self::PublicWaitRoom => 9136,
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
             Self::PublicBoardLede => 3915,
@@ -8176,6 +8229,23 @@ const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'stati
         Word::PublicLanded => (&[b"landed"], &[]),
         Word::PublicFolded => (&[b"", b" lines folded"], &[Number]),
         Word::PublicStaleProofs => (&[b"", b" stale proofs"], &[Number]),
+        Word::PublicWaitRelease => (&[b"Waits for: its release"], &[]),
+        Word::PublicWaitReady => (&[b"Waits for: a member's change to be ready"], &[]),
+        Word::PublicWaitTurn => (&[b"Waits for: the turn"], &[]),
+        Word::PublicWaitPrepare => (&[b"Waits for: the round's prepare job"], &[]),
+        Word::PublicWaitPrefixes => (&[b"Waits for: the prepared prefixes"], &[]),
+        Word::PublicWaitOpen => (&[b"Waits for: the round's pull request to open"], &[]),
+        Word::PublicWaitClose => (&[b"Waits for: the round's pull request to close"], &[]),
+        Word::PublicWaitDelete => (&[b"Waits for: a member's branch to be deleted"], &[]),
+        Word::PublicWaitPost => (&[b"Waits for: a gate's status to be posted"], &[]),
+        Word::PublicWaitRun => (&[b"Waits for: a gate's run"], &[]),
+        Word::PublicWaitReceipt => (&[b"Waits for: a gate's receipt"], &[]),
+        Word::PublicWaitJudgement => (&[b"Waits for: a member's judgement at its prefix"], &[]),
+        Word::PublicWaitMerge => (&[b"Waits for: the turn's merge"], &[]),
+        Word::PublicWaitRecord => (&[b"Waits for: a member's pull request to be recorded as merged"], &[]),
+        Word::PublicWaitAncestry => (&[b"Waits for: a branch to be checked for a member's head"], &[]),
+        Word::PublicWaitRead => (&[b"Waits for: a fresh read of its facts from the forge"], &[]),
+        Word::PublicWaitRoom => (&[b"Waits for: room in the forge's outbox"], &[]),
         Word::Projects => (&[b"Projects"], &[]),
         Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
         Word::ForgeRemove => (&[b"Remove"], &[]),

@@ -719,6 +719,7 @@ fn landings() -> Box<temper_engine_domain_forge::Document> {
         project: 7,
         turn: Some(50),
         landings: Box::new([f::LandingLine {
+            waits: None,
             step: None,
             last_event: None,
             train: None,

@@ -6,7 +6,7 @@ use skein_lib::{Env, List, Map, Queue, Set, Wall};
 
 mod change;
 mod closer;
-mod landing;
+pub(crate) mod landing;
 
 #[derive(Debug, Hash)]
 pub(crate) struct State {
@@ -240,7 +240,7 @@ fn publish(d: &mut Domain, env: &Env<Limits>, task: u64, force: bool, out: &mut 
     let waits = if d.changes.contains_key(&task) {
         change::waits(d, env, task)
     } else if d.landing.rows.contains_key(&task) {
-        landing::waits(d, env, task)
+        landing::waits(d, &env.limits, task)
     } else if d.closing.rows.contains_key(&task) {
         closer::waits(d, env, task)
     } else {

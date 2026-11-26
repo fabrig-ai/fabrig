@@ -121,6 +121,7 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
         members.push(member(limits)).unwrap();
     }
     w::PublicLanding {
+        wait: Some(w::PublicLandingWait::Release),
         search: Some(w::PublicSearch {
             green: w::PublicSearchBound { member: 0, prefix: [255; 32] },
             red: w::PublicSearchBound { member: u16::MAX, prefix: [255; 32] },

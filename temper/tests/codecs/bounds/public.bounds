@@ -8,11 +8,12 @@ PublicGateNumber: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 PublicGateProof: ceilings encoded=15 decoded=0; at_most(3) encoded=15 decoded=0
 PublicHold: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PublicJudgement: ceilings encoded=741 decoded=1024; at_most(3) encoded=70 decoded=48
-PublicLanding: ceilings encoded=8716 decoded=11776; at_most(3) encoded=1108 decoded=1248
+PublicLanding: ceilings encoded=8718 decoded=11776; at_most(3) encoded=1110 decoded=1248
 PublicLandingHold: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PublicLandingLine: ceilings encoded=281 decoded=272; at_most(3) encoded=111 decoded=102
 PublicLandingPhase: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PublicLandingStep: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+PublicLandingWait: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PublicLandings: ceilings encoded=67405 decoded=89600; at_most(3) encoded=466 decoded=762
 PublicLeave: ceilings encoded=73 decoded=0; at_most(3) encoded=73 decoded=0
 PublicMember: ceilings encoded=1074 decoded=1152; at_most(3) encoded=328 decoded=96
@@ -26,4 +27,4 @@ PublicStep: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PublicUsed: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 PublicVerdict: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PublicWay: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-family: ceilings encoded=67405 decoded=89600; at_most(3) encoded=1108 decoded=1248
+family: ceilings encoded=67405 decoded=89600; at_most(3) encoded=1110 decoded=1248

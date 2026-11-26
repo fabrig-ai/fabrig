@@ -160,6 +160,23 @@ field PublicMember gates type=list 8 PublicGateProof tag=- default=-
 field PublicMember head type=option fixed 32 tag=- default=-
 field PublicMember left type=option PublicLeave tag=- default=-
 field PublicMember judgement type=option PublicJudgement tag=- default=-
+variant PublicLandingWait release tag=0 payload=-
+variant PublicLandingWait ready tag=1 payload=-
+variant PublicLandingWait turn tag=2 payload=-
+variant PublicLandingWait prepare tag=3 payload=-
+variant PublicLandingWait prefixes tag=4 payload=-
+variant PublicLandingWait open tag=5 payload=-
+variant PublicLandingWait close tag=6 payload=-
+variant PublicLandingWait delete tag=7 payload=-
+variant PublicLandingWait post tag=8 payload=-
+variant PublicLandingWait run tag=9 payload=-
+variant PublicLandingWait receipt tag=10 payload=-
+variant PublicLandingWait judgement tag=11 payload=-
+variant PublicLandingWait merge tag=12 payload=-
+variant PublicLandingWait record tag=13 payload=-
+variant PublicLandingWait ancestry tag=14 payload=-
+variant PublicLandingWait read tag=15 payload=-
+variant PublicLandingWait room tag=16 payload=-
 record PublicLanding versioned=true
 field PublicLanding phase type=PublicLandingPhase tag=- default=-
 field PublicLanding hold type=option PublicLandingHold tag=- default=-
@@ -170,3 +187,4 @@ field PublicLanding holds_turn type=bool tag=- default=-
 field PublicLanding combined type=option PublicCombined tag=- default=-
 field PublicLanding step type=option PublicLandingStep tag=- default=-
 field PublicLanding search type=option PublicSearch tag=- default=-
+field PublicLanding wait type=option PublicLandingWait tag=- default=-

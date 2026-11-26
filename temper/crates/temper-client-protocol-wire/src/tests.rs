@@ -4,6 +4,7 @@ mod checkpoints;
 mod drafts;
 mod findings;
 mod fixtures;
+mod landing_waits;
 mod opened;
 mod parts;
 mod source;

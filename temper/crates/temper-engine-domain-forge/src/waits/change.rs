@@ -65,7 +65,7 @@ fn waited(d: &Domain, env: &Env<Limits>, row: &ChangeRow) -> Option<Reported> {
     if row.ending.is_some() || d.releases.contains_key(&row.task) {
         return None;
     }
-    if let Some(wait) = room::waited(d, env, row.task, phase) {
+    if let Some(wait) = room::waited(d, &env.limits, row.task, phase) {
         return Some(wait);
     }
     if let State::Landed { since, .. } = row.change.state {

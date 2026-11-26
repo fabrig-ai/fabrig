@@ -1788,6 +1788,11 @@ fn landing_view() -> forge::LandingView {
             gate: Some(b"tests".as_slice().into()),
             run: Some(412),
             landing: None,
+            since: Some(skein_lib::Wall::from_nanos(30)),
+            bound: Some(jig_domain_core::Bound::At {
+                at: skein_lib::Wall::from_nanos(50),
+                then: jig_domain_core::AtBound::Hold,
+            }),
         }),
         probe: None,
         train: Some(forge::LandingTrain {
@@ -2045,6 +2050,8 @@ fn a_landing_view_encodes_to_its_panel() {
         (&wait.on, &wait.change, wait.gate.as_deref(), &wait.run, &wait.landing),
         (&w::LandingWaitFor::Run, &Some(51), Some(b"tests".as_slice()), &Some(412), &None)
     );
+    assert_eq!(wait.since, Some(30));
+    assert_eq!(wait.bound, Some(w::LandingWaitBound::At(w::LandingWaitAt { at: 50, then: w::LandingWaitThen::Hold })));
     assert_eq!(
         (got.task, got.project, &got.phase, got.preparation, got.stale_proofs, &got.turn),
         (61, 7, &w::LandingPhase::Proving, 2, 3, &Some(62))
@@ -2092,6 +2099,7 @@ fn a_landings_view_encodes_to_its_list() {
         project: 7,
         turn: Some(61),
         landings: Box::new([forge::LandingLine {
+            waits: landing_view().waits,
             step: Some(forge::LandingStep::Turn),
             last_event: Some(skein_lib::Wall::from_nanos(80)),
             train: None,
@@ -2109,6 +2117,11 @@ fn a_landings_view_encodes_to_its_list() {
     assert_eq!(got.landings.len(), 1);
     let row = got.landings.get(0).unwrap();
     assert_eq!((row.task, &row.phase), (61, &w::LandingPhase::Turn));
+    assert_eq!(row.waits.as_ref().unwrap().since, Some(30));
+    assert_eq!(
+        row.waits.as_ref().unwrap().bound,
+        Some(w::LandingWaitBound::At(w::LandingWaitAt { at: 50, then: w::LandingWaitThen::Hold }))
+    );
     assert_eq!((&row.step, &row.last_event), (&Some(w::LandingStep::Turn), &Some(80)));
     assert_eq!(row.changes.as_slice(), &[51]);
     assert_eq!(row.repositories.as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);

@@ -249,6 +249,7 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
         members.push(member(limits)).expect("seed 1: fixture within ceilings");
     }
     w::PublicLanding {
+        wait: Some(w::PublicLandingWait::Release),
         search: None,
         combined: None,
         step: None,
