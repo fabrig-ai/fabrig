@@ -305,7 +305,7 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 fn each_derivation_names_every_tool() {
     let mut forms = List::with_capacity(fixtures::tool_forms());
     let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
-    for words in fixtures::EVERY_TOOL.iter().chain(restore) {
+    for words in fixtures::EVERY_TOOL.iter().chain(restore).chain([&super::jig::project_waits::FILTERED]) {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
             let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
@@ -512,6 +512,16 @@ fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
     {
         reference_matches(group, page);
     }
+}
+#[test]
+fn help_waits_names_the_read_and_matches_its_reference() {
+    let call = fixtures::call(&["help", "waits"]);
+    assert_eq!(crate::help::selection(&call), Some(crate::help::Selection::Tool(jig::rows::WAITS_AT)));
+    let help = fixtures::help(Some(jig::rows::WAITS_AT));
+    assert!(
+        help.starts_with(b"waits --project PROJECT [--kind KIND] [--party PARTY] [--due WITHIN] [--after CURSOR]\n")
+    );
+    reference_matches(b"waits", b"ctl-waits");
 }
 #[test]
 fn the_sign_in_reference_is_what_the_table_renders() {

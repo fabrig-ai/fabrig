@@ -1,24 +1,74 @@
-//! A task's supplied wait records (client/ctl/results.md, 1 and 2).
+//! Supplied wait records, on tasks and in project pages (client/ctl/results.md, 1 and 2).
 use super::{Cut, Me, Text, acts, clock, llm};
-use crate::jig::render::Parts;
+use crate::jig::{
+    call::{Call, value},
+    render::{Parts, lists},
+    rows::wait_kind_word as kind,
+};
 use jig_client::contract::{self as c, waits::Bound};
 use skein_json::writer::Encoder;
 use skein_lib::Wall;
 
-const fn kind(value: c::WaitKind) -> &'static [u8] {
-    match value {
-        c::WaitKind::Party => b"party",
-        c::WaitKind::Question => b"question",
-        c::WaitKind::Dependency => b"dependency",
-        c::WaitKind::Resource => b"resource",
-        c::WaitKind::Account => b"account",
-        c::WaitKind::Host => b"host",
-        c::WaitKind::Delegate => b"delegate",
-        c::WaitKind::News => b"news",
-        c::WaitKind::Step => b"step",
-        c::WaitKind::Room => b"room",
-        c::WaitKind::Turn => b"turn",
-        c::WaitKind::SignOff => b"sign-off",
+pub(super) fn page_text(
+    page: &c::WaitPage,
+    project: u32,
+    call: &Call,
+    me: Option<&Me>,
+    vocabulary: &dyn Parts,
+    out: &mut Text,
+) {
+    out.put(b"waits of project ");
+    out.number(u64::from(project));
+    out.put(b" \xc2\xb7 now ");
+    clock::deadline(page.now, out);
+    out.put(b"\n");
+    for row in &page.rows {
+        out.number(row.chip.task);
+        out.put(b" ");
+        out.words(row.chip.title.bytes());
+        out.put(b" \xc2\xb7 ");
+        line(&row.wait, overdue(&row.wait, page.now), me, vocabulary, out);
+        hearer(&row.wait, me, out);
+        out.put(b"\n");
+    }
+    if page.rows.is_empty() {
+        let filtered = value(call, 1).is_some() || value(call, 2).is_some() || value(call, 3).is_some();
+        out.put(if filtered { b"no waits match\n" } else { b"no waits\n" });
+    }
+    if page.after.is_some() {
+        lists::next(call, 4, page.after.as_ref(), out);
+    }
+}
+
+pub(super) fn encode_page(page: &c::WaitPage, call: &Call, out: &mut Encoder, budget: &mut Cut) {
+    out.object_start();
+    out.key(b"now");
+    out.unsigned(page.now.as_nanos());
+    out.key(b"waits");
+    out.array_start();
+    for row in &page.rows {
+        out.object_start();
+        out.key(b"chip");
+        super::encode_chip(&row.chip, out, budget);
+        out.key(b"wait");
+        encode_wait(&row.wait, out, budget);
+        out.key(b"overdue");
+        out.boolean(overdue(&row.wait, page.now).is_some());
+        out.object_end();
+    }
+    out.array_end();
+    out.key(b"read_on");
+    match &page.after {
+        Some(after) => out.string(&lists::read_on(call, 4, after)),
+        None => out.null(),
+    }
+    out.object_end();
+}
+
+fn overdue(wait: &c::Wait, now: Wall) -> Option<Wall> {
+    match wait.bound {
+        Bound::At { at, then: c::AtBound::Overdue } if at <= now => Some(at),
+        Bound::At { .. } | Bound::None(_) => None,
     }
 }
 
@@ -54,10 +104,7 @@ pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn Parts, out:
     for wait in &task.waits {
         out.put(b"  ");
         wait_text(wait, me, vocabulary, out);
-        if let Some(hears) = wait.hears {
-            out.put(b" \xc2\xb7 hears ");
-            holder(hears, me, out);
-        }
+        hearer(wait, me, out);
         out.put(b"\n");
     }
     let more = task.wait_count.saturating_sub(task.waits.len());
@@ -94,12 +141,28 @@ pub(super) fn overdue(bound: Bound, wall: Wall) -> bool {
 
 /// One wait with its own bound, without the document's hearer suffix.
 pub fn wait_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
+    line(wait, None, me, vocabulary, out);
+}
+
+fn line(wait: &c::Wait, overdue_since: Option<Wall>, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     object_text(wait, me, vocabulary, out);
     since(wait.since, out);
     out.put(b" \xc2\xb7 ");
+    if let Some(at) = overdue_since {
+        out.put(b"overdue since ");
+        clock::deadline(at, out);
+        return;
+    }
     match wait.bound {
         Bound::At { at, then } => at_bound(at, then, out),
         Bound::None(reason) => no_bound(reason, out),
+    }
+}
+
+fn hearer(wait: &c::Wait, me: Option<&Me>, out: &mut Text) {
+    if let Some(hears) = wait.hears {
+        out.put(b" \xc2\xb7 hears ");
+        holder(hears, me, out);
     }
 }
 

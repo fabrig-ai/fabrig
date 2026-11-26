@@ -422,8 +422,12 @@ fn encode_bound(bound: Bound, out: &mut Encoder) {
             out.unsigned(most);
             out.object_end();
         }
-        Bound::Seconds { most } => {
+        Bound::Seconds { least, most } => {
             out.object_start();
+            if least != 0 {
+                out.key(b"least");
+                out.unsigned(least);
+            }
             out.key(b"seconds");
             out.unsigned(most);
             out.object_end();

@@ -207,6 +207,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::ROLE_SHOW_AT
         | rows::GOAL_SHOW_AT
         | rows::PROJECT_SHOW_AT
+        | rows::WAITS_AT
         | rows::DEPLOYMENT_CENSUS_AT
         | rows::WORKER_LIST_AT..=rows::WORKER_REMOVE_AT
         | rows::WORKER_PAUSE_AT..=rows::WORKER_RESUME_AT => {

@@ -25,6 +25,7 @@ mod chat_template;
 
 mod amend_choice;
 
+pub(super) mod project_waits;
 mod task_waits;
 mod task_words;
 

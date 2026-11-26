@@ -85,6 +85,9 @@ pub(super) fn text(
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => {
                 super::super::lists::tasks(page, call, limits, book, out);
             }
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Waits(page))) => {
+                super::waits::page_text(page, reading.project.expect("waits project"), call, me, vocabulary, out);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) => {
                 super::super::activity::page(page, call, limits, out);
             }
@@ -223,6 +226,9 @@ pub(super) fn encode(
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => {
                 encode_tasks(reading, page, limits, out, budget);
+            }
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Waits(page))) => {
+                super::waits::encode_page(page, call, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) => {
                 if compound {

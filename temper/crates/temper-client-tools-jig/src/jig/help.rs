@@ -201,8 +201,14 @@ pub fn argument_bound(argument: &Argument, limits: &Limits, out: &mut Writer) ->
             out.put(Decimal::of(most).as_bytes())?;
             out.put(b" bytes")?;
         }
-        Bound::Seconds { most } => {
-            out.put(b", at most ")?;
+        Bound::Seconds { least, most } => {
+            if least == 0 {
+                out.put(b", at most ")?;
+            } else {
+                out.put(b", from ")?;
+                out.put(Decimal::of(least).as_bytes())?;
+                out.put(b" to ")?;
+            }
             out.put(Decimal::of(most).as_bytes())?;
             out.put(b" seconds")?;
         }

@@ -110,7 +110,7 @@ pub enum Bound {
     None,
     Numbers { least: u64, most: u64 },
     Bytes { most: u64 },
-    Seconds { most: u64 },
+    Seconds { least: u64, most: u64 },
 }
 /// One source for the parser's checks and the help.
 #[must_use]
@@ -126,9 +126,11 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
             Bound::Bytes { most: limits.ask_bytes }
         }
         Kind::File if argument.name == b"body" => Bound::Bytes { most: 4096 },
-        Kind::Duration if argument.name == b"timeout" => {
-            Bound::Seconds { most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor") }
-        }
+        Kind::Duration if argument.name == b"timeout" => Bound::Seconds {
+            least: 0,
+            most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor"),
+        },
+        Kind::Duration if argument.name == b"due" => Bound::Seconds { least: 1, most: 2_592_000 },
         Kind::Number
         | Kind::Amount
         | Kind::File

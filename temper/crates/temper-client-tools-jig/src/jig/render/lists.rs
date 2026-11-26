@@ -179,6 +179,9 @@ fn continuation(call: &Call, index: usize, cursor: &c::Cursor, out: &mut Text) {
     let mut call = call.clone();
     *call.values.get_mut(index).expect("continuation argument") =
         Some(Values::One(Value::Cursor(cursor.value.bytes().into())));
+    if call.tool == crate::jig::rows::WAITS_AT {
+        out.put(b"temper ctl ");
+    }
     write_call(&call, out);
 }
 pub(super) fn write_call(call: &Call, out: &mut Text) {
@@ -191,6 +194,7 @@ pub(super) fn write_call(call: &Call, out: &mut Text) {
         5 => &crate::jig::rows::ACTIVITY,
         crate::jig::rows::MILESTONE_LIST_AT => &crate::jig::rows::MILESTONE_LIST,
         crate::jig::rows::ROLE_LIST_AT => &crate::jig::rows::ROLE_LIST,
+        crate::jig::rows::WAITS_AT => &crate::jig::rows::WAITS,
         _ => unreachable!("paged read"),
     };
     call.tool = 0;

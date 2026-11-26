@@ -4,6 +4,7 @@ use super::table::{
     Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
+use jig_client::contract::WaitKind;
 /// Worker shorthands (client/ctl/workers.md, 1–3).
 pub const WORKER_LIST_AT: u8 = 106;
 pub const WORKER_ADD_AT: u8 = 107;
@@ -136,6 +137,71 @@ pub const INBOX: Tool = Tool {
     keyed: Keyed::Never,
     area: 1,
     notes: b"Questions, proposals, escalations and person tasks come first;\nupdates, results and replies, follow once those are read whole.\nA page holds at most 32 lines. A filtered or continued read has\nno digest: wait on the inbox unfiltered.\n",
+};
+pub const WAITS_AT: u8 = 121;
+pub(crate) const WAIT_KINDS: [WaitKind; 12] = [
+    WaitKind::Party,
+    WaitKind::Question,
+    WaitKind::Dependency,
+    WaitKind::Resource,
+    WaitKind::Account,
+    WaitKind::Host,
+    WaitKind::Delegate,
+    WaitKind::News,
+    WaitKind::Step,
+    WaitKind::Room,
+    WaitKind::Turn,
+    WaitKind::SignOff,
+];
+const WAIT_KIND_WORDS: [&[u8]; 12] = {
+    let [party, question, dependency, resource, account, host, delegate, news, step, room, turn, sign_off] = WAIT_KINDS;
+    [
+        wait_kind_word(party),
+        wait_kind_word(question),
+        wait_kind_word(dependency),
+        wait_kind_word(resource),
+        wait_kind_word(account),
+        wait_kind_word(host),
+        wait_kind_word(delegate),
+        wait_kind_word(news),
+        wait_kind_word(step),
+        wait_kind_word(room),
+        wait_kind_word(turn),
+        wait_kind_word(sign_off),
+    ]
+};
+pub(crate) const fn wait_kind_word(value: WaitKind) -> &'static [u8] {
+    match value {
+        WaitKind::Party => b"party",
+        WaitKind::Question => b"question",
+        WaitKind::Dependency => b"dependency",
+        WaitKind::Resource => b"resource",
+        WaitKind::Account => b"account",
+        WaitKind::Host => b"host",
+        WaitKind::Delegate => b"delegate",
+        WaitKind::News => b"news",
+        WaitKind::Step => b"step",
+        WaitKind::Room => b"room",
+        WaitKind::Turn => b"turn",
+        WaitKind::SignOff => b"sign-off",
+    }
+}
+
+pub const WAITS: Tool = Tool {
+    name: b"waits",
+    line: b"Read a project's live waits, overdue first",
+    prints: b"The project's waits and the page's time; a line per wait with its task, kind, object, since, bound and who hears, then a continuation if there is another page",
+    result: b"waits",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"kind", b"KIND", Kind::Word { set: &WAIT_KIND_WORDS }, Optional, b"Only waits of this kind"),
+        flag(b"party", b"PARTY", Kind::Number, Optional, b"Only waits at or heard by this party or its roles"),
+        flag(b"due", b"WITHIN", Kind::Duration, Optional, b"Only waits with bounds due within this duration, including those already past; at most 30 days"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on with the same filters"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Overdue waits come first, then the other bounded waits, then those\nwithout a bound. Within each group, waits are by bound if any,\nthen by task. Continued pages use the first page's time.\n",
 };
 pub const TASKS: Tool = Tool {
     name: b"task list",
