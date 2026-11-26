@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1166468070 decoded=1167046112; at_most(3) encoded=3839 decoded=2931
+ChangeHot: ceilings encoded=1163113446 decoded=1163433440; at_most(3) encoded=3839 decoded=2931
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeReply: ceilings encoded=533 decoded=512; at_most(3) encoded=24 decoded=3
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
@@ -504,8 +504,8 @@ RuleApproval: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 RuleGate: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 RulePattern: ceilings encoded=69641 decoded=69632; at_most(3) encoded=15 decoded=6
 RunWriter: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
-RunnerBaseline: ceilings encoded=3407876 decoded=3670016; at_most(3) encoded=160 decoded=168
-RunnerCi: ceilings encoded=3407877 decoded=3670016; at_most(3) encoded=161 decoded=168
+RunnerBaseline: ceilings encoded=53252 decoded=57344; at_most(3) encoded=160 decoded=168
+RunnerCi: ceilings encoded=53253 decoded=57344; at_most(3) encoded=161 decoded=168
 RunnerHold: ceilings encoded=516 decoded=512; at_most(3) encoded=7 decoded=3
 Segment: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
 Segments: ceilings encoded=65540 decoded=65536; at_most(3) encoded=7 decoded=3

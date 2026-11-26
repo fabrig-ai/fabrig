@@ -6851,6 +6851,7 @@ dependencies = [
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-protocol-reaches",
+ "temper-protocol-store",
 ]
 
 [[package]]

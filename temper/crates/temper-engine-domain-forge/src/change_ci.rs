@@ -183,6 +183,7 @@ fn append(words: &mut List<u8>, part: &[u8]) {
     }
 }
 
+// Every admitted check can contribute one attempt to the stored release baseline.
 pub(super) fn release_baseline(checks: &[api::Status], head: Commit) -> Box<[JobAttempt]> {
     let mut attempts = List::with_capacity(u32::try_from(checks.len()).expect("bounded checks"));
     for check in checks {
@@ -252,3 +253,6 @@ fn runner_fault(run: &api::Run, attempt: JobAttempt, head: Commit) -> Option<Run
     }
     None
 }
+
+#[cfg(test)]
+mod tests;
