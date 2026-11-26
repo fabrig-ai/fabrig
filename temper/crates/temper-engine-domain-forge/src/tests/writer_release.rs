@@ -120,10 +120,16 @@ fn retired_run_and_lost_writers_open_writerless_and_read_before_claiming() {
         assert_eq!(d.start_links(&tasks, &env(), &mut out), Ok(()));
         assert_eq!(d.hold(&name).unwrap().writer, None);
         assert_eq!(d.missing_link(&tasks), None);
-        assert!(out.is_empty(), "the old durable writer keeps the fresh read due across a crash in Link");
-        // Another cold start before the read sees the same old record and repairs it again.
+        // Only the converted Writes row is saved; the old slot still owes
+        // its read across a crash after Link.
+        let writes = d.writes.get(&name).unwrap().clone();
+        while let Some(request) = out.pop() {
+            assert!(matches!(request, Request::Save { record: Stored::Writes(_), .. }));
+        }
         d = restored(hold, None);
+        outputs(&mut d, Event::Restore { record: Stored::Writes(writes) });
         assert_eq!(d.start_links(&tasks, &env(), &mut out), Ok(()));
+        assert!(out.is_empty(), "a second Link repairs the slot in memory only");
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);
         let blocked = outputs(
@@ -223,7 +229,7 @@ fn an_ending_writer_waits_for_its_foreign_hold_to_let_go() {
                     task: HOLDER,
                     writer: if design { None } else { Some(Writer::Run { task: WRITER, attempt: ATTEMPT }) },
                     design_writers: if design {
-                        Box::new([DesignWriter { task: WRITER, attempt: ATTEMPT }])
+                        Box::new([DesignWriter { task: WRITER, attempt: ATTEMPT, rereading: false }])
                     } else {
                         Box::new([])
                     },

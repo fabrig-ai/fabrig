@@ -45,7 +45,7 @@ pub(super) fn judge(row: &Writes, observed: Option<Commit>, actor: Actor) -> Jud
         // delivery commit, which the pull could never name as its merge.
         let missing = missing_link(row, observed);
         for entry in &row.entries {
-            if entry.state.unsettled() && intent(&entry.operation, missing) {
+            if entry.state.unsettled() && intent(&entry.operation) {
                 return Judgement::Readback { order: entry.order, observed: missing };
             }
         }
@@ -109,6 +109,10 @@ fn ordered(row: &Writes, observed: Option<Commit>) -> Option<Judgement> {
             return Some(Judgement::Known(Seen::Behind { order: entry.order }));
         }
         if after(&entry.operation) == Tip::Known(observed) {
+            // A settled conversion comparison retains only the older head.
+            if let Operation::Compare { .. } = entry.operation {
+                return Some(Judgement::Known(Seen::Behind { order: entry.order }));
+            }
             order = Some(entry.order);
         }
     }
@@ -121,12 +125,12 @@ fn ordered(row: &Writes, observed: Option<Commit>) -> Option<Judgement> {
     })
 }
 
-fn intent(operation: &Operation, observed: Commit) -> bool {
+fn intent(operation: &Operation) -> bool {
     match operation {
         Operation::Update { after, .. } | Operation::MergedInto { after, .. } => after.is_none(),
         Operation::Writer { .. } => true,
-        Operation::Compare { after } => *after == observed,
-        Operation::Push { .. }
+        Operation::Compare { .. }
+        | Operation::Push { .. }
         | Operation::Create { .. }
         | Operation::Delete { .. }
         | Operation::Merge { .. }

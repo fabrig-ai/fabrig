@@ -255,6 +255,7 @@ pub(crate) fn restore_refusal(state: Option<&LimitSettings>, stopped: &crate::St
         | crate::Stop::CodecRestore { .. }
         | crate::Stop::Room(_)
         | crate::Stop::RestorePage { .. }
+        | crate::Stop::BranchWrites(..)
         | crate::Stop::ForgeLink { .. }
         | crate::Stop::Binding
         | crate::Stop::Setting(_)
@@ -317,6 +318,7 @@ fn codec_lowering(
         | crate::Stop::CodecRestore { .. }
         | crate::Stop::Room(_)
         | crate::Stop::RestorePage { failure: None, .. }
+        | crate::Stop::BranchWrites(..)
         | crate::Stop::ForgeLink { .. }
         | crate::Stop::Binding
         | crate::Stop::Setting(_)

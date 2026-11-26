@@ -48,12 +48,16 @@ pub use super::topics::{pending_release_to_domain, pending_release_to_record};
 pub fn design_writer_to_record(
     value: &temper_engine_domain_forge_vocabulary::DesignWriter,
 ) -> crate::v25::DesignWriter {
-    crate::v25::DesignWriter { task: value.task, attempt: value.attempt, rereading: false }
+    crate::v25::DesignWriter { task: value.task, attempt: value.attempt, rereading: value.rereading }
 }
 
 #[must_use]
 pub fn design_writer_to_domain(
     record: crate::v25::DesignWriter,
 ) -> temper_engine_domain_forge_vocabulary::DesignWriter {
-    temper_engine_domain_forge_vocabulary::DesignWriter { task: record.task, attempt: record.attempt }
+    temper_engine_domain_forge_vocabulary::DesignWriter {
+        task: record.task,
+        attempt: record.attempt,
+        rereading: record.rereading,
+    }
 }

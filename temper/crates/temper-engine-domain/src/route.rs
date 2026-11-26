@@ -651,6 +651,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                         forge::StartLink::Fit(failure) => {
                             crate::StartStop::ForgeFit { phase: domain.start_phase(), failure }
                         }
+                        forge::StartLink::BranchWrites(name, count) => crate::StartStop::BranchWrites(name, count),
                         forge::StartLink::Link(link) => {
                             crate::StartStop::ForgeLink { phase: domain.start_phase(), link }
                         }

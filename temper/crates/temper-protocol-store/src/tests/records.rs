@@ -158,9 +158,9 @@ fn a_landing_past_name_bytes_fails_to_decode() {
 }
 
 #[test]
-fn a_holds_design_writers_round_trip_without_the_old_reread_flag() {
+fn a_holds_design_writers_round_trip_the_previous_reread_flag() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    let writer = forge::DesignWriter { task: 1, attempt: 2 };
+    let writer = forge::DesignWriter { task: 1, attempt: 2, rereading: false };
     let row = forge::Stored::Hold(forge::Hold {
         name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([b"g1".as_slice().into()])) },
         task: 1,
@@ -173,7 +173,7 @@ fn a_holds_design_writers_round_trip_without_the_old_reread_flag() {
     assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     for rereading in [false, true] {
         let old = v25::DesignWriter { task: 1, attempt: 2, rereading };
-        assert_eq!(records::by_hand::design_writer_to_domain(old), writer);
+        assert_eq!(records::by_hand::design_writer_to_domain(old), forge::DesignWriter { rereading, ..writer });
     }
 }
 

@@ -95,7 +95,7 @@ fn a_full_design_writer_set_names_the_next_writer() {
                 task: TASK,
                 writer: None,
                 beside: None,
-                design_writers: Box::new([DesignWriter { task: 8, attempt: 1 }]),
+                design_writers: Box::new([DesignWriter { task: 8, attempt: 1, rereading: false }]),
                 drift: None,
             }),
         },

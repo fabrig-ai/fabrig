@@ -915,6 +915,8 @@ pub struct Pushed {
 pub struct DesignWriter {
     pub task: u64,
     pub attempt: u64,
+    /// Conversion only: the previous build ended this attempt and owed a read.
+    pub rereading: bool,
 }
 
 /// A run or connector effect occupying one writer slot.

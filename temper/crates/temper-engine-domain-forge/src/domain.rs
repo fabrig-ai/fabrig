@@ -386,7 +386,7 @@ pub struct Domain {
     pub(crate) restore_started: Option<skein_lib::Wall>,
     restore_fit: Option<Box<RestoreFit>>,
     outage: Option<Box<outage::State>>,
-    client: skein_forge_client::Domain,
+    pub(crate) client: skein_forge_client::Domain,
     client_out: Queue<skein_forge_client::Request>,
     // A refused brief read waits for the next client reclamation.
     pub(crate) read_line: read_line::Line,
@@ -3577,7 +3577,9 @@ fn claim(
                 designers.push(*writer).expect("preflighted design writer capacity");
             }
         }
-        designers.push(crate::DesignWriter { task, attempt }).expect("preflighted design writer capacity");
+        designers
+            .push(crate::DesignWriter { task, attempt, rereading: false })
+            .expect("preflighted design writer capacity");
         row.design_writers = designers.into_boxed();
         save_hold(out, row.clone());
     }
@@ -10616,7 +10618,7 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         && !goal_branch::reading_afresh(d)
     {
         d.restart_fresh = None;
-        writes::readback::restart(d);
+        writes::readback::restart(d, out);
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
         read_session::fresh(d, env);
     }

@@ -1,5 +1,8 @@
 //! Releases and run preparation read before judging restored facts (forge/catching-up.md, 4).
 use super::*;
+
+#[path = "catching_up_releases/conversion.rs"]
+mod conversion;
 use crate::domain::{fresh_reads_in, from_client};
 use skein_forge::api::{Answer, Commit, Error, Op, Read, State, Write};
 use temper_engine_domain_forge_change as change;
@@ -217,7 +220,10 @@ fn design_claim_waits_for_fresh_ownership_and_wakes() {
     assert!(d.hold(&name(G)).unwrap().design_writers.is_empty());
     let done = finish_reads(&mut d, Some(fixtures::HEAD));
     assert!(done.contains(&Request::WakeProcedure { task: GOAL }), "{done:?}");
-    assert_eq!(d.hold(&name(G)).unwrap().design_writers.as_ref(), &[DesignWriter { task: GOAL, attempt: 1 }]);
+    assert_eq!(
+        d.hold(&name(G)).unwrap().design_writers.as_ref(),
+        &[DesignWriter { task: GOAL, attempt: 1, rereading: false }]
+    );
 }
 
 #[test]

@@ -1132,7 +1132,7 @@ fn a_design_writer_takes_no_slot_and_its_push_settles_by_readback() {
     design_claim(&mut d);
     let hold = d.hold(&name()).unwrap();
     assert_eq!(hold.writer, None);
-    assert_eq!(hold.design_writers.as_ref(), &[DesignWriter { task: GOAL, attempt: 1 }]);
+    assert_eq!(hold.design_writers.as_ref(), &[DesignWriter { task: GOAL, attempt: 1, rereading: false }]);
     admit_push(&mut d, GOAL, fixtures::HEAD, fixtures::BASE);
     outputs(&mut d, Event::Finished { task: GOAL, attempt: 1, lost: false });
     outputs(&mut d, Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name(), [9; 32], true)]) });

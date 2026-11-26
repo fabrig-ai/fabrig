@@ -104,8 +104,11 @@ pub(super) fn unpublished_branch(d: &Domain, name: &Name) -> bool {
 pub(super) fn ended(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
     for (name, hold) in &d.holds {
-        if hold.design_writers.contains(&crate::DesignWriter { task, attempt }) {
-            names.push(name.clone()).expect("one design claim per hold");
+        for writer in &hold.design_writers {
+            if writer.task == task && writer.attempt == attempt {
+                names.push(name.clone()).expect("one design claim per hold");
+                break;
+            }
         }
     }
     for name in &names {

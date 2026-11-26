@@ -412,6 +412,9 @@ impl Domain {
     /// Judge a branch observation without deciding its caller's policy.
     pub fn observe(&mut self, name: &Name, observed: Option<Commit>, actor: Actor, out: &mut Queue<Request>) -> Seen {
         use judge::Judgement;
+        if readback::previous::owed(self, name, observed, actor, out) {
+            return Seen::Owed;
+        }
         let Some(row) = self.writes.get(name) else { return Seen::Current };
         match judge::judge(row, observed, actor) {
             Judgement::Known(seen) => {
@@ -456,11 +459,16 @@ impl Domain {
                 }
             }
             Judgement::Readback { order, observed } => {
-                if readback::checked(self, name, order, row.head, observed) {
+                let head = row.head;
+                let drift = judge::drift(row);
+                if let Some(seen) = readback::previous::first_head(self, name, order, observed, out) {
+                    return seen;
+                }
+                if readback::checked(self, name, order, head, observed) {
                     if actor == Actor::Unknown && readback::preparing_rebase(self, name, order) {
                         Seen::Owed // An unattributed rewrite needs the entry's exact outcome.
                     } else {
-                        judge::drift(row)
+                        drift
                     }
                 } else {
                     readback::intent(self, name, order, observed, actor);

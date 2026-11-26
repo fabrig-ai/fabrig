@@ -1139,7 +1139,7 @@ fn a_design_claim_waits_for_making_after_read_afresh() {
     claim_design(&mut d, &env);
     assert_eq!(
         d.hold(&name(GOAL_BRANCH)).unwrap().design_writers.as_ref(),
-        &[DesignWriter { task: GOAL, attempt: DESIGN_ATTEMPT }]
+        &[DesignWriter { task: GOAL, attempt: DESIGN_ATTEMPT, rereading: false }]
     );
 }
 

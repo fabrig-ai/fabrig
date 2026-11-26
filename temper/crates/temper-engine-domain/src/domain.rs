@@ -29,6 +29,8 @@ pub enum StartStop {
     ForgeRow(forge::Key),
     /// The forge's restored records do not fit its limits.
     ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
+    /// Converting the branch would drop unsettled entries.
+    BranchWrites(forge::Name, usize),
     /// A restored forge record links to a target the start does not hold.
     ForgeLink { phase: Option<jig_domain_core::start::Phase>, link: forge::MissingLink },
     /// The deployment's namespace binding was refused.

@@ -7,6 +7,9 @@ use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_forge_client::{Event, What};
 use skein_lib::{Env, List, Map, Time, Token};
 
+pub(super) mod previous;
+use previous::WriterRead;
+
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pending: Map<(Name, u64), Job>,
@@ -20,12 +23,13 @@ enum Check {
     Pull { observed: Option<Commit> },
     Contains { tip: Commit, contains: Commit, then: Then },
     Order { head: Commit, observed: Commit },
+    PreviousCompare { head: Commit, waiting: Commit },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Then {
     Push { lost: bool },
-    Writer,
+    Writer { head: Option<Commit>, next: Option<Commit>, mode: WriterRead },
     Update { base: Commit, rewrite: bool },
     UpdateBase,
 }
@@ -136,14 +140,12 @@ pub(super) fn intent(d: &mut Domain, name: &Name, order: u64, observed: Commit, 
             Check::Contains { tip: observed, contains: before, then: Then::Update { base, rewrite } }
         }
         Operation::MergedInto { .. } => Check::Pull { observed: Some(observed) },
-        Operation::Writer { before: Some(before) } => {
-            Check::Contains { tip: observed, contains: before, then: Then::Writer }
+        Operation::Writer { before } => {
+            let head = super::known_head(d, name);
+            let Some(check) = previous::writer_proof(before, head, observed, WriterRead::Observed) else { return };
+            check
         }
-        Operation::Compare { .. } => {
-            let Some(head) = super::known_head(d, name) else { return };
-            Check::Order { head, observed }
-        }
-        Operation::Writer { before: None }
+        Operation::Compare { .. }
         | Operation::Push { .. }
         | Operation::Create { .. }
         | Operation::Delete { .. }
@@ -165,11 +167,19 @@ pub(super) fn push_read(d: &mut Domain, name: &Name, order: u64, tip: Option<Com
 }
 
 pub(super) fn finished(d: &mut Domain, name: &Name, order: u64, lost: bool) {
+    if let Some(written) = entry(d, name, order)
+        && let Operation::Writer { .. } = written.operation
+    {
+        // An observation that began while the attempt was live cannot be
+        // its final readback, even if the answer is still out.
+        forget(d, name, order);
+    }
     schedule(d, name, order, Check::Branch { lost });
 }
 
-pub(crate) fn restart(d: &mut Domain) {
+pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
     let mut needed = List::uncapped();
+    let mut comparisons = List::uncapped();
     for (name, row) in &d.writes {
         for entry in &row.entries {
             if entry.state != WriteState::Uncertain {
@@ -186,11 +196,17 @@ pub(crate) fn restart(d: &mut Domain) {
                 | Operation::Create { .. }
                 | Operation::Delete { .. }
                 | Operation::Update { .. }
-                | Operation::Writer { .. }
-                | Operation::Compare { .. } => Check::Branch { lost: true },
+                | Operation::Writer { .. } => Check::Branch { lost: true },
+                Operation::Compare { after } => {
+                    comparisons.push((name.clone(), entry.order, after)).expect("uncapped comparison queue");
+                    continue;
+                }
             };
             needed.push((name.clone(), entry.order, check)).expect("uncapped readback queue");
         }
+    }
+    for (name, order, waiting) in comparisons.into_boxed() {
+        previous::compare(d, &name, order, waiting, out);
     }
     for (name, order, check) in needed.into_boxed() {
         schedule(d, &name, order, check);
@@ -208,6 +224,7 @@ fn read(d: &Domain, l: &Limits, name: &Name, order: u64, check: Check) -> Option
         return None;
     }
     match check {
+        Check::PreviousCompare { head, waiting } => Some(Read::Commits { before: head, after: waiting, page: 1 }),
         Check::Branch { .. } => Some(Read::Branch { branch }),
         Check::Pull { .. } => {
             if let Operation::Open { pull: None, base, .. } = &entry.operation {
@@ -274,10 +291,8 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
                 Found::Retry
             }
         }
-        Check::Branch { lost } if entry.state.unsettled() => match branch_tip(result) {
-            Ok(tip) => branch_answer(&entry.operation, lost, tip),
-            Err(()) => Found::Retry,
-        },
+        Check::PreviousCompare { head, waiting } => previous::compared(head, waiting, result),
+        Check::Branch { lost } if entry.state.unsettled() => found_branch(d, &key.0, &entry.operation, lost, result),
         Check::Pull { observed } if entry.state.unsettled() => {
             if let Ok(Answer::Pull(pull)) = result {
                 if let Operation::MergedInto { .. } = entry.operation {
@@ -305,7 +320,8 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
             match super::super::ancestry_status(result) {
                 Status::Passed => match then {
                     Then::Push { .. } => Found::Confirm { after: None, pull: None },
-                    Then::Writer | Then::UpdateBase => Found::Confirm { after: Some(tip), pull: None },
+                    Then::Writer { head, next, mode } => previous::writer_proved(head, next, tip, mode),
+                    Then::UpdateBase => Found::Confirm { after: Some(tip), pull: None },
                     Then::Update { base, .. } => {
                         Found::Check(Check::Contains { tip, contains: base, then: Then::UpdateBase })
                     }
@@ -315,7 +331,8 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
                     Then::Update { base, rewrite: true } => {
                         Found::Check(Check::Contains { tip, contains: base, then: Then::UpdateBase })
                     }
-                    Then::Writer | Then::Update { rewrite: false, .. } | Then::UpdateBase => {
+                    Then::Writer { mode: WriterRead::Answered, .. } => Found::Refuse,
+                    Then::Writer { .. } | Then::Update { rewrite: false, .. } | Then::UpdateBase => {
                         Found::NoProof { observed: Some(tip) }
                     }
                 },
@@ -325,7 +342,11 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
         Check::Branch { .. } | Check::Pull { .. } | Check::Contains { .. } => return,
     };
     let name = key.0.clone();
+    let writer = if let Operation::Writer { .. } = entry.operation { Some(entry.sender) } else { None };
     apply(d, env, key, check, found, out);
+    if let Some(sender) = writer {
+        previous::end_rereading(d, env, &name, sender, check, found, out);
+    }
     if let Found::Confirm { .. } = found
         && let Some((task, attempt, commit)) = lost_push
         && super::known_head(d, &name) == Some(commit)
@@ -334,7 +355,13 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
         super::kept::sync_heads(d, env, out);
         super::super::record_delegate_head(d, env, task, &name, commit, false, out);
     }
-    if let Found::Confirm { .. } | Found::Refuse | Found::Ordered { .. } | Found::NoProof { .. } = found {
+    if let Found::Confirm { .. }
+    | Found::Refuse
+    | Found::Ordered { .. }
+    | Found::NoProof { .. }
+    | Found::Compared { .. }
+    | Found::WriterProgress { .. } = found
+    {
         super::kept::rejudge(d, env, &name, out);
     }
 }
@@ -343,8 +370,9 @@ fn is_lost_push_read(check: Check) -> bool {
     match check {
         Check::Branch { lost } | Check::Contains { then: Then::Push { lost }, .. } => lost,
         Check::Pull { .. }
-        | Check::Contains { then: Then::Writer | Then::Update { .. } | Then::UpdateBase, .. }
-        | Check::Order { .. } => false,
+        | Check::Contains { then: Then::Writer { .. } | Then::Update { .. } | Then::UpdateBase, .. }
+        | Check::Order { .. }
+        | Check::PreviousCompare { .. } => false,
     }
 }
 
@@ -367,6 +395,8 @@ enum Found {
     Confirm { after: Option<Commit>, pull: Option<u64> },
     Refuse,
     Ordered { head: Commit, observed: Commit, contains: bool },
+    Compared { head: Commit, waiting: Commit, older: bool },
+    WriterProgress { head: Option<Commit>, tip: Commit, mode: WriterRead },
     NoProof { observed: Option<Commit> },
     Check(Check),
     Retry,
@@ -386,6 +416,14 @@ fn branch_after_failed_push(op: &Operation, lost: bool, tip: Option<Commit>) -> 
     if !lost || before(op) != Tip::Known(tip) { Found::Refuse } else { Found::NoProof { observed: tip } }
 }
 
+fn found_branch(d: &Domain, name: &Name, op: &Operation, lost: bool, result: Result<Answer, Error>) -> Found {
+    let Ok(tip) = branch_tip(result) else { return Found::Retry };
+    if let Operation::Writer { before } = op {
+        return previous::writer_read(d, name, *before, tip, lost);
+    }
+    branch_answer(op, lost, tip)
+}
+
 fn branch_answer(op: &Operation, lost: bool, tip: Option<Commit>) -> Found {
     if after(op) == Tip::Known(tip) {
         return Found::Confirm { after: None, pull: None };
@@ -402,12 +440,9 @@ fn branch_answer(op: &Operation, lost: bool, tip: Option<Commit>) -> Found {
                     then: Then::Update { base: *base, rewrite: false },
                 });
             }
-            Operation::Writer { before: Some(before) } => {
-                return Found::Check(Check::Contains { tip, contains: *before, then: Then::Writer });
-            }
-            Operation::Writer { before: None } => return Found::Confirm { after: Some(tip), pull: None },
-            Operation::Compare { after } => return Found::Check(Check::Order { head: tip, observed: *after }),
-            Operation::Create { .. }
+            Operation::Writer { .. }
+            | Operation::Compare { .. }
+            | Operation::Create { .. }
             | Operation::Delete { .. }
             | Operation::MergedInto { .. }
             | Operation::Merge { .. }
@@ -439,27 +474,26 @@ fn apply(d: &mut Domain, env: &Env<Limits>, key: (Name, u64), check: Check, foun
             if row.head != Some(head) {
                 return;
             }
-            let mut settled = false;
-            for entry in &mut row.entries {
-                if entry.order == *order
-                    && entry.state.unsettled()
-                    && let Operation::Compare { .. } = entry.operation
-                {
-                    entry.state = WriteState::Confirmed;
-                    settled = true;
-                    break;
-                }
-            }
             if contains {
                 row.head = Some(observed);
             }
-            if contains || settled {
+            if contains {
                 save_changed(row, Some(head), &mut d.write_heads, out);
             }
             if !contains {
                 d.write_reads.checked.insert(key, Checked { head: Some(head), observed }).expect("one check per write");
             }
         }
+        Found::Compared { head, waiting, older } => {
+            if super::known_head(d, name) != Some(head) {
+                previous::compare(d, name, *order, waiting, out);
+            } else if older {
+                previous::ordered(d, name, *order, head, waiting, out);
+            } else {
+                previous::ordered(d, name, *order, waiting, head, out);
+            }
+        }
+        Found::WriterProgress { head, tip, mode } => previous::progress(d, name, *order, head, tip, mode, out),
         Found::NoProof { observed: Some(observed) } => {
             let head = super::known_head(d, name);
             d.write_reads.checked.insert(key, Checked { head, observed }).expect("one check per write");
@@ -498,11 +532,6 @@ pub(super) fn settle(
                 Operation::Open { pull, .. } => {
                     if let Some(number) = number {
                         *pull = Some(number);
-                    }
-                }
-                Operation::Writer { before } if *before == row.head => {
-                    if head.is_some() {
-                        row.head = head;
                     }
                 }
                 Operation::Writer { .. }
