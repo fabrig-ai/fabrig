@@ -11,30 +11,20 @@ use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
 const STEPS: u32 = 1000; // The forge world's bound for a full landing and release.
 const REPAIRS: u32 = 3;
 const LANDING_CALL: u64 = 95;
+// The 1024-byte story inbox plus the 256-byte procedure notice (jig/docs/design/domain/tasks/messages.md, 2).
+const REPAIR_QUESTION_INBOX_BYTES: u32 = 1280;
 
 fn world() -> World {
-    world_with_brief(None)
-}
-
-fn world_with_brief(brief: Option<engine::BriefLimits>) -> World {
-    world_with_settings(brief, None)
+    world_with_bound(None)
 }
 
 pub(super) fn world_with_bound(bound: Option<Duration>) -> World {
-    world_with_settings(None, bound)
+    world_with_settings(StoryLimits::default(), bound)
 }
 
-fn world_with_settings(brief: Option<engine::BriefLimits>, bound: Option<Duration>) -> World {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        true,
-        STEPS,
-        Gate::default(),
-        None,
-        StoryLimits { brief, ..StoryLimits::default() },
-    )
-    .with_check_timeout(bound);
+fn world_with_settings(limits: StoryLimits, bound: Option<Duration>) -> World {
+    let mut world =
+        World::configured_limits(true, true, true, STEPS, Gate::default(), None, limits).with_check_timeout(bound);
     world.env.limits.forge.change_policy.repairs = REPAIRS;
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([
@@ -237,7 +227,14 @@ fn release(world: &mut World, goal: &engine::Assignment, landing: u64) {
 fn saving_repair_rebriefs(reported: bool) {
     // The pull's identity, saved content and CI reason share the resumed brief.
     let small = temper_limits_fixtures::small();
-    let mut world = world_with_brief(Some(small.root.brief));
+    let mut world = world_with_settings(
+        StoryLimits {
+            brief: Some(small.root.brief),
+            inbox_bytes: Some(REPAIR_QUESTION_INBOX_BYTES),
+            ..StoryLimits::default()
+        },
+        None,
+    );
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });

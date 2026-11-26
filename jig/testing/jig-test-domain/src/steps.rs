@@ -45,6 +45,7 @@ pub(crate) fn translate(
         connector::StepDecision::Message { task, words } => {
             return Some(core::ProcedureStep {
                 messages: Box::new([core::StepMessage {
+                    notice: None,
                     target: task,
                     kind: tasks::MessageKind::Words,
                     words: Decimal::of(words).as_bytes().into(),

@@ -34,6 +34,7 @@ pub fn word_message(act: &change::WordAct, requester: tasks::Party, route: chang
         }
         change::WordAct::Fallback { requester: target } => {
             return StepMessage {
+                notice: None,
                 target: *target,
                 kind: tasks::MessageKind::Words,
                 words: takes_no_messages(requester, route, bound),
@@ -45,6 +46,7 @@ pub fn word_message(act: &change::WordAct, requester: tasks::Party, route: chang
         }
     };
     StepMessage {
+        notice: None,
         target,
         kind: tasks::MessageKind::Words,
         words: forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes()),
@@ -102,7 +104,11 @@ pub fn has_ask(acts: &[change::RelayAct]) -> bool {
     for act in acts {
         match act {
             change::RelayAct::Ask { .. } => return true,
-            change::RelayAct::Answer { .. } | change::RelayAct::Left { .. } | change::RelayAct::Hold => {}
+            change::RelayAct::Answer { .. }
+            | change::RelayAct::Left { .. }
+            | change::RelayAct::Held { .. }
+            | change::RelayAct::Delivered { .. }
+            | change::RelayAct::Hold => {}
         }
     }
     false

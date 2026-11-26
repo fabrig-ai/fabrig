@@ -423,6 +423,7 @@ pub fn live_task(number: u64) -> core::Record {
         result_followups: Box::new([]),
         references: Box::new([]),
         questions: Box::new([]),
+        notice_credits: Box::new([]),
         subscriptions: Box::new([]),
         wake: tasks::WakePolicy::DEFAULT,
         turn: 0,

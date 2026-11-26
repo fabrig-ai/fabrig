@@ -56,6 +56,34 @@ fn place(number: u64, requester: Party, root: u64, depth: u32, status: Status) -
 }
 
 #[test]
+fn a_batch_names_an_unreachable_dependency_but_not_count_or_repeat() {
+    const MEMBER: u64 = 20;
+    // One more distinct identity than the configured dependency limit.
+    let too_many = (0..=LIMITS.dependencies).map(u64::from).collect::<Vec<_>>();
+    for (dependencies, expected) in [
+        (vec![ANCESTOR, DEPENDENCY], Problem::naming(Some(MEMBER), Refusal::Dependencies, &[DEPENDENCY])),
+        (too_many, Problem::new(Some(MEMBER), Refusal::Dependencies)),
+        (vec![ANCESTOR, ANCESTOR], Problem::new(Some(MEMBER), Refusal::Dependencies)),
+    ] {
+        let mut test = family();
+        test.make(vec![task(DEPENDENCY, &[])]);
+        let before = test.stored.clone();
+        let mut member = task(MEMBER, &dependencies);
+        member.funder = Funder::Task(AMENDER);
+        let out = test.send(Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Task(AMENDER),
+            batch: Box::new([member]),
+        });
+        assert_eq!(out, vec![Request::Refused { reply_to: to(), problem: expected }]);
+        assert_eq!(test.stored, before);
+    }
+}
+
+#[test]
 fn an_unreachable_dependency_is_named_and_count_or_repeat_refusals_name_none() {
     const UNRELATED_ROOT: u64 = 90;
     // One more distinct identity than the configured dependency limit fails the count check.

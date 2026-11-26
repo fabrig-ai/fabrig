@@ -335,6 +335,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         delegates: Box::new([]),
         references: Box::new([]),
         questions: Box::new([]),
+        notice_credits: Box::new([]),
         subscriptions: Box::new([]),
         wake: tasks::WakePolicy::DEFAULT,
         turn: 0,

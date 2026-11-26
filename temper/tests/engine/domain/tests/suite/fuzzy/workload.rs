@@ -108,13 +108,14 @@ fn a_restart_changes_no_outcome() {
     // Two start classes each carry a crash; the second signal carries a settled
     // stop. Three seeds are the minimum to cover those three distinct draws.
     for seed in [0, 2, 3] {
-        eprintln!("a_restart_changes_no_outcome seed {seed}");
+        eprintln!("a_restart_changes_no_outcome seed {seed} without restarts");
         let streams = Streams::new(seed);
         let work = Workload::draw(&streams, &SHAPE);
         let actions = parties::draw(&streams, &work, &ACTS);
         let before = workload::with_restarts(&streams, work.clone(), actions.clone(), &parties_sweep, None)
             .expect("without restarts");
         let before = outcome::read(&before.world.store, &before.main, &before.names, &before.workload, &before.ledger);
+        eprintln!("a_restart_changes_no_outcome seed {seed} with restarts");
         let restarted =
             workload::with_restarts(&streams, work, actions, &parties_sweep, Some(Injector::new(seed, &ENGINE, 1000)))
                 .expect("with restarts");

@@ -43,6 +43,7 @@ mod hold_origin;
 mod hold_words;
 mod kept;
 mod keys;
+mod notice_room;
 mod refusals;
 pub(crate) mod revisions;
 mod subscriptions;

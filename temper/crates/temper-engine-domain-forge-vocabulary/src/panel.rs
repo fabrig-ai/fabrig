@@ -64,7 +64,7 @@ pub struct PanelQuestion {
 pub enum PanelStands {
     Taken,
     Asked,
-    Held,
+    Held { blocked: Option<change::Blocked> },
 }
 /// Last judged reviews, unsaved and bound to the merge head (domain/forge/change/gates.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

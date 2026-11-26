@@ -373,6 +373,42 @@ fn an_after_naming_no_earlier_change_is_refused() {
     assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::ChangeHot(_)))));
 }
 
+#[test]
+fn an_after_naming_another_projects_task_refuses_by_name() {
+    const OTHER_PROJECT: u32 = 2;
+    const PERIOD_BUDGET: u64 = 1000; // Room for the other project's chat at PLAN_CAP.
+    let (mut world, chat) =
+        plan_world_with_limits(true, &StoryLimits { second_project: true, ..StoryLimits::default() });
+    world.send(engine::Event::Party(engine::PartyInput::Period {
+        project: OTHER_PROJECT,
+        period: 1,
+        budget: PERIOD_BUDGET,
+        next: None,
+    }));
+    world.until(Until::Ready);
+    let people::Ask::Create { project, mut batch } = world.chat(OTHER_PROJECT, b"Work in the other project") else {
+        panic!("creation fixture")
+    };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(PLAN_CAP) };
+    let other = assigned_chat(&mut world, 94, people::Ask::Create { project, batch });
+    assert_ne!(live(&world, other.task).project, live(&world, chat.task).project);
+
+    let input = format!(r#"{{"words":"Small fix","after":[{}]}}"#, other.task);
+    let answer = plan_change(&mut world, &chat, input.as_bytes()).expect("change answered");
+    let engine::CallAnswer::DelegationRefused(problem) = &answer else {
+        panic!("cross-project dependency must be refused: {answer:?}");
+    };
+    let member = problem.task.expect("refused batch member");
+    let rendered = temper_engine_smith::answer(&answer);
+    assert!(rendered.error());
+    assert_eq!(
+        rendered.text(),
+        format!("Refused: task {member} dependency T{} is outside your reach", other.task).as_bytes(),
+    );
+    assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::ChangeHot(_)))));
+    world.close();
+}
+
 fn live(world: &World, task: u64) -> &tasks::TaskRecord {
     let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
         world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task))))

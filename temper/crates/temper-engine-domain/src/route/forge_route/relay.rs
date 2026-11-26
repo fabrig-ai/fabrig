@@ -1,10 +1,13 @@
 //! The root's half of a change's relay (temper/docs/design/domain/forge/change/questions.md, 1).
 pub(super) use super::forge::relay_route::questions_held;
 use super::forge::relay_route::{
-    asking_delegate, find_question, has_ask, hold_words, is_answer, left_words, question_words, word_message,
+    asking_delegate, find_question, has_ask, hold_words, left_words, question_words, word_message,
 };
+use super::forge::routing::answer_refusal;
+use super::forge::text::fit;
 use super::{
-    Box, Domain, Env, Limits, List, ProcedureStep, append, forge_change as change, holds, takes_no_messages, tasks,
+    Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, append, forge_change as change, holds, takes_no_messages,
+    tasks,
 };
 use jig_domain_core::{StepAmendment, StepMessage};
 
@@ -15,7 +18,14 @@ pub(crate) struct ChangeStep {
     pub(crate) relayed: Option<change::Relayed>,
     pub(crate) refusal: Option<Box<[u8]>>,
     pub(crate) released: bool,
-    pub(crate) passing: Option<change::Passed>,
+    pub(crate) passing: Option<Passing>,
+}
+
+#[derive(Hash, Debug)]
+pub(crate) struct Passing {
+    words: change::Passed,
+    /// If admission instead holds and consumes the inbox, none of these replies went out.
+    replies: Box<[change::Reply]>,
 }
 
 #[expect(clippy::too_many_lines, reason = "one change step assembles its relay with its existing decision")]
@@ -24,9 +34,20 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     let offered = domain.core.tasks.procedure_offered(task).unwrap_or(0);
     let change_row = domain.forge.change(task);
     let questions = match change_row {
-        Some(row) => row.questions.clone(),
-        None => change::Questions::default(),
+        Some(row) => &row.questions,
+        None => &change::Questions::default(),
     };
+    // With no offered words or retained relay work there is no step to
+    // propose. In particular, a held answer is still open and must be tried.
+    if offered == 0
+        && questions.open.is_empty()
+        && questions.waiting.is_empty()
+        && questions.replies.is_empty()
+        && questions.amended.len() <= change::AMENDMENTS_KEPT
+        && decision.messages.len() <= skein_lib::usize_of(env.limits.tasks.batch)
+    {
+        return decision;
+    }
     let delegate = match change_row {
         Some(row) => row.delegate,
         None => None,
@@ -36,10 +57,10 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         messages.push(message).expect("decision messages fit the step batch");
     }
     let producer = live_producer(domain, delegate);
-    let Inbox { mut messages, asked, answer, amended, words } =
-        take(row, offered, &questions, delegate, producer, env, messages);
+    let Inbox { asked, answer, amended, words, replies } = take(row, offered, questions, delegate, producer, env);
+    let sent = send_replies(&replies, &mut messages, env.limits.tasks.message_bytes);
     let passed =
-        change::pass(&questions, words.as_slice(), producer, usize::try_from(messages.room()).expect("bounded batch"));
+        change::pass(questions, words.as_slice(), producer, usize::try_from(messages.room()).expect("bounded batch"));
     for act in &passed.acts {
         messages
             .push(word_message(act, row.requester, questions.route, env.limits.tasks.message_bytes))
@@ -47,6 +68,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     }
     let mut passing_questions = questions.clone();
     passing_questions.waiting.clone_from(&passed.waiting);
+    passing_questions.replies = replies.get(sent..).expect("sent reply prefix").into();
     let mut ended = List::with_capacity(u32::try_from(change::QUESTIONS_OPEN).expect("question bound fits u32"));
     for question in &questions.open {
         let done = match domain.core.tasks.task(question.asker) {
@@ -65,7 +87,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         Some(pending) => pending.released,
         None => false,
     };
-    let mut held = false;
+    let mut blocker = None;
     for dependency in &row.waiting_on {
         if row.started_from.contains(dependency) {
             continue;
@@ -76,7 +98,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         {
             continue;
         }
-        held = true;
+        blocker = Some(*dependency);
         break;
     }
     let heard = change::RelayHeard {
@@ -87,7 +109,8 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         answer,
         ended: ended.as_slice(),
         released,
-        held,
+        dependency: blocker,
+        now: env.wall,
     };
     let mut relayed = change::relay(
         &passing_questions,
@@ -98,20 +121,47 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     if let Some(reason) = amended.as_slice().last() {
         amend_delegate(domain, env, task, reason, &relayed.questions, &mut decision);
     }
+    let mut notice = None;
     for act in &relayed.acts {
         match act {
             change::RelayAct::Answer { asker, number, words } => {
                 messages
                     .push(StepMessage {
+                        notice: None,
                         target: *asker,
                         kind: tasks::MessageKind::Answer { question: *number },
-                        words: super::forge::text::fit(
+                        words: fit(
                             words,
                             usize::try_from(env.limits.tasks.message_bytes).expect("message bound"),
                             "…".as_bytes(),
                         ),
                     })
                     .expect("relay respects message room");
+            }
+            change::RelayAct::Held { question, blocked } => {
+                let tasks::Party::Task(target) = row.requester else {
+                    unreachable!("only a task's change relays questions")
+                };
+                notice = Some(held_notice(target, *question, *blocked));
+            }
+            change::RelayAct::Delivered { question, since, asker } => {
+                let tasks::Party::Task(target) = row.requester else {
+                    unreachable!("only a task's change relays questions")
+                };
+                let mut words = answer_notice(*question);
+                append(&mut words, b", held since ");
+                append(&mut words, &since.utc_second());
+                append(&mut words, b", is delivered to task ");
+                append(&mut words, skein_lib::Decimal::of(*asker).as_bytes());
+                append(&mut words, b".");
+                messages
+                    .push(StepMessage {
+                        notice: None,
+                        target,
+                        kind: tasks::MessageKind::Words,
+                        words: words.into_boxed(),
+                    })
+                    .expect("relay reserves ordinary room for delivery and its notice together");
             }
             change::RelayAct::Ask { asker, number, reasons } => {
                 let tasks::Party::Task(target) = row.requester else {
@@ -121,6 +171,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                     find_question(&relayed.questions.open, *asker, *number).expect("an asked question stays open");
                 messages
                     .push(StepMessage {
+                        notice: None,
                         target,
                         kind: tasks::MessageKind::Question,
                         words: question_words(&question.words, reasons, env.limits.tasks.message_bytes),
@@ -133,6 +184,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                 };
                 messages
                     .push(StepMessage {
+                        notice: None,
                         target,
                         kind: tasks::MessageKind::Words,
                         words: left_words(*asker, *number, line, *answered, env.limits.tasks.message_bytes),
@@ -157,12 +209,22 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
             }
         }
     }
-    relayed.more |= passed.more;
+    relayed.more |= passed.more || !relayed.questions.replies.is_empty();
+    if !relayed.questions.replies.is_empty()
+        && let StepEnd::Result(_) = decision.end
+    {
+        decision.end = StepEnd::Wait;
+    }
+    if let Some(notice) = notice {
+        messages.raise(messages.capacity().saturating_add(1));
+        messages.push(notice).expect("the question's notice is counted apart from ordinary messages");
+    }
     decision.messages = messages.into_boxed();
-    if relayed.questions != questions || relayed.more || !passed.acts.is_empty() {
+    if relayed.questions != *questions || relayed.more || !passed.acts.is_empty() {
+        let passing = Passing { words: passed, replies };
         if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
             pending.relayed = Some(relayed);
-            pending.passing = Some(passed);
+            pending.passing = Some(passing);
         } else {
             domain
                 .forge_delegating
@@ -173,7 +235,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                         relayed: Some(relayed),
                         refusal: None,
                         released: false,
-                        passing: Some(passed),
+                        passing: Some(passing),
                     },
                 )
                 .expect("one pending relay per change");
@@ -182,7 +244,32 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     decision
 }
 
-fn live_producer(domain: &Domain, delegate: Option<(u64, change::Delegate)>) -> Option<u64> {
+// The fixed text, two u64 decimals and a UTC second fit the notice bound.
+fn answer_notice(question: u64) -> List<u8> {
+    let cap = u32::try_from(tasks::ANSWER_NOTICE_BYTES).expect("fixed notice bound");
+    let mut words = List::with_capacity(cap);
+    append(&mut words, b"Your answer to question ");
+    append(&mut words, skein_lib::Decimal::of(question).as_bytes());
+    words
+}
+
+fn held_notice(target: u64, question: u64, blocked: change::Blocked) -> StepMessage {
+    let mut words = answer_notice(question);
+    match blocked.dependency {
+        Some(task) => {
+            append(&mut words, b" is held until task ");
+            append(&mut words, skein_lib::Decimal::of(task).as_bytes());
+            append(&mut words, b" ends");
+        }
+        None => append(&mut words, b" is held until this change has message room"),
+    }
+    append(&mut words, b"; held since ");
+    append(&mut words, &blocked.since.utc_second());
+    append(&mut words, b".");
+    StepMessage { notice: Some(question), target, kind: tasks::MessageKind::Words, words: words.into_boxed() }
+}
+
+pub(in crate::route) fn live_producer(domain: &Domain, delegate: Option<(u64, change::Delegate)>) -> Option<u64> {
     let (child, change::Delegate::Produce) = delegate? else { return None };
     let record = domain.core.tasks.task(child)?;
     match record.phase {
@@ -280,7 +367,7 @@ pub(crate) fn refused(
     let jig_domain_core::StepRefusal::Refused(problem) = why else { return false };
     let Some(mut relayed) = pending.relayed else { return false };
     let passing = match &pending.passing {
-        Some(passed) => !passed.acts.is_empty(),
+        Some(passed) => !passed.words.acts.is_empty(),
         None => false,
     };
     if (!has_ask(&relayed.acts) && !passing) || problem.why != tasks::Refusal::Busy {
@@ -309,27 +396,20 @@ pub(crate) fn refused(
         }
     }
     let mut open = open.into_boxed();
-    if let Some(first) = open.first_mut()
-        && first.stands == change::Stands::Asked
-        && let Some(task) = domain.core.tasks.task(task)
-    {
-        for word in &task.inbox {
-            if word.from == task.requester && is_answer(&word.kind) {
-                first.stands = change::Stands::Held { answer: word.words.clone() };
-                break;
-            }
-        }
-    }
-    let waiting = match pending.passing {
-        Some(passed) => passed.retained,
-        None => row.questions.waiting.clone(),
+    let notice = keep_refused_answer(domain, env, task, &relayed, &mut open);
+    let (waiting, replies) = match pending.passing {
+        Some(passed) => (passed.words.retained, passed.replies),
+        None => (row.questions.waiting.clone(), row.questions.replies.clone()),
     };
     let answered = relayed.questions.answered;
-    relayed.questions = change::Questions { open, waiting, answered, ..row.questions.clone() };
+    relayed.questions = change::Questions { open, waiting, answered, replies, ..row.questions.clone() };
     relayed.acts = Box::new([]);
     relayed.more = false;
     let mut decision = holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());
-    decision.messages = Box::new([]);
+    decision.messages = match notice {
+        Some(notice) => Box::new([notice]),
+        None => Box::new([]),
+    };
     domain
         .forge_delegating
         .insert(
@@ -350,10 +430,44 @@ pub(crate) fn refused(
     true
 }
 
+fn keep_refused_answer(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    relayed: &change::Relayed,
+    open: &mut [change::Open],
+) -> Option<StepMessage> {
+    let first = open.first_mut()?;
+    if first.stands != change::Stands::Asked {
+        return None;
+    }
+    let offered = domain.core.tasks.procedure_offered(task)?;
+    let row = domain.core.tasks.task(task)?;
+    let tasks::Party::Task(target) = row.requester else { return None };
+    for word in &row.inbox {
+        if word.number <= offered
+            && word.from == row.requester
+            && let tasks::MessageKind::Answer { question } = word.kind
+        {
+            let mut dependency = None;
+            for act in &relayed.acts {
+                if let change::RelayAct::Held { blocked, .. } = act {
+                    dependency = blocked.dependency;
+                    break;
+                }
+            }
+            let blocked = change::Blocked { dependency, since: env.wall };
+            first.stands = change::Stands::Held { answer: word.words.clone(), question, blocked: Some(blocked) };
+            return Some(held_notice(target, question, blocked));
+        }
+    }
+    None
+}
+
 struct Inbox<'a> {
-    messages: List<StepMessage>,
+    replies: Box<[change::Reply]>,
     asked: List<change::Asked<'a>>,
-    answer: Option<&'a [u8]>,
+    answer: Option<change::RelayAnswer<'a>>,
     amended: List<&'a [u8]>,
     words: List<change::Waiting>,
 }
@@ -365,12 +479,16 @@ fn take<'a>(
     delegate: Option<(u64, change::Delegate)>,
     producer: Option<u64>,
     env: &Env<Limits>,
-    mut messages: List<StepMessage>,
 ) -> Inbox<'a> {
     let mut asked = List::with_capacity(u32::try_from(change::QUESTIONS_OPEN).expect("question bound fits u32"));
     let mut answer = None;
     let mut amended = List::uncapped();
     let mut words = List::uncapped();
+    let mut replies = List::uncapped();
+    for reply in &questions.replies {
+        replies.push(reply.clone()).expect("retained replies");
+    }
+    let bound = env.limits.tasks.message_bytes;
     let accepts_answer = match questions.open.first() {
         Some(question) => question.stands == change::Stands::Asked,
         None => false,
@@ -384,8 +502,8 @@ fn take<'a>(
                 amended.push(word.words.as_ref()).expect("offered amendments fit a list");
                 continue;
             }
-            tasks::MessageKind::Question => tasks::MessageKind::Answer { question: word.number },
-            tasks::MessageKind::Words | tasks::MessageKind::Answer { .. } => tasks::MessageKind::Words,
+            tasks::MessageKind::Question => Some(word.number),
+            tasks::MessageKind::Words | tasks::MessageKind::Answer { .. } => None,
             tasks::MessageKind::Result(_)
             | tasks::MessageKind::Escalation { .. }
             | tasks::MessageKind::Proposal { .. }
@@ -417,8 +535,13 @@ fn take<'a>(
                     .expect("question room checked");
                 continue;
             }
-            if is_answer(&word.kind) && word.from == row.requester && accepts_answer && answer.is_none() {
-                answer = Some(word.words.as_ref());
+            // Jig has already admitted the answer against this relay's one question credit.
+            if let tasks::MessageKind::Answer { question } = word.kind
+                && word.from == row.requester
+                && accepts_answer
+                && answer.is_none()
+            {
+                answer = Some(change::RelayAnswer { question, words: &word.words });
                 continue;
             }
         }
@@ -431,24 +554,75 @@ fn take<'a>(
                 .expect("offered words fit a list");
             continue;
         }
-        if messages.room() == 0 {
-            continue;
-        }
-
-        if row.requester != word.from && !row.delegates.contains(&target) && !row.references.contains(&target) {
-            continue;
-        }
-        let words = if word.kind != tasks::MessageKind::Question
-            && questions.route != change::Route::None
-            && asking_delegate(delegate, target)
-        {
-            REPORT_IN_FINISH.into()
+        let words = if let tasks::MessageKind::Answer { question } = word.kind {
+            let open = if answer.is_none() { open_to(row, questions, target) } else { None };
+            answer_refusal(row.number, question, open)
         } else {
-            takes_no_messages(row.requester, questions.route, env.limits.tasks.message_bytes)
+            if row.requester != word.from && !row.delegates.contains(&target) && !row.references.contains(&target) {
+                continue;
+            }
+            if word.kind == tasks::MessageKind::Words
+                && questions.route != change::Route::None
+                && asking_delegate(delegate, target)
+            {
+                REPORT_IN_FINISH.into()
+            } else {
+                takes_no_messages(row.requester, questions.route, bound)
+            }
         };
-        messages.push(StepMessage { target, kind, words }).expect("reply room checked");
+        let words = fit(&words, usize::try_from(bound).expect("message bound"), "…".as_bytes());
+        replies.push(change::Reply { target, question: kind, words }).expect("offered replies");
     }
-    Inbox { messages, asked, answer, amended, words }
+    Inbox { replies: replies.into_boxed(), asked, answer, amended, words }
+}
+
+fn send_replies(replies: &[change::Reply], messages: &mut List<StepMessage>, bound: u32) -> usize {
+    let mut sent = 0_usize;
+    for reply in replies {
+        if messages.room() == 0 {
+            break;
+        }
+        let kind = match reply.question {
+            Some(question) => tasks::MessageKind::Answer { question },
+            None => tasks::MessageKind::Words,
+        };
+        let words = fit(&reply.words, usize::try_from(bound).expect("message bound"), "…".as_bytes());
+        messages.push(StepMessage { notice: None, target: reply.target, kind, words }).expect("reply room checked");
+        sent = sent.saturating_add(1);
+    }
+    sent
+}
+
+fn open_to<'a>(row: &tasks::TaskRecord, questions: &'a change::Questions, from: u64) -> Option<(u64, &'a [u8])> {
+    let open = questions.open.first()?;
+    if open.stands == change::Stands::Asked {
+        for credit in &row.questions {
+            if credit.answerer == tasks::Party::Task(from) {
+                return Some((credit.number, &open.line));
+            }
+        }
+    }
+    None
+}
+
+/// Replace jig's reference refusal only at the two relays.
+pub(crate) fn refused_answer(domain: &Domain, from: u64, target: u64, named: u64, bound: u32) -> Option<Box<[u8]>> {
+    let open = if let Some(change) = domain.forge.change(target) {
+        match domain.core.tasks.task(target) {
+            Some(row) => open_to(row, &change.questions, from),
+            None => None,
+        }
+    } else {
+        let closer = domain.forge.closer(target)?;
+        closer.relay.open_to(closer.goal, from)
+    };
+    if let Some((number, _)) = open
+        && number == named
+    {
+        return None;
+    }
+    let words = answer_refusal(target, named, open);
+    Some(fit(&words, usize::try_from(bound).expect("message bound"), "…".as_bytes()))
 }
 
 /// What an agent hears of its words to its own change: its report goes in `finish`
@@ -492,4 +666,53 @@ pub(super) fn continuing_asker(domain: &Domain, task: u64, kind: change::Delegat
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn take_refuses_an_answer_before_the_question_is_asked() {
+        let (domain, mut env, task) =
+            crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::super::CHANGE_CODE });
+        env.limits.tasks.message_bytes = 128;
+        let mut row = domain.core.tasks.task(task).unwrap().clone();
+        let requester = 48;
+        row.requester = tasks::Party::Task(requester);
+        row.inbox = Box::new([tasks::Word {
+            number: 12,
+            from: row.requester,
+            kind: tasks::MessageKind::Answer { question: 11 },
+            words: b"Keep both".as_slice().into(),
+            at: env.wall,
+            hits: 1,
+            eligible: true,
+        }]);
+        let questions = change::Questions {
+            route: change::Route::Up,
+            open: Box::new([change::Open {
+                asker: 50,
+                number: 9,
+                line: b"Which one?".as_slice().into(),
+                words: b"Which one?".as_slice().into(),
+                stands: change::Stands::Taken,
+            }]),
+            ..change::Questions::default()
+        };
+        let taken = take(&row, 12, &questions, None, None, &env);
+        assert!(taken.answer.is_none());
+        let [reply] = taken.replies.as_ref() else { panic!("one reply: {:?}", taken.replies) };
+        assert_eq!(reply.target, requester);
+        assert!(reply.question.is_none());
+        let number = skein_lib::Decimal::of(task);
+        let text = skein_lib::bytes::concat(&[
+            b"Task ",
+            number.as_bytes(),
+            b" has no question open to you; read_task on task ",
+            number.as_bytes(),
+            b" shows its questions.",
+        ]);
+        assert_eq!(reply.words, text);
+    }
 }

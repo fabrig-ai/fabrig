@@ -109,13 +109,16 @@ pub use reasons::{ALWAYS_OFFERED_NAMES, REASON_NAMES, Reasons, offered};
 mod limits;
 mod llm;
 mod moving;
+mod notice_room;
 mod owned;
 mod parts;
 mod periods;
 mod placed;
 mod positions;
+pub use notice_room::NoticeCredit;
 pub use placed::{Mode, Owner, PlacedHold, Scope};
 pub use positions::{AnswerLine, ProposalRow, QuestionAnswerNotice, QuestionLine, QuestionResolution};
+pub use questions::ANSWER_NOTICE_BYTES;
 mod person;
 mod person_proposals;
 mod procedure;
@@ -162,11 +165,11 @@ pub use boundary::{
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter,
     Party, PersonAddress, PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem,
-    ProcedureDecision, ProcedureEnd, ProcedureInput, QuestionAnswerer, QuestionCredit, QuestionNotice, QuestionOffer,
-    QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess,
-    ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision,
-    Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, Taken,
-    TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionAnswerer, QuestionCredit,
+    QuestionNotice, QuestionOffer, QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal,
+    ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext,
+    SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy,
+    Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
 pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};

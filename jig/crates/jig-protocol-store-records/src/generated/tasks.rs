@@ -3657,6 +3657,24 @@ pub fn question_credit_to_domain(record: crate::tasks_v13::QuestionCredit) -> ji
 }
 
 #[must_use]
+pub fn notice_credit_to_record(value: &jig_domain_tasks::NoticeCredit) -> crate::tasks_v13::NoticeCredit {
+    let jig_domain_tasks::NoticeCredit { asker: field_000000, question: field_000001 } = value;
+    crate::tasks_v13::NoticeCredit {
+        asker: *field_000000,
+        question: *field_000001
+    }
+}
+
+#[must_use]
+pub fn notice_credit_to_domain(record: crate::tasks_v13::NoticeCredit) -> jig_domain_tasks::NoticeCredit {
+    let crate::tasks_v13::NoticeCredit { asker: field_000000, question: field_000001 } = record;
+    jig_domain_tasks::NoticeCredit {
+        asker: field_000000,
+        question: field_000001
+    }
+}
+
+#[must_use]
 pub fn subscription_kind_to_record(value: &jig_domain_tasks::SubscriptionKind) -> crate::tasks_v13::SubscriptionKind {
     match value {
         jig_domain_tasks::SubscriptionKind::Task { target: field_000000, held: field_000001, result: field_000002 } => crate::tasks_v13::SubscriptionKind::Task(crate::tasks_v13::TaskInterest {

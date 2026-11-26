@@ -1708,6 +1708,25 @@ fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
         out.string(&question.line);
         out.key(b"stands");
         out.string(stands(&question.stands));
+        if question.stands == w::Stands::Held
+            && let Some(blocked) = &question.blocked
+        {
+            out.key(b"held");
+            out.object_start();
+            out.key(b"blocker");
+            match blocked.dependency {
+                Some(task) => {
+                    out.object_start();
+                    out.key(b"task");
+                    out.unsigned(task);
+                    out.object_end();
+                }
+                None => out.string(b"room"),
+            }
+            out.key(b"since");
+            out.string(&skein_lib::Wall::from_nanos(blocked.since).utc_second());
+            out.object_end();
+        }
         out.object_end();
     }
     out.array_end();
@@ -1738,7 +1757,21 @@ fn text_questions(questions: &w::Questions, out: &mut Text) {
         match &question.stands {
             w::Stands::Taken => out.put(b"taken"),
             w::Stands::Asked => out.put(b"asked of requester"),
-            w::Stands::Held => out.put(b"answered, held"),
+            w::Stands::Held => {
+                out.put(b"answered, held");
+                if let Some(blocked) = &question.blocked {
+                    match blocked.dependency {
+                        Some(task) => {
+                            out.put(b" until task ");
+                            out.number(task);
+                            out.put(b" ends");
+                        }
+                        None => out.put(b" for message room"),
+                    }
+                    out.put(b", since ");
+                    out.put(&skein_lib::Wall::from_nanos(blocked.since).utc_second());
+                }
+            }
         }
         out.put(b" \xc2\xb7 ");
         out.put(&question.line);

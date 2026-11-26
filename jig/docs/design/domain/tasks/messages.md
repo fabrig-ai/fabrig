@@ -32,7 +32,9 @@ again when a run leaves one undecided only as 6 says.
   kind of message is admitted in one of three ways:
   - *room kept:* one result from each live delegate, one answer to each
     open question it asked, one notice with up to 256 bytes of answer
-    words for each question it received for its person, one decision
+    words for each question it received for its person, one notice of
+    up to 256 bytes for each question a procedure task asked it, until
+    that procedure's step takes its answer (below), one decision
     on each of its pending
     proposals, and a cancel, its grace's ask to finish taking the same
     room, one ask in a task's life (`changes.md`), so none of them can be
@@ -50,6 +52,23 @@ again when a run leaves one undecided only as 6 says.
   are evicted first, and an unanswered position is never evicted. A
   question past `inbox_messages` unanswered ones is refused at its
   sender's entrance, as words past the inbox's bound are.
+- **A procedure's question keeps room for its notice.** A question a
+  procedure task asks (`../connectors-procedures.md`, 1.3) is admitted
+  only where the asked task's inbox has room for it and for one notice
+  of up to 256 bytes: two slots, and its words' bytes and 256, as a
+  question received for a person is. The notice's room stays kept from
+  the question's admission until the procedure's step that takes its
+  answer commits, or the question ends unanswered. That step may spend
+  it on one words message to the answer's sender, the question's
+  notice, admitted in the kept room and so never refused for the
+  sender's inbox; a step that takes the answer and sends no notice
+  gives the room back. Why: a procedure relaying the answer on may hold
+  it, and its sender must hear so even while its inbox is full or the
+  step's own message room is spent (temper's relays,
+  `temper/docs/design/domain/forge/change/questions.md`, 1). Where the
+  store keeps the room as a fact of its own, that fact is an added
+  member with its default, none kept, so a question an earlier build
+  admitted keeps no room and its notice is admitted as words are.
 - **Open questions stay in front of it.** A question asked of the task
   is open until it hears an answer or the question ends
   (`lifecycle-endings.md`, 1). Read or not, an open question is shown to every

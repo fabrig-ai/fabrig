@@ -338,8 +338,8 @@ enum Verdict = c::Status { none = Unknown, approved = Passed, changes = Failed }
 record Gate = f::PanelGate { blocks = blocking }
 record Used = f::PanelUsed
 enum Route = c::Route
-enum Stands = f::PanelStands
-record Question = f::PanelQuestion
+record QuestionBlocker = c::Blocked { since via s::wall }
+record Question by hand
 record Questions = f::PanelQuestions { open slice }
 enum RuleFreshness = f::JudgeFreshness
 enum ReviewRead = f::ReviewRead

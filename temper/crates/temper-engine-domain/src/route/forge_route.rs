@@ -6,7 +6,7 @@ use super::{
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,
     emit, escalation, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
-use crate::commit_text;
+use crate::{PersonForge, commit_text};
 use forge::change_words::{
     CONTEXT_OPENING, change_context, delegate_amendment_words, delegate_words, landing_words, news_words,
     parameter_word_room, producer_amendment_words, production_words, repair_flake, repair_no_test,
@@ -70,7 +70,8 @@ mod holds;
 pub(crate) mod limit_holds;
 mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
-pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
+pub(super) use relay::live_producer;
+pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused, refused_answer};
 
 mod close;
 pub(crate) mod delegate_record;
@@ -170,7 +171,7 @@ pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, perso
 }
 
 /// A person's account on each forge of the project's repositories (domain/agent/agents.md, 1).
-pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[super::PersonForge]> {
+pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[PersonForge]> {
     let repositories = domain.forge.readable_repositories(project);
     let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
     let mut seen = skein_lib::Set::with_capacity(capacity);
@@ -186,7 +187,7 @@ pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[
             None => false,
         };
         forges
-            .push(super::PersonForge { host: repository.host.clone(), user, writer })
+            .push(PersonForge { host: repository.host.clone(), user, writer })
             .expect("at most one forge per repository");
     }
     forges.into_boxed()
@@ -3429,7 +3430,12 @@ fn review_failure_message(domain: &Domain, env: &Env<Limits>, task: u64) -> Opti
             break;
         }
     }
-    Some(jig_domain_core::StepMessage { target: requester, kind: tasks::MessageKind::Words, words: reason? })
+    Some(jig_domain_core::StepMessage {
+        notice: None,
+        target: requester,
+        kind: tasks::MessageKind::Words,
+        words: reason?,
+    })
 }
 
 fn authority_hold_message(
@@ -3442,7 +3448,12 @@ fn authority_hold_message(
     let tasks::Party::Task(target) = context.requester else { return None };
     let mut words = List::with_capacity(env.limits.tasks.message_bytes);
     append(&mut words, &forge_change::authority_words(cause));
-    Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
+    Some(jig_domain_core::StepMessage {
+        notice: None,
+        target,
+        kind: tasks::MessageKind::Words,
+        words: words.into_boxed(),
+    })
 }
 
 fn producer_failure_words(

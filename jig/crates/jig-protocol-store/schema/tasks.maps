@@ -285,6 +285,7 @@ record RecurringState = d::RecurringState { last_batch slice }
 record QuestionRelay = d::QuestionRelay
 record QuestionOffer = d::QuestionOffer { since via s::wall }
 record QuestionCredit = d::QuestionCredit
+record NoticeCredit = d::NoticeCredit
 record TaskInterest
 record TimerInterest { at via s::wall }
 record TopicInterest

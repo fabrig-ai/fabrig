@@ -695,6 +695,17 @@ pub struct Questions {
     pub answered: Box<[Answered]>,
     /// The newest amendments, kept oldest first under either question route.
     pub amended: Box<[Amended]>,
+    /// Replies that did not fit the step's message room, oldest first.
+    pub replies: Box<[Reply]>,
+}
+
+/// Feedback owed to the sender of a message (domain/forge/change/notices.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Reply {
+    pub target: u64,
+    /// A fallback for a question answers it; other feedback is words.
+    pub question: Option<u64>,
+    pub words: Box<[u8]>,
 }
 
 /// Answers kept for later work at most.
@@ -752,8 +763,16 @@ pub enum Stands {
     Taken,
     /// Asked of the change's requester, the change kept by its own question.
     Asked,
-    /// Answered by the requester and held until a step has message room.
-    Held { answer: Box<[u8]> },
+    /// Answered by the requester, but not yet relayed to the asker.
+    Held { answer: Box<[u8]>, question: u64, blocked: Option<Blocked> },
+}
+
+/// The current blocker of a held answer (temper/docs/design/domain/forge/change/notices.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Blocked {
+    /// None means the step has insufficient message room.
+    pub dependency: Option<u64>,
+    pub since: Wall,
 }
 
 /// One change ready for a landing branch's derived queue.

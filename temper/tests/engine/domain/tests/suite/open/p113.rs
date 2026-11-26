@@ -24,7 +24,6 @@ fn goal(world: &mut World, key: u8, words: &[u8]) -> engine::Assignment {
 }
 
 #[test]
-#[ignore = "bounded waits: P113, a change waits on another goal without a question"]
 fn a_change_waits_on_another_goal() {
     let mut world = World::configured_limits(
         true,
@@ -86,7 +85,22 @@ fn a_change_waits_on_another_goal() {
         }
     }
     assert!(live_task(&world, change).waiting_on.is_empty(), "the goal's end releases the change");
-    questions::next_producer(&mut world, change);
+    let producer = questions::next_producer(&mut world, change);
     assert!(!matches!(live_task(&world, parent.task).phase, tasks::Phase::Held { .. }));
+
+    // Finish the released change before the world's teardown checks restart equivalence.
+    let event = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        0,
+        tasks::End::Finished {
+            result: tasks::TaskResult::NoChange { words: b"No edit needed after the prerequisite".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    world.until(Until::Ready);
     world.close();
 }

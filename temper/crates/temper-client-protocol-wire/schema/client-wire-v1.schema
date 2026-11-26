@@ -447,8 +447,9 @@ enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
 record Used { used: u32 limit: u32 }
 enum Route { none, up }
+record QuestionBlocker { dependency: option u64 since: u64 }
 enum Stands { taken, asked, held }
-record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }
+record Question { asker: u64 number: u64 line: bytes 256 stands: Stands blocked: option QuestionBlocker = none }
 record Questions { route: Route taken: Used open: list 8 Question }
 # Landing-rule approvals (domain/forge/change/gates.md, 2; client/forge/README.md, 4).
 enum RuleFreshness { exact, clean }

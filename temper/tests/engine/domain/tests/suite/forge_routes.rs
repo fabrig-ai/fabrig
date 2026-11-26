@@ -64,6 +64,7 @@ mod asks_no_one;
 
 mod delegate_amendment;
 mod kept_delegate;
+mod party_words;
 #[path = "forge_routes/plan_restart.rs"]
 mod plan_restart;
 #[path = "forge_routes/producer_amendment.rs"]

@@ -1,6 +1,7 @@
 # areas-forges: status
 
-2026-11-22. Where the tree's code lags or departs from [areas-forges.md](areas-forges.md).
+2026-11-24. Where the tree's code lags or departs from [areas-forges.md](areas-forges.md).
+
 
 - **Departs:** the whole document: the `ctl-words` request asks that the owned forge's
   protection warning either prove false and go, or temper do what it asks.

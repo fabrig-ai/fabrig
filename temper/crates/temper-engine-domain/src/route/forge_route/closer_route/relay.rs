@@ -23,23 +23,30 @@ pub(super) fn apply(
             Some(_) | None => {}
         }
     }
+    let mut took_answer = false;
     for word in &record.inbox {
         if word.number > offered {
             continue;
         }
         let tasks::Party::Task(from) = word.from else { continue };
         let Some(form) = form(&word.kind) else { continue };
-        c::relay::take(&mut row.relay, open.as_slice(), row.goal, from, word.number, &form, &word.words);
+        took_answer |=
+            c::relay::take(&mut row.relay, open.as_slice(), row.task, row.goal, from, word.number, &form, &word.words);
     }
     let done = match &row.relay.open {
         Some(open) => ended(domain, open.asker),
         None => false,
     };
-    let mut messages = List::with_capacity(env.limits.tasks.batch);
+    let batch = env.limits.tasks.batch;
+    let used = u32::try_from(decision.messages.len()).expect("step messages fit batch");
+    let room = c::relay::Room { left: batch.checked_sub(used).expect("step messages fit batch"), batch };
+    let relayed =
+        c::relay::relay(&row.relay, row.goal, done, room, env.limits.tasks.message_bytes, env.wall, took_answer);
+    // The held notice spends its question's room, not one of the ordinary slots.
+    let mut messages = List::with_capacity(batch.saturating_add(u32::from(relayed.notice.is_some())));
     for message in core::mem::replace(&mut decision.messages, Box::new([])) {
         messages.push(message).expect("step messages fit batch");
     }
-    let relayed = c::relay::relay(&row.relay, row.goal, done, messages.room(), env.limits.tasks.message_bytes);
     for message in relayed.messages {
         let kind = match message.form {
             Form::Words => tasks::MessageKind::Words,
@@ -47,8 +54,18 @@ pub(super) fn apply(
             Form::Answer { question } => tasks::MessageKind::Answer { question },
         };
         messages
-            .push(StepMessage { target: message.target, kind, words: message.words })
+            .push(StepMessage { notice: None, target: message.target, kind, words: message.words })
             .expect("relay uses remaining message room");
+    }
+    if let Some(notice) = relayed.notice {
+        messages
+            .push(StepMessage {
+                notice: Some(notice.question),
+                target: row.goal,
+                kind: tasks::MessageKind::Words,
+                words: notice.words,
+            })
+            .expect("question notice has separate room");
     }
     row.relay = relayed.relay;
     decision.messages = messages.into_boxed();

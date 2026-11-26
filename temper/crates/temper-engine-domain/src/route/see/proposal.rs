@@ -1,7 +1,6 @@
 //! Proposal address reads (temper/docs/design/domain/agent/ask-temper.md, 1).
-use super::{
-    Decision, Domain, Env, FlightRender, Limits, ReplyTo, SeeAnswer, SeeFlight, SeeProposal, SeeReading, Work,
-};
+use super::{Decision, Domain, Env, FlightRender, Limits, ReplyTo, SeeAnswer, SeeFlight, SeeReading, Work};
+use crate::SeeProposal;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 

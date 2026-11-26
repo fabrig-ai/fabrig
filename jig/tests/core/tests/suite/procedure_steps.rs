@@ -8,6 +8,8 @@ use jig_test_domain as root;
 use jig_test_profile::fixtures::unchanged;
 use skein_lib::{ReplyTo, Token};
 
+mod notices;
+
 const PROCEDURE_CODE: u32 = 1;
 const DELEGATE_CALL: u64 = 9001;
 const AMEND_CALL: u64 = 9002;
@@ -27,7 +29,19 @@ fn program_world_with_deadline(
     actions: Option<Box<[connector::ProcedureAction]>>,
     deadline: Option<skein_lib::Wall>,
 ) -> (World, u64) {
-    let (mut configuration, limits) = jig_core_world::faults::plan_fixture(seed);
+    program_world_with_batch(seed, actions, deadline, None)
+}
+
+fn program_world_with_batch(
+    seed: u64,
+    actions: Option<Box<[connector::ProcedureAction]>>,
+    deadline: Option<skein_lib::Wall>,
+    batch: Option<u32>,
+) -> (World, u64) {
+    let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    if let Some(batch) = batch {
+        limits.core.tasks.batch = batch;
+    }
     if let Some(actions) = actions {
         configuration.first.procedures[0].actions = actions;
         configuration.first.procedures[0].max_steps = 6;
@@ -272,6 +286,7 @@ fn a_procedure_proposes_a_widening_while_its_message_commits() {
         procedure,
         core::ProcedureStep {
             messages: Box::new([core::StepMessage {
+                notice: None,
                 target: child,
                 kind: tasks::MessageKind::Words,
                 words: b"hello".as_slice().into(),
@@ -419,6 +434,7 @@ fn assert_cancel_refused(world: &mut World, procedure: u64, child: u64, cancels:
         procedure,
         core::ProcedureStep {
             messages: Box::new([core::StepMessage {
+                notice: None,
                 target: child,
                 kind: tasks::MessageKind::Words,
                 words: b"atomic".as_slice().into(),
@@ -515,6 +531,7 @@ fn a_kept_procedures_result_refuses_its_whole_step_including_its_message() {
         procedure,
         core::ProcedureStep {
             messages: Box::new([core::StepMessage {
+                notice: None,
                 target: dependency,
                 kind: tasks::MessageKind::Words,
                 words: b"must not arrive".as_slice().into(),

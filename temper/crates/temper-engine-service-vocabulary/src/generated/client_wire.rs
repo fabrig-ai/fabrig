@@ -2823,22 +2823,17 @@ pub fn route_to_record(value: &temper_engine_domain_forge_change::Route) -> temp
 }
 
 #[must_use]
-pub fn stands_to_record(value: &temper_engine_domain_forge::PanelStands) -> temper_client_protocol_wire::v1::Stands {
-    match value {
-        temper_engine_domain_forge::PanelStands::Taken => temper_client_protocol_wire::v1::Stands::Taken,
-        temper_engine_domain_forge::PanelStands::Asked => temper_client_protocol_wire::v1::Stands::Asked,
-        temper_engine_domain_forge::PanelStands::Held => temper_client_protocol_wire::v1::Stands::Held,
-    }
-}
-
-#[must_use]
-pub fn question_to_record(value: &temper_engine_domain_forge::PanelQuestion) -> temper_client_protocol_wire::v1::Question {
-    let temper_engine_domain_forge::PanelQuestion { asker: field_000000, number: field_000001, line: field_000002, stands: field_000003 } = value;
-    temper_client_protocol_wire::v1::Question {
-        asker: *field_000000,
-        number: *field_000001,
-        line: field_000002.clone(),
-        stands: stands_to_record(field_000003)
+pub fn question_blocker_to_record(value: &temper_engine_domain_forge_change::Blocked) -> temper_client_protocol_wire::v1::QuestionBlocker {
+    let temper_engine_domain_forge_change::Blocked { dependency: field_000000, since: field_000001 } = value;
+    temper_client_protocol_wire::v1::QuestionBlocker {
+        dependency: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        since: skein_codec::convert::wall_to_record(field_000001)
     }
 }
 
@@ -2852,7 +2847,7 @@ pub fn questions_to_record(value: &temper_engine_domain_forge::PanelQuestions) -
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::QUESTIONS_OPEN.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = question_to_record(item);
+                let converted = crate::family::question_to_record(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated

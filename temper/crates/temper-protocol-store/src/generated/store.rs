@@ -2681,8 +2681,40 @@ pub fn amended_to_domain(record: crate::v25::Amended) -> temper_engine_domain_fo
     }
 }
 
+#[must_use]
+pub fn change_reply_to_record(value: &temper_engine_domain_forge_change::Reply) -> crate::v25::ChangeReply {
+    let temper_engine_domain_forge_change::Reply { target: field_000000, question: field_000001, words: field_000002 } = value;
+    crate::v25::ChangeReply {
+        target: *field_000000,
+        question: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        words: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn change_reply_to_domain(record: crate::v25::ChangeReply) -> temper_engine_domain_forge_change::Reply {
+    let crate::v25::ChangeReply { target: field_000000, question: field_000001, words: field_000002 } = record;
+    temper_engine_domain_forge_change::Reply {
+        target: field_000000,
+        question: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        words: field_000002
+    }
+}
+
 pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions) -> Result<crate::v25::Questions, crate::v25::Problem> {
-    let temper_engine_domain_forge_change::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005 } = value;
+    let temper_engine_domain_forge_change::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005, replies: field_000006 } = value;
     Ok(crate::v25::Questions {
         route: crate::records::by_hand::route_to_record(field_000000),
         taken: *field_000001,
@@ -2725,12 +2757,22 @@ pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions)
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        replies: {
+            let source = field_000006;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::QUESTIONS_REPLIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = change_reply_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
         }
     })
 }
 
 pub fn questions_to_domain(record: crate::v25::Questions) -> Result<temper_engine_domain_forge_change::Questions, crate::v25::Problem> {
-    let crate::v25::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005 } = record;
+    let crate::v25::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005, replies: field_000006 } = record;
     Ok(temper_engine_domain_forge_change::Questions {
         route: crate::records::by_hand::route_to_domain(field_000000)?,
         taken: field_000001,
@@ -2770,6 +2812,16 @@ pub fn questions_to_domain(record: crate::v25::Questions) -> Result<temper_engin
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = amended_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        replies: {
+            let source = field_000006;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = change_reply_to_domain(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
@@ -7411,14 +7463,39 @@ pub fn closing_selection_to_domain(record: crate::v25::ClosingSelection) -> temp
 }
 
 #[must_use]
+pub fn closing_held_to_record(value: &temper_engine_domain_forge_closer::relay::Held) -> crate::v25::ClosingHeld {
+    let temper_engine_domain_forge_closer::relay::Held { since: field_000000, notified: field_000001 } = value;
+    crate::v25::ClosingHeld {
+        since: skein_codec::convert::wall_to_record(field_000000),
+        notified: *field_000001
+    }
+}
+
+#[must_use]
+pub fn closing_held_to_domain(record: crate::v25::ClosingHeld) -> temper_engine_domain_forge_closer::relay::Held {
+    let crate::v25::ClosingHeld { since: field_000000, notified: field_000001 } = record;
+    temper_engine_domain_forge_closer::relay::Held {
+        since: skein_codec::convert::wall_to_domain(field_000000),
+        notified: field_000001
+    }
+}
+
+#[must_use]
 pub fn closing_stands_to_record(value: &temper_engine_domain_forge_closer::relay::Stands) -> crate::v25::ClosingStands {
     match value {
         temper_engine_domain_forge_closer::relay::Stands::Taken => crate::v25::ClosingStands::Taken,
-        temper_engine_domain_forge_closer::relay::Stands::Asked { question: field_000000, answer: field_000001 } => crate::v25::ClosingStands::Asked(crate::v25::ClosingAsked {
+        temper_engine_domain_forge_closer::relay::Stands::Asked { question: field_000000, answer: field_000001, held: field_000002 } => crate::v25::ClosingStands::Asked(crate::v25::ClosingAsked {
             question: *field_000000,
             answer: match field_000001 {
                 Some(item) => {
                     let converted = item.clone();
+                    Some(converted)
+                }
+                None => None,
+            },
+            held: match field_000002 {
+                Some(item) => {
+                    let converted = closing_held_to_record(item);
                     Some(converted)
                 }
                 None => None,
@@ -7432,12 +7509,19 @@ pub fn closing_stands_to_domain(record: crate::v25::ClosingStands) -> temper_eng
     match record {
         crate::v25::ClosingStands::Taken => temper_engine_domain_forge_closer::relay::Stands::Taken,
         crate::v25::ClosingStands::Asked(held) => {
-            let crate::v25::ClosingAsked { question: field_000000, answer: field_000001 } = held;
+            let crate::v25::ClosingAsked { question: field_000000, answer: field_000001, held: field_000002 } = held;
             temper_engine_domain_forge_closer::relay::Stands::Asked {
                 question: field_000000,
                 answer: match field_000001 {
                     Some(item) => {
                         let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                held: match field_000002 {
+                    Some(item) => {
+                        let converted = closing_held_to_domain(item);
                         Some(converted)
                     }
                     None => None,

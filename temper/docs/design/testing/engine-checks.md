@@ -476,8 +476,6 @@ wants of that symptom.
 | P53 | `a_resolution_keeping_a_deleted_path_is_refused` | `temper-engine-domain-world` | a change's reds |
 | P58 residual | `a_repair_whose_tests_pass_regates_by_itself` | `temper-engine-domain-world` | a change's reds |
 | P120 | `the_newest_ruling_reaches_the_resolution` | `temper-engine-domain-world` | holds already: active |
-| P85 | `a_held_answer_tells_its_requester` | `temper-engine-domain-world` | bounded waits |
-| P113 | `a_change_waits_on_another_goal` | `temper-engine-domain-world` | bounded waits |
 
 - **P124's first scenario,** `cancelled_landing_frees_its_write_entries`
   (a landing cancelled while its gate's dispatch is in flight withdraws
@@ -552,8 +550,6 @@ own change.
 | `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
 | `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
 | `a_repair_whose_tests_pass_regates_by_itself` | `runs` / `a repair finds its tests passing` | `a landing's gate red` |
-| `a_held_answer_tells_its_requester` | `temper_faults::people::ANSWERS_LATE`, and `ANSWERS_TWICE`, each the sweep configures | `a dependency holds the answer` |
-| `a_change_waits_on_another_goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` | `its requester parked` |
 | `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'

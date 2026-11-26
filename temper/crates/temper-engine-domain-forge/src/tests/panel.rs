@@ -746,11 +746,13 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
 
 #[test]
 fn a_panel_shows_its_questions() {
+    let blocked = Some(change::Blocked { dependency: Some(38), since: Wall::from_nanos(123) });
     let mut row = fixtures::opening_row();
     row.questions = change::Questions {
         waiting: Box::new([]),
         answered: Box::new([]),
         amended: Box::new([]),
+        replies: Box::new([]),
         route: change::Route::Up,
         taken: 2,
         open: Box::new([
@@ -773,7 +775,11 @@ fn a_panel_shows_its_questions() {
                 number: 3,
                 line: Box::from(b"Which dependency?".as_slice()),
                 words: Box::from(b"Which dependency?".as_slice()),
-                stands: change::Stands::Held { answer: Box::from(b"answer words stay private".as_slice()) },
+                stands: change::Stands::Held {
+                    answer: Box::from(b"answer words stay private".as_slice()),
+                    question: 83,
+                    blocked,
+                },
             },
         ]),
     };
@@ -800,7 +806,7 @@ fn a_panel_shows_its_questions() {
                     asker: 73,
                     number: 3,
                     line: Box::from(b"Which dependency?".as_slice()),
-                    stands: PanelStands::Held
+                    stands: PanelStands::Held { blocked }
                 },
             ]),
         }

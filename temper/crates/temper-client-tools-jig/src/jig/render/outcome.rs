@@ -528,6 +528,7 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
         }
         c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
         c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
+        c::Outcome::Document(c::DocumentOutcome::Said { task, .. }) => Some(*task),
         c::Outcome::WorkerPauseAsked { .. } => None,
         c::Outcome::Account(_) | c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
     };
@@ -1122,6 +1123,17 @@ fn refused_text(
         return;
     }
     if super::roles::refusal(operation.word, refusal, me, out) {
+        return;
+    }
+    if operation.word == b"message"
+        && *refusal == c::Refusal::NotOffered
+        && let Some(task) = operation.task
+    {
+        out.put(b"task message: task ");
+        out.number(task);
+        out.put(b" takes no words; to direct it, amend it: task amend ");
+        out.number(task);
+        out.put(b" --spec FILE REASON");
         return;
     }
     if operation.proposal_decision && *refusal == c::Refusal::Unknown {

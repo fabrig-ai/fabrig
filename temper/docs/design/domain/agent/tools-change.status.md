@@ -1,6 +1,7 @@
 # tools-change: status
 
-2026-11-22. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
+2026-11-24. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
+
 
 `tools-change.md`, section 1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,

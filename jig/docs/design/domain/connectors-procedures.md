@@ -92,6 +92,16 @@ One decision, committed with its new state:
 - messages: words to its delegates and to the tasks its task references
   (tasks/messages.md, 5), and an answer to a delegate's question; and up, a
   question, an escalation, news its requester should have;
+- in the step that takes the answer to a question its task asked, one
+  **notice** of that question: words to the answer's sender, at most 256
+  bytes, sent in the room the question kept (tasks/messages.md, 2) and
+  counted apart from the step's other messages and their `tasks.batch`.
+  A step message names it by the question's number,
+  `StepMessage.notice`, none for every other message. A notice naming a
+  question whose answer the step does not take, sent to another task
+  than that answer's sender, in another form than words, past 256
+  bytes, or a second for one question, refuses the step whole, as any
+  failed check does (below);
 - marks on pending dependencies of its task, started from (1.1);
 - a hold, when it needs a decision it cannot make. Its connector, finding
   the hold's cause gone while the task is held, may ask the root to release

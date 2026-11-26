@@ -29,8 +29,8 @@ pub(crate) fn stepped(
         return out.push(Request::ProcedureRefused { task: number, step, problem });
     }
     task_mut(domain, number).expect("fenced procedure").record.room_wait = None;
-    let staged = match check(domain, env, number, step, read, &decision, reads_project) {
-        Ok(staged) => staged,
+    let checked = match check(domain, env, number, step, read, &decision, reads_project) {
+        Ok(checked) => checked,
         Err(problem) => {
             if let Some(room) = problem.freeing_count() {
                 crate::room::wait(domain, env, number, room, out);
@@ -39,9 +39,10 @@ pub(crate) fn stepped(
         }
     };
     crate::inbox::keep_refusals(domain, number, &[]);
-    let started_from = staged.record(domain, number).expect("staged procedure task").started_from.clone();
     let live = task_mut(domain, number).expect("procedure step preflighted");
-    live.record.started_from = started_from;
+    if let Some(started_from) = checked.started_from {
+        live.record.started_from = started_from;
+    }
     if let Some(words) = decision.words {
         live.record.spec.words = words;
     }
@@ -50,13 +51,16 @@ pub(crate) fn stepped(
     live.procedure_offered = None;
     let woken = live.procedure_woken;
     live.procedure_woken = false;
-    task_mut(domain, number).expect("procedure task live").record.phase = Phase::Active(Active::Idle);
+    live.record.phase = Phase::Active(Active::Idle);
+    for release in checked.released {
+        crate::notice_room::give_back(domain, &env.limits, release.target, release.credit);
+    }
     let numbers = if decision.batch.is_empty() {
         None
     } else {
         Some(make_admitted(domain, env, Party::Task(number), decision.batch, out))
     };
-    for plan in staged.plans.into_boxed() {
+    for plan in checked.plans {
         crate::compound::apply(domain, env, Party::Task(number), plan, out);
     }
     end_step(domain, env, number, decision.end, out);
@@ -99,6 +103,12 @@ fn problem(task: u64, why: Refusal) -> crate::Problem {
     crate::Problem { task: Some(task), why, blocked_by: None, capacity: None }
 }
 
+struct Checked {
+    plans: Box<[crate::compound::Plan]>,
+    released: Box<[crate::notice_room::Release]>,
+    started_from: Option<Box<[u64]>>,
+}
+
 fn check(
     domain: &Domain,
     env: &Env<Limits>,
@@ -107,10 +117,14 @@ fn check(
     read: Option<u64>,
     decision: &ProcedureDecision,
     reads_project: bool,
-) -> Result<crate::compound::Staged, crate::Problem> {
+) -> Result<Checked, crate::Problem> {
     let task = record(domain, number).expect("step task checked");
     check_words(task, &env.limits, decision.words.as_deref())?;
     check_shape(&env.limits, number, decision)?;
+    let released = match crate::notice_room::check_step(domain, &env.limits, task, read, &decision.messages) {
+        Ok(released) => released,
+        Err(target) => return Err(problem(target, Refusal::Read)),
+    };
     if let ProcedureEnd::Result(result) = &decision.end {
         let end = crate::End::Finished { result: result.clone(), cancel_delegates: false };
         if crate::run::ends::kept(domain, number).parks(&end) {
@@ -126,22 +140,23 @@ fn check(
     if !decision.batch.is_empty() {
         crate::batch::check(domain, &env.limits, Party::Task(number), &decision.batch, reads_project)?;
     }
-    let bound = env.limits.tasks.max(env.limits.batch.saturating_mul(3).saturating_add(1));
+    let started_from = started_from(task, &env.limits, &decision.started_from)?;
+    // The fence, batch, result, and notice claims have all been checked. Only
+    // the other parts consult the projected task after that batch and read.
+    if decision.amendments.is_empty()
+        && decision.messages.is_empty()
+        && decision.proposals.is_empty()
+        && decision.cancels.is_empty()
+    {
+        return Ok(Checked { plans: Box::new([]), released, started_from });
+    }
+    let parts = env.limits.batch.saturating_mul(3).saturating_add(1).saturating_add(env.limits.inbox_messages);
+    let bound = env.limits.tasks.max(parts);
     let mut staged = crate::compound::Staged::new(bound);
     let mut parent = task.clone();
-    let mut started_from = skein_lib::List::with_capacity(env.limits.dependencies);
-    for dependency in &task.started_from {
-        started_from.push(*dependency).expect("marks bounded by dependencies");
+    if let Some(marks) = &started_from {
+        parent.started_from.clone_from(marks);
     }
-    for dependency in &decision.started_from {
-        if !task.dependencies.contains(dependency) {
-            return Err(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency]));
-        }
-        if !started_from.as_slice().contains(dependency) {
-            started_from.push(*dependency).expect("marks are a subset of dependencies");
-        }
-    }
-    parent.started_from = started_from.into_boxed();
     parent.attempt = step;
     parent.phase = Phase::Active(Active::Idle);
     crate::inbox::take(&mut parent, read, None, false);
@@ -162,8 +177,34 @@ fn check(
     }
     parent.delegates = delegates.into_boxed();
     staged.rows.push(parent).expect("one procedure projection");
+    for release in &released {
+        staged.release_notice(domain, &env.limits, release);
+    }
     check_parts(domain, &mut staged, env, number, decision, reads_project)?;
-    Ok(staged)
+    Ok(Checked { plans: staged.plans.into_boxed(), released, started_from })
+}
+
+fn started_from(
+    task: &crate::TaskRecord,
+    limits: &Limits,
+    marks: &[u64],
+) -> Result<Option<Box<[u64]>>, crate::Problem> {
+    if marks.is_empty() {
+        return Ok(None);
+    }
+    let mut started = skein_lib::List::with_capacity(limits.dependencies);
+    for dependency in &task.started_from {
+        started.push(*dependency).expect("marks bounded by dependencies");
+    }
+    for dependency in marks {
+        if !task.dependencies.contains(dependency) {
+            return Err(crate::Problem::naming(Some(task.number), Refusal::Dependencies, &[*dependency]));
+        }
+        if !started.as_slice().contains(dependency) {
+            started.push(*dependency).expect("marks are a subset of dependencies");
+        }
+    }
+    Ok(Some(started.into_boxed()))
 }
 
 fn check_parts(
@@ -191,10 +232,22 @@ fn check_parts(
         retain(domain, staged, env, plan)?;
     }
     for part in &decision.messages {
-        if part.word.from != Party::Task(number) {
-            return Err(problem(part.task, Refusal::Reference));
+        if part.message.word.from != Party::Task(number) {
+            return Err(problem(part.message.task, Refusal::Reference));
         }
-        let plan = match crate::inbox::check_message(domain, staged, env, project, part.clone(), false) {
+        let message = part.message.clone();
+        let checked = match part.notice {
+            Some(question) => crate::inbox::check_notice(
+                domain,
+                staged,
+                env,
+                project,
+                message,
+                crate::NoticeCredit { asker: number, question },
+            ),
+            None => crate::inbox::check_message(domain, staged, env, project, message, false),
+        };
+        let plan = match checked {
             Ok(plan) => crate::compound::Plan::Message(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };
@@ -268,9 +321,18 @@ fn end_step(domain: &mut Domain, env: &Env<Limits>, number: u64, end: ProcedureE
 }
 
 fn check_shape(limits: &Limits, number: u64, decision: &ProcedureDecision) -> Result<(), crate::Problem> {
+    let (mut ordinary, mut notices) = (0_u32, 0_u32);
+    for part in &decision.messages {
+        if part.notice.is_some() {
+            notices = notices.saturating_add(1);
+        } else {
+            ordinary = ordinary.saturating_add(1);
+        }
+    }
     if decision.cancels.len() > skein_lib::length::usize_of(limits.batch)
         || decision.amendments.len() > skein_lib::length::usize_of(limits.batch)
-        || decision.messages.len() > skein_lib::length::usize_of(limits.batch)
+        || ordinary > limits.batch
+        || notices > limits.inbox_messages
         || decision.proposals.len() > 1
     {
         return Err(problem(number, Refusal::Batch));

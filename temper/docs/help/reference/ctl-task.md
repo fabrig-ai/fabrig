@@ -118,9 +118,11 @@ task message TASK TEXT --key KEY
   TASK (task): a number; required. The task's number
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The words
 Send words to a task
-Prints: `done: task N, message`
+Prints: `done: task N, message`, where N is the task that took the words
 --json: the record message.
 Key: --key KEY, required.
+Words to a change reach its producer when the producer is active or held while active.
+An act that is not offered exits 2: task message: task N takes no words; to direct it, amend it: task amend N --spec FILE REASON
 ```
 
 ## task answer

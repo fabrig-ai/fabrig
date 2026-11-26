@@ -124,8 +124,21 @@ impl Driver {
                         .map(|row| row.number)
                         .expect("question producer");
                     self.next_call += 1;
-                    self.world.goal_answer(&goal_run, self.next_call, target, question, b"Proceed");
                     if action.act == Act::AnswerTwice {
+                        let answer = self.world.scripted_call_with_replay(
+                            &goal_run,
+                            self.next_call,
+                            engine::Tool::Message {
+                                target,
+                                form: engine::MessageForm::Answer { question },
+                                words: b"Proceed".as_slice().into(),
+                            },
+                        );
+                        assert!(
+                            matches!(answer, engine::CallAnswer::Sent { .. }),
+                            "goal answers question {question}: {answer:?}"
+                        );
+                    } else {
                         self.world.goal_answer(&goal_run, self.next_call, target, question, b"Proceed");
                     }
                     if action.act == Act::AnswerEndedRun {

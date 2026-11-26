@@ -2545,10 +2545,24 @@ fn a_panels_questions_map_field_for_field() {
         let mut value = panel();
         let mut open = List::with_capacity(5);
         let mut expected = List::with_capacity(5);
-        for (index, (stands, wire)) in [
-            (forge::PanelStands::Taken, w::Stands::Taken),
-            (forge::PanelStands::Asked, w::Stands::Asked),
-            (forge::PanelStands::Held, w::Stands::Held),
+        for (index, (stands, wire, blocked)) in [
+            (forge::PanelStands::Taken, w::Stands::Taken, None),
+            (forge::PanelStands::Asked, w::Stands::Asked, None),
+            (forge::PanelStands::Held { blocked: None }, w::Stands::Held, None),
+            (
+                forge::PanelStands::Held {
+                    blocked: Some(change::Blocked { dependency: Some(84), since: skein_lib::Wall::from_nanos(567) }),
+                },
+                w::Stands::Held,
+                Some(w::QuestionBlocker { dependency: Some(84), since: 567 }),
+            ),
+            (
+                forge::PanelStands::Held {
+                    blocked: Some(change::Blocked { dependency: None, since: skein_lib::Wall::from_nanos(568) }),
+                },
+                w::Stands::Held,
+                Some(w::QuestionBlocker { dependency: None, since: 568 }),
+            ),
         ]
         .into_iter()
         .enumerate()
@@ -2557,7 +2571,7 @@ fn a_panels_questions_map_field_for_field() {
             let number = 1_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
             let line = b"Which branch?".as_slice();
             open.push(forge::PanelQuestion { asker, number, line: Box::from(line), stands }).unwrap();
-            expected.push(w::Question { asker, number, line: Box::from(line), stands: wire }).unwrap();
+            expected.push(w::Question { asker, number, line: Box::from(line), stands: wire, blocked }).unwrap();
         }
         value.questions =
             forge::PanelQuestions { route, taken: forge::PanelUsed { used: 2, limit: 4 }, open: open.into_boxed() };

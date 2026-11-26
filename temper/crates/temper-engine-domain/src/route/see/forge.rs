@@ -1,10 +1,9 @@
 //! Forge address reads (temper/docs/design/domain/agent/ask-temper.md, 1).
 use super::{Decision, Domain, Env, FlightRender, Limits, ReplyTo, SeeAnswer, SeeFlight, SeeReading};
-use crate::{CallAnswer, CallKey, SeeLanding, SeeRepository};
+use crate::{CallAnswer, CallKey};
 use alloc::boxed::Box;
-use skein_forge::api::{self, Read};
-use skein_lib::{List, Writer};
-use temper_engine_domain_forge::{Repository, RepositoryGates};
+use skein_forge::api::Read;
+use temper_engine_domain_see::forge as answers;
 
 pub(super) fn landing(
     domain: &mut Domain,
@@ -16,20 +15,7 @@ pub(super) fn landing(
     from: u32,
 ) {
     let project = project(domain, key);
-    let readable = domain.forge.readable_repositories(project);
-    let mut repositories = List::with_capacity(u32::try_from(readable.len()).expect("admitted repositories"));
-    for repository in &readable {
-        repositories.push(repository_answer(domain, project, repository)).expect("admitted repositories");
-    }
-    let answer = SeeLanding {
-        by: domain.forge.landing_way(project),
-        merge_job: match domain.forge.merge_job(project) {
-            Some(job) => Some(job.into()),
-            None => None,
-        },
-        after: domain.forge.after_landing(project),
-        repositories: repositories.into_boxed(),
-    };
+    let answer = answers::landing(&domain.forge, project);
     super::deliver(env, decision, to, line, from, SeeAnswer::Landing(Box::new(answer)));
 }
 
@@ -46,7 +32,7 @@ pub(super) fn gates(
 ) {
     let project = project(domain, key);
     let answer = match super::super::forge_route::named_repository(domain, project, Some(&repository)) {
-        Ok(adopted) => SeeAnswer::Gates(Box::new(repository_answer(domain, project, &adopted))),
+        Ok(adopted) => SeeAnswer::Gates(Box::new(answers::repository_answer(&domain.forge, project, &adopted))),
         Err(_) => refused_repository(domain, project, repository),
     };
     super::deliver(env, decision, to, line, from, answer);
@@ -90,25 +76,6 @@ fn project(domain: &Domain, key: CallKey) -> u32 {
     domain.core.tasks.delegation(key.task).expect("authorized chat delegation").project
 }
 
-fn repository_answer(domain: &Domain, project: u32, repository: &Repository) -> SeeRepository {
-    let length = repository
-        .owner
-        .len()
-        .checked_add(repository.name.len())
-        .expect("repository name bound")
-        .checked_add(1)
-        .expect("repository slash");
-    let mut name = Writer::new(length);
-    name.put(&repository.owner).expect("repository owner");
-    name.put(b"/").expect("repository slash");
-    name.put(&repository.name).expect("repository name");
-    let checks = match domain.forge.repository_gates(project, repository.provider) {
-        Some(checks) => checks.clone(),
-        None => RepositoryGates { repository: repository.provider, gates: Box::new([]), tiers: Box::new([]) },
-    };
-    SeeRepository { name: name.finish(), checks }
-}
-
 fn refused_repository(domain: &Domain, project: u32, named: Box<[u8]>) -> SeeAnswer {
     SeeAnswer::Call {
         tool: b"read_file",
@@ -124,7 +91,7 @@ pub(crate) fn answered(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
     let flight = domain.call_renders.get(&right).expect("see forge flight");
     let FlightRender::Settings { see: Some(see), from, .. } = &flight.render else { unreachable!("see forge context") };
     let (head, tool) = match see.reading {
-        SeeReading::Head => (read_head(&answer), b"read_branch".as_slice()),
+        SeeReading::Head => (answers::read_head(&answer), b"read_branch".as_slice()),
         SeeReading::File => (None, b"read_file".as_slice()),
         SeeReading::Settings | SeeReading::Proposal | SeeReading::Person(_) => {
             unreachable!("forge answer to a forge read")
@@ -192,92 +159,4 @@ fn deliver(domain: &mut Domain, to: ReplyTo, line: Box<[u8]>, from: u32, answer:
         answer: Box::new(answer),
     })));
     assert!(crate::domain::now(domain, request), "see forge render door reserved");
-}
-
-fn read_head(answer: &CallAnswer) -> Option<api::Commit> {
-    match answer {
-        CallAnswer::ForgeRead(answer) => match answer.as_ref() {
-            Ok(answer) => match answer {
-                api::Answer::Commit(head) => Some(*head),
-                api::Answer::Located { .. }
-                | api::Answer::Items { .. }
-                | api::Answer::Item { .. }
-                | api::Answer::Pull(_)
-                | api::Answer::Reviews { .. }
-                | api::Answer::Statuses { .. }
-                | api::Answer::Remarks { .. }
-                | api::Answer::Branches(_)
-                | api::Answer::PullFiles { .. }
-                | api::Answer::Compare { .. }
-                | api::Answer::Checks(_)
-                | api::Answer::JobState { .. }
-                | api::Answer::Job { .. }
-                | api::Answer::File { .. }
-                | api::Answer::Directory { .. }
-                | api::Answer::Protection(_)
-                | api::Answer::Settings(_)
-                | api::Answer::Collaborators { .. }
-                | api::Answer::Permission(_)
-                | api::Answer::Created(_)
-                | api::Answer::Commented(_)
-                | api::Answer::Reviewed(_)
-                | api::Answer::Merged(_)
-                | api::Answer::Branch(_)
-                | api::Answer::Done
-                | api::Answer::Run(_)
-                | api::Answer::Runs { .. }
-                | api::Answer::Commits { .. }
-                | api::Answer::Tree { .. }
-                | api::Answer::Queued => None,
-            },
-            Err(_) => None,
-        },
-        CallAnswer::Follow(_)
-        | CallAnswer::Finding(_)
-        | CallAnswer::Red(_)
-        | CallAnswer::Decided { .. }
-        | CallAnswer::TaskRead(_)
-        | CallAnswer::SettingsRefused(_)
-        | CallAnswer::HoldOwner { .. }
-        | CallAnswer::Again { .. }
-        | CallAnswer::PassedUp { .. }
-        | CallAnswer::Revised { .. }
-        | CallAnswer::Amended { .. }
-        | CallAnswer::Moved { .. }
-        | CallAnswer::ForgeEffect { .. }
-        | CallAnswer::ForgeEffectRefused(_)
-        | CallAnswer::ForgeEffectDenied { .. }
-        | CallAnswer::ToolDenied { .. }
-        | CallAnswer::EscalationDecided { .. }
-        | CallAnswer::EscalationRefused(_)
-        | CallAnswer::Proposed { .. }
-        | CallAnswer::ProposalDecided { .. }
-        | CallAnswer::ProposalRefused(_)
-        | CallAnswer::Controlled
-        | CallAnswer::ControlRefused(_)
-        | CallAnswer::EffectRefused(_)
-        | CallAnswer::ControlDenied { .. }
-        | CallAnswer::Sent { .. }
-        | CallAnswer::Introduced
-        | CallAnswer::MessageRefused(_)
-        | CallAnswer::Subscribed { .. }
-        | CallAnswer::Unsubscribed
-        | CallAnswer::SubscriptionRefused(_)
-        | CallAnswer::ForgeSubscriptionRefused { .. }
-        | CallAnswer::Delegated(_)
-        | CallAnswer::DelegationDenied { .. }
-        | CallAnswer::DelegationRefused(_)
-        | CallAnswer::ReadRepositoryRefused { .. }
-        | CallAnswer::SubscriptionRepositoryRefused { .. }
-        | CallAnswer::ChangeRefused { .. }
-        | CallAnswer::WordsRecorded { .. }
-        | CallAnswer::NoteWritten { .. }
-        | CallAnswer::NoteDeleted { .. }
-        | CallAnswer::NoteRecalled { .. }
-        | CallAnswer::NoteRefused(_)
-        | CallAnswer::Document(_)
-        | CallAnswer::Remember(_)
-        | CallAnswer::Parts(_)
-        | CallAnswer::Unavailable => None,
-    }
 }

@@ -937,11 +937,15 @@ fn landed_is_met_by_every_later_step_and_cleared_waits_through_red() {
 
 fn question_parts() -> w::ChangePanel {
     let mut parts = panel(w::Step::Checking);
-    let mut open = List::with_capacity(2);
-    for (asker, number, line, stands) in
-        [(7, 1, b"Which branch?".as_slice(), w::Stands::Asked), (8, 2, b"Which check?".as_slice(), w::Stands::Taken)]
-    {
-        open.push(w::Question { asker, number, line: Box::from(line), stands }).unwrap();
+    let mut open = List::with_capacity(5);
+    for (asker, number, line, stands, blocked) in [
+        (7, 1, b"Which branch?".as_slice(), w::Stands::Asked, None),
+        (8, 2, b"Which check?".as_slice(), w::Stands::Taken, None),
+        (9, 3, b"Which dependency?".as_slice(), w::Stands::Held, Some(blocker(Some(15), 2_000_000_000))),
+        (10, 4, b"Which repair?".as_slice(), w::Stands::Held, Some(blocker(None, 3_000_000_000))),
+        (11, 5, b"Which resolution?".as_slice(), w::Stands::Held, None),
+    ] {
+        open.push(w::Question { asker, number, line: Box::from(line), stands, blocked }).unwrap();
     }
     parts.questions = w::Questions { route: w::Route::Up, taken: w::Used { used: 2, limit: 4 }, open };
     parts
@@ -953,18 +957,35 @@ fn change_show_prints_its_questions() {
     assert_eq!(text.status, 0);
     f::check_golden("change_questions", &text.stdout);
     let json = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
-    contains(&json.stdout, br#""questions":{"route":"up","taken":2,"limit":4,"open":[{"asker":7,"number":1,"line":"Which branch?","stands":"asked"},{"asker":8,"number":2,"line":"Which check?","stands":"taken"}]}"#);
+    contains(&json.stdout, br#""questions":{"route":"up","taken":2,"limit":4,"open":[{"asker":7,"number":1,"line":"Which branch?","stands":"asked"},{"asker":8,"number":2,"line":"Which check?","stands":"taken"},{"asker":9,"number":3,"line":"Which dependency?","stands":"held","held":{"blocker":{"task":15},"since":"1970-01-01T00:00:02Z"}},{"asker":10,"number":4,"line":"Which repair?","stands":"held","held":{"blocker":"room","since":"1970-01-01T00:00:03Z"}},{"asker":11,"number":5,"line":"Which resolution?","stands":"held"}]}"#);
 }
+fn blocker(dependency: Option<u64>, since: u64) -> w::QuestionBlocker {
+    w::QuestionBlocker { dependency, since }
+}
+
 #[test]
 fn change_show_names_asked_and_held_questions() {
-    for (stands, text, json) in [
-        (w::Stands::Asked, b"asked of requester".as_slice(), br#""stands":"asked""#.as_slice()),
-        (w::Stands::Held, b"answered, held \xc2\xb7 Which branch?\n", br#""stands":"held""#),
+    for (stands, blocked, text, json) in [
+        (w::Stands::Asked, None, b"asked of requester".as_slice(), br#""stands":"asked""#.as_slice()),
+        (
+            w::Stands::Held,
+            Some(blocker(Some(15), 2_000_000_000)),
+            b"answered, held until task 15 ends, since 1970-01-01T00:00:02Z \xc2\xb7 Which branch?\n",
+            br#""stands":"held","held":{"blocker":{"task":15},"since":"1970-01-01T00:00:02Z"}}"#,
+        ),
+        (
+            w::Stands::Held,
+            Some(blocker(None, 3_000_000_000)),
+            b"answered, held for message room, since 1970-01-01T00:00:03Z \xc2\xb7 Which branch?\n",
+            br#""stands":"held","held":{"blocker":"room","since":"1970-01-01T00:00:03Z"}}"#,
+        ),
+        (w::Stands::Held, None, b"answered, held \xc2\xb7 Which branch?\n", br#""stands":"held"}"#),
     ] {
         let mut parts = question_parts();
         let mut questions = parts.questions;
         let mut open = List::with_capacity(1);
-        open.push(w::Question { asker: 7, number: 1, line: Box::from(b"Which branch?".as_slice()), stands }).unwrap();
+        open.push(w::Question { asker: 7, number: 1, line: Box::from(b"Which branch?".as_slice()), stands, blocked })
+            .unwrap();
         questions.open = open;
         parts.questions = questions;
         let value = parts;

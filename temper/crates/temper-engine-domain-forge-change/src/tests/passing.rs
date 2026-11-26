@@ -11,7 +11,9 @@ fn word(number: u64) -> Waiting {
 
 #[test]
 fn room_for_one_passes_then_tells_in_order_without_touching_questions() {
-    for stands in [Stands::Taken, Stands::Asked, Stands::Held { answer: b"Wait".as_slice().into() }] {
+    for stands in
+        [Stands::Taken, Stands::Asked, Stands::Held { answer: b"Wait".as_slice().into(), question: 0, blocked: None }]
+    {
         let mut questions = Questions {
             route: Route::Up,
             taken: 1,
@@ -25,6 +27,7 @@ fn room_for_one_passes_then_tells_in_order_without_touching_questions() {
             waiting: Box::new([]),
             answered: Box::new([]),
             amended: Box::new([]),
+            replies: Box::new([]),
         };
         let before = questions.clone();
         let line = match &before.open[0].stands {

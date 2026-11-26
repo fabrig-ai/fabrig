@@ -1,6 +1,6 @@
 //! A change relays its agents' questions (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::*;
-use temper_engine_domain_forge_change::{Route, Stands, State};
+use temper_engine_domain_forge_change::{Blocked, Route, Stands, State};
 
 const TICKS: u32 = 200;
 // A complete pair of landings includes fresh reads and queue turns.
@@ -250,6 +250,56 @@ pub(super) fn finish_producing(world: &mut World, change: u64, producer: &engine
         }
     }
     assert!(!matches!(row(world, change).change.state, State::Producing { .. }));
+}
+
+#[test]
+fn a_change_refuses_an_answer_naming_no_open_question() {
+    let (mut world, requester, change, producer) = up_world(None);
+    let sent = world.answers.len();
+    let unopened =
+        format!("Task {change} has no question open to you; read_task on task {change} shows its questions.");
+    call(
+        &mut world,
+        &requester,
+        CALL + 1,
+        engine::Tool::Message {
+            target: change,
+            form: engine::MessageForm::Answer { question: 1 },
+            words: ANSWER.into(),
+        },
+    );
+    assert_eq!(world.call_errors.last().map(|error| error.text.as_ref()), Some(unopened.as_bytes()));
+    assert_eq!(world.answers.len(), sent);
+    let down = ask(&mut world, &producer, change);
+    let sent = world.answers.len();
+    let up = live_task(&world, change).questions[0].number;
+    assert_ne!(up, down);
+    let mut expected = format!(
+        "Question {down} is not open at task {change}; its question to you is {up}: Which behavior should hold?. Answer it: message target={change}, form=answer, question={up}."
+    );
+    let bound = usize::try_from(world.env.limits.tasks.message_bytes).unwrap();
+    if expected.len() > bound {
+        expected.replace_range(bound - "…".len().., "…");
+    }
+    call(
+        &mut world,
+        &requester,
+        CALL + 2,
+        engine::Tool::Message {
+            target: change,
+            form: engine::MessageForm::Answer { question: down },
+            words: ANSWER.into(),
+        },
+    );
+    assert_eq!(world.call_errors.last().map(|error| error.text.as_ref()), Some(expected.as_bytes()));
+    assert_eq!(world.answers.len(), sent);
+    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
+    assert_eq!(replies(&world, producer.task, change), [] as [&tasks::Word; 0]);
+    answer(&mut world, &requester, change, CALL + 3);
+    wait_answer(&mut world, producer.task, change);
+    let words = replies(&world, producer.task, change);
+    assert_eq!(words[0].kind, tasks::MessageKind::Answer { question: down });
+    assert_eq!(words[0].words.as_ref(), ANSWER);
 }
 
 #[test]
@@ -1000,7 +1050,11 @@ fn a_producers_finish_waits_for_its_requesters_answer() {
 // questions.md, 1, Held for a dependency it did not start from.
 #[test]
 fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
-    let (mut world, requester, change, producer) = up_world(None);
+    let (mut world, requester) =
+        plan_world_with_limits(None, &StoryLimits { tasks_batch: Some(2), ..StoryLimits::default() }, false);
+    let change = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
+    let producer = next_producer(&mut world, change);
+    world.until(Until::Ready);
     ask(&mut world, &producer, change);
     park_after_turn(&mut world, &producer, None, 0);
     let dependency = make_change(&mut world, &requester, CALL + 1, engine::ChangeQuestions::None);
@@ -1022,7 +1076,9 @@ fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
             break;
         }
     }
-    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Held { answer: ANSWER.into() });
+    assert!(matches!(&row(&world, change).questions.open[0].stands,
+        Stands::Held { answer, blocked: Some(Blocked { dependency: Some(blocker), .. }), .. }
+        if answer.as_ref() == ANSWER && *blocker == dependency));
     assert_eq!(replies(&world, producer.task, change).len(), 0);
     let branch = row(&world, dependency).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
@@ -1042,10 +1098,13 @@ pub(crate) struct AddedDependency {
     upstream: engine::Assignment,
     producer: engine::Assignment,
     question: u64,
+    relay_number: u64,
 }
 
 pub(crate) fn existing_sibling_question() -> AddedDependency {
-    let (mut world, requester) = plan_world(None);
+    // The held answer and its delivered notice share ordinary step room.
+    let limits = StoryLimits { tasks_batch: Some(2), ..StoryLimits::default() };
+    let (mut world, requester) = plan_world_with_limits(None, &limits, false);
     let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
     let upstream = next_producer(&mut world, dependency);
     let change = make_change(&mut world, &requester, CALL + 1, engine::ChangeQuestions::Up);
@@ -1063,30 +1122,75 @@ pub(crate) fn existing_sibling_question() -> AddedDependency {
         engine::Tool::Amend { keep_parameters: false, target: change, revision, amendment },
     );
     assert!(live_task(&world, change).started_from.is_empty());
+    let relay_number = live_task(&world, change).questions[0].number;
     answer(&mut world, &requester, change, CALL + 3);
-    assert_answer_held(&mut world, change, &producer, dependency);
-    AddedDependency { world, requester, dependency, change, upstream, producer, question }
+    let mut story =
+        AddedDependency { world, requester, dependency, change, upstream, producer, question, relay_number };
+    assert_answer_held(&mut story);
+    story
 }
 
-fn assert_answer_held(world: &mut World, change: u64, producer: &engine::Assignment, dependency: u64) {
-    world.advance_ticks(TICKS);
-    assert_eq!(
-        row(world, change).questions.open.first().map(|question| question.stands.clone()),
-        Some(Stands::Held { answer: ANSWER.into() })
+fn held_since(story: &AddedDependency) -> skein_lib::Wall {
+    let change = row(&story.world, story.change);
+    let Stands::Held { answer, question, blocked: Some(Blocked { dependency, since }) } =
+        &change.questions.open[0].stands
+    else {
+        panic!("answer held by the dependency: {:?}", change.questions.open)
+    };
+    assert_eq!(answer.as_ref(), ANSWER);
+    assert_eq!(*question, story.relay_number);
+    assert_eq!(*dependency, Some(story.dependency));
+    *since
+}
+
+fn assert_answer_held(story: &mut AddedDependency) {
+    story.world.advance_ticks(TICKS);
+    let since = held_since(story);
+    let words = format!(
+        "Your answer to question {} is held until task {} ends; held since {}.",
+        story.relay_number,
+        story.dependency,
+        std::str::from_utf8(&since.utc_second()).expect("the UTC second is ASCII")
     );
-    assert_eq!(replies(world, producer.task, change).len(), 0);
-    assert!(!world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
-    assert_pending_dependency(world, change, dependency);
+    let notices: Vec<_> = replies(&story.world, story.requester.task, story.change)
+        .into_iter()
+        .filter(|word| word.kind == tasks::MessageKind::Words && word.words.starts_with(b"Your answer to question "))
+        .collect();
+    assert_eq!(notices.len(), 1, "one held notice before delivery");
+    assert_eq!(notices[0].words.as_ref(), words.as_bytes());
+    assert_eq!(notices[0].at, since);
+    assert_eq!(replies(&story.world, story.producer.task, story.change).len(), 0);
+    assert!(
+        !story.world.assigned.iter().any(|run| run.task == story.producer.task && run.attempt > story.producer.attempt)
+    );
+    assert_pending_dependency(&story.world, story.change, story.dependency);
 }
 
 pub(crate) fn land_sibling_and_resume(story: &mut AddedDependency) {
-    let AddedDependency { world, dependency, change, upstream, producer, question, .. } = story;
+    let since = held_since(story);
+    let AddedDependency { world, dependency, change, requester, upstream, producer, question, relay_number } = story;
     let branch = row(world, *dependency).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"prerequisite", b"ready", 1)
         .expect("sibling pushed");
     super::delegates::fixtures::answer_producer(world, upstream);
     let resumed = resumed_producer(world, *change, producer, *question);
+    let delivered = format!(
+        "Your answer to question {relay_number}, held since {}, is delivered to task {}.",
+        std::str::from_utf8(&since.utc_second()).expect("the UTC second is ASCII"),
+        producer.task
+    );
+    let notices: Vec<_> = replies(world, requester.task, *change)
+        .into_iter()
+        .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == delivered.as_bytes())
+        .collect();
+    assert_eq!(notices.len(), 1, "one delivery notice comes with the answer");
+    let answer = resumed
+        .messages
+        .iter()
+        .find(|word| word.kind == (tasks::MessageKind::Answer { question: *question }))
+        .expect("the resumed producer receives the answer");
+    assert_eq!(notices[0].at, answer.at);
     let State::Landed { merge, .. } = row(world, *dependency).change.state else { panic!("sibling landed") };
     let landing = row(world, *change).base.clone();
     let tip = super::goal_branch::branch_tip(world, &landing);
@@ -1114,8 +1218,10 @@ fn an_answer_waits_for_an_existing_sibling_and_resumes_at_its_landed_tip() {
 #[test]
 fn a_restart_keeps_an_answer_held_until_its_added_dependency_lands() {
     let mut story = existing_sibling_question();
+    let since = held_since(&story);
     story.world.restart(true, true);
-    assert_answer_held(&mut story.world, story.change, &story.producer, story.dependency);
+    assert_answer_held(&mut story);
+    assert_eq!(held_since(&story), since);
     land_sibling_and_resume(&mut story);
 }
 
@@ -1294,7 +1400,7 @@ fn a_restart_relays_a_held_answer_while_its_dependency_is_pending() {
     world.drain_cut();
     // A committed answer left held by an earlier build: jig has spent the change's question credit.
     let mut saved = row(&world, change).clone();
-    saved.questions.open[0].stands = Stands::Held { answer: ANSWER.into() };
+    saved.questions.open[0].stands = Stands::Held { answer: ANSWER.into(), question: 0, blocked: None };
     let mut task = Box::new(live_task(&world, change).clone());
     task.questions = Box::new([]);
     world.store.seed(
@@ -1309,6 +1415,65 @@ fn a_restart_relays_a_held_answer_while_its_dependency_is_pending() {
     let resumed = resumed_producer(&mut world, change, &producer, question);
     assert_pending_dependency(&world, change, dependency);
     finish_early_pair(&mut world, change, dependency, &resumed, &upstream, head);
+}
+
+#[test]
+fn a_change_sends_batch_one_feedback_once_after_a_restart() {
+    let (mut world, requester, change, producer) = up_world(None);
+    assert_eq!(world.env.limits.tasks.batch, 1);
+    world.drain_cut();
+    let mut task = Box::new(live_task(&world, change).clone());
+    let mut header = world.store.header();
+    let mut inbox = task.inbox.into_vec();
+    // At the restored cut, the report's reply spends the only message slot.
+    // The other input models an old inbox answer: jig would refuse it at admission today.
+    for (from, kind) in
+        [(producer.task, tasks::MessageKind::Words), (requester.task, tasks::MessageKind::Answer { question: 1 })]
+    {
+        header.messages += 1;
+        inbox.push(tasks::Word {
+            number: header.messages,
+            from: tasks::Party::Task(from),
+            kind,
+            words: ANSWER.into(),
+            at: world.env.wall,
+            hits: 1,
+            eligible: true,
+        });
+    }
+    task.inbox = inbox.into_boxed_slice();
+    task.last_message = header.messages;
+    task.phase = tasks::Phase::Active(tasks::Active::Due);
+    world.store.seed(
+        Box::new([
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))),
+            Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+        ]),
+        Box::new([]),
+    );
+    world.restart_same();
+    for _ in 0..TICKS {
+        world.tick();
+        if !row(&world, change).questions.replies.is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    let expected =
+        format!("Task {change} has no question open to you; read_task on task {change} shows its questions.");
+    let saved = row(&world, change).questions.replies;
+    assert_eq!(saved.len(), 1, "the second reply is saved before it is sent");
+    assert_eq!(saved[0].target, requester.task);
+    assert_eq!(saved[0].question, None);
+    assert_eq!(saved[0].words.as_ref(), expected.as_bytes());
+    assert_eq!(replies(&world, producer.task, change)[0].words.as_ref(), REPORT_IN_FINISH);
+    assert_eq!(replies(&world, requester.task, change), [] as [&tasks::Word; 0]);
+    world.restart_same();
+    world.advance_ticks(TICKS);
+    let replies = replies(&world, requester.task, change);
+    assert_eq!(replies.len(), 1, "the saved reply is sent exactly once");
+    assert_eq!(replies[0].kind, tasks::MessageKind::Words);
+    assert_eq!(replies[0].words.as_ref(), expected.as_bytes());
+    assert!(row(&world, change).questions.replies.is_empty());
 }
 
 #[test]

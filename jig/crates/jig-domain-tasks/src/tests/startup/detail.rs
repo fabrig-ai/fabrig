@@ -1,7 +1,7 @@
 //! Stored rows exercise keyed fit diagnostics (domain/engine/restart.md).
 use super::*;
 use crate::{RestoreBound as B, RestoreCause as C, RestoreFailure, RestoreLlmWhy as Why};
-use skein_lib::length::len_u64;
+use skein_lib::length::{len_u64, usize_of};
 
 fn empty(limits: &crate::Limits) -> Harness {
     let mut cold = Harness::new();
@@ -440,10 +440,28 @@ fn word(kind: crate::MessageKind, size: usize) -> crate::Word {
     }
 }
 
+// A kept procedure notice can exceed LIMITS.message_bytes (jig/docs/design/domain/tasks/messages.md, 2).
+const STORED_WORDS_BYTES: u32 = 256;
+
+#[test]
+fn stored_words_at_the_notice_bound_restore() {
+    let mut record = row();
+    let words = word(crate::MessageKind::Words, usize_of(STORED_WORDS_BYTES));
+    live(&mut record).inbox = Box::new([words.clone()]);
+    let mut cold = empty(&crate::Limits { inbox_bytes: STORED_WORDS_BYTES, ..LIMITS });
+    assert_eq!(cold.send(Event::Restore { record }), [], "{:?}", cold.domain.restore_failure());
+    assert_eq!(cold.domain.task(DUE).expect("restored live row").inbox.as_ref(), &[words]);
+}
+
 #[test]
 fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
+    let words_over = usize_of(STORED_WORDS_BYTES) + 1;
     for (kind, size, cause) in [
-        (crate::MessageKind::Words, 33, bound(B::MessageBytes, 33, 32)),
+        (
+            crate::MessageKind::Words,
+            words_over,
+            bound(B::MessageBytes, len_u64(words_over), u64::from(STORED_WORDS_BYTES)),
+        ),
         (crate::MessageKind::Result(crate::ResultKind::Report), 33, bound(B::ResultBytes, 33, 32)),
         (crate::MessageKind::Met { dependency: 9, removed: false }, 1, bound(B::ZeroBytes, 1, 0)),
         (

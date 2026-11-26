@@ -3122,6 +3122,104 @@ fn live_amendment_step(
 }
 
 #[test]
+fn a_change_with_no_message_room_still_sends_the_questions_held_notice() {
+    use super::{forge, forge_change as change, tasks};
+    use skein_lib::Queue;
+    const REQUESTER: u64 = 91;
+    const QUESTION: u64 = 25;
+    let (mut domain, mut env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    env.limits.tasks.batch = 1;
+    env.wall = skein_lib::Wall::from_nanos(2_000_000_000);
+    let mut row = change_row(Some(7));
+    row.task = task;
+    row.change.task = task;
+    row.questions.route = change::Route::Up;
+    row.questions.open = Box::new([change::Open {
+        asker: LIVE_DELEGATE,
+        number: 17,
+        line: b"Which path?".as_slice().into(),
+        words: b"Which path?".as_slice().into(),
+        stands: change::Stands::Asked,
+    }]);
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+    let mut record = domain.core.tasks.task(task).unwrap().clone();
+    let mut asker = record.clone();
+    asker.number = LIVE_DELEGATE;
+    asker.requester = tasks::Party::Task(task);
+    record.requester = tasks::Party::Task(REQUESTER);
+    record.waiting_on = Box::new([]);
+    record.phase = tasks::Phase::Active(tasks::Active::Idle);
+    record.inbox = Box::new([tasks::Word {
+        number: 26,
+        from: record.requester,
+        kind: tasks::MessageKind::Answer { question: QUESTION },
+        words: b"Use the path.".as_slice().into(),
+        at: env.wall,
+        hits: 1,
+        eligible: true,
+    }]);
+    domain.core.tasks = tasks::Domain::new(
+        &env.limits.tasks,
+        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+        7,
+        0,
+        Box::new([]),
+        Box::new([]),
+    );
+    for record in [record, asker] {
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
+            &mut Queue::uncapped(),
+        );
+    }
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::WakeProcedure { task },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(domain.core.tasks.restore_failure(), None);
+    let mut decision = super::ProcedureStep::new(super::StepEnd::Wait);
+    decision.messages = Box::new([jig_domain_core::StepMessage {
+        notice: None,
+        target: LIVE_DELEGATE,
+        kind: tasks::MessageKind::Words,
+        words: b"Already in the step".as_slice().into(),
+    }]);
+    let decision = super::relay::apply(&mut domain, &env, task, decision);
+    let [ordinary, notice] = decision.messages.as_ref() else { panic!("one ordinary message and one notice") };
+    assert_eq!(ordinary.notice, None);
+    assert_eq!(ordinary.words.as_ref(), b"Already in the step");
+    assert_eq!(notice.target, REQUESTER);
+    assert_eq!(notice.notice, Some(QUESTION));
+    assert_eq!(notice.kind, tasks::MessageKind::Words);
+    assert_eq!(
+        notice.words.as_ref(),
+        b"Your answer to question 25 is held until this change has message room; held since 1970-01-01T00:00:02Z."
+    );
+    let step = domain.core.tasks.procedure_due(task).unwrap().2;
+    let saved = domain.forge_delegating.get(&(task, step)).unwrap().relayed.as_ref().unwrap();
+    assert!(saved.more);
+    assert_eq!(
+        saved.questions.open[0].stands,
+        change::Stands::Held {
+            answer: b"Use the path.".as_slice().into(),
+            question: QUESTION,
+            blocked: Some(change::Blocked { dependency: None, since: env.wall }),
+        }
+    );
+}
+
+#[test]
 fn a_live_resolution_keeps_its_words_and_takes_one_amendment_with_the_last_reason() {
     use super::{forge_change as change, tasks};
     for phase in [

@@ -58,6 +58,7 @@ temper-engine-domain                       the root: the journal, routing, trans
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
 │   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
 │   └── temper-engine-domain-forge-issues  the goals' issues
+├── temper-engine-domain-see               addresses, read order and answers for `see` (agent/ask-temper.md, 1)
 ├── temper-engine-domain-calendar          each project's funding period, renewed on a span (5.7)
 └── temper-engine-domain-trials            a model's trials (trial.md)
 ```
@@ -92,6 +93,11 @@ temper-engine-domain                       the root: the journal, routing, trans
   nor the forge the core's; the forge's top names jig's people child's
   outcomes alone, for its keyed adoptions (forge/adoption.md).
 
+`temper-engine-domain-see` parses addresses in the chat's project, selects
+successive reads as its person, and puts their answers together for the host
+renderer. The root keeps the call's flight and routes each read and answer
+(`routing.md`, 1); it re-exports the answer types for its host boundary.
+
 The crate, one module per part:
 
 ```
@@ -101,7 +107,7 @@ temper-engine-domain/src/
 ├── admission.rs        what the journal takes before any child changes (section 4)
 ├── domain.rs           Domain, step, fire, release: the one shape (section 4)
 ├── decision.rs         the decision and the journal's limits (section 4)
-├── route.rs, route/    which child each event and hand-off goes to (section 5)
+├── route.rs, route/    which child each event and hand-off goes to, including `see` flights (section 5)
 ├── translate.rs        Config and the small total functions (section 6)
 ├── assemble.rs         assignments and briefs from their owners' parts (section 7)
 ├── link.rs             the hub's link records, and what a run left (sections 3 and 7)

@@ -38,6 +38,24 @@ fn restored_pages_equal_the_models_rows() {
 }
 
 #[test]
+fn a_procedure_question_keeps_its_notice_credit_in_the_restored_live_row() {
+    use jig_domain_tasks as tasks;
+    let mut world = committed(24);
+    let core::Record::Tasks(tasks::Stored::Live(mut asked)) = root::live_task(LIVE) else {
+        panic!("live task fixture")
+    };
+    let credit = tasks::NoticeCredit { asker: LIVE + 1, question: 7 };
+    asked.last_message = credit.question;
+    asked.notice_credits = Box::new([credit]);
+    let row = core::Record::Tasks(tasks::Stored::Live(asked));
+    assert_eq!(world.commit(Box::new([Write::Save(root::header(2)), Write::Save(row.clone())])), Some(2));
+    world.crash(24);
+    let restored = world.reopen();
+    Referee::check(&world.model, &restored).expect("restored whole model prefix");
+    assert_eq!(world.get(row.key()), row);
+}
+
+#[test]
 fn a_secret_kept_survives_a_crash() {
     let mut world = committed(18);
     let events = world.secret(Secrets::Keep {

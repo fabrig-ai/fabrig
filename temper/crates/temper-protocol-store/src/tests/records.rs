@@ -2377,7 +2377,7 @@ fn questions_open_follows_the_change_bound() {
 
 #[test]
 fn a_changes_questions_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State, Waiting};
+    use temper_engine_domain_forge_change::{Blocked, Hold, Open, Questions, Reply, Route, Stands, State, Waiting};
     const ASKER: u64 = 7;
     let mut row =
         fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
@@ -2385,7 +2385,22 @@ fn a_changes_questions_round_trip_unchanged() {
     for (number, stands) in [
         (1, Stands::Taken),
         (4, Stands::Asked),
-        (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
+        (
+            5,
+            Stands::Held {
+                answer: b"Keep the documented behavior".as_slice().into(),
+                question: 51,
+                blocked: Some(Blocked { dependency: Some(28), since: skein_lib::Wall::from_nanos(65) }),
+            },
+        ),
+        (
+            6,
+            Stands::Held {
+                answer: b"Use the alternative".as_slice().into(),
+                question: 52,
+                blocked: Some(Blocked { dependency: None, since: skein_lib::Wall::EPOCH }),
+            },
+        ),
     ] {
         open.push(Open {
             asker: ASKER,
@@ -2405,6 +2420,10 @@ fn a_changes_questions_round_trip_unchanged() {
         waiting: Box::new([
             Waiting { from: 40, number: 8, words: Box::new([]), passed: Some(42) },
             Waiting { from: 40, number: 9, words: b"Go on: prerequisite landed".as_slice().into(), passed: None },
+        ]),
+        replies: Box::new([
+            Reply { target: 40, question: Some(1), words: b"This change cannot take the question".as_slice().into() },
+            Reply { target: 40, question: None, words: b"No question is open".as_slice().into() },
         ]),
     };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -2452,7 +2471,11 @@ fn a_change_row_written_without_kept_answers_decodes_with_none() {
     }
     let family = family.unwrap();
     for keep_answers in [false, true] {
-        let mut before = family.current.replace(" amended: list 16 Amended = []", "").replace(" revision: u64 = 0", "");
+        let mut before = family
+            .current
+            .replace(" replies: list 1024 ChangeReply = []", "")
+            .replace(" amended: list 16 Amended = []", "")
+            .replace(" revision: u64 = 0", "");
         if !keep_answers {
             before = before.replace(" answered: list 16 Answered = []", "");
         }
@@ -2504,7 +2527,7 @@ fn standard_sized_question_words_and_held_answers_round_trip() {
         number: 1,
         line: Box::new([]),
         words: skein_lib::bytes::zeroed(262_144),
-        stands: Stands::Held { answer: skein_lib::bytes::zeroed(262_144) },
+        stands: Stands::Held { answer: skein_lib::bytes::zeroed(262_144), question: 0, blocked: None },
     }]);
     let row = fixtures::change_hot(row);
     let bytes = records::encode(&row);
@@ -2533,7 +2556,11 @@ fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
             number: 1,
             line: Box::new([]),
             words: Box::new([]),
-            stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
+            stands: Stands::Held {
+                answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()),
+                question: 0,
+                blocked: None,
+            },
         }]);
         let row = fixtures::change_hot(row);
         let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable::Malformed) };
@@ -3302,12 +3329,17 @@ fn standing_question(
 
 #[test]
 fn a_closers_question_round_trips_with_its_owned_bytes() {
-    use temper_engine_domain_forge_closer::relay::Stands;
+    use skein_lib::Wall;
+    use temper_engine_domain_forge_closer::relay::{Held, Stands};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     for stands in [
         Stands::Taken,
-        Stands::Asked { question: GOAL_QUESTION, answer: None },
-        Stands::Asked { question: GOAL_QUESTION, answer: Some(b"Use known reds.".as_slice().into()) },
+        Stands::Asked { question: GOAL_QUESTION, answer: None, held: None },
+        Stands::Asked {
+            question: GOAL_QUESTION,
+            answer: Some(b"Use known reds.".as_slice().into()),
+            held: Some(Held { since: Wall::from_nanos(123), notified: true }),
+        },
     ] {
         let mut relay = standing_question(stands);
         relay.waiting = waiting_questions();
@@ -3327,9 +3359,54 @@ fn an_older_closer_defaults_its_waiting_questions_to_empty() {
     use super::dev_layouts::Dev;
     use temper_engine_domain_forge_closer::relay::Stands;
     let mut dev = Dev::new();
-    let expected = closer_relay_row(standing_question(Stands::Asked { question: GOAL_QUESTION, answer: None }));
+    let expected =
+        closer_relay_row(standing_question(Stands::Asked { question: GOAL_QUESTION, answer: None, held: None }));
     let stored = dev.row(&expected, "closer");
     assert_eq!(dev.read(&stored, "closer"), expected);
+}
+
+#[test]
+fn an_older_closers_held_answer_gets_a_since_but_no_notices() {
+    use super::dev_layouts::Dev;
+    use skein_lib::Wall;
+    use temper_engine_domain_forge_closer::relay::{self, Form, Held, Message, Room, Stands};
+    const SINCE: Wall = Wall::from_nanos(3_000_000_000);
+    const ANSWER: &[u8] = b"Use known reds.";
+    const BOUND: u32 = 512;
+    let legacy = Stands::Asked { question: GOAL_QUESTION, answer: Some(ANSWER.into()), held: None };
+    let mut dev = Dev::new();
+    let mut relay = standing_question(legacy.clone());
+    relay.replies = Box::new([]);
+    let stored = dev.row(&closer_relay_row(relay), "closer");
+    let forge::Stored::Closer(restored) = dev.read(&stored, "closer") else { panic!("closer row") };
+    assert_eq!(restored.relay.open.as_ref().expect("held legacy answer").stands, legacy);
+
+    let held = relay::relay(&restored.relay, CLOSER_GOAL, false, Room { left: 0, batch: 1 }, BOUND, SINCE, false);
+    assert!(held.notice.is_none());
+    assert!(held.messages.is_empty());
+    assert!(held.more);
+    assert_eq!(
+        held.relay.open.as_ref().expect("backfilled hold").stands,
+        Stands::Asked {
+            question: GOAL_QUESTION,
+            answer: Some(ANSWER.into()),
+            held: Some(Held { since: SINCE, notified: false }),
+        }
+    );
+
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let row = closer_relay_row(held.relay);
+    let persisted = records::decode(&records::encode(&row), &bounds).expect("current row reads");
+    assert_eq!(persisted, row);
+    let forge::Stored::Closer(persisted) = persisted else { panic!("closer row") };
+    let next =
+        relay::relay(&persisted.relay, CLOSER_GOAL, false, Room { left: 1, batch: 1 }, BOUND, Wall::EPOCH, false);
+    assert!(next.notice.is_none());
+    assert_eq!(
+        next.messages.as_ref(),
+        &[Message { target: CLOSER_LANDING, form: Form::Answer { question: LANDING_QUESTION }, words: ANSWER.into() },]
+    );
+    assert!(next.relay.open.is_none());
 }
 
 #[test]
@@ -3799,6 +3876,7 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
             waiting: skein_lib::List::with_capacity(0),
             answered: skein_lib::List::with_capacity(0),
             amended: skein_lib::List::with_capacity(0),
+            replies: skein_lib::List::with_capacity(0),
         };
         let row = w::Row { value: w::Value::ChangeHot(parts) };
         let bytes = row.encode(&w::CEILINGS).unwrap();
@@ -3862,7 +3940,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
                 number: 2,
                 line: b"question".as_slice().into(),
                 words: b"whole question".as_slice().into(),
-                stands: Stands::Held { answer: b"answer".as_slice().into() },
+                stands: Stands::Held { answer: b"answer".as_slice().into(), question: 0, blocked: None },
             }]);
             row.change.early = Early::Started(Box::new([StartedFrom { task: 2, head: [3; 32] }]));
         }

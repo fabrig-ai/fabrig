@@ -763,6 +763,9 @@ impl Store {
         }
     }
     fn tick_pages(&mut self) {
+        if self.delayed.is_empty() {
+            return;
+        }
         let mut requests = VecDeque::new();
         for _ in 0..self.delayed.len() {
             let mut delayed = self.delayed.pop_front().expect("counted pages");

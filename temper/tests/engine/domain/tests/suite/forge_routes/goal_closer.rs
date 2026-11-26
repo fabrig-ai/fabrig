@@ -551,6 +551,15 @@ fn a_far_diverged_goal_closes_lands_and_reports_without_comparisons() {
 }
 
 #[test]
+fn a_closer_does_not_take_party_words() {
+    const CLOSE_CALL: u64 = 93;
+    let (mut world, goal, _) = goal_world(true, true);
+    let closer = make_closer(&mut world, &goal, CLOSE_CALL);
+    let _running = close_job(&mut world);
+    super::party_words::not_offered(&mut world, closer);
+}
+
+#[test]
 fn a_closer_without_a_close_job_skips_the_close_step() {
     let (mut world, goal, branch) = goal_world(false, true);
     add_change(&mut world, &goal, &branch, 93, b"First", b"done");

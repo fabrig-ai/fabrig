@@ -40,7 +40,7 @@ BranchPath: ceilings encoded=32557 decoded=37248; at_most(3) encoded=289 decoded
 Card: ceilings encoded=1100 decoded=1184; at_most(3) encoded=60 decoded=120
 CatchingUp: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
 ChangeFrom: ceilings encoded=268 decoded=256; at_most(3) encoded=15 decoded=3
-ChangePanel: ceilings encoded=84399085 decoded=84696384; at_most(3) encoded=975 decoded=951
+ChangePanel: ceilings encoded=84399229 decoded=84696576; at_most(3) encoded=1029 decoded=1023
 ChangeSubject: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ChangeWait: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ChangesLanded: ceilings encoded=3592 decoded=3584; at_most(3) encoded=276 decoded=213
@@ -373,8 +373,9 @@ ProposalItemsRead: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ProposalView: ceilings encoded=65114 decoded=74496; at_most(3) encoded=578 decoded=1554
 Protection: ceilings encoded=66830 decoded=67584; at_most(3) encoded=38 decoded=60
 Pull: ceilings encoded=2060 decoded=2048; at_most(3) encoded=15 decoded=3
-Question: ceilings encoded=277 decoded=256; at_most(3) encoded=24 decoded=3
-Questions: ceilings encoded=2229 decoded=2368; at_most(3) encoded=85 decoded=129
+Question: ceilings encoded=295 decoded=256; at_most(3) encoded=42 decoded=3
+QuestionBlocker: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
+Questions: ceilings encoded=2373 decoded=2560; at_most(3) encoded=139 decoded=201
 QuestionsRoute: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Queued: ceilings encoded=520 decoded=512; at_most(3) encoded=32 decoded=24
 Reach: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0

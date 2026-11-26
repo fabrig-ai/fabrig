@@ -339,6 +339,10 @@ dependencies among them.
   kept as a met dependency, its result read as any dependency's; one
   failed or cancelled refuses the batch, naming it and how it ended
   (*dependency*, `../../client/domain/contract/answers.md`, section 1).
+  One the creator does not reach refuses the batch as `Dependencies`
+  naming exactly it in the problem's `blocked_by`, as an amendment's
+  out of reach is (`changes.md`, 2, *Out of reach*); too many, or one
+  named twice, names none there.
   Each is judged at the batch's admission, against the state the batch
   commits in, never by an earlier read: a dependency that ends while the
   batch waits for another's row is judged as it ended. A task's batch

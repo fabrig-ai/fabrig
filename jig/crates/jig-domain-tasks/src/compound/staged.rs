@@ -191,6 +191,16 @@ impl Staged {
         self.rows.get_mut(at).expect("touched row retained")
     }
 
+    pub(crate) fn release_notice(
+        &mut self,
+        domain: &crate::Domain,
+        limits: &crate::Limits,
+        release: &crate::notice_room::Release,
+    ) {
+        let row = self.row_mut(domain, release.target);
+        crate::notice_room::update(row, limits, crate::notice_room::Change::Spend(release.credit));
+    }
+
     pub(crate) fn message_credits(
         &mut self,
         domain: &crate::Domain,
@@ -198,6 +208,9 @@ impl Staged {
         plan: &crate::inbox::MessagePlan,
     ) {
         let row = self.row_mut(domain, plan.number);
+        if let Some(change) = plan.notice {
+            crate::notice_room::update(row, limits, change);
+        }
         crate::positions::message(row, &plan.prepared.word, limits.inbox_messages);
         if let Some(crate::inbox::Answering { question, .. }) = plan.answer {
             let mut credits = skein_lib::List::with_capacity(limits.inbox_messages);

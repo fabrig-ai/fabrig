@@ -476,14 +476,23 @@ fn a_result_word_uses_the_larger_shared_word_bound() {
     let row = live_record(record);
     assert_eq!(saved_tasks(&row), Ok(row));
 }
+fn activity_words(bytes: usize) -> domain::Stored {
+    let mut words = skein_lib::bytes::zeroed(bytes);
+    words.fill(b'w');
+    activity(domain::Line::Words { message: 5, by: domain::Party::Person(31), kind: domain::MessageKind::Words, words })
+}
+
+#[test]
+fn an_activity_words_line_at_its_word_bound_reads_back_whole() {
+    let bound = skein_lib::length::usize_of(fixtures::TASKS_LIMITS.spoken_words_bytes());
+    let row = activity_words(bound);
+    assert_eq!(saved_tasks(&row), Ok(row));
+}
+
 #[test]
 fn an_activity_words_line_past_its_own_word_bound_is_refused() {
-    let row = activity(domain::Line::Words {
-        message: 5,
-        by: domain::Party::Person(31),
-        kind: domain::MessageKind::Words,
-        words: skein_lib::bytes::zeroed(17),
-    });
+    let bound = skein_lib::length::usize_of(fixtures::TASKS_LIMITS.spoken_words_bytes());
+    let row = activity_words(bound + 1);
     assert_eq!(
         tasks::encode(&row, &tasks_limits(), &fixtures::configured_model_names(&[b"first", b"second", b"third"])),
         Err(bound_problem(wire::paths::ACTIVITY_WORDS_WORDS))

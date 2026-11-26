@@ -216,7 +216,7 @@ fn panel_questions(row: &ChangeRow, limits: &Limits) -> PanelQuestions {
             stands: match &question.stands {
                 change::Stands::Taken => PanelStands::Taken,
                 change::Stands::Asked => PanelStands::Asked,
-                change::Stands::Held { .. } => PanelStands::Held,
+                change::Stands::Held { blocked, .. } => PanelStands::Held { blocked: *blocked },
             },
         })
         .expect("first eight questions fit");

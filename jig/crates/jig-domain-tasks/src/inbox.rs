@@ -1,5 +1,6 @@
 //! Bounded task messages and atomic turn reads (domain/tasks/messages.md, section 2).
 use crate::domain::{Domain, publish, record, task_mut};
+use crate::notice_room::Change as NoticeChange;
 use crate::{
     Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Spoken, Word,
 };
@@ -77,8 +78,13 @@ pub(crate) fn prepare_staged(
     }
     match admission {
         Admission::Refusable => {
-            let notice = word.kind == MessageKind::Question && is_person(task.requester);
-            let bytes = word.words.len().checked_add(if notice { crate::questions::ANSWER_NOTICE_BYTES } else { 0 })?;
+            let mut notices = 0_u32;
+            if word.kind == MessageKind::Question {
+                notices = u32::from(is_person(task.requester))
+                    .checked_add(u32::from(procedure_credit(domain, &word).is_some()))?;
+            }
+            let notice_bytes = skein_lib::length::usize_of(notices).checked_mul(crate::ANSWER_NOTICE_BYTES)?;
+            let bytes = word.words.len().checked_add(notice_bytes)?;
             let mut unanswered = 0_usize;
             for line in &task.question_lines {
                 if line.answer.is_none() {
@@ -86,7 +92,7 @@ pub(crate) fn prepare_staged(
                 }
             }
             if (word.kind == MessageKind::Question && unanswered >= skein_lib::length::usize_of(limits.inbox_messages))
-                || !room_staged(domain, staged, limits, number, if notice { 2 } else { 1 }, bytes)
+                || !room_staged(domain, staged, limits, number, notices.checked_add(1)?, bytes)
             {
                 return None;
             }
@@ -171,13 +177,14 @@ pub(crate) fn room_staged(
     }
     let Some(reserved) = delegates.checked_add(stall_credits) else { return false };
     let Some(reserved) = reserved.checked_add(record.questions.len()) else { return false };
-    let mut reminder = false;
-    for word in record.inbox {
-        reminder |= word.kind == MessageKind::QuestionOwed;
-    }
-    let owed_credit = record.spec.asks && !record.asked_requester && !reminder;
+    let Some(waiting) = waiting_room(record.inbox, &record.unrecorded, bytes) else { return false };
+    let owed_credit = record.spec.asks && !record.asked_requester && !waiting.reminder;
     let Some(reserved) = reserved.checked_add(usize::from(owed_credit)) else { return false };
-    let received = received_credits(record.requester, &record.question_lines, &record.questions);
+    let Some(received) = received_credits(record.requester, &record.question_lines, &record.questions)
+        .checked_add(record.notice_credits.len())
+    else {
+        return false;
+    };
     let Some(reserved) = reserved.checked_add(received) else { return false };
     let Some(reserved) = reserved.checked_add(usize::from(record.proposal.is_some())) else { return false };
     let Some((subscription_count, subscription_bytes)) = crate::subscriptions::credit(&record, limits) else {
@@ -187,38 +194,11 @@ pub(crate) fn room_staged(
     let Some(total_count) = total_count.checked_add(reserved) else {
         return false;
     };
-    // Amendment, grace and Met each have a separately priced slot. A notice
-    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 2).
-    let mut extra_count = 0_usize;
-    let mut extra_bytes = 0_usize;
-    for word in record.inbox {
-        match word.kind.family() {
-            MessageFamily::Separate(_) => {
-                extra_count = extra_count.checked_add(1).expect("bounded merged slots");
-                extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
-            }
-            MessageFamily::Slot(_)
-            | MessageFamily::Spoken(_)
-            | MessageFamily::Hint(_)
-            | MessageFamily::Result
-            | MessageFamily::Virtual => {}
-        }
-    }
-    let total_count = total_count.saturating_sub(extra_count);
+    let total_count = total_count.saturating_sub(waiting.extra_count);
     let Some(total_count) = total_count.checked_add(subscription_count) else { return false };
     let Some(total_count) = total_count.checked_add(skein_lib::length::usize_of(count)) else {
         return false;
     };
-    let mut total_bytes = bytes;
-    for message in record.inbox.iter().chain(record.unrecorded.iter()) {
-        let Some(sum) = total_bytes.checked_add(match message.payload_bytes() {
-            Some(bytes) => bytes,
-            None => return false,
-        }) else {
-            return false;
-        };
-        total_bytes = sum;
-    }
     let Some(result_bytes) = delegates.checked_mul(skein_lib::length::usize_of(limits.result_bytes)) else {
         return false;
     };
@@ -227,8 +207,8 @@ pub(crate) fn room_staged(
         return false;
     };
     let Some(notice_bytes) = received.checked_mul(crate::questions::ANSWER_NOTICE_BYTES) else { return false };
-    let Some(total_bytes) = total_bytes.checked_add(notice_bytes) else { return false };
-    let total_bytes = total_bytes.checked_sub(extra_bytes).expect("separate slots included");
+    let Some(total_bytes) = waiting.bytes.checked_add(notice_bytes) else { return false };
+    let total_bytes = total_bytes.checked_sub(waiting.extra_bytes).expect("separate slots included");
     let Some(total_bytes) = total_bytes.checked_add(if owed_credit { crate::questions::OWED_WORDS.len() } else { 0 })
     else {
         return false;
@@ -242,6 +222,38 @@ pub(crate) fn room_staged(
     let Some(total_bytes) = total_bytes.checked_add(subscription_bytes) else { return false };
     total_count <= skein_lib::length::usize_of(limits.inbox_messages)
         && total_bytes <= skein_lib::length::usize_of(limits.inbox_bytes)
+}
+
+struct WaitingRoom {
+    bytes: usize,
+    extra_count: usize,
+    extra_bytes: usize,
+    reminder: bool,
+}
+
+fn waiting_room(inbox: &[Word], unrecorded: &[Word], bytes: usize) -> Option<WaitingRoom> {
+    let mut used = WaitingRoom { bytes, extra_count: 0, extra_bytes: 0, reminder: false };
+    // Amendment, grace and Met each have a separately priced slot. A notice
+    // that the task may go on cannot consume a sender's room (domain/tasks/messages.md, 2).
+    for word in inbox {
+        used.bytes = used.bytes.checked_add(word.payload_bytes()?)?;
+        match word.kind.family() {
+            MessageFamily::Separate(_) => {
+                used.extra_count = used.extra_count.checked_add(1).expect("bounded merged slots");
+                used.extra_bytes = used.extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
+            }
+            MessageFamily::Slot(_)
+            | MessageFamily::Spoken(_)
+            | MessageFamily::Hint(_)
+            | MessageFamily::Result
+            | MessageFamily::Virtual => {}
+        }
+        used.reminder |= word.kind == MessageKind::QuestionOwed;
+    }
+    for word in unrecorded {
+        used.bytes = used.bytes.checked_add(word.payload_bytes()?)?;
+    }
+    Some(used)
 }
 
 pub(crate) fn message(
@@ -267,6 +279,7 @@ pub(crate) struct MessagePlan {
     pub(crate) prepared: Prepared,
     pub(crate) answer: Option<Answering>,
     pub(crate) asked_by: Option<u64>,
+    pub(crate) notice: Option<NoticeChange>,
 }
 
 #[derive(Clone, Copy)]
@@ -276,7 +289,6 @@ pub(crate) struct Answering {
     pub(crate) notice: bool,
 }
 
-#[expect(clippy::too_many_lines, reason = "one inbox entrance preflights message and answer credits before mutation")]
 pub(crate) fn check_message(
     domain: &Domain,
     staged: &crate::compound::Staged,
@@ -284,6 +296,41 @@ pub(crate) fn check_message(
     project: u32,
     operation: crate::Message,
     authorized: bool,
+) -> Result<MessagePlan, Box<crate::Problem>> {
+    check(domain, staged, env, project, operation, if authorized { Access::Authorized } else { Access::Normal })
+}
+
+/// Only the fenced procedure admission may present a kept notice credit.
+pub(crate) fn check_notice(
+    domain: &Domain,
+    staged: &crate::compound::Staged,
+    env: &Env<Limits>,
+    project: u32,
+    operation: crate::Message,
+    credit: crate::NoticeCredit,
+) -> Result<MessagePlan, Box<crate::Problem>> {
+    let kept = match staged.record(domain, operation.task) {
+        Some(row) => row.notice_credits.contains(&credit),
+        None => false,
+    };
+    check(domain, staged, env, project, operation, if kept { Access::KeptNotice(credit) } else { Access::Normal })
+}
+
+#[derive(Clone, Copy)]
+enum Access {
+    Normal,
+    Authorized,
+    KeptNotice(crate::NoticeCredit),
+}
+
+#[expect(clippy::too_many_lines, reason = "one inbox entrance preflights message and answer credits before mutation")]
+fn check(
+    domain: &Domain,
+    staged: &crate::compound::Staged,
+    env: &Env<Limits>,
+    project: u32,
+    operation: crate::Message,
+    access: Access,
 ) -> Result<MessagePlan, Box<crate::Problem>> {
     let crate::Message { task: number, mut word } = operation;
     if !domain.ready() {
@@ -302,6 +349,11 @@ pub(crate) fn check_message(
             capacity: None,
         }));
     };
+    let (authorized, kept) = match access {
+        Access::Normal => (false, None),
+        Access::Authorized => (true, None),
+        Access::KeptNotice(credit) => (false, Some(credit)),
+    };
     let task_answer = match (&word.kind, word.from) {
         (MessageKind::Answer { question }, Party::Task(source)) if task.project == project => {
             let mut admitted = false;
@@ -317,7 +369,7 @@ pub(crate) fn check_message(
     };
     let requester = match word.from {
         Party::Person(person) => task.requester == Party::Person(person) || authorized && person != 0,
-        Party::Task(source) => task_answer || crate::refs::allows(domain, source, number),
+        Party::Task(source) => kept.is_some() || task_answer || crate::refs::allows(domain, source, number),
         Party::Deployment { .. } => false,
     };
     let spoken = match word.kind.family() {
@@ -368,11 +420,9 @@ pub(crate) fn check_message(
             capacity: None,
         }));
     }
-    if word.number == 0
-        || word.number <= task.last_message
-        || word.words.is_empty()
-        || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
-    {
+    let word_bound =
+        if kept.is_some() { crate::ANSWER_NOTICE_BYTES } else { skein_lib::length::usize_of(env.limits.message_bytes) };
+    if word.number == 0 || word.number <= task.last_message || word.words.is_empty() || word.words.len() > word_bound {
         return Err(Box::new(crate::Problem {
             task: Some(number),
             why: Refusal::Read,
@@ -438,10 +488,7 @@ pub(crate) fn check_message(
             }
         }
     }
-    let admission = match answer {
-        Some(_) => Admission::RoomKept,
-        None => Admission::Refusable,
-    };
+    let admission = if answer.is_some() || kept.is_some() { Admission::RoomKept } else { Admission::Refusable };
     let capacity = crate::Capacity {
         project: Some(project),
         by: word.from,
@@ -480,7 +527,14 @@ pub(crate) fn check_message(
     } else {
         None
     };
-    Ok(MessagePlan { number, prepared, answer, asked_by })
+    let notice = match kept {
+        Some(credit) => Some(NoticeChange::Spend(credit)),
+        None => match procedure_credit(domain, &prepared.word) {
+            Some(credit) => Some(NoticeChange::Keep(credit)),
+            None => None,
+        },
+    };
+    Ok(MessagePlan { number, prepared, answer, asked_by, notice })
 }
 
 pub(crate) fn apply_message(
@@ -489,11 +543,14 @@ pub(crate) fn apply_message(
     plan: MessagePlan,
     out: &mut Queue<Request>,
 ) -> (u64, Word) {
-    let MessagePlan { number, prepared, answer, asked_by } = plan;
+    let MessagePlan { number, prepared, answer, asked_by, notice } = plan;
     let task = task_mut(domain, number).expect("admitted task still live");
     task.record.last_activity = env.wall;
     task.record.last_message = prepared.word.number;
     task.record.inbox = prepared.inbox;
+    if let Some(change) = notice {
+        crate::notice_room::update(&mut task.record, &env.limits, change);
+    }
     crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
     if let Some(answer) = answer {
         let mut selected = None;
@@ -681,18 +738,18 @@ pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding:
     if let Some(number) = read {
         let mut kept = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox count"));
         let mut unrecorded = alloc::collections::BTreeMap::new();
-        for word in &task.unrecorded {
-            unrecorded.insert(word.number, word.clone());
+        for word in core::mem::replace(&mut task.unrecorded, Box::new([])) {
+            unrecorded.insert(word.number, word);
         }
-        for word in &task.inbox {
+        for word in core::mem::replace(&mut task.inbox, Box::new([])) {
             let unoffered = match outstanding {
                 Some(offered) => !offered.contains(&word.number),
                 None => false,
             };
             if word.number > number || unoffered || task.refused.contains(&word.number) {
-                kept.push(word.clone()).expect("retained subset fits");
-            } else if keeps_words && crate::directing_words(task, word) {
-                unrecorded.insert(word.number, word.clone());
+                kept.push(word).expect("retained subset fits");
+            } else if keeps_words && crate::directing_words(task, &word) {
+                unrecorded.insert(word.number, word);
             }
         }
         let mut ordered = List::with_capacity(u32::try_from(unrecorded.len()).expect("bounded words count"));
@@ -757,6 +814,20 @@ pub(crate) fn received_credits(requester: Party, lines: &[crate::QuestionLine], 
         }
     }
     received
+}
+
+fn procedure_credit(domain: &Domain, word: &Word) -> Option<crate::NoticeCredit> {
+    if word.kind != MessageKind::Question {
+        return None;
+    }
+    let asker = match word.from {
+        Party::Task(asker) => asker,
+        Party::Person(_) | Party::Deployment { .. } => return None,
+    };
+    match record(domain, asker)?.executor {
+        crate::Executor::Procedure { .. } => Some(crate::NoticeCredit { asker, question: word.number }),
+        crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => None,
+    }
 }
 
 fn is_person(party: Party) -> bool {

@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x33, 0x7b, 0x24, 0x68, 0x22, 0xbd, 0xef, 0xea, 0x7f, 0xa1, 0xfd, 0xea, 0x5a, 0x33, 0xe5, 0x4a, 0xaf, 0xd4, 0xf5,
-    0x39, 0x27, 0x0c, 0x26, 0x18, 0x2a, 0x23, 0xe7, 0x27, 0x61, 0x0b, 0x15, 0x1d,
+    0x78, 0x10, 0xda, 0xe6, 0xe1, 0x7a, 0xc7, 0x38, 0xcb, 0x22, 0x5e, 0x71, 0x02, 0x3d, 0x15, 0x55, 0x2f, 0x6c, 0x24,
+    0x33, 0x2f, 0x52, 0xa2, 0x13, 0xd4, 0x79, 0x4c, 0xe8, 0x5d, 0x99, 0x73, 0x3f,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -129,10 +129,12 @@ pub struct Limits {
     pub answered_line: u32,
     pub answered_answer: u32,
     pub amended_reason: u32,
+    pub change_reply_words: u32,
     pub questions_open: u32,
     pub questions_waiting: u32,
     pub questions_answered: u32,
     pub questions_amended: u32,
+    pub questions_replies: u32,
     pub change_failure_line: u32,
     pub change_follows_commits: u32,
     pub plan_item_text: u32,
@@ -503,10 +505,12 @@ pub const CEILINGS: Limits = Limits {
     answered_line: 256,
     answered_answer: 262_144,
     amended_reason: 262_144,
+    change_reply_words: 512,
     questions_open: 128,
     questions_waiting: 16,
     questions_answered: 16,
     questions_amended: 16,
+    questions_replies: 1_024,
     change_failure_line: 1_048_576,
     change_follows_commits: 1_024,
     plan_item_text: 65_536,
@@ -877,10 +881,12 @@ pub const LIMIT_NAMES: &[&str] = &[
     "answered_line",
     "answered_answer",
     "amended_reason",
+    "change_reply_words",
     "questions_open",
     "questions_waiting",
     "questions_answered",
     "questions_amended",
+    "questions_replies",
     "change_failure_line",
     "change_follows_commits",
     "plan_item_text",
@@ -1255,10 +1261,12 @@ impl Limits {
             self.answered_line,
             self.answered_answer,
             self.amended_reason,
+            self.change_reply_words,
             self.questions_open,
             self.questions_waiting,
             self.questions_answered,
             self.questions_amended,
+            self.questions_replies,
             self.change_failure_line,
             self.change_follows_commits,
             self.plan_item_text,
@@ -1634,10 +1642,12 @@ impl Limits {
             answered_line: self.answered_line.min(most),
             answered_answer: self.answered_answer.min(most),
             amended_reason: self.amended_reason.min(most),
+            change_reply_words: self.change_reply_words.min(most),
             questions_open: self.questions_open.min(most),
             questions_waiting: self.questions_waiting.min(most),
             questions_answered: self.questions_answered.min(most),
             questions_amended: self.questions_amended.min(most),
+            questions_replies: self.questions_replies.min(most),
             change_failure_line: self.change_failure_line.min(most),
             change_follows_commits: self.change_follows_commits.min(most),
             plan_item_text: self.plan_item_text.min(most),
@@ -2010,10 +2020,12 @@ const LIMIT_PATHS: &[Path] = &[
     paths::ANSWERED_LINE,
     paths::ANSWERED_ANSWER,
     paths::AMENDED_REASON,
+    paths::CHANGE_REPLY_WORDS,
     paths::QUESTIONS_OPEN,
     paths::QUESTIONS_WAITING,
     paths::QUESTIONS_ANSWERED,
     paths::QUESTIONS_AMENDED,
+    paths::QUESTIONS_REPLIES,
     paths::CHANGE_FAILURE_LINE,
     paths::CHANGE_FOLLOWS_COMMITS,
     paths::PLAN_ITEM_TEXT,
@@ -2948,6 +2960,9 @@ pub mod paths {
     pub const LLM_CHOICE_TAIL: Path = Path::new("LlmChoice (tail)");
     pub const ROUTE_TAG: Path = Path::new("Route (tag)");
     pub const HELD_ANSWER: Path = Path::new("Held.answer");
+    pub const HELD_QUESTION: Path = Path::new("Held.question");
+    pub const HELD_DEPENDENCY: Path = Path::new("Held.dependency");
+    pub const HELD_SINCE: Path = Path::new("Held.since");
     pub const HELD_TAIL: Path = Path::new("Held (tail)");
     pub const STANDS_TAG: Path = Path::new("Stands (tag)");
     pub const OPEN_ASKER: Path = Path::new("Open.asker");
@@ -2970,12 +2985,17 @@ pub mod paths {
     pub const AMENDED_REVISION: Path = Path::new("Amended.revision");
     pub const AMENDED_REASON: Path = Path::new("Amended.reason");
     pub const AMENDED_TAIL: Path = Path::new("Amended (tail)");
+    pub const CHANGE_REPLY_TARGET: Path = Path::new("ChangeReply.target");
+    pub const CHANGE_REPLY_QUESTION: Path = Path::new("ChangeReply.question");
+    pub const CHANGE_REPLY_WORDS: Path = Path::new("ChangeReply.words");
+    pub const CHANGE_REPLY_TAIL: Path = Path::new("ChangeReply (tail)");
     pub const QUESTIONS_ROUTE: Path = Path::new("Questions.route");
     pub const QUESTIONS_TAKEN: Path = Path::new("Questions.taken");
     pub const QUESTIONS_OPEN: Path = Path::new("Questions.open");
     pub const QUESTIONS_WAITING: Path = Path::new("Questions.waiting");
     pub const QUESTIONS_ANSWERED: Path = Path::new("Questions.answered");
     pub const QUESTIONS_AMENDED: Path = Path::new("Questions.amended");
+    pub const QUESTIONS_REPLIES: Path = Path::new("Questions.replies");
     pub const QUESTIONS_TAIL: Path = Path::new("Questions (tail)");
     pub const CHANGE_FAILURE_LINE: Path = Path::new("ChangeFailure.line");
     pub const CHANGE_FAILURE_TAIL: Path = Path::new("ChangeFailure (tail)");
@@ -3804,8 +3824,12 @@ pub mod paths {
     pub const CLOSING_SELECTION_HEAD: Path = Path::new("ClosingSelection.head");
     pub const CLOSING_SELECTION_PROGRESS: Path = Path::new("ClosingSelection.progress");
     pub const CLOSING_SELECTION_TAIL: Path = Path::new("ClosingSelection (tail)");
+    pub const CLOSING_HELD_SINCE: Path = Path::new("ClosingHeld.since");
+    pub const CLOSING_HELD_NOTIFIED: Path = Path::new("ClosingHeld.notified");
+    pub const CLOSING_HELD_TAIL: Path = Path::new("ClosingHeld (tail)");
     pub const CLOSING_ASKED_QUESTION: Path = Path::new("ClosingAsked.question");
     pub const CLOSING_ASKED_ANSWER: Path = Path::new("ClosingAsked.answer");
+    pub const CLOSING_ASKED_HELD: Path = Path::new("ClosingAsked.held");
     pub const CLOSING_ASKED_TAIL: Path = Path::new("ClosingAsked (tail)");
     pub const CLOSING_STANDS_TAG: Path = Path::new("ClosingStands (tag)");
     pub const CLOSING_QUESTION_ASKER: Path = Path::new("ClosingQuestion.asker");
@@ -16313,17 +16337,25 @@ impl Record for Route {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Held {
     pub answer: Box<[u8]>,
+    pub question: u64,
+    pub dependency: Option<u64>,
+    pub since: Option<u64>,
 }
 
 // Record: Held.
 impl Held {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_answer) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 4;
+    pub const ENCODED_AT_ZERO: u64 = 30;
 }
 
 impl Record for Held {
@@ -16349,12 +16381,18 @@ impl Record for Held {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.held_answer.min(CEILINGS.held_answer) }, &self.answer, limits, out, paths::HELD_ANSWER)?;
+        field::write(field::U64, &self.question, limits, out, paths::HELD_QUESTION)?;
+        field::write(field::Optional { item: field::U64 }, &self.dependency, limits, out, paths::HELD_DEPENDENCY)?;
+        field::write(field::Optional { item: field::U64 }, &self.since, limits, out, paths::HELD_SINCE)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             answer: field::read(field::Bytes { limit: limits.held_answer.min(CEILINGS.held_answer) }, limits, reader, paths::HELD_ANSWER)?,
+            question: field::read(field::U64, limits, reader, paths::HELD_QUESTION)?,
+            dependency: field::read(field::Optional { item: field::U64 }, limits, reader, paths::HELD_DEPENDENCY)?,
+            since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::HELD_SINCE)?,
         })
     }
 }
@@ -16379,7 +16417,7 @@ impl Stands {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 5;
+    pub const ENCODED_AT_ZERO: u64 = 31;
 }
 
 impl Record for Stands {
@@ -16446,7 +16484,7 @@ impl Open {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 29;
+    pub const ENCODED_AT_ZERO: u64 = 55;
 }
 
 impl Record for Open {
@@ -16673,6 +16711,65 @@ impl Record for Amended {
     }
 }
 
+// Type: ChangeReply.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ChangeReply {
+    pub target: u64,
+    pub question: Option<u64>,
+    pub words: Box<[u8]>,
+}
+
+// Record: ChangeReply.
+impl ChangeReply {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_reply_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 21;
+}
+
+impl Record for ChangeReply {
+    type Limits = Limits;
+    const TAIL: Path = paths::CHANGE_REPLY_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ChangeReply")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ChangeReply")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.target, limits, out, paths::CHANGE_REPLY_TARGET)?;
+        field::write(field::Optional { item: field::U64 }, &self.question, limits, out, paths::CHANGE_REPLY_QUESTION)?;
+        field::write(field::Bytes { limit: limits.change_reply_words.min(CEILINGS.change_reply_words) }, &self.words, limits, out, paths::CHANGE_REPLY_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            target: field::read(field::U64, limits, reader, paths::CHANGE_REPLY_TARGET)?,
+            question: field::read(field::Optional { item: field::U64 }, limits, reader, paths::CHANGE_REPLY_QUESTION)?,
+            words: field::read(field::Bytes { limit: limits.change_reply_words.min(CEILINGS.change_reply_words) }, limits, reader, paths::CHANGE_REPLY_WORDS)?,
+        })
+    }
+}
+
 // Type: Questions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Questions {
@@ -16682,6 +16779,7 @@ pub struct Questions {
     pub waiting: List<Waiting>,
     pub answered: List<Answered>,
     pub amended: List<Amended>,
+    pub replies: List<ChangeReply>,
 }
 
 // Record: Questions.
@@ -16697,11 +16795,13 @@ impl Questions {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, questions_answered), item: 6, size: size_of::<Answered>() },
         skein_codec::bounds::Node::Named("Amended"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, questions_amended), item: 8, size: size_of::<Amended>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9] },
+        skein_codec::bounds::Node::Named("ChangeReply"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, questions_replies), item: 10, size: size_of::<ChangeReply>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 21;
+    pub const ENCODED_AT_ZERO: u64 = 25;
 }
 
 impl Record for Questions {
@@ -16732,6 +16832,7 @@ impl Record for Questions {
         field::write(field::Sequence { limit: limits.questions_waiting.min(CEILINGS.questions_waiting), minimum: 21, item: field::Nested }, &self.waiting, limits, out, paths::QUESTIONS_WAITING)?;
         field::write(field::Sequence { limit: limits.questions_answered.min(CEILINGS.questions_answered), minimum: 32, item: field::Nested }, &self.answered, limits, out, paths::QUESTIONS_ANSWERED)?;
         field::write(field::Sequence { limit: limits.questions_amended.min(CEILINGS.questions_amended), minimum: 12, item: field::Nested }, &self.amended, limits, out, paths::QUESTIONS_AMENDED)?;
+        field::write(field::Sequence { limit: limits.questions_replies.min(CEILINGS.questions_replies), minimum: 13, item: field::Nested }, &self.replies, limits, out, paths::QUESTIONS_REPLIES)?;
         Ok(())
     }
 
@@ -16743,6 +16844,7 @@ impl Record for Questions {
             waiting: field::read(field::Sequence { limit: limits.questions_waiting.min(CEILINGS.questions_waiting), minimum: 21, item: field::Nested }, limits, reader, paths::QUESTIONS_WAITING)?,
             answered: field::read(field::Sequence { limit: limits.questions_answered.min(CEILINGS.questions_answered), minimum: 32, item: field::Nested }, limits, reader, paths::QUESTIONS_ANSWERED)?,
             amended: field::read(field::Sequence { limit: limits.questions_amended.min(CEILINGS.questions_amended), minimum: 12, item: field::Nested }, limits, reader, paths::QUESTIONS_AMENDED)?,
+            replies: field::read(field::Sequence { limit: limits.questions_replies.min(CEILINGS.questions_replies), minimum: 13, item: field::Nested }, limits, reader, paths::QUESTIONS_REPLIES)?,
         })
     }
 }
@@ -31340,11 +31442,66 @@ impl Record for ClosingSelection {
     }
 }
 
+// Type: ClosingHeld.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ClosingHeld {
+    pub since: u64,
+    pub notified: bool,
+}
+
+// Record: ClosingHeld.
+impl ClosingHeld {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for ClosingHeld {
+    type Limits = Limits;
+    const TAIL: Path = paths::CLOSING_HELD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ClosingHeld")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ClosingHeld")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.since, limits, out, paths::CLOSING_HELD_SINCE)?;
+        field::write(field::Boolean, &self.notified, limits, out, paths::CLOSING_HELD_NOTIFIED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            since: field::read(field::U64, limits, reader, paths::CLOSING_HELD_SINCE)?,
+            notified: field::read(field::Boolean, limits, reader, paths::CLOSING_HELD_NOTIFIED)?,
+        })
+    }
+}
+
 // Type: ClosingAsked.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ClosingAsked {
     pub question: u64,
     pub answer: Option<Box<[u8]>>,
+    pub held: Option<ClosingHeld>,
 }
 
 // Record: ClosingAsked.
@@ -31353,11 +31510,13 @@ impl ClosingAsked {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, closing_asked_answer_some) },
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Named("ClosingHeld"),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 13;
+    pub const ENCODED_AT_ZERO: u64 = 23;
 }
 
 impl Record for ClosingAsked {
@@ -31384,6 +31543,7 @@ impl Record for ClosingAsked {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U64, &self.question, limits, out, paths::CLOSING_ASKED_QUESTION)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.closing_asked_answer_some.min(CEILINGS.closing_asked_answer_some) } }, &self.answer, limits, out, paths::CLOSING_ASKED_ANSWER)?;
+        field::write(field::Optional { item: field::Nested }, &self.held, limits, out, paths::CLOSING_ASKED_HELD)?;
         Ok(())
     }
 
@@ -31391,6 +31551,7 @@ impl Record for ClosingAsked {
         Ok(Self {
             question: field::read(field::U64, limits, reader, paths::CLOSING_ASKED_QUESTION)?,
             answer: field::read(field::Optional { item: field::Bytes { limit: limits.closing_asked_answer_some.min(CEILINGS.closing_asked_answer_some) } }, limits, reader, paths::CLOSING_ASKED_ANSWER)?,
+            held: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSING_ASKED_HELD)?,
         })
     }
 }
@@ -31411,7 +31572,7 @@ impl ClosingStands {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 14;
+    pub const ENCODED_AT_ZERO: u64 = 24;
 }
 
 impl Record for ClosingStands {
@@ -31474,7 +31635,7 @@ impl ClosingQuestion {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 35;
+    pub const ENCODED_AT_ZERO: u64 = 45;
 }
 
 impl Record for ClosingQuestion {
@@ -31658,7 +31819,7 @@ impl ClosingRelay {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 44;
+    pub const ENCODED_AT_ZERO: u64 = 54;
 }
 
 impl Record for ClosingRelay {
@@ -31815,7 +31976,7 @@ impl Closer {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 122;
+    pub const ENCODED_AT_ZERO: u64 = 132;
 }
 
 impl Record for Closer {
@@ -36685,7 +36846,7 @@ impl ChangeHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1524;
+    pub const ENCODED_AT_ZERO: u64 = 1528;
 }
 
 impl Record for ChangeHot {
@@ -40827,7 +40988,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1525;
+    pub const ENCODED_AT_ZERO: u64 = 1529;
 }
 
 impl Record for Value {
@@ -40980,7 +41141,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1527;
+    pub const ENCODED_AT_ZERO: u64 = 1531;
 }
 
 impl Record for Row {
@@ -41078,6 +41239,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ChangeHold", nodes: ChangeHold::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeHot", nodes: ChangeHot::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeLive", nodes: ChangeLive::SHAPE },
+    skein_codec::bounds::Declaration { name: "ChangeReply", nodes: ChangeReply::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeResult", nodes: ChangeResult::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeSource", nodes: ChangeSource::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeState", nodes: ChangeState::SHAPE },
@@ -41098,6 +41260,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Closer", nodes: Closer::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingAsked", nodes: ClosingAsked::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingForm", nodes: ClosingForm::SHAPE },
+    skein_codec::bounds::Declaration { name: "ClosingHeld", nodes: ClosingHeld::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingJobs", nodes: ClosingJobs::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingLine", nodes: ClosingLine::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingMessage", nodes: ClosingMessage::SHAPE },
@@ -41717,10 +41880,12 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.answered_line,
     CEILINGS.answered_answer,
     CEILINGS.amended_reason,
+    CEILINGS.change_reply_words,
     CEILINGS.questions_open,
     CEILINGS.questions_waiting,
     CEILINGS.questions_answered,
     CEILINGS.questions_amended,
+    CEILINGS.questions_replies,
     CEILINGS.change_failure_line,
     CEILINGS.change_follows_commits,
     CEILINGS.plan_item_text,

@@ -10750,7 +10750,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         if let change::State::Landing { .. } = row.change.state {
             d.fresh_waits.insert(*task, Box::new([row.repository])).expect("restored landing judgement waiter");
         }
-        if !row.questions.waiting.is_empty() {
+        if !row.questions.waiting.is_empty() || !row.questions.replies.is_empty() {
             emit(out, Request::WakeProcedure { task: *task });
         }
     }

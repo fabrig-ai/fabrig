@@ -789,3 +789,47 @@ fn an_earlier_tier_defaults_waiting_and_unkept() {
     assert_eq!(tier.unkept, 0);
     assert_eq!(decoded, Stored::Tier(row));
 }
+
+#[test]
+fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
+    use super::fixtures;
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_change::{Blocked, Open, Route, Stands, State};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let fields = " question: u64 = 0 dependency: option u64 = none since: option u64 = none";
+    let before = family.current.replacen(fields, "", 1);
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let current = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"change_hot")).unwrap();
+    let current_root = current.root(b"Row", Some(b"change_hot")).unwrap();
+    let mut row = fixtures::change_row(State::Producing { requested: true });
+    row.questions.route = Route::Up;
+    row.questions.open = Box::new([Open {
+        asker: 9,
+        number: 21,
+        line: b"Which path?".as_slice().into(),
+        words: b"Which path?".as_slice().into(),
+        stands: Stands::Held {
+            answer: b"Use the path.".as_slice().into(),
+            question: 50,
+            blocked: Some(Blocked { dependency: Some(7), since: skein_lib::Wall::from_nanos(9) }),
+        },
+    }]);
+    let downgrade = Plan::between(Mode::Read, &current, current_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&downgrade));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    downgrade.convert(&crate::records::encode(&fixtures::change_hot(row.clone())), &mut earlier, &mut work).unwrap();
+    let upgrade = Plan::derive(&old, old_root, &[], &current, current_root, &[]).expect("held fields default");
+    assert!(work.fit(&upgrade));
+    let mut now = skein_lib::Buffer::with_capacity(4096);
+    upgrade.convert(earlier.as_slice(), &mut now, &mut work).unwrap();
+    row.questions.open[0].stands =
+        Stands::Held { answer: b"Use the path.".as_slice().into(), question: 0, blocked: None };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(now.as_slice(), &bounds), Ok(fixtures::change_hot(row)));
+}

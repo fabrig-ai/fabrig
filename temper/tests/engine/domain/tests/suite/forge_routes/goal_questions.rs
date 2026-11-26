@@ -25,6 +25,9 @@ const STORY_TASKS: u32 = 1 + 3 * (1 + 6);
 const RESULT_BYTES: u32 = 256;
 // Three change results, two topic notices, core news, a question and a hold escalation.
 const INBOX_BYTES: u32 = 8 * RESULT_BYTES;
+// One slot beyond the usual eight for the released question's procedure notice beside the
+// hold words (jig/docs/design/domain/tasks/messages.md, 2).
+const RELEASE_QUESTION_INBOX_MESSAGES: u32 = 9;
 
 pub(super) struct Story {
     pub(super) world: World,
@@ -44,25 +47,9 @@ pub(super) fn independent() -> Story {
     start_with(None, true)
 }
 
-fn start_with(bound: Option<u32>, independent: bool) -> Story {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        true,
-        STEPS,
-        Gate::default(),
-        None,
-        StoryLimits {
-            slots: Some(WORKER_SLOTS),
-            result_bytes: Some(RESULT_BYTES),
-            questions: bound,
-            ..StoryLimits::default()
-        },
-    );
-    world.env.limits.tasks.dependencies = DEPENDENCIES;
-    let mut world = world.with_goal_question_capacity(STORY_TASKS, INBOX_BYTES);
+fn landing_rules() -> Box<[engine::LandingRule]> {
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
-    world = world.with_landing_deployment(Box::new([
+    Box::new([
         engine::LandingRule {
             sets: Box::new([]),
             connector: 0,
@@ -91,7 +78,32 @@ fn start_with(bound: Option<u32>, independent: bool) -> Story {
             gates: Box::new([]),
             approvals: Box::new([]),
         },
-    ]));
+    ])
+}
+
+fn start_with(bound: Option<u32>, independent: bool) -> Story {
+    use temper_engine_domain_world::forge_routes::GoalQuestionRoom;
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            slots: Some(WORKER_SLOTS),
+            result_bytes: Some(RESULT_BYTES),
+            questions: bound,
+            inbox_messages: bound.map(|_| RELEASE_QUESTION_INBOX_MESSAGES),
+            goal_question_room: Some(GoalQuestionRoom {
+                tasks: STORY_TASKS,
+                inbox_bytes: INBOX_BYTES,
+                dependencies: Some(DEPENDENCIES),
+            }),
+            landing_deployment: Some(landing_rules()),
+            ..StoryLimits::default()
+        },
+    );
     adopt_fresh(&mut world);
     world.send(protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([])));
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
@@ -479,6 +491,43 @@ fn a_goal_answers_a_question_and_the_change_lands() {
 }
 
 #[test]
+fn a_goals_answer_call_replays_after_a_restart() {
+    let mut story = start(None);
+    let (question, up) = ask_up(&mut story.world, &story.producer, story.a);
+    let world = &mut story.world;
+    world.drain_cut();
+    world.restart_same();
+    world.until(Until::Ready);
+    world.scripted_read_inbox(&story.goal);
+    let body = engine::Call {
+        completion: live_task(world, story.goal.task).turn + 1,
+        position: 1,
+        tool: engine::Tool::Message {
+            target: story.a,
+            form: engine::MessageForm::Answer { question: up },
+            words: ANSWER.into(),
+        },
+    };
+    let first = world.scripted_call_at(&story.goal, 105, body.clone());
+    assert!(matches!(first, engine::CallAnswer::Sent { .. }));
+    resumed(world, &story.producer, story.a, question, ANSWER);
+    world.drain_cut();
+
+    // The relay has used the answer, but the goal's turn carrying its result has not committed.
+    world.restart_same();
+    world.until(Until::Ready);
+    assert_eq!(world.scripted_call_at(&story.goal, 105, body), first);
+    world.until(Until::Ready);
+    let answers: Vec<_> = replies(world, story.producer.task, story.a)
+        .into_iter()
+        .filter(|word| word.kind == tasks::MessageKind::Answer { question })
+        .collect();
+    assert_eq!(answers.len(), 1, "the producer receives the answer once");
+    assert_eq!(answers[0].words.as_ref(), ANSWER);
+    world.close();
+}
+
+#[test]
 fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
     let mut story = start(None);
     let base = settle_a(&mut story);
@@ -530,7 +579,20 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
             break;
         }
     }
-    assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Held);
+    let temper_engine_domain_forge_change::Stands::Held { blocked: Some(blocked), .. } =
+        row(&story.world, story.b).questions.open[0].stands
+    else {
+        panic!("the answer is held with a blocker")
+    };
+    assert_eq!(blocked.dependency, Some(c));
+    assert_panel(
+        &mut story.world,
+        story.b,
+        producer.task,
+        question,
+        QUESTION,
+        forge_top::PanelStands::Held { blocked: Some(blocked) },
+    );
     assert_eq!(replies(&story.world, producer.task, story.b).len(), 0);
     assert!(!story.world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
     assert_eq!(branch_tip(&mut story.world, &story.branch), base);
@@ -723,7 +785,7 @@ fn next_goal_run(world: &mut World, previous: &engine::Assignment) -> engine::As
 #[test]
 fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
     let mut story = start(None);
-    let (question, _) = ask_up(&mut story.world, &story.producer, story.a);
+    let (question, up) = ask_up(&mut story.world, &story.producer, story.a);
     for _ in 0..STEPS {
         story.world.tick();
         if row(&story.world, story.a).questions.open.first().is_some_and(|open| open.stands == Stands::Asked)
@@ -733,8 +795,9 @@ fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
         }
     }
     fresh_goal(&mut story);
-    unsuccessful_answers(&mut story, question);
+    unsuccessful_answers(&mut story, question, up);
     let number = recovered_question(&mut story);
+    assert_eq!(number, up, "the read recovers the question named by the refusal");
     let asker = story.a;
     let heading = format!(
         "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {number}); answer with message target={asker}, form=answer, question={number}:\n"
@@ -771,22 +834,32 @@ fn adopt_fresh(world: &mut World) {
     world.until(Until::Ready);
 }
 
-fn unsuccessful_answers(story: &mut Story, producer_question: u64) {
+fn unsuccessful_answers(story: &mut Story, producer_question: u64, up: u64) {
+    let target = story.a;
+    let bound = skein_lib::length::usize_of(story.world.env.limits.tasks.message_bytes);
     for number in [3, producer_question] {
-        let refusal = story.world.scripted_call(
+        story.world.scripted_read_inbox(&story.goal);
+        let sent = story.world.answers.len();
+        let errors = story.world.call_errors.len();
+        super::questions::call(
+            &mut story.world,
             &story.goal,
             115,
             engine::Tool::Message {
-                target: story.a,
+                target,
                 form: engine::MessageForm::Answer { question: number },
                 words: ANSWER.into(),
             },
         );
-        assert!(matches!(refusal, engine::CallAnswer::MessageRefused(_)));
-        let rendered = temper_engine_smith::answer(&refusal);
-        let text = core::str::from_utf8(rendered.text()).expect("host refusal");
-        assert!(text.contains("Use read_task on the target task"));
-        assert!(text.contains("form=answer"));
+        let mut expected = format!(
+            "Question {number} is not open at task {target}; its question to you is {up}: Which behavior?. Answer it: message target={target}, form=answer, question={up}."
+        );
+        if expected.len() > bound {
+            expected.replace_range(bound - "…".len().., "…");
+        }
+        assert_eq!(story.world.call_errors.len(), errors + 1);
+        assert_eq!(story.world.call_errors[errors].text.as_ref(), expected.as_bytes());
+        assert_eq!(story.world.answers.len(), sent);
     }
     let sent = story.world.scripted_call(
         &story.goal,
@@ -799,7 +872,6 @@ fn unsuccessful_answers(story: &mut Story, producer_question: u64) {
         word.from == tasks::Party::Task(story.a)
             && word.words.windows(b"words do not answer it".len()).any(|part| part == b"words do not answer it")
     }));
-    let target = story.a;
     amend_spec(story, target, r#"{"words":"Keep the design."}"#, 117);
     assert_eq!(live_task(&story.world, target).questions.len(), 1, "words and amendment reasons leave the credit open");
     assert_eq!(row(&story.world, target).questions.open[0].stands, Stands::Asked);

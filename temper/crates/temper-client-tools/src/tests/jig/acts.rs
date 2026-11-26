@@ -6,11 +6,17 @@ fn a_message_under_a_name_sends_it_as_the_engine_key() {
     assert_eq!(root.sent_name(call), Some(fixtures::named("port-answer")));
 }
 #[test]
-fn a_message_prints_done() {
-    let (mut root, call) = fixtures::message();
-    root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
-    let answer = root.answer(call).expect("answered once durable");
-    assert_eq!((answer.status, answer.stdout.as_ref()), (0, b"done: task 41, message\n".as_slice()));
+fn a_message_prints_the_task_that_took_the_words() {
+    const FIRST_MESSAGE: u64 = 1;
+    for (task, expected) in [
+        (fixtures::TASK, b"done: task 41, message\n".as_slice()),
+        (fixtures::OTHER_TASK, b"done: task 42, message\n".as_slice()),
+    ] {
+        let (mut root, call) = fixtures::message();
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::Said { task, message: FIRST_MESSAGE }));
+        let answer = root.answer(call).expect("answered once durable");
+        assert_eq!((answer.status, answer.stdout.as_ref()), (0, expected));
+    }
 }
 #[test]
 fn an_act_without_key_draws_one() {
@@ -23,13 +29,28 @@ fn an_act_without_key_draws_one() {
     assert_eq!(reason.bytes(), b"Parking the task");
 }
 #[test]
-fn an_act_not_offered_reaches_the_engine_for_replay_or_refusal() {
-    let mut root = fixtures::signed_in(fixtures::PARTY);
-    let call = root.submit(fixtures::MESSAGE_CALL);
-    root.serve(call, fixtures::task_result(fixtures::offered(&[])));
-    assert!(root.sent_name(call).is_some());
-    root.answered(call, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
-    assert_eq!(root.answer(call).expect("engine refused").status, 2);
+fn a_message_not_offered_reaches_the_engine_and_suggests_amending() {
+    let json = fixtures::json_message();
+    for (argv, expected) in [
+        (
+            fixtures::MESSAGE_CALL,
+            b"task message: task 41 takes no words; to direct it, amend it: task amend 41 --spec FILE REASON\n"
+                .as_slice(),
+        ),
+        (
+            json.as_slice(),
+            br#"{"operation":"message","outcome":{"refused":{"refusal":"not_offered","at":null}},"task":41,"to":null}"#
+                .as_slice(),
+        ),
+    ] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit(argv);
+        root.serve(call, fixtures::task_result(fixtures::offered(&[])));
+        assert!(root.sent_name(call).is_some());
+        root.answered(call, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+        let answer = root.answer(call).expect("engine refused");
+        assert_eq!((answer.status, answer.stderr.as_ref()), (2, expected));
+    }
 }
 #[test]
 fn an_engine_key_conflict_exits_2() {

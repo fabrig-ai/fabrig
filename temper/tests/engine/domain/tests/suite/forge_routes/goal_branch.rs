@@ -550,10 +550,14 @@ fn seeded_goal() -> (World, engine::Assignment, Box<[u8]>) {
             slots: Some(3),
             result_bytes: Some(tasks::HOLD_ACCOUNT_BYTES),
             stall: Some(Duration::from_secs(300)),
+            goal_question_room: Some(temper_engine_domain_world::forge_routes::GoalQuestionRoom {
+                tasks: 12,
+                inbox_bytes: 4096,
+                dependencies: None,
+            }),
             ..StoryLimits::default()
         },
-    )
-    .with_goal_question_capacity(12, 4096);
+    );
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 3, Box::new([])));
     let request = goal_request(&world, true);

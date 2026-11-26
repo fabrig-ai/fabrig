@@ -8,5 +8,8 @@ questions: up · 2 of 4 taken
   Answer numbers: use read_task on this change; producer numbers identify the questions relayed below.
   producer question 1 of task 7 · asked of requester · Which branch?
   producer question 2 of task 8 · taken · Which check?
-digest: 1d73b27c953ca6a8
+  producer question 3 of task 9 · answered, held until task 15 ends, since 1970-01-01T00:00:02Z · Which dependency?
+  producer question 4 of task 10 · answered, held for message room, since 1970-01-01T00:00:03Z · Which repair?
+  producer question 5 of task 11 · answered, held · Which resolution?
+digest: 02c13f3254e5b877
 next: temper ctl DIR change show 2 --until landed

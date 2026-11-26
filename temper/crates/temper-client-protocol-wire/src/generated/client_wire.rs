@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0x15, 0xc7, 0x57, 0x54, 0xfe, 0xcc, 0x86, 0xb0, 0xee, 0x48, 0xda, 0x69, 0x4f, 0xf9, 0x69, 0xdd, 0x07, 0xfa, 0x25,
-    0xaa, 0x35, 0x72, 0x40, 0x9e, 0x55, 0x4f, 0x7a, 0x11, 0x8f, 0x8e, 0xd3, 0x70,
+    0xb2, 0xe9, 0x2f, 0xcb, 0x28, 0xd5, 0x8a, 0x4c, 0x84, 0x63, 0x65, 0x7b, 0xe2, 0x1d, 0xe5, 0x23, 0xf5, 0x48, 0x88,
+    0xd2, 0x04, 0xdd, 0xde, 0xb1, 0xb2, 0xc6, 0x94, 0x56, 0x56, 0x28, 0x3d, 0x6b,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3210,11 +3210,15 @@ pub mod paths {
     pub const USED_LIMIT: Path = Path::new("Used.limit");
     pub const USED_TAIL: Path = Path::new("Used (tail)");
     pub const ROUTE_TAG: Path = Path::new("Route (tag)");
+    pub const QUESTION_BLOCKER_DEPENDENCY: Path = Path::new("QuestionBlocker.dependency");
+    pub const QUESTION_BLOCKER_SINCE: Path = Path::new("QuestionBlocker.since");
+    pub const QUESTION_BLOCKER_TAIL: Path = Path::new("QuestionBlocker (tail)");
     pub const STANDS_TAG: Path = Path::new("Stands (tag)");
     pub const QUESTION_ASKER: Path = Path::new("Question.asker");
     pub const QUESTION_NUMBER: Path = Path::new("Question.number");
     pub const QUESTION_LINE: Path = Path::new("Question.line");
     pub const QUESTION_STANDS: Path = Path::new("Question.stands");
+    pub const QUESTION_BLOCKED: Path = Path::new("Question.blocked");
     pub const QUESTION_TAIL: Path = Path::new("Question (tail)");
     pub const QUESTIONS_ROUTE: Path = Path::new("Questions.route");
     pub const QUESTIONS_TAKEN: Path = Path::new("Questions.taken");
@@ -27648,6 +27652,61 @@ impl Record for Route {
     }
 }
 
+// Type: QuestionBlocker.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct QuestionBlocker {
+    pub dependency: Option<u64>,
+    pub since: u64,
+}
+
+// Record: QuestionBlocker.
+impl QuestionBlocker {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
+impl Record for QuestionBlocker {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_BLOCKER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionBlocker")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionBlocker")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::U64 }, &self.dependency, limits, out, paths::QUESTION_BLOCKER_DEPENDENCY)?;
+        field::write(field::U64, &self.since, limits, out, paths::QUESTION_BLOCKER_SINCE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            dependency: field::read(field::Optional { item: field::U64 }, limits, reader, paths::QUESTION_BLOCKER_DEPENDENCY)?,
+            since: field::read(field::U64, limits, reader, paths::QUESTION_BLOCKER_SINCE)?,
+        })
+    }
+}
+
 // Type: Stands.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Stands {
@@ -27716,6 +27775,7 @@ pub struct Question {
     pub number: u64,
     pub line: Box<[u8]>,
     pub stands: Stands,
+    pub blocked: Option<QuestionBlocker>,
 }
 
 // Record: Question.
@@ -27725,11 +27785,13 @@ impl Question {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, question_line) },
         skein_codec::bounds::Node::Named("Stands"),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Named("QuestionBlocker"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 21;
+    pub const ENCODED_AT_ZERO: u64 = 39;
 }
 
 impl Record for Question {
@@ -27758,6 +27820,7 @@ impl Record for Question {
         field::write(field::U64, &self.number, limits, out, paths::QUESTION_NUMBER)?;
         field::write(field::Bytes { limit: limits.question_line.min(CEILINGS.question_line) }, &self.line, limits, out, paths::QUESTION_LINE)?;
         field::write(field::Nested, &self.stands, limits, out, paths::QUESTION_STANDS)?;
+        field::write(field::Optional { item: field::Nested }, &self.blocked, limits, out, paths::QUESTION_BLOCKED)?;
         Ok(())
     }
 
@@ -27767,6 +27830,7 @@ impl Record for Question {
             number: field::read(field::U64, limits, reader, paths::QUESTION_NUMBER)?,
             line: field::read(field::Bytes { limit: limits.question_line.min(CEILINGS.question_line) }, limits, reader, paths::QUESTION_LINE)?,
             stands: field::read(field::Nested, limits, reader, paths::QUESTION_STANDS)?,
+            blocked: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_BLOCKED)?,
         })
     }
 }
@@ -27817,7 +27881,7 @@ impl Record for Questions {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.route, limits, out, paths::QUESTIONS_ROUTE)?;
         field::write(field::Nested, &self.taken, limits, out, paths::QUESTIONS_TAKEN)?;
-        field::write(field::Sequence { limit: limits.questions_open.min(CEILINGS.questions_open), minimum: 21, item: field::Nested }, &self.open, limits, out, paths::QUESTIONS_OPEN)?;
+        field::write(field::Sequence { limit: limits.questions_open.min(CEILINGS.questions_open), minimum: 22, item: field::Nested }, &self.open, limits, out, paths::QUESTIONS_OPEN)?;
         Ok(())
     }
 
@@ -27825,7 +27889,7 @@ impl Record for Questions {
         Ok(Self {
             route: field::read(field::Nested, limits, reader, paths::QUESTIONS_ROUTE)?,
             taken: field::read(field::Nested, limits, reader, paths::QUESTIONS_TAKEN)?,
-            open: field::read(field::Sequence { limit: limits.questions_open.min(CEILINGS.questions_open), minimum: 21, item: field::Nested }, limits, reader, paths::QUESTIONS_OPEN)?,
+            open: field::read(field::Sequence { limit: limits.questions_open.min(CEILINGS.questions_open), minimum: 22, item: field::Nested }, limits, reader, paths::QUESTIONS_OPEN)?,
         })
     }
 }
@@ -34722,6 +34786,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Protection", nodes: Protection::SHAPE },
     skein_codec::bounds::Declaration { name: "Pull", nodes: Pull::SHAPE },
     skein_codec::bounds::Declaration { name: "Question", nodes: Question::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionBlocker", nodes: QuestionBlocker::SHAPE },
     skein_codec::bounds::Declaration { name: "Questions", nodes: Questions::SHAPE },
     skein_codec::bounds::Declaration { name: "QuestionsRoute", nodes: QuestionsRoute::SHAPE },
     skein_codec::bounds::Declaration { name: "Queued", nodes: Queued::SHAPE },

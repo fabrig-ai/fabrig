@@ -8,6 +8,7 @@
 
 
 
+
 `change/repairs.md` has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the
 room the section has left, and names one that doesn't, with its sides'

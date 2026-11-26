@@ -349,6 +349,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     crate::waits::remove(domain, number);
     crate::refs::end(domain, env, number);
     ended.questions = Box::new([]);
+    ended.notice_credits = Box::new([]);
     ended.unrecorded = Box::new([]);
     crate::questions::unindex(domain, number);
     crate::stuck::ended(domain, number);

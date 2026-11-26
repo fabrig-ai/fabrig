@@ -58,12 +58,12 @@ pub use limits::{
     default_watermark, policy_row_bound, row_bound, valid, views_for,
 };
 pub use link::{inbox_sender, inbox_words};
-pub use route::{
-    Approval, AskHow, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
-    ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal,
-    SeeRead, SeeRepository, SeeSettings, SeeWords, adopt_repository_ask,
-};
+pub use route::{Approval, AskHow, Freshness, Gate, HostDelivery, HostRequest, LandingRule, adopt_repository_ask};
 pub use temper_engine_domain_forge::commit_text;
+pub use temper_engine_domain_see::{
+    ForgePerson, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName,
+    SeeNames, SeeNotRead, SeePerson, SeeProposal, SeeRead, SeeRepository, SeeSettings, SeeWords,
+};
 pub use translate::{Config, LANDING_ATTEMPTS, LandingRules, landing_stock};
 
 /// Startup's secret-free decision (protocol/credentials.md, 2.2).

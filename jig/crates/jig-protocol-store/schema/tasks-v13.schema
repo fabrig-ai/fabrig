@@ -256,6 +256,7 @@ record RecurringState { template: RecurringTemplate last_batch: list 1024 Number
 record QuestionRelay { entry: u64 words: bytes 524288 }
 record QuestionOffer { holder: EscalationHolder since: u64 relay: option QuestionRelay }
 record QuestionCredit { number: u64 answerer: Party asked: Party line: u64 offer: option QuestionOffer = none }
+record NoticeCredit { asker: u64 question: u64 }
 record TaskInterest { target: u64 held: bool result: bool }
 record TimerInterest { at: u64 period: option duration }
 record TopicInterest { connector: u16 topic: u64 }
@@ -359,6 +360,7 @@ record TaskInterests {
     saved: list 64 SavedResource
     ever_turned: TranscriptState
     made: u32
+    notice_credits: list 128 NoticeCredit = []
 }
 record RoomProject { project: u32 }
 enum LiveRoom { deployment, project: RoomProject }

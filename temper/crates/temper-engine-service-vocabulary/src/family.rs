@@ -781,6 +781,21 @@ fn panel_unmapped(value: Box<[forge::UnmappedReview]>, limits: &w::Limits) -> Op
     Some(reviews)
 }
 
+pub(crate) fn question_to_record(value: &forge::PanelQuestion) -> w::Question {
+    let (stands, blocked) = match value.stands {
+        forge::PanelStands::Taken => (w::Stands::Taken, None),
+        forge::PanelStands::Asked => (w::Stands::Asked, None),
+        forge::PanelStands::Held { blocked } => {
+            let blocked = match blocked {
+                Some(blocked) => Some(maps::question_blocker_to_record(&blocked)),
+                None => None,
+            };
+            (w::Stands::Held, blocked)
+        }
+    };
+    w::Question { asker: value.asker, number: value.number, line: value.line.clone(), stands, blocked }
+}
+
 fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w::Questions> {
     if value.open.len() > 8 {
         return None;

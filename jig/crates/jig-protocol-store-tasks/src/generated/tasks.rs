@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0x9e, 0xfa, 0xb8, 0x27, 0x17, 0xda, 0x85, 0x38, 0xc8, 0xb3, 0xe9, 0x3d, 0x98, 0x72, 0xba, 0xec, 0xbd, 0x86, 0x77,
-    0xe3, 0xca, 0xf0, 0x27, 0x28, 0xd2, 0x22, 0x70, 0x18, 0xef, 0x9b, 0xdb, 0xe7,
+    0x59, 0x15, 0x61, 0xe3, 0x40, 0x17, 0x6f, 0x44, 0xbd, 0x93, 0xb2, 0xd5, 0xfe, 0xf8, 0x07, 0x11, 0xba, 0xea, 0xaf,
+    0xc1, 0x5b, 0xd6, 0x66, 0x4f, 0x29, 0x65, 0x3f, 0xbd, 0x0a, 0xb1, 0xdf, 0xf8,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -100,6 +100,7 @@ pub struct Limits {
     pub task_interests_subscriptions: u32,
     pub task_interests_inbox: u32,
     pub task_interests_saved: u32,
+    pub task_interests_notice_credits: u32,
     pub before_talk_started_from: u32,
     pub hot_history_question_lines: u32,
     pub hot_history_proposal_rows: u32,
@@ -206,6 +207,7 @@ pub const CEILINGS: Limits = Limits {
     task_interests_subscriptions: 64,
     task_interests_inbox: 130,
     task_interests_saved: 64,
+    task_interests_notice_credits: 128,
     before_talk_started_from: 64,
     hot_history_question_lines: 128,
     hot_history_proposal_rows: 128,
@@ -312,6 +314,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "task_interests_subscriptions",
     "task_interests_inbox",
     "task_interests_saved",
+    "task_interests_notice_credits",
     "before_talk_started_from",
     "hot_history_question_lines",
     "hot_history_proposal_rows",
@@ -422,6 +425,7 @@ impl Limits {
             self.task_interests_subscriptions,
             self.task_interests_inbox,
             self.task_interests_saved,
+            self.task_interests_notice_credits,
             self.before_talk_started_from,
             self.hot_history_question_lines,
             self.hot_history_proposal_rows,
@@ -533,6 +537,7 @@ impl Limits {
             task_interests_subscriptions: self.task_interests_subscriptions.min(most),
             task_interests_inbox: self.task_interests_inbox.min(most),
             task_interests_saved: self.task_interests_saved.min(most),
+            task_interests_notice_credits: self.task_interests_notice_credits.min(most),
             before_talk_started_from: self.before_talk_started_from.min(most),
             hot_history_question_lines: self.hot_history_question_lines.min(most),
             hot_history_proposal_rows: self.hot_history_proposal_rows.min(most),
@@ -641,6 +646,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::TASK_INTERESTS_SUBSCRIPTIONS,
     paths::TASK_INTERESTS_INBOX,
     paths::TASK_INTERESTS_SAVED,
+    paths::TASK_INTERESTS_NOTICE_CREDITS,
     paths::BEFORE_TALK_STARTED_FROM,
     paths::HOT_HISTORY_QUESTION_LINES,
     paths::HOT_HISTORY_PROPOSAL_ROWS,
@@ -1352,6 +1358,9 @@ pub mod paths {
     pub const QUESTION_CREDIT_LINE: Path = Path::new("QuestionCredit.line");
     pub const QUESTION_CREDIT_OFFER: Path = Path::new("QuestionCredit.offer");
     pub const QUESTION_CREDIT_TAIL: Path = Path::new("QuestionCredit (tail)");
+    pub const NOTICE_CREDIT_ASKER: Path = Path::new("NoticeCredit.asker");
+    pub const NOTICE_CREDIT_QUESTION: Path = Path::new("NoticeCredit.question");
+    pub const NOTICE_CREDIT_TAIL: Path = Path::new("NoticeCredit (tail)");
     pub const TASK_INTEREST_TARGET: Path = Path::new("TaskInterest.target");
     pub const TASK_INTEREST_HELD: Path = Path::new("TaskInterest.held");
     pub const TASK_INTEREST_RESULT: Path = Path::new("TaskInterest.result");
@@ -1498,6 +1507,7 @@ pub mod paths {
     pub const TASK_INTERESTS_SAVED: Path = Path::new("TaskInterests.saved");
     pub const TASK_INTERESTS_EVER_TURNED: Path = Path::new("TaskInterests.ever_turned");
     pub const TASK_INTERESTS_MADE: Path = Path::new("TaskInterests.made");
+    pub const TASK_INTERESTS_NOTICE_CREDITS: Path = Path::new("TaskInterests.notice_credits");
     pub const TASK_INTERESTS_TAIL: Path = Path::new("TaskInterests (tail)");
     pub const ROOM_PROJECT_PROJECT: Path = Path::new("RoomProject.project");
     pub const ROOM_PROJECT_TAIL: Path = Path::new("RoomProject (tail)");
@@ -15464,6 +15474,60 @@ impl Record for QuestionCredit {
     }
 }
 
+// Type: NoticeCredit.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoticeCredit {
+    pub asker: u64,
+    pub question: u64,
+}
+
+// Record: NoticeCredit.
+impl NoticeCredit {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
+impl Record for NoticeCredit {
+    type Limits = Limits;
+    const TAIL: Path = paths::NOTICE_CREDIT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "NoticeCredit")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "NoticeCredit")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.asker, limits, out, paths::NOTICE_CREDIT_ASKER)?;
+        field::write(field::U64, &self.question, limits, out, paths::NOTICE_CREDIT_QUESTION)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            asker: field::read(field::U64, limits, reader, paths::NOTICE_CREDIT_ASKER)?,
+            question: field::read(field::U64, limits, reader, paths::NOTICE_CREDIT_QUESTION)?,
+        })
+    }
+}
+
 // Type: TaskInterest.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskInterest {
@@ -17141,6 +17205,7 @@ pub struct TaskInterests {
     pub saved: List<SavedResource>,
     pub ever_turned: TranscriptState,
     pub made: u32,
+    pub notice_credits: List<NoticeCredit>,
 }
 
 // Record: TaskInterests.
@@ -17170,11 +17235,13 @@ impl TaskInterests {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_interests_saved), item: 20, size: size_of::<SavedResource>() },
         skein_codec::bounds::Node::Named("TranscriptState"),
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 10, 12, 14, 15, 16, 17, 19, 21, 22, 23] },
+        skein_codec::bounds::Node::Named("NoticeCredit"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_interests_notice_credits), item: 24, size: size_of::<NoticeCredit>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 6, 8, 10, 12, 14, 15, 16, 17, 19, 21, 22, 23, 25] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 107;
+    pub const ENCODED_AT_ZERO: u64 = 111;
 }
 
 impl Record for TaskInterests {
@@ -17214,6 +17281,7 @@ impl Record for TaskInterests {
         field::write(field::Sequence { limit: limits.task_interests_saved.min(CEILINGS.task_interests_saved), minimum: 6, item: field::Nested }, &self.saved, limits, out, paths::TASK_INTERESTS_SAVED)?;
         field::write(field::Nested, &self.ever_turned, limits, out, paths::TASK_INTERESTS_EVER_TURNED)?;
         field::write(field::U32, &self.made, limits, out, paths::TASK_INTERESTS_MADE)?;
+        field::write(field::Sequence { limit: limits.task_interests_notice_credits.min(CEILINGS.task_interests_notice_credits), minimum: 16, item: field::Nested }, &self.notice_credits, limits, out, paths::TASK_INTERESTS_NOTICE_CREDITS)?;
         Ok(())
     }
 
@@ -17234,6 +17302,7 @@ impl Record for TaskInterests {
             saved: field::read(field::Sequence { limit: limits.task_interests_saved.min(CEILINGS.task_interests_saved), minimum: 6, item: field::Nested }, limits, reader, paths::TASK_INTERESTS_SAVED)?,
             ever_turned: field::read(field::Nested, limits, reader, paths::TASK_INTERESTS_EVER_TURNED)?,
             made: field::read(field::U32, limits, reader, paths::TASK_INTERESTS_MADE)?,
+            notice_credits: field::read(field::Sequence { limit: limits.task_interests_notice_credits.min(CEILINGS.task_interests_notice_credits), minimum: 16, item: field::Nested }, limits, reader, paths::TASK_INTERESTS_NOTICE_CREDITS)?,
         })
     }
 }
@@ -17632,7 +17701,7 @@ impl BeforeTalk {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1332;
+    pub const ENCODED_AT_ZERO: u64 = 1336;
 }
 
 impl Record for BeforeTalk {
@@ -17764,7 +17833,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1374;
+    pub const ENCODED_AT_ZERO: u64 = 1378;
 }
 
 impl Record for TaskRecord {
@@ -18103,7 +18172,7 @@ impl LiveHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1293;
+    pub const ENCODED_AT_ZERO: u64 = 1297;
 }
 
 impl Record for LiveHot {
@@ -19412,7 +19481,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1375;
+    pub const ENCODED_AT_ZERO: u64 = 1379;
 }
 
 impl Record for Value {
@@ -19564,7 +19633,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1381;
+    pub const ENCODED_AT_ZERO: u64 = 1385;
 }
 
 impl Record for Row {
@@ -23209,6 +23278,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Name", nodes: Name::SHAPE },
     skein_codec::bounds::Declaration { name: "NewsClass", nodes: NewsClass::SHAPE },
     skein_codec::bounds::Declaration { name: "NewsMessage", nodes: NewsMessage::SHAPE },
+    skein_codec::bounds::Declaration { name: "NoticeCredit", nodes: NoticeCredit::SHAPE },
     skein_codec::bounds::Declaration { name: "NoticeHeld", nodes: NoticeHeld::SHAPE },
     skein_codec::bounds::Declaration { name: "NoticeMessage", nodes: NoticeMessage::SHAPE },
     skein_codec::bounds::Declaration { name: "NoticeState", nodes: NoticeState::SHAPE },
@@ -23481,6 +23551,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.task_interests_subscriptions,
     CEILINGS.task_interests_inbox,
     CEILINGS.task_interests_saved,
+    CEILINGS.task_interests_notice_credits,
     CEILINGS.before_talk_started_from,
     CEILINGS.hot_history_question_lines,
     CEILINGS.hot_history_proposal_rows,

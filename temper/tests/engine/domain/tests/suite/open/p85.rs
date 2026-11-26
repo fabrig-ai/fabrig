@@ -4,7 +4,6 @@ use crate::forge_routes::{live_task, questions};
 use jig_domain_tasks::{MessageKind, Party};
 
 #[test]
-#[ignore = "bounded waits: P85, tell the requester what holds its answer"]
 fn a_held_answer_tells_its_requester() {
     // The shared fixture runs 200 ticks after the answer, with a sibling still pending.
     let mut story = questions::existing_sibling_question();

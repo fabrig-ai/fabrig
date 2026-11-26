@@ -585,12 +585,15 @@ pub fn child_authority(context: &tasks::DelegationContext) -> Option<tasks::Auth
     Some(authority)
 }
 
+pub use temper_engine_domain_forge_closer::relay::answer_refusal;
+
 /// Feedback names the question route and answer form (domain/forge/change/README.md, 1, domain/forge/change/questions.md, 1).
 pub fn takes_no_messages(requester: tasks::Party, route: forge_change::Route, limit: u32) -> Box<[u8]> {
-    let mut words = List::with_capacity(limit);
+    let mut words = List::uncapped();
+    let limit = usize::try_from(limit).expect("message bound");
     if route != forge_change::Route::None {
         append(&mut words, b"Relays questions. Use read_task on this change; message target=this change, form=answer, question=number. Words do not answer.");
-        return words.into_boxed();
+        return forge::text::fit(words.as_slice(), limit, "…".as_bytes());
     }
     append(&mut words, b"A change takes no questions, answers or words; its requester is ");
     let (kind, number): (&[u8], u64) = match requester {
@@ -601,7 +604,7 @@ pub fn takes_no_messages(requester: tasks::Party, route: forge_change::Route, li
     append(&mut words, kind);
     append(&mut words, &decimal(number));
     append(&mut words, b".");
-    words.into_boxed()
+    forge::text::fit(words.as_slice(), limit, "…".as_bytes())
 }
 
 pub fn gate_executor(row: &forge::ChangeRow, kind: forge_change::GateKind) -> tasks::Executor {

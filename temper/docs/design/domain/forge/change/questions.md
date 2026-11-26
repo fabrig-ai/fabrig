@@ -135,9 +135,11 @@ stored setting naming it is refused, not read, naming the setting
   for it (below), and relayed at the next step that has room and no
   dependency holding it. A held answer is relayed by the same rules
   after a restart, and a change whose record holds one that no
-  dependency holds has its next step due at once. The record's form is
-  unchanged, so an answer an earlier build held for a dependency it
-  had started from is relayed by the same rules.
+  dependency holds has its next step due at once. An answer an earlier
+  build held for a dependency it had started from is relayed by the
+  same rules. Held either way, its sender is told by what and since
+  when, and told again once it is relayed; the record keeps its
+  blocker (`notices.md`, 1 and 2).
 - **An asker that ends first** (cancelled, or its run failing for good:
   its own `finish` parks it) ends its questions: an answer to a
   question passed up for it is taken and dropped, the change's history
@@ -155,7 +157,8 @@ stored setting naming it is refused, not read, naming the setting
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; asked of the
-  requester; its answer held), and the questions
+  requester; its answer held, with its blocker and since when:
+  `notices.md`, 2), and the questions
   taken against its bound, are kept on its record, so that a restart
   resumes each where it stood (`../effects.md`, section 2), and shown on its panel
   (`panel.md`, 1; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
@@ -248,19 +251,38 @@ What follows holds under either question route.
   feedback as before: the enabled route's (above), or a change with
   `none`'s (`README.md`, 1). Any other task's words receive the
   fallback feedback, and its own agents' words the words of *Its own
-  agents' words* (above), as before. A party's words, a requester's
-  among them, stay as `README.md`, 1 has them, taken and dropped: a
-  procedure's step messages tasks alone (jig's
-  `domain/tasks/messages.md`, 5), so it could not tell a party its
-  words were passed.
+  agents' words* (above), as before.
+- **A party's words reach its producer, or are refused.** jig admits
+  no party's words to a procedure task (jig's `domain/people/acts.md`,
+  1, `Message`), and a procedure's step messages tasks alone (jig's
+  `domain/tasks/messages.md`, 5), so the change itself never takes
+  them. temper's root routes them as they arrive, before the people
+  child admits them: a party's words to a change whose live producer
+  would admit a party's words now (active, or held while active, as
+  jig admits words to an agent task) are sent to that producer instead,
+  whole, as that party's words to it, checked by jig as words sent to
+  it directly are; the producer keeps them as it keeps its person's
+  (jig's `domain/tasks/messages.md`, 2), and the party's answer names
+  the producer that took them. Any other party's words to a change go
+  to the change and are refused as not offered, and `ctl`'s `task
+  message` says what to send instead: an amendment, which reaches a
+  live producer and makes the next one (below; the words are
+  `../../../client/ctl/tools-acts.md`, 1). Why the amendment, not a
+  store of a party's words: it already carries direction durably to
+  the producer live now and to the next
+  (`../../../draft/bounded-waits.notes.md`). The route is the root's
+  alone, so a party's words inside a compound request are not
+  rerouted, and the people child keeps the routed words under the
+  party's key: the same key sent again once the producer has changed
+  meets the key's conflict.
 - **Words never answer.** Passing words settles and clears no
   question: a question asked of the requester stays asked, an answer
   held stays held, and a producer kept by its own open question stays
   kept (jig's `domain/tasks/lifecycle-endings.md`, 1), the words waiting in its
-  inbox until that question's answer lets it go on. An answer from the
-  requester that the relay does not take, to no question asked of it
-  or a second answer to one answered, receives the fallback feedback as
-  before and is not passed.
+  inbox until that question's answer lets it go on. An answer that
+  matches no open question is refused to its sender, naming the one
+  that is open, at the call and at the step (`notices.md`, 3), and is
+  not passed.
 - **Durable as the answer relay.** Words taken are kept on the
   change's record, in the order taken, each with its sender, its number
   in the change's inbox, its words whole and the producer they were
