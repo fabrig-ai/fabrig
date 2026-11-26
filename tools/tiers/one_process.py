@@ -415,7 +415,9 @@ def cargo_environment(env, root):
 def binary_environment(env, cargo, suite, package, build, profile, host_libdir):
     root = Path(package['manifest_path']).parent
     result = dict(env)
-    result.pop('NEXTEST', None)
+    # One-process runs always use gate seeds (skein/docs/design/testing/sweeps.md, 4.3).
+    for key in ('NEXTEST', 'SKEIN_TEST_FUZZY_CAMPAIGN', 'SKEIN_TEST_FUZZY_CASE'):
+        result.pop(key, None)
     version = package.get('version', '0.0.0')
     core, _, pre = version.partition('-')
     numbers = core.split('.')
