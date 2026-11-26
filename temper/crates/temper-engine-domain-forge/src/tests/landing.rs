@@ -3302,7 +3302,7 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
             }
         }
     }
-    for (format, bytes, truncated, expected, failures) in [
+    for (format, bytes, truncated, expected, failures, interrupted) in [
         (
             Format::Junit,
             xml.as_slice(),
@@ -3312,6 +3312,7 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
                 b"skein-lib::suite.b".as_slice().into(),
                 b"skein-lib::suite.fuzzy::a".as_slice().into(),
             ]))),
+            false,
         ),
         (
             Format::Lines,
@@ -3325,6 +3326,7 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
                 b"test binary b".as_slice().into(),
                 b"test binary fuzzy::a".as_slice().into(),
             ]))),
+            false,
         ),
         (
             Format::Lines,
@@ -3332,6 +3334,7 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
             false,
             ReceiptReport::Many { bound: LIMITS.tiers.failing_tests },
             Some(Failures::Many),
+            false,
         ),
         (
             Format::Junit,
@@ -3339,11 +3342,36 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
             true,
             ReceiptReport::Many { bound: LIMITS.tiers.failing_tests },
             Some(Failures::Many),
+            false,
+        ),
+        (
+            Format::Lines,
+            b"test binary b\n".as_slice(),
+            false,
+            ReceiptReport::Tests(Box::new([ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false }])),
+            Some(Failures::Tests(Box::new([b"test binary b".as_slice().into()]))),
+            true,
         ),
     ] {
-        let (mut d, key, run) = reporting_failed_gate(format);
+        let (mut d, key, mut run) = reporting_failed_gate(format);
+        if interrupted {
+            // A cancelled run can still show a workflow red beside a job that failed in set-up.
+            run.conclusion = Some(api::Conclusion::Cancelled);
+            run.jobs = Box::new([
+                run.jobs[0].clone(),
+                api::RunJob {
+                    id: 10,
+                    attempt: 1,
+                    name: b"lint".as_slice().into(),
+                    state: api::RunState::Completed,
+                    conclusion: Some(api::Conclusion::Failure),
+                    steps: 3,
+                    step: Some(api::Step { number: 0, name: b"Set up job".as_slice().into() }),
+                },
+            ]);
+        }
         let mut reads = 0_u32;
-        let mut jobs = 0_u32;
+        let mut jobs = 0_usize;
         let mut decided = false;
         for _ in 0..12_u32 {
             let (call, op) = fixtures::next_call(&mut d);
@@ -3375,7 +3403,8 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
                     })
                 }
                 api::Op::Read(api::Read::Job { attempt, .. }) => {
-                    assert_eq!((attempt.head, attempt.run, attempt.job), (run.commit, run.id, 9));
+                    assert_eq!(reads, 1, "the report is read before the failed jobs");
+                    assert_eq!((attempt.head, attempt.run, attempt.job), (run.commit, run.id, run.jobs[jobs].id));
                     assert!(d.receipt(&key).is_none(), "receipt also waits for the job");
                     jobs += 1;
                     Err(api::Error::Missing)
@@ -3398,7 +3427,7 @@ fn refusing_gate_reports_supply_the_receipt_and_probe_ids() {
             }
         }
         assert!(decided);
-        assert_eq!((reads, jobs), (1, 1));
+        assert_eq!((reads, jobs), (1, run.jobs.len()));
         let receipt = d.receipt(&key).expect("failed receipt");
         assert!(!receipt.passed);
         assert_eq!(receipt.report, expected);

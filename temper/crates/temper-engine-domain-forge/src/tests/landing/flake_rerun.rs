@@ -240,7 +240,7 @@ fn a_second_red_reads_new_attempts_and_repairs_without_a_third_run() {
 }
 
 #[test]
-fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
+fn only_refusals_publish_a_failure_when_no_flake_rerun_applies() {
     for case in 0..11_u32 {
         let (mut d, key, run) = gate();
         let mut report = Ok(file(TEST));
@@ -277,8 +277,15 @@ fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
             }
             _ => unreachable!(),
         }
-        gather(&mut d, &run, report);
-        assert!(!d.receipt(&key).unwrap().passed, "case {case}");
+        let (decision, _) = gather(&mut d, &run, report);
+        if matches!(case, 4 | 7) {
+            // A promised report that is unread or empty names no failure (domain/forge/judgement.md, 2).
+            assert_eq!(decision, policy::Decision::Retry { member: 0, gate: 0, key: key.key, try_: 2 }, "case {case}");
+            assert!(d.receipt(&key).is_none(), "case {case}");
+            assert!(d.change(fixtures::CHANGE).unwrap().asks.is_empty(), "case {case}");
+        } else {
+            assert!(!d.receipt(&key).unwrap().passed, "case {case}");
+        }
         assert!(d.landing.rows.get(&61).unwrap().flake_reruns.is_empty(), "case {case}");
     }
 }

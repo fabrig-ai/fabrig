@@ -160,7 +160,8 @@ This document holds landing keys, receipts and proof, split from [`landing.md`](
   test name nothing, and are the runner's or broke (2.4), never a
   receipt. A gate naming none is judged by its failed step (the
   requester, 2026-11-19). A red job stands beside a runner's fault in
-  another.
+  another. A gate's report is read before any failed job's step and log,
+  which are read only for a refusal.
 - **A round of one unit:** its changes are repaired
   (`forge/change/repairs.md`), its members leave (`landing.md`, 4.3), and the landing ends with nothing landed. A
   repaired head waits for a later landing, whose keys that did not

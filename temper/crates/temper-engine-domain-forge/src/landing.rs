@@ -2316,14 +2316,21 @@ fn advance(
                         return;
                     }
                     policy::Verdict::Fault(fault) => {
+                        let mut problem = GateProblem::Runner { fault, job: None };
                         if let Some(run) = ended.run
                             && run.commit == candidate
                             && run.state == api::RunState::Completed
                         {
-                            judge_run(d, env, owner, p, key, run, out);
-                            return;
+                            let (workflow_failed, job_fault) = runs::gate_jobs(&run);
+                            if workflow_failed {
+                                judge_run(d, env, owner, p, key, run, out);
+                                return;
+                            }
+                            if let Some((fault, job)) = job_fault {
+                                problem = GateProblem::Runner { fault, job: Some(job) };
+                            }
                         }
-                        unjudged_end(d, env, &key, GateProblem::Runner { fault, job: None }, out);
+                        unjudged_end(d, env, &key, problem, out);
                     }
                     policy::Verdict::Running => {}
                 }

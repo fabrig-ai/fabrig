@@ -124,7 +124,7 @@ fn gate_receipts_read_reports_only_for_failed_workflow_steps() {
                 .iter()
                 .position(|op| matches!(op, api::Op::Read(api::Read::Artifact { .. })))
                 .expect("report read");
-            assert!(job < artifact, "failed jobs are read before the report");
+            assert!(artifact < job, "the report is read before the failed jobs");
             assert!(String::from_utf8_lossy(&receipt.logs).contains("Failed job: test"));
             let candidate = receipt.candidate;
             assert_eq!(
