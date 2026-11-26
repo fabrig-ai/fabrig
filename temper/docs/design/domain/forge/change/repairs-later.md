@@ -64,22 +64,22 @@
   Default: the read runs on and its answer is dropped; withdrawing an
   admitted read is skein's client's to design (2026-11-14).
 
-- **A repair of another reason that changes nothing** (`repairs.md`, *A CI
-  repair that changes nothing checks its head again*): a gate's or a
+- **A repair of another reason that changes nothing** (`repairs.md`, *A
+  repair that changes nothing is checked once more*): a gate's or a
   review's verdict at the head stays valid there, so checking the same
-  head again would only ask the next repair, and a landing's, a
-  resolution's and an ejection's red is not CI's at the change's head.
-  Default: such a repair finding nothing to do holds the change, as a
-  failed one does, until a person decides (2026-11-14). A landing repair
-  that finds only flakes says so with its verdict instead, and its
-  release runs the gate once more (*A landing repair that finds only
-  flakes*; 2026-11-17).
+  head again would only ask the next repair, and a resolution's and an
+  ejection's red is not a check at the change's head. Default: such a
+  repair finding nothing to do holds the change, as a failed one does,
+  until a person decides (2026-11-14). A CI repair's and a landing's are
+  checked once more at the same content (`../../../draft/whose-red.md`,
+  5).
 
-- **Every failed job at once** (`repairs.md`, *A CI repair that changes
-  nothing checks its head again*): one job runs again for each repair that
+- **Every failed job at once** (`repairs.md`, *A repair that changes
+  nothing is checked once more*): one job runs again for a CI repair that
   changed nothing, as one write is one job's; a head with several failed
-  jobs spends a repair on each left red. Default: one job, since a
-  deployment's CI fails in one gate job (2026-11-14).
+  jobs holds with its red standing when another stays red after it.
+  Default: one job, since a deployment's CI fails in one gate job
+  (2026-11-14).
 
 - **A landing repair that only merges its base** (*A landing's
   repair*; `tools/pre-pr/design.md`, 2): judged against
