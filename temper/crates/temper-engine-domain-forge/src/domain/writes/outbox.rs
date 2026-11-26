@@ -203,6 +203,7 @@ fn mark(d: &mut Domain, sender: Sender, progress: Progress, out: &mut Queue<Requ
         let row = d.writes.get_mut(&name).expect("selected record");
         let mut changed = false;
         let mut settled = List::with_capacity(super::write_limit());
+        let mut readbacks = List::uncapped();
         for entry in &mut row.entries {
             if entry.sender != sender || !entry.state.unsettled() {
                 continue;
@@ -223,6 +224,10 @@ fn mark(d: &mut Domain, sender: Sender, progress: Progress, out: &mut Queue<Requ
             entry.state = state;
             if !state.unsettled() {
                 settled.push(entry.order).expect("one settlement per entry");
+            } else if state == WriteState::Uncertain
+                && let Operation::Merge { .. } | Operation::MergedInto { .. } = entry.operation
+            {
+                readbacks.push(entry.order).expect("one readback per entry");
             }
         }
         if changed {
@@ -239,6 +244,9 @@ fn mark(d: &mut Domain, sender: Sender, progress: Progress, out: &mut Queue<Requ
             if empty && !d.heads.contains_key(&name) {
                 remove(d, &name, out);
             }
+        }
+        for order in readbacks.into_boxed() {
+            super::readback::merge(d, &name, order);
         }
     }
 }

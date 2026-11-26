@@ -1781,7 +1781,7 @@ fn watched_design_goal() -> Domain {
     d
 }
 
-fn delayed_goal_merge(d: &mut Domain) -> Token {
+fn enqueue_goal_merge(d: &mut Domain) {
     let mut row = fixtures::opening_row();
     row.base = GOAL_BRANCH.into();
     row.pull = Some(1);
@@ -1796,6 +1796,10 @@ fn delayed_goal_merge(d: &mut Domain) -> Token {
         condition: skein_forge_client::Condition::Merge { base: GOAL_BRANCH.into() },
     };
     outputs(d, Event::Enqueue { entry });
+}
+
+fn delayed_goal_merge(d: &mut Domain) -> Token {
+    enqueue_goal_merge(d);
     outputs(d, Event::Committed { entry: MERGING });
     for _ in 0..MERGE_CALLS {
         let (call, op) = fixtures::next_call(d);
@@ -1903,6 +1907,61 @@ fn a_late_merge_record_never_moves_g_back_from_its_design_push() {
     }
     assert_no_goal_drift(&observe_goal(&mut d, DESIGN, 7));
     assert_goal_head(&d, DESIGN);
+}
+
+#[test]
+fn an_open_merge_readback_does_not_make_a_later_design_push_drift() {
+    use crate::writes::{Operation, WriteState};
+    const TURNED: skein_forge::api::Commit = [23; 32];
+    let mut d = watched_design_goal();
+    let goal = name(GOAL_BRANCH);
+    enqueue_goal_merge(&mut d);
+
+    // The keep sees the train tip advance while the pull view is still open.
+    let mut out = Queue::uncapped();
+    assert_no_goal_drift(&observe_goal(&mut d, MERGED, 7));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Pull { number: 1, ci: false }));
+    domain::scripted_outcome(
+        &mut d,
+        &env(),
+        MERGING,
+        fixtures::CHANGE,
+        skein_forge_client::Outcome::Uncertain,
+        &mut out,
+    );
+
+    let mut verifying = fixtures::open_pull();
+    verifying.base = GOAL_BRANCH.into();
+    assert_no_goal_drift(&fixtures::answer(&mut d, call, Ok(Answer::Pull(verifying.clone()))));
+    let merge = &d.writes.get(&goal).unwrap().entries[0];
+    assert_eq!(merge.state, WriteState::Uncertain);
+    assert!(d.inspection_write_readback(&goal, merge.order));
+    // The head half catches up while the base half is waiting to retry.
+    answer_merge_readback(&mut d);
+
+    // The turn's fast-forward is known but its before is not yet connected.
+    let turn = Sender::Entry { task: 61, entry: 91 };
+    d.admit(&goal, Operation::MergedInto { pull: 2, before: Some(MERGED), after: Some(TURNED) }, turn, &mut out)
+        .unwrap();
+    domain::writes::outbox::merge_readback(&mut d, &goal, 61, 2, TURNED, true, &mut out);
+    admit_design(&mut d, TURNED);
+    // The keep's observation must be rejudged once the disputed merge reads
+    // back at its own commit, not the turn's tip or the design commit.
+    assert_no_goal_drift(&observe_goal(&mut d, DESIGN, 7));
+    assert_eq!(d.branch_head(&goal), Some(TIP));
+    let mut later = env();
+    later.now = later.now.saturating_add(LIMITS.client.poll);
+    let (call, op) = at_call(&mut d, &later);
+    assert_eq!(op, Op::Read(Read::Pull { number: 1, ci: false }));
+    verifying.state = skein_forge::api::State::Closed;
+    verifying.merged = Some(MERGED);
+    assert_no_goal_drift(&at_answer_call(&mut d, &later, call, Ok(Answer::Pull(verifying))));
+    assert_eq!(d.branch_head(&goal), Some(DESIGN));
+    let row = d.writes.get(&goal).unwrap();
+    assert_eq!(row.entries[0].state, WriteState::Confirmed);
+    assert_eq!(row.entries.last().unwrap().state, WriteState::Confirmed);
+    assert!(d.hold(&goal).unwrap().drift.is_none());
 }
 
 fn answer_merge_readback(d: &mut Domain) {

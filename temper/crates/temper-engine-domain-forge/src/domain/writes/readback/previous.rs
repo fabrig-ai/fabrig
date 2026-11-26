@@ -73,7 +73,7 @@ fn terminal(check: Check) -> bool {
     match check {
         Check::Branch { .. }
         | Check::Contains { then: Then::Writer { mode: WriterRead::Answered | WriterRead::Lost, .. }, .. } => true,
-        Check::Contains { .. } | Check::Pull { .. } | Check::Order { .. } | Check::PreviousCompare { .. } => false,
+        Check::Contains { .. } | Check::Pull | Check::Order { .. } | Check::PreviousCompare { .. } => false,
     }
 }
 

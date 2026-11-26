@@ -838,10 +838,7 @@ fn lagging_reads_distinguish_temper_writes_from_drift() {
     }
 }
 
-// Pinned counterexamples leave the same referee in force. Run each by name
-// with --run-ignored ignored-only in the fuzzy profile while fixing it.
 #[test]
-#[ignore = "merge intent readback mistakes a lagging verifying pull for evidence of another writer (seed 32)"]
 fn a_disputed_merge_and_later_turn_do_not_make_a_design_push_drift() {
     let seed = 32;
     let outside = Outside::Reset { hinted: true };
@@ -863,7 +860,6 @@ fn restarting_a_caller_behind_does_not_renew_its_bound() {
 }
 
 #[test]
-#[ignore = "the pull half of an uncertain queue merge can be left without readback (seed 35)"]
 fn a_disputed_queue_merge_keeps_its_pull_readback_owed() {
     let seed = 35;
     let outside = Outside::Retarget;

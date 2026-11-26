@@ -543,6 +543,54 @@ fn restored_uncertain_records_wait_for_fresh_reads_and_outlive_their_heads() {
 }
 
 #[test]
+fn an_uncertain_queue_merge_owes_both_reads_even_after_restart() {
+    let mut d = repo();
+    change(&mut d);
+    let branch = name(BRANCH);
+    let base = name(BASE);
+    head(&mut d, &branch, HEAD);
+    head(&mut d, &base, T);
+    let merge =
+        entry(Write::Merge { number: PULL, head: HEAD, how: MergeHow::Style }, Condition::Merge { base: BASE.into() });
+    outputs(&mut d, Event::Enqueue { entry: merge });
+    let lost = outcome(&mut d, Outcome::Uncertain);
+    let head_record = saved(&lost, &branch);
+    let base_record = saved(&lost, &base);
+    assert_eq!(head_record.entries[0].operation, Operation::Merge { pull: PULL, head: HEAD });
+    assert_eq!(base_record.entries[0].operation, Operation::MergedInto { pull: PULL, before: Some(T), after: None });
+    for row in [&head_record, &base_record] {
+        assert_eq!(row.entries[0].state, WriteState::Uncertain);
+        assert!(d.inspection_write_readback(&row.name, row.entries[0].order), "no read owed for {:?}", row.name);
+    }
+
+    let mut restarted = loading();
+    for row in [head_record, base_record] {
+        head(&mut restarted, &row.name, row.head.unwrap());
+        outputs(&mut restarted, Event::Restore { record: Stored::Writes(row) });
+    }
+    outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut restarted, Event::CatchUp);
+    for name in [&branch, &base] {
+        let row = kept(&restarted, name);
+        assert_eq!(row.entries[0].state, WriteState::Uncertain);
+        assert!(restarted.inspection_write_readback(name, row.entries[0].order));
+    }
+
+    let mut merged = fixtures::open_pull();
+    merged.number = PULL;
+    merged.state = State::Closed;
+    merged.merged = Some(M);
+    for _ in 0_u8..2 {
+        let (call, op) = fixtures::next_call(&mut restarted);
+        assert_eq!(op, Op::Read(Read::Pull { number: PULL, ci: false }));
+        fixtures::answer(&mut restarted, call, Ok(Answer::Pull(merged.clone())));
+    }
+    assert_eq!(kept(&restarted, &branch).entries[0].state, WriteState::Confirmed);
+    assert_eq!(kept(&restarted, &base).entries[0].state, WriteState::Confirmed);
+    assert_eq!(kept(&restarted, &base).head, Some(M));
+}
+
+#[test]
 fn recording_an_earlier_members_merge_never_writes_the_rounds_final_base() {
     let mut d = repo();
     change(&mut d);

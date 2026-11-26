@@ -3,7 +3,7 @@ use super::{
     Domain, Name, Operation, Queue, Request, Sender, Tip, WriteState, advance, after, before, filtered, save_changed,
 };
 use crate::Limits;
-use skein_forge::api::{Answer, Commit, Error, Read, Repository};
+use skein_forge::api::{Answer, Commit, Error, Pull, Read, Repository};
 use skein_forge_client::{Event, What};
 use skein_lib::{Env, List, Map, Time, Token};
 
@@ -20,7 +20,7 @@ pub(crate) struct State {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Check {
     Branch { lost: bool },
-    Pull { observed: Option<Commit> },
+    Pull,
     Contains { tip: Commit, contains: Commit, then: Then },
     Order { head: Commit, observed: Commit },
     PreviousCompare { head: Commit, waiting: Commit },
@@ -150,7 +150,7 @@ pub(super) fn intent(d: &mut Domain, name: &Name, order: u64, observed: Commit, 
             let rewrite = actor == super::Actor::Writer && preparing_rebase(d, name, order);
             Check::Contains { tip: observed, contains: before, then: Then::Update { base, rewrite } }
         }
-        Operation::MergedInto { .. } => Check::Pull { observed: Some(observed) },
+        Operation::MergedInto { .. } => Check::Pull,
         Operation::Writer { before } => {
             let head = super::known_head(d, name);
             let Some(check) = previous::writer_proof(before, head, observed, WriterRead::Observed) else { return };
@@ -188,6 +188,10 @@ pub(super) fn finished(d: &mut Domain, name: &Name, order: u64, lost: bool) {
     schedule(d, name, order, Check::Branch { lost });
 }
 
+pub(super) fn merge(d: &mut Domain, name: &Name, order: u64) {
+    schedule(d, name, order, Check::Pull);
+}
+
 pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
     let mut needed = List::uncapped();
     let mut comparisons = List::uncapped();
@@ -202,7 +206,7 @@ pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
                 | Operation::Open { .. }
                 | Operation::Close { .. }
                 | Operation::Reopen { .. }
-                | Operation::Retarget { .. } => Check::Pull { observed: None },
+                | Operation::Retarget { .. } => Check::Pull,
                 Operation::Push { .. }
                 | Operation::Create { .. }
                 | Operation::Delete { .. }
@@ -237,7 +241,7 @@ fn read(d: &Domain, l: &Limits, name: &Name, order: u64, check: Check) -> Option
     match check {
         Check::PreviousCompare { head, waiting } => Some(Read::Commits { before: head, after: waiting, page: 1 }),
         Check::Branch { .. } => Some(Read::Branch { branch }),
-        Check::Pull { .. } => {
+        Check::Pull => {
             if let Operation::Open { pull: None, base, .. } = &entry.operation {
                 return Some(Read::PullFor { head: branch, base: base.clone() });
             }
@@ -304,24 +308,9 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
         }
         Check::PreviousCompare { head, waiting } => previous::compared(head, waiting, result),
         Check::Branch { lost } if entry.state.unsettled() => found_branch(d, &key.0, &entry.operation, lost, result),
-        Check::Pull { observed } if entry.state.unsettled() => {
+        Check::Pull if entry.state.unsettled() => {
             if let Ok(Answer::Pull(pull)) = result {
-                if let Operation::MergedInto { .. } = entry.operation {
-                    if crate::items::branch_matches(&key.0, &pull.base)
-                        && let Some(commit) = pull.merged
-                        && observed.unwrap_or(commit) == commit
-                    {
-                        Found::Confirm { after: Some(commit), pull: None }
-                    } else {
-                        Found::NoProof { observed }
-                    }
-                } else if super::matches_pull(&entry.operation, &pull)
-                    && crate::items::branch_matches(&key.0, &pull.head)
-                {
-                    Found::Confirm { after: None, pull: Some(pull.number) }
-                } else {
-                    Found::NoProof { observed }
-                }
+                pull_answer(&key.0, &entry.operation, &pull)
             } else {
                 Found::Retry
             }
@@ -350,7 +339,7 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
                 Status::Unknown | Status::Pending => Found::Retry,
             }
         }
-        Check::Branch { .. } | Check::Pull { .. } | Check::Contains { .. } => return,
+        Check::Branch { .. } | Check::Pull | Check::Contains { .. } => return,
     };
     let name = key.0.clone();
     let writer = if let Operation::Writer { .. } = entry.operation { Some(entry.sender) } else { None };
@@ -377,10 +366,32 @@ pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, result: Result<Answer,
     }
 }
 
+fn pull_answer(name: &Name, op: &Operation, pull: &Pull) -> Found {
+    if let Operation::MergedInto { pull: number, after, .. } = op {
+        // Read the merge's own commit, even if the observed tip is a later
+        // write. An open view can lag the base; it proves no outside move.
+        if pull.number == *number
+            && crate::items::branch_matches(name, &pull.base)
+            && let Some(commit) = pull.merged
+            && after.unwrap_or(commit) == commit
+        {
+            Found::Confirm { after: Some(commit), pull: None }
+        } else {
+            Found::Retry
+        }
+    } else if super::matches_pull(op, pull) && crate::items::branch_matches(name, &pull.head) {
+        Found::Confirm { after: None, pull: Some(pull.number) }
+    } else if let Operation::Merge { .. } = op {
+        Found::Retry
+    } else {
+        Found::NoProof { observed: None }
+    }
+}
+
 fn is_lost_push_read(check: Check) -> bool {
     match check {
         Check::Branch { lost } | Check::Contains { then: Then::Push { lost }, .. } => lost,
-        Check::Pull { .. }
+        Check::Pull
         | Check::Contains { then: Then::Writer { .. } | Then::Update { .. } | Then::UpdateBase, .. }
         | Check::Order { .. }
         | Check::PreviousCompare { .. } => false,
