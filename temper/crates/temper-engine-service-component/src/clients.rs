@@ -93,6 +93,8 @@ pub struct Clients {
     server_queued: bool,
     pub(crate) starting: Option<()>,
     pub(crate) early: Queue<root::Event>,
+    // Bounded by the clients component's watch admission; only frame watches wait here.
+    pub(crate) held_me: Queue<root::PartyInput>,
     endings: kit::host::Endings,
     bridge: kit::host::Bridge,
     #[cfg(test)]
@@ -326,6 +328,7 @@ impl Clients {
             server_queued: false,
             starting: Some(()),
             early: Queue::uncapped(),
+            held_me: Queue::uncapped(),
             endings: kit::host::Endings::new(journal.commits),
             bridge: kit::host::Bridge::new(Token::new(crate::tokens::CLIENTS).tag()),
             #[cfg(test)]
@@ -421,6 +424,7 @@ impl Clients {
             self.server.close(&mut self.server_out);
         }
         if let kit::Event::Abort = &event {
+            self.held_me.clear();
             self.server.abort(&mut self.server_out);
         }
         if !self.component_closed {
@@ -586,7 +590,14 @@ impl Clients {
         true
     }
     fn root(&mut self, value: root::Event, events: &mut Queue<root::Event>) {
-        if self.starting.is_some() {
+        // A close can cancel a held opening even in the pass that opens the gate.
+        if let root::Event::Party(root::PartyInput::Unwatch { watcher }) = &value
+            && self.cancel_held_me(*watcher)
+        {
+            return;
+        }
+        // New client inputs follow any still staged or held.
+        if self.starting.is_some() || !self.early.is_empty() || !self.held_me.is_empty() {
             self.early.push(value);
         } else {
             events.push(value);
@@ -880,6 +891,21 @@ fn ended(key: &root::Key) -> Option<u64> {
 }
 
 impl Clients {
+    pub(crate) fn cancel_held_me(&mut self, watcher: Token) -> bool {
+        let mut cancelled = false;
+        for _ in 0..self.held_me.len() {
+            let value = self.held_me.pop().expect("held watch");
+            if let root::PartyInput::Watch { watcher: held, .. } = &value
+                && *held == watcher
+            {
+                cancelled = true;
+            } else {
+                self.held_me.push(value);
+            }
+        }
+        cancelled
+    }
+
     pub fn not_ready(&mut self, value: root::PartyInput) {
         let mut unused = None;
         if let root::PartyInput::Key { carried, .. } = &value {
