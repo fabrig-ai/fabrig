@@ -207,8 +207,9 @@ Chromium, `SKEIN_TEST_CHROMIUM` naming it, as the browser tiers' does.
      reachable from `origin/main` carries, L its newest such commit, read
      as PRINTED is (section 6), where its root's `looks.html` as TIP
      holds it has no entry standing for L (6.3); oldest L first.
-   - **Its request:** read from `origin`'s `docs/look/NAME` as 6.1,
-     step 2, reads it, C its tip and P its parent. A branch `origin`
+   - **Its request:** fetched from `origin`'s `docs/look/NAME`, the
+     remote the whole run reads, and read as 6.1, step 2, reads a
+     fetched tip, C its tip and P its parent. A branch `origin`
      lacks, a tip that is a merge or a root, or a tip without exactly
      one `Look-request: NAME`, gives the entry `not checked`, with why;
      a fetch that fails otherwise is a check that can't finish.
@@ -421,11 +422,21 @@ account's evidence; the account's judgement stays the landing's
 1. **Its arguments:** NAME, `[a-z0-9][a-z0-9-]*`, and C, 7 to 64
    lowercase hexadecimal digits. Any other argument or count is
    refused.
-2. **Reads the request:** it fetches `docs/look/NAME` from `origin`,
-   with no tags. The fetched tip must be C, its hash starting with C's
-   digits, with one parent, P, and exactly one `Look-request: NAME`
-   trailer. P holds the requests below, so P to C is this request's
-   edit alone.
+2. **Reads the request:**
+   - **Where the checkout holds C,** `git rev-parse --verify --quiet
+     C^{commit}` naming a whole hash that starts with C's digits, the
+     request is that commit, and nothing is fetched.
+   - **Otherwise it fetches** `docs/look/NAME`, with no tags, from the
+     checkout's `forge` remote where `git remote` lists one, else
+     `origin`, else its only remote: a goal's checkout need not have an
+     `origin`. A checkout with no remote, or with several and neither
+     of those, is a fetch that fails, and its words name the remotes
+     listed. The fetched tip must be C, its hash starting with C's
+     digits.
+   - **Either way** the request has one parent, P, and exactly one
+     `Look-request: NAME` trailer; a git child that fails while it is
+     read is a request it can't read. P holds the requests below, so P
+     to C is this request's edit alone.
 3. **Sorts what C changes** from P, under the two journeys roots:
    - a page, `NN.html` or the TUI's `NN.txt`, of a directory whose
      `walk` in C starts with exactly `walk 2`: a journey's page,
@@ -533,20 +544,32 @@ needs `SKEIN_TEST_CHROMIUM`, Chromium's path, and starts no box or
 terminal.
 
 1. **Its arguments and its request** as 6.1, steps 1 and 2: NAME and
-   C; `docs/look/NAME` fetched from `origin`, its tip C, with one
-   parent P and exactly one `Look-request: NAME`.
+   C; C read where the checkout holds it, else `docs/look/NAME`
+   fetched as 6.1, step 2, fetches it, its tip C; with one parent P and
+   exactly one `Look-request: NAME`. The writer's run fetches the
+   branch before it asks (section 4, step 5), so its checkout holds C.
 2. **Which pages,** under the two roots in C, a journey being a
    directory whose `walk` in C starts with exactly `walk 2`:
    - each `NN.html` of a journey that C changes from P, a page of a
      walk the request adds among them;
    - each `NN.html` of any journey under a root whose `overlay.css` C
      changes, where a rule C adds, changes or removes there selects an
-     element (step 5).
+     element (step 5);
+   - each `.html` page C changes in a directory under the browser's
+     root that is no journey and is drawn on a gallery state
+     (`web/look-requests.md`, 2): its `README.md`, as C holds it, holds
+     `` the gallery's state `NAME` ``, NAME of ASCII letters, digits
+     and `-`, and every such phrase in it names the same NAME. Each is
+     rendered beside that state's page as the gallery prints it (step
+     3), and is touched as a journey's page is (step 5).
 
-   A page C changes in a directory that is no journey is `uncompared`,
-   `hand-made`; a journey's page the checkout's print lacks at its path
-   is `uncompared`, `nothing printed beside it`. The TUI's `NN.txt` is
-   not rendered: its text was compared at the landing (6.1).
+   Any other page C changes in a directory that is no journey is
+   `uncompared`, `hand-made`, the TUI's root's among them, since the
+   gallery prints the browser's pages; a journey's page the checkout's
+   print lacks at its path, or a page whose state the gallery's print
+   lacks, is `uncompared`, `nothing printed beside it`. The TUI's
+   `NN.txt` is not rendered: its text was compared at the landing
+   (6.1).
 3. **Two copies,** made afresh under `look-render` in the checkout's git
    directory and left for reading: `request`, C's two journeys roots and
    `temper/crates/temper-client-shell-web/` from git, and `print`, the
@@ -557,6 +580,16 @@ terminal.
    where it lacks it, so that every disclosure and dialog shows; no other
    byte changes, and nothing is clicked. Nothing else is copied: no
    credential, ctl directory or home is in either.
+   - **The gallery's print,** where step 2 renders a page beside a
+     gallery state: `TEMPER_INTERNAL_BUNDLE=none cargo run --locked
+     --quiet -p temper-client-gallery -- DIR` (`web/gallery.md`, 1),
+     once, in the checkout's root, DIR `gallery` under `look-render`,
+     so that the state is printed from the checkout's tree as the print
+     is, main's tip in the writer's run. A state's page, `DIR/NAME.html`,
+     is the print's page for each page drawn on it, its `details` and
+     `dialog` start tags opened as above; it links the bundle beside it
+     in DIR, whose stylesheets are the tree's own
+     (`web/look-requests.md`, 2).
 4. **One Chromium,** started by the kit's command
    (`skein/docs/design/testing/browser.md`, 3), its profile under the
    scratch directory, with one person. Each page of step 2 is opened
@@ -573,8 +606,7 @@ terminal.
      on.
    - **By its edit:** each element whose start tag starts on a line that
      P's page to C's changes, by `git diff --no-index -U0` of their
-     comparable texts (6.1, step 5); every element where P lacks the
-     page.
+     comparable texts (step 6); every element where P lacks the page.
    - **By its rules:** each element that a rule C adds, changes or
      removes in the page's root's overlay selects (`Elements` with its
      selector), the selector read as 6.1, step 6, reads it, with its
@@ -585,11 +617,19 @@ terminal.
    - Each touched element brings its descendants. A request whose edits
      and rules touch no element on any page is `nothing to render`.
 6. **Paired by the pages' alignment:** the request's page and the
-   print's, each made comparable as 6.1, step 5, makes it, diffed by
-   git. A start tag on a line the diff keeps pairs with the same start
-   tag of that line on the other side; within a hunk, the two sides'
-   start tags pair in order while their names agree, and the rest have
-   no pair. A touched element with no pair is one difference, `pair`.
+   print's, each made comparable, diffed by git. A start tag on a line
+   the diff keeps pairs with the same start tag of that line on the
+   other side; within a hunk, the two sides' start tags pair in order
+   while their names agree, and the rest have no pair. A touched
+   element with no pair is one difference, `pair`.
+   - **Comparable** as 6.1, step 5, makes a text, and in the form a
+     print's page takes for a diff (`web/journeys.md`, 5.3): a line
+     break before each `>` that starts no line, and no `data-node`
+     attribute. A print's page is in that form already; a gallery
+     state's page, printed on one line with its `data-node`s, and a copy
+     of one are put in it, so that each start tag's line pairs it. Step
+     5's diff and this one read these texts, and a start tag's line in
+     them places it; ELEMENT's line stays the page's own (step 8).
 7. **Compared at each width,** 1440, 1000 and 420 CSS pixels by 900,
    both copies' pages set to it: each touched element's and its pair's
    `Style` and `Rect`. A property differs where its two values differ as
@@ -620,8 +660,9 @@ terminal.
 9. **Its exit:** 0, its lines written, whatever its result; 2, as 6.1,
    step 8: its arguments, a fetch that fails, a tip that isn't C, or a
    request it can't read; 3, the check couldn't finish: a git child, a
-   file, `SKEIN_TEST_CHROMIUM` unset, Chromium's start, a read refused
-   or the browser gone. On 2 and 3 it writes nothing on stdout.
+   file, the gallery's print (an exit but 0), `SKEIN_TEST_CHROMIUM`
+   unset, Chromium's start, a read refused or the browser gone. On 2
+   and 3 it writes nothing on stdout.
 
 - **States in words aren't rendered:** the landing's account covers
   them (`web/look-requests.md`, 5), and the entry says so (6.3).
@@ -631,7 +672,10 @@ terminal.
   after-landing owner's (`tui/journeys.md`, 11).
 - **Why by source lines:** the comparison's hunks are the page's lines
   (6.1), and the print writes a tag a line (`web/journeys.md`, 5.3), so
-  a start tag's line names the element a person edited; Chromium's
+  a start tag's line names the element a person edited; a gallery
+  state's page, which the gallery prints on one line, is put in the
+  same form first (step 6), else every tag past the first that differs
+  would have no pair. Chromium's
   order of elements, checked against the source's, maps each to its
   node with no script and no mark in the page. Turned down: marking
   each element with an attribute in the copies, which a rule could
@@ -790,7 +834,12 @@ Focused and native: no box, browser or terminal starts.
   `nothing to render`; a value holding a tab and a `\` escaped; past 50
   differences, `more`; the copies' `details` and `dialog` opened and
   each page opened kept to files; a read refused, exit 3; a tip that
-  isn't C, exit 2. No Chromium starts.
+  isn't C, exit 2. A hand-made page whose `README.md` names a gallery
+  state, rendered beside that state's page, the gallery printed once
+  for all such pages; one whose `README.md` names none, or two states,
+  `hand-made`; a state the gallery's print lacks, `nothing printed
+  beside it`; the gallery's print failing, exit 3; a page on one line
+  paired a tag a line. No Chromium starts.
 - **The kit's reads** of Chromium, in skein's browser suite
   (`skein/docs/design/testing/browser.md`, 9), in the session its
   viewport story starts: written and compiled in the plan, run after
@@ -805,9 +854,21 @@ Focused and native: no box, browser or terminal starts.
   rule rows alone and no print; a new walk's page compared whole; a
   stopped walk, a row, exit 1; the TUI's rules listed to read; a
   hand-made directory not compared; a tip that isn't C, and each
-  refused argument, exit 2; a print that can't finish, exit 3. Each of
-  its effects is a value these steps answer, so its script has no
-  witness.
+  refused argument, exit 2; a print that can't finish, exit 3. Its
+  request (6.1, step 2): a C the checkout holds read with no fetch;
+  one it lacks fetched from `forge` beside `origin`, from `origin`
+  beside another, from an only remote, and refused, exit 2, with no
+  remote or several and neither. Each of its effects is a value these
+  steps answer, so its script has no witness.
+- **The look commands' git,** one test in the same library: each git
+  argument list the step tests of `look-compare`, `look-render` and
+  `look-refresh` record, run with real git in one scratch repository
+  that holds the commits and refs they name, since git refuses an
+  unknown revision before it reads the options. A list git answers
+  with its usage, exit 129, fails it, naming the list: the canned
+  answers can't see git refuse one. It is in the library's own tests,
+  which the plans' focused suite runs, at the user's word of
+  2026-11-25, as `skein-codegen`'s own tests run `git merge-file`.
 - **Their witnesses,** in `temper-client-journeys`'s suite, the
   shipped scripts in scratch repositories with real git, a fake `cargo`
   first on `PATH` that runs the built tool for `-p
