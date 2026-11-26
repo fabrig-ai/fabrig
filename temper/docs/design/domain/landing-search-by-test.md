@@ -84,12 +84,16 @@ sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, s
   control character (a byte below 32, or 127), or a file past the
   read's bound, each reads as "many".
 - **None:** an absent artifact, a file its format cannot read, an
-  answer of another shape, or a report that names no failed case. It
-  is no fault: the run still failed.
-- **The failed receipt** keeps the ids, or "many", or none, in its
-  `failures` (`landing-proof.md`, 1.2). Its failure stands as `landing-proof.md`,
-  2.3 reads it either way: its repair, its member's leaving and its
-  status are those of any failed receipt.
+  answer of another shape, or a report that names no failed case is no
+  verdict: the runner's when the run was interrupted, broke otherwise
+  (`forge/judgement.md`, 2). The gate is retried within `gate_retries`,
+  then holds the landing if blocking (`landing-proof.md`, 2.4), with no
+  receipt and no repair.
+- **The failed receipt** of a gate that promises a report is made only
+  from named ids or "many", kept in its `failures` (`landing-proof.md`,
+  1.2). Its failure stands as `landing-proof.md`, 2.3 reads it either way:
+  its repair, its member's leaving and its status are those of any failed
+  receipt.
 
 ## 3. The selection
 

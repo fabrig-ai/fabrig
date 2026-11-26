@@ -247,11 +247,12 @@ struct Holding {
     preserve: bool,
     recovering: bool,
     recovered: bool,
+    /// The project's bound, or `u32::MAX` when only the worker's bound applies.
+    rerun_bound: u32,
     original_starts: Box<[(u32, Start)]>,
     arrived: Time,
     admitted: Time,
     stores: Box<[crate::cache::Borrowed]>,
-    rerun: Option<u32>,
     /// The spec's repositories, in its order.
     repositories: Box<[Repository]>,
     /// Where each repository checked out so far stands, in the same order.
@@ -602,11 +603,11 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         preserve: false,
         recovering: false,
         recovered: false,
+        rerun_bound: rerun.unwrap_or(u32::MAX),
         original_starts: Box::new([]),
         arrived: env.now,
         admitted: env.now,
         stores,
-        rerun,
         repositories,
         tips,
         conflicts,
@@ -2358,10 +2359,7 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             action: crate::git::Reds::Prepare {
                 wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait"),
-                rerun_processes: match holding.rerun {
-                    Some(bound) => bound.min(env.limits.rerun_processes),
-                    None => env.limits.rerun_processes,
-                },
+                rerun_processes: holding.rerun_bound.min(env.limits.rerun_processes),
             },
         },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),

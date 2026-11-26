@@ -27,10 +27,11 @@ findings are `findings.md`'s, and a repair, its result and its release
   on that verdict for a person.
 - **A repair's no-test verdict** (`forge/change/repairs.md`, *A landing
   repair that finds no failed test*): a landing repair whose failure
-  names no failed test (its gate names no report, its report was not
-  read, or it names none) may end with verdict 2, saying no test failed
-  and nothing needs changing, rather than a no-change taken as a
-  failure. Its change holds on that verdict for a person, as on a
+  names no failed test comes only from a gate that promises no report.
+  A promised report that was not read or names none asks no repair
+  (`forge/judgement.md`, 2). The repair may end with verdict 2, saying
+  no test failed and nothing needs changing, rather than a no-change
+  taken as a failure. Its change holds on that verdict for a person, as on a
   flake's, and its release regates as a flake's does (section 3): a red
   no test caused is run once more, never repaired again for nothing
   (the requester, 2026-11-19).
@@ -184,9 +185,12 @@ compiled, not run.
   flake's.
 - **A no-test verdict** (`temper-engine-domain-forge`'s and the
   engine's route tests): offered only to a landing repair whose
-  failure names no failed test, never beside the flake's, nor to one
-  naming tests or more than N, nor to a CI repair; read from the inbox
-  and recovered alike; its release regating once, across a restart,
+  failure names no failed test, which comes only from a gate that
+  promises no report. A promised report that was not read or names
+  none asks no repair (`forge/judgement.md`, 2). The verdict is never
+  offered beside the flake's, nor to a repair naming tests or more
+  than N, nor to a CI repair; read from the inbox and recovered alike;
+  its release regating once, across a restart,
   the same candidate dispatched afresh and green proving with no
   commit, and a red regate repaired and counted, whose next no-test
   verdict waits for another release.
