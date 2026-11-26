@@ -99,7 +99,12 @@ fn opaque_receipts_diagnostics_markers_and_check_tail_are_lossless_ascii() {
             repository: bytes(&opaque),
             check: bytes(b".smith/check"),
             given: Duration::from_secs(60),
-            ran: run::Ran { exit: run::Exit::Code { code: 255 }, output: bytes(&opaque), cut: u64::MAX },
+            ran: run::Ran {
+                exit: run::Exit::Code { code: 255 },
+                said_not_judged: false,
+                output: bytes(&opaque),
+                cut: u64::MAX,
+            },
         },
         256,
     )

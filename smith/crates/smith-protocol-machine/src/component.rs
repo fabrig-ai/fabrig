@@ -182,10 +182,7 @@ impl Component {
                 self.vacant(owner);
                 let deadline = env.now.saturating_add(bound).min(cap);
                 if env.now >= deadline {
-                    to_domain.push(ToDomain::Checked {
-                        owner,
-                        ran: run::Ran { exit: run::Exit::TimedOut, output: Box::new([]), cut: 0 },
-                    });
+                    check_ended(owner, run::Exit::TimedOut, to_domain);
                     return;
                 }
                 let admissible = crate::files::check(&self.roots, &env.limits, program.root, &program.path, false);
@@ -202,9 +199,9 @@ impl Component {
                         &env.limits,
                     ) {
                         Some((process, request)) => self.start_process(owner, process, request, below, to_domain),
-                        None => failed_check(owner, to_domain),
+                        None => check_ended(owner, run::Exit::Unstarted, to_domain),
                     },
-                    Err(_) => failed_check(owner, to_domain),
+                    Err(_) => check_ended(owner, run::Exit::Unstarted, to_domain),
                 }
             }
             FromDomain::Abort { owner } => {
@@ -377,7 +374,7 @@ impl Component {
             Ok(Some(_)) => unreachable!("owner checked"),
             Err(_) => match request {
                 Below::Spawn { .. } | Below::OpenDirectory { .. } => match purpose {
-                    crate::process::Purpose::Check => failed_check(owner, to_domain),
+                    crate::process::Purpose::Check => check_ended(owner, run::Exit::Unstarted, to_domain),
                     crate::process::Purpose::Shell
                     | crate::process::Purpose::Search
                     | crate::process::Purpose::List => {
@@ -599,9 +596,11 @@ impl Component {
     }
 }
 
-fn failed_check(owner: Token, to_domain: &mut Queue<ToDomain>) {
-    to_domain
-        .push(ToDomain::Checked { owner, ran: run::Ran { exit: run::Exit::Unstarted, output: Box::new([]), cut: 0 } });
+fn check_ended(owner: Token, exit: run::Exit, to_domain: &mut Queue<ToDomain>) {
+    to_domain.push(ToDomain::Checked {
+        owner,
+        ran: run::Ran { exit, said_not_judged: false, output: Box::new([]), cut: 0 },
+    });
 }
 
 fn refuse(request: FromDomain, above: &mut Queue<ToDomain>) {
@@ -611,7 +610,7 @@ fn refuse(request: FromDomain, above: &mut Queue<ToDomain>) {
         }
         FromDomain::Read { owner, .. } => above.push(ToDomain::Read { owner, read: run::Read::Failed }),
         FromDomain::Probe { owner, .. } => above.push(ToDomain::Probed { owner, executable: false }),
-        FromDomain::Check { owner, .. } => failed_check(owner, above),
+        FromDomain::Check { owner, .. } => check_ended(owner, run::Exit::Unstarted, above),
         FromDomain::Cancel { .. } | FromDomain::Abort { .. } => {}
     }
 }

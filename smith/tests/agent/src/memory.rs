@@ -343,7 +343,12 @@ impl Driver {
             Asked::Check { owner, .. } => {
                 let exit = run::Exit::Code { code: u8::from(self.rng.chance(500)) };
                 self.seen[if exit == (run::Exit::Code { code: 0 }) { 7 } else { 8 }] += 1;
-                let ran = run::Ran { exit, output: bytes(u64::from(limits.run.check_tail)), cut: 1000 };
+                let ran = run::Ran {
+                    exit,
+                    said_not_judged: false,
+                    output: bytes(u64::from(limits.run.check_tail)),
+                    cut: 1000,
+                };
                 Event::Below(smith_domain::Below::Checked { owner, ran })
             }
             Asked::Delivery { owner, stopped, .. } => {

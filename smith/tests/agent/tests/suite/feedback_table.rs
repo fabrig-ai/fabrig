@@ -65,9 +65,24 @@ fn every_run_call_terminal_has_canonical_feedback() {
                 repository: bytes(b"repo"),
                 check: bytes(b".smith/check"),
                 given: Duration::from_secs(60),
-                ran: run::Ran { exit: run::Exit::TimedOut, output: bytes(b"tail"), cut: 3 },
+                ran: run::Ran {
+                    exit: run::Exit::Code { code: 1 },
+                    said_not_judged: false,
+                    output: bytes(b"tail"),
+                    cut: 3,
+                },
             },
-            "checks-failed repository=\"repo\" check=\".smith/check\" exit=timed-out given_ms=60000 cut=3 tail=\"tail\"",
+            "checks-failed repository=\"repo\" check=\".smith/check\" exit=code:1 given_ms=60000 cut=3 tail=\"tail\"",
+            true,
+        ),
+        (
+            run::Returned::ChecksNotJudged {
+                repository: bytes(b"repo"),
+                check: bytes(b".smith/check"),
+                given: Duration::from_secs(60),
+                ran: run::Ran { exit: run::Exit::TimedOut, said_not_judged: false, output: bytes(b"tail"), cut: 3 },
+            },
+            "checks-not-judged repository=\"repo\" check=\".smith/check\" exit=timed-out given_ms=60000 cut=3 tail=\"tail\"",
             true,
         ),
         (run::Returned::Stale, "stale", true),
@@ -183,23 +198,28 @@ fn every_delivery_reason_and_check_exit_is_visible() {
         }),
         expected_rendering("delivery-failed directory=2 reason=unreachable cut=0 tail=\"\"", true)
     );
-    for (exit, label) in [
-        (run::Exit::Code { code: 7 }, "code:7"),
-        (run::Exit::Signalled { signal: 15 }, "signalled"),
-        (run::Exit::TimedOut, "timed-out"),
-        (run::Exit::Unstarted, "unstarted"),
-        (run::Exit::Cancelled, "cancelled"),
+    for (exit, said_not_judged, label, refused) in [
+        (run::Exit::Code { code: 7 }, false, "code:7", true),
+        (run::Exit::Code { code: 7 }, true, "code:7", false),
+        (run::Exit::Signalled { signal: 15 }, false, "signalled", false),
+        (run::Exit::TimedOut, false, "timed-out", false),
+        (run::Exit::Unstarted, false, "unstarted", false),
+        (run::Exit::Cancelled, false, "cancelled", false),
     ] {
+        let repository = bytes(b"r");
+        let check = bytes(b".smith/check");
+        let given = Duration::from_secs(60);
+        let ran = run::Ran { exit, said_not_judged, output: bytes(b"\"\xff\n"), cut: 4 };
+        let (returned, prefix) = if refused {
+            (run::Returned::ChecksFailed { repository, check, given, ran }, "checks-failed")
+        } else {
+            (run::Returned::ChecksNotJudged { repository, check, given, ran }, "checks-not-judged")
+        };
         assert_eq!(
-            rendering(run::Returned::ChecksFailed {
-                repository: bytes(b"r"),
-                check: bytes(b".smith/check"),
-                given: Duration::from_secs(60),
-                ran: run::Ran { exit, output: bytes(b""), cut: 0 }
-            }),
+            rendering(returned),
             expected_rendering(
                 &format!(
-                    "checks-failed repository=\"r\" check=\".smith/check\" exit={label} given_ms=60000 cut=0 tail=\"\""
+                    r#"{prefix} repository="r" check=".smith/check" exit={label} given_ms=60000 cut=4 tail="\x22\xff\x0a""#
                 ),
                 true,
             )

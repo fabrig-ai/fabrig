@@ -4667,6 +4667,7 @@ version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
  "skein-fake-llm-domain",
+ "skein-io",
  "skein-lib",
  "skein-llm",
  "skein-llm-kit",
@@ -4686,6 +4687,8 @@ dependencies = [
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
+ "smith-protocol-machine",
+ "smith-protocol-machine-fixtures",
  "smith-session-world",
  "smith-tools-world",
 ]
@@ -5455,7 +5458,9 @@ dependencies = [
 name = "smith-protocol-machine-fixtures"
 version = "0.0.0"
 dependencies = [
+ "skein-io",
  "skein-lib",
+ "smith-domain",
  "smith-protocol-machine",
 ]
 

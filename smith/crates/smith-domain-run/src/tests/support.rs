@@ -524,7 +524,7 @@ pub(crate) fn coding() -> Charter {
 }
 
 pub(crate) fn ran(code: u8, output: &[u8]) -> Ran {
-    Ran { exit: Exit::Code { code }, output: bytes(output), cut: 0 }
+    Ran { exit: Exit::Code { code }, said_not_judged: false, output: bytes(output), cut: 0 }
 }
 
 // A cancel in every state.

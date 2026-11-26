@@ -3,9 +3,12 @@
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};
-use skein_lib::Token;
+use skein_io::kernel;
+use skein_lib::{Duration, Time, Token};
 use smith_agent_world::{Boundary, Job, Settings, World};
 use smith_domain::run;
+use smith_protocol_machine::{FromDomain, ToDomain};
+use smith_protocol_machine_fixtures::{CheckProcess, STDERR, STDOUT};
 
 fn call(name: &[u8], arguments: &[u8]) -> Line {
     Line::Call { name: name.into(), arguments: arguments.into() }
@@ -117,6 +120,146 @@ fn feedback_has(query: &Query, part: &[u8]) -> bool {
         .iter()
         .flat_map(|message| &message.parts)
         .any(|item| matches!(item, Part::ToolOutput { output, is_error: true, .. } if contains(output, part)))
+}
+
+const CHECK_BOUND: Duration = Duration::from_secs(1);
+const CHECK_TAIL: u32 = 64;
+const MARKER: &[u8] = b"smith-check: not judged\n";
+
+#[derive(Clone, Copy)]
+enum CheckEnd {
+    Exit(kernel::Exit),
+    SplitThenExit,
+    Deadline,
+    Unstarted,
+}
+
+fn check_attempt(reads: &[(Token, &[u8])], end: CheckEnd, bound: Duration) -> run::Ran {
+    let request = FromDomain::Check {
+        owner: Token::new(1),
+        program: run::Place { root: Token::new(1), path: b".temper/pre-pr".as_slice().into() },
+        results: None,
+        bound,
+        cap: Time::ZERO.saturating_add(bound),
+        tail: CHECK_TAIL,
+    };
+    let terminal = if let CheckEnd::Unstarted = end {
+        CheckProcess::unstarted(request, Time::ZERO)
+    } else {
+        let mut process = CheckProcess::start(request, Time::ZERO);
+        for &(pipe, bytes) in reads {
+            process.bytes(pipe, bytes);
+        }
+        match end {
+            CheckEnd::Exit(exit) => process.exited(exit),
+            CheckEnd::SplitThenExit => {
+                process.bytes(STDERR, b"smith-check: not ju");
+                process.exited(kernel::Exit::Code(1));
+                process.bytes(STDERR, b"dged\n");
+                process.bytes(STDOUT, &[b'x'; CHECK_TAIL as usize]);
+            }
+            CheckEnd::Deadline => {
+                process.at(process.deadline());
+                process.fire();
+                process.assert_stopped();
+                process.exited(kernel::Exit::Signal(15));
+            }
+            CheckEnd::Unstarted => unreachable!("spawned"),
+        }
+        process.finish()
+    };
+    let ToDomain::Checked { ran, .. } = terminal else { panic!("check terminal: {terminal:?}") };
+    ran
+}
+
+fn delivery_check_story(finishing: bool, attempts: Vec<run::Ran>, feedback: Option<(&str, &str, u64)>) {
+    let (disk, mut workspace) = mixed_disk();
+    workspace.directories = workspace.directories.into_vec().into_iter().take(1).collect();
+    let mut settings = Settings { job: if finishing { Job::Coding } else { Job::MidReport }, ..Settings::calm(1011) };
+    settings.limits.run.check_tail = CHECK_TAIL;
+    settings.limits.run.check_timeout = CHECK_BOUND;
+    let delivery = || {
+        if finishing {
+            call(b"finish", br#"{"title":"Answer","body":"Deliver the checked tree."}"#)
+        } else {
+            call(b"deliver", br#"{"ticket":"checked tree"}"#)
+        }
+    };
+    let mut turns = vec![calls(vec![delivery()], 1)];
+    if feedback.is_some() {
+        turns.push(calls(vec![delivery()], 1));
+    }
+    if !finishing {
+        turns.push(calls(vec![call(b"finish", br#"{"report":"Done.","source":"workspace"}"#)], 1));
+    }
+    let cue = if finishing { b"@coding".as_slice() } else { b"@midreport" };
+    let scripts = Box::new([Script { cue: cue.into(), turns: turns.into() }]);
+    let count = attempts.len();
+    let mut world = World::with_workspace_scripts(settings, None, Some(workspace), disk, scripts);
+    world.script_checks(attempts);
+    if let Some((kind, exit, given_ms)) = feedback {
+        let expected =
+            format!("{kind} repository=\"work\" check=\".temper/pre-pr\" exit={exit} given_ms={given_ms} cut=");
+        let mut answered = false;
+        for _ in 0..10_000 {
+            assert!(!world.drive(1), "must return feedback before it can deliver");
+            assert!(world.pushes().is_empty(), "no delivery before check feedback: {expected}");
+            let returned = world
+                .prompts()
+                .iter()
+                .flat_map(|query| &query.messages)
+                .flat_map(|message| &message.parts)
+                .find_map(|part| match part {
+                    Part::ToolOutput { output, is_error: true, .. } if output.starts_with(b"checks-") => Some(output),
+                    _ => None,
+                });
+            if let Some(output) = returned {
+                assert!(
+                    output.starts_with(expected.as_bytes()),
+                    "expected {expected}, got {}",
+                    String::from_utf8_lossy(output)
+                );
+                assert_eq!(world.checked(), vec![false; count], "only deadline expiry retries automatically");
+                answered = true;
+                break;
+            }
+        }
+        assert!(answered, "missing feedback: {expected}");
+    }
+    world.run(10_000);
+    assert_eq!(world.pushes(), [smith_agent_world::delivered()], "one delivery after a passing check");
+    assert_eq!(world.checked().len(), count + usize::from(feedback.is_some()));
+    assert!(world.checked().last().copied().expect("a check ran"));
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
+}
+
+#[test]
+fn delivery_and_finish_distinguish_a_check_refusal_from_no_verdict() {
+    use kernel::Exit::{Code, Signal};
+    let empty: &[(Token, &[u8])] = &[];
+    let stderr_marker = [(STDERR, MARKER)];
+    let refused = Some(("checks-failed", "code:1", 1000));
+    let not_judged = Some(("checks-not-judged", "code:1", 1000));
+    for finishing in [false, true] {
+        for (reads, end, expected) in [
+            (&stderr_marker[..], CheckEnd::Exit(Code(1)), not_judged),
+            (empty, CheckEnd::SplitThenExit, not_judged),
+            (empty, CheckEnd::Exit(Code(1)), refused),
+            ([(STDOUT, MARKER)].as_slice(), CheckEnd::Exit(Code(1)), refused),
+            ([(STDERR, b"xsmith-check: not judged\n".as_slice())].as_slice(), CheckEnd::Exit(Code(1)), refused),
+            ([(STDERR, b"smith-check: not judged x\n".as_slice())].as_slice(), CheckEnd::Exit(Code(1)), refused),
+            ([(STDERR, b"smith-check: not judged\r\n".as_slice())].as_slice(), CheckEnd::Exit(Code(1)), refused),
+            ([(STDERR, b"smith-check: not judged".as_slice())].as_slice(), CheckEnd::Exit(Code(1)), refused),
+            (&stderr_marker[..], CheckEnd::Exit(Code(0)), None),
+            (empty, CheckEnd::Exit(Signal(9)), Some(("checks-not-judged", "signalled", 1000))),
+            (empty, CheckEnd::Unstarted, Some(("checks-not-judged", "unstarted", 1000))),
+        ] {
+            delivery_check_story(finishing, vec![check_attempt(reads, end, CHECK_BOUND)], expected);
+        }
+        let twice = [CHECK_BOUND, CHECK_BOUND.saturating_add(CHECK_BOUND)]
+            .map(|bound| check_attempt(empty, CheckEnd::Deadline, bound));
+        delivery_check_story(finishing, Vec::from(twice), Some(("checks-not-judged", "timed-out", 2000)));
+    }
 }
 
 #[test]
