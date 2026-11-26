@@ -5,6 +5,7 @@ use super::{
     Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Recovery,
     StepEnd, Work, append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
 };
+use forge::LandingHeadTrailers as HeadTrailers;
 use temper_engine_domain_translate::prepare::{self, PrepareMember, PrepareRequest};
 
 fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
@@ -498,7 +499,7 @@ pub(super) fn landing_decision(
     env: &Env<Limits>,
     task: u64,
     choice: landing::Decision,
-    head_trailers: &[forge::LandingHeadTrailers],
+    head_trailers: &[HeadTrailers],
 ) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
@@ -508,25 +509,27 @@ pub(super) fn landing_decision(
         return;
     }
     domain.forge.offered_landing(task);
-    let end = match choice {
+    let waiting = ProcedureStep::new(StepEnd::Wait);
+    let (decision, wake) = match choice {
         landing::Decision::Wait { until, on: _ } => {
             domain.forge.wait_landing(&super::super::environment_forge(env), task, until);
-            StepEnd::Wait
+            (waiting, false)
         }
-        landing::Decision::Finish => StepEnd::Result(tasks::TaskResult::Report {
-            words: domain.forge.landing_result_words(task, env.limits.tasks.result_bytes),
-        }),
+        landing::Decision::Finish => {
+            let words = domain.forge.landing_result_words(task, env.limits.tasks.result_bytes);
+            (ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words })), false)
+        }
         landing::Decision::Cancel => {
             domain.work.push(Work::Tasks(tasks::Event::Cancel {
                 reply_to: super::super::internal(u64::MAX),
                 by: tasks::Party::Deployment { project: domain.forge.landing(task).expect("landing").landing.project },
                 operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
             }));
-            StepEnd::Wait
+            (waiting, false)
         }
         landing::Decision::Prepare { .. } => {
             let decision = match prepare_delegate(domain, env, task, head_trailers) {
-                Ok(delegate) => ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+                Ok(delegate) => ProcedureStep { batch: Box::new([delegate]), ..waiting },
                 Err(reason) => {
                     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
                     append(&mut words, b"prepare job: ");
@@ -535,26 +538,11 @@ pub(super) fn landing_decision(
                     super::holds::decision(domain, env, task, words.into_boxed())
                 }
             };
-            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                task,
-                step,
-                connector,
-                code,
-                decision,
-            }));
-            return;
+            (decision, false)
         }
         landing::Decision::Hold(_) => {
             let words = domain.forge.landing_hold_words(task).unwrap_or(Box::from(b"prepare job: failed".as_slice()));
-            let decision = super::holds::decision(domain, env, task, words);
-            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                task,
-                step,
-                connector,
-                code,
-                decision,
-            }));
-            return;
+            (super::holds::decision(domain, env, task, words), false)
         }
         landing::Decision::None
         | landing::Decision::Open
@@ -572,19 +560,12 @@ pub(super) fn landing_decision(
         | landing::Decision::Repair { .. }
         | landing::Decision::Proved
         | landing::Decision::Merge { .. }
-        | landing::Decision::Stale => StepEnd::Wait,
+        | landing::Decision::Stale => (waiting, true),
     };
-    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-        task,
-        step,
-        connector,
-        code,
-        decision: ProcedureStep::new(end),
-    }));
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
     if choice == landing::Decision::Finish || choice == landing::Decision::Cancel {
         wake_train_ready(domain, env, task);
-    } else if let landing::Decision::Wait { .. } = choice {
-    } else {
+    } else if wake {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
     }
 }
@@ -690,12 +671,7 @@ fn kept_prepare(domain: &Domain, task: u64) -> bool {
     }
     false
 }
-fn prepare_request(
-    domain: &Domain,
-    env: &Env<Limits>,
-    task: u64,
-    head_trailers: &[forge::LandingHeadTrailers],
-) -> Option<PrepareRequest> {
+fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[HeadTrailers]) -> Option<PrepareRequest> {
     let row = domain.forge.landing(task)?;
     let first = row.landing.members.first()?;
     let provider =
@@ -711,7 +687,7 @@ fn prepare_request(
     let base = base?;
     let main = row.landing.branch == repository.landing;
     let mut from = base;
-    let mut members = List::with_capacity(env.limits.forge.landing_members);
+    let mut members = List::with_capacity(limit);
     for (index, member) in row.landing.members.iter().enumerate() {
         if member.left.is_some() || member.landed.is_some() {
             continue;
@@ -756,27 +732,15 @@ fn prepare_request(
     if members.is_empty() {
         return None;
     }
-    let combine = match domain.forge.landing_settings(row.landing.project) {
-        Some(config) => {
-            if main {
-                config.combine_main
-            } else {
-                config.combine_other
-            }
-        }
-        None => {
-            if main {
-                landing::Combine::Merge
-            } else {
-                landing::Combine::Squash
-            }
-        }
+    let (combine_main, combine_other) = match domain.forge.landing_settings(row.landing.project) {
+        Some(config) => (config.combine_main, config.combine_other),
+        None => (landing::Combine::Merge, landing::Combine::Squash),
     };
     Some(PrepareRequest {
         repository: repository.name.clone(),
         main: base,
         from,
-        combine,
+        combine: if main { combine_main } else { combine_other },
         train_upstream: row.landing.round.upstream,
         members: members.into_boxed(),
     })
@@ -785,10 +749,10 @@ fn prepare_delegate(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
-    head_trailers: &[forge::LandingHeadTrailers],
+    head_trailers: &[HeadTrailers],
 ) -> Result<super::super::Delegate, &'static [u8]> {
     let bound = domain.config.prepare_kind.ok_or(b"prepare job kind 1 is not declared".as_slice())?;
-    let request = prepare_request(domain, env, task, head_trailers)
+    let request = prepare_request(domain, task, env.limits.forge.landing_members, head_trailers)
         .ok_or(b"landing round or repository cannot form its prepare request".as_slice())?;
     let context = domain.core.tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
     let spec = prepare::spec(&request, bound.spec)
@@ -822,7 +786,7 @@ fn prepare_delegate(
     })
 }
 pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::RunWorkspace> {
-    let request = prepare_request(domain, env, task, &[])?;
+    let request = prepare_request(domain, task, env.limits.forge.landing_members, &[])?;
     let row = domain.forge.landing(task)?;
     let member = row.landing.members.first()?;
     let provider =
