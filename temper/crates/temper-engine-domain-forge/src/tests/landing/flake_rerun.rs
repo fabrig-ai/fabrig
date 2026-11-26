@@ -35,6 +35,28 @@ fn gate() -> (Domain, ReceiptKey, api::Run) {
     seed_flake(&mut d);
     (d, key, run)
 }
+fn gate_with_flakes(flakes: crate::settings::Flakes) -> (Domain, ReceiptKey, api::Run) {
+    use crate::settings::{Edit, ProjectGates, ProjectLanding, SettingKey, SettingRow, SettingSlot, SizedValue, Value};
+    let (mut d, key, run) = reporting_gate(Format::Lines);
+    let (by, gates, ..) = d.landing.projects.get(&key.project).unwrap();
+    let landing = ProjectLanding { by: *by, flakes: Some(flakes), ..ProjectLanding::default() };
+    let gates = ProjectGates { repositories: gates.clone() };
+    for (kind, value) in [(4, Value::Landing(landing)), (5, Value::Gates(gates))] {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Setting(SettingRow {
+                    key: SettingKey { kind, scope: key.project, number: 1, slot: SettingSlot::Change },
+                    edit: Edit::Set(SizedValue { size: 0, value }),
+                }),
+            },
+        );
+    }
+    d.restore_landing_settings();
+    seed_flake(&mut d);
+    begin_reporting_gate(&mut d, 91);
+    (d, key, run)
+}
 fn begin(d: &mut Domain, entry: u64) {
     outputs(
         d,
@@ -128,6 +150,31 @@ fn first_rerun(d: &mut Domain, key: &ReceiptKey, run: &api::Run) {
     assert_eq!((row.flake_reruns[0].run, row.flake_reruns[0].findings.as_ref()), (run.id, [1].as_slice()));
     assert_eq!(row.landing.members[0].gates[0].faults, 0);
     assert_eq!(d.finding(5, 1).unwrap().seen, Some(1));
+}
+
+#[test]
+fn known_flakes_fail_immediately_when_the_project_disallows_flakes() {
+    let (mut d, key, run) = gate_with_flakes(crate::settings::Flakes::Never);
+    let (decision, _) = gather(&mut d, &run, Ok(file(TEST)));
+    assert_eq!(
+        decision,
+        policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: run.number } }
+    );
+    let receipt = d.receipt(&key).unwrap();
+    assert_eq!((receipt.passed, receipt.run.id), (false, run.id));
+    assert!(d.landing.rows.get(&61).unwrap().flake_reruns.is_empty());
+    assert_eq!(d.finding(key.project, 1).unwrap().seen, Some(1));
+    for (_, entry) in &d.entries {
+        if let Write::Rerun { .. } | Write::Dispatch { .. } = entry.entry.effect.write {
+            panic!("no write starts a flake rerun");
+        }
+    }
+}
+
+#[test]
+fn rerun_zero_still_allows_a_known_flake_gate_rerun() {
+    let (mut d, key, run) = gate_with_flakes(crate::settings::Flakes::Rerun(0));
+    first_rerun(&mut d, &key, &run);
 }
 
 #[test]

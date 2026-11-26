@@ -341,6 +341,14 @@ impl Domain {
     pub fn landing_settings(&self, project: u32) -> Option<&crate::settings::ProjectLanding> {
         self.landing.settings.get(&project)
     }
+    #[must_use]
+    pub fn project_checks_can_flake(&self, project: u32) -> bool {
+        let Some(settings) = self.landing_settings(project) else { return true };
+        match settings.flakes {
+            Some(crate::settings::Flakes::Never) => false,
+            Some(crate::settings::Flakes::Rerun(_)) | None => true,
+        }
+    }
     /// One start's resolution, supplied by the root with jig's current facts (red-repairs.md, 7).
     pub fn take_project_repairs(&mut self, project: u32, repairs: Result<crate::settings::Repairs, &'static [u8]>) {
         self.landing.repairs.insert(project, repairs).expect("restored project repairs");
@@ -4951,6 +4959,9 @@ fn start_flake_rerun(
     report: &ReceiptReport,
     out: &mut Queue<Request>,
 ) -> bool {
+    if !d.project_checks_can_flake(key.project) {
+        return false;
+    }
     let tests = match report {
         ReceiptReport::Tests(tests) => tests,
         ReceiptReport::Unset | ReceiptReport::Unread | ReceiptReport::Many { .. } => return false,

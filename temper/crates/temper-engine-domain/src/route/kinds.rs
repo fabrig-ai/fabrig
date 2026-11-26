@@ -423,6 +423,7 @@ fn fake_approval_words(project: u32) -> Box<[u8]> {
 fn bounds(limits: &Limits) -> settings::Bounds {
     settings::Bounds {
         landing_members: limits.forge.landing_members,
+        rerun_processes: limits.rerun_processes,
         repositories: limits.forge.repositories,
         landing_gates: limits.forge.gates,
         tiers: limits.forge.tiers.tiers,

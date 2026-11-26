@@ -120,6 +120,10 @@ fn a_landing_layout_without_wait_defaults_it_to_cleared() {
 fn a_landing_layout_without_repairs_defaults_it_to_none() {
     landing_layout_defaults(" repairs: option RepairSettings = none");
 }
+#[test]
+fn a_landing_layout_without_flakes_defaults_it_to_unset() {
+    landing_layout_defaults(" flakes: option SettingsFlakes = none");
+}
 fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;

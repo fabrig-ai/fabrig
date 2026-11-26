@@ -16,6 +16,15 @@ use temper_engine_domain_forge_landing::{Combine, Gate};
 
 pub const CARRIER: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
 
+/// Whether a project's checks can flake (temper/docs/design/domain/forge/judgement.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Flakes {
+    /// `"none"`.
+    Never,
+    /// `{"rerun": N}`, N at most the deployment's `checkout.rerun_processes`.
+    Rerun(u32),
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
     pub by: temper_engine_domain_forge_change::Way,
@@ -26,6 +35,8 @@ pub struct ProjectLanding {
     pub close_job: Option<Box<[u8]>>,
     pub landing_attempts: u8,
     pub check_timeout_ms: Option<u64>,
+    /// Unset is `rerun` at the deployment's figure.
+    pub flakes: Option<Flakes>,
     pub gate_retries: u8,
     pub gate_timeout_ms: u64,
     pub tier_retries: u8,
@@ -44,6 +55,7 @@ impl Default for ProjectLanding {
             close_job: None,
             landing_attempts: 3,
             check_timeout_ms: None,
+            flakes: None,
             gate_retries: 2,
             gate_timeout_ms: 3_600_000,
             tier_retries: 2,
@@ -233,6 +245,11 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
         && !(1_000..=86_400_000).contains(&ms)
     {
         return Err(refuse(b"check_timeout_ms", b"must be 1000 to 86400000"));
+    }
+    if let Some(Flakes::Rerun(processes)) = v.flakes
+        && processes > b.rerun_processes
+    {
+        return Err(refuse(b"flakes", b"rerun passes checkout.rerun_processes"));
     }
     if !(60_000..=86_400_000).contains(&v.gate_timeout_ms) {
         return Err(refuse(b"gate_timeout_ms", b"must be 60000 to 86400000"));

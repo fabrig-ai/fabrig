@@ -558,43 +558,49 @@ Repository-relative path patterns, uniquely numbered 1 to 6.
 Purpose by charter number: 1-120 UTF-8 bytes, no controls; default: instructions' first sentence.
 
 ## project-words
-How work runs headline and lede; absent uses the way's words.
-- headline:t[120];! 1 to 120 UTF-8 bytes holding no control character.
-- lede:t[480];! 1 to 480 UTF-8 bytes holding no control character.
+How work runs headline and lede; default: way's words.
+- headline:t[120];! 1-120 UTF-8 bytes, no controls.
+- lede:t[480];! 1-480 UTF-8 bytes, no controls.
 
 ## project-landing
 Landing at the next start.
-- by:choice;? queue by default; at the next start. `queue`: Default. `turn`: Prepare, prove, turn.
-- wait:choice;? cleared by default; at the next start. `cleared`: Default. `landed`: Ends at landing.
+- by:choice;? `queue`: Default. `turn`: Prepare, prove, turn.
+- wait:choice;? `cleared`: Default. `landed`: Ends at landing.
 - combine:landing-combine-settings;? main merge, other squash.
 - batch:u16;? 1 to forge.landing_members; default 1.
-- landing_attempts:u8;? default 3. At least 1.
+- landing_attempts:u8;? min 1; default 3.
 - gate_retries:u8;? default 2.
 - tier_retries:u8;? default 2.
+- flakes:landing-flakes;? default rerun at checkout.rerun_processes.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
-- verification_bound_ms:u64;? milliseconds; default 7200000.
-- merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
+- verification_bound_ms:u64;? ms; default 7200000.
+- merge_job:t[4096];? relative, no NUL or .. segments; see configuration: merge command.
 - close_job:t[4096];? relative, no NUL or .. segments.
-- repairs:repairs;? default none; at the next start; needs wait landed.
+- repairs:repairs;? no repairs by default; needs wait landed.
+
+## landing-flakes
+String `none` or object `{"rerun": N}`.
+- `none`:No known-flake gate reruns or delivery flake findings.
+- rerun:u32;0 to checkout.rerun_processes.
 
 ## repairs
 Repair goals.
 - repair_goals:u8;? 1 to 16; default 2.
 - repair_attempts:u8;? 1 to 8; default 2.
-- repair_deadline_ms:u64;? 3600000 to 604800000; default 86400000 (24 hours).
+- repair_deadline_ms:u64;? 3600000 to 604800000; default 86400000 (24h).
 - goal:repair-goal;!
 
 ## repair-goal
 Agent goal.
 - charter:u32;! deployment agent charter.
-- llm:llm|null;? template llm; null/absent: charter's default.
+- llm:llm|null;? template llm; null/absent: charter default.
 - priority:u32;! tracked priority.
 - budget:u64;! above rules.minimum_run_spend.
 
 ## project-gates
-Project repository gates and tiers; next start.
-- repositories:[1114240] repository-gates;! unique project repositories; whole encoding fits settings carrier; next start.
+Gates and tiers at next start.
+- repositories:[1114240] repository-gates;! unique project repos; encoding fits settings carrier.
 
 ## landing-combine-settings
 How trains combine changes.
@@ -602,7 +608,7 @@ How trains combine changes.
 - other:`merge|squash`;? default squash.
 
 ## repository-gates
-One repository's test gates and tiers.
+A repository's test gates and tiers.
 - forge:u16;! the adopted repository.
 - repository:u32;! the adopted repository.
 - gates:[1114240] gate-check;? at most forge.gates.
@@ -613,15 +619,15 @@ A workflow gate proving a landing.
 - name:t[32];! letters/digits/-/_; unique per repository.
 - workflow:t[255];! workflow file, no slash.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
-- blocking:bool;! whether the gate blocks.
-- base:bool;? false by default; reads the base.
+- blocking:bool;! blocks landing.
+- base:bool;? reads base; default false.
 - report:gate-report;? artifact holding failed test ids.
 
 ## gate-report
-The failed tests uploaded by a gate.
+Failed tests uploaded by a gate.
 - artifact:t[32];! artifact, no slash.
 - format:choice;! `junit`: JUnit report. `lines`: One test id per line.
-- fuzzy:t[64];? nonempty name prefix of fuzzy tests.
+- fuzzy:t[64];? nonempty fuzzy-test name prefix.
 
 ## tier-check
 A slow workflow and the branch it follows.
@@ -630,7 +636,7 @@ A slow workflow and the branch it follows.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
 - artifact:t[32];! artifact, no slash.
 - format:choice;! `junit`: JUnit report. `lines`: One test id per line.
-- branch:t[1048576];? default landing branch; goal follows goal branches.
+- branch:t[1048576];? default landing branch; `goal`: goal branches.
 - span_ms:u64;? ms between starts; default 0, no span.
 - description:t[120];? nonempty UTF-8, no controls.
 

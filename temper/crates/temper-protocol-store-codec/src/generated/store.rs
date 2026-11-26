@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xc5, 0x64, 0xc3, 0x0e, 0x5c, 0x72, 0x28, 0xe4, 0x6a, 0x55, 0xb8, 0x72, 0x2c, 0xd4, 0xa5, 0xaa, 0xfe, 0x01, 0xb9,
-    0xb9, 0xd5, 0x6b, 0xb1, 0x89, 0xd4, 0x4f, 0xb4, 0x0a, 0xd6, 0xee, 0x77, 0x71,
+    0xb7, 0x94, 0x6c, 0xad, 0xfc, 0x84, 0xad, 0x41, 0xa2, 0x85, 0x18, 0x36, 0x95, 0xd3, 0x4a, 0x50, 0xee, 0x33, 0x90,
+    0xc0, 0x87, 0x07, 0x96, 0x88, 0x4f, 0x10, 0x4e, 0xec, 0xd5, 0xf7, 0x96, 0xa1,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3609,6 +3609,9 @@ pub mod paths {
     pub const PROJECT_QUESTIONS_TAIL: Path = Path::new("ProjectQuestions (tail)");
     pub const SETTINGS_LANDING_WAY_TAG: Path = Path::new("SettingsLandingWay (tag)");
     pub const SETTINGS_LANDING_WAIT_TAG: Path = Path::new("SettingsLandingWait (tag)");
+    pub const SETTINGS_FLAKE_RERUN_PROCESSES: Path = Path::new("SettingsFlakeRerun.processes");
+    pub const SETTINGS_FLAKE_RERUN_TAIL: Path = Path::new("SettingsFlakeRerun (tail)");
+    pub const SETTINGS_FLAKES_TAG: Path = Path::new("SettingsFlakes (tag)");
     pub const SETTINGS_COMBINE_TAG: Path = Path::new("SettingsCombine (tag)");
     pub const NAMED_MODEL_MODEL: Path = Path::new("NamedModel.model");
     pub const NAMED_MODEL_EFFORT: Path = Path::new("NamedModel.effort");
@@ -3645,6 +3648,7 @@ pub mod paths {
     pub const PROJECT_LANDING_VERIFICATION_BOUND_MS: Path = Path::new("ProjectLanding.verification_bound_ms");
     pub const PROJECT_LANDING_WAIT: Path = Path::new("ProjectLanding.wait");
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
+    pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -27919,6 +27923,113 @@ impl Record for SettingsLandingWait {
     }
 }
 
+// Type: SettingsFlakeRerun.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingsFlakeRerun {
+    pub processes: u32,
+}
+
+// Record: SettingsFlakeRerun.
+impl SettingsFlakeRerun {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for SettingsFlakeRerun {
+    type Limits = Limits;
+    const TAIL: Path = paths::SETTINGS_FLAKE_RERUN_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakeRerun")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakeRerun")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.processes, limits, out, paths::SETTINGS_FLAKE_RERUN_PROCESSES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            processes: field::read(field::U32, limits, reader, paths::SETTINGS_FLAKE_RERUN_PROCESSES)?,
+        })
+    }
+}
+
+// Type: SettingsFlakes.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SettingsFlakes {
+    Never,
+    Rerun(SettingsFlakeRerun),
+}
+
+// Record: SettingsFlakes.
+impl SettingsFlakes {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("SettingsFlakeRerun"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
+impl Record for SettingsFlakes {
+    type Limits = Limits;
+    const TAIL: Path = paths::SETTINGS_FLAKES_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakes")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingsFlakes")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Never => field::put(out, &[0], paths::SETTINGS_FLAKES_TAG),
+            Self::Rerun(value) => { field::put(out, &[1], paths::SETTINGS_FLAKES_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::SETTINGS_FLAKES_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Never),
+            1 => Ok(Self::Rerun(SettingsFlakeRerun::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::SETTINGS_FLAKES_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: SettingsCombine.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingsCombine {
@@ -28293,6 +28404,7 @@ pub struct ProjectLanding {
     pub verification_bound_ms: u64,
     pub wait: SettingsLandingWait,
     pub repairs: Option<RepairSettings>,
+    pub flakes: Option<SettingsFlakes>,
 }
 
 // Record: ProjectLanding.
@@ -28316,11 +28428,13 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Named("SettingsLandingWait"),
         skein_codec::bounds::Node::Named("RepairSettings"),
         skein_codec::bounds::Node::Option { item: 16 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17] },
+        skein_codec::bounds::Node::Named("SettingsFlakes"),
+        skein_codec::bounds::Node::Option { item: 18 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 104;
+    pub const ENCODED_AT_ZERO: u64 = 110;
 }
 
 impl Record for ProjectLanding {
@@ -28359,6 +28473,7 @@ impl Record for ProjectLanding {
         field::write(field::U64, &self.verification_bound_ms, limits, out, paths::PROJECT_LANDING_VERIFICATION_BOUND_MS)?;
         field::write(field::Nested, &self.wait, limits, out, paths::PROJECT_LANDING_WAIT)?;
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
+        field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
         Ok(())
     }
 
@@ -28378,6 +28493,7 @@ impl Record for ProjectLanding {
             verification_bound_ms: field::read(field::U64, limits, reader, paths::PROJECT_LANDING_VERIFICATION_BOUND_MS)?,
             wait: field::read(field::Nested, limits, reader, paths::PROJECT_LANDING_WAIT)?,
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
+            flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
         })
     }
 }
@@ -39753,7 +39869,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 105;
+    pub const ENCODED_AT_ZERO: u64 = 111;
 }
 
 impl Record for SettingValue {
@@ -39840,7 +39956,7 @@ impl SizedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 109;
+    pub const ENCODED_AT_ZERO: u64 = 115;
 }
 
 impl Record for SizedValue {
@@ -39896,7 +40012,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 116;
 }
 
 impl Record for SettingEdit {
@@ -39961,7 +40077,7 @@ impl SettingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 131;
+    pub const ENCODED_AT_ZERO: u64 = 137;
 }
 
 impl Record for SettingRow {
@@ -42188,6 +42304,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Settings", nodes: Settings::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsBranch", nodes: SettingsBranch::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsCombine", nodes: SettingsCombine::SHAPE },
+    skein_codec::bounds::Declaration { name: "SettingsFlakeRerun", nodes: SettingsFlakeRerun::SHAPE },
+    skein_codec::bounds::Declaration { name: "SettingsFlakes", nodes: SettingsFlakes::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsFollows", nodes: SettingsFollows::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsGate", nodes: SettingsGate::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsGateReport", nodes: SettingsGateReport::SHAPE },

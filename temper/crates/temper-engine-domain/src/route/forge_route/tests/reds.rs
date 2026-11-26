@@ -743,6 +743,65 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
     decide_report(&mut domain, &env, 20, 1, results);
     assert_eq!(domain.forge.finding(project, 2).unwrap().seen, Some(1));
 }
+fn report_with_two_flakes() -> crate::wire::CheckResults {
+    let mut results = report();
+    results.flakes = Box::new([flake(), crate::wire::Flake { key: b"new".as_slice().into(), log: Box::new([]) }]);
+    results
+}
+#[test]
+fn a_project_without_flakes_keeps_red_bookkeeping_but_skips_findings() {
+    use forge::settings::{Edit, Flakes, ProjectLanding, SettingKey, SettingRow, SettingSlot, SizedValue, Value};
+    let (mut domain, env) = fixture(b"temper/8/g7");
+    let project = domain.core.tasks.task(20).unwrap().project;
+    let previous = domain
+        .forge
+        .prepare_check_flake(
+            &env.limits.forge,
+            env.wall,
+            forge::Filer::Task(20),
+            project,
+            forge::FindingSignature {
+                repository: adopted(1).provider,
+                source: b"check".as_slice().into(),
+                ids: Box::new([flake().key]),
+                first: Box::default(),
+                many: false,
+            },
+            b"Existing flake".as_slice().into(),
+            b"Previously observed".as_slice().into(),
+        )
+        .unwrap();
+    let forge::CheckFlake::Filed(previous) = previous else { panic!("seed finding") };
+    domain.forge.commit_finding(&env.limits.forge, previous, &mut Queue::uncapped());
+    restore_forge(
+        &mut domain,
+        &env,
+        forge::Stored::Setting(SettingRow {
+            key: SettingKey { kind: 4, scope: project, number: 1, slot: SettingSlot::Change },
+            edit: Edit::Set(SizedValue {
+                size: 0,
+                value: Value::Landing(ProjectLanding { flakes: Some(Flakes::Never), ..ProjectLanding::default() }),
+            }),
+        }),
+    );
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        &mut Queue::uncapped(),
+    );
+    let writes = decide_report(&mut domain, &env, 20, 1, report_with_two_flakes());
+    assert_eq!(writes.iter().filter_map(saved_pass).count(), 1);
+    let mut results = report_with_two_flakes();
+    results.check = 2;
+    results.failed = results.passed;
+    results.passed = Box::new([]);
+    let writes = decide_report(&mut domain, &env, 20, 1, results);
+    assert!(writes.iter().any(|write| *write
+        == crate::Write::Erase(crate::Key::Forge(forge::Key::RedPass { change: 20, key: b"a".as_slice().into() }))));
+    assert_eq!(domain.forge.finding(project, 1).unwrap().seen, Some(1));
+    assert_eq!(domain.forge.findings(project).count(), 1);
+}
 #[test]
 fn a_full_findings_project_drops_only_the_refused_flake() {
     let (mut domain, mut env) = fixture(b"temper/8/g7");

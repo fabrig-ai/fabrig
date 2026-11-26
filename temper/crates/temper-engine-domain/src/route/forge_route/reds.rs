@@ -136,6 +136,9 @@ pub(crate) fn check_results(
         crate::wire::Verdict::Refused => {}
     }
     super::outputs(domain, env, decision, &mut out);
+    if !domain.forge.project_checks_can_flake(project) {
+        return;
+    }
     for flake in &results.flakes {
         let signature = forge::FindingSignature {
             repository: repository.provider,

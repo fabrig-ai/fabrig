@@ -429,6 +429,8 @@ record TemplateGoal = d::settings::TemplateGoal
 record ProjectQuestions stands for route
 enum SettingsLandingWay = c::Way
 enum SettingsLandingWait = c::Wait
+record SettingsFlakeRerun stands for processes
+enum SettingsFlakes = d::settings::Flakes { rerun tuple }
 enum SettingsCombine = l::Combine
 record NamedModel = d::settings::NamedModel
 record NamedLater = d::settings::NamedLater { subagents slice }

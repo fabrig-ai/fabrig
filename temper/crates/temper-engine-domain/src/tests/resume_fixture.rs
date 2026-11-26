@@ -41,6 +41,7 @@ pub fn limits() -> engine::Limits {
         policy_bytes: jig_protocol_config_fixtures::small().core.policy_bytes,
         call_answer_bytes: jig_protocol_config_fixtures::small().core.call_answer_bytes,
         host_reply_bytes: None,
+        rerun_processes: 4,
         settings: temper_limits_fixtures::root_resume::settings(),
         templates: 2,
         documents: temper_limits_fixtures::root_resume::documents(&authority_limits(), &tasks),
