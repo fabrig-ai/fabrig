@@ -109,7 +109,7 @@ pub fn pin(cache: &[u8], origin: Origin, build: &Build) -> Pin {
         path: joined(&[b"/claude-code-releases/", VERSION.as_bytes(), b"/", build.platform.as_bytes(), b"/claude"]),
         digest: build.digest,
         file: file(cache),
-        bottle: None,
+        packed: false,
     }
 }
 

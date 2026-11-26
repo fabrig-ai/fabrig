@@ -136,53 +136,50 @@ behaviour the conformance checked.
   The sizes are not constants: they are what the digests were taken
   over, and what a fetch's bound must admit.
 - **Digests on macOS:** neither project publishes a darwin build, so
-  the pins are Homebrew's bottles for macOS 15 (`arm64_sequoia`), on
-  arm64 alone, two digests for each binary: the archive's, which is its
-  address, and the binary's inside it, which a file already in place is
-  held to. A bottle is the same version as Linux's release and another
-  build:
+  the pins are Homebrew's builds for macOS 15 (`arm64_sequoia`), on
+  arm64 alone, each binary as its bottle holds it. Homebrew's build is
+  the same version as Linux's release and another build:
 
   | Constant | Of | Bytes | SHA-256 |
   |---|---|---|---|
-  | `FORGEJO_BOTTLE_SHA256_MACOS_ARM64` | the bottle of `forgejo` 17.0.1 | 43,841,143 | `19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06` |
-  | `FORGEJO_SHA256_MACOS_ARM64` | its `forgejo/17.0.1/bin/forgejo` | 111,660,034 | `4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6` |
-  | `RUNNER_BOTTLE_SHA256_MACOS_ARM64` | the bottle of `forgejo-runner` 13.2.1 | 7,960,512 | `0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48` |
-  | `RUNNER_SHA256_MACOS_ARM64` | its `forgejo-runner/13.2.1/bin/forgejo-runner` | 21,661,778 | `2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b` |
+  | `FORGEJO_SHA256_MACOS_ARM64` | the bottle's `forgejo/17.0.1/bin/forgejo` | 111,660,034 | `4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6` |
+  | `RUNNER_SHA256_MACOS_ARM64` | the bottle's `forgejo-runner/13.2.1/bin/forgejo-runner` | 21,661,778 | `2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b` |
 
   Each binary's load commands name macOS's own libraries alone
   (`libSystem`, `libresolv`, `CoreFoundation`, `Security`).
-- **Sources:** each binary's release file, named by the constants and
-  the architecture:
+- **Where a pin is taken from,** each binary's release file, named by
+  the constants and the platform:
   - Forgejo's on codeberg.org,
     `https://codeberg.org/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{amd64,arm64}`;
   - forgejo-runner's on code.forgejo.org,
     `https://code.forgejo.org/forgejo/runner/releases/download/v13.2.1/forgejo-runner-13.2.1-linux-{amd64,arm64}`.
-    Codeberg serves no runner release (404).
+    Codeberg serves no runner release (404);
+  - macOS's from Homebrew's bottles of `forgejo` and `forgejo-runner`
+    for `arm64_sequoia`.
 
-  Each answers a single `200` with the file, and no redirect. A Linux
-  fetcher follows none, and takes any other status as the source
-  failing.
-- **The bottles' sources,** fixed by the archive's digest, never looked
-  up: `https://ghcr.io/v2/homebrew/core/forgejo/blobs/sha256:DIGEST` and
-  `https://ghcr.io/v2/homebrew/core/forgejo-runner/blobs/sha256:DIGEST`.
-  Asked with `Authorization: Bearer QQ==`, the anonymous value Homebrew
-  sends, each answers a `307` to its storage's `https` address, which
-  answers `200` with the archive and is sent no token.
+  These are where a digest is taken, not where a fetcher fetches:
+  temper's fetch takes copies of the same six binaries, packed by
+  zstd, from temper's own site, and unpacks each before it is held to
+  its digest (`temper/docs/design/protocol/setup/owned.md`, 6;
+  `temper/docs/design/release.md`, 5.1). The pins are the upstream
+  builds', so a copy that isn't the projects' own build is refused.
 - **TLS:** with the machine's roots. The digest, not the certificate, is
   what makes the file the pinned one.
 - **An architecture without a digest** is refused: a fetcher names the
   architecture and fetches nothing. The pins are Linux on amd64 and
   arm64, and macOS on arm64.
 - **Readers of the digests:** a service that fetches the pinned binaries
-  (temper's `forge fetch`) checks each file it streams, and each file it
-  finds already in place, against the digest of its own platform and
+  (temper's `forge fetch`) checks each binary it unpacks, and each file
+  it finds already in place, against the digest of its own platform and
   architecture. skein-forge does no io for this: it holds the constants
-  and a `digest(binary, platform, arch, form)` that answers the pinned
+  and a `digest(binary, platform, arch)` that answers the pinned
   digest, or none where there is no such pin: `Platform` is `Linux` or
-  `Macos`, `Form` is `Binary` or `Archive`, and Linux has no `Archive`.
+  `Macos`.
 - **Moving the pin** moves the digests with it: a new `VERSION` or
-  `RUNNER_VERSION` comes with the new files' digests, all of them, taken
-  as above, in the same change, and only to versions with bottles.
+  `RUNNER_VERSION` comes with the new binaries' digests, all six, taken
+  as above, in the same change, only to versions Homebrew has built for
+  macOS, and once temper's site serves their packed copies
+  (`temper/docs/design/release.md`, 5.1).
 
 ### 1.4 What the dialects share
 

@@ -19,7 +19,7 @@
   the conformance alike, so the Forgejo temper runs is the Forgejo whose
   facts it checked (`testing.md`, 3): the versions, and beside them each fetched
   binary's SHA-256 for each platform and architecture temper fetches for
-  (6). One version on both platforms: on macOS a bottle is that
+  (6). One version on both platforms: on macOS Homebrew's build is that
   version and another build, so that the version holds there and the
   build the conformance checked, byte for byte, is Linux's.
 
@@ -385,112 +385,117 @@ preparation, for a forge whose `forgejo` or `runner.binary` is
 its own for any other host.
 
 - **What it fetches,** each binary its setup gives as `"fetched"`, at
-  temper's pins (1), for the machine's architecture, `ARCH`:
+  temper's pins (1), for the machine's platform, `OS-ARCH`, from
+  fabrig.ai, each packed by `zstd -19` into one frame:
 
   | Binary | From | Into |
   |---|---|---|
-  | Forgejo | `https://codeberg.org/forgejo/forgejo/releases/download/vVERSION/forgejo-VERSION-linux-ARCH` | `<cache>/forgejo/VERSION/forgejo` |
-  | the runner | `https://code.forgejo.org/forgejo/runner/releases/download/vRUNNER_VERSION/forgejo-runner-RUNNER_VERSION-linux-ARCH` | `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner` |
+  | Forgejo | `https://fabrig.ai/temper/forgejo/VERSION/forgejo-VERSION-OS-ARCH.zst` | `<cache>/forgejo/VERSION/forgejo` |
+  | the runner | `https://fabrig.ai/temper/forgejo-runner/RUNNER_VERSION/forgejo-runner-RUNNER_VERSION-OS-ARCH.zst` | `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner` |
 
-  `ARCH` is `amd64` or `arm64`; another machine refuses, naming its
-  architecture, and its binaries are given by path.
-- **One request, one answer.** Each URL answers `200` with the binary,
-  never a redirect: skein-http follows none, and any other status
+  `OS-ARCH` is `linux-amd64`, `linux-arm64` or `darwin-arm64`: the
+  system the binary's shell was built for, and the machine's
+  architecture. Another machine, an Intel Mac among them, refuses,
+  naming its architecture, and its binaries are given by path.
+- **What fabrig.ai serves** (`../../release.md`, 5.1): each project's
+  own release binary, and on macOS Homebrew's build of it, since
+  neither project publishes one, packed and otherwise unchanged, with a
+  `SHA256SUMS` of the unpacked binaries in each version's directory for
+  a person fetching by hand. The fetch reads no sums: its digests are
+  the pins, which temper holds, so a copy that isn't the projects' own
+  build is refused whatever the site says. No other site is asked: no
+  codeberg.org, code.forgejo.org or ghcr.io, and nothing of Homebrew's
+  at run time.
+- **One request, one answer.** Each URL answers `200` with the packed
+  file, never a redirect: skein-http follows none, and any other status
   refuses, naming the URL and the status.
-- **A mirror,** the owned entry's `mirror`, absent by default (`init.md`
-  ): an `https` origin for each binary, in place of codeberg.org's and
-  code.forgejo.org's, or of `ghcr.io` on macOS, its paths and digests the
-  pins' still. A host that
-  keeps its own copies names it; the process tier needs none, its
-  binaries placed where the fetch looks (`testing.md`, 4).
+- **A mirror,** the owned entry's `mirror`, absent by default
+  (`init.md`): an `https` origin for each binary, in place of
+  fabrig.ai's, serving the same paths and the same packed files, held
+  to the same pins. A host that keeps its own copies names it; the
+  process tier needs none, its binaries placed where the fetch looks
+  (`testing.md`, 4).
 - **TLS with the machine's roots,** read at the command's start as
   skein's shell reads them (skein's `runtime/shell-startup.md`, 1.2): the bundle
   `SSL_CERT_FILE` names, or the first of the distributions' bundles that
   exists. skein-tls embeds none, so a machine with neither refuses the
   command.
-- **The digests are pinned,** one SHA-256 per binary and architecture,
-  in `skein-forge` beside `VERSION` and `RUNNER_VERSION` (skein's
-  `forge/dialects.md`, 1.3), and required: on Linux a fetched binary is the build
-  the conformance checked, byte for byte.
+- **The digests are pinned,** one SHA-256 per binary and platform, in
+  `skein-forge` beside `VERSION` and `RUNNER_VERSION` (skein's
+  `forge/dialects.md`, 1.3), each the unpacked binary's, and required:
+  on Linux a fetched binary is the build the conformance checked, byte
+  for byte. The packed file has no pin of its own, and the frame's own
+  checksum is not what's trusted: the unpacked binary's digest is.
 - **Streamed, never held:** the body's chunks are asked for one at a
-  time, as the file takes them; each is hashed into the digest, which
-  is incremental, and written at its offset into `<file>.part`, private,
-  within `setup.fetch_bytes` (../configuration/limits.md). At the
-  body's end, a digest equal to the pin makes the part file `0o755` and
-  renames it over its name.
-- **Its size is the answer's `Content-Length`,** the `200`'s that carries
-  the body, so past a redirect on macOS. A body longer than it removes
-  the part file and is refused, naming the URL, as one past
+  time, as the file takes them, each written at its offset into
+  `<file>.zst.part`, private, within `setup.fetch_bytes`
+  (../configuration/limits.md).
+- **Its size is the answer's `Content-Length`.** A body longer than it
+  removes `<file>.zst.part` and is refused, naming the URL, as one past
   `setup.fetch_bytes` is. An answer without one, or of none, has no
   size, and its progress is its bytes alone. skein-http delivers no byte
   past the length, so the refusal is the machine's own check.
+- **Unpacked, then checked:** at the body's end, `<file>.zst.part` is
+  unpacked into `<file>.part`, private, hashed as it is written, within
+  `setup.fetch_bytes` too, by the decoder the box download unpacks
+  with, `ruzstd`'s (`../../client/box-binary.md`, 3, step 4), the
+  frame's window held within the same bound. The file is one frame and
+  nothing after it; reading it in order, the first fault met refuses,
+  naming the URL and saying which:
+  - `truncated zstd frame`: the file ends inside its frame, an empty
+    file among them;
+  - `damaged zstd frame`: any other fault the decoder finds in the
+    frame, a wrong magic number, a reserved bit set, a block that
+    doesn't decode, or a window or dictionary it won't take;
+  - `unpacked file past setup.fetch_bytes`: more unpacked bytes than
+    the bound, or a frame whose header declares more;
+  - `zstd frame followed by other bytes`: any byte after the frame's
+    end, a second frame or a skippable one among them.
+
+  An unpacked digest equal to the pin makes `<file>.part` `0o755`; it
+  is synced and renamed over its name, the directory synced, and
+  `<file>.zst.part` removed.
+- **A wrong digest** refuses, naming the URL, the pinned digest and the
+  digest it got.
+- **A refusal leaves no staging file:** a body refused removes
+  `<file>.zst.part`; a frame or a digest refused removes `<file>.part`,
+  then `<file>.zst.part`. Nothing is left under the binary's name.
 - **It says how far it has gone on stdout,** a plain line a machine
   reads and a person running the command by hand reads too: `fetched
   BINARY DONE of TOTAL bytes`, or with no size `fetched BINARY DONE
-  bytes`, `BINARY` being `forgejo` or `runner`, `DONE` the bytes written
-  and `TOTAL` the size. One at the binary's start, one at each whole
-  percent it passes, at most one for a chunk, and one at its end, once
-  each; with no size, one at each MiB in place of the percents. A binary
-  already there says nothing, and on macOS the bytes are the archive's,
-  its extraction saying nothing. A line stdout will not take is dropped:
-  no fetch fails for what it says.
-- **A wrong digest** removes the part file and refuses, naming the URL,
-  the pinned digest and the digest it got. Nothing is left under the
-  binary's name.
+  bytes`, `BINARY` being `forgejo` or `runner`, `DONE` the packed bytes
+  written and `TOTAL` the size. One at the binary's start, one at each
+  whole percent it passes, at most one for a chunk, and one at its end,
+  once each; with no size, one at each MiB in place of the percents. A
+  binary already there says nothing, and its unpacking says nothing. A
+  line stdout will not take is dropped: no fetch fails for what it says.
 - **A file already there is hashed,** never fetched again: its pin's
   digest is nothing to do; another is refused, naming its path, and
   never overwritten, so a binary a person put there stays theirs to
   remove.
-- **A part file an interrupted fetch left** is written again from its
-  start.
+- **Staging files an interrupted fetch left** are written again from
+  their start.
 - **Then the preparation checks its version** as every command that
   runs it does (1); a digest is no version.
-- **Its code:** the fetch's machine in `temper-fetch`, its
-  requests, chunks, writes, digests and lines its inputs and outputs, and its
-  host in `temper-fetch-shell`, on skein-io, skein-http and skein-tls,
-  which a bottle's extraction is given to by its caller (`crate-layout.md`, section 1).
-  Forgejo's pins and the bottle's extraction stay `temper-forge-setup`'s
-  and `temper-forge-setup-shell`'s, which re-export the machine's items
-  and the host's failure under their own paths, and `setup::Origin`. It holds no credential and writes no record
-  (`README.md`, section 5). The platform is the binary's to say, as its shell was
-  built for: the machine is given it.
-- **On macOS** neither Forgejo nor its runner publishes a build, so the
-  fetch takes Homebrew's bottles, each a keg in a tarball, at addresses
-  fixed by the pins' digests. Homebrew is a URL and nothing more: no
-  `brew`, no `/opt/homebrew`, no request to its formula API. `DIGEST` is
-  the pin's archive digest, the bottle for macOS 15, which later
-  systems run too:
-
-  | Binary | From | The archive's member | Into |
-  |---|---|---|---|
-  | Forgejo | `https://ghcr.io/v2/homebrew/core/forgejo/blobs/sha256:DIGEST` | `forgejo/VERSION/bin/forgejo` | `<cache>/forgejo/VERSION/forgejo` |
-  | the runner | `https://ghcr.io/v2/homebrew/core/forgejo-runner/blobs/sha256:DIGEST` | `forgejo-runner/RUNNER_VERSION/bin/forgejo-runner` | `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner` |
-
-  An Intel Mac is refused, naming its architecture. A file already
-  there is held to the binary's digest. Three things differ from
-  Linux's fetch:
-  - **A token that is no credential:** the first request carries
-    `Authorization: Bearer QQ==`, the anonymous value Homebrew sends, to
-    `ghcr.io` alone.
-  - **One redirect:** `ghcr.io` answers `307` with its storage's address.
-    The fetch follows one redirect, to `https`, without the token;
-    another, or one to anything else, refuses, naming the URL. Linux's
-    fetch still takes none.
-  - **An archive:** the body goes to `<file>.archive`, private, hashed
-    as it is written, as the part file above, against the archive's
-    digest, within `setup.fetch_bytes`. Only on a match is the one
-    member, by its exact name, taken out by the machine's own
-    `/usr/bin/tar` into `<file>.part`, within the same bound; its digest
-    is checked against the binary's, it is made `0o755` and renamed over
-    its name, and the archive removed. A wrong digest, a bound passed or
-    a failed extraction removes both files and refuses, and an
-    interrupted fetch starts again from nothing.
-- **A bottle gone:** Homebrew promises nothing about old blobs. The
-  fetch refuses, naming the URL and saying what answers it: a binary
-  given by path, or the owned entry's `mirror`, which serves the same
-  archive at the same `/v2/homebrew/core/…/blobs/sha256:DIGEST` path,
-  under the same digests and the same one redirect, and is sent no
-  token.
+- **Its code:** the fetch's machine in `temper-fetch`, its requests,
+  chunks, writes, digests and lines its inputs and outputs, the
+  unpacking one request it makes and the decoder's verdict the event
+  that answers it; its host in `temper-fetch-shell`, on skein-io,
+  skein-http and skein-tls, unpacking with the one decoder the box
+  download's host uses (`crate-layout.md`, section 1). Forgejo's pins
+  stay `temper-forge-setup`'s, and their host `temper-forge-setup-shell`'s,
+  which re-export the machine's items and the host's under their own
+  paths, and `setup::Origin`. It holds no credential and writes no
+  record (`README.md`, section 5). The platform is the binary's to say,
+  as its shell was built for: the machine is given it.
+- **Why fabrig.ai, and packed** (the user, 2026-11-26): when
+  codeberg.org dropped out of DNS on 2026-11-17, every new box failed
+  its forge's set-up. temper's own site already serves the box
+  (`../../client/box-binary.md`, 3), and `zstd -19` packs the six files
+  into 130.7 MB, against 288 MB plain. macOS's fetch is Linux's: the
+  bottles went, with their archive digests, their `tar`, their token and
+  their redirect. The pins stay the upstream builds', so the site is
+  trusted to serve them and for nothing more.
 - **Claude Code,** a `programs.claude_code.path` of `"fetched"` (`init.md`, 5):
   temper's pinned build, by this section's machine and host, in what
   follows only where it differs from Forgejo's binaries. No step of the
@@ -524,8 +529,8 @@ its own for any other host.
     musl. Another machine refuses, naming its architecture; a `claude`
     on `PATH` answers it, at the next `temper-box init`.
   - **One form everywhere:** the same URL shape on Linux and macOS, one
-    request and one answer, no bottle and no mirror: a machine that
-    cannot reach it uses its own `claude`.
+    request and one answer, the build served as it is, not packed, and
+    no mirror: a machine that cannot reach it uses its own `claude`.
   - **Its bound is the pin's size,** not `setup.fetch_bytes`: no
     document is at hand, and the size is known. A body past it removes
     the part file and refuses, naming the URL.
@@ -606,12 +611,6 @@ Moved to [`owned-repositories.md`](owned-repositories.md), section 2.
   exec and a lock held across it, which skein's `Lock` is not (skein's
   `runtime/io/files.md`). A second service that execs is what would ask
   skein for them.
-
-- **A copy of a bottle of temper's own** (`owned.md`, 6), only if a pinned bottle
-  leaves `ghcr.io` while a released temper still pins it: until then
-  the refusal, `mirror` and a binary given by path answer it, and a copy
-  temper hosts is GPL code it distributes, its source to keep beside it
-  (`../../draft/macos.md`, section 7).
 
 - **The person's `claude` installed after init** (`owned.md`, 6, `init.md`, 5): taken in
   place of the fetched build, or not; for now init's choice holds until

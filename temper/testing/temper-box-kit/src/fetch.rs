@@ -25,7 +25,7 @@ fn pem(root: &[u8]) -> Vec<u8> {
         .into_bytes()
 }
 #[expect(clippy::disallowed_methods, reason = "the local TLS file server is a real socket peer on its own test thread")]
-fn serve(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<Result<Vec<u8>, Starved>> {
+fn serve(listener: TcpListener, response: Vec<u8>) -> thread::JoinHandle<Result<Vec<u8>, Starved>> {
     thread::spawn(move || {
         let (socket, _) = listener.accept().expect("fetch fixture");
         let mut deadline = Deadline::arm("the fetch command peer's request", skein_lib::Duration::from_secs(4));
@@ -56,7 +56,7 @@ fn serve(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<R
         let mut deadline = Deadline::arm("the fetch command peer's response", skein_lib::Duration::from_secs(4));
         deadline.watch_process(std::process::id());
         tls.sock.set_write_timeout(Some(timeout(&deadline))).expect("fetch write timeout");
-        if let Err(why) = tls.write_all(response).and_then(|()| tls.flush()) {
+        if let Err(why) = tls.write_all(&response).and_then(|()| tls.flush()) {
             if matches!(why.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) && deadline.passed()
             {
                 return Err(expired(&deadline));
@@ -72,16 +72,21 @@ pub fn roots(path: &Path) {
 }
 pub struct Server {
     pub address: SocketAddr,
+    pub bytes: usize,
     thread: Option<thread::JoinHandle<Result<Vec<u8>, Starved>>>,
 }
 #[must_use]
 pub fn server() -> Server {
     let listener = TcpListener::bind("127.0.0.1:0").expect("file server");
     let address = listener.local_addr().expect("bound address");
-    let thread = serve(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\nabc");
-    Server { address, thread: Some(thread) }
+    let body = temper_fetch_shell::testing::zstd(b"abc");
+    let bytes = body.len();
+    let mut response = format!("HTTP/1.1 200 OK\r\nContent-Length: {bytes}\r\nConnection: close\r\n\r\n").into_bytes();
+    response.extend_from_slice(&body);
+    let thread = serve(listener, response);
+    Server { address, bytes, thread: Some(thread) }
 }
-// The mirror receives no authorization header, even for a bottle.
+// The mirror receives the same request path as the default origin.
 fn expected_head(address: SocketAddr, pin: &Pin) -> String {
     let path = std::str::from_utf8(&pin.path).expect("pinned request path");
     format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n")
@@ -137,16 +142,8 @@ mod tests {
         };
         let headers = "Host: 127.0.0.1:8443\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n";
         for (platform, machine, line) in [
-            (
-                Platform::Linux,
-                "x86_64",
-                "GET /forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-amd64 HTTP/1.1",
-            ),
-            (
-                Platform::Macos,
-                "aarch64",
-                "GET /v2/homebrew/core/forgejo/blobs/sha256:19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06 HTTP/1.1",
-            ),
+            (Platform::Linux, "x86_64", "GET /temper/forgejo/17.0.1/forgejo-17.0.1-linux-amd64.zst HTTP/1.1"),
+            (Platform::Macos, "aarch64", "GET /temper/forgejo/17.0.1/forgejo-17.0.1-darwin-arm64.zst HTTP/1.1"),
         ] {
             let pins = pins(&owned, platform, machine).expect("mirrored pins");
             let [pin] = pins.as_ref() else { panic!("only Forgejo is fetched") };

@@ -1,13 +1,14 @@
 //! Cache effects for the pinned fetch (temper/docs/design/testing/shells.md, 3.4).
-use super::{CHUNK, Event, Extract, Failed, Origin, Request, fetch, file_error, path};
+use super::{CHUNK, Event, Failed, Origin, Request, file_error, path};
+use crate::zstd::{Magic, UnpackError, decode_zstd};
 use skein_lib::sha256::Sha256;
 use std::fs;
-use std::io::{self, Seek as _, SeekFrom, Write as _};
+use std::io::{self, Seek as _, SeekFrom, Write};
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 
 pub(super) enum WireRequest {
-    Get { origin: Origin, path: Box<[u8]>, authorization: Option<Box<[u8]>> },
+    Get { origin: Origin, path: Box<[u8]> },
     Read,
 }
 
@@ -15,12 +16,11 @@ pub(super) trait Cache {
     type Input: io::Read;
     type Part;
 
-    fn open_cached(&mut self, file: &Path) -> io::Result<Self::Input>;
+    fn open_input(&mut self, file: &Path) -> io::Result<Self::Input>;
     fn make_parent(&mut self, parent: &Path, mode: u32) -> io::Result<()>;
     fn open_part(&mut self, part: &Path, truncate: bool, mode: u32) -> io::Result<Self::Part>;
     fn set_mode(&mut self, part: &Self::Part, mode: u32) -> io::Result<()>;
     fn write_at(&mut self, part: &mut Self::Part, offset: u64, bytes: &[u8]) -> io::Result<()>;
-    fn extract(&mut self, archive: &[u8], member: &[u8], part: &mut Self::Part, bound: u64) -> fetch::Extraction;
     fn sync(&mut self, part: &Self::Part) -> io::Result<()>;
     fn rename(&mut self, part: &Path, file: &Path) -> io::Result<()>;
     fn sync_parent(&mut self, parent: &Path) -> io::Result<()>;
@@ -28,15 +28,13 @@ pub(super) trait Cache {
     fn close(&mut self, part: Self::Part);
 }
 
-pub(super) struct NativeCache {
-    pub(super) extract: Extract,
-}
+pub(super) struct NativeCache;
 
 impl Cache for NativeCache {
     type Input = fs::File;
     type Part = fs::File;
 
-    fn open_cached(&mut self, file: &Path) -> io::Result<fs::File> {
+    fn open_input(&mut self, file: &Path) -> io::Result<fs::File> {
         fs::File::open(file)
     }
     fn make_parent(&mut self, parent: &Path, mode: u32) -> io::Result<()> {
@@ -50,9 +48,6 @@ impl Cache for NativeCache {
     }
     fn write_at(&mut self, part: &mut fs::File, offset: u64, bytes: &[u8]) -> io::Result<()> {
         part.seek(SeekFrom::Start(offset)).and_then(|_| part.write_all(bytes))
-    }
-    fn extract(&mut self, archive: &[u8], member: &[u8], part: &mut fs::File, bound: u64) -> fetch::Extraction {
-        (self.extract)(archive, member, part, bound)
     }
     fn sync(&mut self, part: &fs::File) -> io::Result<()> {
         part.sync_all()
@@ -68,6 +63,25 @@ impl Cache for NativeCache {
     }
     fn close(&mut self, part: fs::File) {
         drop(part);
+    }
+}
+
+// The decoder writes in order; cache effects keep their explicit offsets.
+struct PartWriter<'a, C: Cache> {
+    cache: &'a mut C,
+    part: &'a mut C::Part,
+    offset: u64,
+}
+
+impl<C: Cache> Write for PartWriter<'_, C> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.cache.write_at(self.part, self.offset, bytes)?;
+        self.offset += skein_lib::len_u64(bytes.len());
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 
@@ -87,8 +101,8 @@ impl<C: Cache> Download<C> {
         wire: impl FnOnce(WireRequest) -> Result<Event, Failed>,
     ) -> Result<Event, Failed> {
         match request {
-            Request::Hash { file } => hash(&file, self.cache.open_cached(path(&file))).map(Event::Hashed),
-            Request::Get { origin, path, authorization } => wire(WireRequest::Get { origin, path, authorization }),
+            Request::Hash { file } => hash(&file, self.cache.open_input(path(&file))).map(Event::Hashed),
+            Request::Get { origin, path } => wire(WireRequest::Get { origin, path }),
             Request::Read => wire(WireRequest::Read),
             Request::Open { part } => {
                 let handle = open(&mut self.cache, &part)?;
@@ -100,12 +114,18 @@ impl<C: Cache> Download<C> {
                 let (name, handle) = self.part.as_mut().expect("write follows Open");
                 self.cache.write_at(handle, offset, &bytes).map(|()| Event::Done).map_err(|why| file_error(name, &why))
             }
-            Request::Extract { archive, member, part, bound } => {
+            Request::Unpack { packed, part, bound } => {
                 self.close_part();
-                let mut handle = open(&mut self.cache, &part)?;
-                let extraction = self.cache.extract(&archive, &member, &mut handle, bound);
-                self.part = Some((part, handle));
-                Ok(Event::Extracted(extraction))
+                let input = self.cache.open_input(path(&packed)).map_err(|why| file_error(&packed, &why))?;
+                let handle = open(&mut self.cache, &part)?;
+                let (name, handle) = self.part.insert((part, handle));
+                let mut writer = PartWriter { cache: &mut self.cache, part: handle, offset: 0 };
+                decode_zstd(io::BufReader::new(input), &mut writer, bound, Magic::Prefix).map(Event::Unpacked).map_err(
+                    |why| match why {
+                        UnpackError::Input(why) => file_error(&packed, &why),
+                        UnpackError::Output(why) => file_error(name, &why),
+                    },
+                )
             }
             Request::Finish { part, file } => {
                 let (_, handle) = self.part.take().expect("finish follows Open");

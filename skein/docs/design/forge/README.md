@@ -491,9 +491,9 @@ the suites (../testing/layout.md, section 1).
   `skein-forge-setup`'s `host/limits.rs` builds the one `Limits` in two
   functions, `documents` and `github`. Default: the walkers stay apart;
   the setup's two functions can become one, which nothing asks for yet.
-- **The conformance on macOS.** A bottle is the pin's version and another
-  build (`dialects.md`, 1.3), so what the conformance checks is Linux's binaries, and a
-  bottle answers only to temper's one story
+- **The conformance on macOS.** Homebrew's build is the pin's version and another
+  build (`dialects.md`, 1.3), so what the conformance checks is Linux's binaries, and
+  Homebrew's build answers only to temper's one story
   (`temper/docs/design/testing/tiers.md`, 1.8). Default: so, until the
   conformance joins the macOS workflow with skein's suites
   (`temper/docs/design/draft/macos.md`, section 6).

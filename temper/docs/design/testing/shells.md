@@ -14,11 +14,10 @@ Provisional, 2026-11-24. Where the checks of temper's shell crates run: forge se
 ### 2.1 Forge setup's host: `temper-forge-setup-shell`
 
 - **Its step binary,** `temper-forge-setup-shell::step`: a private file's publication, a rename and the forge directory's layout and clearing over the fake machine (3.1); a lock's acquisition (3.2); a command's capture driven over scripted kernel turns (3.3); and preparation through `prepare::run_with` over its host, the host's files the fake machine's through the same publication, its commands' captures recording each registration and modelling the runner's row.
-- **Its library tests:** a bottle's extraction verdict (3.5).
 
 ### 2.2 The fetches: `temper-fetch-shell`
 
-- **The pinned fetch's host** (`fetch`), in its library tests: the cache's effects and the published file (3.4), each request's head and each answer's events (3.4), the progress lines at the writer, a writer that refuses, and Claude Code's cache, a miss checked again under its lock and a hit asking metadata alone. The forge's bottle runs here with its extraction's verdict supplied; the verdict itself is forge setup's (2.1).
+- **The pinned fetch's host** (`fetch`), in its library tests: the cache's effects and the published file (3.4), each request's head and each answer's events (3.4), the progress lines at the writer, a writer that refuses, and Claude Code's cache, a miss checked again under its lock and a hit asking metadata alone. The forge's packed files are unpacked here, by the decoder the box binary's host uses, over the cache's facts (3.5).
 - **The box binary's host** (`box_binary`), in its library tests: a candidate's identity over its facts (3.6), and a staged build of another identity refused under the lock, nothing published.
 
 ### 2.3 The box shell: `temper-box-shell`
@@ -66,16 +65,16 @@ Its library tests: a named file's read (`box/README.md`, 3.1), the push key's am
 ### 3.4 A pinned download's cache and wire
 
 - **The cache's facts:** the cached file's bytes, absent, or an error; each effect's result: the part file's creation with its truncation and mode, a write at its offset, the mode `0755`, the sync, the rename to the final name, the parent's sync, a removal.
-- **The wire's facts:** each `Get` the machine asks for becomes a request head built apart from its connection, checked as bytes: its method and path with the query kept, `Host` with its port, `User-Agent: temper`, `Connection: close`, and the registry's token on the first request alone. Each answer is projected into the machine's events from a scripted plaintext response: a status with its `Location`, a declared length or a chunked body, its pieces and its end.
+- **The wire's facts:** each `Get` the machine asks for becomes a request head built apart from its connection, checked as bytes: its method and path with the query kept, `Host` with its port, `User-Agent: temper`, `Connection: close`, and no `Authorization`. Each answer is projected into the machine's events from a scripted plaintext response: a status with its `Location`, a declared length or a chunked body, its pieces and its end.
 - **Production:** `Download` answers each request over the cache and `Connection` over TLS, as today; `Connection`'s use by the box binary's fetch keeps its shape.
-- **What it carries:** a digest refused naming the URL and both digests; a cached file matching, nothing asked, and one differing, refused and kept; a stale part file truncated; a status refused naming the URL; a body past its bound; the bottle's redirects, its archive's and its member's digests and bounds and its extraction's refusals, every temporary file removed; the progress lines' exact bytes at the writer, in order, and a refusing writer failing no fetch; Claude Code's miss, metadata, prepare, lock, metadata again and download, in that order, and its hit or wrong size asking metadata alone.
-- **What it doesn't:** the TLS handshake, a refused root, an authorized redirect to a second origin over TLS, and two commands contending for one cache (section 4).
+- **What it carries:** a digest refused naming the URL and both digests; a cached file matching, nothing asked, and one differing, refused and kept; a stale part file truncated; a status refused naming the URL; a body past its bound; each platform's pair of packed files, served by a fake site at the pins' paths, unpacked and published, and each of the unpacking's refusals and an unpacked digest other than the pin's, every staging file removed; the progress lines' exact bytes at the writer, in order, and a refusing writer failing no fetch; Claude Code's miss, metadata, prepare, lock, metadata again and download, in that order, and its hit or wrong size asking metadata alone.
+- **What it doesn't:** the TLS handshake, a refused root, and two commands contending for one cache (section 4).
 
-### 3.5 A bottle's extraction
+### 3.5 A packed file's unpacking
 
-- **The facts:** the member's bytes as the child's stdout gives them, in pieces, and the child's end.
-- **Production:** `process::extract` runs `/usr/bin/tar -xzOf ARCHIVE MEMBER` and pipes its stdout, as today. The copy is bounded and hashed as it is written, stopped at the bound with the child killed and waited for, and a digest is returned only after a clean exit with at least one byte.
-- **What it carries:** a member past its bound refused as its size, a missing member, an empty member and a corrupt archive refused as extraction, the digest taken from the bytes and never supplied.
+- **The facts:** the packed file's bytes as the cache gives them, and each write to the part file.
+- **Production:** one decoder, `ruzstd`'s, in `temper-fetch-shell`, unpacks the box's `temper-box.zst` and the forge's packed binaries alike (`../client/box-binary.md`, 3, step 4; `../protocol/setup/owned.md`, 6), each within its caller's bound, the frame's window held within it.
+- **What it carries:** a good frame's digest and size taken from the bytes written and never supplied, and each of the four faults, in the order met; its rows are the box binary's host's (`../client/box-binary.md`, 7), and the forge's fetch runs over them (3.4).
 
 ### 3.6 A candidate's run
 
@@ -149,7 +148,7 @@ Its library tests: a named file's read (`box/README.md`, 3.1), the push key's am
 
 Each stays because only the real kernel, a real program or a path through `main` shows it (`skein/docs/foundation/testing-strategy.md`, 2.8 and 2.9):
 
-- **`temper-forge-setup-shell::suite`:** a pinned fetch over local TLS with its trusted root, and refused under another root; a bottle's two TLS hops, the token on the first alone, extracted by the real `tar`; two Claude Code commands at once making one request; a real child's status and both streams; a source command's deadline closing a live child; a child holding the lock as its stdin after the parent lets go.
+- **`temper-forge-setup-shell::suite`:** a pinned fetch over local TLS with its trusted root, its packed file unpacked into a real cache, and refused under another root; two Claude Code commands at once making one request; a real child's status and both streams; a source command's deadline closing a live child; a child holding the lock as its stdin after the parent lets go.
 - **`temper-fetch-shell::real`:** one real candidate's run, its argument and empty `HOME`; one whole publication under the native cache lock, with its modes, renames and read back.
 - **`temper-box-shell::real`:** init's two bind-and-listen races and one native init from kernel-chosen ports, its modes, its link and its held listeners, a second init refused those ports; init publishing a 3072-bit provider key OpenSSL reads; the fake backends' peer reservations transferred and closed, a fresh sandbox's native modes and a second one refused by its lock, the reused document's rename seen through a held handle, the named ports bound while prepared, and both named-port contentions; program login's line run by a real shell; `id` and the effective user; the standalone check's descriptors; a held non-socket descriptor; the link's form on a pseudo-terminal and on `/dev/null`.
 - **`temper-engine-shell::suite`:** the stopped checkpoint taken and removed, and the stopped restore switching generations; the checkpoint lock against a serving deployment, for `--check` and `--workers`, through the engine's run and through its prepared run; the rehearsal's own scratch held by its lock and swept once released; the playground's random key; a forge's setup file written private; forge sign-in's credentials made by OpenSSL and kept; the program environment through a real shell.
