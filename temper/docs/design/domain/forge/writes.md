@@ -22,6 +22,7 @@ The record of every write temper makes on a branch or a pull request, and how a 
 | writer | the previous build's live or lost writer (7) | the head it knew → a head it moved forward to, found at readback (an intent) |
 | compare | the previous build's head beside (7) | its waiting head, ordered against the head by one comparison |
 
+- **What isn't an entry:** a write that moves no branch's head and changes no pull's state, head or base (a comment, a pull's title or body, a status, a label) is no entry, since no read is judged by it: the outbox carries it as before (`effects.md`, 1).
 - **Who sent it:** a task and its attempt, for a worker's push; a task and its outbox entry, for the forge client's; the previous build, for a converted entry. The sender is what drift's words name (5) and what a readback waits on (3).
 - **Why the connector owns it, not the client:** the record names temper's senders, takes a worker's admission, outlives a resource's watch (an uncertain entry is never dropped) and decides drift, which is policy; the client keeps a bounded view and makes writes, and knows none of these. **Why per branch, not per pull too:** a pull's state and base are written only by temper's pull writes, and its head only by its head branch's, so one record holds both with one room.
 
