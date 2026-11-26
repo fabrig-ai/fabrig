@@ -9,6 +9,11 @@
   send or screen; a send that clears the box (`Told::Cleared`) and
   another screen lower it (`temper-client-shell-tui`'s `host.rs`,
   `send`).
+- **Not yet:** 11, *Its tests*: the process tier's working sitting
+  starting its box with every landing held. [in flight: change 18540]
+- **Not yet:** 11, *Its tests*: the host's tests of the key's order
+  against a chat's end, and the fuzzy seeded key among a chat's facts.
+  [in flight: change 18541]
 - **Design departs:** 11, *Its tests*: draft-13's request of
   2026-11-26 read the quit story's stall on macOS as a race in
   skein-world's watch of `temper box`'s detached descendants, and asked
