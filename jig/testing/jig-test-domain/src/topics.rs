@@ -28,7 +28,7 @@ pub(super) fn described(
     work: &mut Queue<Work>,
 ) {
     let Some((to, key, topic)) = domain.hub_link.take_topic_call(token) else { return };
-    if !domain.core.current_proof(key.task, key.attempt) {
+    if !domain.engine.core().current_proof(key.task, key.attempt) {
         return;
     }
     match resources {
@@ -80,7 +80,7 @@ pub(super) fn subscribed(
     subscription: u64,
     work: &mut Queue<Work>,
 ) {
-    if let Some(row) = domain.core.tasks.task(key.task) {
+    if let Some(row) = domain.engine.core().tasks.task(key.task) {
         for interest in &row.subscriptions {
             if interest.number == subscription {
                 match interest.kind {
@@ -114,7 +114,7 @@ pub(super) fn subscribed(
 pub(super) fn sync(domain: &mut Domain, number: u16, task: u64, work: &mut Queue<Work>) {
     for topic in numbered(domain, number).subscribed_topics(task) {
         let mut live = false;
-        if let Some(row) = domain.core.tasks.task(task) {
+        if let Some(row) = domain.engine.core().tasks.task(task) {
             for interest in &row.subscriptions {
                 if interest.kind == (tasks::SubscriptionKind::Topic { connector: number, topic: u64::from(topic) }) {
                     live = true;
@@ -152,7 +152,7 @@ pub(super) fn news(
     work: &mut Queue<Work>,
 ) {
     for subscriber in subscribers {
-        let Some(row) = domain.core.tasks.task(subscriber.task) else { continue };
+        let Some(row) = domain.engine.core().tasks.task(subscriber.task) else { continue };
         for interest in &row.subscriptions {
             if interest.kind == (tasks::SubscriptionKind::Topic { connector: number, topic: u64::from(topic) }) {
                 let class = match subscriber.class {

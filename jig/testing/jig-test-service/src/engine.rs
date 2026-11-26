@@ -2,6 +2,7 @@
 use crate::{End, PartyOutput, route, stop, system::System};
 use alloc::boxed::Box;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit};
 use jig_test_domain as root;
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 
@@ -160,12 +161,7 @@ impl Engine {
             );
         }
         let mut next = skein_lib::earliest(self.store.host.next_deadline(), self.values.accounts.next_expiry());
-        let core = self.domain.core();
-        let deadline = if self.held.is_empty() {
-            core.next_deadline(self.env.now, self.env.wall)
-        } else {
-            core.next_finishing_deadline(self.env.now, self.env.wall)
-        };
+        let deadline = engine::next_deadline(self.domain.engine(), self.env.now, self.env.wall, self.timer_admission());
         next = skein_lib::earliest(next, deadline);
         if !self.domain.stopping() {
             for (_, deadline) in self.domain.connector_deadlines() {
@@ -184,6 +180,10 @@ impl Engine {
         }
         next
     }
+    fn timer_admission(&self) -> Admit {
+        if self.held.is_empty() { Admit::All } else { Admit::Finishing }
+    }
+
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
         let components = self.store.work_pending(now)
@@ -481,12 +481,7 @@ fn release(engine: &mut Engine) {
 }
 
 fn fire(engine: &mut Engine) {
-    let core = engine.domain.core();
-    let due = if engine.held.is_empty() {
-        core.due(engine.env.now, engine.env.wall)
-    } else {
-        core.finishing_due(engine.env.now, engine.env.wall)
-    };
+    let due = engine::due(engine.domain.engine(), engine.env.now, engine.env.wall, engine.timer_admission());
     if let Some(timer) = due {
         engine.step(root::Event::Timer(timer));
         return;

@@ -3,6 +3,7 @@ use jig_core_world::peers::Peers;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_link::Hello;
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -134,7 +135,7 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
     world.fire_due(now, wall);
     sign_in(&mut world, 7);
     let due = Time::from_nanos(now.as_nanos() + limits.core.people.sign_in_lifetime.as_nanos());
-    assert_eq!(world.domain.core().next_deadline(world.clocks().0, world.clocks().1), Some(due));
+    assert_eq!(engine::next_deadline(world.domain.engine(), world.clocks().0, world.clocks().1, Admit::All), Some(due));
     let saved = world
         .store
         .rows

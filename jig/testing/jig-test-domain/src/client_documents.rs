@@ -1,8 +1,9 @@
 //! Assemble connector-owned documents in the same decision as the core's pacing.
-use crate::routes::{route_connector, route_core};
+use crate::routes::{route_connector, route_engine, route_request};
 use crate::{Delivery, Domain, Limits, Work, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_views as views;
 use jig_test_connector as connector;
 use skein_lib::{Decision, Env, Queue, ReplyTo, Token};
@@ -49,13 +50,15 @@ pub(crate) fn document(
             None,
         ),
     };
-    let mut requests = core::step(
-        &mut domain.core,
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
         &env.with(env.limits.core),
-        core::Event::View(views::Event::Made { watcher, outcome }),
+        In::Core(core::Event::View(views::Event::Made { watcher, outcome })),
+        &mut out,
     );
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("document completion requests");
+    for _ in 0..out.len() {
+        let Out::Core(request) = out.pop().expect("document completion output");
         match request {
             core::Request::Held(held) => match *held {
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
@@ -111,28 +114,16 @@ pub(crate) fn document(
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. }) => {
-                    forward(domain, env, decision, core::Request::Held(Box::new(held)), work);
+                    route_request(domain, env, decision, core::Request::Held(Box::new(held)), work);
                 }
             },
             request @ (core::Request::Write(_)
             | core::Request::Ask { .. }
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }) => forward(domain, env, decision, request, work),
+            | core::Request::ProjectMade { .. }) => route_request(domain, env, decision, request, work),
         }
     }
     assert!(value.is_none(), "every ready document was assembled");
-}
-
-fn forward(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision<Write, Delivery>,
-    request: core::Request,
-    work: &mut Queue<Work>,
-) {
-    let mut requests = Queue::uncapped();
-    requests.push(request);
-    route_core(domain, env, decision, requests, work);
 }
 
 #[expect(clippy::too_many_arguments, reason = "an admitted read completes synchronously with its reply owned here")]
@@ -260,8 +251,14 @@ pub(crate) fn public_start(
         },
         ..read
     };
-    let requests = core::step(&mut domain.core, &env.with(env.limits.core), core::Event::PublicRead { reply, read });
-    route_core(domain, env, decision, requests, work);
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
+        &env.with(env.limits.core),
+        In::Core(core::Event::PublicRead { reply, read }),
+        &mut out,
+    );
+    route_engine(domain, env, decision, out, work);
 }
 
 pub(crate) fn public(domain: &mut Domain, number: u16, reply: ReplyTo, work: &mut Queue<Work>) {

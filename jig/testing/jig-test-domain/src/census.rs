@@ -2,5 +2,5 @@
 use crate::{Domain, Limits};
 #[must_use]
 pub fn inbox_census(domain: &mut Domain, limits: &Limits) -> jig_domain_core::Census {
-    domain.core.census(&limits.core)
+    domain.engine.core_mut().census(&limits.core)
 }

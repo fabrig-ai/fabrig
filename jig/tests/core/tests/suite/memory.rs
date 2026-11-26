@@ -1,6 +1,7 @@
 use jig_core_world::world::Setup;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, Admit};
 use jig_domain_fleet as fleet;
 use jig_domain_link::{Form, Scheme};
 use jig_domain_people as people;
@@ -119,7 +120,7 @@ fn walking_settles_after_retention_erases_forgotten_remains() {
     walking.drain();
     assert!(walking.inspections() > inspections, "the quiet-point wait and table checks ran");
     let (now, wall) = walking.clocks();
-    assert_eq!(walking.domain.core().due(now, wall), None);
+    assert_eq!(engine::due(walking.domain.engine(), now, wall, Admit::All), None);
     assert!(!walking.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Summary(900)))));
     assert!(!walking.store.rows.keys().any(|key| matches!(key,
         root::Key::Core(core::Key::Tasks(tasks::Key::Retention {
