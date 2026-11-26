@@ -1295,8 +1295,16 @@ What nextest gives a test today, resolved per binary from the listing and
 `cargo metadata --format-version 1 --no-deps`, over the caller's `env`:
 
 - the caller's `env` with every variable whose name begins `NEXTEST` removed,
-  then cargo's `[env]` configuration as nextest applies it (a set variable
-  kept unless `force`, `relative` paths from their configuration's directory);
+  and skein's two fuzzy variables, a campaign's seed and a replay's case
+  (`skein/docs/design/testing/sweeps.md`, 4.3), removed too, by the names
+  skein's test table declares, then cargo's `[env]` configuration as
+  nextest applies it (a set variable kept unless `force`, `relative` paths
+  from their configuration's directory). Without the fuzzy variables, every
+  sweep of a one-process run takes the gate's mode, whatever the caller's
+  shell holds (`skein/docs/design/testing/sweeps.md`, 4.3): the gate, the
+  delivery check and anyone's run of the focused and fuzzy suites alike. A
+  campaign sets them for its pair's runs, which take nextest's path
+  (`temper/docs/design/draft/fuzzy-campaigns.md`, 5);
 - `CARGO`, the cargo the command names, by path; `CARGO_MANIFEST_DIR`, the
   package's directory, and `CARGO_MANIFEST_PATH`; `CARGO_PKG_NAME`,
   `CARGO_PKG_VERSION` with `_MAJOR`, `_MINOR`, `_PATCH` and `_PRE`,
