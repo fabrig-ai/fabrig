@@ -2,11 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [owned.md](owned.md).
 
-- **Not yet:** 6: the fetch from fabrig.ai, packed, and its unpacking
-  by the box download's decoder: the code still fetches from
-  codeberg.org and code.forgejo.org, and on macOS Homebrew's bottles
-  from `ghcr.io` with their token, their redirect and `/usr/bin/tar`
-  [in flight: change 18878].
 
 - **Departs:** 6: off the box, a forge's fetch comes after its first
   `forge prepare`, where the section has it before the preparation.

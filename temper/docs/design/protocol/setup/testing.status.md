@@ -2,10 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 1: the fetch's packed rows: its pins at fabrig.ai for
-  the three platforms, the unpacking's verdicts and refusals, the host's
-  fake site serving packed files, and the local-TLS fetch of a packed
-  file; the bottle's rows are still there [in flight: change 18878].
 
 - **Not yet:** 4: the file's secret on no log: the fresh box's story
   reads stdout, stderr and `box.log` for it, not `serve.log`, which

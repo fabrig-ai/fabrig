@@ -21,6 +21,3 @@ through their tables, the client's through `line`.
   its start; only `temper-box init` warns of a missing git
   (`crates/temper-box-shell/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
-- **Not yet:** 4: the box's forge fetch taking the packed files from
-  fabrig.ai; it still fetches from the projects' sites and Homebrew's
-  bottles [in flight: change 18878].
