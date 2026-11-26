@@ -147,18 +147,38 @@ Value, one of
   - *Nothing is stored:* due times and reads in flight are memory, and a
     restart starts them again.
 - **A window's rate,** its pace, is the core's memory beside the fact, never
-  stored, and a restart starts it again:
-  - *Readings:* for each kind 7 fact with a share, at most 13, each a wall time
-    and a share. A report keeps the fact's share after it as a reading when the
-    newest is at least 5 minutes older, or none is kept, and those more than 60
-    minutes older than the newest go. A share lower than the newest reading's,
-    a reset, clears them first. A fact gone takes its readings.
-  - *The rate,* a share per hour in basis points, saturating: from the oldest
-    reading to the newest when the oldest is at least 30 minutes older;
-    otherwise the window's average since it opened, its share over the time
-    from its reset less its length to the newest reading, where both are held
-    and that time is above zero; otherwise none. It is computed as the readings
-    change, and served beside the fact (`../client/domain/contract/documents.md`, 1).
+  stored, and a restart starts it again. It reads about three hours, from one
+  origin (the user, 2026-11-25; `temper/docs/design/draft/usage-windows.md`,
+  section 5):
+  - *Readings:* for each kind 7 fact, a report that gives a share keeps a
+    reading: its wall time, its origin, and its share and reset as the report
+    gave them, the reset none where it gave none. It is kept when no reading of
+    its origin is, or the newest of its origin is at least 5 minutes older; a
+    report before the window's newest reading keeps none and clears nothing, so
+    the readings stay in wall order. Those more than 3 hours and 5 minutes older
+    than the newest go, so at most 38 of each origin are kept. A report that
+    gives no share keeps no reading: the share it leaves held may be another
+    origin's. A fact gone takes its readings.
+  - *A reset* clears its origin's readings before its report is kept: a report
+    whose share is below the newest reading of its origin, or whose reset
+    differs from that reading's where both give one. Another origin's readings
+    stay, so a usage read's whole percent just below an event's share clears
+    nothing.
+  - *The rate,* a share per hour in basis points, saturating, is the newest
+    reading's origin's alone: from that origin's reading nearest 3 hours older
+    than the newest, among those at least 1 hour older, the younger of two as
+    near, to the newest. While none of that origin is at least 1 hour older, it
+    is the window's average since it opened: the newest reading's share over the
+    time from the fact's reset less its length to the newest reading, where both
+    are held and that time is above zero; otherwise none. It is computed as the
+    readings change, and served beside the fact
+    (`../client/domain/contract/documents.md`, 1).
+  - *Why:* a program's event gives the share to a hundredth of a percent, a
+    usage read to a whole one. A rate across both adds a whole percent's
+    rounding to it, and a whole percent just below a decimal one read as a
+    reset; over half an hour, whole percents move it in steps of 2%/h. The
+    one-hour rate from the oldest reading of both read a week at about 5%/h
+    that moved 1.3%/h.
   - *Marks:* a rate that changes marks the accounts documents that show the
     account, as a fact's change does; one that doesn't marks nothing. So an
     equal report may move a window's rate at most once every 5 minutes.
