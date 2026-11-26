@@ -5,7 +5,6 @@
 
 - **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4).
 - **Not yet:** 3: a standing task's session (`standing.md`, 5.1).
-- **Not yet:** 4, *Dependencies*: a batch's dependency out of the creator's reach named in the refusal's `blocked_by`; the refusal names none today. [in flight: change 16489]
 
 `lifecycle-holds.md`, section 1's classified activation cause has no known gap. `FailedWithReason`
 uses the existing reason bound and retry policy, and keeps its UTF-8 words

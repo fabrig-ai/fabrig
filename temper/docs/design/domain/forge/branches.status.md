@@ -2,8 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 2, *Taken*: the closer drops other tasks' words and an answer matching no standing question silently [in flight: change 16480].
-- **Not yet:** 2, *Room and admission*: an answer held for room tells the goal nothing, and the stored relay keeps no since [in flight: change 16483].
 
 
 

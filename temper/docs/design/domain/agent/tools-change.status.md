@@ -2,7 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
 
-- **Not yet:** 1, `after`: a task it doesn't reference, another goal's, is refused naming the new member, and the schema says `Live delegate IDs/earlier names.` [in flight: change 16489].
 
 `tools-change.md`, section 1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
