@@ -11,8 +11,6 @@ those five forms. No implementation gap remains for that state.
 - **Not yet:**
   - 9: the real-Chromium viewport story is compiled; its runtime
     check awaits the browser tier after landing.
-  - 3, 9: `command` has no `hide_scrollbars`, and `RawPump::start` passes
-    none on. [in flight: change 18835]
 - **Design departs:** 9: the real-Chromium story's leaving document sends
   its request after the reload's document request, signalled over its
   still-open stream, in place of a `keepalive` request at `pagehide`: on

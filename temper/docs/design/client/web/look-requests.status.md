@@ -8,10 +8,3 @@
     first held request;
     `scripts/look-refresh.sh` refreshes and drops by `Look-request`
     and the print, not by holds.
-  - 2, 4: the render check renders every page a gallery-drawn
-    directory changes, whatever its `README.md` calls it, and on each
-    compares every element's style and box; on a journey's page it
-    lists the properties that follow from the box beside it.
-    [in flight: change 18837]
-  - 4: the render check's Chromium keeps its scrollbars.
-    [in flight: change 18835]
