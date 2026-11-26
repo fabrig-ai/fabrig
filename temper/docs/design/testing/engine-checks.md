@@ -241,7 +241,9 @@ change's due step.
   jig's tasks for the tasks and holds; `forge` reads the forge's change
   rows, with the script's own landing tasks as live. A landing due to
   step, its wake given and its step not yet taken or its step's reads in
-  flight, is passed over until that step.
+  flight, is passed over until that step, and a row whose ending at
+  start waits for its fresh read (`../domain/landing-liveness.md`, 6.2)
+  until that ending.
 
 ### 2.3 Tables
 
