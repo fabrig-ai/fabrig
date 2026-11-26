@@ -16,13 +16,15 @@ use skein_lib::List;
 #[must_use]
 pub fn configured(config: &Config, limits: &Limits) -> Needs {
     let mut charters = List::with_capacity(limits.tasks.charters);
+    let fallback;
     let models = if config.defaults.models.is_empty() {
-        super::catalogue::defaults(&config.settings)
+        fallback = super::catalogue::defaults(&config.settings);
+        &fallback
     } else {
-        config.defaults.models.clone()
+        &config.defaults.models
     };
     for charter in &config.defaults.charters {
-        if let Some(charter) = super::charters::resolved(charter, &models, limits) {
+        if let Some(charter) = super::charters::resolved(charter, models, limits) {
             charters.push(one(&charter, 1)).expect("configured charter count");
         }
     }
