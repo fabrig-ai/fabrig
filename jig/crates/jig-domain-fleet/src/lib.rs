@@ -82,6 +82,7 @@ pub use boundary::{
     Answer, Assignment, AttemptState, AttemptView, Call, Event, GrantName, HostKind, HostView, Kinds, Message,
     Placement, PlacementConstraint, Refusal, Request, Turned, Undelivered, Withdrawal,
 };
+pub use channel::{JobRefusal, JobShort, JobShortfall, job_short};
 pub use domain::{Domain, fire, resume, step};
 pub use facts::Fact;
 pub use history::{BoundsRefusal, Figures, HelloRefusal, HelloRefusalRecord, HelloRefused};

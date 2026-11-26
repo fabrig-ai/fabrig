@@ -177,7 +177,7 @@ pub enum Request {
         version: u16,
         wait: Option<Duration>,
     },
-    /// Opening accepted, with the worker's statement and names of wires that convert.
+    /// Link opening accepted and its hello decoded, with the statement and names of wires that convert.
     Opened {
         worker: u32,
         converted: List<Box<str>>,

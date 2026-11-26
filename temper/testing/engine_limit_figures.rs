@@ -1,6 +1,15 @@
 //! The small engine figures used by typed worlds.
 #[must_use]
 pub fn over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
+    over_keeping_job_bounds(base, false)
+}
+
+/// Optionally keep the profile's task spec and result bounds in worlds that run jobs.
+#[must_use]
+pub fn over_keeping_job_bounds(
+    base: &jig_protocol_config::Limits,
+    keep_job_bounds: bool,
+) -> jig_protocol_config::Limits {
     let mut rows = skein_lib::List::with_capacity(21);
     for (name, value) in [
         (b"authority.executors".as_slice(), 22),
@@ -25,6 +34,9 @@ pub fn over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
         (b"tasks.run_inbox".as_slice(), 2),
         (b"tasks.spec_bytes".as_slice(), 128),
     ] {
+        if keep_job_bounds && (name == b"tasks.spec_bytes" || name == b"tasks.result_bytes") {
+            continue;
+        }
         rows.push(jig_domain_core::settings::Override {
             name: name.into(),
             value,

@@ -3750,6 +3750,27 @@ pub fn shortfall_figures_to_domain(record: jig_client_protocol_wire::v44::Shortf
 }
 
 #[must_use]
+pub fn job_short_to_domain(record: jig_client_protocol_wire::v44::JobShort) -> jig_client_domain::contract::JobShort {
+    match record {
+        jig_client_protocol_wire::v44::JobShort::Kind => jig_client_domain::contract::JobShort::Kind,
+        jig_client_protocol_wire::v44::JobShort::Spec => jig_client_domain::contract::JobShort::Spec,
+        jig_client_protocol_wire::v44::JobShort::Result => jig_client_domain::contract::JobShort::Result,
+        jig_client_protocol_wire::v44::JobShort::Deadline => jig_client_domain::contract::JobShort::Deadline,
+    }
+}
+
+#[must_use]
+pub fn job_why_to_domain(record: jig_client_protocol_wire::v44::JobWhy) -> jig_client_domain::contract::JobWhy {
+    match record {
+        jig_client_protocol_wire::v44::JobWhy::Short(held) => jig_client_domain::contract::JobWhy::Short({
+            let jig_client_protocol_wire::v44::JobWhyShort { why: held } = held;
+            job_short_to_domain(held)
+        }),
+        jig_client_protocol_wire::v44::JobWhy::Untranslated => jig_client_domain::contract::JobWhy::Untranslated,
+    }
+}
+
+#[must_use]
 pub fn task_wait_refused_to_domain(record: jig_client_protocol_wire::v44::TaskWaitRefused) -> jig_client_domain::contract::TaskWaitRefused {
     match record {
         jig_client_protocol_wire::v44::TaskWaitRefused::Hello(held) => {
@@ -3779,6 +3800,27 @@ pub fn task_wait_refused_to_domain(record: jig_client_protocol_wire::v44::TaskWa
                     None => None,
                 },
                 figures: match field_000002 {
+                    Some(item) => {
+                        let converted = shortfall_figures_to_domain(item);
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::TaskWaitRefused::Job(held) => {
+            let jig_client_protocol_wire::v44::TaskWaitJob { worker: field_000000, kind: field_000001, why: field_000002, figures: field_000003 } = held;
+            jig_client_domain::contract::TaskWaitRefused::Job {
+                worker: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                kind: field_000001,
+                why: job_why_to_domain(field_000002),
+                figures: match field_000003 {
                     Some(item) => {
                         let converted = shortfall_figures_to_domain(item);
                         Some(converted)

@@ -2,4 +2,3 @@
 
 2026-11-25. Where the tree's code lags or departs from [opening-rehearsal.md](opening-rehearsal.md).
 
-No gap.

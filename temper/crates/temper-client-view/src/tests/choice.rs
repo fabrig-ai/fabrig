@@ -343,7 +343,7 @@ fn a_refused_next_run_says_why() {
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected.as_bytes(), "{name}");
         let midnight = match refusal {
             R::Hello { .. } => Some(skein_lib::Wall::from_nanos(86_400_000_000_000)),
-            R::Bounds { .. } => None,
+            R::Bounds { .. } | R::Job { .. } => None,
         };
         assert_eq!(times.next, midnight, "{name}");
         let source = fixtures::chat::messaging_root();

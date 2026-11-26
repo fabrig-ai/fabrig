@@ -306,7 +306,7 @@ impl Component {
                 channels
                     .push((
                         *connection,
-                        state.sends(wire::Kind::Restarting).is_some(),
+                        !state.omits(wire::Kind::Restarting),
                         state.worker.expect("authenticated worker"),
                     ))
                     .expect("uncapped channels");
@@ -344,7 +344,7 @@ impl Component {
             if let Some(connection) = self.target(channel) {
                 if let jig_domain_host::LinkDown::ReadUsage { .. } = &down {
                     let state = self.connections.get(&connection).expect("target channel exists");
-                    if state.sends(wire::Kind::ReadUsage).is_none() {
+                    if state.omits(wire::Kind::ReadUsage) {
                         self.dropped_down = self.dropped_down.saturating_add(1);
                         return;
                     }
@@ -353,7 +353,7 @@ impl Component {
                     jig_domain_host::LinkDown::Pause { mode } => {
                         // A pause is best effort at the worker's layout (protocol/channel/pause.md, 3).
                         let state = self.connections.get(&connection).expect("heard channel exists");
-                        if state.sends(wire::Kind::Pause).is_none() {
+                        if state.omits(wire::Kind::Pause) {
                             let worker = self
                                 .workers
                                 .get(skein_lib::usize_of(state.worker.expect("authenticated worker")))
@@ -518,7 +518,7 @@ impl Component {
             return;
         };
         let kind = record.kind();
-        if kind == wire::Kind::PartKept || kind == wire::Kind::PartBusy {
+        if kind.optional_at_worker() {
             let state = self.connections.get(&connection).expect("target channel exists");
             if state.sends(kind).is_none() {
                 return;
@@ -614,7 +614,7 @@ impl Component {
         }
     }
     fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
-        if state.sends(wire::Kind::Figures).is_none() {
+        if state.omits(wire::Kind::Figures) {
             return true;
         }
         let Some(figures) = &self.figures else { return true };
@@ -833,13 +833,7 @@ impl Component {
                         state.down(ChannelRequest::Finish, connection, out);
                         return;
                     }
-                    let mut statement = state.statement.take().expect("authenticated statement");
-                    statement.terms = terms;
-                    out.push(Request::Opened {
-                        worker: state.worker.expect("authenticated worker"),
-                        converted: core::mem::replace(&mut state.converted, List::with_capacity(0)),
-                        statement,
-                    });
+                    state.statement.as_mut().expect("authenticated statement").terms = terms;
                     state.phase = Phase::Hello;
                     state.deadline = state.hello_deadline;
                     state.down(ChannelRequest::Read, connection, out);
@@ -939,6 +933,10 @@ impl Component {
                     state.deadline = None;
                     state.ping = Some(now.saturating_add(self.limits.ping));
                     state.silence = Some(now.saturating_add(self.limits.silence));
+                    let mut statement = state.statement.take().expect("authenticated statement");
+                    statement.jobs = List::from_boxed(hello.jobs.clone());
+                    let converted = core::mem::replace(&mut state.converted, List::with_capacity(0));
+                    out.push(Request::Opened { worker, converted, statement });
                     out.push(Request::Hello { channel: state.channel, worker, hello });
                     state.down(ChannelRequest::Read, connection, out);
                     return;

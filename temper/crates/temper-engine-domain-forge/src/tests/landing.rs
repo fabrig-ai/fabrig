@@ -7,6 +7,8 @@ mod claimed;
 mod conversion;
 #[path = "landing/flake_rerun.rs"]
 mod flake_rerun;
+#[path = "landing/head_trailers.rs"]
+mod head_trailers;
 #[path = "landing/members.rs"]
 mod members;
 #[path = "landing/room.rs"]

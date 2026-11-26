@@ -115,7 +115,7 @@ impl engine::Engine {
         let mut core = core_config(&settings.jig, seeds);
         workers.default_workers(&core.defaults.workers);
         core.kinds.clone_from(&settings.kinds);
-        core.jobs = limits::jobs(&settings.jig.limits);
+        core.jobs.clone_from(&workers.jobs);
         let places = crate::places::Places::new(&settings);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,

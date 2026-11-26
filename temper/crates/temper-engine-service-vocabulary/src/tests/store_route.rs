@@ -1213,6 +1213,12 @@ fn the_sweep_load_selects_only_people() {
 
 #[test]
 fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
+    let job = jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(4),
+        spec: 16_384,
+        result: 512,
+        deadline: skein_lib::Duration::from_secs(600),
+    };
     let opening = engine::WorkerOpening {
         worker: "w1".into(),
         statement: engine::WorkerStatement {
@@ -1223,6 +1229,7 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
             }]),
             output: 4096,
             terms: Box::new([engine::OpenedTerm { kind: 12, largest: 34 }]),
+            jobs: Box::new([job]),
         },
         at: skein_lib::Wall::from_nanos(123),
     };
@@ -1245,6 +1252,7 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
             }]),
             output: 4096,
             terms: Box::new([store::OpenedTerm { kind: 12, largest: 34 }]),
+            jobs: Box::new([job]),
             at: skein_lib::Wall::from_nanos(123),
         }
     );

@@ -232,7 +232,10 @@ hosted run with no agent:
   bounds for that kind (its spec's and result's bytes, its deadline)
   cover the job's, and that has a free slot, as a run's does (`fleet.md`
   ), fenced by its attempt. Nothing of a run's placement applies: no
-  charter's hosts, no model, no account's source, no login.
+  charter's hosts, no model, no account's source, no login. With no such
+  host it is not claimed: it stays due, its wait naming the host and
+  what it lacks (`fleet.md`, 2, *A job is claimed only where a host can
+  take it now*).
 - **Its answer** commits its result as a delegate's result (../tasks/lifecycle.md,
   7), which its procedure reads at its next step; a failure is tried
   again within its tries, then holds it, its procedure hearing why.

@@ -381,13 +381,13 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
         wait_pointers(expected.as_bytes());
         let vocabularies = match why {
             R::Bounds { .. } => &bound_words,
-            R::Hello { .. } => &words,
+            R::Hello { .. } | R::Job { .. } => &words,
         };
         for w in vocabularies {
             let mut builder = Builder::new(&fixtures::tree_limits());
             let at = match why {
                 R::Hello { at, .. } => at,
-                R::Bounds { .. } => fixtures::NOW,
+                R::Bounds { .. } | R::Job { .. } => fixtures::NOW,
             };
             crate::choice::waiting(
                 &mut builder,
@@ -400,6 +400,42 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
             let text = fixtures::text(&builder.finish());
             wait_pointers(&text);
             assert_eq!(text.as_ref(), expected.as_bytes(), "{why:?}");
+        }
+    }
+}
+
+/// A refused job names the worker setting and the offered and required bounds (fleet.md, 2).
+#[test]
+fn a_job_wait_names_the_host_kind_and_shortfall() {
+    use c::{Figures, JobShort as S, JobWhy as J, TaskRunWait as W, TaskWaitRefused as R};
+    let root = task_root();
+    let words = [fixtures::words(), fixtures::browser_words()];
+    for (worker, why, figures, expected) in [
+        (Some(2), J::Short(S::Kind), None, "worker 2 runs no job of kind 4"),
+        (
+            Some(2),
+            J::Short(S::Spec),
+            Some(Figures { required: 16384, offered: 1024 }),
+            "worker 2 takes job kind 4's spec up to 1024 bytes; this job's kind needs 16384",
+        ),
+        (
+            None,
+            J::Short(S::Result),
+            Some(Figures { required: 512, offered: 256 }),
+            "the engine takes job kind 4's result up to 256 bytes; this job's kind needs 512",
+        ),
+        (
+            Some(2),
+            J::Short(S::Deadline),
+            Some(Figures { required: 1_800_000, offered: 600_000 }),
+            "worker 2 takes job kind 4 for up to 10 min; this job's kind needs 30 min",
+        ),
+        (Some(2), J::Untranslated, None, "worker 2's layouts cannot keep this job"),
+    ] {
+        let wait = W::Refused(R::Job { worker, kind: 4, why, figures });
+        for w in &words {
+            let text = crate::choice::wait_why(&root, w, &wait);
+            assert_eq!(text.as_ref(), expected.as_bytes());
         }
     }
 }

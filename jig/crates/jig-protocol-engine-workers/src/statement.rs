@@ -3,7 +3,7 @@ use crate::generated::worker_wire as mapped;
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{
     self as wire, Credential, Root, Spoken,
-    layouts::{Peer, Plans, Theirs},
+    layouts::{Gap, Peer, Plans, Theirs},
 };
 use skein_channel::{Role, Term, Version};
 use skein_lib::{Decimal, List, bytes};
@@ -16,12 +16,13 @@ pub struct Stated {
     pub text: Box<[u8]>,
 }
 
-/// The credential's wires and output, and the worker's terms in their order.
+/// The credential's wires and output, the worker's terms and the hello's job kinds, in their order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Statement {
     pub wires: List<Stated>,
     pub output: u32,
     pub terms: List<Term>,
+    pub jobs: List<jig_domain_link::JobBound>,
 }
 
 /// The opening's reason and text, after authentication.
@@ -56,6 +57,23 @@ pub fn judge(
         return Err(Unfit::Limits(text));
     }
     Ok(fitted.converted)
+}
+
+/// Lists what a worker's layouts cannot keep after the opening's wire checks.
+pub fn gaps(
+    spoken: &List<Spoken>,
+    roots: &List<Root>,
+    limits: &wire::v22::Limits,
+    stated: &List<Stated>,
+) -> Result<List<Gap>, Unfit> {
+    let mut plans = match plans(spoken, roots) {
+        Ok(plans) => plans,
+        Err(text) => return Err(Unfit::Wires(text)),
+    };
+    match wires(&mut plans, spoken, limits, stated) {
+        Ok(fitted) => Ok(fitted.peer.gaps()),
+        Err(text) => Err(Unfit::Wires(text)),
+    }
 }
 
 pub(crate) fn plans(spoken: &List<Spoken>, roots: &List<Root>) -> Result<Plans, Box<[u8]>> {
@@ -102,7 +120,7 @@ impl Statement {
             let stated = mapped::wire_to_domain(wire).expect("credential text is UTF-8");
             wires.push(stated).expect("one slot per stated wire");
         }
-        Self { wires, output: credential.output, terms: List::with_capacity(0) }
+        Self { wires, output: credential.output, terms: List::with_capacity(0), jobs: List::with_capacity(0) }
     }
 }
 

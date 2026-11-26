@@ -106,6 +106,10 @@ impl Words {
                 self.text(b, phrase, &[Hole::Wall(self.adjusted_wall(at))]);
                 crate::words::fragments::hello::refusal(b, self, why);
             }
+            R::Job { worker, kind, why, figures } => {
+                let text = jig_client::words::job_wait(&self.book, self.language, worker, kind, why, figures);
+                b.text(skein_ui::Run::Plain, &text);
+            }
             R::Bounds { kind, why, .. } => {
                 let phrase = match kind {
                     HostKind::Engine => P::BoundsEngine,

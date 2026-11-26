@@ -72,12 +72,16 @@ pub fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits)
             }
         }
     }
-    let mut value = charter.clone();
     let mut chosen = List::with_capacity(tasks::MODELS);
-    let mut main = false;
+    let mut main = None;
+    let instructions = &charter.policy.instructions;
     let mut omitted = 0_u32;
     for (at, number) in candidates.as_slice().iter().enumerate() {
         let rest = at >= skein_lib::length::usize_of(named);
+        if rest && main.is_some() && chosen.len() >= limits.settings.alternatives {
+            omitted = omitted.checked_add(1).expect("bounded candidates");
+            continue;
+        }
         let mut record = None;
         for model in models {
             if model.number == *number {
@@ -98,32 +102,31 @@ pub fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits)
                 }
             }
         }
-        if rest && main && chosen.len() >= limits.settings.alternatives {
+        // Price the retained models by reference instead of cloning a trial
+        // policy and all its alternatives for each candidate.
+        if let Some(first) = &main {
+            let before = chosen.len();
+            chosen.push(model).expect("alternative room checked");
+            if rest && !fits(instructions, first, chosen.as_slice(), limits.run_bytes) {
+                chosen.truncate(before);
+                omitted = omitted.checked_add(1).expect("bounded candidates");
+            }
+        } else if rest && !fits(instructions, &model, &[], limits.run_bytes) {
             omitted = omitted.checked_add(1).expect("bounded candidates");
-            continue;
-        }
-        let mut trial = value.policy.clone();
-        if main {
-            let mut alternatives = chosen.clone();
-            alternatives.push(model.clone()).expect("alternative room checked");
-            trial.alternatives = alternatives.into_boxed();
         } else {
-            trial.model = model.clone();
-            trial.alternatives = Box::new([]);
+            main = Some(model);
         }
-        let fits = match crate::limits::policy_owned_bytes(&trial) {
-            Some(bytes) => bytes <= u64::from(limits.run_bytes),
-            None => false,
-        };
-        if rest && !fits {
-            omitted = omitted.checked_add(1).expect("bounded candidates");
-            continue;
-        }
-        if main {
-            chosen.push(model.clone()).expect("alternative room checked");
-        }
-        value.policy = trial;
-        main = true;
     }
-    (if main { Some(value) } else { None }, omitted)
+    let Some(main) = main else { return (None, omitted) };
+    let mut value = charter.clone();
+    value.policy.model = main;
+    value.policy.alternatives = chosen.into_boxed();
+    (Some(value), omitted)
+}
+
+fn fits(instructions: &[u8], main: &crate::Model, alternatives: &[crate::Model], run_bytes: u32) -> bool {
+    match crate::limits::policy_bytes(instructions, main, alternatives) {
+        Some(bytes) => bytes <= u64::from(run_bytes),
+        None => false,
+    }
 }

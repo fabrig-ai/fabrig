@@ -1,10 +1,11 @@
 //! Procedure-only job admission (jig/docs/design/domain/engine/executors.md, 5).
 use jig_core_world::{
     fixtures::{delegate, job_world, live_row, member},
-    world::World,
+    reads,
+    world::{Cut, World},
 };
 use jig_domain_authority as authority;
-use jig_domain_core as core;
+use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Hello, Hosting, Phase};
@@ -215,6 +216,13 @@ fn start(seed: u64) -> (World, u64, u64) {
     (world, procedure, task)
 }
 
+fn assert_due(world: &World, task: u64) {
+    let row = live_row(world, task);
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(row.tries, tasks::Tries::NONE);
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)))));
+}
+
 fn proof(world: &World, task: u64) -> &core::RunProof {
     let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)));
     let Some(root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))) = world.store.rows.get(&key)
@@ -258,8 +266,8 @@ fn finish_procedure(world: &mut World, procedure: u64) {
     assert!(matches!(ended(world, procedure).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
 }
 
-/// A job claims without an account, waits for its kind, and returns its bytes to its procedure
-/// (jig/docs/design/domain/engine/executors.md, 5).
+/// A job waits for its kind, claims without an account, and returns its bytes to its procedure
+/// (jig/docs/design/domain/engine/fleet.md, 2; jig/docs/design/domain/engine/executors.md, 5).
 #[test]
 fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches_the_next_step() {
     let (mut world, procedure, task) = start(907);
@@ -267,14 +275,46 @@ fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches
     assert_eq!(row.executor, tasks::Executor::Job { kind: 7 });
     assert_eq!(row.contract, tasks::Contract::Job { bytes: 32 });
     assert_eq!(row.numbers.reserved, 0);
-    assert!(matches!(row.phase, tasks::Phase::Active(tasks::Active::Claimed { .. })));
-    assert!(proof(&world, task).accounts.is_empty());
-    assert_eq!(proof(&world, task).window, None);
-    assert_eq!(proof(&world, task).conversation, proof(&world, task).attempt);
+    assert_due(&world, task);
     assert_eq!(world.jobs.len(), 0);
-    world.job_hello(Token::new(8), 1, Box::new([bound(9)]));
+
+    let short_worker = 1;
+    world.job_hello(Token::new(8), short_worker, Box::new([bound(9)]));
     assert_eq!(world.jobs.len(), 0);
+    assert_due(&world, task);
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    reads::ask(&mut world, 1, core::reads::Read::Task { task });
+    let core::reads::Answer::Document(document) = reads::latest(&world) else {
+        panic!("task read: {:?}", reads::latest(&world));
+    };
+    let documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
+    assert_eq!(
+        document.run_wait,
+        Some(documents::TaskRunWait::Refused(documents::TaskWaitRefused::Job {
+            worker: Some(short_worker),
+            kind: 7,
+            why: documents::JobWhy::Short(fleet::JobShort::Kind),
+            figures: None,
+        }))
+    );
+
+    // Stop at the durable claim; the rest of the drain delivers the job and marks it running.
+    let claim = Cut::Durable(world.store.applied + 1);
+    world.cut = Some(claim);
     world.job_hello(Token::new(9), 2, Box::new([bound(7)]));
+    assert_eq!(world.reached_cut, Some(claim));
+    let row = live_row(&world, task);
+    assert!(
+        matches!(row.phase, tasks::Phase::Active(tasks::Active::Claimed { .. })),
+        "after the covering hello: {:?}, {} assignments",
+        row.phase,
+        world.jobs.len()
+    );
+    let proof = proof(&world, task);
+    assert!(proof.accounts.is_empty());
+    assert_eq!(proof.window, None);
+    assert_eq!(proof.conversation, proof.attempt);
+    world.drain();
     assert_eq!(world.jobs.len(), 1);
     let (channel, assignment) = &world.jobs[0];
     assert_eq!(*channel, Token::new(9));

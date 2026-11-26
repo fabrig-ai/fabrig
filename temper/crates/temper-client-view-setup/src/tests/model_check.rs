@@ -530,7 +530,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
             let now = match &wait {
                 R::Refused(value) => match &value.value {
                     j::TaskWaitRefused::Hello(value) => skein_lib::Wall::from_nanos(value.at),
-                    j::TaskWaitRefused::Bounds(_) => f::NOW,
+                    j::TaskWaitRefused::Bounds(_) | j::TaskWaitRefused::Job(_) => f::NOW,
                 },
                 R::Account(_) | R::Credential | R::Host | R::Worker(_) => f::NOW,
             };

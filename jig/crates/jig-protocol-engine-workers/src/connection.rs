@@ -86,6 +86,10 @@ impl Connection {
         self.peer.as_ref()?.sends(kind)
     }
 
+    pub fn omits(&self, kind: Kind) -> bool {
+        kind.optional_at_worker() && self.sends(kind).is_none()
+    }
+
     pub fn down(&mut self, request: Request, connection: Token, out: &mut Queue<crate::Request>) {
         self.machine.down(request, &mut self.above, &mut self.below);
         self.flush(connection, out);

@@ -1,8 +1,8 @@
 //! The frame and its carried layouts cross together (jig/docs/design/protocol/channel/layouts.md, 8).
-use crate::layouts::{Cause, Peer, Plans, Unconverted};
+use crate::layouts::{Cause, Gap, Peer, Plans, Site, Unconverted};
 use crate::{KINDS, Kind, convert, v22 as wire};
 use skein_channel::{Frame, frame_writer};
-use skein_codec::layout::Mode;
+use skein_codec::layout::{Mode, Refused};
 use skein_lib::{Buffer, List, Reader, Rng};
 use wire::Record;
 
@@ -161,6 +161,34 @@ fn refusals_keep_the_plan_names_and_causes() {
         "name",
         b"jig-worker-wire Check.name: narrowed",
     );
+}
+
+#[test]
+fn assignment_parts_gap_uses_the_untranslated_refusal_words() {
+    let worker = parse(&replace(crate::SCHEMA, "    parts: bytes 134217728 = 0x\n", ""));
+    let mut peer = Plans::new(&[crate::SCHEMA], &List::uncapped())
+        .expect("current text")
+        .judge(&[stated(&worker)])
+        .expect("the worker's layout can connect");
+    let gaps = peer.gaps();
+    assert_eq!(
+        gaps.as_slice(),
+        &[Gap {
+            wire: "jig-worker-wire".into(),
+            site: Site::Frame,
+            why: Refused::Field,
+            declaration: "Assignment".into(),
+            part: "parts".into(),
+        }]
+    );
+    let gap = gaps.get(0).expect("one gap");
+    assert_eq!(&*gap.words(), b"the worker's layout cannot keep jig-worker-wire Assignment.parts: field");
+
+    let (ours, _) = Payloads::both(&Layouts::new());
+    let assignment = ours.assignment().encode(&LIMITS).expect("nonempty kept parts");
+    let refused = convert::send(&mut peer, frame(Kind::Assignment.number(), &assignment), &LIMITS)
+        .expect_err("the assignment has parts the worker cannot keep");
+    assert_eq!(gap.words(), refused.kept());
 }
 
 #[test]

@@ -689,6 +689,28 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
     assert_worker_reserve_refusals(AT);
 }
 
+#[test]
+fn a_job_refusal_keeps_its_worker_kind_and_millisecond_figures_in_ctl() {
+    use jig_client::contract as c;
+    assert_next_run_refusal(
+        "job deadline",
+        c::TaskWaitRefused::Job {
+            worker: Some(2),
+            kind: 4,
+            why: c::JobWhy::Short(c::JobShort::Deadline),
+            figures: Some(c::Figures { required: 1_800_000, offered: 600_000 }),
+        },
+        "next run: refused, worker 2 takes job kind 4 for up to 600000 ms; this job's kind needs 1800000 ms",
+        r#"{"refused":{"job":{"worker":2,"kind":4,"why":{"short":"deadline"},"figures":{"required":1800000,"offered":600000}}}}"#,
+    );
+    assert_next_run_refusal(
+        "engine job untranslated",
+        c::TaskWaitRefused::Job { worker: None, kind: 4, why: c::JobWhy::Untranslated, figures: None },
+        "next run: refused, the engine's layouts cannot keep this job",
+        r#"{"refused":{"job":{"worker":null,"kind":4,"why":"untranslated","figures":null}}}"#,
+    );
+}
+
 fn assert_worker_reserve_refusals(at: skein_lib::Wall) {
     use jig_client::contract as c;
     let (name, cause, text, json) = (

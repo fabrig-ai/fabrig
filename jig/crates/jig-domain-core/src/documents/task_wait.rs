@@ -9,10 +9,6 @@ use jig_domain_tasks as tasks;
 /// The same next-run wait carried by a Task document, without making the document.
 #[must_use]
 pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
-    match row.executor {
-        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return None,
-        tasks::Executor::Agent { .. } => {}
-    }
     match row.phase {
         tasks::Phase::Active(tasks::Active::Due | tasks::Active::Preparing) => {}
         tasks::Phase::Active(_)
@@ -20,6 +16,11 @@ pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
         | tasks::Phase::Held { .. }
         | tasks::Phase::Closing(_)
         | tasks::Phase::Ended(_) => return None,
+    }
+    match row.executor {
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => return None,
+        tasks::Executor::Job { kind } => return job_wait(core, row.number, kind),
+        tasks::Executor::Agent { .. } => {}
     }
     match core.run_choice(row.number) {
         Ok(_) if !core.credentials_ready(row.number, core.run_now) => Some(TaskRunWait::Credential),
@@ -48,6 +49,20 @@ pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
             })
         }
     }
+}
+
+fn job_wait(core: &Core, task: u64, kind: u32) -> Option<TaskRunWait> {
+    let Some(job) = core.job_declaration(kind) else { return Some(TaskRunWait::Host) };
+    let run = skein_lib::Token::new(task);
+    if core.fleet.job_available(run, job) {
+        return None;
+    }
+    let Some(refusal) = core.fleet.job_refusal(run, job) else { return Some(TaskRunWait::Host) };
+    let (why, figures) = match refusal.short {
+        Some(short) => (JobWhy::Short(short.why), short.figures),
+        None => (JobWhy::Untranslated, None),
+    };
+    Some(TaskRunWait::Refused(TaskWaitRefused::Job { worker: refusal.worker, kind, why, figures }))
 }
 
 fn host_wait(core: &Core, task: u64) -> TaskRunWait {

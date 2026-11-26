@@ -1,4 +1,5 @@
+OpenedJob: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
 OpenedTerm: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 OpenedWire: ceilings encoded=65608 decoded=65568; at_most(3) encoded=46 decoded=6
-WorkerOpening: ceilings encoded=525530 decoded=525824; at_most(3) encoded=185 decoded=237
-family: ceilings encoded=525530 decoded=525824; at_most(3) encoded=185 decoded=237
+WorkerOpening: ceilings encoded=530654 decoded=531968; at_most(3) encoded=249 decoded=309
+family: ceilings encoded=530654 decoded=531968; at_most(3) encoded=249 decoded=309

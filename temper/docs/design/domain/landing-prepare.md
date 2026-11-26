@@ -7,7 +7,8 @@ This document holds preparing landing candidates and rounds, split from [`landin
 ### 1.1 Rounds
 
 - **A round** is one stack: its base, the train's tip read afresh as it
-  starts; each member's head, read afresh; the train's upstream's tip,
+  starts; each member's head, read afresh, and its head commit's
+  trailers (1.2); the train's upstream's tip,
   read afresh, where the train has an upstream (1.2); each member's
   prefix, the commit the prepare job pushed for it, and how it combined
   the member, merged or squashed; and its pull request, from the top's
@@ -79,10 +80,25 @@ The default, for a project with no prepare command:
     with its goal's for a train into its repository's main;
   - **squash:** the same merge, its tree committed as one commit whose
     only parent is the prefix below, with the member's squash message:
-    its title, its description's first paragraph, then its change,
-    pull request, head and goal as trailers (`../draft/squash-in.md`,
-    section 3). A squash whose tree is the one below's is still a
-    commit.
+    its title, its description's first paragraph, then its own
+    trailers, and its change, pull request, head and goal as trailers
+    (`../draft/squash-in.md`, section 3). A squash whose tree is the
+    one below's is still a commit.
+- **The head's trailers:** the trailers a member's squash keeps come
+  from its producer's words, or from its head commit's message
+  (`../protocol/tooling.md`, 4, TRAILERS), which the round reads from
+  the range by which it tells whether its base contains the head
+  (1.1): the commits after the base up to the head (skein's
+  `Read::Commits`), page by page from the first until the commit whose
+  id is the head, however many pages the member's history takes.
+  Whether the base contains the head is still told by the first page
+  alone. A page the forge refuses waits `read`, as the round's other
+  reads do (`landing-waits.md`, 3); a page too large for its answer,
+  or a range that ends without the head, gives none. The round keeps
+  those trailers alone, never the message, and only for its job: they
+  go with the decision that makes the job into its request, and none
+  is stored, since every job is made after a fresh gather (*Lost or
+  partial*, below) and keeps the request it was made with.
 - **A conflict:** a member that cannot merge cleanly onto the prefix
   below is skipped; the job stacks the next on that prefix. In the
   same job it merges the conflicting head onto the round's base:
@@ -95,7 +111,8 @@ The default, for a project with no prepare command:
   (`../protocol/credentials-git-identities.md`, 1), both ways: the identity the
   deployment's agents' commits carry, and temper's own.
 - **A goal's branch reads one commit per change,** its title and
-  trailers naming the change's task, pull request, head and goal, and a
+  trailers naming the change's task, pull request, head and goal, after
+  the change's own trailers, and a
   merge for each catch-up or resolution of main
   (`../draft/squash-in.md`, sections 2 and 6); a goal's landing into
   main is a merge titled with the goal's title, its trailers the goal's

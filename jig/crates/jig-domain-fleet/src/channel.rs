@@ -530,6 +530,84 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
 }
 
 /// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
+/// Why a host cannot cover an application's job kind (domain/engine/fleet.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobShort {
+    Kind,
+    Spec,
+    Result,
+    Deadline,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct JobShortfall {
+    pub why: JobShort,
+    /// None for Kind; a deadline is in milliseconds.
+    pub figures: Option<crate::Figures>,
+}
+
+/// `declared`: a host's hello's kinds; `job`: the application's declaration of the job's kind.
+#[must_use]
+pub fn job_short(declared: &[jig_domain_link::JobBound], job: jig_domain_link::JobBound) -> Option<JobShortfall> {
+    for bound in declared {
+        if bound.kind != job.kind {
+            continue;
+        }
+        let (why, required, offered) = if bound.spec < job.spec {
+            (JobShort::Spec, u64::from(job.spec), u64::from(bound.spec))
+        } else if bound.result < job.result {
+            (JobShort::Result, u64::from(job.result), u64::from(bound.result))
+        } else if bound.deadline < job.deadline {
+            (JobShort::Deadline, job.deadline.as_millis(), bound.deadline.as_millis())
+        } else {
+            return None;
+        };
+        return Some(JobShortfall { why, figures: Some(crate::Figures { required, offered }) });
+    }
+    Some(JobShortfall { why: JobShort::Kind, figures: None })
+}
+
+/// Every host taking work falls short of this job (domain/engine/fleet.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct JobRefusal {
+    pub worker: Option<u32>,
+    /// None when the task's assignment is untranslated on this channel.
+    pub short: Option<JobShortfall>,
+}
+
+fn takes_jobs(domain: &Domain, channel: &Channel) -> bool {
+    let admitted = match channel.kind {
+        HostKind::Worker => true,
+        HostKind::Engine => match domain.engine_hello {
+            crate::domain::EngineHello::Admitted => true,
+            crate::domain::EngineHello::Expected | crate::domain::EngineHello::Heard => false,
+        },
+    };
+    admitted && !(channel.draining || channel.shutting_down || channel.paused() || channel.mismatched)
+}
+
+pub(crate) fn job_refusal(domain: &Domain, run: Token, job: jig_domain_link::JobBound) -> Option<JobRefusal> {
+    let mut first = None;
+    let mut earliest = u64::MAX;
+    for (_, &id) in &domain.tokens {
+        let channel = domain.channels.get(id).expect("connected channel");
+        if !takes_jobs(domain, channel) {
+            continue;
+        }
+        let short =
+            if channel.untranslated.as_slice().contains(&run) { None } else { Some(job_short(&channel.jobs, job)?) };
+        let (order, worker) = match channel.worker {
+            Some(position) => (u64::from(position), Some(position.checked_add(1).expect("worker setting number"))),
+            None => (u64::MAX, None),
+        };
+        if first.is_none() || order < earliest {
+            first = Some(JobRefusal { worker, short });
+            earliest = order;
+        }
+    }
+    first
+}
+
 pub(crate) fn choose_job(
     domain: &Domain,
     run: Token,
@@ -541,22 +619,10 @@ pub(crate) fn choose_job(
         let channel = domain.channels.get(id).expect("connected channel");
         let free = channel.slots.saturating_sub(channel.hosts.len());
         if free == 0
-            || channel.draining
-            || channel.shutting_down
-            || channel.paused()
-            || channel.mismatched
+            || !takes_jobs(domain, channel)
             || channel.untranslated.as_slice().contains(&run)
+            || job_short(&channel.jobs, job).is_some()
         {
-            continue;
-        }
-        let mut covers = false;
-        for bound in &channel.jobs {
-            covers |= bound.kind == job.kind
-                && bound.spec >= job.spec
-                && bound.result >= job.result
-                && bound.deadline >= job.deadline;
-        }
-        if !covers {
             continue;
         }
         if channel.kind == HostKind::Worker && holds(channel, workstream).is_some() {

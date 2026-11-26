@@ -1,5 +1,5 @@
 //! Exact member messages and their recognition (temper/docs/design/protocol/tooling.md, 4).
-use temper_engine_domain_forge::member_message::{Member, commit_message, names_head};
+use temper_engine_domain_forge::member_message::{Kind, Member, commit_message, names_head};
 
 const HEAD: &str = "1111111111111111111111111111111111111111";
 const TITLE: &[u8] = b"Add the squash trailers";
@@ -60,13 +60,18 @@ fn member_messages_have_the_exact_title_paragraph_and_trailers() {
         ("invalid UTF-8", b"Valid.\xff Ignored.".to_vec(), None, false, "Valid.".to_owned()),
     ];
     for (name, words, goal, main, description) in cases {
-        let member = Member { title: TITLE, words: &words, change: 12, pull: 7, head: head(), goal };
+        let member =
+            Member { title: TITLE, words: &words, change: 12, pull: 7, head: head(), goal, head_trailers: &[] };
         let paragraph = if description.is_empty() { String::new() } else { format!("\n\n{description}") };
         let text = format!("Add the squash trailers{paragraph}\n\nChange: 12\nPull-request: 7\nHead: {HEAD}");
         let squash = if goal.is_some() { format!("{text}\nGoal: 3") } else { text.clone() };
         let message = if main && goal.is_some() { squash.clone() } else { text };
-        assert_eq!(commit_message(&member, true).as_ref(), squash.as_bytes(), "{name}: squash");
-        assert_eq!(commit_message(&member, main).as_ref(), message.as_bytes(), "{name}: message");
+        assert_eq!(commit_message(&member, Kind::Squash).as_ref(), squash.as_bytes(), "{name}: squash");
+        assert_eq!(
+            commit_message(&member, Kind::Merge { into_main: main }).as_ref(),
+            message.as_bytes(),
+            "{name}: message"
+        );
     }
 }
 
@@ -88,8 +93,8 @@ fn only_the_exact_head_line_in_the_last_paragraph_names_a_head() {
         assert_eq!(names_head(message.as_bytes(), head()), expected, "{message:?}");
     }
     let sha256 = [0x22; 32];
-    let member = Member { title: TITLE, words: b"", change: 12, pull: 7, head: sha256, goal: None };
-    let message = commit_message(&member, true);
+    let member = Member { title: TITLE, words: b"", change: 12, pull: 7, head: sha256, goal: None, head_trailers: &[] };
+    let message = commit_message(&member, Kind::Squash);
     assert_eq!(
         message.as_ref(),
         format!("Add the squash trailers\n\nChange: 12\nPull-request: 7\nHead: {}", "22".repeat(32)).as_bytes()

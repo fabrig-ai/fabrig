@@ -1,5 +1,8 @@
 //! Openings are read only for rehearsal and erased by Wires (protocol/store/records.md 3).
-use crate::{CommitCheck, KeptOpening, Store, keys, pages, rows};
+use crate::{
+    CommitCheck, KeptOpening, Store, keys, pages,
+    rows::{self, openings::Earlier},
+};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -46,14 +49,16 @@ pub(crate) fn kept(store: &mut Store) -> Option<Box<[KeptOpening]>> {
         let page = pages::load(store, range(start)).ok()?;
         for row in page.rows {
             let keys::Own::Opening(worker) = keys::decode_own(&row.key)? else { return None };
-            let opening = if rows::openings::before_layouts(&row.value) {
-                KeptOpening::BeforeLayouts { worker }
-            } else {
-                let opening = rows::openings::decode(&row.value)?;
-                if opening.worker != worker {
-                    return None;
+            let opening = match rows::openings::earlier(&row.value) {
+                Some(Earlier::BeforeLayouts) => KeptOpening::BeforeLayouts { worker },
+                Some(Earlier::BeforeJobs) => KeptOpening::BeforeJobs { worker },
+                None => {
+                    let opening = rows::openings::decode(&row.value)?;
+                    if opening.worker != worker {
+                        return None;
+                    }
+                    KeptOpening::Current(opening)
                 }
-                KeptOpening::Current(opening)
             };
             // The escaped name suffix preserves the workers' names' order.
             openings.push(opening).ok()?;

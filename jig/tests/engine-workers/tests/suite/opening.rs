@@ -84,6 +84,7 @@ mod opening {
                     .map(|rule| Term { kind: rule.kind, largest: rule.largest })
                     .collect(),
             ),
+            jobs: skein_lib::List::with_capacity(0),
         }
     }
 
@@ -108,13 +109,17 @@ mod opening {
         world.run();
         assert!(world.ready(connection));
         assert_eq!(world.refusal(connection), None);
+        assert!(world.openings().is_empty(), "terms alone do not make a statement");
+        assert!(world.root().is_empty(), "the domain has heard no hello");
+        world.play(connection, fixtures::hello_frame());
+        world.run();
         let [Request::Opened { worker: 0, statement, converted }] = world.openings() else {
             panic!("one statement: {:?}", world.openings())
         };
         assert_eq!(statement, &expected);
         assert_eq!(converted.iter().map(AsRef::as_ref).collect::<Vec<&str>>(), names);
         assert_eq!(saved_judgement(&expected).expect("same judgement"), *converted);
-        assert!(world.root().is_empty(), "the domain has heard no hello");
+        assert!(matches!(world.root(), [Request::Hello { worker: 0, .. }]));
     }
 
     #[test]

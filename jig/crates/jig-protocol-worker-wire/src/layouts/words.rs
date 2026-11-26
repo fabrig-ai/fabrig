@@ -1,4 +1,5 @@
 //! Opening refusals (jig/docs/design/protocol/channel/wires.md, 3).
+use super::Cause;
 use alloc::boxed::Box;
 use skein_codec::layout::{Mode, Why};
 use skein_lib::{Writer, bytes};
@@ -38,6 +39,18 @@ pub(super) fn hex(layout: &[u8; 32]) -> Box<[u8]> {
         out.put(&[bytes::hex_digit(byte >> 4), bytes::hex_digit(byte & 15)]).expect("eight hex pairs");
     }
     out.finish()
+}
+
+pub(super) fn kept(wire: &str, declaration: &str, part: &str, cause: Cause) -> Box<[u8]> {
+    value(b"the worker's layout cannot keep ", wire, declaration, part, cause)
+}
+
+pub(super) fn value(prefix: &[u8], wire: &str, declaration: &str, part: &str, cause: Cause) -> Box<[u8]> {
+    let dot = if part.is_empty() { b"".as_slice() } else { b"." };
+    join(
+        &[prefix, wire.as_bytes(), b" ", declaration.as_bytes(), dot, part.as_bytes(), b": ", cause.words()],
+        usize::MAX,
+    )
 }
 
 pub(super) fn join(parts: &[&[u8]], cap: usize) -> Box<[u8]> {

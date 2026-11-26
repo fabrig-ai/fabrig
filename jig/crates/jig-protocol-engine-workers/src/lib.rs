@@ -18,8 +18,9 @@ mod translate;
 mod unencoded;
 pub use boundary::{Bound, Event, GrantValue, Loss, Request, Scheme, Unsent, Worker};
 pub use component::{Component, PreparedWires, Unusable};
+pub use jig_protocol_worker_wire::layouts::{Gap, Site};
 pub use limits::{Limits, Timers, valid};
-pub use statement::{Stated, Statement, Unfit, judge};
+pub use statement::{Stated, Statement, Unfit, gaps, judge};
 pub use unencoded::Unencoded;
 #[cfg(test)]
 mod tests;

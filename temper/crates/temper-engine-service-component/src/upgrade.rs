@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use jig_protocol_store::{Event, Request};
 use skein_lib::{Duration, List, Queue, Time, Token};
 
-/// What the configured engine would require at an opening (protocol/wires.md, 10.2).
+/// What the configured engine requires of workers that may stay (temper/docs/design/protocol/wires.md, 10.2).
 #[derive(Debug)]
 pub struct Workers {
     pub defaults: List<jig_protocol_store::KeptWorker>,
@@ -12,6 +12,7 @@ pub struct Workers {
     pub limits: jig_protocol_worker_wire::v22::Limits,
     pub spoken: List<jig_protocol_worker_wire::Spoken>,
     pub roots: List<jig_protocol_worker_wire::Root>,
+    pub jobs: Box<[jig_domain_link::JobBound]>,
 }
 
 /// The store's ordered progress and terminal, retained through stopped-tool teardown.

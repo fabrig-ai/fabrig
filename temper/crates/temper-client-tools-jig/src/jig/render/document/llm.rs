@@ -374,6 +374,31 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
             figures(amounts, out);
             out.object_end();
         }
+        c::TaskWaitRefused::Job { worker, kind, why, figures: amounts } => {
+            out.key(b"job");
+            out.object_start();
+            out.key(b"worker");
+            number(worker, out);
+            out.key(b"kind");
+            out.unsigned(u64::from(kind));
+            out.key(b"why");
+            match why {
+                c::JobWhy::Untranslated => out.string(b"untranslated"),
+                c::JobWhy::Short(short) => {
+                    out.object_start();
+                    out.key(b"short");
+                    out.string(match short {
+                        c::JobShort::Kind => b"kind",
+                        c::JobShort::Spec => b"spec",
+                        c::JobShort::Result => b"result",
+                        c::JobShort::Deadline => b"deadline",
+                    });
+                    out.object_end();
+                }
+            }
+            figures(amounts, out);
+            out.object_end();
+        }
         c::TaskWaitRefused::Hello { kind, at, why, figures: amounts } => {
             out.key(b"hello");
             out.object_start();
@@ -480,6 +505,7 @@ fn refused_text(value: c::TaskWaitRefused, out: &mut Text) {
                 agent_shortfall_text(why, out);
             }
         }
+        c::TaskWaitRefused::Job { worker, kind, why, figures } => job_explanation(worker, kind, why, figures, out),
         c::TaskWaitRefused::Hello { kind, at, why, .. } => {
             out.put(host_kind(kind));
             out.put(b" refused at ");
@@ -557,6 +583,7 @@ fn agent_shortfall_text(value: c::AgentShortfall, out: &mut Text) {
 fn refused_explanation(value: c::TaskWaitRefused, out: &mut Text) {
     match value {
         c::TaskWaitRefused::Bounds { kind, why, figures } => bound_explanation(kind, why, figures, None, out),
+        c::TaskWaitRefused::Job { worker, kind, why, figures } => job_explanation(worker, kind, why, figures, out),
         c::TaskWaitRefused::Hello { kind, at, why, figures } => match why {
             c::HelloRefusal::Agent { why } if figures.is_some() => {
                 bound_explanation(kind, Some(why), figures, Some(at), out);
@@ -573,6 +600,50 @@ fn refused_explanation(value: c::TaskWaitRefused, out: &mut Text) {
         },
     }
 }
+fn job_explanation(worker: Option<u32>, kind: u32, why: c::JobWhy, figures: Option<c::Figures>, out: &mut Text) {
+    use c::JobShort as S;
+    match worker {
+        Some(worker) => {
+            out.put(b"worker ");
+            out.number(u64::from(worker));
+        }
+        None => out.put(b"the engine"),
+    }
+    let kind = u64::from(kind);
+    match why {
+        c::JobWhy::Untranslated => out.put(b"'s layouts cannot keep this job"),
+        c::JobWhy::Short(S::Kind) => {
+            out.put(b" runs no job of kind ");
+            out.number(kind);
+        }
+        c::JobWhy::Short(short @ (S::Spec | S::Result | S::Deadline)) => {
+            let Some(figures) = figures else {
+                out.put(b" cannot take job kind ");
+                out.number(kind);
+                return;
+            };
+            out.put(b" takes job kind ");
+            out.number(kind);
+            out.put(match short {
+                S::Spec => b"'s spec up to ",
+                S::Result => b"'s result up to ",
+                S::Deadline => b" for up to ",
+                S::Kind => unreachable!("kind has no figures"),
+            });
+            out.number(figures.offered);
+            out.put(if short == S::Deadline {
+                b" ms; this job's kind needs "
+            } else {
+                b" bytes; this job's kind needs "
+            });
+            out.number(figures.required);
+            if short == S::Deadline {
+                out.put(b" ms");
+            }
+        }
+    }
+}
+
 fn bound_explanation(
     kind: c::HostKind,
     why: Option<c::AgentShortfall>,

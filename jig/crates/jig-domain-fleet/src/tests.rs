@@ -627,11 +627,18 @@ fn a_draining_worker_takes_nothing_even_once_it_frees_a_slot() {
     h.step(Event::StartJob { reply_to: to(A3), run: R3, attempt: A3, workstream: 3, job, adopt: false });
     h.answer(C1, R1, A1, Answer::Ended, 1);
     h.acknowledge(R1, A1);
-    assert!(h.settle().is_empty(), "neither a run nor a job uses the freed draining slots");
+    assert_eq!(&*h.settle(), &[Request::Refused { to: to(A3), run: R3, attempt: A3, refusal: Refusal::Recheck }]);
     worker(&mut h, C2, job);
+    let retry = Token::new(4);
+    h.step(Event::StartJob { reply_to: to(retry), run: R3, attempt: retry, workstream: 3, job, adopt: false });
     assert_eq!(
         &*h.settle(),
-        &[assign(C2, R2, A2), placed(R2, A2), Request::AssignJob { channel: C2, run: R3, attempt: A3 }, placed(R3, A3)]
+        &[
+            assign(C2, R2, A2),
+            placed(R2, A2),
+            Request::AssignJob { channel: C2, run: R3, attempt: retry },
+            placed(R3, retry)
+        ]
     );
 }
 
@@ -1687,13 +1694,25 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
         job,
         adopt: false,
     });
-    assert!(h.settle().is_empty());
+    assert_eq!(
+        &*h.settle(),
+        &[Request::Refused { to: to(job_attempt), run: job_run, attempt: job_attempt, refusal: Refusal::Recheck }]
+    );
     // A hosted run still answers, and freeing it cannot clear the mismatch mark.
     assert_eq!(&*h.answer(C1, R2, A2, Answer::Ended, 2), &[answered(C1, A2, R2, Answer::Ended, 2)]);
     h.acknowledge(R2, A2);
     assert!(h.settle().is_empty());
     h.step(Event::Lost { channel: C1 });
     h.step(Event::Hello { worker: 37, channel: C2, hello: hello() });
+    let job_attempt = Token::new(5);
+    h.step(Event::StartJob {
+        reply_to: to(job_attempt),
+        run: job_run,
+        attempt: job_attempt,
+        workstream: 4,
+        job,
+        adopt: false,
+    });
     assert_eq!(
         &*h.settle(),
         &[
@@ -1760,20 +1779,39 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
         );
         assert!(h.acknowledge(R1, A1).is_empty(), "local refusal never needs acknowledgement");
         h.step(start(A2));
-        assert!(h.settle().is_empty(), "the task waits without another channel");
+        let waiting = h.settle();
+        if job {
+            assert_eq!(&*waiting, &[Request::Refused { to: to(A2), run: R1, attempt: A2, refusal: Refusal::Recheck }]);
+        } else {
+            assert!(waiting.is_empty(), "the run waits without another channel");
+        }
         assert_eq!(h.place(R2, A3, 2), C1, "other runs still use this channel");
         h.step(Event::Hello { worker: 2, channel: C2, hello: hello() });
+        let retry = if job { Token::new(98) } else { A2 };
+        if job {
+            h.step(start(retry));
+        }
         let placed_other = h.settle();
-        let other = if job { Request::AssignJob { channel: C2, run: R1, attempt: A2 } } else { assign(C2, R1, A2) };
-        assert_eq!(&*placed_other, &[other, placed(R1, A2)]);
-        h.answer(C2, R1, A2, Answer::Untranslated, 2);
-        h.acknowledge(R1, A2);
-        h.step(start(Token::new(99)));
-        assert!(h.settle().is_empty());
+        let other =
+            if job { Request::AssignJob { channel: C2, run: R1, attempt: retry } } else { assign(C2, R1, retry) };
+        assert_eq!(&*placed_other, &[other, placed(R1, retry)]);
+        h.answer(C2, R1, retry, Answer::Untranslated, 2);
+        h.acknowledge(R1, retry);
+        let attempt = Token::new(99);
+        h.step(start(attempt));
+        let waiting = h.settle();
+        if job {
+            assert_eq!(&*waiting, &[Request::Refused { to: to(attempt), run: R1, attempt, refusal: Refusal::Recheck }]);
+        } else {
+            assert!(waiting.is_empty());
+        }
         h.step(Event::Lost { channel: C1 });
         h.step(Event::Hello { worker: 1, channel: C3, hello: hello() });
+        let attempt = if job { Token::new(100) } else { attempt };
+        if job {
+            h.step(start(attempt));
+        }
         let placed_fresh = h.settle();
-        let attempt = Token::new(99);
         let fresh = if job { Request::AssignJob { channel: C3, run: R1, attempt } } else { assign(C3, R1, attempt) };
         assert_eq!(&*placed_fresh, &[fresh, placed(R1, attempt)]);
     }
@@ -1841,17 +1879,26 @@ fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
     assert_eq!(h.place(R1, A1, 1), C1);
     h.start(R2, A2, 2);
     h.step(Event::StartJob { reply_to: to(A3), run: R3, attempt: A3, workstream: 3, job, adopt: false });
-    assert!(h.settle().is_empty(), "both attempts wait for the single slot");
     h.answer(C1, R1, A1, Answer::Ended, 1);
     h.acknowledge(R1, A1);
     assert!(h.domain.ready_to_resume(true));
     assert!(!h.domain.ready_to_resume(false), "a held placement cannot spin the root");
     resume(&mut h.domain, &h.env, false, &mut h.out);
     assert!(h.drain().is_empty(), "no Assign, AssignJob or Placed while settling");
-    assert_eq!(&*h.settle(), &[assign(C1, R2, A2), placed(R2, A2)], "the waiting run was retained");
+    assert_eq!(
+        &*h.settle(),
+        &[
+            assign(C1, R2, A2),
+            placed(R2, A2),
+            Request::Refused { to: to(A3), run: R3, attempt: A3, refusal: Refusal::Recheck },
+        ],
+        "the run takes the slot; the job no longer has a place"
+    );
     h.answer(C1, R2, A2, Answer::Ended, 1);
     h.acknowledge(R2, A2);
-    assert_eq!(&*h.settle(), &[Request::AssignJob { channel: C1, run: R3, attempt: A3 }, placed(R3, A3)]);
+    let retry = Token::new(4);
+    h.step(Event::StartJob { reply_to: to(retry), run: R3, attempt: retry, workstream: 3, job, adopt: false });
+    assert_eq!(&*h.settle(), &[Request::AssignJob { channel: C1, run: R3, attempt: retry }, placed(R3, retry)]);
 }
 
 #[test]

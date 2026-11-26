@@ -4792,7 +4792,7 @@ pub(crate) fn outputs(
                 };
                 domain.forge.decide_landing(&super::environment_forge(env), task, due, out);
             }
-            forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {
+            forge::Request::LandingDecision { task, decision: choice, entry, evidence, head_trailers } => {
                 if let Some(entry) = entry {
                     let (_, _, step) =
                         domain.core.tasks.procedure_due(task).expect("landing decision admitted before commit");
@@ -4815,7 +4815,7 @@ pub(crate) fn outputs(
                         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
                     }
                 } else {
-                    landing_decision(domain, env, task, choice);
+                    landing_decision(domain, env, task, choice, &head_trailers);
                 }
             }
             forge::Request::Reviewed { task, evidence } => {

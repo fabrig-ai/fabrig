@@ -279,9 +279,10 @@ impl Core {
         }
         match self.tasks.task(context.task).expect("a due task is live").executor {
             tasks::Executor::Agent { .. } => self.agent_ready(context.task),
-            tasks::Executor::Job { .. } => {
+            tasks::Executor::Job { kind } => {
                 match crate::routing::run::jobs::admission(self, context, self.run_wall, Box::new([])) {
-                    Ok(()) | Err(crate::RunAdmission::Hold(_)) => true,
+                    Ok(()) => self.job_available(context.task, kind),
+                    Err(crate::RunAdmission::Hold(_)) => true,
                     Err(crate::RunAdmission::Wait(_)) => false,
                     Err(crate::RunAdmission::Allow(_)) => unreachable!("job admission has no run allowance"),
                 }
@@ -341,7 +342,7 @@ impl Core {
         l.phase_since < r.phase_since || (l.phase_since == r.phase_since && left < right)
     }
 
-    /// Whether a due procedure or agent with a usable account can start.
+    /// Whether a due task can start or proceed to a hold.
     #[must_use]
     pub fn due_ready(&self) -> bool {
         if self.settling {
