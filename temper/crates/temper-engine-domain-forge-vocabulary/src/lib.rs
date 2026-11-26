@@ -78,6 +78,8 @@ pub mod verification;
 pub mod views;
 pub mod workflows;
 pub mod workspace;
+pub mod writes;
+pub use writes::{Actor, Full, Seen, Sender, WRITES, WriteState, Writes, Written};
 
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 pub use approvals::{ApprovalWait, ShortApproval};
@@ -367,6 +369,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Names { task, .. } => Key::Names(*task),
         Stored::Subscription(row) => Key::Subscription { task: row.task, topic: row.topic.clone() },
         Stored::BranchHead(row) => Key::BranchHead(row.name.clone()),
+        Stored::Writes(row) => Key::Writes(row.name.clone()),
         Stored::PullState(row) => Key::PullState(row.name.clone()),
         Stored::Ci(row) => Key::Ci { repository: row.repository, head: row.head },
         Stored::Landed { commit, .. } => Key::Landed(*commit),
@@ -832,6 +835,29 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Device(row) => bytes(&row.endpoint).checked_add(bytes(&row.label)),
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
+        Stored::Writes(row) => {
+            use writes::Operation as Op;
+            let mut held = name(&row.name)?.checked_add(
+                skein_lib::len_u64(row.entries.len()).checked_mul(u64::try_from(size_of::<Written>()).ok()?)?,
+            )?;
+            for entry in &row.entries {
+                held = match &entry.operation {
+                    Op::Open { base, .. } => held.checked_add(bytes(base))?,
+                    Op::Retarget { from, to, .. } => held.checked_add(bytes(from))?.checked_add(bytes(to))?,
+                    Op::Push { .. }
+                    | Op::Create { .. }
+                    | Op::Delete { .. }
+                    | Op::Update { .. }
+                    | Op::MergedInto { .. }
+                    | Op::Merge { .. }
+                    | Op::Close { .. }
+                    | Op::Reopen { .. }
+                    | Op::Writer { .. }
+                    | Op::Compare { .. } => held,
+                };
+            }
+            Some(held)
+        }
         Stored::PullState(row) => name(&row.name),
         Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
         Stored::HistoryChange(_)

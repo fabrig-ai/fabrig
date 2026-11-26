@@ -10763,3 +10763,360 @@ pub fn verdict_filing_to_domain(record: crate::v25::VerdictFiling) -> Result<tem
     })
 }
 
+#[must_use]
+pub fn written_operation_to_record(value: &temper_engine_domain_forge_vocabulary::writes::Operation) -> crate::v25::WrittenOperation {
+    match value {
+        temper_engine_domain_forge_vocabulary::writes::Operation::Push { before: field_000000, after: field_000001 } => crate::v25::WrittenOperation::Push(crate::v25::WrittenPush {
+            before: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            after: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Create { after: field_000000 } => crate::v25::WrittenOperation::Create(crate::v25::WrittenCreate {
+            after: *field_000000
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Delete { before: field_000000 } => crate::v25::WrittenOperation::Delete(crate::v25::WrittenDelete {
+            before: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Update { pull: field_000000, before: field_000001, base: field_000002, after: field_000003 } => crate::v25::WrittenOperation::Update(crate::v25::WrittenUpdate {
+            pull: *field_000000,
+            before: *field_000001,
+            base: *field_000002,
+            after: match field_000003 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::MergedInto { pull: field_000000, before: field_000001, after: field_000002 } => crate::v25::WrittenOperation::MergedInto(crate::v25::WrittenMergedInto {
+            pull: *field_000000,
+            before: match field_000001 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            after: match field_000002 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Merge { pull: field_000000, head: field_000001 } => crate::v25::WrittenOperation::Merge(crate::v25::WrittenMerge {
+            pull: *field_000000,
+            head: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Open { pull: field_000000, base: field_000001, head: field_000002 } => crate::v25::WrittenOperation::Open(crate::v25::WrittenOpen {
+            pull: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            base: field_000001.clone(),
+            head: *field_000002
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Close { pull: field_000000 } => crate::v25::WrittenOperation::Close(crate::v25::WrittenPull {
+            pull: *field_000000
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Reopen { pull: field_000000 } => crate::v25::WrittenOperation::Reopen(crate::v25::WrittenPull {
+            pull: *field_000000
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Retarget { pull: field_000000, from: field_000001, to: field_000002 } => crate::v25::WrittenOperation::Retarget(crate::v25::WrittenRetarget {
+            pull: *field_000000,
+            from: field_000001.clone(),
+            to: field_000002.clone()
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Writer { before: field_000000 } => crate::v25::WrittenOperation::Writer(crate::v25::WrittenDelete {
+            before: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Operation::Compare { after: field_000000 } => crate::v25::WrittenOperation::Compare(crate::v25::WrittenCompare {
+            after: *field_000000
+        }),
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+#[must_use]
+pub fn written_operation_to_domain(record: crate::v25::WrittenOperation) -> temper_engine_domain_forge_vocabulary::writes::Operation {
+    match record {
+        crate::v25::WrittenOperation::Push(held) => {
+            let crate::v25::WrittenPush { before: field_000000, after: field_000001 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Push {
+                before: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                after: field_000001
+            }
+        },
+        crate::v25::WrittenOperation::Create(held) => {
+            let crate::v25::WrittenCreate { after: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Create {
+                after: field_000000
+            }
+        },
+        crate::v25::WrittenOperation::Delete(held) => {
+            let crate::v25::WrittenDelete { before: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Delete {
+                before: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        crate::v25::WrittenOperation::Update(held) => {
+            let crate::v25::WrittenUpdate { pull: field_000000, before: field_000001, base: field_000002, after: field_000003 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Update {
+                pull: field_000000,
+                before: field_000001,
+                base: field_000002,
+                after: match field_000003 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        crate::v25::WrittenOperation::MergedInto(held) => {
+            let crate::v25::WrittenMergedInto { pull: field_000000, before: field_000001, after: field_000002 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::MergedInto {
+                pull: field_000000,
+                before: match field_000001 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                after: match field_000002 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        crate::v25::WrittenOperation::Merge(held) => {
+            let crate::v25::WrittenMerge { pull: field_000000, head: field_000001 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Merge {
+                pull: field_000000,
+                head: field_000001
+            }
+        },
+        crate::v25::WrittenOperation::Open(held) => {
+            let crate::v25::WrittenOpen { pull: field_000000, base: field_000001, head: field_000002 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Open {
+                pull: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                base: field_000001,
+                head: field_000002
+            }
+        },
+        crate::v25::WrittenOperation::Close(held) => {
+            let crate::v25::WrittenPull { pull: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Close {
+                pull: field_000000
+            }
+        },
+        crate::v25::WrittenOperation::Reopen(held) => {
+            let crate::v25::WrittenPull { pull: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Reopen {
+                pull: field_000000
+            }
+        },
+        crate::v25::WrittenOperation::Retarget(held) => {
+            let crate::v25::WrittenRetarget { pull: field_000000, from: field_000001, to: field_000002 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Retarget {
+                pull: field_000000,
+                from: field_000001,
+                to: field_000002
+            }
+        },
+        crate::v25::WrittenOperation::Writer(held) => {
+            let crate::v25::WrittenDelete { before: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Writer {
+                before: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        crate::v25::WrittenOperation::Compare(held) => {
+            let crate::v25::WrittenCompare { after: field_000000 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Operation::Compare {
+                after: field_000000
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn write_sender_to_record(value: &temper_engine_domain_forge_vocabulary::writes::Sender) -> crate::v25::WriteSender {
+    match value {
+        temper_engine_domain_forge_vocabulary::writes::Sender::Attempt { task: field_000000, attempt: field_000001 } => crate::v25::WriteSender::Attempt(crate::v25::WriteAttempt {
+            task: *field_000000,
+            attempt: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Sender::Entry { task: field_000000, entry: field_000001 } => crate::v25::WriteSender::Entry(crate::v25::WriteEntry {
+            task: *field_000000,
+            entry: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::writes::Sender::Previous => crate::v25::WriteSender::Previous,
+    }
+}
+
+#[must_use]
+pub fn write_sender_to_domain(record: crate::v25::WriteSender) -> temper_engine_domain_forge_vocabulary::writes::Sender {
+    match record {
+        crate::v25::WriteSender::Attempt(held) => {
+            let crate::v25::WriteAttempt { task: field_000000, attempt: field_000001 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Sender::Attempt {
+                task: field_000000,
+                attempt: field_000001
+            }
+        },
+        crate::v25::WriteSender::Entry(held) => {
+            let crate::v25::WriteEntry { task: field_000000, entry: field_000001 } = held;
+            temper_engine_domain_forge_vocabulary::writes::Sender::Entry {
+                task: field_000000,
+                entry: field_000001
+            }
+        },
+        crate::v25::WriteSender::Previous => temper_engine_domain_forge_vocabulary::writes::Sender::Previous,
+    }
+}
+
+#[must_use]
+pub fn write_state_to_record(value: &temper_engine_domain_forge_vocabulary::writes::WriteState) -> crate::v25::WriteState {
+    match value {
+        temper_engine_domain_forge_vocabulary::writes::WriteState::Admitted => crate::v25::WriteState::Admitted,
+        temper_engine_domain_forge_vocabulary::writes::WriteState::Sent => crate::v25::WriteState::Sent,
+        temper_engine_domain_forge_vocabulary::writes::WriteState::Confirmed => crate::v25::WriteState::Confirmed,
+        temper_engine_domain_forge_vocabulary::writes::WriteState::Refused => crate::v25::WriteState::Refused,
+        temper_engine_domain_forge_vocabulary::writes::WriteState::Uncertain => crate::v25::WriteState::Uncertain,
+    }
+}
+
+#[must_use]
+pub fn write_state_to_domain(record: crate::v25::WriteState) -> temper_engine_domain_forge_vocabulary::writes::WriteState {
+    match record {
+        crate::v25::WriteState::Admitted => temper_engine_domain_forge_vocabulary::writes::WriteState::Admitted,
+        crate::v25::WriteState::Sent => temper_engine_domain_forge_vocabulary::writes::WriteState::Sent,
+        crate::v25::WriteState::Confirmed => temper_engine_domain_forge_vocabulary::writes::WriteState::Confirmed,
+        crate::v25::WriteState::Refused => temper_engine_domain_forge_vocabulary::writes::WriteState::Refused,
+        crate::v25::WriteState::Uncertain => temper_engine_domain_forge_vocabulary::writes::WriteState::Uncertain,
+    }
+}
+
+#[must_use]
+pub fn written_to_record(value: &temper_engine_domain_forge_vocabulary::writes::Written) -> crate::v25::Written {
+    let temper_engine_domain_forge_vocabulary::writes::Written { order: field_000000, operation: field_000001, sender: field_000002, state: field_000003 } = value;
+    crate::v25::Written {
+        order: *field_000000,
+        operation: written_operation_to_record(field_000001),
+        sender: write_sender_to_record(field_000002),
+        state: write_state_to_record(field_000003)
+    }
+}
+
+#[must_use]
+pub fn written_to_domain(record: crate::v25::Written) -> temper_engine_domain_forge_vocabulary::writes::Written {
+    let crate::v25::Written { order: field_000000, operation: field_000001, sender: field_000002, state: field_000003 } = record;
+    temper_engine_domain_forge_vocabulary::writes::Written {
+        order: field_000000,
+        operation: written_operation_to_domain(field_000001),
+        sender: write_sender_to_domain(field_000002),
+        state: write_state_to_domain(field_000003)
+    }
+}
+
+pub fn writes_to_record(value: &temper_engine_domain_forge_vocabulary::writes::Writes) -> Result<crate::v25::Writes, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::writes::Writes { name: field_000000, head: field_000001, next: field_000002, entries: field_000003 } = value;
+    Ok(crate::v25::Writes {
+        name: name_to_record(field_000000),
+        head: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        next: *field_000002,
+        entries: {
+            let source = field_000003;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::WRITES_ENTRIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = written_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+pub fn writes_to_domain(record: crate::v25::Writes, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::writes::Writes, crate::v25::Problem> {
+    let crate::v25::Writes { name: field_000000, head: field_000001, next: field_000002, entries: field_000003 } = record;
+    Ok(temper_engine_domain_forge_vocabulary::writes::Writes {
+        name: name_to_domain(field_000000, context)?,
+        head: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        next: field_000002,
+        entries: {
+            let source = field_000003;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = written_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    })
+}
+

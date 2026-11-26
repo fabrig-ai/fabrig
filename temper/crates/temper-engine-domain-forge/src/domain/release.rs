@@ -467,6 +467,25 @@ fn observations(d: &mut Domain, repository: Repository, groups: &mut Queue<Box<[
             d.heads.insert(key, row).expect("retained heads");
         }
     }
+    let mut keys = core::mem::replace(&mut d.writes, Map::uncapped());
+    for _ in 0..keys.len() {
+        let key = keys.first().expect("counted write records").0.clone();
+        let row = keys.remove(&key).expect("counted write records");
+        let mut unsettled = false;
+        for entry in &row.entries {
+            unsettled |= entry.state.unsettled();
+        }
+        // Unsettled history outlives even adoption of this repository: a
+        // subsequent adoption still must not forget a write that may land.
+        if owns(&key, repository) && !unsettled {
+            for entry in &row.entries {
+                super::writes::readback::forget(d, &key, entry.order);
+            }
+            erase(groups, Key::Writes(key));
+        } else {
+            d.writes.insert(key, row).expect("uncapped write records");
+        }
+    }
     let capacity = d.pulls.capacity();
     let mut rows = core::mem::replace(&mut d.pulls, Map::with_capacity(capacity));
     for _ in 0..rows.len() {

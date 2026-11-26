@@ -67,6 +67,8 @@ pub(crate) mod tiers;
 mod unpushed;
 mod views;
 mod workflows;
+#[path = "tests/writes.rs"]
+mod write_records;
 mod writer_release;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};

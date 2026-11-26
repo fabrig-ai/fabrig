@@ -642,7 +642,8 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::LimitHold(_)
+        Stored::Writes(_)
+        | Stored::LimitHold(_)
         | Stored::HistoryEvent(_)
         | Stored::HistoryChange(_)
         | Stored::HistoryLanding(_)

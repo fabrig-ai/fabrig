@@ -64,6 +64,7 @@ mod status;
 mod tiers;
 mod topics;
 mod verification;
+mod writes;
 const FITS: &str = "admitted fields fit the schema";
 
 /// Encode every durable family admitted by the domain.
@@ -110,6 +111,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Names { task, resources } => w::Value::Names(topics::encode_names(*task, resources)),
         d::Stored::Subscription(value) => w::Value::Subscription(topics::encode_subscriber(value)),
         d::Stored::BranchHead(value) => w::Value::BranchHead(topics::encode_branch_head(value)),
+        d::Stored::Writes(value) => w::Value::Writes(writes::encode(value)),
         d::Stored::PullState(value) => w::Value::PullState(topics::encode_pull_state(value)),
         d::Stored::Ci(value) => w::Value::Ci(topics::encode_ci_state(value)),
         d::Stored::Landed { commit, task } => w::Value::Landed(topics::encode_landed(*commit, *task)),
@@ -215,6 +217,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         }
         w::Value::Subscription(value) => d::Stored::Subscription(topics::decode_subscriber(value)),
         w::Value::BranchHead(value) => d::Stored::BranchHead(topics::decode_branch_head(value, bounds)?),
+        w::Value::Writes(value) => d::Stored::Writes(writes::decode(value, bounds)?),
         w::Value::PullState(value) => d::Stored::PullState(topics::decode_pull_state(value, bounds)?),
         w::Value::Ci(value) => d::Stored::Ci(topics::decode_ci_state(value)),
         w::Value::Landed(value) => {
@@ -260,6 +263,10 @@ pub(crate) fn raw_row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::St
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
         adopted_refusals: forge.changes,
+        writes_entries: u32::try_from(d::writes::WRITES).ok()?,
+        written_open_base: forge.name_bytes,
+        written_retarget_from: forge.name_bytes,
+        written_retarget_to: forge.name_bytes,
         train_refusal_branch: forge.name_bytes,
         refused_by_jig_why: d::FORMING_REASON_BYTES,
         change_follows_commits: forge.follow_merge,

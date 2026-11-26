@@ -402,13 +402,6 @@ fn make(
         released(d, pending.task, out);
         return;
     }
-    if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Making(owner))) {
-        wait_for_room(d, env, owner, pending, out);
-        return;
-    }
-    let hold = d.holds.get_mut(&pending.name).expect("making's hold");
-    hold.writer = Some(Writer::Entry(number));
-    save_hold(out, hold.clone());
     let entry = Entry {
         number,
         task: pending.task,
@@ -419,7 +412,20 @@ fn make(
         failures: 0,
         queued: false,
     };
-    crate::room::leave(d, crate::room::Waiter::Making(owner));
+    let plan = super::writes::outbox::plan(d, &env.limits, &entry, None, super::writes::outbox::Pin::NONE)
+        .expect("the making's branch name has been admitted");
+    let waiter = crate::room::Waiter::Making(owner);
+    let blocked = plan.blocked(d);
+    if !crate::room::check(d, &env.limits, Some(waiter)) || blocked.is_some() {
+        wait_for_room(d, env, owner, pending, out);
+        crate::room::block_write(d, waiter, blocked);
+        return;
+    }
+    let hold = d.holds.get_mut(&pending.name).expect("making's hold");
+    hold.writer = Some(Writer::Entry(number));
+    save_hold(out, hold.clone());
+    crate::room::leave(d, waiter);
+    plan.admit(d, &entry, out);
     keep_entry(d, entry, Some(number), out);
 }
 

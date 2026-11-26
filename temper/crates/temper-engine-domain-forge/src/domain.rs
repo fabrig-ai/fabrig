@@ -54,6 +54,7 @@ mod room;
 pub use restore::{RestoreFit, RestoreSet, StartLink};
 #[path = "design.rs"]
 mod design;
+pub(crate) mod writes;
 #[path = "written.rs"]
 mod written;
 use design::{branch_written, design_claim_permitted, goal_run, pending_writer, read_designs, unpublished_branch};
@@ -292,6 +293,8 @@ pub struct Domain {
     pub(crate) goal_files: Map<u64, topics::Files>,
     pub(crate) goal_file_reads: Map<Token, topics::Pending>,
     pub(crate) heads: Map<Name, BranchHead>,
+    pub(crate) writes: Map<Name, crate::writes::Writes>,
+    write_reads: writes::readback::State,
     pub(crate) pulls: Map<Name, PullState>,
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
     pull_mergeable: Map<Name, bool>,
@@ -1078,6 +1081,8 @@ impl Domain {
             goal_files: Map::with_capacity(l.changes),
             goal_file_reads: Map::with_capacity(l.changes),
             heads: Map::with_capacity(l.client.resources),
+            writes: Map::uncapped(),
+            write_reads: writes::readback::State::new(),
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
             review_facts: Map::with_capacity(l.changes),
@@ -1311,6 +1316,9 @@ impl Domain {
             ] {
                 next = earlier_time(next, *at);
             }
+        }
+        if !self.stopping && fresh_reads_in(self) {
+            next = earlier_time(next, self.write_reads.deadline());
         }
         next
     }
@@ -2634,6 +2642,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
 /// Drive one child call after prior saves have committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     drive(d, env, out);
+    read_afresh_complete(d, env, out);
     catching_up::advance(d, env, out);
     catching_up::mark(d, out);
 }
@@ -2673,6 +2682,7 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         // to the line, too, before resuming the client's polls.
         return;
     }
+    writes::readback::drive(d, env, out);
     let child_env = child_env(env);
     skein_forge_client::resume(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
@@ -2764,6 +2774,7 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         d.landing.due.remove(task);
         emit(out, Request::WakeProcedure { task: *task });
     }
+    writes::readback::drive(d, env, out);
     let child_env = child_env(env);
     skein_forge_client::fire(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
@@ -2920,6 +2931,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     }
                     continue;
                 }
+                writes::outbox::outcome(d, task, entry, outcome, out);
                 if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
                     continue;
                 }
@@ -3019,6 +3031,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     if let Err(error) = result {
                         crate::closer::selection_unavailable(d, owner, error);
                     }
+                    continue;
+                }
+                if writes::readback::reading(d, owner) {
+                    writes::readback::answered(d, env, result, out);
                     continue;
                 }
                 if d.closing.selection_reads.contains_key(&owner) {
@@ -4143,13 +4159,19 @@ fn enqueue(
         emit(out, Request::Refused { task });
         return;
     }
-    if !reserved && !crate::room::check(d, &env.limits, None) {
+    let path = writes::outbox::change_branch(d, entry.task, entry.repository);
+    let Some(plan) = writes::outbox::plan(d, &env.limits, &entry, path, writes::outbox::Pin::NONE) else {
+        emit(out, Request::Refused { task });
+        return;
+    };
+    if (!reserved && !crate::room::check(d, &env.limits, None)) || plan.blocked(d).is_some() {
         let outcome = skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy);
         d.named_outcome(entry.number, outcome);
         emit(out, Request::Outcome { entry: entry.number, task, outcome, account: None });
         return;
     }
     let release = Some(entry.number);
+    plan.admit(d, &entry, out);
     admission::update_writer(d, env, &entry, true);
     keep_entry(d, entry, release, out);
 }
@@ -4173,6 +4195,7 @@ pub(crate) fn keep_entry(
                 .or(d.full.reserved_owner_ended(full::Reservation::Projection(entry.number))),
         ),
     };
+    writes::outbox::progress(d, &entry, out);
     if entry.attempt.is_some() {
         d.flights.insert((entry.task, entry.number), ()).expect("flights are bounded by entries");
         emit(
@@ -7288,7 +7311,9 @@ fn emit_change_effect(
         failures: 0,
         queued: false,
     };
-    if !skein_forge_client::valid_entry(&entry, &env.limits.client) {
+    let pin = writes::outbox::Pin { head: pending.branch, base: pending.base_tip };
+    let plan = writes::outbox::plan(d, &env.limits, &entry, Some(&row.branch), pin);
+    if !skein_forge_client::valid_entry(&entry, &env.limits.client) || plan.is_none() {
         leave_room_change(d, row.task, out);
         emit(
             out,
@@ -7300,13 +7325,18 @@ fn emit_change_effect(
             },
         );
         return;
-    } else if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Change(row.task))) {
+    }
+    let plan = plan.expect("valid write names");
+    let waiter = crate::room::Waiter::Change(row.task);
+    let blocked = plan.blocked(d);
+    if !crate::room::check(d, &env.limits, Some(waiter)) || blocked.is_some() {
         let mut waiting = d.changes.get(&row.task).expect("registered change").clone();
         // No decided policy state or history is kept by a room wait.
         if waiting.room.is_none() {
             waiting.room = Some(crate::room::next_place(d));
         }
-        crate::room::leave(d, crate::room::Waiter::Change(row.task));
+        crate::room::leave(d, waiter);
+        crate::room::block_write(d, waiter, blocked);
         d.change_due.remove(&row.task);
         read_session::pause(d, row.task);
         d.changes.insert(row.task, waiting.clone()).expect("registered change");
@@ -7369,6 +7399,7 @@ fn emit_change_effect(
         event.operation = crate::history::Operation::Of(pending.entry);
         crate::change_history::write(d, env.wall, row, event, out);
     }
+    plan.admit(d, &entry, out);
     keep_entry(d, entry, None, out);
     if let change::State::Taking { .. } = row.change.state {
         let until = skein_lib::Wall::from_nanos(
@@ -8217,6 +8248,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
                 d.repository(row.entry.repository),
                 skein_forge_client::Outcome::Withdrawn,
             );
+            writes::outbox::outcome(d, task, number, skein_forge_client::Outcome::Withdrawn, out);
             crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
             d.entries.remove(&number);
             emit(out, Request::Erase { key: Key::Entry(number) });
@@ -8762,12 +8794,20 @@ fn enqueue_release(
         refuse_release_write(d, row, words, out);
         return;
     }
+    let path = writes::outbox::change_branch(d, entry.task, entry.repository);
+    let Some(plan) = writes::outbox::plan(d, &env.limits, &entry, path, writes::outbox::Pin::NONE) else {
+        let words = release_failure::not_sent(d, repository, &entry.effect.write, b"its branch name is invalid");
+        refuse_release_write(d, row, words, out);
+        return;
+    };
     let waiter = crate::room::Waiter::Release(row.task);
-    if !crate::room::check(d, &env.limits, Some(waiter)) {
+    let blocked = plan.blocked(d);
+    if !crate::room::check(d, &env.limits, Some(waiter)) || blocked.is_some() {
         if row.room.is_none() {
             row.room = Some(crate::room::next_place(d));
         }
         crate::room::leave(d, waiter);
+        crate::room::block_write(d, waiter, blocked);
         d.releases.insert(row.task, row.clone()).expect("replaces release");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
         return;
@@ -8777,6 +8817,7 @@ fn enqueue_release(
     row.pending = Some((number, resource));
     d.releases.insert(row.task, row.clone()).expect("replaces release");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
+    plan.admit(d, &entry, out);
     keep_entry(d, entry, Some(number), out);
 }
 
@@ -10510,6 +10551,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::BranchHead(row) => {
             d.heads.insert(row.name.clone(), row).expect("restored branch head within limits");
         }
+        Stored::Writes(row) => {
+            d.writes.insert(row.name.clone(), row).expect("uncapped writes");
+        }
         Stored::PullState(row) => {
             d.pulls.insert(row.name.clone(), row).expect("restored pull within limits");
         }
@@ -10955,6 +10999,7 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         && !goal_branch::reading_afresh(d)
     {
         d.restart_fresh = None;
+        writes::readback::restart(d);
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });
         read_session::fresh(d, env);
     }

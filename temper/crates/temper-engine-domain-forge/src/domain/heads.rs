@@ -82,6 +82,7 @@ pub(crate) fn free(d: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>)
     }
     for name in names.into_boxed() {
         d.heads.remove(&name);
+        super::writes::remove(d, &name, out);
         super::emit(out, Request::Erase { key: Key::BranchHead(name) });
     }
 }

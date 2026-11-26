@@ -4375,3 +4375,43 @@ fn a_change_row_written_before_no_test_defaults_its_verdict_to_false() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
 }
+
+#[test]
+fn the_writes_family_keeps_a_branch_and_its_bounded_ordered_entries() {
+    use forge::writes::{Operation, Sender, WRITES, WriteState, Writes, Written};
+    let name = forge::Name {
+        forge: fixtures::REPO.forge,
+        repository: fixtures::REPO.repository,
+        what: forge::What::Branch(Box::new([b"goals".as_slice().into(), b"one".as_slice().into()])),
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let limit = u64::try_from(WRITES).unwrap();
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(WRITES).unwrap());
+    for order in 1..=limit {
+        entries
+            .push(Written {
+                order,
+                operation: Operation::Update { pull: 19, before: [1; 32], base: [2; 32], after: None },
+                sender: Sender::Entry { task: 4, entry: order },
+                state: WriteState::Uncertain,
+            })
+            .unwrap();
+    }
+    let mut row = Writes {
+        name: name.clone(),
+        entries: entries.into_boxed(),
+        head: Some([2; 32]),
+        next: limit.checked_add(1).unwrap(),
+    };
+    let key = forge::Key::Writes(name);
+    let key_bytes = crate::keys::encode(&key, u32::MAX).unwrap();
+    assert_eq!(key_bytes[0], crate::keys::WRITES);
+    assert_eq!(crate::keys::decode(&key_bytes, &fixtures::LIMITS), Some(key));
+    let stored = forge::Stored::Writes(row.clone());
+    let bytes = records::encode(&stored);
+    assert_eq!(records::row(&key_bytes, &bytes, &bounds), Ok(stored));
+    row.next = limit;
+    let bytes = records::encode(&forge::Stored::Writes(row));
+    assert_eq!(records::row(&key_bytes, &bytes, &bounds), Err(crate::Undecodable::Malformed));
+    assert_eq!(v25::CEILINGS.writes_entries, u32::try_from(WRITES).unwrap());
+}

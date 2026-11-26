@@ -55,6 +55,7 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (PERSON_BRIEF, "temper.person-briefs"),
         (MILESTONE, "temper.milestones"),
         (LIMIT_HOLD, "temper.limit-holds"),
+        (WRITES, "temper.writes"),
         (127, "temper.history-project"),
         (128, "temper.landing-history"),
         (129, "temper.history-change"),
@@ -118,6 +119,8 @@ pub const PERSON_BRIEF: u8 = 50;
 pub const MILESTONE: u8 = 49;
 /// A task held on a named limit (protocol/configuration/limit-settings.md, 6).
 pub const LIMIT_HOLD: u8 = 51;
+/// Temper's own writes on a branch (domain/forge/writes.md, 7).
+pub const WRITES: u8 = 52;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_EVENT: u8 = 128;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -317,6 +320,11 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
             writer.tag(5).u64(*task);
             write_topic(&mut writer, topic);
         }
+        forge::Key::Writes(name) => {
+            let forge::What::Branch(_) = &name.what else { return None };
+            writer.tag(WRITES);
+            write_name(&mut writer, name);
+        }
         forge::Key::BranchHead(name) => {
             writer.tag(6);
             write_name(&mut writer, name);
@@ -458,6 +466,11 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         4 => forge::Key::Names(reader.u64()?),
         5 => forge::Key::Subscription { task: reader.u64()?, topic: read_topic(&mut reader, limits)? },
         6 => forge::Key::BranchHead(read_name(&mut reader, limits)?),
+        WRITES => {
+            let name = read_name(&mut reader, limits)?;
+            let forge::What::Branch(_) = &name.what else { return None };
+            forge::Key::Writes(name)
+        }
         7 => forge::Key::PullState(read_name(&mut reader, limits)?),
         8 => forge::Key::Ci { repository: read_repository(&mut reader)?, head: read_commit(&mut reader)? },
         9 => forge::Key::Landed(read_commit(&mut reader)?),

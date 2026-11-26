@@ -319,6 +319,12 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                     keys: &[KeyRange { from: &[50], to: &[51] }],
                 },
                 ValueType {
+                    number: 52,
+                    root: "Row",
+                    variant: Some("writes"),
+                    keys: &[KeyRange { from: &[crate::keys::WRITES], to: &[53] }],
+                },
+                ValueType {
                     number: 41,
                     root: "Row",
                     variant: Some("history_project"),

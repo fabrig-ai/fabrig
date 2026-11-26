@@ -833,3 +833,19 @@ fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(crate::records::decode(now.as_slice(), &bounds), Ok(fixtures::change_hot(row)));
 }
+
+#[test]
+fn a_previous_branch_head_layout_does_not_invent_a_write_record() {
+    use skein_codec::{layout::Plan, schema};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replace(", writes: Writes }", " }");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    assert!(old.root(b"Row", Some(b"writes")).is_none());
+    let writes = family.types.iter().find(|ty| ty.number == u16::from(crate::keys::WRITES)).unwrap();
+    assert_eq!(writes.variant, Some("writes"));
+    let old_root = old.root(b"Row", Some(b"branch_head")).unwrap();
+    let new_root = new.root(b"Row", Some(b"branch_head")).unwrap();
+    Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
+}

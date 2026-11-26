@@ -2024,6 +2024,7 @@ pub enum Stored {
     HistoryChange(crate::history::ChangeIndex),
     HistoryLanding(crate::history::LandingIndex),
     HistoryLast(crate::history::Last),
+    Writes(crate::writes::Writes),
 }
 /// One durable limit hold; `room` is the operation's additional occupancy
 /// (temper/docs/design/protocol/configuration/limit-settings.md, 6).
@@ -2115,6 +2116,7 @@ pub enum Key {
     ChangeHot(u64),
     Milestone(u64),
     PersonBrief { party: u64, project: u32 },
+    Writes(Name),
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
