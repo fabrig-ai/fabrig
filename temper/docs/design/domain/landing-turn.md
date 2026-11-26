@@ -113,52 +113,85 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
   and delete its branches. A
   landing held for a person (`landing.md`, 4.2) holds its own train alone: other
   trains form, prove and turn beside it.
-- **Waiting changes** are ready (`landing.md`, section 3) under turn and in no
-  landing. Their order is `forge/queues.md`'s: the goal's priority, then
+- **Waiting changes** are those that may join a train, judged from
+  stored state alone (`../draft/landing-liveness.md`, 4.1): a change
+  ready (`landing.md`, section 3) under turn, in no live landing by the
+  index (`landing-members.md`, 2.1), with no ask in its queue
+  (`landing-members.md`, 3.2) and no dependency pending outside its unit;
+  and, as the guards that stood before, its task neither held nor
+  closing and with no live delegate, its repository's facts fresh
+  (`forge/catching-up.md`), the operator's landing hold not standing
+  (`landing-settings.md`, 1.3), and every change of its unit waiting
+  (`landing.md`, 4.1). Their order is `forge/queues.md`'s: the goal's priority, then
   the time each first became ready, which a change keeps while it stays
   live, with aging past the deployment's queue window, and the task's
   number last. Derived, not kept.
+- **Forming reads nothing else:** not whether jig holds a change's step
+  due, and no memory the engine keeps only while it runs, so a start
+  judges a train as the running engine did. A waiting change whose own
+  step is due joins as a quiet one does and never holds forming: its
+  readiness drops only with its head moving, and its landing reads each
+  member's head as it joins, a moved one leaving (`landing.md`, 4.3).
 - **Forming is level-triggered:** whenever a train is free and has a
-  waiting unit (`landing.md`, 4.1), every change of it waiting, a decision forms its
+  waiting unit (`landing.md`, 4.1), every change of it waiting, no change
+  into it settling in a cohort (below) and no refusal of it waiting
+  (`landing-forming.md`, 3), a decision forms its
   next landing: the waiting units in order, each whole, up to the
   project's `batch` changes for a train into a repository's main, and
   one unit for a train into any other branch (`landing-settings.md`, 1.1). The first unit is
   always taken, even past `batch`. The first unit that would pass it
   beside those before it ends the batch and waits, first in line. A refused unit (`landing.md`, 4.1) is held
-  and passed over. Forming is judged when a change becomes ready, when
-  a landing ends, when a change's priority moves, and at a restart, for
-  each train they touch.
-- **A due step leaves no change out:** a waiting change whose own step
-  is due (woken when a landing ends, or awaiting its step's forge read)
-  joins the forming judged while it is due, in its place in line, as a
-  quiet one does, and never holds it. Its readiness drops only with its
-  head moving, and its landing reads each member's head as it joins: a
-  moved one leaves (`landing.md`, 4.3).
-- **Changes made ready by one event** (a dependency they share ending,
-  one decision's gates) are waiting together: a change into the train
-  under turn, in no landing and not yet ready, whose due step will make
-  it ready, holds that train's forming while that step is due, so they
-  form one landing, never the first alone, and no timer or delay stands
-  in for that settling. Its step will make it ready when it is gating
-  at its head, each blocking gate passed there or its gate's result come
-  back for that step to take in, and no dependency of it pending
-  outside its unit (`landing.md`, 4.1).
-- **One step at most:** the hold lasts that one step. A change whose
-  step ends with it not ready holds no more while it stays gating at
-  that head, whatever wakes it again. The running engine remembers
-  that, unstored, so after a restart such a change may hold for one more
-  step. No other due step holds a train:
-  not a change still checking or producing, gating with a gate
-  outstanding, kept by a pending dependency, or already ready, whatever
-  step made it so.
+  and passed over. Forming is judged when the root's work drains, so a
+  change in the middle of its step is judged by what it has stored:
+  after a change becomes ready, a landing ends or an ended landing's row
+  yields its place (`landing-forming.md`, 2.3), a change's priority
+  moves, a cohort's candidate leaves it, a refused train's retry comes,
+  and at a restart, for each train they touch.
+- **A cohort** is the changes one decision releases into a train
+  (`../draft/landing-liveness.md`, 4.2), so that changes made ready
+  together form one landing, never the first alone:
+  - **Released:** a decision releases a change when it delivers the last
+    fact the change waits on to be ready, the end of its last dependency
+    pending outside its unit, or a blocking gate's result at its head
+    with every other blocking gate passed there, while the change is
+    gating at that head under turn, in no landing, its task live and
+    neither held nor closing. The decision stores on each change it
+    releases that it settles (`landing.md`, 12), as it takes the fact,
+    so that a step the same decision takes later clears it.
+  - **Left at its first decision:** a candidate leaves the cohort at its
+    first decision after the release, ready or not: the end of its step,
+    whatever it decides (ready, gating again at a new head, repairing,
+    waiting for a sign-off), its task held, closing or ended, a
+    dependency given to it, or its head moved. A later decision that
+    releases it again makes it settle again; a wake that delivers none
+    of those facts makes nothing settle.
+  - **The train waits for its own:** a free train doesn't form while a
+    change into it settles. Once none does, it forms with the ready
+    ones, in queue order and within its batch, as above. A candidate
+    into another train holds only its own.
+  - **Its wait:** the train's waiting changes wait behind the first
+    change settling into it (`forge/waits.md`, 4), whose next decision
+    wakes forming. It takes no figure of its own: it lasts no longer
+    than its candidates' first steps, each bounded where it waits
+    (`../draft/bounded-waits.md`, 4.1). It is stored, so a restart keeps
+    it and judges the train as the running engine would have.
+  - **Why stored:** that changes were made ready by one event is a fact
+    the releasing decision has as it commits. Judged at forming from
+    jig's due steps and a memory of steps spent, it was a guess about
+    scheduling, rewritten four times on 2026-11-19
+    (`../draft/landing-liveness.md`, 2). A cohort carries no number of
+    its own, though the draft's 4.2 stores one: the only thing that
+    groups candidates is their train, which each change already names.
 - **Each train on its own:** a change's step or wake holds only its own
   train's forming; other trains settle and form independently.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 1). Stale rounds are counted on the landing and
   reserve nothing.
-- **Bounded:** `landings` counts live landings, one per train; a train
-  with no room waits for one, as a change waits for a hold.
+- **Bounded:** `landings` counts the landing rows the forge keeps, live
+  or ended, one live per train (`landing-forming.md`, 2.3); a train with
+  no room waits for one on a refusal of its own, which names the
+  landings holding the room (`landing-forming.md`, 3).
 
 ## 3. Open questions
 

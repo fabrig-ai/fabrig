@@ -71,9 +71,10 @@ all. Then temper's:
      superseded once a repair found only flakes and a person released
      its change.
    - `landing-forming.md`: a landing's forming made whole: its task
-     made before anything of it is saved, a refused make forming
-     nothing while its train waits a queue window, and a start ending a
-     landing whose task was never made.
+     made before anything of it is saved, a refusal that may pass,
+     jig's or a full `landings`, forming nothing and stored on its
+     train until it can pass, and a start ending a landing whose task
+     was never made.
    - `landing-members.md`: a landing's members kept once, by its row,
      a change's landing derived from the live rows, and the asks a
      landing hands a member queued on the change until it takes them.
