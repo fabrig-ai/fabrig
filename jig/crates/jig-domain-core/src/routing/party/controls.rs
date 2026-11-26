@@ -1,8 +1,9 @@
 //! Party task controls, amendments, messages, answers and moves routed to tasks
 //! under current authority (`domain/people/acts.md`, section 1).
 
+use crate::loads::point::{self, Point};
 use crate::{
-    Core, Event, Limits, Now, PersonTaskRoute, Request,
+    Core, Event, Limits, PersonTaskRoute,
     routing::{
         Work,
         party::dispatch::{Amendment, Control, Party, Routed},
@@ -111,15 +112,16 @@ pub(crate) fn amend_route(
 
 pub(crate) fn person_task_request(
     core: &mut Core,
+    limits: &Limits,
     routed: &mut Routed,
     party: Party,
     action: crate::admission::person_task::Action,
 ) {
-    let Party { request, person, project, .. } = party;
+    let request = party.request;
 
     let task = action.task();
     if core.tasks.task(task).is_none() {
-        routed.out.push(Request::Now(Box::new(Now::EndedPersonTask { request, person, project, task })));
+        point::party(core, limits, routed, request, Point::PersonTask { party, task });
         return;
     }
     match core.person_task(party, action) {
@@ -186,7 +188,7 @@ pub(crate) fn stop_request(
 /// Concluding uses a cancel's tree reach, without cancelling any work (gatherings.md, 3).
 pub(crate) fn conclude_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, task: u64) {
     if core.tasks.task(task).is_none() {
-        crate::routing::run::results::conclude(core, &mut routed.work, &mut routed.out, party, task);
+        crate::routing::run::results::conclude(core, &mut routed.work, party, task);
         return;
     }
     let admitted = core.control_admit(

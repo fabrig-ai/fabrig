@@ -106,11 +106,8 @@ impl Rehearsal {
                     assert!(bytes >= self.env.limits.loads.bytes);
                     self.events.push_back(Event::Store(crate::direct::page_at_owner(terminal, owner, most)));
                 }
-                Request::Store(StoreRequest::Engine(engine_store::Out::Load {
-                    load,
-                    range: engine_store::Range::Read(range),
-                })) => {
-                    let result = self.store.read(range);
+                Request::Store(StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                    let result = self.store.load(range);
                     self.events.push_back(Event::Store(StoreInput::Engine(engine_store::In::Loaded { load, result })));
                 }
                 Request::Store(StoreRequest::PartRead { waiter, range }) => {

@@ -455,7 +455,7 @@ impl Core {
             seed_projects: config.seed_projects,
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
-            loads: loads::Loads::new(limits.load_slots.saturating_add(2)),
+            loads: loads::Loads::new(limits.load_slots.saturating_add(2), limits.tasks.tasks),
             part_kinds: config.parts,
             ended_groups: ended_groups::Marks::new(limits.tasks.tasks),
             dependency_results: Map::with_capacity(limits.tasks.tasks),

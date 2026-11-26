@@ -51,7 +51,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::SourceSignedOut { to, channel, name, result } => {
             emit(decision, &env.limits, Delivery::SourceSignedOut { to, channel, name, result });
         }
-        core::Held::Load(load) => super::now::now(domain, env, decision, *load),
+
         core::Held::SettledCall { to, call, .. } => {
             host_route::settled(domain, &env.limits, decision, to, call);
         }

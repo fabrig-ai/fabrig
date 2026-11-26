@@ -984,7 +984,6 @@ impl Observer {
             | core::Held::Acted { .. }
             | core::Held::Drained
             | core::Held::Restarting { .. }
-            | core::Held::Load(_)
             | core::Held::ApplicationDelivery { .. }
             | core::Held::ApplicationWatchEnded { .. }
             | core::Held::Store(_)

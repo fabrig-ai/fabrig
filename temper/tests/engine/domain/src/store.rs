@@ -517,10 +517,13 @@ impl Store {
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
     pub fn read(&mut self, range: Box<jig_domain_core::reads::Range>) -> engine_store::Answer {
-        self.request(engine::StoreRequest::Engine(engine_store::Out::Load {
-            load: Token::new(1),
-            range: engine_store::Range::Read(range),
-        }));
+        self.load(engine_store::Range::Read(range))
+    }
+
+    /// Serve a load through the same routing and component as a deployed engine.
+    #[must_use]
+    pub fn load(&mut self, range: engine_store::Range) -> engine_store::Answer {
+        self.request(engine::StoreRequest::Engine(engine_store::Out::Load { load: Token::new(1), range }));
         loop {
             if let Some(reply) = self.replies.pop() {
                 match reply {

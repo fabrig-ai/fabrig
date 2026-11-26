@@ -45,6 +45,7 @@ pub struct Driver {
     pub switches: Vec<usize>,
     /// Every store load the root asked for, by its owner, in order.
     pub loads: Vec<(Token, temper_engine_domain::Range)>,
+    pub point_loads: Vec<(Token, engine_store::Range)>,
     /// How many inputs `try_step` handed back at the backlog watermark; the
     /// world offers each again later.
     pub returned: u32,
@@ -166,6 +167,7 @@ impl Driver {
             host_requests: Vec::new(),
             switches: Vec::new(),
             loads: Vec::new(),
+            point_loads: Vec::new(),
             returned: 0,
             immediate: Vec::new(),
             period_sent: false,
@@ -242,20 +244,39 @@ impl Driver {
             } else {
                 request
             };
-            let request = if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
-                load,
-                range: engine_store::Range::Read(range),
-            })) = request
-            {
-                let result = self.store.read(range);
-                self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
-                    load,
-                    result,
-                })));
-                continue;
-            } else {
-                request
-            };
+            let request =
+                if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) =
+                    request
+                {
+                    match &range {
+                        engine_store::Range::Read(_) => {}
+                        engine_store::Range::Record(key) => {
+                            self.point_loads.push((load, engine_store::Range::Record(key.clone())));
+                        }
+                        engine_store::Range::Proposal { task, proposal } => self
+                            .point_loads
+                            .push((load, engine_store::Range::Proposal { task: *task, proposal: *proposal })),
+                    }
+                    let result = if self.fail_archive_once
+                        && matches!(
+                            range,
+                            engine_store::Range::Record(jig_domain_core::Key::Core(
+                                jig_domain_core::CoreKey::EscalationDecision { .. }
+                            ))
+                        ) {
+                        self.fail_archive_once = false;
+                        engine_store::Answer::Failed(engine_store::Failure::Failed)
+                    } else {
+                        self.store.load(range)
+                    };
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                        load,
+                        result,
+                    })));
+                    continue;
+                } else {
+                    request
+                };
             let request = match self.protocol.play(request) {
                 Ok(events) => {
                     self.events.extend(events);
@@ -285,19 +306,7 @@ impl Driver {
                     self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
 
                     assert!(bytes >= self.env.limits.loads.bytes);
-                    if self.fail_archive_once
-                        && matches!(
-                            range,
-                            temper_engine_domain::Range::Core(
-                                temper_engine_domain::CoreRange::EscalationDecision { .. }
-                            )
-                        )
-                    {
-                        self.fail_archive_once = false;
-                        self.events.push_back(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
-                    } else {
-                        self.events.push_back(engine::Event::Store(page_at_owner(terminal, owner, most)));
-                    }
+                    self.events.push_back(engine::Event::Store(page_at_owner(terminal, owner, most)));
                 }
                 engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Push(push))) => {
                     self.events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Pushed {

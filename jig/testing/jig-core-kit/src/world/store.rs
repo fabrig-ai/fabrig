@@ -1,13 +1,16 @@
 //! Store transport, fixture writes and cold restart.
 use super::{Fault, StoreOut, Up, World, connector, core, fixture, root, tasks};
 impl World {
-    pub(super) fn ended_load(&mut self, load: core::Now) {
-        if matches!(&load, core::Now::EndedTask { .. })
+    pub(super) fn point_load(&mut self, out: core::engine::store::Out) {
+        use core::engine::store::{Out, Range};
+        let Out::Load { load, range } = &out;
+        assert!(self.internal_reads.insert(*load), "one internal point load");
+        if matches!(range, Range::Record(core::Key::Tasks(tasks::Key::Ended(_))))
             && let Some(pending) = &mut self.pending_ended_loads
         {
-            pending.push(load);
+            pending.push(out);
         } else {
-            self.store.ask(StoreOut::Now(load));
+            self.store.ask(StoreOut::Engine(out));
         }
     }
 

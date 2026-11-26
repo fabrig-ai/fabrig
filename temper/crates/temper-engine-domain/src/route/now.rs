@@ -2,11 +2,11 @@
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{
     CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read, Request, Work,
-    emit, escalation, forge_route, proposals, relay_call,
+    emit, forge_route, relay_call,
 };
 use crate::Range;
 use crate::assemble::{brief_outputs, finish_brief_plan, take_payload};
-use crate::boundary::{EndedRead, Payload, WorkspacePreparation};
+use crate::boundary::{Payload, WorkspacePreparation};
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
@@ -73,33 +73,6 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::StartPreparation { task, from } => {
             start_preparation(domain, env, decision, task, from);
-        }
-        core::Now::EndedTask { request, task } => {
-            ended(domain, env, decision, EndedRead::EndedTask { request, task });
-        }
-        core::Now::SeenConversation { request, task } => {
-            ended(domain, env, decision, EndedRead::SeenConversation { request, task });
-        }
-        core::Now::LoadEndedRead { request, task, party } => {
-            ended(domain, env, decision, EndedRead::Position { request, task, party });
-        }
-        core::Now::PartyInputs { request, tasks, .. } => ended(
-            domain,
-            env,
-            decision,
-            EndedRead::PartyInput { request, task: *tasks.first().expect("historical input") },
-        ),
-        core::Now::EndedPersonTask { request, person, project, task } => {
-            ended(domain, env, decision, EndedRead::PersonTask { request, person, project, task });
-        }
-        core::Now::DecidedProposal { to, key, proposal } => {
-            proposals::task_begin(domain, env, decision, to, key, proposal);
-        }
-        core::Now::EndedProposal { request, person, project, proposer, proposal } => {
-            proposals::historical_begin(domain, env, decision, request, person, project, proposer, proposal);
-        }
-        core::Now::EndedEscalation { request, person, project, task, revision } => {
-            escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
         core::Now::BriefCorePlanned { task, parent, sections, documents } => {
             if waiting_for_goal_workspace(domain, task, true) {
@@ -269,59 +242,6 @@ fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Deci
         .token();
     let range = Range::Core(crate::CoreRange::TaskTranscript { task, from });
     emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
-}
-
-/// Ended tasks wait for room; the core's other ended reads keep busy (domain/root.md, 7).
-pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
-    if let EndedRead::EndedTask { task, .. } = &read {
-        let task = *task;
-        if !domain.ended_waiting.is_empty() || domain.archive_reads.is_full() || !domain.loads.has_room() {
-            domain.ended_waiting.push(read);
-            return;
-        }
-        let waiter = crate::archive::reserve_ended(domain, read);
-        emit(
-            decision,
-            &env.limits,
-            Delivery::Load { waiter, range: Range::Core(crate::CoreRange::TaskResult { task }), after: None },
-        );
-        return;
-    }
-    let range = match &read {
-        EndedRead::Position { task, party, .. } => crate::CoreRange::EndedRead { task: *task, party: *party },
-        EndedRead::ChangeFrom { task }
-        | EndedRead::EndedTask { task, .. }
-        | EndedRead::SeenConversation { task, .. }
-        | EndedRead::PartyInput { task, .. }
-        | EndedRead::PersonTask { task, .. } => crate::CoreRange::TaskResult { task: *task },
-    };
-    match domain.archive_reads.insert(Some(Read::Ended(read))) {
-        Ok(waiter) => emit(
-            decision,
-            &env.limits,
-            Delivery::Load { waiter: waiter.token(), range: Range::Core(range), after: None },
-        ),
-        Err(Some(Read::Ended(read))) => crate::archive::ended_answer(domain, read, None, true),
-        Err(
-            Some(
-                Read::Escalation(_)
-                | Read::Proposal(_)
-                | Read::TaskProposal { .. }
-                | Read::Transcript { .. }
-                | Read::GoalWords(_)
-                | Read::InputCheck(_)
-                | Read::Parts(_)
-                | Read::CloserReport(_)
-                | Read::Document(_)
-                | Read::Remember(_)
-                | Read::SettingsNote { .. }
-                | Read::ChangeDelegate { .. }
-                | Read::History { .. }
-                | Read::Notes { .. },
-            )
-            | None,
-        ) => unreachable!("the refused read returns unchanged"),
-    }
 }
 
 fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, context: Box<tasks::RunContext>) {

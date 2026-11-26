@@ -1,10 +1,7 @@
 //! Changes rows join live ancestry or bounded ended loads, without storing provenance
 //! (client/forge/records.md, Where each row came from).
 use super::{projection_settled::live_task, resume_fixture as fixture};
-use crate::{
-    Decision, Domain, Limits, Record, Work,
-    boundary::{EndedRead, Read},
-};
+use crate::{Decision, Domain, Limits, Record, Work, boundary::Read};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -164,7 +161,7 @@ fn every_change_row_names_its_live_goal_and_milestone_by_chip_title() {
 
 fn waiter(root: &Domain) -> (Token, u64) {
     let mut reads = root.archive_reads.iter();
-    let (id, Some(Read::Ended(EndedRead::ChangeFrom { task }))) = reads.next().expect("one pending ancestor") else {
+    let (id, Some(Read::ChangeFrom { task })) = reads.next().expect("one pending ancestor") else {
         panic!("provenance load")
     };
     assert!(reads.next().is_none(), "queue, flight and both histories share a task's load");
@@ -174,13 +171,13 @@ fn waiter(root: &Domain) -> (Token, u64) {
 fn answer(root: &mut Domain, env: &Env<Limits>, row: Option<tasks::TaskRecord>, failed: bool) {
     let (waiter, task) = waiter(root);
     if failed {
-        crate::archive::ended_failed(root, waiter);
+        crate::archive::change_from_loaded(root, waiter, None);
     } else {
         let rows: Box<[Record]> = match row {
             Some(row) => Box::new([Record::Core(core::Record::Tasks(tasks::Stored::Ended(Box::new(row))))]),
             None => Box::new([]),
         };
-        crate::archive::ended_loaded(root, waiter, rows);
+        crate::archive::change_from_loaded(root, waiter, Some(rows));
     }
     let Some(Work::ChangeFromLoaded { task: loaded, row }) = root.work.pop() else {
         panic!("ended load routed to provenance")

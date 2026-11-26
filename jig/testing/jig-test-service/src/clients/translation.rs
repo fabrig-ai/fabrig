@@ -50,7 +50,6 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::StopRun { .. }
-        | core::Held::Load(..)
         | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. } => None,
@@ -90,20 +89,12 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
         | core::Now::StartPreparation { .. }
-        | core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
-        | core::Now::EndedEscalation { .. }
         | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => None,
     }
@@ -193,19 +184,10 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
@@ -279,19 +261,10 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }

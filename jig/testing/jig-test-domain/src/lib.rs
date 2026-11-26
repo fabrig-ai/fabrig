@@ -1137,7 +1137,6 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
         other @ (core::Held::Acted { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }
-        | core::Held::Load(..)
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::Read { .. }

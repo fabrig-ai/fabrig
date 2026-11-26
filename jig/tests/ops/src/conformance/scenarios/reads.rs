@@ -93,36 +93,43 @@ pub(super) fn action(world: &mut World, action: Action) -> Result<(), Violation>
     Ok(())
 }
 
+pub(crate) fn point(store: &Store, range: &engine_store::Range) -> engine_store::Answer {
+    let key = match range {
+        engine_store::Range::Record(key) => Some(key.clone()),
+        engine_store::Range::Proposal { task, proposal } => {
+            match store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(*task)))) {
+                Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) => {
+                    row.proposal_rows.iter().find(|pointer| pointer.proposal == *proposal).map(|pointer| {
+                        core::Key::Tasks(tasks::Key::History { task: *task, revision: pointer.revision })
+                    })
+                }
+                _ => None,
+            }
+        }
+        engine_store::Range::Read(_) => unreachable!("read pages use the read oracle"),
+    };
+    let record = key.and_then(|key| match store.rows.get(&root::Key::Core(key)) {
+        Some(root::Record::Core(row)) => Some(row.clone()),
+        _ => None,
+    });
+    let records: Box<[core::Record]> = match record {
+        Some(row) => Box::new([row]),
+        None => Box::new([]),
+    };
+    engine_store::Answer::Rows(engine_store::Rows::Records { records, more: false })
+}
+
 pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> {
     match output {
         root::Output::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             Some(page(store, *load, range))
         }
 
-        root::Output::CoreLoad(core::Now::LoadEndedRead { request, task, party }) => {
-            let through = store
-                .rows
-                .get(&root::Key::Core(core::Key::People(people::Key::EndedRead { party: *party, task: *task })))
-                .map_or(0, |row| match row {
-                    root::Record::Core(core::Record::People(people::Stored::EndedRead { through, .. })) => *through,
-                    root::Record::Core(_) | root::Record::Observability(_) | root::Record::Infrastructure(_) => 0,
-                });
-            Some(root::Event::Core(core::Event::EndedReadLoaded {
-                request: *request,
-                task: *task,
-                party: *party,
-                through,
-                busy: false,
-            }))
-        }
-        root::Output::CoreLoad(core::Now::SeenConversation { request, task }) => {
-            let row = store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(*task)))).and_then(|record| {
-                match record {
-                    root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) => Some(row.clone()),
-                    root::Record::Core(_) | root::Record::Observability(_) | root::Record::Infrastructure(_) => None,
-                }
-            });
-            Some(root::Event::Core(core::Event::SeenConversationLoaded { request: *request, row, busy: false }))
+        root::Output::Store(engine_store::Out::Load { load, range }) => {
+            Some(root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
+                load: *load,
+                result: point(store, range),
+            })))
         }
         root::Output::ProjectMade { .. }
         | root::Output::ApplicationDocument { .. }

@@ -17,6 +17,7 @@ pub struct Routes {
     random: skein_lib::CryptoRng,
     pending: Map<Token, Flight>,
     reads: Map<Token, (Token, bool)>,
+    points: Map<Token, Point>,
     next: u64,
     commit: u64,
     limits: engine::loads::Limits,
@@ -24,6 +25,12 @@ pub struct Routes {
     page_failure: Option<store::restore::Failure>,
     row_failure: Option<UnreadableRow>,
 }
+#[derive(Debug)]
+struct Point {
+    load: Token,
+    pending: store::ended::Pending,
+}
+
 #[derive(Debug)]
 pub(super) struct Flight {
     root: Token,
@@ -52,6 +59,7 @@ impl Routes {
             random,
             pending: Map::with_capacity(table),
             reads: Map::with_capacity(table),
+            points: Map::with_capacity(table),
             next: 0,
             commit: 0,
             limits: limits.loads,
@@ -73,7 +81,7 @@ impl Routes {
     /// Whether every routed load has had its terminal.
     #[must_use]
     pub fn idle(&self) -> bool {
-        if !self.reads.is_empty() {
+        if !self.reads.is_empty() || !self.points.is_empty() {
             return false;
         }
         for (_, flight) in &self.pending {
@@ -221,6 +229,15 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             routes.reads.insert(owner, (load, false)).ok()?;
             store::Request::Read { owner, range: *range }
         }
+        engine::StoreRequest::Engine(engine_store::Out::Load {
+            load,
+            range: range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }),
+        }) => {
+            let owner = routes.token()?;
+            let (request, pending) = store::ended::start(owner, range)?;
+            routes.points.insert(owner, Point { load, pending }).ok()?;
+            request
+        }
         engine::StoreRequest::Load { owner: root, range, after, most, bytes } => {
             let offset = routes.continuation(&range, after.as_ref());
             let owner = routes.token()?;
@@ -237,10 +254,6 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
 }
 
 /// Every store terminal is accepted independently of journal room.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one exhaustive store-terminal dispatcher keeps each owner's terminal explicit"
-)]
 pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
     match event {
         store::Event::Page { owner, items, next } => {
@@ -267,32 +280,21 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::Loaded { owner, rows, next } => {
             page(routes, owner, rows, next, None, None, into);
         }
-        store::Event::Got { owner, mut row } => {
-            if let Some(Flight {
-                range: engine::Range::Core(engine::CoreRange::TaskProposal { task, proposal }), ..
-            }) = routes.pending.get(&owner)
-                && let Some(store::Row::Jig(core::Record::Tasks(jig_domain_tasks::Stored::Live(live)))) = &row
-            {
-                let mut pointer = None;
-                for kept in &live.proposal_rows {
-                    if kept.proposal == *proposal {
-                        pointer = Some(kept.revision);
-                        break;
+        store::Event::Got { owner, row } => {
+            if let Some(Point { load, pending }) = routes.points.remove(&owner) {
+                match store::ended::got(owner, pending, row) {
+                    store::ended::Step::Get(request) => {
+                        routes
+                            .points
+                            .insert(owner, Point { load, pending: store::ended::Pending::Record })
+                            .expect("retained point route");
+                        into.push(Up::Ask(request));
+                    }
+                    store::ended::Step::Answer(result) => {
+                        root(into, engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
                     }
                 }
-                if live.number == *task
-                    && let Some(revision) = pointer
-                {
-                    into.push(Up::Ask(store::Request::Get {
-                        owner,
-                        key: store::Get::Jig(core::Key::Tasks(jig_domain_tasks::Key::History {
-                            task: *task,
-                            revision,
-                        })),
-                    }));
-                    return;
-                }
-                row = None;
+                return;
             }
             let rows: Box<[store::Row]> = match row {
                 Some(row) => Box::new([row]),
@@ -308,7 +310,10 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             page(routes, owner, rows.into_boxed(), None, next, cut, into);
         }
         store::Event::Unread { owner } | store::Event::Corrupt { owner } => {
-            if let Some(flight) = routes.pending.remove(&owner) {
+            if let Some(Point { load, .. }) = routes.points.remove(&owner) {
+                let result = engine_store::Answer::Failed(engine_store::Failure::Failed);
+                root(into, engine::StoreInput::Engine(engine_store::In::Loaded { load, result }));
+            } else if let Some(flight) = routes.pending.remove(&owner) {
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }
         }

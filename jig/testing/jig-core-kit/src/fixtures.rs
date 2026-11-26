@@ -213,11 +213,10 @@ pub fn finish_chat(world: &mut crate::world::World, cumulative: u64, words: &[u8
 }
 
 pub fn delegate(world: &mut crate::world::World, run: (u64, u64), completion: u32, member: core::Delegate) -> u64 {
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
         key: core::CallKey { task: run.0, attempt: run.1, completion, position: 0 },
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
     let core::CallPart::Delegated(numbers) = &world.answers.last().expect("delegate answer").2 else {
         panic!("delegation was not admitted: {:?}", world.answers.last());

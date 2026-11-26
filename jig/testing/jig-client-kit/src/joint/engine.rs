@@ -226,7 +226,6 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::StopRun { .. }
-        | core::Held::Load(..)
         | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. } => return None,
@@ -261,20 +260,12 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
         | core::Now::StartPreparation { .. }
-        | core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
-        | core::Now::EndedEscalation { .. }
         | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => return None,
     })

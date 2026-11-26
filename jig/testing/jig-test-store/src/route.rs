@@ -23,7 +23,7 @@ enum Flight {
     Start { phase: core::start::Phase, census: Option<core::Census> },
     Read(Token),
     Notes(Token),
-    Ended(core::Now),
+    Point { load: Token, pending: store::ended::Pending },
     Window { task: u64, attempt: u64, turn: u32 },
 }
 impl Routes {
@@ -53,9 +53,12 @@ impl Routes {
     pub fn idle(&self) -> bool {
         self.pending.is_empty()
     }
-    fn keep(&mut self, flight: Flight) -> Token {
+    fn token(&mut self) -> Token {
         self.next = self.next.checked_add(1).expect("store route owner exhausted");
-        let owner = Token::new(self.next);
+        Token::new(self.next)
+    }
+    fn keep(&mut self, flight: Flight) -> Token {
+        let owner = self.token();
         assert!(self.pending.insert(owner, flight).is_none(), "unique store route owner");
         owner
     }
@@ -110,6 +113,18 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             let owner = routes.keep(Flight::Read(load));
             Request::Read { owner, range: *range }
         }
+        StoreOut::Engine(engine_store::Out::Load {
+            load,
+            range: range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }),
+        }) => {
+            let owner = routes.token();
+            let (request, pending) = store::ended::start(owner, range).expect("point range");
+            assert!(
+                routes.pending.insert(owner, Flight::Point { load, pending }).is_none(),
+                "unique store route owner"
+            );
+            request
+        }
         StoreOut::NotesLoad { owner, range } => {
             let owner = routes.keep(Flight::Notes(owner));
             Request::Load {
@@ -121,10 +136,6 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             }
         }
         StoreOut::Now(now) => {
-            if let Some(key) = store::ended::key(&now) {
-                let owner = routes.keep(Flight::Ended(now));
-                return Some(Request::Get { owner, key: store::Get::Jig(key) });
-            }
             let (task, attempt, turn) = window(now)?;
             let owner = routes.keep(Flight::Window { task, attempt, turn });
             transcript(routes, owner, None)?
@@ -135,7 +146,7 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
     use core::start::Phase;
     let (phase, census) = match routes.pending.get(&owner)? {
         Flight::Start { phase, census } => (*phase, census),
-        Flight::Read(_) | Flight::Notes(_) | Flight::Ended(_) | Flight::Window { .. } => return None,
+        Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } | Flight::Window { .. } => return None,
     };
     let range = match phase {
         Phase::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
@@ -155,7 +166,7 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
         Flight::Window { task, attempt, turn } => (task, attempt, turn),
-        Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Ended(_) => {
+        Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } => {
             return None;
         }
     };
@@ -200,15 +211,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::PartBusy { .. }
-        | core::Now::RestoreRefused
-        | core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. } => None,
+        | core::Now::RestoreRefused => None,
     }
 }
 /// Translate a terminal, preserving pages and requesting their continuations.
@@ -238,22 +241,21 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         }
         Event::Loaded { owner, rows, next } => loaded(routes, owner, rows, next, into),
         Event::Got { owner, row } => {
-            if let Some(Flight::Ended(now)) = routes.pending.remove(&owner) {
-                let row = match row {
-                    Some(Row::Jig(row)) => Some(row),
-                    None => None,
-                    Some(Row::Application { .. }) => {
-                        stop(routes, into);
-                        return;
+            if let Some(Flight::Point { load, pending }) = routes.pending.remove(&owner) {
+                match store::ended::got(owner, pending, row) {
+                    store::ended::Step::Get(request) => {
+                        assert!(
+                            routes
+                                .pending
+                                .insert(owner, Flight::Point { load, pending: store::ended::Pending::Record })
+                                .is_none(),
+                            "point route retained"
+                        );
+                        into.push(Up::Ask(request));
                     }
-                };
-                if let Some(key) = store::ended::next(&now, &row) {
-                    assert!(routes.pending.insert(owner, Flight::Ended(now)).is_none(), "ended owner retained");
-                    into.push(Up::Ask(Request::Get { owner, key: store::Get::Jig(key) }));
-                    return;
-                }
-                if let Some(event) = store::ended::answer(now, row) {
-                    into.push(Up::Root(root::Event::Core(event)));
+                    store::ended::Step::Answer(result) => {
+                        into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
+                    }
                 }
             }
         }
@@ -268,8 +270,12 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         }
         Event::SecretsNotReady { .. } => unreachable!("the root store route handles public records only"),
         Event::Corrupt { owner } => {
-            routes.pending.remove(&owner);
-            stop(routes, into);
+            if let Some(Flight::Point { load, .. }) = routes.pending.remove(&owner) {
+                let result = engine_store::Answer::Failed(engine_store::Failure::Failed);
+                into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
+            } else {
+                stop(routes, into);
+            }
         }
         Event::OpenRefused { .. } => stop(routes, into),
         Event::Switched { owner } => switched(routes, owner, into),
@@ -352,7 +358,9 @@ fn switched(routes: &mut Routes, owner: Token, into: &mut Queue<Up>) {
         Some(Flight::Start { phase: core::start::Phase::Switch, .. }) => {
             into.push(Up::Root(root::Event::StartDone(core::start::Phase::Switch)));
         }
-        Some(Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Ended(_) | Flight::Window { .. })
+        Some(
+            Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } | Flight::Window { .. },
+        )
         | None => {}
     }
 }

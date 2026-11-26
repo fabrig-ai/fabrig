@@ -2413,6 +2413,27 @@ fn watch_store_outputs(core: &mut Core, limits: &Limits, event: engine_store::In
     ))
 }
 
+fn point_answer(load: Token, row: Option<Record>, busy: bool) -> engine_store::In {
+    let result = if busy {
+        engine_store::Answer::Failed(engine_store::Failure::Busy)
+    } else {
+        let records: Box<[Record]> = match row {
+            Some(row) => Box::new([row]),
+            None => Box::new([]),
+        };
+        engine_store::Answer::Rows(engine_store::Rows::Records { records, more: false })
+    };
+    engine_store::In::Loaded { load, result }
+}
+
+fn ended_answer(load: Token, row: Option<Box<tasks::TaskRecord>>, busy: bool) -> engine_store::In {
+    let row = match row {
+        Some(row) => Some(Record::Tasks(tasks::Stored::Ended(row))),
+        None => None,
+    };
+    point_answer(load, row, busy)
+}
+
 fn watch_decision(mut out: Queue<Request>) -> Box<[Request]> {
     let mut requests = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
@@ -3148,7 +3169,7 @@ fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     let (mut core, mut limits) = watch_core();
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
-    core.loads = loads::Loads::new(1);
+    core.loads = loads::Loads::new(1, core.flight_tasks_capacity);
     let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 100 })
     else {

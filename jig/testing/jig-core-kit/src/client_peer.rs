@@ -136,7 +136,6 @@ impl ClientPeer {
                 | core::Held::Refuse { .. }
                 | core::Held::TurnBusy { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::Load(..)
                 | core::Held::NotesLoad { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::NotesDeleted { .. } => false,
@@ -184,20 +183,12 @@ impl ClientPeer {
             | core::Now::DropAssignment { .. }
             | core::Now::Activate { .. }
             | core::Now::StartPreparation { .. }
-            | core::Now::SeenConversation { .. }
-            | core::Now::LoadEndedRead { .. }
-            | core::Now::EndedProposal { .. }
-            | core::Now::DecidedProposal { .. }
-            | core::Now::EndedPersonTask { .. }
-            | core::Now::EndedTask { .. }
-            | core::Now::PartyInputs { .. }
             | core::Now::CompleteBrief { .. }
             | core::Now::BriefCorePlanned { .. }
             | core::Now::WorkspaceRequest { .. }
             | core::Now::RunPreparationFailed { .. }
             | core::Now::BriefFailed { .. }
             | core::Now::RunPrepared { .. }
-            | core::Now::EndedEscalation { .. }
             | core::Now::PartBusy { .. }
             | core::Now::RestoreRefused => false,
         }

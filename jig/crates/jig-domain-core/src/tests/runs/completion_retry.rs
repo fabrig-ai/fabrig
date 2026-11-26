@@ -43,20 +43,12 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::DropAssignment { .. }
                 | Now::Activate { .. }
                 | Now::StartPreparation { .. }
-                | Now::SeenConversation { .. }
-                | Now::LoadEndedRead { .. }
-                | Now::EndedProposal { .. }
-                | Now::DecidedProposal { .. }
-                | Now::EndedPersonTask { .. }
-                | Now::EndedTask { .. }
-                | Now::PartyInputs { .. }
                 | Now::CompleteBrief { .. }
                 | Now::BriefCorePlanned { .. }
                 | Now::WorkspaceRequest { .. }
                 | Now::RunPreparationFailed { .. }
                 | Now::BriefFailed { .. }
                 | Now::RunPrepared { .. }
-                | Now::EndedEscalation { .. }
                 | Now::PartBusy { .. }
                 | Now::RestoreRefused => {}
             },
@@ -123,7 +115,6 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::Refuse { .. }
                 | Held::TurnBusy { .. }
                 | Held::StopRun { .. }
-                | Held::Load(..)
                 | Held::NotesLoad { .. }
                 | Held::NotesWritten { .. }
                 | Held::NotesDeleted { .. } => {}

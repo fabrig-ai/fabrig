@@ -1111,8 +1111,8 @@ impl World {
                 let result = self.store.read(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             }
-            engine::StoreRequest::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
-                let result = self.store.read(range);
+            engine::StoreRequest::Engine(engine_store::Out::Load { load, range }) => {
+                let result = self.store.load(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::Engine(
                     engine_store::In::Loaded { load, result },
                 )));
@@ -1563,7 +1563,6 @@ impl World {
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
             | Delivery::Relay { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::PartLoad { .. }
             | Delivery::PartBusy { .. }

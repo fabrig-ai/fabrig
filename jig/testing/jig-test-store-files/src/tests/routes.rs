@@ -1,4 +1,5 @@
 mod fixtures;
+use core::engine::store::{Answer, In, Out, Range, Rows};
 pub(crate) use fixtures::ended_chat;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -202,16 +203,22 @@ fn a_seen_conversation_is_answered_from_the_store() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Now(core::Now::SeenConversation { request: Token::new(17), task }),
+        StoreOut::Engine(Out::Load {
+            load: Token::new(17),
+            range: Range::Record(core::Key::Tasks(jig_domain_tasks::Key::Ended(task))),
+        }),
     );
     match outputs.as_ref() {
         [
-            Up::Root(root::Event::Core(core::Event::SeenConversationLoaded { request, row: Some(found), busy: false })),
+            Up::Root(root::Event::Store(In::Loaded {
+                load,
+                result: Answer::Rows(Rows::Records { records, more: false }),
+            })),
         ] => {
-            assert_eq!(*request, Token::new(17));
-            assert_eq!(*found, row);
+            assert_eq!(*load, Token::new(17));
+            assert_eq!(records.as_ref(), &[core::Record::Tasks(jig_domain_tasks::Stored::Ended(row))]);
         }
-        _ => unreachable!("the retained chat answers its request"),
+        _ => unreachable!("the retained chat answers its load"),
     }
 }
 #[test]

@@ -163,15 +163,7 @@ pub(super) fn system(engine: &mut Engine, number: u16) -> &mut crate::system::Sy
 
 fn immediate(engine: &mut Engine, now: core::Now) {
     match now {
-        value @ (core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. }
-        | core::Now::StartPreparation { .. }) => {
+        value @ core::Now::StartPreparation { .. } => {
             crate::store::request(engine, jig_test_store::StoreOut::Now(value));
         }
         // Configuration is parsed whole; inactive account components receive no requests.
@@ -263,7 +255,7 @@ fn core_held(engine: &mut Engine, held: core::Held) {
             unreachable!("link translates host-wide source commands")
         }
         core::Held::Drained => stop::drained(engine),
-        core::Held::Load(load) => immediate(engine, *load),
+
         core::Held::Store(load) => {
             crate::store::request(engine, jig_test_store::StoreOut::Engine(load));
         }

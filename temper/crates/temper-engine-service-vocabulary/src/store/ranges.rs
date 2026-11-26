@@ -19,14 +19,10 @@ pub(super) fn window(range: &Range) -> bool {
             | CoreRange::Tasks
             | CoreRange::RunProofs
             | CoreRange::Calls
-            | CoreRange::EndedRead { .. }
             | CoreRange::TaskResult { .. }
             | CoreRange::RequesterWord { .. }
             | CoreRange::Turns { .. }
-            | CoreRange::Notes(_)
-            | CoreRange::ProposalDecision { .. }
-            | CoreRange::TaskProposal { .. }
-            | CoreRange::EscalationDecision { .. },
+            | CoreRange::Notes(_),
         )
         | Range::Census(_)
         | Range::Forge
@@ -51,15 +47,11 @@ pub(super) fn starting(range: &Range) -> bool {
         | Range::Census(_)
         | Range::Forge => true,
         Range::Core(
-            CoreRange::EndedRead { .. }
-            | CoreRange::TaskResult { .. }
+            CoreRange::TaskResult { .. }
             | CoreRange::RequesterWord { .. }
             | CoreRange::Turns { .. }
             | CoreRange::TaskTranscript { .. }
-            | CoreRange::Notes(_)
-            | CoreRange::ProposalDecision { .. }
-            | CoreRange::TaskProposal { .. }
-            | CoreRange::EscalationDecision { .. },
+            | CoreRange::Notes(_),
         )
         | Range::History(_) => false,
     }
@@ -98,7 +90,6 @@ pub(super) fn cursor(range: &Range, key: &Key) -> Option<store::Cursor> {
     Some(store::Cursor { interval, after })
 }
 
-#[expect(clippy::too_many_lines, reason = "one dispatcher maps root ranges to jig store requests")]
 pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store::Request> {
     let after = if let Some(cursor) = &flight.cursor {
         Some(cursor.clone())
@@ -131,45 +122,12 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
             | CoreRange::Tasks
             | CoreRange::Calls
             | CoreRange::RunProofs => store::Restore::Jig(Box::from(range.restore_ranges())),
-            CoreRange::EndedRead { task, party } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::People(jig_domain_people::Key::EndedRead {
-                        task: *task,
-                        party: *party,
-                    })),
-                });
-            }
             CoreRange::RequesterWord { task, position } => {
                 let key = core::Key::Tasks(jig_domain_tasks::Key::Activity { task: *task, position: *position });
                 return Some(jig_get(owner, key));
             }
             CoreRange::TaskResult { task } => {
                 return Some(jig_get(owner, core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))));
-            }
-            CoreRange::TaskProposal { task, .. } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::Tasks(jig_domain_tasks::Key::Live(*task))),
-                });
-            }
-            CoreRange::ProposalDecision { proposer, proposal } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::Core(core::CoreKey::ProposalDecision {
-                        proposer: *proposer,
-                        proposal: *proposal,
-                    })),
-                });
-            }
-            CoreRange::EscalationDecision { task, revision } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::Core(core::CoreKey::EscalationDecision {
-                        task: *task,
-                        revision: *revision,
-                    })),
-                });
             }
             CoreRange::Notes(range) => {
                 return Some(store::Request::Load {

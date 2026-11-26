@@ -584,17 +584,7 @@ impl Application for Testing {
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
                 }
-                Delivery::Now(
-                    now @ (core::Now::StartPreparation { .. }
-                    | core::Now::SeenConversation { .. }
-                    | core::Now::LoadEndedRead { .. }
-                    | core::Now::EndedPersonTask { .. }
-                    | core::Now::EndedTask { .. }
-                    | core::Now::PartyInputs { .. }
-                    | core::Now::EndedProposal { .. }
-                    | core::Now::DecidedProposal { .. }
-                    | core::Now::EndedEscalation { .. }),
-                ) => {
+                Delivery::Now(now @ core::Now::StartPreparation { .. }) => {
                     store.ask(StoreOut::Now(now));
                     Vec::new()
                 }
@@ -674,10 +664,6 @@ impl Application for Testing {
                     channel,
                     logins: Box::new([]),
                 })))]
-            }
-            root::Delivery::Core(core::Held::Load(load)) => {
-                store.ask(StoreOut::Now(*load));
-                Vec::new()
             }
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 store.ask(StoreOut::NotesLoad { owner, range });

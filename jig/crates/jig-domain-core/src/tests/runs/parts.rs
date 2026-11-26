@@ -356,6 +356,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             let mut result = None;
             if arrival == Arrival::DuringResult {
                 let mut out = crate::routing::run::results::begin(&mut core, &mut Queue::uncapped(), 1, Box::new([12]));
+                loads::resume_points(&mut core, &limits, &mut out);
                 let mut requests = List::with_capacity(out.len());
                 while let Some(request) = out.pop() {
                     requests.push(request).unwrap();
@@ -388,18 +389,21 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             }
             assert_eq!(core.contexts.get(&1), Some(&prepared), "{arrival:?}: prepared facts retained");
             if arrival == Arrival::BeforeBrief || arrival == Arrival::DuringResult {
-                let event = match result {
-                    Some(request) => Event::EndedTaskLoaded {
-                        request,
-                        row: Some(Box::new(fixtures::ended_report(12, tasks::Party::Person(1)))),
-                        busy: false,
-                    },
-                    None => Event::TranscriptLoaded {
-                        task: 1,
-                        load: TranscriptLoad::Page { rows: Box::new([]), done: true },
-                    },
+                let out = match result {
+                    Some(load) => watch_store_outputs(
+                        &mut core,
+                        &limits,
+                        ended_answer(load, Some(Box::new(fixtures::ended_report(12, tasks::Party::Person(1)))), false),
+                    ),
+                    None => watch_outputs(
+                        &mut core,
+                        &limits,
+                        Event::TranscriptLoaded {
+                            task: 1,
+                            load: TranscriptLoad::Page { rows: Box::new([]), done: true },
+                        },
+                    ),
                 };
-                let out = watch_outputs(&mut core, &limits, event);
                 owner = Some(notes_load(&out));
             }
             if arrival != Arrival::BeforeComplete && arrival != Arrival::BeforeWorkspace {

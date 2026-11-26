@@ -486,19 +486,10 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }

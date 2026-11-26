@@ -103,7 +103,7 @@ fn delegate_agent(world: &mut World, words: &[u8], spend: u64, tasks_left: u32, 
         tasks: tasks_left,
         depth,
     };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9200 + spend)),
         key: world.call_key(1),
         batch: Box::new([core::Delegate {
@@ -127,7 +127,6 @@ fn delegate_agent(world: &mut World, words: &[u8], spend: u64, tasks_left: u32, 
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     let assigned = world.assigned.as_ref().expect("assigned delegate");
     (assigned.task, assigned.attempt)

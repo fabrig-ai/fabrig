@@ -391,11 +391,8 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.store.pending.push_back((number, writes));
                 }
-                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
-                    load,
-                    range: engine_store::Range::Read(range),
-                })) => {
-                    let result = self.store.read(range);
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                    let result = self.store.load(range);
                     self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
                         load,
                         result,

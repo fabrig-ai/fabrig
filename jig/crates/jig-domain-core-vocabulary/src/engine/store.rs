@@ -1,6 +1,6 @@
 //! The engine's held loads (`jig/docs/design/domain/engine/vocabulary.md`, 2.4).
 
-use crate::{Record, TranscriptRow, TurnRecord, reads};
+use crate::{Key, Record, TranscriptRow, TurnRecord, reads};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::Token;
@@ -17,6 +17,8 @@ pub enum In {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Range {
+    Record(Key),
+    Proposal { task: u64, proposal: u64 },
     Read(Box<reads::Range>),
 }
 

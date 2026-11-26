@@ -74,14 +74,10 @@ pub(crate) fn call(
         Err(Some(Read::Document(read))) => refused(domain, right, action, &read.body, DocumentRefusal::Busy),
         Err(
             Some(
-                Read::Escalation(_)
-                | Read::Proposal(_)
-                | Read::CloserReport(_)
-                | Read::TaskProposal { .. }
+                Read::CloserReport(_)
                 | Read::Parts(_)
-                | Read::Ended(_)
+                | Read::ChangeFrom { .. }
                 | Read::Transcript { .. }
-                | Read::InputCheck(_)
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
                 | Read::History { .. }

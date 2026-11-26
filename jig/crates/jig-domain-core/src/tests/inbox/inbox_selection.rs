@@ -488,19 +488,46 @@ fn assert_chat_replies(entries: &[InboxEntry], records: &[Record]) {
     assert_eq!(owner.last_reply, FINAL_REPLY);
 }
 
+fn chat_mark(seen: people::Seen, key: u8) -> Event {
+    Event::People(people::Event::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(91)),
+        sign_in: CHAT_SIGN_IN,
+        key: [key; 16],
+        ask: people::Ask::MarkSeen { seen },
+    })
+}
+
 fn start_chat_mark(core: &mut Core, limits: &Limits, seen: people::Seen, key: u8) -> Box<[Request]> {
     core.reclaim();
-    watch_outputs(
-        core,
-        limits,
-        Event::People(people::Event::Ask {
-            models: Box::new([]),
-            reply_to: ReplyTo::new(Token::new(91)),
-            sign_in: CHAT_SIGN_IN,
-            key: [key; 16],
-            ask: people::Ask::MarkSeen { seen },
-        }),
-    )
+    watch_outputs(core, limits, chat_mark(seen, key))
+}
+
+#[test]
+fn a_failed_ended_conversation_header_answers_busy_once_without_loading_its_position() {
+    use crate::engine::{self, Engine, In, Out, Peer};
+    let (core, limits, _) = finished_chat();
+    let mut engine = Engine::from_core(core);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut engine,
+        &env,
+        In::Core(chat_mark(people::Seen::Conversation { task: CHAT, through: FINAL_REPLY }, 1)),
+        &mut out,
+    );
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load, range }))) = out.pop() else {
+        panic!("held ended header load")
+    };
+    assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(CHAT))));
+    assert!(out.is_empty());
+    engine::step(&mut engine, &env, In::Store(point_answer(load, None, true)), &mut out);
+    let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("busy terminal") };
+    let Held::PeopleReply { reply, .. } = *held else { panic!("party terminal") };
+    assert_eq!(reply, people::Reply::Again(people::Again::Busy));
+    assert!(out.is_empty(), "a failed header does not load the position");
+    engine::step(&mut engine, &env, In::Store(point_answer(load, None, true)), &mut out);
+    assert!(out.is_empty(), "a duplicate terminal changes nothing");
 }
 
 fn mark_chat_seen(core: &mut Core, limits: &Limits, records: &[Record], seen: people::Seen) -> Box<[Request]> {
@@ -508,35 +535,33 @@ fn mark_chat_seen(core: &mut Core, limits: &Limits, records: &[Record], seen: pe
     let mut request = None;
     for output in &outputs {
         if let Request::Held(held) = output
-            && let Held::Load(load) = held.as_ref()
-            && let Now::SeenConversation { request: wanted, .. } = load.as_ref()
+            && let Held::Store(engine_store::Out::Load {
+                load: wanted,
+                range: engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(CHAT))),
+            }) = held.as_ref()
         {
             request = Some(*wanted);
             break;
         }
     }
     let Some(request) = request else { return outputs };
-    let loaded = watch_outputs(
-        core,
-        limits,
-        Event::SeenConversationLoaded { request, row: Some(Box::new(chat_owner(records).clone())), busy: false },
-    );
+    let loaded =
+        watch_store_outputs(core, limits, ended_answer(request, Some(Box::new(chat_owner(records).clone())), false));
     let mut joined = None;
     for output in &loaded {
         if let Request::Held(held) = output
-            && let Held::Load(load) = held.as_ref()
-            && let Now::LoadEndedRead { request: wanted, task: CHAT, party: CHAT_PARTY } = load.as_ref()
+            && let Held::Store(engine_store::Out::Load {
+                load: wanted,
+                range:
+                    engine_store::Range::Record(Key::People(people::Key::EndedRead { task: CHAT, party: CHAT_PARTY })),
+            }) = held.as_ref()
         {
             joined = Some(*wanted);
             break;
         }
     }
     let request = joined.expect("the owner join requests the matching ended position");
-    watch_outputs(
-        core,
-        limits,
-        Event::EndedReadLoaded { request, task: CHAT, party: CHAT_PARTY, through: 0, busy: false },
-    )
+    watch_store_outputs(core, limits, point_answer(request, None, false))
 }
 
 fn repeated_chat_mark() -> (Core, Limits, tasks::TaskRecord, Token) {
@@ -547,8 +572,10 @@ fn repeated_chat_mark() -> (Core, Limits, tasks::TaskRecord, Token) {
     let mut request = None;
     for output in &outputs {
         if let Request::Held(held) = output
-            && let Held::Load(load) = held.as_ref()
-            && let Now::SeenConversation { request: wanted, .. } = load.as_ref()
+            && let Held::Store(engine_store::Out::Load {
+                load: wanted,
+                range: engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(CHAT))),
+            }) = held.as_ref()
         {
             request = Some(*wanted);
             break;
@@ -565,8 +592,7 @@ fn assert_refused_chat_mark(
     request: Token,
     held: Option<people::Role>,
 ) {
-    let outputs =
-        watch_outputs(core, limits, Event::SeenConversationLoaded { request, row: Some(Box::new(row)), busy: false });
+    let outputs = watch_store_outputs(core, limits, ended_answer(request, Some(Box::new(row)), false));
     assert_mark_without_writes(
         &outputs,
         people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held })),
@@ -614,16 +640,15 @@ fn overlapping_seen_stays_busy_during_header_and_position_loads() {
     let seen = people::Seen::Conversation { task: CHAT, through: FINAL_REPLY };
     let outputs = start_chat_mark(&mut core, &limits, seen, 2);
     assert_mark_without_writes(&outputs, people::Reply::Again(people::Again::Busy));
-    let outputs = watch_outputs(
-        &mut core,
-        &limits,
-        Event::SeenConversationLoaded { request, row: Some(Box::new(row)), busy: false },
-    );
+    let outputs = watch_store_outputs(&mut core, &limits, ended_answer(request, Some(Box::new(row)), false));
     let mut loading = None;
     for output in &outputs {
         if let Request::Held(held) = output
-            && let Held::Load(load) = held.as_ref()
-            && let Now::LoadEndedRead { request: wanted, task: CHAT, party: CHAT_PARTY } = load.as_ref()
+            && let Held::Store(engine_store::Out::Load {
+                load: wanted,
+                range:
+                    engine_store::Range::Record(Key::People(people::Key::EndedRead { task: CHAT, party: CHAT_PARTY })),
+            }) = held.as_ref()
         {
             assert_ne!(*wanted, request);
             loading = Some(*wanted);
@@ -632,11 +657,7 @@ fn overlapping_seen_stays_busy_during_header_and_position_loads() {
     let request = loading.expect("ended position load");
     let outputs = start_chat_mark(&mut core, &limits, seen, 2);
     assert_mark_without_writes(&outputs, people::Reply::Again(people::Again::Busy));
-    let outputs = watch_outputs(
-        &mut core,
-        &limits,
-        Event::EndedReadLoaded { request, task: CHAT, party: CHAT_PARTY, through: 0, busy: true },
-    );
+    let outputs = watch_store_outputs(&mut core, &limits, point_answer(request, None, true));
     assert_mark_without_writes(&outputs, people::Reply::Again(people::Again::Busy));
 }
 

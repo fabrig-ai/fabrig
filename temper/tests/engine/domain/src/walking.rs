@@ -938,11 +938,8 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
-                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
-                    load,
-                    range: engine_store::Range::Read(range),
-                })) => {
-                    let result = self.store.read(range);
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                    let result = self.store.load(range);
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })),
                         0,
@@ -1141,7 +1138,6 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }
             | Delivery::NotesLoad { .. }
             | Delivery::Load { .. } => {

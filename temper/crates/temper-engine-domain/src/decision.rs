@@ -163,12 +163,6 @@ pub enum Delivery {
         waiter: Token,
         range: Box<jig_domain_core::reads::Range>,
     },
-    /// Root internal historical read, released after preceding commit; consumed
-    /// once by root and never exposed to the shell.
-    ReadEscalationDecision {
-        /// Reserved root read slot, retired after IO terminal.
-        waiter: Token,
-    },
     /// Root to fleet after durability; the root resumes it internally.
     Fleet(
         /// Root-issued `Start`, `TurnKept`, `Acknowledge` or `Cancel` callback. `Start` workstream
@@ -630,7 +624,6 @@ impl Decision {
             | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
             | Delivery::NotesLoad { .. }

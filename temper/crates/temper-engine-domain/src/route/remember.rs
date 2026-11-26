@@ -62,13 +62,9 @@ pub(crate) fn call(
         Err(Some(Read::Remember(_))) => refused(domain, right, RememberRefusal::Busy),
         Err(
             Some(
-                Read::Escalation(_)
-                | Read::Proposal(_)
-                | Read::TaskProposal { .. }
-                | Read::Parts(_)
-                | Read::Ended(_)
+                Read::Parts(_)
+                | Read::ChangeFrom { .. }
                 | Read::Transcript { .. }
-                | Read::InputCheck(_)
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
                 | Read::History { .. }

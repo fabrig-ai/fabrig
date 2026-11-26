@@ -13,7 +13,6 @@ pub enum In {
 
 /// An output to the root, with the core's request mark intact.
 #[derive(Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "the root moves a complete request by value")]
 pub enum Out {
     Core(Request),
     Held(Peer),

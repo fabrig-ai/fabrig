@@ -4,7 +4,7 @@
 use super::{
     CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeWorkspace, Id, Key, Limits, List, ProcedureStep,
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,
-    emit, escalation, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
+    emit, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
 use crate::{PersonForge, commit_text};
 use forge::change_words::{
@@ -834,16 +834,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)
             | Work::Activate { .. }
-            | Work::EscalationLoaded { .. }
-            | Work::EscalationFailed { .. }
-            | Work::ProposalLoaded { .. }
-            | Work::ProposalFailed { .. }
             | Work::CloserReportReady { .. }
-            | Work::EndedLoad { .. }
-            | Work::EndedLoaded { .. }
             | Work::ChangeFromLoaded { .. }
-            | Work::TaskProposalLoaded { .. }
-            | Work::EndedFailed { .. }
             | Work::ForgeSettings(_)
             | Work::PartsLoaded { .. }
             | Work::PartsFailed { .. }
@@ -1415,7 +1407,7 @@ fn landing_reviewers(
         reviews
             .push(forge::Reviewer {
                 person,
-                role: escalation::role_number(role),
+                role: role.number(),
                 head: review.commit,
                 verdict: review.verdict,
                 at: skein_lib::Wall::from_nanos(review.at.as_nanos()),

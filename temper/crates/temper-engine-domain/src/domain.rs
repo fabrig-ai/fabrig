@@ -1,5 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
+use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::request_load;
 use crate::route::{
@@ -15,7 +15,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
+use skein_lib::{Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 
@@ -154,7 +154,6 @@ pub struct Domain {
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
     /// Ended tasks wait for archive and load room, in the core's read-flight bound (domain/root.md, 7).
-    pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
     pub(crate) call_renders: Map<Token, host_route::Flight>,
@@ -720,7 +719,6 @@ impl Domain {
             answer_parts: Map::uncapped(),
             refused_calls: Map::uncapped(),
             archive_reads: Slab::with_capacity(limits.loads.loads),
-            ended_waiting: Queue::with_capacity(limits.tasks.tasks),
             store_answers: Queue::with_capacity(limits.loads.loads),
             call_renders: Map::with_capacity(limits.fleet.calls),
             work: Queue::uncapped(),
@@ -831,7 +829,6 @@ impl Domain {
 
     pub(crate) fn stop_start(&mut self, stop: StartStop) {
         if self.start_stop.is_none() {
-            self.ended_waiting.clear();
             self.start_stop = Some(stop);
             self.stop_pending = true;
         }
@@ -862,7 +859,6 @@ impl Domain {
             && self.refused_calls.is_empty()
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
-            && self.ended_waiting.is_empty()
             && self.revision_reads.is_empty()
             && self.history_reads.is_empty()
             && self.view_reads.is_empty()
@@ -920,7 +916,6 @@ impl Domain {
         self.forge.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
-        crate::archive::reclaim_ended(self);
     }
 
     /// Shell/root caller discards every currently queued child observation, scanning at most each
@@ -1065,9 +1060,6 @@ fn finish_close(
         domain.journal = Journal::uncapped(1, commits);
         domain.sent_commit = commits;
         domain.durable_commit = commits;
-    }
-    if domain.engine.core().stopping() || domain.journal.stopped() {
-        domain.ended_waiting.clear();
     }
     if domain.journal.stopped() {
         domain.journal_stop = journal_stop;
@@ -1491,7 +1483,6 @@ fn released_into(
         Delivery::Load { waiter, range, after } => {
             request_load(domain, waiter, range, after, out);
         }
-        Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::Push(_)
         | Delivery::Providers(..)
         | Delivery::WorkerFigures { .. }
@@ -1560,30 +1551,6 @@ pub enum Refused {
     /// The forges' writers or git identities beyond the forge's repositories,
     /// or the namespace and writers beyond the forge client's `op_bytes`.
     Forges,
-}
-
-fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<Request>) {
-    let Some(Some(read)) = domain.archive_reads.get(Id::from_token(waiter)) else { return };
-    let (task, revision) = match read {
-        Read::Escalation(query) => (query.task, query.revision),
-        Read::Ended(_)
-        | Read::Transcript { .. }
-        | Read::GoalWords(_)
-        | Read::InputCheck(_)
-        | Read::Parts(_)
-        | Read::CloserReport(_)
-        | Read::Document(_)
-        | Read::Remember(_)
-        | Read::SettingsNote { .. }
-        | Read::ChangeDelegate { .. }
-        | Read::History { .. }
-        | Read::Notes { .. }
-        | Read::Proposal(_)
-        | Read::TaskProposal { .. } => {
-            unreachable!("decision archive waiter")
-        }
-    };
-    request_load(domain, waiter, Range::Core(crate::CoreRange::EscalationDecision { task, revision }), None, out);
 }
 
 /// Hold the configuration to the root's limits as `Domain::new` does, and

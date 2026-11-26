@@ -1,7 +1,7 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
 use crate::waits::Figures;
-use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
+use crate::{CallKey, CallPart, Delegate, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -329,8 +329,6 @@ pub enum Held {
     Restarting {
         wait: skein_lib::Duration,
     },
-    /// A point load sent once every earlier commit is durable.
-    Load(Box<Now>),
     /// Assemble the connector-owned document prepared for this delivery in the same decision.
     ApplicationDelivery {
         watcher: Token,
@@ -788,50 +786,6 @@ pub enum Now {
         task: u64,
         from: (u64, u32),
     },
-    /// Load one proposal decision that has left live task memory.
-    SeenConversation {
-        request: Token,
-        task: u64,
-    },
-    /// Load the durable position of one ended conversation for its mark.
-    LoadEndedRead {
-        request: Token,
-        task: u64,
-        party: u64,
-    },
-    /// Load one proposal decision that has left live task memory.
-    EndedProposal {
-        request: Token,
-        person: u64,
-        project: u32,
-        proposer: people::Proposer,
-        proposal: u64,
-    },
-    /// Load a task proposal from the proposer's retained history.
-    DecidedProposal {
-        to: ReplyTo,
-        key: CallKey,
-        proposal: u64,
-    },
-    /// Load the ended owner row for a person-task act whose live row is gone.
-    EndedPersonTask {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-    },
-    /// Load an ended task row; the core retains why it needs the result.
-    EndedTask {
-        request: Token,
-        task: u64,
-    },
-    /// Load the first input or ended tree root; later inputs return to the core between gets.
-    PartyInputs {
-        request: Token,
-        person: u64,
-        project: u32,
-        tasks: Box<[u64]>,
-    },
     /// Assemble connector-held sections for a still-current brief.
     CompleteBrief {
         brief: Token,
@@ -874,14 +828,6 @@ pub enum Now {
         parts: Box<[jig_domain_link::KeptPart]>,
         answered: Box<[CallKey]>,
         grants: Box<[jig_domain_link::Grant]>,
-    },
-    /// Load one held-chat decision that has left live task memory.
-    EndedEscalation {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-        revision: u64,
     },
     /// The first child admitted from a connector procedure's batch, if any.
     /// A restored task row was refused; the root must fail startup.
@@ -1308,69 +1254,6 @@ pub enum Event {
         ready: bool,
         busy: bool,
     },
-    /// Return the ended owner header for an authenticated conversation mark.
-    SeenConversationLoaded {
-        request: Token,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// The ended position loaded for an authenticated mark, zero if absent.
-    EndedReadLoaded {
-        request: Token,
-        task: u64,
-        party: u64,
-        through: u64,
-        busy: bool,
-    },
-    /// The proposal loaded from its task proposer's durable history.
-    DecidedProposal {
-        to: ReplyTo,
-        key: CallKey,
-        proposal: u64,
-        row: Option<tasks::Proposal>,
-        busy: bool,
-    },
-    /// One ended proposal decision, translated from the root's store row.
-    EndedProposal {
-        request: Token,
-        person: u64,
-        project: u32,
-        proposer: people::Proposer,
-        proposal: u64,
-        row: Option<crate::ProposalDecisionRecord>,
-        busy: bool,
-    },
-    /// One ended task row, loaded without root judgment.
-    EndedTaskLoaded {
-        request: Token,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// One party input or its ended tree root, loaded without root judgment.
-    PartyInputsLoaded {
-        request: Token,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// Ended owner row loaded for an authenticated person-task act.
-    EndedPersonTask {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// One ended held-chat decision, translated from the root's store row.
-    EndedEscalation {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-        revision: u64,
-        row: Option<EscalationDecisionRecord>,
-        busy: bool,
-    },
     /// One root-translated named-call answer that needs a durable core decision.
     NamedAnswer {
         to: ReplyTo,
@@ -1383,17 +1266,11 @@ pub enum Event {
         key: CallKey,
         action: NamedAction,
     },
-    /// Retained inputs have been loaded and validated by the root's store transport.
-    DelegateValidated {
+    /// A run's delegated batch after the connector has translated its tools.
+    Delegate {
         to: ReplyTo,
         key: CallKey,
         batch: Box<[Delegate]>,
-        stubs: Box<[tasks::Stub]>,
-    },
-    /// One retained input load failed validation before named delegation.
-    DelegateInputFailed {
-        to: ReplyTo,
-        key: CallKey,
     },
     /// One connector's batch holdings, in the same order as the core's request.
     DelegateHoldings {
@@ -1738,17 +1615,8 @@ impl Event {
             | Self::AcceptedTurn { .. }
             | Self::RefusedPayload { .. }
             | Self::Activate { .. }
-            | Self::SeenConversationLoaded { .. }
-            | Self::EndedReadLoaded { .. }
-            | Self::DecidedProposal { .. }
-            | Self::EndedProposal { .. }
-            | Self::EndedTaskLoaded { .. }
-            | Self::PartyInputsLoaded { .. }
-            | Self::EndedPersonTask { .. }
-            | Self::EndedEscalation { .. }
             | Self::NamedAnswer { .. }
-            | Self::DelegateValidated { .. }
-            | Self::DelegateInputFailed { .. }
+            | Self::Delegate { .. }
             | Self::DelegateHoldings { .. }
             | Self::ProcedureHoldings { .. }
             | Self::ProcedureStep { .. }

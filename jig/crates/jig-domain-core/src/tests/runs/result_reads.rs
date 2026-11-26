@@ -25,8 +25,10 @@ fn preparing() -> (Core, Limits) {
 pub(in crate::tests) fn requested(out: &[Request], wanted: u64) -> Token {
     for request in out {
         if let Request::Held(held) = request
-            && let Held::Load(now) = held.as_ref()
-            && let Now::EndedTask { request, task } = now.as_ref()
+            && let Held::Store(engine_store::Out::Load {
+                load: request,
+                range: engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(task))),
+            }) = held.as_ref()
         {
             assert_eq!(*task, wanted);
             return *request;
@@ -51,7 +53,80 @@ fn ended(number: u64) -> Box<tasks::TaskRecord> {
 }
 
 fn answer(core: &mut Core, limits: &Limits, request: Token, row: Option<Box<tasks::TaskRecord>>) -> Box<[Request]> {
-    watch_outputs(core, limits, Event::EndedTaskLoaded { request, row, busy: false })
+    watch_store_outputs(core, limits, ended_answer(request, row, false))
+}
+
+#[test]
+fn two_preparations_share_one_load_slot_without_failing() {
+    use crate::engine::{self, Engine, In, Out, Peer};
+    const SECOND: u64 = 2;
+    let (mut core, mut limits) = preparing();
+    limits.load_slots = 1;
+    core.contexts.get_mut(&PREPARING).unwrap().spec.inputs = Box::new([]);
+    send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(SECOND)), task: SECOND });
+    let mut context = core.tasks.run_context(SECOND).unwrap();
+    context.dependencies = Box::new([INPUT]);
+    core.contexts.insert(SECOND, context).unwrap();
+    core.begin_transcript(SECOND, 0, None);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut engine = Engine::from_core(core);
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut engine,
+        &env,
+        In::Core(Event::TranscriptLoaded {
+            task: PREPARING,
+            load: TranscriptLoad::Page { rows: Box::new([]), done: true },
+        }),
+        &mut out,
+    );
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load: first, range }))) = out.pop() else {
+        panic!("first result load")
+    };
+    assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(DEPENDENCY))));
+    assert!(out.is_empty());
+    engine::step(
+        &mut engine,
+        &env,
+        In::Core(Event::TranscriptLoaded {
+            task: SECOND,
+            load: TranscriptLoad::Page { rows: Box::new([]), done: true },
+        }),
+        &mut out,
+    );
+    assert!(out.is_empty(), "no slot is free for a new load or failure");
+    engine::step(&mut engine, &env, In::Store(ended_answer(first, Some(ended(DEPENDENCY)), false)), &mut out);
+    let mut second = None;
+    while let Some(output) = out.pop() {
+        match output {
+            Out::Held(Peer::Store(engine_store::Out::Load { load, range })) => {
+                assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(INPUT))));
+                assert!(second.replace(load).is_none());
+            }
+            Out::Core(Request::Now(now)) => assert_no_failure(&now),
+            Out::Core(Request::Held(_) | Request::Write(_) | Request::Ask { .. } | Request::ProjectMade { .. }) => {}
+        }
+    }
+    engine::step(
+        &mut engine,
+        &env,
+        In::Store(ended_answer(second.expect("second result load"), Some(ended(INPUT)), false)),
+        &mut out,
+    );
+    while let Some(output) = out.pop() {
+        if let Out::Core(Request::Now(now)) = output {
+            assert_no_failure(&now);
+        }
+    }
+    for task in [PREPARING, SECOND] {
+        assert_eq!(engine.core().tasks.task(task).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+    }
+}
+
+fn assert_no_failure(now: &Now) {
+    if let Now::BriefFailed { task, failure } = now {
+        panic!("task {task}: {failure:?}");
+    }
 }
 
 fn assert_empty(out: &[Request]) {
@@ -130,7 +205,7 @@ fn unavailable_or_rejected_results_back_off_without_spending_attempts() {
     ] {
         let (mut core, limits) = preparing();
         let request = start(&mut core, &limits);
-        let out = watch_outputs(&mut core, &limits, Event::EndedTaskLoaded { request, row, busy });
+        let out = watch_store_outputs(&mut core, &limits, ended_answer(request, row, busy));
         let row = core.tasks.task(PREPARING).unwrap();
         let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = row.phase else {
             panic!("{label}: preparation did not back off");

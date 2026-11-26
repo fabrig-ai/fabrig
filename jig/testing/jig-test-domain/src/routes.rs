@@ -136,7 +136,6 @@ pub(super) fn route_request(
             | core::Held::Refuse { .. }
             | core::Held::TurnBusy { .. }
             | core::Held::StopRun { .. }
-            | core::Held::Load(..)
             | core::Held::NotesLoad { .. }
             | core::Held::NotesWritten { .. }
             | core::Held::Acted { .. }
@@ -592,15 +591,7 @@ fn route_now(
             assert!(domain.start_stopped(), "a refused restore has stopped the core");
         }
 
-        other @ (core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. }
-        | core::Now::SettledCallRefused { .. }
+        other @ (core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }

@@ -30,15 +30,13 @@ use crate::{
         },
         effect::note::route_notes,
         party::{
-            ended::{route_ended_escalation, route_ended_proposal},
             holdings::route_holdings,
             people::{route_people, sign_in},
         },
         run::{
             calls::{named_action, route_named_answer, route_refused_payload},
             delegation::{
-                delegate_holdings, delegate_input_failed, delegate_validated, procedure_holdings, procedure_step,
-                route_period, route_start_recurring,
+                delegate, delegate_holdings, procedure_holdings, procedure_step, route_period, route_start_recurring,
             },
             payloads::{route_answer_payload, route_turn_payload},
             preparation::{
@@ -393,6 +391,7 @@ fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
+    crate::loads::resume_points(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
@@ -480,6 +479,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::loads::resume_points(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
@@ -741,51 +741,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_refused_payload(core, work, request, problem, payload)
         }
         Event::Activate { context, ready, busy } => route_activate(core, env, work, context, ready, busy),
-        Event::EndedReadLoaded { request, task, party, through, busy } => {
-            ended_marks::loaded(core, env, work, ended_marks::Answer { request, task, party, through, busy })
-        }
-        Event::SeenConversationLoaded { request, row, busy } => {
-            crate::inbox::seen_conversation_loaded(core, env, work, request, row, busy)
-        }
-        Event::DecidedProposal { to, key, proposal, row, busy } => {
-            party::ended::decided_proposal(core, to, key, proposal, row, busy)
-        }
-        Event::EndedProposal { request, person, project, proposer, proposal, row, busy } => route_ended_proposal(
-            core,
-            work,
-            party::dispatch::Party { request, person, project, role: None },
-            proposer,
-            proposal,
-            row,
-            busy,
-        ),
-        Event::EndedTaskLoaded { request, row, busy } => run::results::loaded(core, env, work, request, row, busy),
-        Event::PartyInputsLoaded { request, row, busy } => {
-            let mut routed = party::dispatch::Routed::new(work);
-            party::inputs::loaded(core, env, &mut routed, party::inputs::Loaded { request, row, busy });
-            routed.finish(work)
-        }
-        Event::EndedPersonTask { request, person, project, task, row, busy } => {
-            let outcome = core.person_task_ended(
-                party::dispatch::Party { request, person, project, role: None },
-                task,
-                row,
-                busy,
-            );
-            work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
-            Queue::uncapped()
-        }
-        Event::EndedEscalation { request, person, project, task, revision, row, busy } => route_ended_escalation(
-            core,
-            env,
-            work,
-            party::dispatch::Party { request, person, project, role: None },
-            party::ended::Escalation { task, revision, row, busy },
-        ),
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
-        Event::DelegateValidated { to, key, batch, stubs } => delegate_validated(core, env, to, key, batch, stubs),
-        Event::DelegateInputFailed { to, key } => delegate_input_failed(work, to, key),
+        Event::Delegate { to, key, batch } => delegate(core, env, to, key, batch),
         Event::DelegateHoldings { request, connector, holdings, refused } => {
             delegate_holdings(core, env, work, request, connector, holdings, refused)
         }
@@ -895,6 +853,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
     };
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::loads::resume_points(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out

@@ -1,14 +1,14 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 pub use crate::route::approvals::{ApprovalPerson, ApprovalRow, ApprovalSet, ApprovalSize, Approvals, YourReview};
-use crate::route::{HostRequest, escalation, forge_route, proposals};
+use crate::route::{HostRequest, forge_route};
 use crate::{CallKey, Delivery, Key, Range, Record, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
 use jig_domain_core::engine::store as engine_store;
-use jig_domain_core::{Delegate, ProcedureStep, RunCharter};
+use jig_domain_core::{ProcedureStep, RunCharter};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::Grant;
@@ -920,16 +920,8 @@ pub(crate) enum Work {
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
     Activate { context: Box<tasks::RunContext>, ready: bool },
-    EscalationLoaded { waiter: Token, rows: Box<[Record]> },
-    EscalationFailed { waiter: Token },
-    ProposalLoaded { waiter: Token, rows: Box<[Record]> },
-    ProposalFailed { waiter: Token },
-    TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
     CloserReportReady { task: u64 },
-    EndedLoad { waiter: Token, task: u64 },
-    EndedLoaded { waiter: Token, rows: Box<[Record]> },
     ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
-    EndedFailed { waiter: Token },
 }
 
 #[derive(Hash, Debug)]
@@ -1004,27 +996,12 @@ pub(crate) struct AssignmentParts {
     pub answered: Box<[crate::CallRecord]>,
 }
 
-/// An ended owner row the core asked the root to load.
-#[derive(Hash, Debug)]
-pub(crate) enum EndedRead {
-    ChangeFrom { task: u64 },
-    EndedTask { request: Token, task: u64 },
-    SeenConversation { request: Token, task: u64 },
-    Position { request: Token, task: u64, party: u64 },
-    PartyInput { request: Token, task: u64 },
-    PersonTask { request: Token, person: u64, project: u32, task: u64 },
-}
-
 #[derive(Hash, Debug)]
 pub(crate) enum Read {
     ChangeDelegate { task: u64, child: u64, step: u64, revision: u64 },
     History { load: u64, most: u32 },
-    Escalation(escalation::Query),
-    Proposal(proposals::Query),
-    TaskProposal { to: ReplyTo, key: CallKey, proposal: u64 },
-    Ended(EndedRead),
+    ChangeFrom { task: u64 },
     Transcript { task: u64 },
-    InputCheck(InputCheck),
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
@@ -1042,17 +1019,6 @@ pub(crate) struct GoalWords {
     pub(crate) person: u64,
     pub(crate) position: u64,
     pub(crate) person_words: Box<[u8]>,
-}
-
-#[derive(Hash, Debug)]
-pub(crate) struct InputCheck {
-    pub(crate) to: Token,
-    pub(crate) key: CallKey,
-    pub(crate) batch: Box<[Delegate]>,
-    pub(crate) ids: Box<[u64]>,
-    pub(crate) at: u32,
-    pub(crate) project: u32,
-    pub(crate) stubs: List<tasks::Stub>,
 }
 
 /// A child continuation that has crossed its journal barrier. Its payload is
@@ -1073,8 +1039,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Relay { .. }
         | Delivery::NotesLoad { .. }
         | Delivery::Start(_)
-        | Delivery::Load { .. }
-        | Delivery::ReadEscalationDecision { .. }) => Request::ToChild(Released(delivery)),
+        | Delivery::Load { .. }) => Request::ToChild(Released(delivery)),
         delivery @ (Delivery::Host(_)
         | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }

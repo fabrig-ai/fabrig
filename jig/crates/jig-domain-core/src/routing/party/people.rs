@@ -4,6 +4,7 @@
 //! current escalation revisions before ended records. Other families select
 //! disjoint variants.
 
+use crate::loads::point::{self, Point};
 use crate::{
     Core, Event, Held, Key, Limits, Now, Record, Request, Write,
     routing::{
@@ -359,6 +360,7 @@ pub(crate) fn tag_people_part(
                     people::Ask::TakePerson { task, .. } => {
                         person_task_request(
                             core,
+                            &env.limits,
                             &mut routed,
                             party,
                             crate::admission::person_task::Action::Take { task },
@@ -367,6 +369,7 @@ pub(crate) fn tag_people_part(
                     people::Ask::HandBackPerson { task, .. } => {
                         person_task_request(
                             core,
+                            &env.limits,
                             &mut routed,
                             party,
                             crate::admission::person_task::Action::HandBack { task },
@@ -375,6 +378,7 @@ pub(crate) fn tag_people_part(
                     people::Ask::AnswerPerson { task, revision, result, .. } => {
                         person_task_request(
                             core,
+                            &env.limits,
                             &mut routed,
                             party,
                             crate::admission::person_task::Action::Answer { task, revision, result },
@@ -587,6 +591,7 @@ pub(crate) fn tag_people_part(
                     }
                     people::Ask::Withdraw { proposal, .. } => super::propose::withdraw_request(
                         core,
+                        &env.limits,
                         &mut routed,
                         super::propose::Withdrawal { request, person, project, proposal },
                     ),
@@ -668,10 +673,13 @@ pub(crate) fn tag_people_part(
                                 }
                             }
                             None => {
-                                routed.out.push(Request::Held(Box::new(Held::Load(Box::new(Now::SeenConversation {
+                                point::party(
+                                    core,
+                                    &env.limits,
+                                    &mut routed,
                                     request,
-                                    task,
-                                })))));
+                                    Point::SeenConversation { request, task },
+                                );
                             }
                         },
                     },

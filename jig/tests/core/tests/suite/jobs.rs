@@ -147,11 +147,10 @@ fn an_agents_delegate_naming_a_job_is_refused() {
     let before = live_row(&world, world.assignments[0].0).delegates.clone();
     let run = world.assignments[0];
     let child = job(&world, 7, 64, 60);
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9002)),
         key: core::CallKey { task: run.0, attempt: run.1, completion: 2, position: 0 },
         batch: Box::new([child]),
-        stubs: Box::new([]),
     }));
     assert_eq!(
         world.answers.last().expect("delegation refusal").2,

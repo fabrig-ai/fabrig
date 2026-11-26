@@ -426,7 +426,6 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }
         | root::Delivery::Relay { .. }
-        | root::Delivery::ReadEscalationDecision { .. }
         | root::Delivery::Fleet(_)
         | root::Delivery::PartLoad { .. }
         | root::Delivery::EngineStore(_)

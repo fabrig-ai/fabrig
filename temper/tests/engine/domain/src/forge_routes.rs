@@ -4462,12 +4462,10 @@ impl World {
             let result = self.store.read(range);
             self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             None
-        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
-            load,
-            range: engine_store::Range::Read(range),
-        })) = request
+        } else if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) =
+            request
         {
-            let result = self.store.read(range);
+            let result = self.store.load(range);
             self.immediate
                 .push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })));
             None

@@ -360,7 +360,6 @@ impl Driver {
             | Delivery::ForgeCall { .. }
             | Delivery::Procedure { .. }
             | Delivery::Relay { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::Assigned { .. }
             | Delivery::WebReply { .. }

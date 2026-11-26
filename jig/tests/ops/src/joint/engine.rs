@@ -263,25 +263,16 @@ impl Application for OpsApplication {
                 return Ops::deliver(&mut peers.conformance, systems, store, clock, other);
             }
         };
-        if let root::Output::CoreLoad(core::Now::SeenConversation { request, task }) = delivery {
-            let row = store.rows.values().find_map(|record| match record {
-                root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Ended(row))) if row.number == task => {
-                    Some(row.clone())
+        if let root::Output::Store(engine_store::Out::Load { load, range }) = delivery {
+            let result = match range {
+                engine_store::Range::Read(range) => read_page(store, &range, peers.tree_tasks),
+                range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }) => {
+                    conformance::point(store, &range)
                 }
-                root::Record::Core(_) | root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
-            });
-            return Ok(vec![Input::Event(root::Event::Core(core::Event::SeenConversationLoaded {
-                request,
-                row,
-                busy: false,
-            }))]);
-        }
-        if let root::Output::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = delivery
-        {
-            let loaded = read_page(store, &range, peers.tree_tasks);
+            };
             return Ok(vec![Input::Event(root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
                 load,
-                result: loaded,
+                result,
             })))]);
         }
         match &delivery {
@@ -367,7 +358,6 @@ impl Application for OpsApplication {
                 | core::Held::Refuse { .. }
                 | core::Held::TurnBusy { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::Load(..)
                 | core::Held::NotesLoad { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
@@ -395,20 +385,12 @@ impl Application for OpsApplication {
                 | core::Now::DropAssignment { .. }
                 | core::Now::Activate { .. }
                 | core::Now::StartPreparation { .. }
-                | core::Now::SeenConversation { .. }
-                | core::Now::LoadEndedRead { .. }
-                | core::Now::EndedProposal { .. }
-                | core::Now::DecidedProposal { .. }
-                | core::Now::EndedPersonTask { .. }
-                | core::Now::EndedTask { .. }
-                | core::Now::PartyInputs { .. }
                 | core::Now::CompleteBrief { .. }
                 | core::Now::BriefCorePlanned { .. }
                 | core::Now::WorkspaceRequest { .. }
                 | core::Now::RunPreparationFailed { .. }
                 | core::Now::BriefFailed { .. }
                 | core::Now::RunPrepared { .. }
-                | core::Now::EndedEscalation { .. }
                 | core::Now::PartBusy { .. }
                 | core::Now::RestoreRefused,
             )

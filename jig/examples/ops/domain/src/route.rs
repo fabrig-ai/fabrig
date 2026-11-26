@@ -331,7 +331,7 @@ fn core_held(
         core::Held::PublicRead { .. } => {}
         core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
         core::Held::Store(load) => held(decision, Output::Store(load)),
-        core::Held::Load(load) => held(decision, Output::CoreLoad(*load)),
+
         core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
         core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
             crate::client_documents::forget(domain, connector, subject, work);
@@ -1434,14 +1434,6 @@ fn core_now(
             drop(domain.hub_link.take_assignment(task));
             drop(domain.hub_link.take_brief(task));
         }
-        load @ (core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }) => now(domain, Output::CoreLoad(load)),
         core::Now::RestoreRefused => {
             assert!(domain.engine.core().start_failure().is_some(), "a refused row records its start failure");
         }

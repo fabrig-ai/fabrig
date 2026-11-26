@@ -106,18 +106,9 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
@@ -221,7 +212,6 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Bound { .. }
         | root::Delivery::Procedure { .. }
         | root::Delivery::Relay { .. }
-        | root::Delivery::ReadEscalationDecision { .. }
         | root::Delivery::Fleet(_)
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }

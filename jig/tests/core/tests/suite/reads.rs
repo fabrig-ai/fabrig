@@ -549,7 +549,7 @@ fn question_world_with_obligation(
     let mut authority = world.assigned.as_ref().expect("parent").run.authority.clone();
     authority.budget.spend = 20;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: skein_lib::ReplyTo::new(skein_lib::Token::new(49_001)),
         key: run_key(&world, parent, 1),
         batch: Box::new([core::Delegate {
@@ -573,7 +573,6 @@ fn question_world_with_obligation(
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     assert_ne!(chat_task(&world), parent, "the delegate runs");
     (world, parent)

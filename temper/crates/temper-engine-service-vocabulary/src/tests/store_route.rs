@@ -2,6 +2,7 @@ use super::fixtures;
 use crate::store::route::{self, CommitStop, RouteStop, Up};
 use ::core::mem::size_of;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store as store;
 use skein_lib::{Queue, Token};
 use smith_transcript::Record;
@@ -126,11 +127,6 @@ fn each_root_range_asks_the_store_as_the_table_maps_it() {
         engine::Range::Census(core::Census { results: Box::new([]), questions: Box::new([]) }),
         engine::Range::Forge,
         engine::Range::Core(engine::CoreRange::TaskResult { task: 7 }),
-        engine::Range::Core(engine::CoreRange::ProposalDecision {
-            proposer: jig_domain_people::Proposer::Party(8),
-            proposal: 9,
-        }),
-        engine::Range::Core(engine::CoreRange::EscalationDecision { task: 7, revision: 2 }),
         engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (2, 3) }),
         engine::Range::Core(engine::CoreRange::Turns { task: 7, attempt: 2 }),
         engine::Range::Core(engine::CoreRange::Notes(jig_domain_notes::Range::Entry { name: 5 })),
@@ -169,27 +165,19 @@ fn check_range(index: usize, request: store::Request) {
             };
             assert_eq!(ranges.as_ref(), [skein_kv::Range { start: Box::new([]), end: Some(Box::new([128])) }]);
         }
-        7..=9 => {
-            let store::Request::Get { key: store::Get::Jig(key), .. } = request else { panic!("get {index}") };
-            let expected = [
-                core::Key::Tasks(jig_domain_tasks::Key::Ended(7)),
-                core::Key::Core(core::CoreKey::ProposalDecision {
-                    proposer: jig_domain_people::Proposer::Party(8),
-                    proposal: 9,
-                }),
-                core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 }),
-            ];
-            assert_eq!(key, expected[index.checked_sub(7).unwrap()], "{index}");
+        7 => {
+            let store::Request::Get { key: store::Get::Jig(key), .. } = request else { panic!("retained row get") };
+            assert_eq!(key, core::Key::Tasks(jig_domain_tasks::Key::Ended(7)));
         }
-        10..=11 => {
+        8..=9 => {
             let store::Request::Transcript { read, rows: 4, bytes: 4096, .. } = request else { panic!("transcript") };
             let expected = [
                 store::TranscriptRead::Window { task: 7, attempt: 2, turn: 3, after: None },
                 store::TranscriptRead::Page { task: 7, backwards: false, after: None },
             ];
-            assert_eq!(read, expected[index.checked_sub(10).unwrap()]);
+            assert_eq!(read, expected[index.checked_sub(8).unwrap()]);
         }
-        12 => {
+        10 => {
             let store::Request::Load {
                 range: store::Load::Notes(jig_domain_notes::Range::Entry { name: 5 }),
                 after: None,
@@ -612,14 +600,12 @@ fn projection_row() -> core::Record {
 const TASK: u64 = 7;
 const PROPOSAL: u64 = 19;
 const REVISION: u64 = 3;
-const ONE_ROW: u32 = 1;
-const LOAD_BYTES: u32 = 8192;
 const LOAD_OUTPUTS: u32 = 2;
 
 struct DecidedRows {
     live: Option<jig_domain_tasks::TaskRecord>,
     history: Option<core::Record>,
-    expected: Box<[engine::Record]>,
+    expected: Box<[core::Record]>,
 }
 #[test]
 fn a_task_proposal_load_follows_the_live_owners_history_pointer() {
@@ -627,7 +613,7 @@ fn a_task_proposal_load_follows_the_live_owners_history_pointer() {
     assert_decided_load(DecidedRows {
         live: Some(proposal_owner()),
         history: Some(history.clone()),
-        expected: Box::new([engine::Record::Core(history)]),
+        expected: Box::new([history]),
     });
 }
 #[test]
@@ -655,12 +641,52 @@ fn proposal_owner() -> jig_domain_tasks::TaskRecord {
     live.proposal_rows = Box::new([jig_domain_tasks::ProposalRow { proposal: PROPOSAL, revision: REVISION }]);
     live
 }
+fn point(range: engine_store::Range) -> engine::StoreRequest {
+    engine::StoreRequest::Engine(engine_store::Out::Load { load: fixtures::OWNER, range })
+}
+
+fn point_answer(out: &mut Queue<Up>) -> (Token, engine_store::Answer) {
+    let Some(Up::Root(event)) = out.pop() else { panic!("one root event") };
+    let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })) = *event else {
+        panic!("point load answer")
+    };
+    (load, result)
+}
+
+#[test]
+fn point_keys_are_gets_and_an_unreadable_record_answers_once() {
+    for key in [
+        core::Key::Tasks(jig_domain_tasks::Key::Ended(7)),
+        core::Key::People(jig_domain_people::Key::EndedRead { task: 7, party: 8 }),
+        core::Key::Core(core::CoreKey::ProposalDecision {
+            proposer: jig_domain_people::Proposer::Party(8),
+            proposal: 9,
+        }),
+        core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 }),
+    ] {
+        let mut routes = fixtures::routes();
+        let Some(store::Request::Get { owner, key: store::Get::Jig(found) }) =
+            route::down(&mut routes, point(engine_store::Range::Record(key.clone())))
+        else {
+            panic!("point get")
+        };
+        assert_eq!(key, found);
+        let mut out = Queue::with_capacity(LOAD_OUTPUTS);
+        route::up(&mut routes, store::Event::Corrupt { owner }, &mut out);
+        let (load, result) = point_answer(&mut out);
+        assert_eq!(load, fixtures::OWNER);
+        let engine_store::Answer::Failed(engine_store::Failure::Failed) = result else { panic!("typed failure") };
+        route::up(&mut routes, store::Event::Corrupt { owner }, &mut out);
+        assert!(out.is_empty());
+        assert!(routes.idle());
+    }
+}
+
 fn assert_decided_load(rows: DecidedRows) {
     use jig_domain_tasks as tasks;
     let mut routes = fixtures::routes();
-    let range = engine::Range::Core(engine::CoreRange::TaskProposal { task: TASK, proposal: PROPOSAL });
-    let Some(store::Request::Get { owner, key }) = route::down(&mut routes, load(range, None, ONE_ROW, LOAD_BYTES))
-    else {
+    let range = engine_store::Range::Proposal { task: TASK, proposal: PROPOSAL };
+    let Some(store::Request::Get { owner, key }) = route::down(&mut routes, point(range)) else {
         panic!("live lookup")
     };
     let store::Get::Jig(key) = key else { panic!("jig owner") };
@@ -676,8 +702,11 @@ fn assert_decided_load(rows: DecidedRows) {
         let history = stored_history(rows.history);
         route::up(&mut routes, store::Event::Got { owner, row: history }, &mut out);
     }
-    let (load_owner, loaded, next) = page(&mut out);
-    assert_eq!((load_owner, loaded.as_ref(), next), (fixtures::OWNER, rows.expected.as_ref(), None));
+    let (load, result) = point_answer(&mut out);
+    let engine_store::Answer::Rows(engine_store::Rows::Records { records, more: false }) = result else {
+        panic!("records answer")
+    };
+    assert_eq!((load, records.as_ref()), (fixtures::OWNER, rows.expected.as_ref()));
     assert!(out.is_empty());
     assert!(routes.idle());
 }

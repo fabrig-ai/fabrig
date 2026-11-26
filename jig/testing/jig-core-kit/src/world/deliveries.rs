@@ -86,6 +86,7 @@ impl World {
                     self.store.ask(request);
                 }
             }
+            root::Delivery::Store(load) => self.point_load(load),
             root::Delivery::Core(
                 core::Held::Applied { .. }
                 | core::Held::ApplicationDelivery { .. }
@@ -216,7 +217,6 @@ impl World {
                     ask: self.initial_ask.clone(),
                 })));
             }
-            root::Delivery::Core(core::Held::Load(load)) => self.ended_load(*load),
             root::Delivery::Core(core::Held::Store(load)) => self.store.ask(StoreOut::Engine(load)),
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 self.store.ask(StoreOut::NotesLoad { owner, range });

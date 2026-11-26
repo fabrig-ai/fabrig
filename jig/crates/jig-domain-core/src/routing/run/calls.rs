@@ -727,11 +727,10 @@ pub(crate) fn named_action(
         NamedAction::WithdrawProposal { proposal } => {
             if core.tasks.proposal(key.task, proposal).is_none() {
                 assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
-                out.push(Request::Now(Box::new(crate::Now::DecidedProposal {
-                    to: ReplyTo::new(token),
-                    key,
-                    proposal,
-                })));
+                let point = crate::loads::point::Point::Proposal { to: ReplyTo::new(token), key, proposal };
+                if !crate::loads::try_point(core, &env.limits, &mut out, point) {
+                    call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::Unavailable);
+                }
                 return out;
             }
             assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");

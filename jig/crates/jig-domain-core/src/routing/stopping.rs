@@ -78,6 +78,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         out.push(Request::Held(Box::new(Held::Restarting { wait })));
     }
     core.stopping = true;
+    crate::loads::discard_waiting_points(core);
     core.draining = Some(true);
     if !core.start_opened() {
         drained(core, &mut out);
@@ -153,8 +154,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         Event::Watch { watcher, .. } | Event::WatchRun { watcher, .. } => Err(watch(watcher)),
         Event::NamedAction { to, .. }
         | Event::NamedAnswer { to, .. }
-        | Event::DelegateValidated { to, .. }
-        | Event::DelegateInputFailed { to, .. }
+        | Event::Delegate { to, .. }
         | Event::SettledCall { to, .. } => Err(call(to)),
         Event::Fleet(fleet::Event::Hello { worker: 0, channel, .. }) => {
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
@@ -203,14 +203,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::EndedReadLoaded { .. }
-        | Event::SeenConversationLoaded { .. }
-        | Event::EndedProposal { .. }
-        | Event::DecidedProposal { .. }
-        | Event::EndedPersonTask { .. }
-        | Event::PartyInputsLoaded { .. }
-        | Event::EndedTaskLoaded { .. }
-        | Event::EndedEscalation { .. }
         | Event::DelegateHoldings { .. }
         | Event::Brief(_)
         | Event::Holdings { .. }

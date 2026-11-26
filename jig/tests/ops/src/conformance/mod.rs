@@ -10,6 +10,7 @@ mod protocol;
 mod scripts;
 pub use scripts::agent_bounds;
 mod scenarios;
+pub(crate) use scenarios::reads::point;
 mod store;
 mod systems;
 

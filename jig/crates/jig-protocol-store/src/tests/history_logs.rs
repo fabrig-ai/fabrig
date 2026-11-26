@@ -5,7 +5,7 @@
     reason = "history view step tests compare complete answers and construct frozen byte fixtures"
 )]
 use super::fixtures::{self, ALICE, CHILD, GOAL, GRANDCHILD};
-use crate::{Event, Get, Phase, Request, Restore, Store, codec, keys, logs};
+use crate::{Event, Phase, Request, Restore, Store, codec, keys, logs};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, Key, Record, reads};
@@ -105,27 +105,9 @@ fn child_store() -> Store {
     store
 }
 fn got(store: &mut Store) -> Option<Record> {
-    let events = fixtures::run(
-        store,
-        Request::Get {
-            owner: Token::new(7),
-            key: Get::Jig(
-                crate::ended::key(&core::Now::EndedPersonTask {
-                    request: Token::new(9),
-                    person: ALICE,
-                    project: fixtures::PROJECT,
-                    task: CHILD,
-                })
-                .unwrap(),
-            ),
-        },
-    );
-    let [Event::Got { row, .. }] = events.as_ref() else { panic!("one get: {events:?}") };
-    match row {
-        Some(crate::Row::Jig(row)) => Some(row.clone()),
-        None => None,
-        Some(crate::Row::Application { .. }) => panic!("domain get"),
-    }
+    let records = super::gets::records(store, Key::Tasks(tasks::Key::Ended(CHILD)));
+    assert!(records.len() <= 1);
+    records.into_iter().next()
 }
 #[test]
 fn an_ended_get_and_its_terminal_read_come_from_the_log() {
