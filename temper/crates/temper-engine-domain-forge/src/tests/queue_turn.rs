@@ -528,12 +528,22 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             d.changes.get_mut(&OWNER).unwrap().change.gates = Box::new([gate()]);
         }
     }
-    let env = env();
-    decide_step(d, &env, p, &mut out);
+    decide_step(d, &env(), p, &mut out);
     if matches!(how, Leave::Conflict(true)) {
-        let owner = step_owner(d, OWNER).expect("pending merge hooks read");
-        // Without a hooks directory, the project merge job takes the conflict.
-        step_read(d, &env, owner, Err(skein_forge::api::Error::Missing), &mut out);
+        // The merge job finds its hook in its checkout, without a forge read.
+        assert!(step_owner(d, OWNER).is_none(), "no pending merge hooks read");
+        let mut requested = false;
+        for request in &out {
+            requested |= *request
+                == Request::ChangeDecision {
+                    task: OWNER,
+                    decision: change::Decision::Delegate(change::Delegate::Merge { base: BASE, from: Some(HEAD) }),
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                };
+        }
+        assert!(requested, "the conflict requests a merge job in the same step: {out:?}");
     }
     out
 }
