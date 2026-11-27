@@ -337,7 +337,7 @@ impl Engine {
             self.notes.push(note);
         }
     }
-    pub(crate) fn drain_notes(&mut self) {
+    fn drain_settings_warning(&mut self) {
         if !self.settings_warned && self.domain.ready() && self.notes.room() != 0 {
             let kept = self.domain.settings_kept();
             self.settings_warned = true;
@@ -347,6 +347,9 @@ impl Engine {
                     .push(crate::Note::StartupWarning { line: crate::core_wait::settings_warning(&kept, unnamed) });
             }
         }
+    }
+    pub(crate) fn drain_notes(&mut self) {
+        self.drain_settings_warning();
         self.drain_worker_notes();
         for _ in 0..self.notes.room() {
             let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {
