@@ -60,14 +60,8 @@ fn stating(
             .expect("credential size"),
     );
     record.write(&jig_protocol_worker_wire::CEILINGS, &mut bytes).expect("credential");
-    skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Initiator,
-        f::channel_limits(),
-        w::VERSION,
-        bytes.finish(),
-    )
-    .expect("figures peer")
+    skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Initiator, f::channel_limits(), bytes.finish())
+        .expect("figures peer")
 }
 fn schema() -> skein_channel::Schema {
     let mut sizes = f::SIZES;
@@ -75,7 +69,7 @@ fn schema() -> skein_channel::Schema {
     w::schema(&w::sizes::limits(&sizes).expect("three fleet slots")).expect("schema")
 }
 fn link_peer(name: &[u8], secret: &[u8]) -> skein_fake_channel::ScriptedPeer {
-    f::peer(schema(), w::VERSION, name, secret, f::APPLICATION_VERSION)
+    f::peer(schema(), name, secret, f::APPLICATION_VERSION)
 }
 fn world() -> World {
     world_with_room(f::LIMITS.room)
@@ -165,20 +159,18 @@ fn figures_terms_require_only_figures() {
     let mut world = world();
     world.down(Event::Figures { figures: figures() });
     let mut schema = schema();
-    for version in schema.versions.iter_mut() {
-        version.kinds = List::from_boxed(
-            version
-                .kinds
-                .iter()
-                .filter(|kind| {
-                    kind.direction == skein_channel::Direction::FromInitiator
-                        || [w::Kind::Figures.number()].contains(&kind.kind)
-                })
-                .copied()
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-        );
-    }
+    schema.kinds = List::from_boxed(
+        schema
+            .kinds
+            .iter()
+            .filter(|kind| {
+                kind.direction == skein_channel::Direction::FromInitiator
+                    || [w::Kind::Figures.number()].contains(&kind.kind)
+            })
+            .copied()
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    );
     let connection = world.connect(peer(f::WORKER_A, f::SECRET_A, schema));
     world.run();
     assert_eq!(heard(&world, connection).places, 4);

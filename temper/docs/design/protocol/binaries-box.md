@@ -160,8 +160,8 @@ default; the document is `temper.json` in the configuration directory
   constants, which the agent's table holds too (3).
 - **`temper-box versions`:** what this binary speaks and keeps, one line
   each: every owner's explicit level (`floor.md`, 3), its
-  families' and the store's versions, and its wires, as jig's store
-  keeps them (jig's `protocol/store/records.md`, 3). It reads no
+  families' and the store's versions, its wires' layouts and the host
+  tools' contract (`wires.md`, 10). It reads no
   configuration and no store. Its row and its lines are
   `temper-engine versions`', the same constant run by the same code (2).
 - **`temper-box upgrade --check DIRECTORY`:** a rehearsal (jig's

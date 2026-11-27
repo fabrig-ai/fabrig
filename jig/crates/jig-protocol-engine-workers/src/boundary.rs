@@ -163,6 +163,8 @@ impl Unsent {
     }
 }
 pub enum Request {
+    /// The oldest value waits for a written converter.
+    Convert,
     FiguresTaken {
         worker: u32,
     },
@@ -270,6 +272,7 @@ impl core::fmt::Debug for Event {
 impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::Convert => f.write_str("Convert"),
             Self::FiguresTaken { worker } => f.debug_tuple("FiguresTaken").field(worker).finish(),
             Self::Unpaused { worker, version, mode } => {
                 f.debug_tuple("Unpaused").field(worker).field(version).field(mode).finish()

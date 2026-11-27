@@ -271,7 +271,7 @@ pub fn accounts_check(directory: &Path) {
 }
 
 fn golden_check_with(directory: &Path, configuration: temper_playground::documents::Configuration, copy: Copy) {
-    let mut disk = golden::files::load(directory);
+    let mut disk = golden::files::load_kept(directory);
     let broken =
         jig_protocol_store::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), 64)
             .expect("deployment key");
@@ -317,10 +317,10 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
             );
             assert_eq!(code, 0, "{lines}");
             assert!(report.restored, "{lines}");
-            // The source walk decodes 292 map rows and 10 committed turn frames.
+            // The source walk decodes 294 map rows (including both frame layouts) and 10 committed turn frames.
             // The one version-1 opening is read by its head alone and not counted.
             assert!(
-                report.events.iter().any(|event| matches!(event, Event::Decoded { records: 302, .. })),
+                report.events.iter().any(|event| matches!(event, Event::Decoded { records: 304, .. })),
                 "literal record count: {lines}"
             );
             assert!(lines.contains("registry commit, jobs and restores pass; opened in "), "{lines}");

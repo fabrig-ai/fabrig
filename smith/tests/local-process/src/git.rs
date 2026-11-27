@@ -44,9 +44,9 @@ impl Child {
         let configuration = crate::process::lower_configuration();
         let limits = configuration.limits.channel.channel;
         let schema = smith_protocol_channel::schema(&configuration.limits.channel).expect("agent channel schema");
-        let version = schema.range().expect("one channel version").1;
+        let version = schema.version;
         let mut entries = skein_lib::List::with_capacity(limits.kinds);
-        for kind in &schema.version(version).expect("selected channel version").kinds {
+        for kind in &schema.kinds {
             if kind.direction == skein_channel::Direction::FromInitiator {
                 entries.push(skein_channel::Term { kind: kind.kind, largest: kind.largest }).expect("schema terms");
             }
@@ -61,13 +61,8 @@ impl Child {
         let mut child = Self::new(&pipes, bytes.into_boxed_slice(), 7);
         child.extra = vec![inherited.signal, inherited.pipes.iter().find(|(number, _)| *number == 0).expect("stdin").1];
         child.opening = 34
-            + 6 * schema
-                .version(version)
-                .expect("selected version")
-                .kinds
-                .iter()
-                .filter(|kind| kind.direction == skein_channel::Direction::FromResponder)
-                .count() as u32;
+            + 6 * schema.kinds.iter().filter(|kind| kind.direction == skein_channel::Direction::FromResponder).count()
+                as u32;
         child
     }
 

@@ -6,16 +6,8 @@ use skein_lib::List;
 use super::{Direction, Frame, Role, Room, Schema, Term, Unsent};
 
 /// Checks one measured frame in the specified entrance order.
-pub(super) fn admit(
-    schema: &Schema,
-    role: Role,
-    version: u16,
-    terms: &List<Term>,
-    room: Room,
-    frame: &Frame,
-) -> Result<(), Unsent> {
-    let table = schema.version(version).expect("ready version is supported");
-    let kind = table.kind(frame.kind()).ok_or(Unsent::WrongDirection)?;
+pub(super) fn admit(schema: &Schema, role: Role, terms: &List<Term>, room: Room, frame: &Frame) -> Result<(), Unsent> {
+    let kind = schema.kind(frame.kind()).ok_or(Unsent::WrongDirection)?;
     let own_direction = match role {
         Role::Initiator => kind.direction == Direction::FromInitiator,
         Role::Responder => kind.direction == Direction::FromResponder,

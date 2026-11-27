@@ -1,7 +1,7 @@
 //! Generation copy, cleanup and power loss at equal levels (protocol/store/opening.md, 2 and 4).
 use jig_store_world::{
     World,
-    patches::{self, BASE, Records, SETS},
+    upgrade_fixtures::{self, BASE, Records, SETS},
 };
 use skein_fake_machine::Item;
 const SEED: u64 = 0x5141;
@@ -17,7 +17,7 @@ pub(crate) fn second_generation() -> World {
     world.owner_sets(SETS);
     world.open_switched().expect("intermediate upgrade opens");
     world.crash(SEED);
-    world.owner_sets(patches::NEXT);
+    world.owner_sets(upgrade_fixtures::NEXT);
     world
 }
 
@@ -47,7 +47,7 @@ fn stray_cleanup_restarts_listing_and_keeps_previous() {
     let mut world = pending(&Records::story());
     world.open_switched().expect("upgrade opens");
     world.crash(SEED);
-    let previous = patches::source(&mut world);
+    let previous = upgrade_fixtures::source(&mut world);
     world.lay(&[Item::directory(b"generations/9"), Item::directory(b"generations/9/deep")]);
     for n in 0..STRAY_FILES {
         world.lay(&[Item::file(format!("generations/9/deep/{n:02}").as_bytes(), b"stray")]);
@@ -57,8 +57,8 @@ fn stray_cleanup_restarts_listing_and_keeps_previous() {
         Item::file(b"active.skein-0123456789abcdef", b"2\n"),
     ]);
     world.open_switched().expect("equal-level restart");
-    patches::whole(&mut world);
-    assert_eq!(patches::source(&mut world), previous);
+    upgrade_fixtures::whole(&mut world);
+    assert_eq!(upgrade_fixtures::source(&mut world), previous);
     assert_eq!(world.ran(), []);
 }
 
@@ -141,7 +141,7 @@ fn drop_copy_and_switch_recover_at_each_step_s_first_mutation() {
     let mut trace = second_generation();
     trace.trace_writes();
     let expected_last = trace.open_switched().expect("traced second upgrade");
-    let drop = patches::first_change(&trace, Change::Rename);
+    let drop = upgrade_fixtures::first_change(&trace, Change::Rename);
     let removal = trace
         .changes()
         .iter()
@@ -154,7 +154,7 @@ fn drop_copy_and_switch_recover_at_each_step_s_first_mutation() {
         .find(|(operation, change)| *operation > drop && *change == Change::Make)
         .expect("copy directory after the drop")
         .0;
-    let rename = patches::last_change(&trace, Change::Rename);
+    let rename = upgrade_fixtures::last_change(&trace, Change::Rename);
     let sync = trace
         .changes()
         .iter()

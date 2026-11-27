@@ -226,8 +226,7 @@ impl Clients {
             link,
             kit::host::served(kit::Served {
                 family: Some(temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge)),
-                first: temper_client_protocol_wire::CLIENT_VERSION,
-                last: temper_client_protocol_wire::CLIENT_VERSION,
+                version: temper_client_protocol_wire::CLIENT_VERSION,
                 layout: temper_client_protocol_wire::CLIENT_LAYOUT,
             }),
         );

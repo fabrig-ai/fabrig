@@ -50,12 +50,9 @@ impl AgentPeer {
         // The host's output bound prices initiator frames. The new responder
         // needs its own directional frame bound; Worker keeps its existing one.
         let mut channel = host.channel;
-        for version in &smith_protocol_channel::schema_for_start(&host.bodies, host.start_bytes).unwrap().versions {
-            for kind in &version.kinds {
-                if kind.direction == skein_channel::Direction::FromResponder {
-                    channel.output_bytes =
-                        channel.output_bytes.max(kind.largest.checked_add(FRAME_HEADER_BYTES).unwrap());
-                }
+        for kind in &smith_protocol_channel::schema_for_start(&host.bodies, host.start_bytes).unwrap().kinds {
+            if kind.direction == skein_channel::Direction::FromResponder {
+                channel.output_bytes = channel.output_bytes.max(kind.largest.checked_add(FRAME_HEADER_BYTES).unwrap());
             }
         }
         let limits = smith_protocol_channel::Limits {

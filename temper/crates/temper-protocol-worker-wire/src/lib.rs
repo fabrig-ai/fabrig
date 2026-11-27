@@ -193,7 +193,7 @@ fn author(text: &[u8]) -> bool {
 }
 
 mod application;
-pub use application::{application, spoken};
+pub use application::{application, convert, spoken};
 
 #[cfg(test)]
 mod tests;

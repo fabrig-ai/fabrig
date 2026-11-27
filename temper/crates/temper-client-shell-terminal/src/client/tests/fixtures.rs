@@ -300,9 +300,7 @@ pub(super) fn started_kept() -> (NativeClient, skein_lib::Token) {
     host.event(domain::Event::Start { address: host.address.clone(), kept: List::with_capacity(0), with: None });
     host.event(domain::Event::Client { event: jig_client::Event::StartUnlinked { kept } });
     host.event(domain::Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } });
-    host.event(domain::Event::Client {
-        event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-    });
+    host.event(domain::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     while host.out.pop().is_some() {}
     (host, skein_lib::Token::new(0))
 }
@@ -350,9 +348,7 @@ pub(super) fn unlinked_page(address: domain::Address) -> (NativeClient, skein_li
     host.root = domain::unlinked(&host.env.limits, 7);
     host.event(domain::Event::Start { address, kept: List::with_capacity(0), with: None });
     host.event(domain::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } });
-    host.event(domain::Event::Client {
-        event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-    });
+    host.event(domain::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     let (mut reads, _) = page_work(&mut host);
     assert_eq!(reads.len(), 1, "one old first activity read");
     (host, reads.pop().expect("old read"))

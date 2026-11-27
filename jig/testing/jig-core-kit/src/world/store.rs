@@ -235,7 +235,7 @@ impl World {
         self.restart_with(config);
     }
 
-    /// Restart under the next binary's patch sets.
+    /// Restart under the next binary's owner sets.
     pub fn restart_with_owner_sets(&mut self, seed: u64, requirement: bool, sets: jig_protocol_store::OwnerSets) {
         self.store.owner_sets(sets);
         self.restart(seed, requirement);

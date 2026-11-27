@@ -119,7 +119,7 @@ impl Store {
     pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
         Self::starting_with_owner_sets(limits, models, protocol::OwnerSets::NONE)
     }
-    /// Open typed start pages with the binary's patch sets installed before open.
+    /// Open typed start pages with the binary's owner sets installed before open.
     #[must_use]
     pub fn starting_with_owner_sets(
         limits: &root::Limits,
@@ -128,7 +128,7 @@ impl Store {
     ) -> Store {
         Self::with_owner_sets(limits, models, sets)
     }
-    /// Use the directory-backed component even without patch sets.
+    /// Use the directory-backed component even without owner sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
         Self::build(limits, models, protocol::OwnerSets::NONE, true, true)
@@ -610,11 +610,11 @@ impl Store {
         );
         assert!(!self.failed, "durable stores reopen after their files are cut");
         if !self.rows.is_empty() && !self.reached_kill() && (self.disk.is_none() || !self.sets.sets.is_empty()) {
-            self.refresh_patched_rows();
+            self.refresh_upgraded_rows();
         }
     }
-    /// Read back the rows patching can change, including the seal's header.
-    fn refresh_patched_rows(&mut self) {
+    /// Read back the rows an upgrade can change, including the seal's header.
+    fn refresh_upgraded_rows(&mut self) {
         use jig_domain_core::{CoreKey, Key};
         let keys: Vec<_> = self
             .rows
@@ -633,7 +633,7 @@ impl Store {
                 Queue::uncapped(),
             );
         }
-        assert!(!self.failed, "patched mirror rows read back through the component");
+        assert!(!self.failed, "upgraded mirror rows read back through the component");
     }
     fn env(&self) -> Env<Limits> {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
@@ -722,7 +722,7 @@ impl Store {
             }
             Event::Got { owner, row } if owner == Token::new(0) => {
                 let Some(protocol::Row::Jig(row)) = row else {
-                    panic!("patched jig row remains at its key");
+                    panic!("upgraded jig row remains at its key");
                 };
                 let row = root::Record::Core(row);
                 self.rows.insert(row.key(), row);

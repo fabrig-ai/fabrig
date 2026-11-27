@@ -12,12 +12,11 @@ fn signed() -> Peer {
         .served
         .push(Served {
             family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
+            version: jig_client_protocol_wire::VERSION,
             layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("jig");
-    settings.served.push(Served { family: Some(1), first: 1, last: 1, layout: [1; 32] }).expect("family");
+    settings.served.push(Served { family: Some(1), version: 1, layout: [1; 32] }).expect("family");
     let mut server = fixtures::server_limits();
     server.peer_end = jig_protocol_engine_clients_http::server::PeerEnd::Connection;
     Peer::signed_in_with_server_bounds(

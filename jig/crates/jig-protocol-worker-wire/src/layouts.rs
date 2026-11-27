@@ -1,8 +1,11 @@
 //! Engine-side conversion between worker layouts (jig/docs/design/protocol/channel/layouts.md, 2–5).
 use crate::{Carried, KINDS, Kind, v22};
 use alloc::boxed::Box;
-use skein_channel::{Direction, Version};
-use skein_codec::layout::{Misconverted, Mode, Plan, Refused, Workspace};
+use skein_channel::{Direction, Kind as ChannelKind};
+use skein_codec::{
+    layout::{Misconverted, Mode, Plan, Refusal, Refused, Side, Workspace},
+    schema::{Root, Schema},
+};
 use skein_lib::{Buffer, List};
 
 mod gaps;
@@ -70,7 +73,7 @@ impl Nested {
 }
 
 /// Why a value did not convert.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Cause {
     Variant,
     Field,
@@ -78,6 +81,8 @@ pub enum Cause {
     Absent,
     Large,
     Malformed,
+    WrittenRequired,
+    Written { value: Box<str>, why: Box<str> },
 }
 
 impl Cause {
@@ -90,7 +95,7 @@ impl Cause {
         }
     }
 
-    fn words(self) -> &'static [u8] {
+    fn words(&self) -> &[u8] {
         match self {
             Self::Variant => b"variant",
             Self::Field => b"field",
@@ -98,6 +103,8 @@ impl Cause {
             Self::Absent => b"absent",
             Self::Large => b"too large",
             Self::Malformed => b"malformed",
+            Self::WrittenRequired => b"written converter required",
+            Self::Written { why, .. } => why.as_bytes(),
         }
     }
 }
@@ -115,13 +122,13 @@ impl Unconverted {
     /// The text of a value the worker's layout cannot keep.
     #[must_use]
     pub fn kept(&self) -> Box<[u8]> {
-        words::kept(&self.wire, &self.declaration, &self.part, self.cause)
+        words::kept(&self.wire, &self.declaration, &self.part, &self.cause)
     }
 
     /// The tail of a diagnostic for a value the engine cannot read.
     #[must_use]
     pub fn read(&self) -> Box<[u8]> {
-        words::value(b"", &self.wire, &self.declaration, &self.part, self.cause)
+        words::value(b"", &self.wire, &self.declaration, &self.part, &self.cause)
     }
 }
 
@@ -131,8 +138,9 @@ impl Unconverted {
 pub struct Peer {
     same: bool,
     frames: Option<table::Frames>,
-    send_bounds: Option<(v22::Limits, Version)>,
+    send_bounds: Option<(v22::Limits, List<ChannelKind>)>,
     plans: List<Pass>,
+    written: List<Texts>,
     work: Workspace,
 }
 
@@ -142,13 +150,44 @@ struct Pass {
     mode: Mode,
     wire: Box<str>,
     source: Box<str>,
-    plan: Option<Plan>,
+    passing: Passing,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Value {
+pub(crate) enum Value {
     Frame,
     Part(Nested),
+}
+
+#[derive(Clone, Debug)]
+enum Passing {
+    Same,
+    Plan(Plan),
+    Written { from: Root, to: Root },
+}
+
+impl Passing {
+    fn plan(&self) -> Option<&Plan> {
+        match self {
+            Self::Plan(plan) => Some(plan),
+            Self::Same | Self::Written { .. } => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct Texts {
+    wire: Box<str>,
+    engine: Schema,
+    worker: Schema,
+}
+
+/// Both parsed sides of a pass the wire owner writes.
+#[derive(Debug)]
+pub struct Sides<'a> {
+    pub wire: &'a str,
+    pub from: Side<'a>,
+    pub to: Side<'a>,
 }
 
 impl Peer {
@@ -158,8 +197,8 @@ impl Peer {
         self.same
     }
 
-    /// The worker's kinds and their bounds, at the channel's version.
-    pub fn table(&self, limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
+    /// The worker's kinds and their bounds.
+    pub fn table(&self, limits: &v22::Limits) -> Result<List<ChannelKind>, Box<[u8]>> {
         if let Some(frames) = &self.frames {
             return Ok(frames.table(limits));
         }
@@ -170,6 +209,46 @@ impl Peer {
     #[must_use]
     pub fn sends(&self, kind: Kind) -> Option<u16> {
         self.frame_kind(Mode::Keep, kind.number()).ok()
+    }
+
+    /// The parsed sides for a part with a written pass, if it has one.
+    #[must_use]
+    pub fn written_part(&self, mode: Mode, nested: Nested) -> Option<Sides<'_>> {
+        self.written_at(mode, Value::Part(nested))
+    }
+
+    pub(crate) fn written_at(&self, mode: Mode, value: Value) -> Option<Sides<'_>> {
+        let pass = Self::find(&self.plans, value, mode)?;
+        let Passing::Written { from, to } = pass.passing else { return None };
+        for texts in &self.written {
+            if texts.wire == pass.wire {
+                let (source, target) = match mode {
+                    Mode::Read => (&texts.worker, &texts.engine),
+                    Mode::Keep => (&texts.engine, &texts.worker),
+                };
+                return Some(Sides {
+                    wire: &pass.wire,
+                    from: Side { text: source, root: from, held: &[] },
+                    to: Side { text: target, root: to, held: &[] },
+                });
+            }
+        }
+        unreachable!("written passes retain both texts");
+    }
+
+    pub(crate) fn written_problem(&self, mode: Mode, value: Value, cause: Cause) -> Unconverted {
+        let pass = Self::find(&self.plans, value, mode).expect("a written pass waits");
+        unconverted(&pass.wire, &pass.source, "", cause)
+    }
+
+    pub(crate) fn written_refusal(&self, mode: Mode, value: Value, refusal: Refusal) -> Unconverted {
+        let pass = Self::find(&self.plans, value, mode).expect("a written pass waits");
+        Unconverted {
+            wire: pass.wire.clone(),
+            declaration: refusal.declaration,
+            part: refusal.part,
+            cause: Cause::Written { value: pass.source.clone(), why: refusal.why },
+        }
     }
 
     // A channel normally uses one set of limits. Reuse the worker's table
@@ -194,7 +273,7 @@ impl Peer {
             self.send_bounds = Some((*limits, frames.table(limits)));
         }
         let (_, table) = self.send_bounds.as_ref().expect("bounds fitted to these limits");
-        for rule in &table.kinds {
+        for rule in table {
             if rule.kind == number && rule.direction == Direction::FromResponder {
                 return Ok(rule.largest);
             }
@@ -214,12 +293,17 @@ impl Peer {
         Ok(body)
     }
 
-    fn frame_kind(&self, mode: Mode, kind: u16) -> Result<u16, Misconverted> {
+    pub(crate) fn frame_kind(&self, mode: Mode, kind: u16) -> Result<u16, Misconverted> {
         let (base, _) = table::direction(mode);
         let tag = table::tag(base, kind).ok_or(Misconverted::Tag)?;
-        let (plan, _) = Self::frame_pass(&self.plans, mode);
-        let tag = match plan {
-            Some(plan) => plan.variant_tag(tag)?,
+        let tag = match Self::find(&self.plans, Value::Frame, mode) {
+            Some(pass) => match &pass.passing {
+                Passing::Plan(plan) => plan.variant_tag(tag)?,
+                Passing::Written { .. } => {
+                    self.frames.as_ref().expect("written frame table").mapped(mode, tag).ok_or(Misconverted::Tag)?
+                }
+                Passing::Same => tag,
+            },
             None => tag,
         };
         Ok(table::number(base, tag))
@@ -227,7 +311,10 @@ impl Peer {
 
     pub(crate) fn converts_part(&self, mode: Mode, nested: Nested) -> bool {
         match Self::find(&self.plans, Value::Part(nested), mode) {
-            Some(pass) => pass.plan.is_some(),
+            Some(pass) => match &pass.passing {
+                Passing::Same => false,
+                Passing::Plan(_) | Passing::Written { .. } => true,
+            },
             None => false,
         }
     }
@@ -269,13 +356,17 @@ impl Peer {
 
     fn part(&mut self, mode: Mode, nested: Nested, bytes: &[u8], out: &mut Buffer) -> Result<(), Unconverted> {
         if let Some(pass) = Self::find(&self.plans, Value::Part(nested), mode) {
-            let result = match &pass.plan {
-                Some(plan) => plan.convert(bytes, out, &mut self.work),
-                None => copy(bytes, out),
+            let result = match &pass.passing {
+                Passing::Plan(plan) => plan.convert(bytes, out, &mut self.work),
+                Passing::Same => copy(bytes, out),
+                Passing::Written { .. } => {
+                    out.clear();
+                    return Err(unconverted(&pass.wire, &pass.source, "", Cause::WrittenRequired));
+                }
             };
             if let Err(error) = result {
                 out.clear();
-                return Err(problem(&pass.wire, &pass.source, "", pass.plan.as_ref(), error));
+                return Err(problem(&pass.wire, &pass.source, "", pass.passing.plan(), error));
             }
             return Ok(());
         }
@@ -296,9 +387,15 @@ impl Peer {
             out.clear();
             return Err(self.frame_problem(mode, kind, Misconverted::Tag));
         };
-        let (plan, _) = Self::frame_pass(&self.plans, mode);
-        let result = match plan {
-            Some(plan) => plan.convert_variant(tag, body, out, &mut self.work),
+        let result = match Self::find(&self.plans, Value::Frame, mode) {
+            Some(pass) => match &pass.passing {
+                Passing::Plan(plan) => plan.convert_variant(tag, body, out, &mut self.work),
+                Passing::Same => copy(body, out).and(Ok(tag)),
+                Passing::Written { .. } => {
+                    out.clear();
+                    return Err(unconverted(&pass.wire, &pass.source, "", Cause::WrittenRequired));
+                }
+            },
             None => copy(body, out).and(Ok(tag)),
         };
         match result {
@@ -312,7 +409,7 @@ impl Peer {
 
     fn frame_pass(plans: &List<Pass>, mode: Mode) -> (Option<&Plan>, &str) {
         match Self::find(plans, Value::Frame, mode) {
-            Some(pass) => (pass.plan.as_ref(), &pass.source),
+            Some(pass) => (pass.passing.plan(), &pass.source),
             None => (None, table::direction(mode).1),
         }
     }

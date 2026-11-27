@@ -202,23 +202,14 @@ fn start_on_pipes(service: &mut Service, form: jig_domain_link::Form) -> Box<[u8
     let schema = smith_protocol_channel::schema_for_start(&agent.limits.bodies, agent.limits.start_bytes)
         .expect("channel schema");
     let mut peer_limits = agent.limits.channel;
-    for version in &schema.versions {
-        for kind in &version.kinds {
-            if kind.direction == skein_channel::Direction::FromResponder {
-                peer_limits.output_bytes =
-                    peer_limits.output_bytes.max(kind.largest.checked_add(8).expect("frame bytes"));
-            }
+    for kind in &schema.kinds {
+        if kind.direction == skein_channel::Direction::FromResponder {
+            peer_limits.output_bytes = peer_limits.output_bytes.max(kind.largest.checked_add(8).expect("frame bytes"));
         }
     }
-    let version = u16::try_from(smith_channel::KindRule::FORMAT_VERSION).expect("channel version");
-    let mut peer = skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Responder,
-        peer_limits,
-        version,
-        Box::default(),
-    )
-    .expect("agent peer");
+    let mut peer =
+        skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Responder, peer_limits, Box::default())
+            .expect("agent peer");
     let jig_domain_host::LinkDown::Assign { mut assignment } = fixtures::worker_assignment() else {
         panic!("assignment fixture")
     };

@@ -195,7 +195,7 @@ fn measure(items: &[Item], sets: OwnerSets, limits: &jig_protocol_store::Limits)
 
 #[test]
 fn real_registry_open_memory() {
-    let current = jig_store_world::patches::current(SETS);
+    let current = jig_store_world::upgrade_fixtures::current(SETS);
     let plain = sets(false, false);
     let kept = sets(true, true);
     let items = seeded(kept);
