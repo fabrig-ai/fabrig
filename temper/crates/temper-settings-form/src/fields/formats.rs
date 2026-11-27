@@ -34,9 +34,9 @@ pub(crate) enum Conversion {
 
 impl Formats {
     pub fn write(self, out: &mut Text) {
-        out.put(b"\n## Formats\n\nFormat ");
+        out.put(b"\n## Formats\n\nNewest format `temper ctl` reads: ");
         out.number(self.newest);
-        out.put(b" is the newest temper ctl reads; a file without format is format 1.\n");
+        out.put(b"; no `format`: 1.\n");
         for movement in self.moves {
             out.put(b"format ");
             out.number(movement.format);

@@ -156,5 +156,5 @@ fn the_formats_reference_lists_each_move() {
     TEST.write(&mut measure);
     let mut out = Text::writing_exact(measure);
     TEST.write(&mut out);
-    assert_eq!(out.finish().as_ref(), b"\n## Formats\n\nFormat 2 is the newest temper ctl reads; a file without format is format 1.\nformat 2: overlay.legacy-shell: renamed shell\nformat 2: overlay.legacy-agents: converted to agents: agents, a boolean\nformat 2: overlay.legacy-check: moved out: check mode lives in the worker\nformat 2: overlay.legacy-mode: gone in 0.2\n");
+    assert_eq!(out.finish().as_ref(), b"\n## Formats\n\nNewest format `temper ctl` reads: 2; no `format`: 1.\nformat 2: overlay.legacy-shell: renamed shell\nformat 2: overlay.legacy-agents: converted to agents: agents, a boolean\nformat 2: overlay.legacy-check: moved out: check mode lives in the worker\nformat 2: overlay.legacy-mode: gone in 0.2\n");
 }
