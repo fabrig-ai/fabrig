@@ -276,6 +276,54 @@ The forge's worlds (`layout.md`, section 1) keep within a budget of their own: a
 test under 40 ms, a focused world test under one second, and a fuzzy
 run within 10 seconds, its seeds included, so that `tests/forge` stays within half of each suite's.
 
+### 7.1 Campaigns
+
+skein's fuzzy sweeps run after landing with fresh seeds, in rounds of the
+pair `campaign-skein`, by `tools/tiers/campaign skein`
+(`tools/tiers/campaign.md`; the pair, `tools/tiers/layers.md`, 9.3;
+`temper/docs/design/draft/fuzzy-campaigns.md`, 9). The gate keeps its
+seeds and every sweep's whole sample.
+
+- **The binaries it lists,** their sweeps taking their cases from the
+  seam (sweeps.md, 4.2 to 4.5):
+  - first the machine worlds: `skein-browser-world::suite`,
+    `skein-forge-dialect-tests::suite`, `skein-http-world::suite` and
+    `skein-json-world::suite`;
+  - the protocol worlds: `skein-channel-world::suite`,
+    `skein-forge-protocol-world::suite`, `skein-forge-setup-world::suite`,
+    `skein-llm-world::suite`, `skein-oauth-issuer-world::suite`,
+    `skein-oauth-world::suite` and `skein-protocol-world::suite`; the forge
+    client's domain world, `skein-forge-client-world::suite`; io's,
+    `skein-io-world::suite`;
+  - the step suites: `skein-codec-tests::suite`,
+    `skein-conformance-sim::suite`, `skein-fake-checkout-tests::suite`,
+    `skein-lib-tests::suite`, `skein-sim-tests::suite`, and skein-deflate's
+    own tests, `skein-deflate`;
+  - the simulated worlds: `skein-echo-world::simulated`,
+    `skein-fake-peers-tests::simulated`, `skein-kv-tests::simulated`,
+    `skein-llm-connection-world::suite`,
+    `skein-oauth-accounts-world::simulated` and
+    `skein-world-tests::simulated`.
+- **Off the list:**
+  - the TLS world, `skein-tls-world::suite`: its cases don't replay, since
+    rustls draws from the kernel (section 7; ../net/tls.md, 5), and a
+    campaign lists only cases that replay. Its sweeps keep their seeds.
+  - the forge machine world, `skein-forge-machine-world::suite`: its fixed
+    sweeps of every cut, at one seed, over plaintext and TLS, outweigh its
+    four seeded shards (`tools/tiers/layers.md`, 9.3).
+  - the UI suite, `skein-ui-tests::suite`: its fuzzy tests walk every
+    representable wall day, a fixed enumeration that takes no case.
+- **What each adoption keeps:** a helper's focused callers their fixed
+  seeds, conformance's focused `each_seed` among them, its fuzzy sweeps
+  taking theirs through a helper given their test's identity; a stream
+  drawn across a loop's rounds, as lib's, codec's decodes and layouts,
+  oauth's records, the fake peers' endpoints and the LLM client's
+  declarations draw, as one case at its stream's seed; io's appends and
+  stores the fixed seeds their gate ran before they stopped on coverage
+  (sweeps.md, 4.2 and 4.5).
+- **Its cost** is reported against skein's fuzzy ceilings, as warnings
+  (`tools/tiers/budgets.md`, 4.2).
+
 ## 8. Not built yet
 
 What of this document is not built is in [`README.status.md`](README.status.md).
@@ -359,6 +407,9 @@ What of this document is not built is in [`README.status.md`](README.status.md).
   its own numbers. Default: the copy stays.
 - **The echo's client host** (6): `ClientHost` in
   `skein/examples/echo/shell/tests/end_to_end.rs` repeats `Proc`'s `Host` arms.
+- **The forge machine world in campaigns** (7.1): whether its fixed cut
+  sweeps move to a binary of their own, so that its four seeded shards take
+  part. It depends on what the other worlds' campaigns find.
   The test sits in the shell's package so that Cargo supplies its binary,
   `skein-echo-client` is held to the step subset and can't implement `Host`, and
   a kit's manifest alone is longer than the copy. Default: the copy stays.
