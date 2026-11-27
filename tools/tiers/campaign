@@ -72,14 +72,14 @@ class Step:
         *lines, self.partial = (self.partial + data).split(b'\n')
         self.lines.extend(lines)
 
-    def run(self, command, env, *, listing=False, cwd=None):
+    def run(self, command, env, *, listing=False):
         if self.interrupted is not None:
             raise KeyboardInterrupt
         stdout = bytearray()
         self.starting = True
         try:
             self.process = subprocess.Popen(
-                command, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if listing else subprocess.STDOUT, start_new_session=True)
         finally:
             self.starting = False
@@ -197,7 +197,7 @@ def read_test(element, key, outcome):
                        if counts or cases else None))
     return test, [(dict(key, identity=identity, seed=seed,
                         first_line=finding or panic_message(lines[i + 1:]) or 'no message'), lines[i:])
-                  for (identity, seed), (i, finding) in cases.items()], reach, panic_message(lines), counts, inputs
+                  for (identity, seed), (i, finding) in cases.items()], reach, panic_message(lines), inputs
 
 
 def reach_rows(totals):
@@ -210,11 +210,11 @@ def add_reach(totals, rows):
         totals[key] = totals.get(key, 0) + row['cases']
 
 
-def read_run(directory, code, cpu, limits, pair, selection=(), *, root=Path('.'), replay_case=None):
+def read_run(directory, code, cpu, limits, pair, selection=(), *, replay_case=None):
     starved, unfinished = False, set()
     layers, warnings = [], []
     try:
-        result = cpu['summary'](directory, limits, pair=pair, layers=root / 'tools/tiers/layers.toml')
+        result = cpu['summary'](directory, limits, pair=pair, layers=Path('tools/tiers/layers.toml'))
     except REPORT_ERRORS as error:
         warnings.append(f'CPU summary refused: {error}')
         # A refused CPU record doesn't discard JUnit or independent evidence of a wall cut.
@@ -229,9 +229,9 @@ def read_run(directory, code, cpu, limits, pair, selection=(), *, root=Path('.')
         layers, warnings = result['layers'], result['warnings']
 
     report = directory / 'junit.xml'
-    counted, digest = False, None
+    digest = None
     if not report.exists() and not starved:
-        return None, [], (counted, digest)
+        return None, [], None
     tests, cases, failures, reach = [], [], [], {}
     if report.exists():
         for suite in ET.parse(report).getroot().findall('testsuite'):
@@ -249,11 +249,10 @@ def read_run(directory, code, cpu, limits, pair, selection=(), *, root=Path('.')
                 else:
                     outcome = 'passed' if problem is None else 'failed'
                 starved = starved or timed_out
-                test, found, test_reach, panic, counts, inputs = read_test(element, key, outcome)
+                test, found, test_reach, panic, inputs = read_test(element, key, outcome)
                 tests.append(test)
                 if replay_case is not None and (binary, name) == (replay_case['binary'], replay_case['test']):
                     identity = replay_case['identity']
-                    counted |= identity in counts
                     digest = digest or inputs.get((identity, replay_case['seed']))
                 cases.extend(found)
                 for kind, n in test_reach.items():
@@ -265,7 +264,7 @@ def read_run(directory, code, cpu, limits, pair, selection=(), *, root=Path('.')
     return dict(directory=directory.name, returncode=code, starved=starved, tests=tests,
                 cases=[case for case, _ in cases], failures=failures, reach=reach_rows(reach),
                 unfinished=[test for test in selection if (test['binary'], test['test']) not in finished],
-                layers=layers, warnings=warnings), [lines for _, lines in cases], (counted, digest)
+                layers=layers, warnings=warnings), [lines for _, lines in cases], digest
 
 
 def replay_test(case, report):
@@ -304,47 +303,16 @@ def signature(first_line):
     return re.sub(r'[0-9]+', 'N', first_line)
 
 
-def last_verdict(case, signature_at_round, report, code, counted):
-    if code == 4:
-        return 'absent', 'no test selected (exit 4)', None
-    if report is None:
-        return 'unobserved', f'run did not run (exit {code})', None
-    test, why = replay_test(case, report)
-    if test is None:
-        return 'unobserved', why, None
-    if test['outcome'] == 'passed':
-        return ('passed', None, None) if counted else ('absent', 'no case count for ' + case['identity'], None)
-    cases = report['cases']
-    matching = next((item for item in cases if (item['identity'], item['seed']) == (case['identity'], case['seed'])), None)
-    if matching is not None and signature(matching['first_line']) == signature_at_round:
-        return 'same', None, None
-    first = matching or (cases or report['failures'])[0]
-    return 'otherwise', None, first['first_line']
-
-
-def last_words(last, commit, remaining):
-    prefix = f"At the last campaign's commit, {commit}: "
-    if last['verdict'] is None:
-        return prefix + 'pending.'
-    words = {'passed': 'passed', 'same': 'failed the same way', 'otherwise': 'failed otherwise: ',
-             'absent': 'ran no case there: ', 'unobserved': 'unobserved: '}
-    prefix += words[last['verdict']]
-    compared = 'the same' if last['compared'] == 'same' else last['compared']
-    suffix = f'; input {compared}.'
-    detail = last['first_line'] or last['why'] or ''
-    available = max(0, remaining - len((prefix + suffix).encode('utf-8')) - 1)
-    detail = detail.encode('utf-8')[:available].decode('utf-8', errors='ignore')
-    return prefix + detail + suffix
-
-
 def finding_body(data, first_round, finding, output):
     seeds = ', '.join(f"{item['seed']} (round {item['round']})" for item in finding['seeds'])
     lines = [f"Commit: {data['commit']}", f"Campaign seed: {data['seed'] or 'drawn'}",
              f"Round {first_round['round']} seed: {first_round['seed']}", f'Case seeds: {seeds}',
              f"Replay: {finding['command']}"]
     if data['last'] is not None:
-        remaining = 4096 - sum(len(line.encode('utf-8')) + 1 for line in lines)
-        lines.append(last_words(finding['last'], data['last']['commit'], remaining))
+        last = data['last']
+        mark = 'Also' if finding['last'] else 'Not'
+        suffix = ', which ended early' if last['ended'] else ''
+        lines.append(f"{mark} in the last campaign, at {last['commit']}{suffix}.")
     lines.extend(['', *output])
     body, remaining = [], 4096
     for line in lines:
@@ -355,7 +323,7 @@ def finding_body(data, first_round, finding, output):
     return ''.join(body)
 
 
-def add_finding(data, groups, round_report, case, output):
+def add_finding(data, groups, round_report, case, output, last_signatures):
     mark = signature(case['first_line'])
     key = case['binary'], case['test'], mark
     if key not in groups:
@@ -363,12 +331,11 @@ def add_finding(data, groups, round_report, case, output):
         title = ''.join(' ' if unicodedata.category(c) == 'Cc' else c for c in title)
         title = title.encode('utf-8')[:200].decode('utf-8', errors='ignore')
         finding = {field: case[field] for field in ('binary', 'test', 'identity', 'first_line', 'command')}
-        last = (dict(directory=None, verdict=None, why=None, first_line=None, input=None, compared=None)
-                if data['last'] is not None else None)
+        last = None if last_signatures is None else key in last_signatures
         finding.update(signature=mark, round=round_report['round'], count=0, seeds=[], title=title, last=last)
-        groups[key] = finding, round_report, output, case
+        groups[key] = finding, round_report, output
         data['findings'].append(finding)
-    finding, first_round, first_output, _ = groups[key]
+    finding, first_round, first_output = groups[key]
     finding['count'] += 1
     if len(finding['seeds']) < 8:
         finding['seeds'].append(dict(seed=case['seed'], round=round_report['round']))
@@ -391,7 +358,11 @@ def text_summary(data):
                 f"    {case['command']}"]
 
     last = data['last']
-    last_label = f"{last['commit']} ({last['directory']})" if last is not None else 'none'
+    last_label = 'none'
+    if last is not None:
+        last_label = f"{last['commit']} ({last['directory']})"
+        if last['ended']:
+            last_label += ', which ended early'
     lines = [f"{data['pair']} at {data['commit']}", f"Campaign seed: {data['seed'] or 'drawn'}",
              f'Last campaign: {last_label}', f"Rounds: {len(data['rounds'])} of {data['rounds_asked']}"]
     for report in data['rounds']:
@@ -433,66 +404,14 @@ def save(directory, data):
         temporary.replace(directory / name)
 
 
-def worktree_git(env, *arguments):
-    try:
-        result = subprocess.run(['git', 'worktree', *arguments], env=env, stdin=subprocess.DEVNULL,
-                                capture_output=True, text=True, errors='replace', start_new_session=True)
-    except OSError as error:
-        return str(error)
-    if result.returncode == 0:
-        return None
-    lines = (result.stderr or result.stdout).splitlines()
-    return next((line for line in lines if line.startswith(('fatal:', 'error:'))),
-                lines[0] if lines else f'git worktree {arguments[0]} exited {result.returncode}')
-
-
-@contextlib.contextmanager
-def last_worktree(directory, commit, env):
-    path = directory / 'last-worktree'
-    why = worktree_git(env, 'add', '--detach', str(path), commit)
-    try:
-        yield path, why
-    finally:
-        if why is None:
-            warning = worktree_git(env, 'remove', '--force', str(path))
-            if warning is not None:
-                print(f'campaign: warning: could not remove {path}: {warning}', file=sys.stderr)
-
-
-def run_last(step, worktree, out, case, data, finding, cpu, limits, env):
-    last = finding['last']
-    last['directory'] = out.name
-    try:
-        step.run(replay_command(case, data['tree'], out),
-                 replay_env(dict(env, CARGO_TARGET_DIR=str(worktree / 'target')), case), cwd=worktree)
-        report, _, (counted, digest) = read_run(out, step.returncode, cpu, limits, data['pair'],
-                                               root=worktree, replay_case=case)
-    except REPORT_ERRORS + (subprocess.SubprocessError,) as error:
-        last.update(verdict='unobserved', why=str(error).split('\n', 1)[0], compared='not compared')
-        return
-    verdict, why, first_line = last_verdict(case, finding['signature'], report, step.returncode, counted)
-    original = case['replay']['input']
-    compared = ('same' if original == digest else 'differs') if original and digest else 'not compared'
-    last.update(verdict=verdict, why=why, first_line=first_line, input=digest, compared=compared)
-
-
-def campaign(directory, data, runner, cpu, limits, packages, env):
+def campaign(directory, data, runner, cpu, limits, packages, env, last_signatures):
     groups, totals = {}, {}
     failed = False
     tree, pair = data['tree'], data['pair']
     step = Step('listing')
-    last_signal = None
 
     def interrupt(signum, frame):
-        nonlocal last_signal
-        if step.name == 'last':
-            # Let git finish adding or removing the worktree. A running replay
-            # still receives the signal, including one caught while it starts.
-            last_signal = step.interrupted = last_signal or signum
-            if step.process is not None:
-                step.forward_interrupt()
-        else:
-            step.interrupt(signum, frame)
+        step.interrupt(signum, frame)
 
     def end(reason=None):
         data['ended'] = step.ended(reason)
@@ -536,32 +455,16 @@ def campaign(directory, data, runner, cpu, limits, packages, env):
                 out = directory / f'round-{r}-replay-{k}'
                 case['replay']['directory'] = out.name
                 step.run(replay_command(case, tree, out), replay_env(env, case))
-                replay, _, (_, digest) = read_run(out, step.returncode, cpu, limits, pair, replay_case=case)
+                replay, _, digest = read_run(out, step.returncode, cpu, limits, pair, replay_case=case)
                 if replay is None and step.returncode != 4:
                     return end()
                 verdict, why, first_line = replay_verdict(case, replay, step.returncode)
                 case['replay'].update(verdict=verdict, why=why, first_line=first_line, input=digest)
                 if verdict == 'failed':
-                    add_finding(data, groups, report, case, output)
+                    add_finding(data, groups, report, case, output, last_signatures)
                 else:
                     data['nonreplaying' if verdict == 'passed' else 'unreplayed'].append(dict(case, round=r))
                 save(directory, data)
-        if data['last'] is not None and groups:
-            step = Step('last', replay=1)
-            absolute = directory.resolve()
-            with last_worktree(absolute, data['last']['commit'], env) as (worktree, why):
-                for f, (finding, first_round, output, case) in enumerate(groups.values(), 1):
-                    step = Step('last', replay=f)
-                    if last_signal is not None:
-                        raise KeyboardInterrupt
-                    if why is None:
-                        run_last(step, worktree, absolute / f'last-{f}', case, data, finding, cpu, limits, env)
-                    else:
-                        finding['last'].update(verdict='unobserved', why=why, compared='not compared')
-                    finding['body'] = finding_body(data, first_round, finding, output)
-                    save(directory, data)
-            if last_signal is not None:
-                raise KeyboardInterrupt
         return int(failed)
     except KeyboardInterrupt:
         return end('interrupted')
@@ -570,7 +473,7 @@ def campaign(directory, data, runner, cpu, limits, packages, env):
         return end()
 
 
-def last_campaign(parser, directory, tree, env):
+def last_campaign(parser, directory, tree):
     prefix = f'--last {directory}'
     directory = directory.absolute()
     try:
@@ -590,11 +493,18 @@ def last_campaign(parser, directory, tree, env):
         parser.error(f'{prefix} holds no campaign: campaign.json has no commit of 40 or 64 lower-case hex digits')
     if other != tree:
         parser.error(f'{prefix} is a campaign of {other}, not {tree}')
-    check = subprocess.run(['git', 'cat-file', '-e', f'{commit}^{{commit}}'], env=env,
-                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if check.returncode != 0:
-        parser.error(f"{prefix} ran at {commit}, which this repository doesn't have")
-    return dict(directory=str(directory), commit=commit)
+    findings, ended = report.get('findings'), report.get('ended')
+    if not isinstance(findings, list):
+        parser.error(f'{prefix} holds no campaign: campaign.json has no findings list')
+    if ended is not None and not isinstance(ended, dict):
+        parser.error(f'{prefix} holds no campaign: campaign.json has an ended that is neither null nor an object')
+    signatures = set()
+    for finding in findings:
+        if not isinstance(finding, dict) or not all(isinstance(finding.get(field), str)
+                                                    for field in ('binary', 'test', 'signature')):
+            parser.error(f'{prefix} holds no campaign: campaign.json has a finding with no binary, test or signature string')
+        signatures.add((finding['binary'], finding['test'], finding['signature']))
+    return dict(directory=str(directory), commit=commit, ended=ended is not None), signatures
 
 
 def main():
@@ -635,7 +545,7 @@ def main():
         if git('--no-optional-locks', 'status', '--porcelain=v1', '--untracked-files=no', '--ignore-submodules=none'):
             parser.error('tracked files differ from the checkout commit')
         commit = git('rev-parse', 'HEAD').strip()
-        last = last_campaign(parser, args.last, args.tree, env) if args.last is not None else None
+        last, last_signatures = last_campaign(parser, args.last, args.tree) if args.last is not None else (None, None)
         with Path('tools/tiers/packages.toml').open('rb') as source:
             packages = tomllib.load(source)[pair]
         limits = cpu['budgets']('tools/tiers/budgets.toml')
@@ -651,7 +561,7 @@ def main():
         data = dict(tree=args.tree, pair=pair, commit=commit, seed=args.seed.lower() if args.seed else None,
                     rounds_asked=args.rounds, last=last, selection=[], rounds=[], findings=[], nonreplaying=[],
                     unreplayed=[], reach=[], never_fell=[], ended=None)
-        return campaign(directory, data, runner, cpu, limits, packages, env)
+        return campaign(directory, data, runner, cpu, limits, packages, env, last_signatures)
     except REPORT_ERRORS + (subprocess.SubprocessError, runner['FailedStep']) as error:
         print(f'campaign: {error}', file=sys.stderr)
         return 2

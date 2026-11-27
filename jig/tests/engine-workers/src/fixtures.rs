@@ -182,17 +182,15 @@ fn prepared_channel() -> &'static (skein_channel::Schema, skein_lib::List<jig_pr
 #[must_use]
 pub fn peer(
     schema: skein_channel::Schema,
-    channel_version: u16,
     name: &[u8],
     secret: &[u8],
     version: u32,
 ) -> skein_fake_channel::ScriptedPeer {
-    peer_with_output(schema, channel_version, name, secret, version, LIMITS.room)
+    peer_with_output(schema, name, secret, version, LIMITS.room)
 }
 #[must_use]
 pub fn peer_with_output(
     schema: skein_channel::Schema,
-    channel_version: u16,
     name: &[u8],
     secret: &[u8],
     version: u32,
@@ -202,14 +200,13 @@ pub fn peer_with_output(
         schema,
         skein_channel::Role::Initiator,
         channel_limits(),
-        channel_version,
         credential_with_output(name, secret, version, output),
     )
     .expect("scripted worker")
 }
 #[must_use]
 pub fn worker(name: &[u8], secret: &[u8], version: u32) -> skein_fake_channel::ScriptedPeer {
-    peer(schema(), jig_protocol_worker_wire::VERSION, name, secret, version)
+    peer(schema(), name, secret, version)
 }
 
 #[must_use]
@@ -473,10 +470,9 @@ pub fn worker_without(kind: jig_protocol_worker_wire::Kind) -> skein_fake_channe
         skein_codec::schema::parse(text.as_bytes()).expect("derived wire").fingerprints().family().digest();
     changed.text = text.into_bytes().into_boxed_slice();
     let mut schema = schema();
-    let version = schema.versions.get_mut(0).expect("worker version");
     let omit = kind.number();
-    version.kinds = skein_lib::List::from_boxed(
-        version
+    schema.kinds = skein_lib::List::from_boxed(
+        schema
             .kinds
             .iter()
             .filter_map(|rule| {
@@ -499,7 +495,6 @@ pub fn worker_without(kind: jig_protocol_worker_wire::Kind) -> skein_fake_channe
         schema,
         skein_channel::Role::Initiator,
         channel_limits(),
-        wire::VERSION,
         value.encode(&codec).expect("credential"),
     )
     .expect("worker at derived layout")

@@ -92,7 +92,7 @@ fn the_answer_is_kept_across_a_gap_and_a_read_with_no_record() {
 fn a_read_that_ends_with_no_record_reads_as_no_welcome() {
     for page in [
         Readout::Family { family: wire::FORGE, record: None },
-        Readout::NotServed { family: Some(wire::FORGE), served: None },
+        Readout::NotServed { family: Some(wire::FORGE) },
         Readout::Limit,
         Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
         Readout::Family { family: wire::FORGE, record: Some(Box::new([255])) },

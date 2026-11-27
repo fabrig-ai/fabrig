@@ -131,9 +131,9 @@ pub struct Term {
 
 /// One of the six fixed channel messages, sent by either peer as allowed by phase.
 pub enum Control {
-    /// The initiator's protocol magic, version offer and opaque credential.
+    /// The initiator's protocol magic, version fields and opaque credential.
     Open { magic: [u8; 4], lowest: u16, highest: u16, features: u16, credential: Box<[u8]> },
-    /// The responder's selected version and features.
+    /// The responder's frozen version and features.
     Accept { version: u16, features: u16 },
     /// A terminal reason and bounded operator text.
     Refuse { reason: u16, text: Box<[u8]> },

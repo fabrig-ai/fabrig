@@ -183,7 +183,7 @@ fn the_welcome_says_each_state() {
     );
     let (unread, _) = f::starting();
     let mut stale = welcome_root(&[], false, Some(false), None);
-    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
+    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false } });
     let (project, _) = f::live(Some(f::me(&[b"Hello"])));
     let chat = super::launchpad::question_root();
     let mut signing = front(Some(PRINTED));
@@ -754,7 +754,7 @@ fn the_starting_screen_gives_way_once() {
     assert!(!crate::view::starting::shown(&root, &tui));
     tui.step(Told::Local { local: Local::Signing });
     let (mut stale, _) = f::starting();
-    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
+    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false } });
     assert!(!crate::view::starting::shown(&stale, &tui));
     assert!(crate::view::welcome::shown(&stale, &tui));
     let cases: [&[&[u8]]; 2] = [&[], &[b"project"]];
@@ -962,7 +962,7 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
             with: Some(jig_client::With::Transport),
         },
     );
-    append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } }));
     let me_opened = {
         let mut me = f::me(&[]);
         me.deployment_role = Some(c::HeldRole::Owner);

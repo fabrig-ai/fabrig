@@ -99,11 +99,15 @@ fn each_jig_reason_is_redialled_after_the_backoff() {
     }
 }
 #[test]
-fn another_version_is_redialled_after_the_backoff() {
+fn an_accept_with_another_channel_version_keeps_the_link_ready() {
     let mut world = accepting_world();
     world.change_next_engine_version();
     world.run();
-    check_redial(&mut world, 50, 100);
+    assert!(world.has_channel());
+    assert!(world.root().iter().any(|event| matches!(event, Request::Ready)));
+    assert_eq!(world.facts(), []);
+    world.advance(Duration::from_millis(100));
+    assert_eq!(world.dials().len(), 1);
 }
 #[test]
 fn engine_terms_below_the_largest_turn_are_refused_as_limits() {

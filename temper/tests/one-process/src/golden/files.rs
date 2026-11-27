@@ -1,5 +1,12 @@
 //! Whole fake-machine roots, including empty directories and their permissions.
+//! Kept copies carry the frame registry of jig/docs/design/protocol/store/transcripts.md, 6.
+//! Their deployment headers keep the commit number (jig/docs/design/protocol/store/commits.md, 1).
+use jig_domain_core::{CoreKey, Key};
+use jig_protocol_store::{keys, registry_v1 as registry};
+use skein_codec::Record as _;
 use skein_fake_machine::{How, Is, Item, Machine, Opened};
+use skein_kv::Op;
+use skein_lib::Reader;
 use std::{fmt::Write as _, os::unix::fs::PermissionsExt, path::Path};
 
 const ROOTS: [&str; 4] = ["state", "worker", "client", "setup"];
@@ -128,6 +135,62 @@ pub(crate) fn load(directory: &Path) -> Machine {
     disk
 }
 
+/// Give the kept floor and dev copies the two frame layouts from dev's registry.
+pub(crate) fn load_kept(directory: &Path) -> Machine {
+    let mut disk = load(directory);
+    assert_eq!(active(&mut disk), b"1\n", "kept source generation");
+    let root = disk.reopen_root(0);
+    let store = crate::upgrade::maps::Maps::store(&mut disk, root, 1);
+    disk.close(root);
+    let ops = [("jig-store-core", "TurnRecord", 9, 6), ("smith-transcript", "Turn", 0, 7)].map(
+        |(family, root, number, id)| {
+            let key = keys::encode_own(&keys::Own::Layout { family: family.into(), number, id }, 64)
+                .expect("frame layout key");
+            assert!(!store.contains_key(key.as_ref()), "the kept copy predates the frame registry");
+            let header = format!("family {family} {id}\n");
+            let mut kept = store.iter().filter_map(|(key, value)| {
+                let Some(keys::Own::Text(digest)) = keys::decode_own(key) else { return None };
+                let text =
+                    registry::Text::decode(&registry::CEILINGS, &mut Reader::new(value)).expect("kept registry text");
+                text.text.starts_with(header.as_bytes()).then_some((digest, text.text))
+            });
+            let (text, bytes) = kept.next().unwrap_or_else(|| panic!("kept schema for {family} {id}"));
+            assert!(kept.next().is_none(), "one kept schema for {family} {id}");
+            let schema = skein_codec::schema::parse(&bytes).expect("kept schema");
+            // The turn inside TurnRecord has its own layout, not a held text in this row.
+            let layout = schema
+                .layout(schema.root(root.as_bytes(), None).expect("frame root"), &[])
+                .expect("frame layout")
+                .digest();
+            let row = registry::Layout {
+                root: root.as_bytes().into(),
+                variant: None,
+                layout,
+                text,
+                held: skein_lib::List::with_capacity(0),
+            };
+            Op::Put { key, value: row.encode(&registry::CEILINGS).expect("frame registry row") }
+        },
+    );
+    let [core, smith] = ops;
+    let key = keys::encode(&Key::Core(CoreKey::Deployment), 64).expect("deployment key");
+    let mut value: Box<[u8]> = store.get(key.as_ref()).expect("kept deployment header").as_slice().into();
+    let number = advance_header(&mut value);
+    assert_eq!(append_commit(&mut disk, &[core, smith, Op::Put { key, value }]), number);
+    disk
+}
+
+fn advance_header(value: &mut [u8]) -> u64 {
+    // The kept core-6 Deployment is headed by layout id and tag, then
+    // the 16-byte deployment id and eight u64 counters before `commits`.
+    const COMMITS: usize = 2 + 1 + 16 + 8 * 8;
+    assert!(value.starts_with(&[0, 6, 1]), "kept core-6 deployment layout");
+    let field = &mut value[COMMITS..COMMITS + 8];
+    let next = u64::from_be_bytes(field.try_into().expect("commit counter")) + 1;
+    field.copy_from_slice(&next.to_be_bytes());
+    next
+}
+
 pub(crate) fn active(disk: &mut Machine) -> Vec<u8> {
     let root = disk.reopen_root(0);
     let opened = disk.open(root, b"active", How::ReadNoFollow).expect("active file");
@@ -137,8 +200,17 @@ pub(crate) fn active(disk: &mut Machine) -> Vec<u8> {
     bytes
 }
 
-/// Append one valid map commit only in the loaded copy; the fixture stays byte-for-byte.
 pub(crate) fn change_record(disk: &mut Machine, key: &[u8], value: Option<&[u8]>) {
+    let key = key.into();
+    let op = match value {
+        Some(value) => Op::Put { key, value: value.into() },
+        None => Op::Erase { key },
+    };
+    append_commit(disk, &[op]);
+}
+
+/// Append one valid map commit only in the loaded copy; the fixture stays byte-for-byte.
+fn append_commit(disk: &mut Machine, ops: &[Op]) -> u64 {
     let active = active(disk);
     let active = std::str::from_utf8(&active).expect("active text").trim();
     let root = disk.reopen_root(0);
@@ -149,17 +221,25 @@ pub(crate) fn change_record(disk: &mut Machine, key: &[u8], value: Option<&[u8]>
     let (frames, used) = crate::referee::durable::frames(&bytes, 0);
     assert_eq!(used, bytes.len(), "whole golden log");
     let number = frames.last().expect("kept commits").0 + 1;
-    let mut body = vec![if value.is_some() { 1 } else { 2 }];
-    body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
-    body.extend(key);
-    if let Some(value) = value {
-        body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
-        body.extend(value);
+    let mut body = Vec::new();
+    for op in ops {
+        let (tag, key, value) = match op {
+            Op::Put { key, value } => (1, key, Some(value)),
+            Op::Erase { key } => (2, key, None),
+            Op::Append { .. } | Op::Drop { .. } => unreachable!("only map operations in a fixture commit"),
+        };
+        body.push(tag);
+        body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
+        body.extend_from_slice(key);
+        if let Some(value) = value {
+            body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
+            body.extend_from_slice(value);
+        }
     }
     let mut frame = b"SKVC".to_vec();
     frame.extend(1_u16.to_be_bytes());
     frame.extend(number.to_be_bytes());
-    frame.extend(1_u32.to_be_bytes());
+    frame.extend(u32::try_from(ops.len()).expect("operation count").to_be_bytes());
     frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
     frame.extend(body);
     frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
@@ -167,6 +247,7 @@ pub(crate) fn change_record(disk: &mut Machine, key: &[u8], value: Option<&[u8]>
     disk.sync(log);
     disk.close(log);
     disk.close(root);
+    number
 }
 
 type Image = std::collections::BTreeMap<(u32, Vec<u8>), (skein_fake_machine::Facts, Vec<u8>)>;
@@ -233,7 +314,7 @@ pub(crate) fn unchanged(before: &Image, after: &Image) {
 /// A refusal preserves the copy, apart from recovery's two empty next segments.
 pub(crate) fn refused(before: &Image, disk: &mut Machine) {
     let mut after = image(disk);
-    for path in ["generations/1/store/log-00000000000000000102", "generations/1/secrets/log-00000000000000000014"] {
+    for path in ["generations/1/store/log-00000000000000000103", "generations/1/secrets/log-00000000000000000014"] {
         let (facts, bytes) = after.remove(&(0, path.as_bytes().to_vec())).expect("recovery's next empty log");
         assert_eq!(facts.is, Is::File);
         assert_eq!(facts.size, 0, "{path}");

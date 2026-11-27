@@ -56,6 +56,7 @@ mod records {
             Request::Lost { .. } => Record::Lost,
             Request::Unsent { .. }
             | Request::Unread { .. }
+            | Request::Convert
             | Request::Take { .. }
             | Request::TurnAway { .. }
             | Request::Lower { .. }
@@ -83,13 +84,7 @@ mod records {
             let mut world = World::new(&limits, &fixtures::workers(), 1);
             let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).expect("fixture codec");
             let schema = jig_protocol_worker_wire::schema(&codec).expect("fixture schema");
-            let mut peer = fixtures::peer(
-                schema,
-                jig_protocol_worker_wire::VERSION,
-                WORKER_A,
-                SECRET_A,
-                fixtures::APPLICATION_VERSION,
-            );
+            let mut peer = fixtures::peer(schema, WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION);
             peer.play(fixtures::hello_frame());
             let connection = world.connect(peer);
             world.run();

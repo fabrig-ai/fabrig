@@ -298,7 +298,7 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     while let Some(r) = more.pop() {
         out.push(r);
     }
-    let mut more = up(&mut root, jig_client::Up::Served { served: true, versions: None });
+    let mut more = up(&mut root, jig_client::Up::Served { served: true });
     while let Some(r) = more.pop() {
         out.push(r);
     }

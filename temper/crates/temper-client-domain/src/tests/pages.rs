@@ -364,7 +364,7 @@ fn lasting_task_read_ends_ask_nothing_again() {
             Readout::Jig(c::ReadResult::None(c::ReadNone::TooLinked { joins: READ_JOINS })),
             ReadEnd::TooLinked { joins: READ_JOINS },
         ),
-        (Readout::NotServed { family: None, served: None }, ReadEnd::NotServed),
+        (Readout::NotServed { family: None }, ReadEnd::NotServed),
     ] {
         let (mut root, read) = ended_task_read();
         let mut env = fixtures::env(&limits);
@@ -601,9 +601,7 @@ fn the_root_and_a_missing_path_wait_for_me_then_replace_with_home() {
             crate::step(
                 &mut root,
                 &env,
-                crate::Event::Client {
-                    event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-                },
+                crate::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
                 &mut out,
             );
             assert!(root.pages().root_pending());

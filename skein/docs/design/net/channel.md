@@ -5,10 +5,10 @@ channel between two peers over a stream, for the application protocols
 that services built on skein design for themselves. An application gives
 it two things:
 
-- a schema, as data: its magic, its versions and its kinds;
+- a schema, as data: its magic, its one version and its kinds;
 - codecs for its bodies (../data/codec/README.md).
 
-The channel gives it framing, an opening that agrees a version, bounds and
+The channel gives it framing, an opening, bounds and
 flow control. Its first users are smith's channel between a host and an
 agent, and jig's between its engine and its workers.
 
@@ -22,9 +22,12 @@ agent, and jig's between its engine and its workers.
   phases beyond its opening, and nothing of what a credential proves.
 - **Frames:** a fixed header with a kind, flags and a length, then a body.
   Every length is checked before anything is set aside for it.
-- **An opening agrees a version.**
-  - The initiator offers a range of versions and an opaque credential.
-  - The responder's owner accepts, with a version both speak, or refuses.
+- **An opening compares no version.**
+  - The initiator offers an opaque credential, under the channel's one
+    frozen version.
+  - The responder's owner accepts or refuses. The bodies' layouts are
+    the owners' to compare, as jig's worker credential does (jig's
+    `protocol/channel/wires.md`, 2 and 3).
   - Each side states the largest body it takes of each kind, and each owner
     hears the other's.
   - Only then do the owners exchange frames of their own.
@@ -92,23 +95,20 @@ What an application gives the machine, as data, checked when the machine
 is made:
 
 - **its magic:** four bytes naming the application's protocol;
-- **its versions:** the contiguous range this side speaks. A channel's
-  bodies are a wire, whose version is frozen and whose layouts are named
-  by fingerprint (../data/codec/README.md, 5). An application that
-  speaks one version has that one as its range, and a peer of another is
-  refused with *version* (5.2); a peer at another layout of the bodies
-  is its owner's to judge and convert (5.2, accepting with the peer's
-  table);
-- **for each version, its kinds:** for each kind, its direction and the
-  largest body this side takes or may send of it, from the owner's limits;
+- **its version:** one number, frozen. A channel's bodies are a wire,
+  whose version is frozen and whose layouts are named by fingerprint
+  (../data/codec/README.md, 5), so the machine compares no version: a
+  peer at another layout of the bodies is its owner's to judge and
+  convert (5.2, accepting with the peer's table);
+- **its kinds:** for each kind, its direction and the largest body this
+  side takes or may send of it, from the owner's limits;
 - **the role:** initiator or responder, for this machine;
 - **its limits** (section 10).
 
 The machine refuses a schema in which:
 
-- a kind appears twice in a version;
+- a kind appears twice;
 - an application kind lies in the channel's own range;
-- a version in the range has no table;
 - a kind this role sends has a largest frame that does not fit the output
   cap. Only the kinds whose direction is this role's own are checked
   against it. A kind this role receives is bounded by its largest body,
@@ -133,15 +133,20 @@ largest frame this role sends, and its input the largest it receives.
 | `0x0006` | `Unsupported` | kind `u16` |
 
 - **Layouts are the channel's own,** the same for every application and
-  every version, so an opening between two versions ends in a refusal
+  every version, so an opening between any two builds ends in an answer
   both read. Bytes and lists are a `u32` length, then their contents.
+- **The versions' fields keep their places:** an initiator writes its
+  one version as both `lowest` and `highest`, and a responder its own
+  in `Accept`; neither side reads them. So a peer of a build that still
+  compares ranges, offered its own frozen version, finds it in common.
 - **Features** are the channel's own extensions, such as a meaning for the
   header's flags. `Open` offers them, and `Accept` names those taken. None
   are defined, so both are zero today.
 - **A refusal's text** is for operators, at most 256 bytes, so a refusal
   stays small and fixed in size (../../foundation/programming-model.md, section 8).
 - **Reasons** `1` to `255` are the channel's:
-  - `1`, *version*: no version in common;
+  - `1`, *version*: no version in common, sent by builds that compared
+    ranges, and read as it came;
   - `2`, *limits*: the peer's terms do not suit this side;
   - `3`, *framing*: the peer broke the framing, including a wrong magic.
 
@@ -152,36 +157,28 @@ largest frame this role sends, and its input the largest it receives.
 
 ```
 initiator                                    responder
-Open { magic, versions, features, credential }  ───►
+Open { magic, version, version, features, credential }  ───►
                      ◄───  Accept { version, features }, then Terms
                      ◄───  or Refuse { reason, text }
 Terms                                           ───►
-(each owner hears ready, with the version and the peer's terms)
+(each owner hears ready, with the peer's terms)
 ```
 
-- **The responder's machine checks `Open`:** the magic, then the versions.
-  - A wrong magic is refused with *framing*.
-  - A malformed range (`lowest` above `highest`) is refused with
-    *framing*.
-  - A range with no version in common is refused with *version*, its
-    text naming both ranges, `speaks L..H, offered L..H`, this side's
-    first, so that an operator reading either side's log sees why.
-
-  None of these asks the owner. The owner hears each as the channel's
+- **The responder's machine checks `Open`:** its magic. A wrong magic is
+  refused with *framing*, which the owner hears as the channel's
   terminal (8.3), refused by this side, with the reason and the text it
-  sent.
+  sent, never asked. The versions' fields are read past, not judged.
 - **Otherwise the owner decides.** It hears of the opening, with the
-  credential and the versions both speak. It accepts with one of them,
-  normally the highest, or refuses with a reason of its own: the
+  credential. It accepts, or refuses with a reason of its own: the
   credential is unknown, or it is busy. For an agent's pipes, the owner
-  accepts at once.
+  accepts at once. The initiator takes the responder's `Accept` whatever
+  version it names.
 - **Accepting with the peer's table.** A responder's owner may accept
-  with a kinds' table of its own making for the version it accepts, in
-  place of its schema's: the table of a peer whose layout of the
+  with a kinds' table of its own making, in place of its schema's: the table of a peer whose layout of the
   application's bodies differs, so that frames cross at the peer's
   layout and the owner converts them (jig's
   `protocol/channel/wires.md`, 4). The machine checks it as section 4
-  checks a schema's version, for this role and these limits, and keeps
+  checks a schema's kinds, for this role and these limits, and keeps
   it for the channel's life: its terms, its sends' and receipts' checks
   and their bounds are that table's. A table that fails the check is a
   fault of the owner's: the machine refuses the opening with *limits*,
@@ -190,8 +187,8 @@ Terms                                           ───►
 - **Terms list the kinds a side receives:** the largest body it takes of
   each, at most its schema's. The responder sends its terms right after
   `Accept`, and the initiator answers with its own.
-- **Ready.** Each owner hears that the channel is ready, with the version
-  and the peer's terms, once it has the peer's terms and has sent its own.
+- **Ready.** Each owner hears that the channel is ready, with the peer's
+  terms, once it has the peer's terms and has sent its own.
 - **Judging the peer's terms is the owner's.** The machine only applies
   them, refusing at the entrance a frame the peer does not take (section
   7). An owner that wants a mismatch to show at the opening, rather than
@@ -229,7 +226,7 @@ Terms                                           ───►
 
   A full owner stops the reading, and so, in time, the peer's writing.
 - **The header is checked first.** A known kind must come from the peer's
-  direction, in the agreed version and phase (5.3). Its length must be at
+  direction, in the schema's kinds (or the accepted table's) and phase (5.3). Its length must be at
   most what this side said it takes. Anything else is a framing error, and
   the machine refuses with *framing* (8.1).
 - **The body** goes into one box of its length, filled by demands of at
@@ -237,8 +234,8 @@ Terms                                           ───►
   whatever the frame's size.
 - **The owner decodes it.** A body that does not decode is the owner's to
   judge: it refuses with *framing*, or carries on.
-- **Unknown kinds are skipped.** An application kind the agreed version
-  does not have, with a length within the skip bound, is read and dropped
+- **Unknown kinds are skipped.** An application kind the kinds in use
+  do not have, with a length within the skip bound, is read and dropped
   in chunks, without allocating. The machine answers it with `Unsupported`
   and goes on reading for the owner's read (../../foundation/programming-model.md,
   section 8). The next header waits until the `Unsupported` is queued. A
@@ -333,7 +330,7 @@ the output stream is finished once what is queued has gone.
 | From the owner | What it does |
 |---|---|
 | open | the initiator's `Open`, with its credential |
-| accept, refuse | the responder's owner's answer to an opening, accept with a version or with a table for one (5.2); refuse also at any later time |
+| accept, refuse | the responder's owner's answer to an opening, accept with its schema's kinds or with a table (5.2); refuse also at any later time |
 | read | read one more frame |
 | send | queue one frame, named by the owner's token |
 | ping | queue a `Ping` |
@@ -342,8 +339,8 @@ the output stream is finished once what is queued has gone.
 
 | To the owner | What it says |
 |---|---|
-| opening | a responder's opening: the credential and the versions both speak |
-| ready | the version agreed, and the peer's terms |
+| opening | a responder's opening: the credential |
+| ready | the peer's terms |
 | body, ping, unsupported, refused, ended | the answer to a read (section 6) |
 | sent, unsent | a frame admitted, or refused with why, by the owner's token |
 | drained | a queued frame was handed below |
@@ -368,7 +365,7 @@ the output stream is finished once what is queued has gone.
 | credential | the credential's bytes |
 | skip | the largest unknown body skipped rather than refused |
 | output bytes, output frames | the queue |
-| kinds | the kinds of a version, and so the terms |
+| kinds | the schema's kinds, and so the terms |
 
 A refusal's text is fixed at 256 bytes (5.1).
 
@@ -385,6 +382,10 @@ credential, skip and output caps remain admission checks.
   - owners that read slowly, send at awkward moments, refuse and close in
     every state;
   - every refusal of the opening;
+  - the versions' fields: an `Open` written with the one version in
+    both, golden; a responder accepting an `Open` whatever its fields
+    hold, a malformed range among them; an initiator taking an `Accept`
+    of another version;
   - a responder accepting with a table of its own (5.2): its terms,
     sends and receipts held to that table, not its schema's, and a table
     that fails section 4's checks refused with *limits*;

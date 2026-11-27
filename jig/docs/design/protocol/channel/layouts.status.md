@@ -1,6 +1,6 @@
 # layouts: status
 
-2026-11-25. Where jig's code lags or departs from [layouts.md](layouts.md).
+2026-11-27. Where jig's code lags or departs from [layouts.md](layouts.md).
 
 - **Not yet:** 2.1 and 4.1: the engine converts a kept part's `Turn` body
   but writes its `KeptPart` envelope at the engine's layout. A worker
