@@ -3482,11 +3482,20 @@ pub enum Request {
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
     },
-    /// A close job offer or the replay of its failure, with the tips just read.
+    /// A close job offer with the tips just read.
     CloseDecision {
         task: u64,
         at: change::CloseAt,
-        replay: bool,
+    },
+    /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
+    ReplayJudgement {
+        task: u64,
+        replay: change::Replay,
+        prior_rejection: Box<[u8]>,
+    },
+    /// The relay already held the task; the change's row keeps the refusal evidence.
+    RelayRefusal {
+        task: u64,
     },
     /// Task-specific news with a connector classification.
     News {

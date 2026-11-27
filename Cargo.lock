@@ -5983,6 +5983,7 @@ dependencies = [
  "temper-box-kit",
  "temper-client-domain",
  "temper-client-journeys-tool",
+ "temper-client-tools",
  "temper-client-walk-lines",
  "temper-config-shell",
  "temper-engine-domain",

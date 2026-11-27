@@ -253,6 +253,7 @@ impl Forge {
             | Decision::NoChange
             | Decision::Cancel
             | Decision::Hold(_)
+            | Decision::ReplayJudgement(_)
             | Decision::Failed
             | Decision::QueueRepair => {}
         }

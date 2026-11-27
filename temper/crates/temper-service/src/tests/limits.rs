@@ -332,7 +332,7 @@ fn the_stock_has_room_for_its_landing_members() {
 #[test]
 fn the_standard_brief_and_its_carriers_share_their_bounds() {
     // The stock host room less titles, framing and margin (stock.md, 7).
-    const STANDARD_BRIEF_BYTES: u32 = 317_369;
+    const STANDARD_BRIEF_BYTES: u32 = 315_530;
     let own = limits::stock();
     let jig = jig_protocol_config_fixtures::small();
     let root = limits::engine(&jig, &own).expect("coherent brief carriers");

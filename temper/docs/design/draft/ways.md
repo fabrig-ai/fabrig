@@ -14,7 +14,7 @@ The first pass covered the mechanics and the whole picture, so that each piece i
 - **Values in four layers** (section 5): the floor, the project's defaults, the way, and the piece of work. The floor is the landing rules, rules by path among them. It always holds, and no way or piece of work lowers it. Below the floor, the work's own value wins over its way's, and its way's over the project's default. One calculation gives a change's criteria wherever they are used.
 - **A charter's words come from six sources** (section 6): smith's harness, temper's method, the deployment's lines, the repository's `AGENTS.md`, the project's words from `.temper/charters/`, and the task's words. A run records which it read.
 - **Standing roles start work, as people do** (section 7). A kind is a named charter. An instance is a live task, with its person, area, budget and Now, kept in the store and never in `.temper/`. A role's grant says which ways it may start. Ways stop bringing standing roles.
-- **`.temper/`** (section 8): `ways.toml`, `ways/<name>.toml`, `charters/<name>.md` and `hooks/` ([hooks.md](hooks.md)). temper reads it whole from one commit of the home repository's landing branch, checks a change to it before it lands, and asks an owner to sign off on one. All or nothing: a repository with `ways.toml` runs its own ways alone, and one without runs the stock's. Each file names its format, and every format shipped keeps reading (8.8).
+- **`.temper/`** (section 8): `ways.toml`, `ways/<name>.toml`, `charters/<name>.md` and `hooks/` ([hooks.md](hooks.md)). temper reads it whole from one commit of the home repository's landing branch, checks a change to it before it lands, and, where a project's owners turn it on, asks one of them to sign off on it. All or nothing: a repository with `ways.toml` runs its own ways alone, and one without runs the stock's. Each file names its format, and every format shipped keeps reading (8.8).
 - **A gallery** (3.5): ways built into temper as references, each tested and drawn by temper's own path, shown on the web and known to Ask temper, which explains every primitive. A new project picks from it, or starts on the stock ways, and temper writes what it picked into `.temper/` by a change (8.7).
 - **Names** (section 9): every template, charter and policy gets a lowercase name. The number stays the store's key. A way's name is its file's. A name is also a path in `.temper/`.
 - **fabrig and dev.fabrig.ai move onto it** (section 10), and upgrades keep what each build already runs (section 11). A release's changes reach a project's own ways and words through Ask temper's review, never by rewriting them.
@@ -27,7 +27,7 @@ The first pass covered the mechanics and the whole picture, so that each piece i
 |---|---|---|---|
 | `temper.toml` | what a machine runs: its places, its figures, its endpoints (`config.md`, section 3) | whoever runs the machine | at a start |
 | settings, in the store | what grants and bounds: people and their roles, accounts, models, budgets and ceilings, the floor (section 5), the project's defaults, the deployment's charters and its lines for them | the deployment's or the project's owners, by a decision (`configuring.md`, section 3) | always |
-| `.temper/`, in a repository | how work is done on this code: its ways, its charters' words and its hooks | whoever lands on the repository's landing branch, under the floor and an owner's sign-off (8.6) | whole, from one commit of the landing branch (8.5) |
+| `.temper/`, in a repository | how work is done on this code: its ways, its charters' words and its hooks | whoever lands on the repository's landing branch, under the floor, and an owner's sign-off where the project turns it on (8.6) | whole, from one commit of the landing branch (8.5) |
 
 - **The rule:** whatever grants, bounds or spends is in settings, and whatever describes method is in the repository. A way in `.temper/` can ask for more review than the floor does, never for less.
 - **Why both, not one:** a repository's method travels with its code, is reviewed as code, and is the same on every deployment that serves it. Authority can't travel with the code, since whoever can land would then grant themselves more. A forge splits it the same way: workflow files live in the repository, and a branch's protection in the forge's settings.
@@ -93,11 +93,12 @@ From a read-only survey of main at `de275134b0`, 2026-11-26:
 | `pair` | a chat whose one agent works in its own copy of the repository, with its requester there; "Land this" opens its change | `pair` | the landing branch |
 | `change` | one change, from its requester's words, written unattended | `implementer`, `reviewer` | the landing branch |
 | `goal` | a goal whose agent designs, then has changes made into the goal's own branch, which lands whole | `goal`, `implementer`, `reviewer` | each change into the goal's branch, then the branch into the landing branch |
-| `milestone` | a milestone of goals, each run as `goal` is | as `goal` | as `goal`, for each goal |
+| `milestone` | a milestone of goals, each run as `goal` is | as `goal` | as `goal`, for each goal; or, landing whole, each goal into the milestone's own branch, then the branch into the landing branch |
 
 - **A shape is code:** `pair` is the chat working in its own copy, designed in a draft of its own that hasn't landed yet. `change` is the forge's change (`../domain/forge/change/README.md`), `goal` is a goal on its own branch with its closer (`../domain/forge/branches.md`), and `milestone` is the gathering (`../domain/milestones.md`).
 - **`implementer` is kind 3's producer slot,** named for what the agent does.
 - **A person starts a `change` from words,** which `temper ctl` can't do today: a person reaches a change through a chat that delegates one, or by pushing a branch (`../domain/forge/change/opened.md`). A change opened from a pushed branch has no producer, and takes the `change` way's landing alone.
+- **A `milestone` table** says how its goals land (the user, 2026-11-27): `whole = false`, each goal into the landing branch on its own, as milestones land today (`../domain/milestones.md`), the default, which keeps drift from the base small; or `whole = true`, the milestone holding a branch of its own, as a goal holds one (`../domain/forge/branches.md`, section 1), each goal landing into it, and the branch landing whole into the landing branch once the milestone is whole and its goals have ended. Built late (`ways.execution.md`).
 - **A `goal` table** carries kind 11's two values, `design` and `close_out`, which describe the goal's path for the pages and Ask temper (`../protocol/configuration/settings-kinds.md`, section 1). The goal's charter directs the work, as it does today.
 - **What isn't a way's:** a start that changes no repository is no way's and keeps its template: a chat with no copy of its own, Ask temper, a design session, a standing role. Whether every chat on a repository is a `pair` is the Pair draft's question.
 
@@ -112,8 +113,9 @@ A way's `landing` is a landing rule's own fields, without the pattern and path s
 - `approvals`: approvals the way adds beside `approval`, each as it is: two roles, or more people.
 - **`share`, built last** (`ways.execution.md`): how the work's changes share a landing, in a project that lands by turn (`../domain/landing.md`, section 1): `alone`, a turn of its own; or `with`, the ways whose changes may share a turn with its own, and `at_most`, how many; and `combine`, `merge` or `squash`. A turn takes the waiting changes whose ways allow one another, in queue order. Queue against turn stays the project's, since who merges and how CI is triggered are the repository's; a project landing by queue lands every change alone.
 - **Added, never removed:** `reviews` and `approvals` only add to what the floor asks (5.4). `share` changes how a landing is formed, never what it is judged by.
+- **`catch_up`, built late:** when a goal's or a milestone's own branch takes its landing branch's tip. `when-needed`, the default, is today's: a coordinator asks for a catch-up for a change that needs what the base gained (`../domain/forge/updates.md`, section 1). `after-each-landing`: temper makes one itself after each landing into the branch, a change into it, so that the branch stays near its base, as a milestone landing whole wants after each of its goals. Either takes the merge hook ([hooks.md](hooks.md)), and a conflict goes to a resolution, as a catch-up's does today.
 
-A shape with two branches gives two tables: `landing`, into the repository's landing branch, and `landing.goal`, a change into a goal's own branch. A member `landing.goal` leaves out takes the layer below's `landing.goal`, never the way's own `landing`.
+A shape with two branches gives two tables: `landing`, into the repository's landing branch, and `landing.goal`, a change into a goal's own branch. A milestone landing whole gives a third, `landing.milestone`, a goal's branch into the milestone's. A member a table leaves out takes the layer below's same table, never another table of the way.
 
 ### 3.4 The stock three
 
@@ -121,7 +123,7 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
 |---|---|---|---|---|
 | `pair`, Pair | `pair` | "You and one agent, in its own copy" | `review = false`, `approval = none`: its requester is there and says "Land this" | You approve's table: everything asks |
 | `hand-it-over`, Hand it over | `change` | "An agent writes it, another reviews it, and code lands it" | `review = true`, `approval = none` | Agents review's table |
-| `milestone`, Milestone | `milestone` | "Design first, then agents build it on its own branch, and it lands whole" | Draft first's: `landing` with `ci` and `up_to_date`, no review and no approval; `landing.goal` with neither `ci` nor `up_to_date` | Draft first's table |
+| `milestone`, Milestone | `milestone` | "Design first; each goal is built on its own branch, and lands when it's done" | Draft first's: `landing` with `ci` and `up_to_date`, no review and no approval; `landing.goal` with neither `ci` nor `up_to_date` | Draft first's table |
 
 - **You approve becomes a value,** `approval` with one owner, which any layer sets (section 5), rather than a way of its own. Agents review becomes Hand it over, and Draft first becomes Milestone, with the same landing.
 - **A goal alone is a milestone of one,** started the same way. A project wanting a `goal` way of its own writes one (8.2).
@@ -145,6 +147,7 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
   | `night-batch` | many small goals on a cheaper model, at low priority, landing in turns of four | `models`, `priority`, `share`, landing by turn |
   | `careful-newcomer` | every decision waits for its requester, away or not | `reaches` |
   | `standing-triage` | a standing triager starts hand-it-over work, and milestones only through a person | standing roles' grants |
+  | `one-landing-milestone` | a milestone on a branch of its own, each goal landing into it and the branch caught up with main after each, the whole landing at once | `[milestone] whole`, `catch_up` |
 
 - **Each entry is tested:** its files as a fixture, a world test running work through it in the focused and fuzzy suites, and its stops checked against temper's derivation of a way's path (`../domain/forge/change/branch-path.md`), so that the drawing shown is the derivation's, never drawn by hand.
 - **Shown on the web,** on How work runs and at a project's creation, with the note that every variation of an entry is possible, and how.
@@ -173,7 +176,7 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
 |---|---|---|---|
 | the floor | the enforcing landing rules, kinds 1 and 2, rules by path among them; the path sets and their classes (kind 8's `sets`); the fixed `Wait` kinds; the policy's ceilings | the deployment's and the project's owners | never |
 | the project's defaults | a value each way takes where it says none: the new kind *work defaults* for landing (5.3), and today's kinds for the rest (5.2) | the project's owners; the deployment's, for kind 3 | yes |
-| the way | its members (section 3) | the stock, or a landing on the home repository with an owner's sign-off (8.6) | yes |
+| the way | its members (section 3) | the stock, or a landing on the home repository (8.6) | yes |
 | the work | its own values, set at its start or by amendment | its requester, within its grant (section 7) | — |
 
 - **Below the floor, the most specific wins,** member by member: the work's own value, else its way's, else the project's default. Over the floor, nothing wins: it is judged as well, every time.
@@ -195,6 +198,8 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
 | priority, deadline | the template's and the policy's bounds | the template's | `priority`, `deadline` | a start's `--priority`, `--deadline` |
 | added reviews and approvals | the floor's own, which nothing removes | work defaults | `landing.reviews`, `landing.approvals` | — |
 | sharing a landing | the project's `by` and `batch` | the project's `combine` | `landing.share` | — |
+| a milestone landing whole | — | — | `[milestone] whole` | — |
+| keeping a branch near its base | — | — | `catch_up` | a coordinator's catch-up |
 | budget | the policy's ceilings | the template's budget | `budget` | a start's `--budget` |
 
 Each row already has its default and, mostly, its per-work choice. A way adds the middle layer, and the work gains the landing rows.
@@ -211,7 +216,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 - **It can only add.** Rules combine as today: any refusal wins, else any wait wins (`../domain/forge/change/gates.md`, section 2). The work's rule adds a gate, a wait or an approval, and never removes one the floor asks for.
 - **A floor's review is the owners':** an agent review a floor rule requires runs kind 3's reviewer, with no project charter of `replaces` (6.2), whatever the way's `charters` say. A way's own reviewer judges only the review the way adds.
 - **A goal's direct writes:** the goal's agent writes its design straight into the goal's branch, outside any change (`../domain/forge/branches.md`, section 3). `landing.goal` covers the changes into that branch. The floor judges what the branch brings at its landing whole.
-- **Who may set a work's value:** its requester, for its own work. By default a person may set any value the floor leaves free (section 13). A standing role may set only what its grant allows (section 7). An amendment re-steps a change that is queued or being proved, and the evidence it had counts only where it was gathered for the same criteria at the same head.
+- **Who may set a work's value:** its requester, for its own work. A person may set any value the floor leaves free, lower than the way's included (the user, 2026-11-27). A standing role may set only what its grant allows (section 7). An amendment re-steps a change that is queued or being proved, and the evidence it had counts only where it was gathered for the same criteria at the same head.
 
 ### 5.5 The stock floor, and upgrades of it
 
@@ -228,7 +233,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 | temper's method | how temper's agents work, in that charter | the stock charter's files (`stock-charters.md`, section 2), or the deployment's charter where it sets one whole | a release, or the deployment's owners |
 | the deployment's lines | what its machines are, and its own rules | a deployment overlay of the charter (jig's `domain/engine/overlays.md`) | the deployment's owners |
 | the repository's guide | how this code is written, for every agent and person | `AGENTS.md` at the root of each workspace directory, as smith finds it; others as it says (smith's `domain/run-start.md`, 1.3) | the repository |
-| the project's words | what this project wants of that charter's agents alone | `.temper/charters/<name>.md` of the home repository (6.2) | the home repository, with an owner's sign-off |
+| the project's words | what this project wants of that charter's agents alone | `.temper/charters/<name>.md` of the home repository (6.2) | the home repository (8.6) |
 | the task | its words, its brief and its messages | the task (`../domain/agent/charter.md`, section 1) | its requester, and the run |
 
 - **Sources, not an order:** smith lays out the prompt in its own order, instructions and brief before workspace guides (smith's `domain/run-start.md`). The table says where each word comes from.
@@ -276,7 +281,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 ### 7.3 Its grant
 
 - **What it holds:** the ways it may start, by name; the shapes among them; which of a work's values it may set and in which direction; and its spend, as today. It is kept with its task's authority (`../domain/agent/standing.md`, section 5). Whoever starts the role grants within their own. Today nothing lists what a role may start.
-- **Checked at every start,** delegation and amendment the role makes, against the way as it resolves then. A way's file changes only with an owner's sign-off (8.6), so the owner who signs one off signs what every grant naming it allows from then on.
+- **Checked at every start,** delegation and amendment the role makes, against the way as it resolves then. A way's file changes only by a landing on the home repository (8.6), so whatever lets a change land there decides what every grant naming the way allows from then on. A project that wants an owner to see each such change turns the sign-off on.
 - **Until a role has a grant** (`ways.execution.md`), it starts work in its shape's default way and sets no value.
 - **A value outside its grant** isn't set: the role asks its person, as for a decision outside its rules.
 
@@ -315,8 +320,8 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 ```toml
 # .temper/ways/milestone.toml: the project's Milestone, as picked from the gallery and changed
 format = 1
-headline = "Design first, then agents build it on its own branch, and it lands whole"
-line = "You and an agent write a design; agents build it on its own branch; it lands whole."
+headline = "Design first; each goal is built on its own branch, and lands when it's done"
+line = "You and an agent write a design; agents build each goal on its own branch, and each lands when it's done."
 shape = "milestone"
 reaches = "draft-first"
 budget = 1000
@@ -357,15 +362,15 @@ up_to_date = false
 ### 8.6 Guarded
 
 - **Checked before it lands:** a change touching `.temper/` waits for a check of temper's own, by code, of the tree that will land: the change's head merged onto the landing branch's tip, and again at a turn's candidate. The files must parse; names must be valid and unique (section 9); every way named must exist and be offered; shapes must be known; charters must fit their bounds; no `replaces` may sit on a judging charter; a hook may be a symbolic link only to another hook beside it ([hooks.md](hooks.md), 3.1); every file must name a format the build reads (8.8); and no `ways/`, `ways.toml` or `charters/` may sit outside the home repository. A failure refuses with the file and its line, as a gate's verdict does.
-- **Signed off:** a change touching `.temper/` also waits for one owner's approval on the forge, a sign-off of temper's own beside the floor's rules, taking none of a project's rule or path set slots. Ways can ask for less review, charters shape what agents do, and hooks run code on workers. So a change to them waits for a person, whatever its way.
-- **Where no owner can sign,** a playground's forge or a project with no owner on its forge: the sign-off is off, and the project's record says so. The project's owners can turn it off themselves, as a setting (section 13).
+- **Signed off, where the owners turn it on** (off by default, the user, 2026-11-27): a change touching `.temper/` then also waits for one owner's approval on the forge, a sign-off of temper's own beside the floor's rules, taking none of a project's rule or path set slots. It is a project setting, refused where no owner can sign, a playground's forge or a project with no owner on its forge.
+- **Off, the floor alone guards `.temper/`:** ways can ask for less review than the project's defaults, charters shape what agents do, and hooks run code on workers, so a change an agent writes can edit them and land under the project's rules alone. A rule by path naming `.temper/` is how owners ask for a person meanwhile.
 - **The floor stays in settings,** where landing can't reach it.
 
 ### 8.7 A new project's ways
 
 - **At its creation, or its adoption,** a project whose home repository has no `ways.toml` is shown the gallery, each entry drawn, and the stock ways it would run meanwhile.
 - **It may start on the stock ways,** writing nothing: they don't ask a person to buy in yet. Or it picks one or more entries, or writes a way from scratch, and may then change them before going on.
-- **temper writes them by a change** into the home repository, "Add .temper/ with your ways": `ways.toml` and the files it names. It lands by the project's own rules, an owner's sign-off among them (8.6), so that the first thing temper does in a repository is a change a person can read. Until it lands, the stock ways run.
+- **temper writes them by a change** into the home repository, "Add .temper/ with your ways": `ways.toml` and the files it names. It lands by the project's own rules (8.6), so that the first thing temper does in a repository is a change a person can read. Until it lands, the stock ways run.
 - **A starter is offered,** Hand it over preselected, so that the step is one click, with the advice to start small and grow, the whole gallery in sight.
 
 ### 8.8 Versioned files
@@ -374,7 +379,7 @@ up_to_date = false
 - **Every format shipped keeps reading:** a build reads each format temper has released, converting it as it reads. A file lives in a repository temper doesn't control, so this is longer than the store's rule, which keeps no code for a layout older than the deployment runs ([layouts-both-ways.md](layouts-both-ways.md)).
 - **A newer format than the build knows** fails the read, naming the file and the format, and the last good revision holds (8.5).
 - **Rewriting a file to the newest format** is a change a person asks for, or Ask temper proposes (section 11); nothing rewrites it by itself.
-- **temper.toml and the other files a person writes,** the workers' among them, take the same rule in a draft of their own: today they name no format ([../protocol/configuration/file.md](../protocol/configuration/file.md), section 9).
+- **temper.toml and the other files a person writes** take the same rule, by [formats.md](formats.md).
 
 ## 9. Names
 
@@ -432,19 +437,19 @@ What this pass leaves to the pages, the terminal and the words:
 
 ## 13. Open questions
 
-- **Lowering a way's value for one piece of work:** its requester may set any value the floor leaves free, the default, since the floor is what owners protect; or a piece of work may only tighten its way, and lowering needs an owner.
-- **The sign-off on `.temper/`:** on by default where an owner can sign, the default; or offered, since a person working alone signs their own change.
-- **A milestone across repositories:** its way from the home repository, the default, and each goal's hooks and guide its own repository's.
-- **A deployment's own ways,** in settings: none, the default, since a deployment's lines are overlays and its authority the floor; or entries of a deployment's own in the gallery.
-- **The stock ways a repository without `ways.toml` runs:** Hand it over and Milestone, and Pair once it lands, the default; or Hand it over alone, the smallest start.
-- **A hotfix and a turn in progress:** a turn holds main while its proof runs. A change whose way puts it first waits for that turn, the default; or it may cancel the turn, at the cost of the turn's CI.
+None left from the second pass.
+
+**Settled by the user, 2026-11-27:** whoever starts a piece of work may set any value the floor leaves free, lower than its way's included, as no approval for one milestone whose way asks for one (5.4); `ways.toml` is the all-or-nothing switch (8.1); the sign-off on `.temper/` is off by default (8.6); the stock ways a repository without `ways.toml` runs are Pair, once its draft lands, Hand it over and Milestone (3.4); a deployment's own ways, a milestone across repositories and a hotfix cancelling a turn wait (section 14). A change first in line waits for a turn in progress.
 
 ## 14. Later
 
 - **Sharing ways across projects** (the user, 2026-11-27): copying the files over, at first.
+- **A milestone across repositories** (the user, 2026-11-27): its way from the home repository, and each goal's hooks and guide its own repository's, as a first thought.
+- **A deployment's own ways,** offered beside the stock ones without a repository's `.temper/` (the user, 2026-11-27: not for now).
+- **A hotfix cancelling a turn in progress,** at the cost of the turn's CI (the user, 2026-11-27: not for now).
 - **Comparing and reconciling** a project's files with the gallery's, beyond Ask temper's review after an upgrade (section 11).
 - **Who hears and when, per way:** who holds a work's escalations, its progress cadence and its push, until `what-reaches-you.md` settles them.
 - **Moving between ways mid-work** (the user, 2026-11-26): Pair's "hand it over" starting a Hand it over, and an implementer proposing a milestone for a change too big.
 - **Standing roles in `.temper/`** (the user, 2026-11-26): a kind's words in `charters/`, and saying that one instance is of a kind, with many of a kind coming and going.
 - **A standing role pairing on its person's behalf** (7.1).
-- **The forge's own protection** for a rule by path, and for `.temper/`'s sign-off, stays `what-reaches-you.md`, section 7's open question.
+- **The forge's own protection** for a rule by path, and for `.temper/`'s sign-off where it is on, stays `what-reaches-you.md`, section 7's open question.

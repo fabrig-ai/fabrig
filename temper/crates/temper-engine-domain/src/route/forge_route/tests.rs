@@ -1971,7 +1971,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 },
                 &mut out,
             );
-            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None, None);
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None);
             let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
                 panic!("cancelled {name} needs a procedure hold with its account")
             };
@@ -2690,7 +2690,7 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
             }),
         ]);
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
-        let decision = super::change_hold_step(&domain, &env, 7, why, None, None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, None);
         let category = if why == change::Cause::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
         assert_eq!(
             decision.end,
@@ -2758,7 +2758,7 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
             reviews_complete: false,
             size: None,
         };
-        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence), None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence));
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2946,7 +2946,7 @@ fn checking_holds_name_the_bound_the_execution_clock_reached() {
         env.wall = Wall::from_nanos(1_000_000_000);
         env.limits.forge.change_policy.stall = Duration::from_secs(1800);
         env.limits.forge.change_policy.runner_wait = Duration::from_secs(14_400);
-        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2978,7 +2978,7 @@ fn a_hold_past_questions_names_its_bound() {
         row.questions.taken = 4;
         row.questions.open = open.into();
         let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
-        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -5425,7 +5425,7 @@ fn every_change_hold_has_words_even_without_an_account() {
         row.effect = change::EffectResult::Failed;
         row.effect_account = Some(forge::EffectAccount { entry: 1, words: Box::new([]) });
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-        let step = super::hold_change_decision(&domain, &env, 7, why, None, None);
+        let step = super::hold_change_decision(&domain, &env, 7, why, None);
         let StepEnd::HoldFrom { source, .. } = step.end else { panic!("wordless hold: {why:?}") };
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account: {why:?}") };
         assert!(!words.is_empty(), "empty hold: {why:?}");
@@ -5447,7 +5447,7 @@ fn a_runner_hold_uses_its_own_account() {
     };
     row.runner_ci = Some(forge::RunnerCi::Held { words: WORDS.into() });
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None, None);
+    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None);
     let StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = step.end else { panic!("runner hold account") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
     assert_eq!(words.as_ref(), WORDS);
