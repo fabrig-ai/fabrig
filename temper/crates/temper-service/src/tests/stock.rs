@@ -208,7 +208,7 @@ fn stock_startup_keeps_its_models_even_without_running_providers() {
     let document = fixtures::engine_alone_document();
     let given = crate::stock::Given::Stock.with_providers(Box::new([]), Box::new([]));
     let named = crate::startup::named_with(&document, &config::Directories::working(), &given).unwrap();
-    assert_eq!(named.llm.models.len(), 7);
+    assert_eq!(named.llm.models.len(), 8);
     assert!(named.llm.providers.is_empty());
     assert!(named.llm.endpoints.is_empty());
 }

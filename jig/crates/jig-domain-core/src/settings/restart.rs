@@ -267,6 +267,8 @@ impl Core {
                 return false;
             }
         }
+        // Only defaults still present can be recorded as additions by this release.
+        self.omit_held_model_names();
         for (&setting, _) in &self.current.defaults {
             if !self.settings_restore.defaults.contains_key(&setting) {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
@@ -308,6 +310,28 @@ impl Core {
         self.tell_settings(env, out);
         true
     }
+    fn omit_held_model_names(&mut self) {
+        let mut omitted = List::uncapped();
+        for (&setting, given) in &self.current.defaults {
+            let Some(given) = given.value.as_model() else { continue };
+            if self.settings_restore.defaults.contains_key(&setting) {
+                continue;
+            }
+            for (_, changed) in &self.current.changes {
+                if let Some(value) = &changed.value
+                    && let Some(held) = value.as_model()
+                    && held.model.name == given.model.name
+                {
+                    omitted.push(setting).expect("one omission per supplied model");
+                    break;
+                }
+            }
+        }
+        for setting in &omitted {
+            self.current.defaults.remove(setting);
+        }
+    }
+
     fn refuse_numbers(&mut self) -> bool {
         let settings = super::check::numbers(&self.current);
         if settings.is_empty() {

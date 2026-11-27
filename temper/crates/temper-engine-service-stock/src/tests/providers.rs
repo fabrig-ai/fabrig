@@ -58,15 +58,15 @@ fn providers_pin_the_stock_sources_registrations_and_endpoints() {
     clippy::disallowed_methods,
     reason = "ordinary test collects ordered catalogue numbers"
 )]
-fn the_catalogue_keeps_seven_models_without_running_stock_providers() {
+fn the_catalogue_keeps_eight_models_without_running_stock_providers() {
     let mut llm = config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
-    assert_eq!(crate::stock::models(&llm).iter().map(|row| row.number).collect::<Vec<_>>(), [1, 2, 3, 4, 5, 6, 7]);
+    assert_eq!(crate::stock::models(&llm).iter().map(|row| row.number).collect::<Vec<_>>(), [1, 2, 3, 4, 5, 6, 7, 9]);
     let scripted = crate::stock::scripted(([127, 0, 0, 1], 12345).into());
     llm.providers = Box::new([scripted.provider]);
     llm.endpoints = scripted.endpoints;
     let defaults = crate::stock::Given::Stock.defaults(&llm, 32).unwrap();
     assert_eq!(defaults.providers, crate::providers());
-    assert_eq!(defaults.models.last().unwrap().number, 8);
+    assert_eq!(defaults.models.iter().map(|row| row.number).collect::<Vec<_>>(), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
     for charter in &defaults.charters {
         assert_eq!(charter.policy.model.name.as_ref(), b"demo");
     }

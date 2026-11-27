@@ -315,7 +315,7 @@ fn prepared_settings(directory: &Path, settings: &Path) -> serde_json::Value {
     let items = value["items"].as_array_mut().expect("items");
     items.extend(limit_items(&figures));
     let wanted = temper_agent_fixtures::providers::read(directory);
-    // The seven stock entries; the box adds its own fixed provider's model separately.
+    // The box adds its fixed provider's model separately.
     let llm = jig_protocol_config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
     for model in temper_engine_service_stock::stock::models(&llm) {
         let mut read = model_json(Setting::Model(model.number), Value::Model(Box::new(model)));
