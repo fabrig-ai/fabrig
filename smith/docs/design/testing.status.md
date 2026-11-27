@@ -3,9 +3,6 @@
 2026-11-27. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
-  - 4: the menu's bodies name job 1, not the `job` slot, and the
-    session world gives the fake one seed, not its streams' parts.
-    [in flight: change 19665]
   - 6: smith's inspection adapter, `smith-inspect`, and its worlds'
     calls of the shared checks.
   - 6: job ends paired across the event stream (they are paired on the
