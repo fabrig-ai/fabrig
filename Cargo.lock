@@ -626,6 +626,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
