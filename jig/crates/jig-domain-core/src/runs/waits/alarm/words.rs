@@ -3,10 +3,10 @@
 use super::Agenda;
 use crate::{
     Bound, Figures, Wait, WaitKind, WaitObject,
-    documents::{JobWhy, TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy},
+    documents::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy},
 };
 use alloc::boxed::Box;
-use jig_domain_fleet::{HostKind, JobShort};
+use jig_domain_fleet::{HostKind, JobRefusal, JobShort, JobShortfall};
 use jig_domain_people::EntryKind;
 use jig_domain_tasks::{AccountWhy, EscalationHolder, Hold, WAIT_WORDS};
 use skein_lib::{Decimal, Duration, List, Wall, bytes, usize_of};
@@ -159,9 +159,7 @@ fn run(wait: TaskRunWait, out: &mut Words) {
             out.put(host(kind));
             out.put(b" cannot take these run bounds");
         }
-        TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind, why, figures }) => {
-            job(worker, kind, why, figures, out);
-        }
+        TaskRunWait::Refused(TaskWaitRefused::Job { kind, refusal }) => job(kind, refusal, out),
         TaskRunWait::Refused(TaskWaitRefused::Hello { kind, at, .. }) => {
             out.put(host(kind));
             out.put(b" refused at ");
@@ -214,16 +212,18 @@ fn source_state(state: TaskSourceState, out: &mut Words) {
     }
 }
 
-fn job(worker: Option<u32>, kind: u32, why: JobWhy, figures: Option<jig_domain_fleet::Figures>, out: &mut Words) {
-    match worker {
+fn job(kind: u32, refusal: JobRefusal, out: &mut Words) {
+    match refusal.worker {
         Some(worker) => out.named(b"worker ", u64::from(worker)),
         None => out.put(b"the engine"),
     }
+    let Some(JobShortfall { why, figures }) = refusal.short else {
+        return out.put(b"'s layouts cannot keep this job");
+    };
     let kind = u64::from(kind);
     match why {
-        JobWhy::Untranslated => out.put(b"'s layouts cannot keep this job"),
-        JobWhy::Short(JobShort::Kind) => out.named(b" runs no job of kind ", kind),
-        JobWhy::Short(short @ (JobShort::Spec | JobShort::Result | JobShort::Deadline)) => {
+        JobShort::Kind => out.named(b" runs no job of kind ", kind),
+        short @ (JobShort::Spec | JobShort::Result | JobShort::Deadline) => {
             let Some(figures) = figures else { return out.named(b" cannot take job kind ", kind) };
             out.named(b" takes job kind ", kind);
             match short {
@@ -343,29 +343,26 @@ mod tests {
 #[test]
 fn wait_alarm_words_keep_the_job_host_kind_and_shortfall() {
     use jig_domain_fleet::Figures as F;
-    for (worker, why, figures, expected) in [
-        (Some(2), JobWhy::Short(JobShort::Kind), None, "worker 2 runs no job of kind 4"),
+    for (worker, short, expected) in [
+        (Some(2), Some(JobShortfall { why: JobShort::Kind, figures: None }), "worker 2 runs no job of kind 4"),
         (
             Some(2),
-            JobWhy::Short(JobShort::Spec),
-            Some(F { required: 16384, offered: 1024 }),
+            Some(JobShortfall { why: JobShort::Spec, figures: Some(F { required: 16384, offered: 1024 }) }),
             "worker 2 takes job kind 4's spec up to 1024 bytes; this job's kind needs 16384",
         ),
         (
             None,
-            JobWhy::Short(JobShort::Result),
-            Some(F { required: 512, offered: 256 }),
+            Some(JobShortfall { why: JobShort::Result, figures: Some(F { required: 512, offered: 256 }) }),
             "the engine takes job kind 4's result up to 256 bytes; this job's kind needs 512",
         ),
         (
             Some(2),
-            JobWhy::Short(JobShort::Deadline),
-            Some(F { required: 1_800_000, offered: 600_000 }),
+            Some(JobShortfall { why: JobShort::Deadline, figures: Some(F { required: 1_800_000, offered: 600_000 }) }),
             "worker 2 takes job kind 4 for up to 10 min; this job's kind needs 30 min",
         ),
-        (Some(2), JobWhy::Untranslated, None, "worker 2's layouts cannot keep this job"),
+        (Some(2), None, "worker 2's layouts cannot keep this job"),
     ] {
-        let wait = TaskRunWait::Refused(TaskWaitRefused::Job { worker, kind: 4, why, figures });
+        let wait = TaskRunWait::Refused(TaskWaitRefused::Job { kind: 4, refusal: JobRefusal { worker, short } });
         let mut out = Words { bytes: List::with_capacity(WAIT_WORDS), cut: false };
         run(wait, &mut out);
         assert_eq!(out.finish().as_ref(), expected.as_bytes());

@@ -294,10 +294,11 @@ fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches
     assert_eq!(
         document.run_wait,
         Some(documents::TaskRunWait::Refused(documents::TaskWaitRefused::Job {
-            worker: Some(short_worker),
             kind: 7,
-            why: documents::JobWhy::Short(fleet::JobShort::Kind),
-            figures: None,
+            refusal: fleet::JobRefusal {
+                worker: Some(short_worker),
+                short: Some(fleet::JobShortfall { why: fleet::JobShort::Kind, figures: None }),
+            },
         }))
     );
 

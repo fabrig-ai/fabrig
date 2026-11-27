@@ -62,7 +62,7 @@ pub use task_tree::{
     ProposalRef, ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow, UNREAD_HEAD_BYTES,
     UnreadWords,
 };
-pub use task_wait::{JobWhy, TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
+pub use task_wait::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
 pub use crate::runs::waits::WaitsOn;
 

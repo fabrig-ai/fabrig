@@ -2597,67 +2597,6 @@ pub fn job_short_to_record(value: &jig_domain_fleet::JobShort) -> jig_client_pro
 }
 
 #[must_use]
-pub fn job_why_to_record(value: &jig_domain_core_vocabulary::documents::JobWhy) -> jig_client_protocol_wire::v44::JobWhy {
-    match value {
-        jig_domain_core_vocabulary::documents::JobWhy::Short(held) => jig_client_protocol_wire::v44::JobWhy::Short(jig_client_protocol_wire::v44::JobWhyShort { why: job_short_to_record(held) }),
-        jig_domain_core_vocabulary::documents::JobWhy::Untranslated => jig_client_protocol_wire::v44::JobWhy::Untranslated,
-    }
-}
-
-#[must_use]
-pub fn task_wait_refused_to_record(value: &jig_domain_core_vocabulary::documents::TaskWaitRefused) -> jig_client_protocol_wire::v44::TaskWaitRefused {
-    match value {
-        jig_domain_core_vocabulary::documents::TaskWaitRefused::Hello { kind: field_000000, at: field_000001, why: field_000002, figures: field_000003 } => jig_client_protocol_wire::v44::TaskWaitRefused::Hello(jig_client_protocol_wire::v44::TaskWaitHello {
-            kind: host_kind_to_record(field_000000),
-            at: skein_codec::convert::wall_to_record(field_000001),
-            why: hello_refusal_to_record(field_000002),
-            figures: match field_000003 {
-                Some(item) => {
-                    let converted = shortfall_figures_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-        jig_domain_core_vocabulary::documents::TaskWaitRefused::Bounds { kind: field_000000, why: field_000001, figures: field_000002 } => jig_client_protocol_wire::v44::TaskWaitRefused::Bounds(jig_client_protocol_wire::v44::TaskWaitBounds {
-            kind: host_kind_to_record(field_000000),
-            why: match field_000001 {
-                Some(item) => {
-                    let converted = agent_shortfall_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            },
-            figures: match field_000002 {
-                Some(item) => {
-                    let converted = shortfall_figures_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-        jig_domain_core_vocabulary::documents::TaskWaitRefused::Job { worker: field_000000, kind: field_000001, why: field_000002, figures: field_000003 } => jig_client_protocol_wire::v44::TaskWaitRefused::Job(jig_client_protocol_wire::v44::TaskWaitJob {
-            worker: match field_000000 {
-                Some(item) => {
-                    let converted = *item;
-                    Some(converted)
-                }
-                None => None,
-            },
-            kind: *field_000001,
-            why: job_why_to_record(field_000002),
-            figures: match field_000003 {
-                Some(item) => {
-                    let converted = shortfall_figures_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-    }
-}
-
-#[must_use]
 pub fn task_run_wait_to_record(value: &jig_domain_core_vocabulary::documents::TaskRunWait) -> jig_client_protocol_wire::v44::TaskRunWait {
     match value {
         jig_domain_core_vocabulary::documents::TaskRunWait::Account { account: field_000000, source: field_000001, why: field_000002 } => jig_client_protocol_wire::v44::TaskRunWait::Account(jig_client_protocol_wire::v44::TaskWaitAccount {
@@ -2679,7 +2618,7 @@ pub fn task_run_wait_to_record(value: &jig_domain_core_vocabulary::documents::Ta
         }),
         jig_domain_core_vocabulary::documents::TaskRunWait::Credential => jig_client_protocol_wire::v44::TaskRunWait::Credential,
         jig_domain_core_vocabulary::documents::TaskRunWait::Host => jig_client_protocol_wire::v44::TaskRunWait::Host,
-        jig_domain_core_vocabulary::documents::TaskRunWait::Refused(held) => jig_client_protocol_wire::v44::TaskRunWait::Refused(jig_client_protocol_wire::v44::TaskRunWaitRefused { value: task_wait_refused_to_record(held) }),
+        jig_domain_core_vocabulary::documents::TaskRunWait::Refused(held) => jig_client_protocol_wire::v44::TaskRunWait::Refused(jig_client_protocol_wire::v44::TaskRunWaitRefused { value: crate::translate::client::task_wait_refused_to_record(held) }),
         jig_domain_core_vocabulary::documents::TaskRunWait::Worker { worker: field_000000, until: field_000001 } => jig_client_protocol_wire::v44::TaskRunWait::Worker(jig_client_protocol_wire::v44::TaskWaitWorker {
             worker: *field_000000,
             until: skein_codec::convert::wall_to_record(field_000001)

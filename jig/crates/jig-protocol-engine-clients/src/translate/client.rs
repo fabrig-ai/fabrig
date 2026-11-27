@@ -157,6 +157,40 @@ pub(crate) fn task_wait_invalid_to_record(value: &t::AccountWhy) -> w::TaskWaitI
     }
 }
 
+// The wire keeps the cause and figures apart; a job's wait holds the fleet's refusal whole.
+pub(crate) fn task_wait_refused_to_record(value: &d::TaskWaitRefused) -> w::TaskWaitRefused {
+    match value {
+        d::TaskWaitRefused::Hello { kind, at, why, figures } => w::TaskWaitRefused::Hello(w::TaskWaitHello {
+            kind: mapped::host_kind_to_record(kind),
+            at: skein_codec::convert::wall_to_record(at),
+            why: mapped::hello_refusal_to_record(why),
+            figures: shortfall_figures(figures.as_ref()),
+        }),
+        d::TaskWaitRefused::Bounds { kind, why, figures } => w::TaskWaitRefused::Bounds(w::TaskWaitBounds {
+            kind: mapped::host_kind_to_record(kind),
+            why: match why {
+                Some(why) => Some(mapped::agent_shortfall_to_record(why)),
+                None => None,
+            },
+            figures: shortfall_figures(figures.as_ref()),
+        }),
+        d::TaskWaitRefused::Job { kind, refusal: jig_domain_fleet::JobRefusal { worker, short } } => {
+            let (why, figures) = match short {
+                Some(jig_domain_fleet::JobShortfall { why, figures }) => (
+                    w::JobWhy::Short(w::JobWhyShort { why: mapped::job_short_to_record(why) }),
+                    shortfall_figures(figures.as_ref()),
+                ),
+                None => (w::JobWhy::Untranslated, None),
+            };
+            w::TaskWaitRefused::Job(w::TaskWaitJob { worker: *worker, kind: *kind, why, figures })
+        }
+    }
+}
+
+fn shortfall_figures(value: Option<&jig_domain_fleet::Figures>) -> Option<w::ShortfallFigures> {
+    Some(mapped::shortfall_figures_to_record(value?))
+}
+
 pub(crate) fn proposal_decision_created_to_record((first, last): &(u64, u64)) -> w::ProposalDecisionCreated {
     w::ProposalDecisionCreated { first: *first, last: *last }
 }

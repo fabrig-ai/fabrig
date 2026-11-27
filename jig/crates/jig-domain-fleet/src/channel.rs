@@ -529,7 +529,6 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
     Some(id)
 }
 
-/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
 /// Why a host cannot cover an application's job kind (domain/engine/fleet.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum JobShort {
@@ -568,7 +567,7 @@ pub fn job_short(declared: &[jig_domain_link::JobBound], job: jig_domain_link::J
 }
 
 /// Every host taking work falls short of this job (domain/engine/fleet.md, 2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct JobRefusal {
     pub worker: Option<u32>,
     /// None when the task's assignment is untranslated on this channel.
@@ -608,6 +607,7 @@ pub(crate) fn job_refusal(domain: &Domain, run: Token, job: jig_domain_link::Job
     first
 }
 
+/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn choose_job(
     domain: &Domain,
     run: Token,
