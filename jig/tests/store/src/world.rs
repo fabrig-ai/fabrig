@@ -111,6 +111,7 @@ fn change(ask: &Ask) -> Option<Change> {
         | Ask::Spawn { .. }
         | Ask::Open { .. }
         | Ask::Read { .. }
+        | Ask::ReadLink { .. }
         | Ask::Stat { .. }
         | Ask::List { .. }
         | Ask::Close { .. } => None,

@@ -7,7 +7,7 @@ peers, and local checkout mechanics for worlds. Read the forge's shared
 parts before its Forgejo and GitHub layers and the checkout that can use its git route:
 
 - [`llm.md`](llm.md), `skein-fake-llm-domain`, `skein-fake-llm-protocol`: bounded provider-neutral scripts and independent wire peers in place of an LLM provider.
-- [`drawn-agent.md`](drawn-agent.md), `skein-fake-llm-domain`: what the fake LLM draws when no script answers: slots filled from the conversation, answers drawn by their request, and the capture that replays them.
+- [`drawn-agent.md`](drawn-agent.md), `skein-fake-llm-domain`: what the fake LLM draws when no script answers: slots filled from the conversation, answers drawn by their request, the capture that replays them, and a script's stretches of drawn answers.
 - [`forge.md`](forge.md), `skein-fake-forge-domain`, `skein-fake-forge-http`, `skein-fake-forge-forgejo`, `skein-fake-forge-github`, `skein-fake-peers`: forge state and git, its CI and Actions, protocol layers and loopback hosting.
 - [`forgejo.md`](forgejo.md), `skein-fake-forge-forgejo`: Forgejo's API over the shared domain, signed deliveries, the git route and setup.
 - [`throwaway.md`](throwaway.md), `skein-throwaway-forgejo`, `tests/forge/conformance`: a pinned real Forgejo on loopback and the dialect's conformance against it.

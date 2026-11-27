@@ -99,6 +99,7 @@ fn the_follow_workflow_repairs_from_its_report_then_lands_and_keeps_green_parity
         task: 51,
         child: 52,
         kind: c::Delegate::Repair(c::Repair::Gate(c::FOLLOW_CHECK_GATE)),
+        close_at: None,
     });
     let repaired = world.push_attempt(&branch_name(b"temper/51"), (52, 1), b"temper/51", b"failures", b"");
     world.status(b"temper/51", raw::Check::Passed);

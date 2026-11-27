@@ -444,8 +444,11 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
         cost = cost.checked_add(len(&section.title)?)?.checked_add(len(&section.text)?)?;
     }
     if let Some(conventions) = &charter.conventions {
-        // The two Box wrappers live inline in Charter, priced by Slab<Run>.
+        // The Box wrappers live inline in Charter, priced by Slab<Run>.
         cost = cost.checked_add(len(&conventions.guide)?)?.checked_add(len(&conventions.checks)?)?;
+        if let Some(hooks) = &conventions.hooks {
+            cost = cost.checked_add(len(hooks)?)?;
+        }
     }
     let llm = u64::try_from(size_of::<Llm>()).ok()?;
     for Llm { account: _, endpoint: _, model, window: _, output: _, dialect: _, prices: _, effort } in &charter.models {

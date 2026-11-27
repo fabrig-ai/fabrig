@@ -50,7 +50,7 @@ fn page(
         core,
         &env(limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(load),
+        load,
         engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next }),
     )
 }
@@ -347,7 +347,7 @@ fn a_busy_page_is_asked_again() {
         &mut core,
         &env(&limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(token),
+        token,
         engine_store::Answer::Failed(engine_store::Failure::Busy),
     );
     let (new, retried) = load(&out);
@@ -368,7 +368,7 @@ fn a_busy_page_is_asked_again() {
         &mut core,
         &env(&limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(token),
+        token,
         engine_store::Answer::Failed(engine_store::Failure::Busy),
     );
     assert_eq!(load(&out).1, range, "a busy task page also retries");
@@ -432,7 +432,7 @@ fn an_erasure_can_load_and_retry_while_client_read_slots_are_full() {
         &mut core,
         &env(&limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(token),
+        token,
         engine_store::Answer::Failed(engine_store::Failure::Busy),
     );
     assert_eq!(load(&retry).1, range);

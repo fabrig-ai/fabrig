@@ -379,6 +379,7 @@ pub(crate) fn tell(
             | Request::Close { .. }
             | Request::Read { .. }
             | Request::Probe { .. }
+            | Request::ProbeHooks { .. }
             | Request::Abort { .. }
             | Request::Checking { .. }
             | Request::ChecksEnded { .. }

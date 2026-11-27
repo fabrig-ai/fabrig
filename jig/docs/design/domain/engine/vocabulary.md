@@ -149,29 +149,48 @@ the store's port (2.4).
 
 - **`Engine`** holds the core and nothing else. `Engine::new(config, connectors, limits)`, its
   `connectors` a `&[Declaration]` (`../connectors.md`, 2), builds it as `Core::new` does, refusing
-  what that refuses with the same `Problem`, and refuses a start whose declarations don't hold.
-  It returns the first of these that fails, taking each declaration in the order given (its
-  connector, then its resource kinds, then its effect kinds), then each configured connector, then
-  the total:
-  - `Problem::Declared { connector }`: a declaration's connector is not among `config.connectors`,
-    or is declared twice;
-  - `Problem::ResourceKind { connector, kind }` and `Problem::EffectKind { connector, kind }`: a
-    connector declares one kind twice;
-  - `Problem::Undeclared { connector }`: a configured connector has no declaration;
-  - `Problem::HoldKinds { limit }`: the declarations' resource kinds together are more than
+  what that refuses, and refuses a start whose declarations don't hold. Both refuse with
+  `StartProblem`. It returns the first of these that fails, taking each declaration in the order
+  given (its connector, then its resource kinds, then its effect kinds), then each configured
+  connector, then the total:
+  - `StartProblem::Declared { connector }`: a declaration's connector is not among
+    `config.connectors`, or is declared twice;
+  - `StartProblem::ResourceKind { connector, kind }` and `StartProblem::EffectKind { connector,
+    kind }`: a connector declares one kind twice;
+  - `StartProblem::Undeclared { connector }`: a configured connector has no declaration;
+  - `StartProblem::HoldKinds { limit }`: the declarations' resource kinds together are more than
     `tasks.hold_kinds`, the tasks child's table.
 
-  `Problem` is `jig-domain-link`'s, beside the workers' cases. Built, the engine has installed
-  every declared resource kind's rule in the tasks child, before anything is restored, and keeps
-  the effect kinds, by which it judges each description (`../connectors-effects.md`, 1.1). No root,
-  kit or world installs hold kinds: the core's step takes no `tasks::Event::Kinds` from outside,
-  and one given is a fault.
+  ```rust
+  // jig-domain-contract: the crate's root, beside `Declaration`
+  pub enum StartProblem {
+      Membership(jig_domain_link::Problem),   // the workers' membership, as the link refuses it
+      Declared { connector: u16 },
+      ResourceKind { connector: u16, kind: u16 },
+      EffectKind { connector: u16, kind: u16 },
+      Undeclared { connector: u16 },
+      HoldKinds { limit: u32 },
+  }
+  ```
+
+  `StartProblem` is the engine's own, beside the declaration it judges; `jig-domain-link`'s
+  `Problem` keeps the workers' cases alone (`Workers`, `WorkerName`), which the link's
+  `Membership::new` refuses and the engine carries whole as `Membership`. Why its own: a
+  declaration is the engine's, which the worker link never reads, and the link sits below the
+  contract, so the link's error can't name what the contract declares. Built, the engine has
+  installed every declared resource kind's rule in the tasks child, before anything is restored,
+  and keeps the effect kinds, by which it judges each description (`../connectors-effects.md`,
+  1.1). No root, kit or world installs hold kinds: the core's step takes no `tasks::Event::Kinds`
+  from outside, and one given is a fault.
 - **`step(engine, env, input, out)`** takes one input as one decision and appends its outputs to
   `out`, in the order the core made them. For `In::Core(event)` they are exactly what the core's
   own step returns for `event`, each as `Out::Core`, but for its loads, each of which leaves as
   `Out::Held(Peer::Store(..))` at its place (2.4). `In::Store` is taken the same way, as one
   decision.
 - **`fire(engine, env, timer, out)`** fires one due timer the same way, as the core's `fire` does.
+- **`append(requests, out)`** is the conversion `step` and `fire` make, for the requests one of
+  the core's other entrances returned (2.3): it appends them to `out` in order, each load as
+  `Out::Held(Peer::Store(..))` at its place and every other request as `Out::Core`.
 - **`due(engine, now, wall, admit)` and `next_deadline(engine, now, wall, admit)`** keep today's
   timers, clocks and admission: `now` is the engine's clock and `wall` the wall's, since a
   sign-in expires on the wall. `Admit::All` admits every timer, as the core's `due` and
@@ -213,8 +232,11 @@ the store's port (2.4).
   (`Admit::All` for `due` and `next_deadline`, `Admit::Finishing` for `finishing_due` and
   `next_finishing_deadline`), and `idle` for `quiescent`. The core's other entrances (`restore`,
   the start's, the reads', `finish_decision`, `want_accounts`, `resume_fleet`) and every other use
-  go through `core()` and `core_mut()`. What the holder does is unchanged: each event, timer and
-  request crosses in the order it did. A crate that only reads the core for its holder, such as a
+  go through `core()` and `core_mut()`. The requests such an entrance returns (`resume_fleet`,
+  `finish_decision`, the start's phases, the settings reads') the holder passes through `append`
+  (2.1) before it routes them, so that every load reaches it one way, as 2.4 says, and the holder
+  routes `Out` alone. What the holder does is unchanged: each event, timer and request crosses in
+  the order it did, at the point of its decision it did. A crate that only reads the core for its holder, such as a
   world's inspection or a reader of the core's state, keeps taking `&Core`, from `core()`.
 - **Never by `Deref`,** since a deref would make each use of the core read as a use of the engine:
   through two named methods every remaining use stays in sight, to review and to the counts. The
@@ -275,6 +297,10 @@ The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::He
   once every commit made before it is durable, so that it sees them (`decisions.md`, 1.3). The
   root holds it as it holds any held output, gives it to its store once released, and gives
   each answer back as `In::Store(In::Loaded { .. })`, which it always takes (`../root.md`, 3).
+  The core's own steps queue each load as `core::Held::Store`, among their other held requests
+  in the one queue of requests they share, and the engine converts it at its edge (`step`,
+  `fire`, `append`): no root receives one, and a root's match over `core::Held`, which lists every
+  case, names it in an arm that routes nothing. The case leaves `core::Held` with `Out::Core` (3).
 - **One token per load,** unique among the engine's loads in flight and the load's until its
   last answer. A `Window` is answered page by page, in the order its turns are read, each page
   but the last with `more`; every other range by one answer, whose `more` or `next` says only

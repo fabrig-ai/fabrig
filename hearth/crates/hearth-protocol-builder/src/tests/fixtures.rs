@@ -479,6 +479,7 @@ pub fn arriving() -> Layer {
                 | Request::CreateNoFollow { .. }
                 | Request::OpenRead { .. }
                 | Request::OpenReadNoFollow { .. }
+                | Request::OpenSiblingFile { .. }
                 | Request::OpenWrite { .. }
                 | Request::OpenWriteNoFollow { .. }
                 | Request::OpenDirectory { .. }

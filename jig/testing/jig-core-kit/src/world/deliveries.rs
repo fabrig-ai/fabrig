@@ -223,7 +223,9 @@ impl World {
                     ask: self.initial_ask.clone(),
                 })));
             }
-            root::Delivery::Core(core::Held::Store(load)) => self.store.ask(StoreOut::Engine(load)),
+            root::Delivery::Core(core::Held::Store(_)) => {
+                unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)");
+            }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
                 let token = to.into_token();
                 assert!(

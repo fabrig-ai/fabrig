@@ -18,10 +18,12 @@ pub(crate) fn valid(slots: &[Slot]) -> bool {
     for (index, slot) in slots.iter().enumerate() {
         if !take::valid_name(&slot.name)
             || !take::valid_marker(&slot.before)
-            || !take::valid_marker(&slot.after)
+            || slot.after.len() > 256
             || !take::valid_marker(&slot.unissued)
             || slot.unissued.contains(&b'\n')
             || slot.weight > 1000
+            || slot.foreign > 1000
+            || (slot.with.is_empty() && slot.foreign != 0)
         {
             return false;
         }
@@ -30,10 +32,18 @@ pub(crate) fn valid(slots: &[Slot]) -> bool {
         {
             return false;
         }
-        for earlier in slots.get(..index).expect("preceding slots") {
-            if earlier.name == slot.name {
+        let earlier = slots.get(..index).expect("preceding slots");
+        let mut with_found = slot.with.is_empty();
+        for previous in earlier {
+            if previous.name == slot.name {
                 return false;
             }
+            if previous.name == slot.with {
+                with_found = true;
+            }
+        }
+        if !with_found {
+            return false;
         }
     }
     true
@@ -107,7 +117,7 @@ impl Candidates {
 
     /// For each used slot, in declaration order: roll the weight, then pick a
     /// candidate if that roll did not win. Zero denotes the never-issued value.
-    pub(crate) fn draw(&self, rng: &mut Rng, slots: &[Slot], used: [bool; SLOTS]) -> [u8; SLOTS] {
+    pub(crate) fn draw(&self, rng: &mut Rng, query: &Query, slots: &[Slot], used: [bool; SLOTS]) -> [u8; SLOTS] {
         let mut picks = UNISSUED;
         for (index, slot) in slots.iter().enumerate() {
             if !used.get(index).copied().expect("admitted slot index") {
@@ -115,11 +125,36 @@ impl Candidates {
             }
             let places = self.slots.as_slice().get(index).expect("scan for every slot");
             if !places.is_empty() && !rng.chance(slot.weight) {
-                let rank = rng.between(1, u64::from(places.len()));
+                let rank = match self.with_value(query, slots, &slot.with, picks) {
+                    Some((linked, value)) => paired_rank(rng, query, places, linked, value, slot.foreign),
+                    None => rng.between(1, u64::from(places.len())),
+                };
                 *picks.get_mut(index).expect("admitted slot index") = u8::try_from(rank).expect("at most 64 picks");
             }
         }
         picks
+    }
+
+    fn with_value<'q>(
+        &self,
+        query: &'q Query,
+        slots: &'q [Slot],
+        name: &[u8],
+        picks: [u8; SLOTS],
+    ) -> Option<(&'q Slot, &'q [u8])> {
+        if name.is_empty() {
+            return None;
+        }
+        for (index, slot) in slots.iter().enumerate() {
+            if slot.name.as_ref() == name {
+                // Unused slots also have a zero pick.
+                let rank = picks.get(index).copied().expect("admitted slot index").checked_sub(1)?;
+                let places = self.slots.as_slice().get(index).expect("scanned linked slot");
+                let picked = places.get(u32::from(rank)).expect("picked linked candidate");
+                return Some((slot, picked.read(query)));
+            }
+        }
+        unreachable!("admitted link names an earlier slot")
     }
 
     pub(crate) fn values<'q>(&self, query: &'q Query, slots: &'q [Slot], picks: [u8; SLOTS]) -> [&'q [u8]; SLOTS] {
@@ -133,6 +168,56 @@ impl Candidates {
         }
         values
     }
+}
+
+fn paired_rank(rng: &mut Rng, query: &Query, places: &List<Place>, linked: &Slot, value: &[u8], foreign: u32) -> u64 {
+    let mut own = 0_u32;
+    // A bit per retained candidate, in newest-first order. The linked value
+    // may occur in several parts even though its own scan kept it only once.
+    let mut is_own = 0_u64;
+    let mut part = None;
+    let mut own_part = false;
+    for (index, place) in places.as_slice().iter().enumerate() {
+        if part != Some(place.text) {
+            part = Some(place.text);
+            own_part = holds(place.text.read(query), linked, value);
+        }
+        if own_part {
+            is_own |= candidate_bit(index);
+            own = own.checked_add(1).expect("bounded candidates");
+        }
+    }
+    let foreign_count = places.len().checked_sub(own).expect("own candidates in the scan");
+    let want_foreign = rng.chance(foreign);
+    let take_own = foreign_count == 0 || (!want_foreign && own != 0);
+    let count = if take_own { own } else { foreign_count };
+    let mut remaining = rng.below(u64::from(count));
+    for index in 0..places.as_slice().len() {
+        if (is_own & candidate_bit(index) != 0) == take_own {
+            if remaining == 0 {
+                return skein_lib::len_u64(index).checked_add(1).expect("one-based candidate rank");
+            }
+            remaining = remaining.checked_sub(1).expect("nonzero remaining rank");
+        }
+    }
+    unreachable!("the chosen pool contains its counted candidates")
+}
+
+fn candidate_bit(index: usize) -> u64 {
+    1_u64.checked_shl(u32::try_from(index).expect("bounded candidate index")).expect("at most 64 candidates")
+}
+
+fn holds(text: &[u8], linked: &Slot, value: &[u8]) -> bool {
+    let first = linked.before.first().expect("admitted nonempty delimiter");
+    for (index, byte) in text.iter().enumerate() {
+        if byte == first
+            && let Some(span) = take::capture_at(text, index, &linked.before, &linked.after)
+            && span.value(text) == value
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn scan(query: &Query, slot: &Slot, earlier: &[List<Place>]) -> List<Place> {

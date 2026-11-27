@@ -4,8 +4,7 @@
 pub use jig_domain_core_vocabulary::engine::*;
 
 use crate::{Config, Core, Held, Limits, Request, Timer};
-use jig_domain_contract::Declaration;
-use jig_domain_link::Problem;
+use jig_domain_contract::{Declaration, StartProblem};
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The core behind the functions a root calls.
@@ -22,7 +21,7 @@ impl Engine {
 
     /// # Errors
     /// Worker membership exceeds its bounds or the connector declarations do not hold.
-    pub fn new(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Engine, Problem> {
+    pub fn new(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Engine, StartProblem> {
         let core = Core::new(config, connectors, limits)?;
         Ok(Self { core })
     }
@@ -78,8 +77,9 @@ pub fn idle(engine: &Engine) -> bool {
     engine.core.quiescent(true)
 }
 
+/// Append requests from a direct core entrance, keeping each held load at its place.
 #[expect(clippy::wildcard_enum_match_arm, reason = "only the store port leaves the core request vocabulary")]
-fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
+pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..requests.len() {
         let request = requests.pop().expect("core request count");
         let output = match request {

@@ -178,6 +178,9 @@ impl Component {
                     to_domain.push(ToDomain::Probed { owner, executable: false });
                 }
             }
+            FromDomain::ProbeHooks { owner, at, deadline } => {
+                self.probe_hooks(env, owner, at, deadline, to_domain, below);
+            }
             FromDomain::Check { owner, program, results, bound, cap, tail } => {
                 self.vacant(owner);
                 let deadline = env.now.saturating_add(bound).min(cap);
@@ -209,6 +212,27 @@ impl Component {
                     process.stop(env.now, env.limits.group_stop, crate::process::Why::Cancel, below);
                 }
             }
+        }
+    }
+
+    fn probe_hooks(
+        &mut self,
+        env: &Env<Limits>,
+        owner: Token,
+        at: run::Place,
+        deadline: Time,
+        to_domain: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        self.vacant(owner);
+        if env.now >= deadline
+            || crate::files::check(&self.roots, &env.limits, at.root, &at.path, false).is_err()
+            || self.guides.insert(owner, Guide::Hooks(crate::hook_probe::Probe::Opening { deadline })).is_err()
+        {
+            to_domain.push(crate::hook_probe::unreadable(owner));
+        } else {
+            let path = crate::files::io_path(at.path);
+            below.push(Below::OpenDirectory { owner, root: at.root, path, no_follow: true, deadline });
         }
     }
 
@@ -610,6 +634,7 @@ fn refuse(request: FromDomain, above: &mut Queue<ToDomain>) {
         }
         FromDomain::Read { owner, .. } => above.push(ToDomain::Read { owner, read: run::Read::Failed }),
         FromDomain::Probe { owner, .. } => above.push(ToDomain::Probed { owner, executable: false }),
+        FromDomain::ProbeHooks { owner, .. } => above.push(crate::hook_probe::unreadable(owner)),
         FromDomain::Check { owner, .. } => check_ended(owner, run::Exit::Unstarted, above),
         FromDomain::Cancel { .. } | FromDomain::Abort { .. } => {}
     }
@@ -639,6 +664,7 @@ fn starts(request: &FromDomain) -> bool {
         | FromDomain::Job { .. }
         | FromDomain::Read { .. }
         | FromDomain::Probe { .. }
+        | FromDomain::ProbeHooks { .. }
         | FromDomain::Check { .. } => true,
     }
 }

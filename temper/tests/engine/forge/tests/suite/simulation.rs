@@ -152,6 +152,7 @@ fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
                 task: 51,
                 child: 52,
                 kind: change::Delegate::Merge { base, from: Some(head) },
+                close_at: None,
             });
             assert_eq!(
                 change_step_merge_job(&mut world, 3, change::Status::Passed, Box::new([])),
@@ -1291,7 +1292,12 @@ fn failed_ci_repair_world() -> World {
         change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
-    world.event(top::Event::Delegated { task: 51, child: 52, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::Delegated {
+        task: 51,
+        child: 52,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.event(top::Event::DelegateResult {
         ended_at: None,
         task: 51,
@@ -1329,7 +1335,12 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         panic!("retained change")
     };
     assert_eq!(saved.change.repairs, 2, "failure keeps the spent repair and counts its replacement");
-    world.event(top::Event::Delegated { task: 51, child: 53, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::Delegated {
+        task: 51,
+        child: 53,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.run_for(1);
     world.restart();
     world.event(top::Event::DelegateResult {
@@ -1510,7 +1521,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
                 | top::Request::ReplayJudgement { .. }
                 | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }

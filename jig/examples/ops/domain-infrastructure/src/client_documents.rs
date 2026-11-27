@@ -55,6 +55,14 @@ pub struct ClientEnvironment {
     pub pool: Option<ClientPool>,
 }
 
+/// An instance description with the kind policy shown in client documents.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ClientDescription {
+    pub instance: crate::Description,
+    pub form: crate::Form,
+    pub recovery: crate::Recovery,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ClientDocument {
     Environment {
@@ -80,11 +88,11 @@ pub enum ClientDocument {
         proposal: u64,
         task: u64,
         effect: crate::Effect,
-        description: crate::Description,
+        description: ClientDescription,
     },
     Outbox {
         entry: crate::Entry,
-        description: crate::Description,
+        description: ClientDescription,
     },
     Hold {
         task: u64,
@@ -197,6 +205,12 @@ fn effects(domain: &Domain, limits: &Limits, task: Option<u64>) -> List<crate::E
     values
 }
 
+fn describe(domain: &Domain, effect: &crate::Effect) -> ClientDescription {
+    let instance = crate::domain::describe(effect, &domain.vocabulary);
+    let kind = crate::spec::effect_kind(&domain.effect_kinds, instance.kind);
+    ClientDescription { instance, form: kind.form, recovery: kind.recovery }
+}
+
 #[expect(clippy::too_many_lines, reason = "each part constructs its owner's bounded current vocabulary")]
 fn make(
     domain: &Domain,
@@ -258,7 +272,7 @@ fn make(
                 proposal: *proposal,
                 task: *number,
                 effect: effect.clone(),
-                description: crate::domain::describe(effect, domain.backend, &domain.vocabulary),
+                description: describe(domain, effect),
             })
         }
         ClientSubject::Outbox { project, entry: number } => {
@@ -277,7 +291,7 @@ fn make(
                     }
                     return Ok(ClientDocument::Outbox {
                         entry: entry.clone(),
-                        description: crate::domain::describe(&entry.effect, domain.backend, &domain.vocabulary),
+                        description: describe(domain, &entry.effect),
                     });
                 }
             }

@@ -170,7 +170,7 @@ pub(crate) fn decided_proposal(
     row: Option<tasks::Proposal>,
     busy: bool,
 ) -> Queue<Request> {
-    if core.pending_calls.get(&key) != Some(&crate::PendingCall::DecidedProposal(proposal)) {
+    if core.pending_calls.get(&key) != Some(&crate::CallHolder::DecidedProposal(proposal)) {
         return Queue::uncapped();
     }
     let part = if busy {

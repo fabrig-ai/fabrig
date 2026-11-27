@@ -28,6 +28,7 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                                 | Line::Text { .. }
                                 | Line::Call { .. }
                                 | Line::Fail { .. }
+                                | Line::Drawn { .. }
                                 | Line::Cut { .. }
                                 | Line::Opaque { .. } => {}
                             }
@@ -37,6 +38,7 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                     Line::Text { .. }
                     | Line::Call { .. }
                     | Line::Fail { .. }
+                    | Line::Drawn { .. }
                     | Line::Cut { .. }
                     | Line::Opaque { .. } => {}
                 }
@@ -80,11 +82,24 @@ impl Span {
 
 pub(crate) fn capture_at(text: &[u8], at: usize, before: &[u8], after: &[u8]) -> Option<Span> {
     let rest = text.get(at..)?.strip_prefix(before)?;
-    // An `after` beyond this prefix cannot close an admissible value.
-    let search = 256_usize.checked_add(after.len()).expect("admitted marker length");
-    let rest = rest.get(..rest.len().min(search))?;
-    let len = bytes::find(rest, after)?;
-    if len == 0 || rest.get(..len)?.contains(&b'\n') {
+    let len = if after.is_empty() {
+        // Look one byte past the value limit to distinguish its end from a longer line.
+        let prefix = rest.get(..rest.len().min(257))?;
+        match bytes::find(prefix, b"\n") {
+            Some(end) => end,
+            None => prefix.len(),
+        }
+    } else {
+        // An `after` beyond this prefix cannot close an admissible value.
+        let search = 256_usize.checked_add(after.len()).expect("admitted marker length");
+        let prefix = rest.get(..rest.len().min(search))?;
+        let end = bytes::find(prefix, after)?;
+        if prefix.get(..end)?.contains(&b'\n') {
+            return None;
+        }
+        end
+    };
+    if !(1..=256).contains(&len) {
         return None;
     }
     let start = at.checked_add(before.len())?;
@@ -171,7 +186,9 @@ pub(crate) fn measure(turn: &Turn, query: &Query) -> Result<u64, Failure> {
             }
             Line::Text { text } => (text, false),
             Line::Call { arguments, .. } => (arguments, true),
-            Line::Pieces { .. } | Line::Fail { .. } | Line::Cut { .. } | Line::Opaque { .. } => continue,
+            Line::Pieces { .. } | Line::Fail { .. } | Line::Drawn { .. } | Line::Cut { .. } | Line::Opaque { .. } => {
+                continue;
+            }
         };
         let expanded = walk(source, earlier, query, arguments, None)?;
         total = total.checked_sub(len_u64(source.len())).ok_or(Error::ContextTooLong)?;
@@ -273,6 +290,7 @@ fn walk(
                 | Line::Pieces { .. }
                 | Line::Opaque { .. }
                 | Line::Fail { .. }
+                | Line::Drawn { .. }
                 | Line::Cut { .. } => {}
             }
         }

@@ -105,16 +105,11 @@ impl Worker {
     }
 }
 
-/// Configured membership or connector declarations do not hold.
+/// Configured worker membership exceeds its priced bounds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Problem {
     Workers { limit: u32 },
     WorkerName { worker: u32, limit: u32 },
-    Declared { connector: u16 },
-    ResourceKind { connector: u16, kind: u16 },
-    EffectKind { connector: u16, kind: u16 },
-    Undeclared { connector: u16 },
-    HoldKinds { limit: u32 },
 }
 
 /// A fleet member's stable identity and admission places (domain/engine/workers.md, 4).

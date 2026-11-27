@@ -214,7 +214,7 @@ fn queue_entry_and_departure_mark_the_nearest_followers_within_the_subject_bound
         ]
     );
     // Refusing an outstanding delegate holds the queued change, taking it out.
-    outputs(&mut d, Event::Delegated { task: 51, child: 90, kind: change::Delegate::Produce });
+    outputs(&mut d, Event::Delegated { task: 51, child: 90, kind: change::Delegate::Produce, close_at: None });
     let got = outputs(&mut d, Event::DelegateRefused { task: 51, child: 90 });
     let Some([Request::Save { .. }, Request::Marked { tasks }]) = got.last_chunk::<2>() else {
         panic!("save and mark: {got:?}")

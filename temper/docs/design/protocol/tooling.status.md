@@ -1,6 +1,6 @@
 # tooling: status
 
-2026-11-26. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-27. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 
 

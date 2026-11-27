@@ -237,6 +237,7 @@ impl World {
             other @ (ToDomain::Done { .. }
             | ToDomain::Read { .. }
             | ToDomain::Probed { .. }
+            | ToDomain::HooksProbed { .. }
             | ToDomain::Checked { .. }) => {
                 panic!("checks owe their abort terminal: {other:?}")
             }
@@ -307,6 +308,7 @@ fn request_owner(request: &FromDomain) -> Token {
         | FromDomain::Cancel { owner }
         | FromDomain::Read { owner, .. }
         | FromDomain::Probe { owner, .. }
+        | FromDomain::ProbeHooks { owner, .. }
         | FromDomain::Check { owner, .. }
         | FromDomain::Abort { owner } => *owner,
     }
@@ -342,6 +344,7 @@ fn copy_terminal(terminal: &ToDomain) -> ToDomain {
         ToDomain::Done { owner, done } => ToDomain::Done { owner: *owner, done: done.clone() },
         ToDomain::Read { owner, read } => ToDomain::Read { owner: *owner, read: read.clone() },
         ToDomain::Probed { owner, executable } => ToDomain::Probed { owner: *owner, executable: *executable },
+        ToDomain::HooksProbed { owner, hooks } => ToDomain::HooksProbed { owner: *owner, hooks: *hooks },
         ToDomain::Checked { owner, ran } => ToDomain::Checked {
             owner: *owner,
             ran: run::Ran {
@@ -373,6 +376,7 @@ impl Expectation<Application> for Terminal {
                 ToDomain::Done { owner, .. }
                 | ToDomain::Read { owner, .. }
                 | ToDomain::Probed { owner, .. }
+                | ToDomain::HooksProbed { owner, .. }
                 | ToDomain::Checked { owner, .. }
                 | ToDomain::Aborted { owner } => *owner,
             };
@@ -461,6 +465,7 @@ impl skein_world::Machine for Adapter {
             | Ask::Truncate { .. }
             | Ask::Sync { .. }
             | Ask::Stat { .. }
+            | Ask::ReadLink { .. }
             | Ask::HardLink { .. }
             | Ask::Rename { .. }
             | Ask::Remove { .. }

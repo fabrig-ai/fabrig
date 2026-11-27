@@ -20,15 +20,12 @@ import xml.etree.ElementTree as ET
 
 
 TIERS = Path(__file__).resolve().parents[1] / 'tiers'
-# Read-only mount supplied by the worker, outside the candidate workspace.
-WORKER_COUNTS = Path('/policy-counts.json')
 # Close and the gate count some binaries differently (cargo-spawning boundary tests about 7% lower,
 # client worlds up to 22% higher, 11-23), so a layer's sum can swing about 2% between them: close
 # refuses only growth past the allowance by more than this share of the layer's base (section 4.1).
 CLOSE_MARGIN = 0.03
-# Main's published counts, fetched at close when the checkout lacks refs/temper/counts.
-PUBLIC_SOURCE = 'https://git.fabrig.ai/fabrig-ai/fabrig.git'
-PUBLIC_PROTOCOLS = 'https'
+# None is a decision: the checkout holds no counts.
+UNSELECTED_COUNTS = object()
 
 
 def planner():
@@ -210,15 +207,53 @@ def change_base(root, env, scope):
     return None, None
 
 
+def close_job_goal(env):
+    """Read the task number only from a valid close request (tooling.md, 4.2)."""
+    if job := env.get('TEMPER_JOB'):
+        try:
+            request = (Path(job) / 'request.json').read_bytes()
+            parse = runpy.run_path(str(TIERS.parent / 'close/close.py'))['parse_request']
+            goal, _ = parse(request)
+            return str(goal).encode('ascii')
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+def main_goal_landing(root, env):
+    """Find the newest other goal's landing that HEAD holds (section 4.1)."""
+    if git(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], root, env).returncode:
+        return None
+    own_goal = close_job_goal(env)
+    # Descendants come before ancestors even when their commit dates disagree.
+    history = checked_git(['log', '--merges', '--topo-order', '--no-notes', '--no-show-signature', '-z',
+                           '--format=%H%n%(trailers:key=Goal,valueonly,unfold)', 'HEAD'], root, env)
+    for record in history.split(b'\0'):
+        commit, _, goals = record.partition(b'\n')
+        if any(goal != own_goal and re.fullmatch(rb'[1-9][0-9]*', goal) for goal in goals.split(b'\n')):
+            return commit.decode('ascii')
+    return None
+
+
 def scope_base(root, env, scope, has_git, published=None):
     """The base a delivery, child or close check compares with, or why there is none."""
     if not has_git:
         return None, None, 'no base: this is no git checkout, so nothing says what changed'
     if scope == 'close':
-        # Main as last merged by the goal, also the base of its budget comparison (section 4.1).
-        if problem := budget_problem(published):
-            return None, None, f'no base: {problem}'
-        base, name = published['base'], "main's newest published commit in HEAD"
+        if published is None:
+            try:
+                base = main_goal_landing(root, env)
+            except ValueError as error:
+                return None, None, f'no base: {error_line(error)}'
+            if base is None:
+                return None, None, ("no base: main's counts are not in this checkout, "
+                                    "and HEAD holds no other goal's landing into main")
+            name = "main's newest goal landing in HEAD"
+        else:
+            # Main as last merged by the goal, also the base of its budget comparison (section 4.1).
+            if problem := budget_problem(published):
+                return None, None, f'no base: {problem}'
+            base, name = published['base'], "main's newest published commit in HEAD"
     else:
         try:
             base, name = change_base(root, env, scope)
@@ -445,7 +480,8 @@ def code_inputs(paths, data, root, *, local_manifests=False):
         # alone must not turn a package README into a build.
         if source or registered or (not documentation(path) and (
                 '.cargo' in Path(path).parts[:-1] or path.startswith(('.config/', 'tools/'))
-                or path in ('.temper/pre-pr', '.temper/goal-pre-pr', '.temper/goal-child-pre-pr')
+                or path in ('.temper/hooks/deliver', '.temper/hooks/finish', '.temper/pre-pr',
+                            '.temper/goal-pre-pr', '.temper/goal-child-pre-pr')
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
                 or owner(root / path, directories) is not None
@@ -529,7 +565,7 @@ def close_measurements(runs, partial_binaries):
 
 def budget_input(counts, repository, env, data):
     """Select the applicable published counts while the real checkout is available."""
-    if data is None or 'unavailable' in data:
+    if 'unavailable' in data:
         return data
     if not (repository / '.git').exists() or git(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
                                                 repository, env).returncode:
@@ -549,8 +585,6 @@ def budget_input(counts, repository, env, data):
 def budget_problem(data):
     """Why close cannot compare the goal with the published window (section 4.1)."""
     prefix = "main's published counts unavailable"
-    if not isinstance(data, dict):
-        return f'{prefix}: cannot read refs/temper/counts'
     if 'unavailable' in data:
         return f"{prefix}: {data['unavailable']}"
     if 'base' not in data or not isinstance(data.get('profiles'), dict):
@@ -564,52 +598,34 @@ def close_counts(repository, env):
     """Select main's counts once for both close checks, also retaining the local source (section 4.1)."""
     if not (repository / '.git').exists():
         return None, None
-    counts = runpy.run_path(str(TIERS / 'counts.py'))
+    env = dict(env, GIT_ALLOW_PROTOCOL='', GIT_NO_LAZY_FETCH='1')
     tip = git(['rev-parse', '--verify', '--quiet', 'refs/temper/counts^{commit}'], repository, env)
     if tip.returncode == 0:
+        counts = runpy.run_path(str(TIERS / 'counts.py'))
         ref = tip.stdout.decode().strip()
         data = counts['read'](repository, env, ref=ref)
         if data is not None:
             return budget_input(counts, repository, env, data), ref
-    data = fetched_counts(counts) if PUBLIC_SOURCE is not None else None
-    return budget_input(counts, repository, env, data), None
+    return None, None
 
 
-def fetched_counts(counts):
-    with tempfile.TemporaryDirectory(prefix='pre-pr-counts-') as cache:
-        # Nothing of the checkout's or the worker's Git setup reaches the fetch or its reading.
-        fetch = {'PATH': os.environ.get('PATH', os.defpath), 'HOME': '/nonexistent', 'LANG': 'C.UTF-8',
-                 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_TERMINAL_PROMPT': '0',
-                 'GIT_ALLOW_PROTOCOL': PUBLIC_PROTOCOLS}
-        try:
-            subprocess.run(['git', 'init', '-q', '--bare', cache], env=fetch, stdin=subprocess.DEVNULL,
-                           capture_output=True, timeout=30, check=True)
-            subprocess.run(['git', 'fetch', '--quiet', '--no-tags', '--depth=1', PUBLIC_SOURCE,
-                            'refs/temper/counts:refs/temper/counts'], cwd=cache, env=fetch,
-                           stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
-        except (OSError, subprocess.SubprocessError) as error:
-            return {'unavailable': f'public fetch failed: {error_line(error)}'}
-        return counts['read'](Path(cache), fetch)
-
-
-def close_budgets(root, repository, env, runs, published=None):
+def close_budgets(root, repository, env, runs, published=UNSELECTED_COUNTS):
     """Judge whole binaries against the selected published budget input, profile by profile (section 4.1).
 
     runs maps each profile to its run directories; a bare list is the focused profile's.
+    Standalone callers can omit published; an explicit None needs no lookup or judgement.
     """
-    by_profile = runs if isinstance(runs, dict) else {'default': runs}
     data = published
-    if data is None:
-        # Standalone evaluation can also use the worker's already selected packet.
+    if data is UNSELECTED_COUNTS:
         try:
-            if WORKER_COUNTS.is_file():
-                data = json.loads(WORKER_COUNTS.read_bytes())
-            else:
-                data, _ = close_counts(repository, env)
+            data, _ = close_counts(repository, env)
         except (ValueError, OSError) as error:
             data = {'unavailable': error_line(error)}
+    if data is None:
+        return []
     if problem := budget_problem(data):
         return [broken('budgets', problem)]
+    by_profile = runs if isinstance(runs, dict) else {'default': runs}
     base = data['base']
 
     counts = runpy.run_path(str(TIERS / 'counts.py'))
@@ -1399,7 +1415,7 @@ def goal_checks(root, paths, env, errors, rerun):
                 warnings.append(warning)
             if any(error['name'].startswith('build') for error in found):
                 break
-    if '.temper/merge' in paths:
+    if any(path in paths for path in ('.temper/hooks/merge', '.temper/merge')):
         errors += timed('merge', lambda: merge_tests(root, env))[1]
     return lints, tests, warnings
 
@@ -1461,7 +1477,7 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
 
 
 def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None,
-                     whole=True, base_id=None, published=None):
+                     whole=True, base_id=None, published=UNSELECTED_COUNTS):
     start = time.monotonic()
     if whole and any(p.endswith('.rs') for p in paths):
         errors += format_workspace(root, env)
@@ -1573,7 +1589,9 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     return suites
 
 
-HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
+HOOKS = {'.temper/hooks/deliver', '.temper/hooks/finish', '.temper/hooks/close',
+         '.temper/pre-pr', '.temper/close', '.temper/checked-close',
+         '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
 
 
 def with_rust_tools(env):
@@ -1632,6 +1650,9 @@ def check(scope, commits):
                 else:
                     paths = changed_paths(root, source_env, base_id)
                     print(f'pre-pr: base {base_id}, {base_name}: {len(paths)} changed paths', flush=True)
+                    if scope == 'close' and published is None:
+                        print("pre-pr: WARNING: budgets not judged at close: main's counts (refs/temper/counts) "
+                              'are not in this checkout; the landing gate judges them', flush=True)
 
             if not errors:
                 if scope == 'goal' and head:

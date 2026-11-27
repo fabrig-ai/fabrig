@@ -13,7 +13,7 @@ use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::reads::settings::*;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Map, Queue, ReplyTo};
+use skein_lib::{Env, List, Map, Queue, ReplyTo, Token};
 
 #[must_use]
 pub fn oldest(core: &Core, limits: &Limits) -> u32 {
@@ -74,7 +74,7 @@ pub(crate) fn run_proposal(
         tasks: None,
         parts: None,
     };
-    let load = core.loads.insert_read(pending).expect("proposal read room checked").token();
+    let load = core.loads.insert_read(pending).expect("proposal read room checked");
     let mut out = Queue::uncapped();
     out.push(crate::loads::read(load, range));
     out
@@ -117,7 +117,7 @@ fn proposal_answer(to: ReplyTo, key: crate::CallKey, value: Answer) -> Queue<Req
 pub(super) fn proposal_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<crate::loads::Flight>,
+    name: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {
     let pending = core.loads.read_mut(name).expect("pending proposal load");
@@ -235,7 +235,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
 pub(super) fn run_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<crate::loads::Flight>,
+    name: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {
     let pending = core.loads.read_mut(name).expect("pending settings load");
@@ -594,7 +594,7 @@ fn project_proposal_scope(core: &Core, project: u32, proposer: people::Proposer,
 pub(super) fn project_proposal_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<crate::loads::Flight>,
+    name: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {
     let pending = core.loads.read(name).expect("pending project proposal load");
@@ -638,7 +638,7 @@ fn metadata_allowed(core: &Core, party: u64, project: u32) -> bool {
 pub(super) fn metadata_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<crate::loads::Flight>,
+    name: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {
     let pending = core.loads.read(name).expect("pending revision metadata load");
@@ -958,7 +958,7 @@ pub(super) fn restore_loaded(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<crate::routing::Work>,
-    name: skein_lib::Id<crate::loads::Flight>,
+    name: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {
     let pending = core.loads.read_mut(name).expect("pending restore page");
@@ -974,7 +974,7 @@ mod tests {
     use super::*;
     const PROJECT: u32 = 1;
     const SIGN_IN: u64 = 10;
-    const REPLY: ReplyTo = ReplyTo::new(skein_lib::Token::new(90));
+    const REPLY: ReplyTo = ReplyTo::new(Token::new(90));
     const REVISION: u32 = 2;
     // The application fixture declares an opaque value of eight bytes.
     const APPLICATION_BYTES: u32 = 8;
@@ -1006,7 +1006,7 @@ mod tests {
         (core, env)
     }
 
-    fn metadata_load(core: &mut Core, env: &Env<Limits>) -> skein_lib::Token {
+    fn metadata_load(core: &mut Core, env: &Env<Limits>) -> Token {
         let mut out = revision_metadata(core, env, REPLY, SIGN_IN, PROJECT, REVISION);
         let Some(Request::Held(held)) = out.pop() else { panic!("metadata load") };
         let crate::Held::Store(engine_store::Out::Load { load, .. }) = *held else { panic!("metadata load") };
@@ -1053,7 +1053,7 @@ mod tests {
             &mut core,
             &env,
             &mut Queue::uncapped(),
-            skein_lib::Id::from_token(load),
+            load,
             engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }),
         );
         let Answer::Revision(answer) = read_answer(out) else { panic!("revision metadata") };
@@ -1077,7 +1077,7 @@ mod tests {
                 &mut core,
                 &env,
                 &mut Queue::uncapped(),
-                skein_lib::Id::from_token(load),
+                load,
                 engine_store::Answer::Failed(engine_store::Failure::Busy),
             );
             assert_eq!(read_answer(out), Answer::None(why));
@@ -1108,7 +1108,7 @@ mod tests {
             &mut core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Propose {
-                reply_to: ReplyTo::new(skein_lib::Token::new(91)),
+                reply_to: ReplyTo::new(Token::new(91)),
                 proposal: tasks::Proposal {
                     number: PROPOSAL,
                     proposer: PROPOSER,
@@ -1203,7 +1203,7 @@ mod tests {
             &mut core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::ProposePerson {
-                reply_to: ReplyTo::new(skein_lib::Token::new(92)),
+                reply_to: ReplyTo::new(Token::new(92)),
                 proposal: tasks::PersonProposal {
                     number: PROPOSAL,
                     proposer: PROPOSER,
@@ -1269,7 +1269,7 @@ mod tests {
                 &mut core.tasks,
                 &env.with(env.limits.tasks),
                 tasks::Event::DecidePersonProposal {
-                    reply_to: ReplyTo::new(skein_lib::Token::new(93)),
+                    reply_to: ReplyTo::new(Token::new(93)),
                     proposer: PROPOSER,
                     proposal: PROPOSAL,
                     by: tasks::Party::Person(1),
@@ -1320,7 +1320,7 @@ mod tests {
                 &mut core,
                 &env,
                 &mut Queue::uncapped(),
-                skein_lib::Id::from_token(load),
+                load,
                 engine_store::Answer::Failed(engine_store::Failure::Busy),
             );
             assert_eq!(read_answer(out), Answer::None(why));

@@ -844,6 +844,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
                 | Error::ReadOnly
                 | Error::NameTooLong
                 | Error::Escape
+                | Error::NotALink
                 | Error::NotAFile
                 | Error::InvalidArgument => return copy_fail(copying, queue),
             }
