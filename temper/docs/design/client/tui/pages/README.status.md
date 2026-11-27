@@ -19,6 +19,10 @@
   a space in the box, the caret after it, where it goes to its place
   not yet started; no such place is drawn or kept [in flight: change
   4200].
+- **Not yet:** 2, *Words after a command that takes none*: `/chats N`
+  sent on the launchpad opens the Nth chat of Where you left off, and a
+  number with no chat there gives an unknown command's notice [in
+  flight: change 20971].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
