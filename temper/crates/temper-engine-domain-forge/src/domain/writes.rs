@@ -154,9 +154,14 @@ pub(super) fn save(row: &Writes, out: &mut Queue<Request>) {
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Writes(row.clone()) });
 }
 
-fn save_changed(row: &Writes, previous: Option<Commit>, changed: &mut skein_lib::Set<Name>, out: &mut Queue<Request>) {
-    if previous != row.head {
-        changed.insert(row.name.clone()).expect("uncapped head changes");
+fn save_changed(
+    row: &Writes,
+    previous: Option<Commit>,
+    changed: &mut skein_lib::Map<Name, Option<Commit>>,
+    out: &mut Queue<Request>,
+) {
+    if previous != row.head && changed.get(&row.name).copied().flatten().is_none() {
+        changed.insert(row.name.clone(), previous).expect("uncapped head changes");
     }
     save(row, out);
 }

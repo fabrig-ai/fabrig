@@ -84,13 +84,19 @@ pub(in crate::domain) fn fence(d: &mut Domain, env: &Env<Limits>, resource: &Res
     }
 }
 
+pub(in crate::domain) fn refresh_head(d: &mut Domain, name: &Name) {
+    if !d.write_heads.contains_key(name) {
+        d.write_heads.insert(name.clone(), None).expect("uncapped head changes");
+    }
+}
+
 /// A new watch or a restored watch inherits the record's head.
 pub(in crate::domain) fn watches(d: &mut Domain, env: &Env<Limits>) {
     for resource in d.client.live_keys() {
         if let Some(name) = super::super::from_client(&resource, &env.limits)
             && d.writes.contains_key(&name)
         {
-            d.write_heads.insert(name).expect("uncapped head changes");
+            refresh_head(d, &name);
         }
     }
     let mut gone = List::with_capacity(d.kept_moves.len());
@@ -107,7 +113,9 @@ pub(in crate::domain) fn watches(d: &mut Domain, env: &Env<Limits>) {
 }
 
 pub(in crate::domain) fn sync_heads(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    while let Some(name) = d.write_heads.pop_first() {
+    while let Some((name, _)) = d.write_heads.first() {
+        let name = name.clone();
+        let advanced_from = d.write_heads.remove(&name).expect("queued head sync");
         let Some(record) = d.writes.get(&name) else { continue };
         let Some(commit) = record.head else { continue };
         let previous = d.branch_head(&name);
@@ -116,12 +124,17 @@ pub(in crate::domain) fn sync_heads(d: &mut Domain, env: &Env<Limits>, out: &mut
             super::super::record_owned_head(d, env, &name, commit, None, out);
         }
         let Some(resource) = super::super::to_client(&name, &env.limits) else { continue };
+        // A settled write advances an observed shared tip without taking ownership.
+        // A watch refresh alone must not overwrite that observation.
+        let shared_advance = !owned && advanced_from.is_some() && advanced_from == previous && previous != Some(commit);
+        if shared_advance {
+            super::super::record_branch_tip(d, env, name, &resource, commit, out);
+        }
         if let Some(cached) = d.client.cached(&resource)
-            && (owned || cached.tip == Some(commit))
+            && (owned || cached.tip == Some(commit) || (shared_advance && cached.tip == advanced_from))
             && d.client.expected(&resource) != Some(commit)
         {
-            // Pushed also sets the client's cached tip. On a shared landing
-            // branch, let the keep report the move before setting its expectation.
+            // Pushed also sets the cached tip. Don't replace a different observation on a shared branch.
             skein_forge_client::step(
                 &mut d.client,
                 &super::super::child_env(env),

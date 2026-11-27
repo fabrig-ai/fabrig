@@ -292,7 +292,8 @@ pub struct Domain {
     pub(crate) heads: Map<Name, BranchHead>,
     pub(crate) writes: Map<Name, crate::writes::Writes>,
     write_reads: writes::readback::State,
-    write_heads: Set<Name>,
+    // The tip before a queued advance, or None for a watch refresh.
+    write_heads: Map<Name, Option<skein_forge::api::Commit>>,
     kept_moves: Map<Name, writes::kept::Movement>,
     pub(crate) pulls: Map<Name, PullState>,
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
@@ -1095,7 +1096,7 @@ impl Domain {
             heads: Map::with_capacity(l.client.resources),
             writes: Map::uncapped(),
             write_reads: writes::readback::State::new(),
-            write_heads: Set::with_capacity(u32::MAX),
+            write_heads: Map::uncapped(),
             kept_moves: Map::with_capacity(l.client.resources),
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
@@ -9885,7 +9886,7 @@ fn branch_changed(
                 && let Some(cached) = d.client.cached(&resource)
                 && cached.tip == Some(commit)
             {
-                d.write_heads.insert(name.clone()).expect("uncapped head changes");
+                writes::kept::refresh_head(d, &name);
             }
         } else if d.holds.contains_key(&name) || owned_head(d, &name) {
             // Raw Changed news is not ownership. A held or owned branch
@@ -9901,6 +9902,17 @@ fn branch_changed(
     {
         return;
     }
+    record_branch_tip(d, env, name, &resource, commit, out);
+}
+
+fn record_branch_tip(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    name: Name,
+    resource: &skein_forge_client::Resource,
+    commit: skein_forge::api::Commit,
+    out: &mut Queue<Request>,
+) {
     let Some(branch) = (match &resource.what {
         skein_forge_client::What::Branch(branch) => Some(branch.clone()),
         skein_forge_client::What::Repository
