@@ -37,7 +37,8 @@ pub struct Parties {
     awaiting: BTreeMap<u64, Fence>,
     admissions: VecDeque<u64>,
     queued: VecDeque<u64>,
-    flights: BTreeMap<u64, u64>,
+    // Keep answered load tokens until restart so late duplicates still fail.
+    observed_loads: BTreeMap<Token, Option<u64>>,
     person: BTreeSet<u64>,
     pub loads: Vec<(Token, reads::Range)>,
     pub hold_loads: bool,
@@ -54,7 +55,7 @@ impl Parties {
             awaiting: BTreeMap::new(),
             admissions: VecDeque::new(),
             queued: VecDeque::new(),
-            flights: BTreeMap::new(),
+            observed_loads: BTreeMap::new(),
             person: BTreeSet::new(),
             loads: Vec::new(),
             hold_loads: false,
@@ -71,7 +72,10 @@ impl Parties {
                 self.admissions.push_back(reply);
             }
             root::Event::Store(engine_store::In::Loaded { load, .. }) => {
-                let reply = self.flights.remove(&load.raw()).expect("one terminal for the observed load");
+                let Some(flight) = self.observed_loads.get_mut(load) else {
+                    return;
+                };
+                let reply = flight.take().expect("one terminal for the observed load");
                 self.awaiting.get_mut(&reply).expect("admitted read").0 = self.made;
                 if self.person.contains(&reply) {
                     self.admissions.push_front(reply);
@@ -152,7 +156,7 @@ impl Parties {
             .expect("admitted read")
             .answered(store.applied)
             .expect("load follows the admission's durable fence");
-        assert!(self.flights.insert(load.raw(), reply).is_none());
+        assert!(self.observed_loads.insert(load, Some(reply)).is_none());
 
         self.loads.push((load, range));
         if self.hold_loads { Vec::new() } else { self.complete() }
@@ -185,7 +189,7 @@ impl Parties {
         self.awaiting.clear();
         self.admissions.clear();
         self.queued.clear();
-        self.flights.clear();
+        self.observed_loads.clear();
         self.person.clear();
         self.loads.clear();
         self.made = durable;
@@ -248,4 +252,46 @@ pub fn complete(world: &mut World) {
         world.store.ask(request);
     }
     world.drain();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_record_answer_does_not_take_a_read_flight() {
+        let (config, limits) = crate::world::fixture(1, false);
+        let store = Store::new(&limits, &config.core.settings.models);
+        let mut parties = Parties::new(store.applied);
+        let reply = Token::new(1);
+        let load = Token::new(2);
+        let range = reads::Range {
+            party: 1,
+            scope: reads::Scope::Task { task: 1 },
+            after: None,
+            backwards: false,
+            rows: 1,
+            bytes: 4096,
+        };
+        parties.person_requested(reply);
+        let requests = parties.load(load, range, &store);
+        assert!(
+            matches!(&requests[..], [jig_test_store::StoreOut::Engine(engine_store::Out::Load { load: sent, range: engine_store::Range::Read(_) })] if *sent == load)
+        );
+
+        parties.inbound(&root::Event::Store(engine_store::In::Loaded {
+            load: Token::new(3),
+            result: engine_store::Answer::Rows(engine_store::Rows::Records { records: Box::new([]), more: false }),
+        }));
+        assert!(parties.admissions.is_empty(), "the record answer did not resume the read");
+
+        parties.inbound(&root::Event::Store(engine_store::In::Loaded {
+            load,
+            result: engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None }),
+        }));
+        assert_eq!(parties.admissions.front(), Some(&reply.raw()));
+        assert_eq!(parties.observed_loads.get(&load), Some(&None), "a duplicate still names the observed load");
+        parties.replied(ReplyTo::new(reply), reads::Answer::None(reads::Why::Unknown), &store);
+        assert_eq!(parties.receipts, [(reply.raw(), store.applied, reads::Answer::None(reads::Why::Unknown))]);
+    }
 }
