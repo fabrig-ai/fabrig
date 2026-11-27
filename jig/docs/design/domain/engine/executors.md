@@ -225,12 +225,16 @@ hosted run with no agent:
   spec and a result of it may hold and its longest deadline. A batch
   naming a job of a kind not declared, or a spec or deadline past its
   kind's, is refused; the kind's result bound is the job's `Job`
-  contract. A job's executor is named by its kind in a delegation's
+  contract where its procedure names none. A `Job` contract its
+  procedure names is kept, within the tasks child's bounds, and the
+  kind's declared bounds then serve its claim alone: a result between
+  the two reaches the job's task, a result past its contract is
+  invalid (2026-11-27). A job's executor is named by its kind in a delegation's
   kinds (../authority.md, section 3), and no party creates one
   (`../../client/domain/contract/documents.md`, 7).
 - **Its claim** goes to a host whose hello declared its kind, whose
   bounds for that kind (its spec's and result's bytes, its deadline)
-  cover the job's, and that has a free slot, as a run's does (`fleet.md`
+  cover the kind's declared ones, and that has a free slot, as a run's does (`fleet.md`
   ), fenced by its attempt. Nothing of a run's placement applies: no
   charter's hosts, no model, no account's source, no login. With no such
   host it is not claimed: it stays due, its wait naming the host and
