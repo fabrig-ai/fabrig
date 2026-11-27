@@ -5,11 +5,14 @@ use super::super::{
     landing_batches::workflow,
     open::{check_starved_gate, reported_gate},
 };
+use super::landing_batches::Skipped;
+use core::convert::Infallible;
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_lib::Duration;
 use skein_world::{
+    faults::FaultLedger,
     streams::{Stream, Streams},
-    sweep::{Exclusion, Sweep},
+    sweep::{Exclusion, Sweep, cases},
 };
 use temper_blame::{self as blame};
 use temper_engine_domain_forge as top;
@@ -57,7 +60,11 @@ fn member(world: &mut World, task: u64, landing_task: u64, base: &[u8]) {
     landings::register(world, row);
 }
 
-fn cancellation_and_wait(world: &mut World, sweep: &Sweep) {
+fn cancellation_and_wait(world: &mut World, sweep: &Sweep, skipped: &mut Skipped) {
+    // One member push and its prepared prefix. Cancelling a run retries at that prefix.
+    if !skipped.fits_tasks(world, &[71, 171]) || !skipped.fits_commits(world, 2) {
+        return;
+    }
     gate(world, b"gate.yml", false);
     fake::runners(world.forge_mut(), Some(1));
     world.external(
@@ -97,9 +104,13 @@ fn cancellation_and_wait(world: &mut World, sweep: &Sweep) {
     fake::runners(world.forge_mut(), None);
 }
 
-fn held_gate(world: &mut World, file: &[u8], report: bool, task: u64) {
-    gate(world, file, report);
+fn held_gate(world: &mut World, file: &[u8], report: bool, task: u64, skipped: &mut Skipped) {
     let landing_task = task + 100;
+    // Like the cancellation case, a retry of the job needs no new prefix.
+    if !skipped.fits_tasks(world, &[task, landing_task]) || !skipped.fits_commits(world, 2) {
+        return;
+    }
+    gate(world, file, report);
     member(world, task, landing_task, b"main");
     let mut held = false;
     for entry in task * 1000..task * 1000 + 120 {
@@ -132,9 +143,12 @@ fn held_gate(world: &mut World, file: &[u8], report: bool, task: u64) {
     }
 }
 
-fn queue(world: &mut World, sweep: &Sweep) {
-    assert!(world.project_landing(5, change::Way::Queue, Box::new([])));
+fn queue(world: &mut World, sweep: &Sweep, skipped: &mut Skipped) {
     let task = 78;
+    if !skipped.fits_tasks(world, &[task]) || !skipped.fits_commits(world, 1) {
+        return;
+    }
+    assert!(world.project_landing(5, change::Way::Queue, Box::new([])));
     let branch = b"temper/ci78";
     world.external(
         raw::Op::Git(raw::Git::Create { branch: branch.as_slice().into(), commit: world.branch(b"main") }),
@@ -183,6 +197,51 @@ fn queue(world: &mut World, sweep: &Sweep) {
     assert_eq!(world.change(task).change.repairs, 0);
 }
 
+fn landing_case(seed: u64, sweep: &Sweep, skipped: &mut Skipped) -> FaultLedger {
+    let streams = Streams::new(seed);
+    let mut silent = workflow(false);
+    silent.file = b"silent.yml".as_slice().into();
+    silent.silent = 1000;
+    let mut missing = workflow(false);
+    missing.file = b"missing.yml".as_slice().into();
+    missing.passes = 0;
+    let mut blocker = workflow(false);
+    blocker.file = b"block.yml".as_slice().into();
+    blocker.latency_min = Duration::from_secs(600);
+    blocker.latency_max = Duration::from_secs(600);
+    let mut world = World::ci_sweep_in(&streams, Box::new([workflow(true), silent, missing, blocker]), fake_config());
+    world.watch_blame();
+    let fault = if seed & 1 == 1 { blame::LOST } else { blame::SET_UP };
+    world.gate_fault_once(fault);
+    let workload = streams.seed_of(Stream::Workload, "landing_batches");
+    let (mut world, replay) = super::landing_batches::run_repairing_in(world, workload, 240);
+    skipped.add(replay.skipped);
+    // A conflict and a head move can empty a two-member batch before it runs a gate.
+    // Do not spend that unused fault on the cancellation case's only retry.
+    if !world.ledger().entries().iter().any(|entry| entry.kind == fault) {
+        world.runner_lost(0);
+        world.runner_setup_faults(0);
+        skipped.no_gate();
+    }
+    let repairs: Vec<_> = world
+        .landing(LANDING)
+        .landing
+        .members
+        .iter()
+        .filter(|m| matches!(m.left, Some(landing::Leave::Blamed { .. } | landing::Leave::Failed { .. })))
+        .map(|m| m.change)
+        .collect();
+    for task in repairs {
+        changes::change_step_task(&mut world, task, 1500 + task, change::Status::Passed, Box::new([]), false, false);
+    }
+    cancellation_and_wait(&mut world, sweep, skipped);
+    queue(&mut world, sweep, skipped);
+    world.status(b"main", raw::Check::Passed);
+    held_gate(&mut world, b"silent.yml", false, 72, skipped);
+    held_gate(&mut world, b"missing.yml", true, 73, skipped);
+    judged(&mut world, seed)
+}
+
 #[test]
 fn ci_faults_are_blamed_on_their_cause() {
     let mut sweep = Sweep::new("ci_faults_are_blamed_on_their_cause");
@@ -207,57 +266,30 @@ fn ci_faults_are_blamed_on_their_cause() {
             &["a landing candidate holds the red base"],
         ))
         .expect("named combination");
-    for seed in 1..=2 {
-        eprintln!("CI seed {seed}");
-        let streams = Streams::new(seed);
-        let mut silent = workflow(false);
-        silent.file = b"silent.yml".as_slice().into();
-        silent.silent = 1000;
-        let mut missing = workflow(false);
-        missing.file = b"missing.yml".as_slice().into();
-        missing.passes = 0;
-        let mut blocker = workflow(false);
-        blocker.file = b"block.yml".as_slice().into();
-        blocker.latency_min = Duration::from_secs(600);
-        blocker.latency_max = Duration::from_secs(600);
-        let mut world =
-            World::ci_sweep_in(&streams, Box::new([workflow(true), silent, missing, blocker]), fake_config());
-        world.watch_blame();
-        world.gate_fault_once(if seed == 1 { blame::LOST } else { blame::SET_UP });
-        let workload = streams.seed_of(Stream::Workload, "landing_batches");
-        let (mut world, _) = super::landing_batches::run_repairing_in(world, workload, 240);
-        let repairs: Vec<_> = world
-            .landing(LANDING)
-            .landing
-            .members
-            .iter()
-            .filter(|m| matches!(m.left, Some(landing::Leave::Blamed { .. } | landing::Leave::Failed { .. })))
-            .map(|m| m.change)
-            .collect();
-        for task in repairs {
-            changes::change_step_task(
-                &mut world,
-                task,
-                1500 + task,
-                change::Status::Passed,
-                Box::new([]),
-                false,
-                false,
-            );
-        }
-        cancellation_and_wait(&mut world, &sweep);
-        queue(&mut world, &sweep);
-        world.status(b"main", raw::Check::Passed);
-        held_gate(&mut world, b"silent.yml", false, 72);
-        held_gate(&mut world, b"missing.yml", true, 73);
-        sweep.ran(&judged(&mut world, seed));
+    let landing = skein_world::this_test!("ci_faults_are_blamed_on_their_cause", "landing");
+    let mut skipped = Skipped::default();
+    cases(landing, 1..=2, |seed| {
+        let ledger = landing_case(seed, &sweep, &mut skipped);
+        sweep.ran(&ledger);
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    skipped.report(landing);
 
+    cases(skein_world::this_test!("ci_faults_are_blamed_on_their_cause", "starved_gate"), 1..=2, |seed| {
+        let streams = Streams::new(seed);
         let mut starved = reported_gate(streams.seed_of(Stream::Workload, "starved_gate"), &[], true);
         check_starved_gate(&mut starved);
         sweep.ran(&judged(&mut starved, seed));
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 
-        let fault = if seed == 1 { raw::Failing::NoStep } else { raw::Failing::Setup };
+    cases(skein_world::this_test!("ci_faults_are_blamed_on_their_cause", "spent_runner"), 1..=2, |seed| {
+        let fault = if seed & 1 == 1 { raw::Failing::NoStep } else { raw::Failing::Setup };
         sweep.ran(&judged(&mut spent_runner(seed, fault), seed));
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     sweep.check_fell().expect("each configured CI fault fell");
 }

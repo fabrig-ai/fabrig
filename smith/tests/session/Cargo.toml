@@ -26,8 +26,6 @@ skein-fake-llm-domain.workspace = true
 skein-world.workspace = true
 smith-domain.workspace = true
 smith-protocol-llm.workspace = true
-
-[dev-dependencies]
 smith-protocol-llm-fixtures.workspace = true
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.

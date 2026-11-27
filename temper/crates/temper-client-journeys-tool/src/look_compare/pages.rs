@@ -38,10 +38,10 @@ pub(super) fn compare(
     } else if requested.is_none() && page.landed.is_empty() {
         report.detail(&format!("{item}, after line 0"), "differs", "the print still contains this empty page");
     } else if parent.is_none() {
-        rows(report, &item, &diff(host, &directory, "requested", &page.landed, &page.requested)?, &[]);
+        rows(report, &item, &diff(host, &directory, ("landed", &page.landed), ("requested", &page.requested))?, &[]);
     } else {
         let merge = merge(host, &directory, &page)?;
-        let hunks = diff(host, &directory, merge.file, &page.landed, &merge.clean)?;
+        let hunks = diff(host, &directory, ("landed", &page.landed), (merge.file, &merge.clean))?;
         let landed = page.landed.split_inclusive('\n').collect::<Vec<_>>();
         let conflicts = merge.conflicts.iter().map(|conflict| conflict.in_landing(&landed, &hunks)).collect::<Vec<_>>();
         rows(report, &item, &hunks, &conflicts);
@@ -210,11 +210,10 @@ pub(crate) struct Hunk {
 pub(crate) fn diff(
     host: &mut Host,
     directory: &Path,
-    expected: &str,
-    landed: &str,
-    clean: &str,
+    (from_file, from): (&str, &str),
+    (to_file, to): (&str, &str),
 ) -> Result<Vec<Hunk>, String> {
-    if landed == clean {
+    if from == to {
         return Ok(Vec::new());
     }
     let result = git(
@@ -232,8 +231,8 @@ pub(crate) fn diff(
             "--diff-algorithm=myers",
             "--no-indent-heuristic",
             "--",
-            "landed",
-            expected,
+            from_file,
+            to_file,
         ],
     )?;
     match result.code {

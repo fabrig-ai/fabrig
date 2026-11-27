@@ -288,7 +288,7 @@ fn the_implementer_leaves_failures_in_work_it_started_from() {
     let words = crate::stock::charter_set().implementer.unwrap();
     assert!(words.contains("`[Started from change N at <commit>, not landed]`\n  names a dependency's work and head"));
     assert!(words.contains("Failures there belong to it: don't fix or\n  record them as reds"));
-    assert!(words.contains("If delivery passes, list them under `## Left`; if refused"));
+    assert!(words.contains("If your checks pass, list them under `## Left`; if refused"));
     assert!(words.contains("`save`, then ask, naming the change and commit"));
 }
 
@@ -1613,9 +1613,26 @@ fn the_coders_words_put_its_report_in_finish() {
 }
 
 #[test]
+fn the_coders_words_finish_with_a_checked_change() {
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(!words.contains("then `deliver`"), "done work must not call `deliver` before `finish`");
+    assert!(!words.contains("the branch and commit `deliver` named"));
+    assert!(words.contains("**When the changes are done,** run the project's formatters, then `finish`."));
+    assert!(words.contains("A `finish` with a change runs the delivery checks and pushes if they pass."));
+    assert!(words.contains("A `finish` its checks refuse says what failed: fix it and `finish` again."));
+    assert!(words.contains("**Done** is your acceptance, its tests passing, finished with a checked change."));
+    assert!(words.contains(
+        "`save` the work you have (it pushes to your branch unchecked: only a checked tree can be finished and merged), then call `message` to your requester"
+    ));
+    assert!(words.contains("`deliver` is a checked push while the run goes on, rarely needed"));
+}
+
+#[test]
 fn the_coders_words_explain_what_a_delivery_keeps() {
     let words = crate::stock::charter_set().implementer.unwrap();
-    assert!(words.contains("**Your checkout is detached:** `deliver` commits its files on the host's own head"));
+    assert!(words.contains(
+        "**Your checkout is detached:** the host commits your files on its own head and names what `finish`, `deliver` and `save` push."
+    ));
     assert!(words.contains("name no commit from an earlier run: it may not be on the branch."));
 }
 

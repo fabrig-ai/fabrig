@@ -884,12 +884,16 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
         prepare_wait_catch_up(domain);
         for task in domain.forge.change_tasks() {
             if let Some(row) = domain.engine.core().tasks.task(task) {
+                let hold = forge_route::task_hold(domain.config.forge_connector, row);
+                domain.forge.refresh_task_hold(task, hold);
                 domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);
             }
         }
     } else if let forge::Event::StepChange { task, .. } = &event
         && let Some(row) = domain.engine.core().tasks.task(*task)
     {
+        let hold = forge_route::task_hold(domain.config.forge_connector, row);
+        domain.forge.refresh_task_hold(*task, hold);
         domain.forge.refresh_spec_revision(*task, row.revisions.spec, &mut out);
     }
     if let forge::Event::PersonOf { .. } = &event {

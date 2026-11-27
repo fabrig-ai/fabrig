@@ -108,6 +108,7 @@ pub(crate) const CLOSE_REASON: &[&str] = &["--reason", CLOSE_REASON_WORDS];
 pub(crate) const OTHER_MESSAGE: &[&str] = &["task", "message", "41", "different words", "--key", "port-answer"];
 /// JSON's extra word is shared by all act-output cases.
 pub(crate) const JSON_FLAG: &[&str] = &["--json"];
+pub(crate) const MEASURE_CALL: &[&str] = &["task", "measure", "41", "--hold", "2", "--key", "act-name"];
 /// Every act form is stable under clocks and seeds; the row carries its arguments.
 pub(crate) const ACT_CALLS: &[&[&str]] = &[
     MESSAGE_CALL,
@@ -119,6 +120,7 @@ pub(crate) const ACT_CALLS: &[&[&str]] = &[
     &["task", "stop", "41", "Parking", "the task", "--key", "act-name"],
     &["task", "cancel", "41", "finished", "--key", "act-name"],
     &["hold", "lift", "12", "--rev", "1", "--with-tasks", "--key", "lift-name"],
+    MEASURE_CALL,
 ];
 pub(crate) fn chat_me(budget: u64) -> c::Me {
     let mut me = me(PARTY);

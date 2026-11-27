@@ -166,7 +166,7 @@ fn a_drift_hold_carries_the_branch_read_that_decided_it() {
     let mut carried = None;
     while let Some(request) = out.pop() {
         if let Request::ChangeDecision {
-            decision: change::Decision::Hold(change::Hold::BranchMoved), evidence, ..
+            decision: change::Decision::Hold(change::Cause::BranchMoved), evidence, ..
         } = request
         {
             carried = evidence;
@@ -309,7 +309,13 @@ fn a_turn_is_exclusive_through_update_checks_gates_and_merge() {
 #[test]
 fn stale_turn_flags_do_not_block_the_queue_and_base_repairs_go_first() {
     for (state, ending) in [
-        (change::State::Held { was: Box::new(updating()), why: change::Hold::Failed }, None),
+        (
+            change::State::Held {
+                was: Box::new(updating()),
+                hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+            },
+            None,
+        ),
         (change::State::Ended, None),
         (change::State::NoChange { words: Box::new([]) }, None),
         (change::State::CancellingGates { head: HEAD }, None),
@@ -384,7 +390,10 @@ fn waiting_for_a_runner_keeps_the_turn_until_running_reaches_the_stall() {
         assert_eq!(follower_facts(&d).first, held);
         assert_eq!(d.procedure_wakes.contains_key(&SECOND), held, "wake_after_turn");
         if held {
-            assert!(matches!(owner.change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+            assert!(matches!(
+                owner.change.state,
+                change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+            ));
         }
     }
 }

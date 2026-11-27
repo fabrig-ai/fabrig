@@ -4,11 +4,43 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 use temper_engine_domain_forge_change as d;
 use temper_engine_domain_forge_vocabulary as top;
-fn encode_hold(value: d::Hold) -> w::ChangeHold {
-    crate::generated::store::change_hold_to_record(&value)
+fn encode_hold(value: d::Cause) -> w::ChangeHold {
+    match value {
+        d::Cause::Stalled => w::ChangeHold::Stalled,
+        d::Cause::Repairs => w::ChangeHold::Repairs,
+        d::Cause::Resolutions => w::ChangeHold::Resolutions,
+        d::Cause::Updates => w::ChangeHold::Updates,
+        d::Cause::BranchMoved => w::ChangeHold::BranchMoved,
+        d::Cause::BranchMissing => w::ChangeHold::BranchMissing,
+        d::Cause::PullClosed => w::ChangeHold::PullClosed,
+        d::Cause::Retargeted => w::ChangeHold::Retargeted,
+        d::Cause::Failed => w::ChangeHold::Failed,
+        d::Cause::Rejected => w::ChangeHold::Rejected,
+        d::Cause::Questions => w::ChangeHold::Questions,
+        d::Cause::Runner => w::ChangeHold::Runner,
+        d::Cause::RedStands => w::ChangeHold::RedStands,
+        d::Cause::CloseRefused => w::ChangeHold::CloseRefused,
+        d::Cause::Authority(value) => w::ChangeHold::Authority(authority_hold_to_record(&value)),
+    }
 }
-fn decode_hold(value: w::ChangeHold) -> d::Hold {
-    crate::generated::store::change_hold_to_domain(value)
+fn decode_hold(value: w::ChangeHold) -> d::Cause {
+    match value {
+        w::ChangeHold::Stalled => d::Cause::Stalled,
+        w::ChangeHold::Repairs => d::Cause::Repairs,
+        w::ChangeHold::Resolutions => d::Cause::Resolutions,
+        w::ChangeHold::Updates => d::Cause::Updates,
+        w::ChangeHold::BranchMoved => d::Cause::BranchMoved,
+        w::ChangeHold::BranchMissing => d::Cause::BranchMissing,
+        w::ChangeHold::PullClosed => d::Cause::PullClosed,
+        w::ChangeHold::Retargeted => d::Cause::Retargeted,
+        w::ChangeHold::Failed => d::Cause::Failed,
+        w::ChangeHold::Rejected => d::Cause::Rejected,
+        w::ChangeHold::Questions => d::Cause::Questions,
+        w::ChangeHold::Runner => d::Cause::Runner,
+        w::ChangeHold::RedStands | w::ChangeHold::Flake | w::ChangeHold::NoTest => d::Cause::RedStands,
+        w::ChangeHold::CloseRefused => d::Cause::CloseRefused,
+        w::ChangeHold::Authority(value) => d::Cause::Authority(authority_hold_to_domain(value)),
+    }
 }
 pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
     let below = below?;
@@ -106,7 +138,7 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
         }
         d::State::Cleared { merge } => w::ChangeLive::Cleared(w::MergeChange { merge: *merge }),
         d::State::Uncleared { merge } => w::ChangeLive::Uncleared(w::MergeChange { merge: *merge }),
-        d::State::Held { .. } => unreachable!("the bounded loop unwrapped every hold"),
+        d::State::Held { .. } => unreachable!("a change is held only once"),
         d::State::NoChange { .. }
         | d::State::Ended
         | d::State::Taking { .. }
@@ -239,35 +271,51 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
 }
 
 // An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches.md, 2).
-fn encode_change_state(state: &d::State, ended_held: Option<d::Hold>) -> w::ChangeState {
-    let mut holds = List::with_capacity(8);
-    if *state == d::State::Ended
-        && let Some(why) = ended_held
-    {
-        holds.push(encode_hold(why)).expect("one ending hold");
-    }
-    let mut current = state;
-    for _ in 0..=8_u32 {
-        let d::State::Held { was, why } = current else {
-            break;
+fn encode_change_state(state: &d::State, ended_held: Option<d::Cause>) -> w::ChangeState {
+    let mut holds = List::with_capacity(1);
+    if let d::State::Held { was, hold } = state {
+        holds.push(encode_hold(hold.cause)).expect("one change hold");
+        return w::ChangeState {
+            live: encode_live(was),
+            holds,
+            since: Some(hold.since.as_nanos()),
+            words: if hold.words.is_empty() { None } else { Some(hold.words.clone()) },
+            judged: match hold.judged {
+                Some(judged) => Some(w::ChangeJudged { head: judged.head, spec: judged.spec }),
+                None => None,
+            },
         };
-        holds.push(encode_hold(*why)).expect("at most 8 holds (change_state_holds)");
-        current = was;
     }
-    w::ChangeState { live: encode_live(current), holds }
-}
-fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
-    let w::ChangeState { live, holds } = value;
-    let mut state = decode_live(live);
-    if state == d::State::Ended
-        && let [why] = holds.as_slice()
+    if *state == d::State::Ended
+        && let Some(cause) = ended_held
     {
-        return (state, Some(decode_hold(why.clone())));
+        holds.push(encode_hold(cause)).expect("one ending hold");
     }
-    for why in holds.into_boxed().into_iter().rev() {
-        state = d::State::Held { was: Box::new(state), why: decode_hold(why) };
+    w::ChangeState { live: encode_live(state), holds, since: None, words: None, judged: None }
+}
+
+fn decode_change_state(value: w::ChangeState, step_since: u64, close_refused: bool) -> (d::State, Option<d::Cause>) {
+    let w::ChangeState { live, holds, since, words, judged } = value;
+    let state = decode_live(live);
+    let Some(outer) = holds.as_slice().first() else { return (state, None) };
+    let cause = if close_refused && since.is_none() && *outer == w::ChangeHold::Failed {
+        d::Cause::CloseRefused
+    } else {
+        decode_hold(outer.clone())
+    };
+    if state == d::State::Ended {
+        return (state, Some(cause));
     }
-    (state, None)
+    let hold = d::Hold {
+        cause,
+        since: Wall::from_nanos(since.unwrap_or(step_since)),
+        words: words.unwrap_or_default(),
+        judged: match judged {
+            Some(judged) => Some(d::Judged { head: judged.head, spec: judged.spec }),
+            None => None,
+        },
+    };
+    (d::State::Held { was: Box::new(state), hold }, None)
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {
     crate::generated::store::gate_to_record(value)
@@ -385,7 +433,7 @@ fn encode_change(value: &d::Change, previous: Option<&top::PreviousLink>) -> w::
     }
 }
 
-fn decode_change(value: w::Change) -> (d::Change, Option<top::PreviousLink>) {
+fn decode_change(value: w::Change, close_refused: bool) -> (d::Change, Option<top::PreviousLink>) {
     let w::Change {
         early,
         task,
@@ -410,7 +458,7 @@ fn decode_change(value: w::Change) -> (d::Change, Option<top::PreviousLink>) {
         landing,
         landing_ask,
     } = value;
-    let (state, ended_held) = decode_change_state(state);
+    let (state, ended_held) = decode_change_state(state, since, close_refused);
     let previous = if landing.is_none() && landing_ask.is_none() {
         None
     } else {
@@ -547,7 +595,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         verdicts,
         gate_remarks,
         drift: match value.drift.as_ref() {
-            Some(value) => Some(map::change_hold_to_record(value)),
+            Some(value) => Some(encode_hold(*value)),
             None => None,
         },
         queue_repair: value.queue_repair,
@@ -582,7 +630,11 @@ fn numbers(values: &[u64]) -> List<u64> {
 
 #[expect(clippy::too_many_lines, reason = "one hot row lists each field of the domain form")]
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
-    let (change, previous) = decode_change(value.change);
+    let close_refused = if let Some(at) = &value.close_at { at.refused.is_some() } else { false };
+    let legacy = value.change.state.holds.as_slice().first().or(value.change.released.as_ref());
+    let flake = legacy == Some(&w::ChangeHold::Flake);
+    let no_test = legacy == Some(&w::ChangeHold::NoTest);
+    let (change, previous) = decode_change(value.change, close_refused);
     let mut signed = List::with_capacity(value.signed.len());
     for sign in value.signed.into_boxed() {
         signed.push(map::sign_off_to_domain(sign)).expect(FITS);
@@ -619,8 +671,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         },
         room: value.room,
         delegate_head: value.delegate_head,
-        delegate_flake: value.delegate_flake,
-        delegate_no_test: value.delegate_no_test,
+        delegate_flake: value.delegate_flake || flake,
+        delegate_no_test: value.delegate_no_test || no_test,
         delegate_words: match value.delegate_words {
             Some(words) => Some(map::result_text_to_domain(words)),
             None => None,
@@ -666,7 +718,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         verdicts: verdicts.into_boxed(),
         gate_remarks: gate_remarks.into_boxed(),
         drift: match value.drift {
-            Some(value) => Some(map::change_hold_to_domain(value)),
+            Some(value) => Some(decode_hold(value)),
             None => None,
         },
         queue_repair: value.queue_repair,

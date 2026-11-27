@@ -5,10 +5,10 @@
  One thing needs you.
 
  Where you left off
-   Hello   Add a CSV export to the report, a chat · today 09:00 ·…     /chats 1
+   Hello   Add a CSV export to the report, a chat · today 09:00 · waiting on…
 
  Needs you
-   ? Hello   Add a CSV export to the report: csv-export: comma…    n walks them
+   ? Hello   Add a CSV export to the report: csv-export:…     /needs walks them
 
  Start
    /draft    a design session that ends in a draft and a goal
@@ -21,4 +21,4 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · fake                                  1 needs you · n to walk
+ ● Live · Hello · fake                                     1 needs you · /needs

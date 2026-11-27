@@ -693,7 +693,7 @@ fn render_checkout(
     text.host = true;
     match repositories.len() {
         0 => {}
-        1 => text.put(b"Paths start in your working directory. Use `src/lib.rs`, without a directory-name prefix.\n"),
+        1 => text.put(b"Use paths relative to the working directory: `src/lib.rs`.\n"),
         _ => {
             text.put(b"Your working directory is `");
             text.put(&repositories.first().expect("several directories").name);
@@ -1061,7 +1061,7 @@ You can read, list and search the files in the checkout.
 
 ## Checkout
 
-Paths start in your working directory. Use `src/lib.rs`, without a directory-name prefix.
+Use paths relative to the working directory: `src/lib.rs`.
 - The working directory, which you may only read, a git working tree
 
 ## Answering
@@ -1261,7 +1261,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
         let rendered = text(&rendered);
         assert!(!rendered.contains(text(&mounted.directories[0].name)), "the one mount's name is hidden");
         assert!(rendered.contains("## AGENTS.md in the working directory\n\nGuide text."));
-        assert!(rendered.contains("## Checkout\n\nPaths start in your working directory. Use `src/lib.rs`, without a directory-name prefix.\n- The working directory, which you may only read"));
+        assert!(rendered.contains("## Checkout\n\nUse paths relative to the working directory: `src/lib.rs`.\n- The working directory, which you may only read"));
     }
 
     #[test]

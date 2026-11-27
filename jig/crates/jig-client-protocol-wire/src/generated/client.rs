@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x2a, 0x9d, 0x6a, 0x10, 0xdd, 0x5c, 0xf2, 0x82, 0x1e, 0x35, 0xdc, 0x63, 0x4d, 0x26, 0x9a, 0x64, 0x6e, 0x97, 0x23,
-    0x9b, 0x84, 0x47, 0x5c, 0xcb, 0x66, 0x84, 0xdb, 0x2f, 0xe4, 0xe7, 0x3a, 0xc1,
+    0x9a, 0x46, 0x42, 0xfe, 0xf3, 0x84, 0xfc, 0xdd, 0x6b, 0x64, 0x38, 0xc9, 0x89, 0xbd, 0x69, 0x22, 0xfb, 0x8e, 0x1e,
+    0xb8, 0xff, 0x6a, 0xff, 0x6d, 0x11, 0x70, 0xe2, 0xba, 0xe3, 0x84, 0x21, 0x41,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3175,6 +3175,10 @@ pub mod paths {
     pub const RELEASE_REVISION: Path = Path::new("Release.revision");
     pub const RELEASE_AGAIN: Path = Path::new("Release.again");
     pub const RELEASE_TAIL: Path = Path::new("Release (tail)");
+    pub const MEASURE_PROJECT: Path = Path::new("Measure.project");
+    pub const MEASURE_TASK: Path = Path::new("Measure.task");
+    pub const MEASURE_REVISION: Path = Path::new("Measure.revision");
+    pub const MEASURE_TAIL: Path = Path::new("Measure (tail)");
     pub const AMEND_PROJECT: Path = Path::new("Amend.project");
     pub const AMEND_TASK: Path = Path::new("Amend.task");
     pub const AMEND_REVISION: Path = Path::new("Amend.revision");
@@ -22491,6 +22495,64 @@ impl Record for Release {
             task: field::read(field::U64, limits, reader, paths::RELEASE_TASK)?,
             revision: field::read(field::Nested, limits, reader, paths::RELEASE_REVISION)?,
             again: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::RELEASE_AGAIN)?,
+        })
+    }
+}
+
+// Type: Measure.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Measure {
+    pub project: u32,
+    pub task: u64,
+    pub revision: Revision,
+}
+
+// Record: Measure.
+impl Measure {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("Revision"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for Measure {
+    type Limits = Limits;
+    const TAIL: Path = paths::MEASURE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Measure")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Measure")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::MEASURE_PROJECT)?;
+        field::write(field::U64, &self.task, limits, out, paths::MEASURE_TASK)?;
+        field::write(field::Nested, &self.revision, limits, out, paths::MEASURE_REVISION)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::MEASURE_PROJECT)?,
+            task: field::read(field::U64, limits, reader, paths::MEASURE_TASK)?,
+            revision: field::read(field::Nested, limits, reader, paths::MEASURE_REVISION)?,
         })
     }
 }
@@ -73040,6 +73102,7 @@ pub enum Ask {
     Delegate(Delegate),
     PauseWorker(PauseWorker),
     ReissueService(ReissueService),
+    Measure(Measure),
 }
 
 // Record: Ask.
@@ -73086,7 +73149,8 @@ impl Ask {
         skein_codec::bounds::Node::Named("Delegate"),
         skein_codec::bounds::Node::Named("PauseWorker"),
         skein_codec::bounds::Node::Named("ReissueService"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40] },
+        skein_codec::bounds::Node::Named("Measure"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -73156,6 +73220,7 @@ impl Record for Ask {
             Self::Delegate(value) => { field::put(out, &[37], paths::ASK_TAG)?; value.write(limits, out) },
             Self::PauseWorker(value) => { field::put(out, &[38], paths::ASK_TAG)?; value.write(limits, out) },
             Self::ReissueService(value) => { field::put(out, &[39], paths::ASK_TAG)?; value.write(limits, out) },
+            Self::Measure(value) => { field::put(out, &[40], paths::ASK_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -73202,7 +73267,8 @@ impl Record for Ask {
             37 => Ok(Self::Delegate(Delegate::read(limits, reader)?)),
             38 => Ok(Self::PauseWorker(PauseWorker::read(limits, reader)?)),
             39 => Ok(Self::ReissueService(ReissueService::read(limits, reader)?)),
-            40..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
+            40 => Ok(Self::Measure(Measure::read(limits, reader)?)),
+            41..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -74226,6 +74292,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "MeParty", nodes: MeParty::SHAPE },
     skein_codec::bounds::Declaration { name: "MePrices", nodes: MePrices::SHAPE },
     skein_codec::bounds::Declaration { name: "MeProject", nodes: MeProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "Measure", nodes: Measure::SHAPE },
     skein_codec::bounds::Declaration { name: "Member", nodes: Member::SHAPE },
     skein_codec::bounds::Declaration { name: "Message", nodes: Message::SHAPE },
     skein_codec::bounds::Declaration { name: "MessageKind", nodes: MessageKind::SHAPE },

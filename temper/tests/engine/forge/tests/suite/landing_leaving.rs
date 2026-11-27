@@ -163,7 +163,7 @@ fn a_head_pushed_by_another_hand_leaves_and_holds_its_change_as_drift() {
     let ready = world.change(CHANGE).change.ready_since;
     world.push_as(MEMBER, b"new", b"another hand", 2);
     let head = translate::commit(world.branch(MEMBER));
-    assert_eq!(step_change(&mut world, 200), change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(step_change(&mut world, 200), change::Decision::Hold(change::Cause::BranchMoved));
     left(&mut world, landing::Leave::HeadMoved { head });
     assert_eq!(world.change(CHANGE).change.ready_since, ready);
     let hex: String = String::from_utf8(top::commit_text(&head).into_vec()).expect("hex head");

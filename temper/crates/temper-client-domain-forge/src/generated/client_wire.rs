@@ -100,6 +100,18 @@ pub fn trial_state_to_domain(record: temper_client_protocol_wire::v1::TrialState
                 why: trial_why_to_domain(field_000000)
             }
         },
+        temper_client_protocol_wire::v1::TrialState::Limited(held) => {
+            let temper_client_protocol_wire::v1::TrialLimited { reset: field_000000 } = held;
+            crate::forge::trials::State::Limited {
+                reset: match field_000000 {
+                    Some(item) => {
+                        let converted = skein_codec::convert::wall_to_domain(item);
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
     }
 }
 

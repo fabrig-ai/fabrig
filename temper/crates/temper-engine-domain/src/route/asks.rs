@@ -149,17 +149,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
-            let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
-            for row in &models {
-                names
-                    .push(core::settings::ModelName {
-                        name: row.model.name.clone(),
-                        efforts: row.model.efforts.clone(),
-                    })
-                    .expect("one name per position");
-            }
+            let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
             assert!(
-                super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names: names.into_boxed() })),
+                super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names })),
                 "catalogue store door reserved"
             );
             assert!(

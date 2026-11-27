@@ -913,10 +913,10 @@ fn a_refused_close_holds_and_wakes_its_goal_once() {
     assert!(world.jobs.is_empty(), "a judgment spent no retry");
     assert_eq!(goal_runs(&world, run.task), 2);
     assert_eq!(row(&world, close).close_at, Some(at));
-    assert_eq!(
-        row(&world, close).change.state,
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed }
-    );
+    let change::State::Held { was, hold } = &row(&world, close).change.state else { panic!("close held at producing") };
+    assert_eq!(**was, change::State::Producing { requested: true });
+    assert_eq!(hold.cause, change::Cause::CloseRefused);
+    assert_eq!(hold.words.as_ref(), refusal_words(at).as_bytes());
     super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
     world.close();
 }
@@ -957,6 +957,9 @@ fn a_released_close_does_not_measure_unchanged_tips_again() {
     let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
     let words = replay_words(at);
     release(&mut world, &run, close, 93);
+    park_goal(&mut world, &run);
+    restart_closing(&mut world);
+    wait_held(&mut world, close, run.task);
     world.advance_ticks(100);
     assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
     super::goal_closer::assert_hold_words(&world, close, &words);
@@ -1137,7 +1140,10 @@ fn held_landing_with_attempts(attempts: u8) -> (World, engine::Assignment, Box<[
     }
     status(&mut world, next, raw::Check::Failed);
     wait_held(&mut world, landing, goal.task);
-    assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Repairs, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Repairs, .. }, .. }
+    ));
     let run = awakened(&mut world, goal.task);
     (world, run, branch, closer, close, landing)
 }
@@ -1241,10 +1247,13 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
     super::stall_hold::execution_reads(&mut world, landing, skein_forge::api::RunState::Running);
     world.advance_to(world.env.now.saturating_add(world.env.limits.forge.change_policy.stall));
     wait_held(&mut world, landing, goal.task);
-    assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+    ));
     let run = awakened(&mut world, goal.task);
     cancel_step(&mut world, &run, landing, 93);
-    assert_eq!(row(&world, landing).change.ended_held, Some(change::Hold::Stalled));
+    assert_eq!(row(&world, landing).change.ended_held, Some(change::Cause::Stalled));
     world.advance_ticks(100);
     assert!(!matches!(live_task(&world, closer).phase, tasks::Phase::Held { .. }));
     park_goal(&mut world, &run);

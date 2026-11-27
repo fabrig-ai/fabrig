@@ -205,9 +205,9 @@ fn line(row: &ChangeRow) -> bool {
     }
 }
 
-fn hold(state: &c::State) -> Option<c::Hold> {
+fn hold(state: &c::State) -> Option<c::Cause> {
     match state {
-        c::State::Held { why, .. } => Some(*why),
+        c::State::Held { hold: c::Hold { cause: why, .. }, .. } => Some(*why),
         c::State::Taking { .. }
         | c::State::Producing { .. }
         | c::State::Opening { .. }
@@ -265,32 +265,31 @@ fn first(state: &c::State) -> bool {
     }
 }
 
-fn reason(why: c::Hold) -> Box<[u8]> {
+fn reason(why: c::Cause) -> Box<[u8]> {
     Box::from(match why {
-        c::Hold::BranchMoved => b"branch_moved".as_slice(),
-        c::Hold::BranchMissing => b"branch_missing".as_slice(),
-        c::Hold::PullClosed => b"pull_closed".as_slice(),
-        c::Hold::Retargeted => b"retargeted".as_slice(),
-        c::Hold::Repairs => b"repairs".as_slice(),
-        c::Hold::Resolutions => b"resolutions".as_slice(),
-        c::Hold::Updates => b"updates".as_slice(),
-        c::Hold::Rejected => b"rejected".as_slice(),
-        c::Hold::Stalled => b"stalled".as_slice(),
-        c::Hold::Failed => b"failed".as_slice(),
-        c::Hold::Runner => b"runner".as_slice(),
-        c::Hold::RedStands => b"red_stands".as_slice(),
-        c::Hold::Flake => b"flake".as_slice(),
-        c::Hold::NoTest => b"no_test".as_slice(),
-        c::Hold::Questions => b"questions".as_slice(),
-        c::Hold::Authority(_) => b"authority".as_slice(),
+        c::Cause::BranchMoved => b"branch_moved".as_slice(),
+        c::Cause::BranchMissing => b"branch_missing".as_slice(),
+        c::Cause::PullClosed => b"pull_closed".as_slice(),
+        c::Cause::Retargeted => b"retargeted".as_slice(),
+        c::Cause::Repairs => b"repairs".as_slice(),
+        c::Cause::Resolutions => b"resolutions".as_slice(),
+        c::Cause::Updates => b"updates".as_slice(),
+        c::Cause::Rejected => b"rejected".as_slice(),
+        c::Cause::Stalled => b"stalled".as_slice(),
+        c::Cause::Failed => b"failed".as_slice(),
+        c::Cause::Runner => b"runner".as_slice(),
+        c::Cause::RedStands => b"red_stands".as_slice(),
+        c::Cause::CloseRefused => b"close_refused".as_slice(),
+        c::Cause::Questions => b"questions".as_slice(),
+        c::Cause::Authority(_) => b"authority".as_slice(),
     })
 }
 
 fn why(row: &ChangeRow, facts: Option<&c::Facts>, approval: bool) -> h::Unready {
     match hold(&row.change.state) {
-        Some(c::Hold::BranchMoved | c::Hold::BranchMissing) => return h::Unready::HeadMoved,
-        Some(c::Hold::PullClosed) => return h::Unready::Closed,
-        Some(c::Hold::Rejected) => return h::Unready::Refused,
+        Some(c::Cause::BranchMoved | c::Cause::BranchMissing) => return h::Unready::HeadMoved,
+        Some(c::Cause::PullClosed) => return h::Unready::Closed,
+        Some(c::Cause::Rejected) => return h::Unready::Refused,
         Some(_) => return h::Unready::Held,
         None => {}
     }
@@ -373,7 +372,13 @@ pub(crate) fn advanced(
     }
 }
 
-pub(crate) fn released(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, why: c::Hold, out: &mut Queue<Request>) {
+pub(crate) fn released(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut ChangeRow,
+    why: c::Cause,
+    out: &mut Queue<Request>,
+) {
     if d.repository(row.repository).is_none() {
         return;
     }

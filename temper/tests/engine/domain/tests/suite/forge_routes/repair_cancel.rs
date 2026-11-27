@@ -1,6 +1,6 @@
 //! A cancelled delegate's account and release (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
-use temper_engine_domain_forge_change::{Hold, State};
+use temper_engine_domain_forge_change::{Cause, State};
 
 const STEPS: u32 = 200;
 const REASON: &[u8] = b"try a different approach";
@@ -70,8 +70,10 @@ fn a_cancelled_repair_holds_saying_it_was_cancelled() {
         let expected =
             if reason.is_empty() { opening.into_bytes() } else { [opening.as_bytes(), b": ", reason].concat() };
         assert_eq!(account(&world, change, tasks::Hold::Procedure), expected.as_slice());
-        assert!(matches!(&change_row(&world, change).change.state, State::Held { was, why: Hold::Failed }
-            if matches!(was.as_ref(), State::Repairing { .. })));
+        assert!(
+            matches!(&change_row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } }
+            if matches!(was.as_ref(), State::Repairing { .. }))
+        );
         assert_eq!(change_row(&world, change).change.repairs, 1, "cancel keeps the attempted count");
         let shown = temper_engine_domain_world::tier_task_show::show(&mut world, change);
         assert_eq!(shown.status, 0);
@@ -100,7 +102,7 @@ fn a_released_cancelled_repair_asks_again_at_a_head_still_failing() {
     let row = change_row(&world, change);
     let (fresh, _) = row.delegate.expect("replacement repair");
     assert_ne!(fresh, repair);
-    assert_eq!(row.change.repairs, 1, "replacement spends the reset allowance");
+    assert_eq!(row.change.repairs, 2, "the replacement counts on from the cancelled repair");
     assert!(row.producer_failure.is_none(), "fresh delegation clears the cancellation account");
     assert!(matches!(row.change.state, State::Repairing { .. }));
     world.advance_ticks(STEPS);
@@ -139,7 +141,7 @@ fn a_released_failed_repair_receives_the_job_log_again_and_merges_nothing() {
     assert_ne!(replacement.task, first.task);
     super::change_tool::check_pull_repair_brief(&replacement);
     assert_eq!(ci_words(&first), ci_words(&replacement), "the same failed step and diagnostic");
-    assert_eq!(change_row(&world, change).change.repairs, 1, "release resets the repair allowance");
+    assert_eq!(change_row(&world, change).change.repairs, 2, "the replacement counts on from the failed repair");
     super::reviews::finish_review(&mut world, &replacement, tasks::TaskResult::Failure { reason: REASON.into() });
     world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }), "replacement's failure holds again");
@@ -157,6 +159,8 @@ fn a_cancelled_producer_says_it_was_cancelled() {
     cancel(&mut world, &producer, change, REASON);
     let expected = format!("its producer, task {}, was cancelled: try a different approach", producer.task);
     assert_eq!(account(&world, change, tasks::Hold::EffectFailed), expected.as_bytes());
-    assert!(matches!(&change_row(&world, change).change.state, State::Held { was, why: Hold::Failed }
-        if matches!(was.as_ref(), State::Producing { .. })));
+    assert!(
+        matches!(&change_row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } }
+        if matches!(was.as_ref(), State::Producing { .. }))
+    );
 }

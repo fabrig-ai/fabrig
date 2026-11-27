@@ -619,6 +619,7 @@ pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(
         | c::Ask::Take { .. }
         | c::Ask::HandBack { .. }
         | c::Ask::Decide { .. }
+        | c::Ask::Measure { .. }
         | c::Ask::Release { .. }
         | c::Ask::Lift { .. }
         | c::Ask::Amend { .. }

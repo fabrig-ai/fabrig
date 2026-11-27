@@ -830,6 +830,14 @@ pub(crate) fn allowed(domain: &Domain, number: u64, by: Party, bound: u32) -> bo
     }
 }
 
+impl Domain {
+    /// Whether the run's task has control standing over this live task.
+    #[must_use]
+    pub fn may_control_task(&self, task: u64, by: u64, bound: u32) -> bool {
+        allowed(self, task, Party::Task(by), bound)
+    }
+}
+
 fn control_entrance(
     domain: &Domain,
     env: &Env<Limits>,
@@ -950,13 +958,45 @@ pub(crate) fn release(
     operation: Release,
     out: &mut Queue<Request>,
 ) {
+    release_with_reason(domain, env, to, by, operation, crate::Why::Released, out);
+}
+
+pub(crate) fn measure(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    task: u64,
+    out: &mut Queue<Request>,
+) {
+    let operation = Release { task, again: None, message: None };
+    release_with_reason(domain, env, to, by, operation, crate::Why::Measured, out);
+}
+
+fn release_with_reason(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    operation: Release,
+    reason: crate::Why,
+    out: &mut Queue<Request>,
+) {
     let number = operation.task;
     let to = match control_entrance(domain, env, to, by, number, false) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
+    if reason == crate::Why::Measured
+        && !record(domain, number).expect("control entrance checked task").offers_measure()
+    {
+        return refused(to, Some(number), Refusal::State, out);
+    }
     match check_release(domain, &Staged::new(0), env, by, operation) {
-        Ok(plan) => apply_release(domain, env, by, plan, out),
+        Ok(mut plan) => {
+            plan.why = reason;
+            apply_release(domain, env, by, plan, out);
+        }
         Err(why) => {
             let problem = release_problem(domain, &Staged::new(0), &env.limits, number, by, why);
             if why == Refusal::Busy {
@@ -977,7 +1017,26 @@ pub(crate) fn release(
     out.push(Request::Done { reply_to: to });
 }
 
+impl crate::TaskRecord {
+    /// Whether a hold on this task may be measured instead of released.
+    #[must_use]
+    pub fn offers_measure(&self) -> bool {
+        if self.placed.is_some() {
+            return false;
+        }
+        match self.executor {
+            crate::Executor::Procedure { .. } => {}
+            crate::Executor::Agent { .. } | crate::Executor::Job { .. } | crate::Executor::Person(_) => return false,
+        }
+        match self.phase {
+            Phase::Held { why: crate::Hold::Placed { .. } | crate::Hold::Uncertain { .. }, .. } => false,
+            Phase::Held { .. } | Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => true,
+        }
+    }
+}
+
 pub(crate) struct ReleasePlan {
+    pub(crate) why: crate::Why,
     pub(crate) placed: Option<Box<crate::placed::ReleaseChanges>>,
     pub(crate) number: u64,
     pub(crate) entry: Option<u64>,
@@ -1073,7 +1132,7 @@ fn check_release_with_authority(
             return Err(Refusal::State);
         }
     };
-    Ok(ReleasePlan { placed, number, entry, again, notice, next })
+    Ok(ReleasePlan { why: crate::Why::Released, placed, number, entry, again, notice, next })
 }
 
 pub(crate) fn apply_release(
@@ -1083,7 +1142,7 @@ pub(crate) fn apply_release(
     plan: ReleasePlan,
     out: &mut Queue<Request>,
 ) {
-    let ReleasePlan { placed, number, entry, again, notice, next } = plan;
+    let ReleasePlan { why, placed, number, entry, again, notice, next } = plan;
     let mut held = None;
     if let Some(changes) = placed {
         held = Some(changes.hold.number);
@@ -1109,7 +1168,7 @@ pub(crate) fn apply_release(
     let keeps_place = crate::holds::kept_place(&task.record);
     task.record.narrowing |= crate::run::run_attempt(&next).is_some();
     task.record.phase = crate::run::ends::for_record(&task.record).amended(task.record.executor, next);
-    task.record.due_reason = crate::Why::Released;
+    task.record.due_reason = why;
     if task.record.phase == Phase::Waiting && !circle && !keeps_place {
         task.record.hold_wait_since = None;
         task.record.hold_bound_since = None;

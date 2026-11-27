@@ -4,7 +4,7 @@ use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control, Mark},
     look,
-    words::{Shell, Word, Words},
+    words::{Shell, Times, Word, Words},
 };
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -20,7 +20,7 @@ use temper_client_domain::{
 
 /// The host’s check, then the newest trial (temper/docs/design/domain/trial.md, 6.1).
 #[must_use]
-pub fn trial(root: &Domain, w: &Words) -> Option<Trial> {
+pub fn trial(root: &Domain, w: &Words, times: &mut Times) -> Option<Trial> {
     if let Some(page) = root.pages().connect_model() {
         let state = match page.check {
             ProgramCheck::Idle => None,
@@ -61,10 +61,11 @@ pub fn trial(root: &Domain, w: &Words) -> Option<Trial> {
                 step: trials::Step::Starts,
                 state: trials::State::Running,
             },
+            times,
         ));
     }
     if let Some(row) = root.forge().trials().first() {
-        return of_account(root, w, row.took.unwrap_or(row.account));
+        return of_account(root, w, row.took.unwrap_or(row.account), times);
     }
     if welcome::model_usable(root) != Some(true) {
         return None;
@@ -84,7 +85,7 @@ pub fn trial(root: &Domain, w: &Words) -> Option<Trial> {
     })
 }
 /// An account's own line follows the account the trial took (domain/trial.md, 6.2).
-pub(crate) fn of_account(root: &Domain, w: &Words, account: u32) -> Option<Trial> {
+pub(crate) fn of_account(root: &Domain, w: &Words, account: u32, times: &mut Times) -> Option<Trial> {
     if root.forge().trial_asked() == Some(account) {
         return Some(row_trial(
             root,
@@ -97,11 +98,12 @@ pub(crate) fn of_account(root: &Domain, w: &Words, account: u32) -> Option<Trial
                 step: trials::Step::Starts,
                 state: trials::State::Running,
             },
+            times,
         ));
     }
     for row in root.forge().trials() {
         if row.took.unwrap_or(row.account) == account {
-            return Some(row_trial(root, w, row));
+            return Some(row_trial(root, w, row, times));
         }
     }
     None
@@ -122,6 +124,11 @@ fn mark(state: &State, index: usize, first: &First) -> Mark {
     }
     match state {
         State::Usable | State::Answered { .. } => Mark::Done,
+        State::Limited { .. } => match first {
+            First::Subscription if index == 2 => Mark::Stopped,
+            First::Plan | First::Key if index == 1 => Mark::Stopped,
+            First::Subscription | First::Plan | First::Key => Mark::Done,
+        },
         State::Running { at } | State::Stopped { at, .. } => {
             if index < *at {
                 return Mark::Done;
@@ -132,7 +139,7 @@ fn mark(state: &State, index: usize, first: &First) -> Mark {
             match state {
                 State::Running { .. } => Mark::UnderWay,
                 State::Stopped { .. } => Mark::Stopped,
-                State::Usable | State::Answered { .. } => Mark::Done,
+                State::Usable | State::Answered { .. } | State::Limited { .. } => Mark::Done,
             }
         }
     }
@@ -223,6 +230,12 @@ pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
             }
             (name, Mark::Done)
         }
+        State::Limited { passed, .. } => {
+            let detail = w.say(if *passed { Word::WelcomeTryLimitPassed } else { Word::WelcomeTryLimited }, &[]);
+            let name = crate::accounts::words::join(&[&trial.account, " · ".as_bytes(), &detail]);
+            details.push(detail).expect("one limited detail");
+            (name, if *passed { Mark::StoppedQuiet } else { Mark::Stopped })
+        }
         State::Stopped { .. } => {
             let detail = named(w, Word::WelcomeTryNoAnswer, &trial.who);
             let name = crate::accounts::words::join(&[&trial.account, " · ".as_bytes(), &detail]);
@@ -245,7 +258,12 @@ pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         }
         b.close();
     }
-    if let State::Stopped { why, answer, .. } = &trial.state {
+    let stop = match &trial.state {
+        State::Stopped { why, answer, .. } => Some((why, answer.as_ref())),
+        State::Limited { why, .. } => Some((why, Some(&Answer::AllWays))),
+        State::Running { .. } | State::Usable | State::Answered { .. } => None,
+    };
+    if let Some((why, answer)) = stop {
         b.open(Role::Paragraph);
         b.style(look::WELCOME_STATUS_WHY);
         b.name(why);
@@ -256,12 +274,12 @@ pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         retry(b, root, w, bindings, trial);
         let (word, way) = match answer {
             Some(Answer::SignIn { way }) => (Word::WelcomeSignInAgain, Some(connect_model::model_way(*way))),
-            None => (Word::WelcomeAllWays, None),
+            Some(Answer::AllWays) | None => (Word::WelcomeAllWays, None),
         };
         let address = match place {
             Place::Welcome => Some(Address::Welcome { step: Step::Model { way } }),
-            Place::Row => match way {
-                Some(way) => Some(Address::ConnectModel { way: Some(way) }),
+            Place::Row => match answer {
+                Some(Answer::AllWays | Answer::SignIn { .. }) => Some(Address::ConnectModel { way }),
                 None => None,
             },
         };
@@ -273,7 +291,7 @@ pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         b.close();
     }
     match trial.state {
-        State::Running { .. } | State::Stopped { .. } => {
+        State::Running { .. } | State::Stopped { .. } | State::Limited { .. } => {
             b.open(Role::Disclosure);
             b.name(&w.say(Word::ForgeProgress, &[]));
             progress(b, w, trial);
@@ -287,7 +305,7 @@ fn retry(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, tri
         if root.forge().trial_asked().is_none() {
             for row in root.forge().trials() {
                 if row.account == account
-                    && let trials::State::Failed { .. } = row.state
+                    && let trials::State::Failed { .. } | trials::State::Limited { .. } = row.state
                 {
                     if let Some(to) = bindings.insert(Meaning::Try { account }) {
                         flow::control(b, Control::Button { name: &w.say(Word::WelcomeTryAgain, &[]), to });

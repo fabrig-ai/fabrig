@@ -561,6 +561,7 @@ own change.
 | `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
 | `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
 | `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
+| `a_failed_capability_refresh_reads_again` | `temper_faults::forge::CLOSE_REFUSED` | `the refused close occupies a slot in a full forge client call table` |
 | `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'

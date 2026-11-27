@@ -22,7 +22,7 @@ pub enum ProgramCheck {
     Checking {
         source: u32,
     },
-    /// Settled with the source not usable.
+    /// Settled with the source not signed in.
     NotYet,
 }
 #[derive(Debug)]
@@ -663,7 +663,11 @@ pub(crate) fn added(pages: &Pages, client: &Client) -> Option<accounts::Added> {
     let page = pages.connect_model()?;
     match page.login_state(client) {
         LoginState::Usable { provider } => return Some(accounts::Added { provider, kind: WayKind::Program }),
-        LoginState::Idle | LoginState::Waiting { .. } | LoginState::NotFinished | LoginState::Refused { .. } => {}
+        LoginState::Idle
+        | LoginState::Waiting { .. }
+        | LoginState::SignedInHeld
+        | LoginState::NotFinished
+        | LoginState::Refused { .. } => {}
     }
     let way = way(pages, client)?;
     let chosen = model_way(way);

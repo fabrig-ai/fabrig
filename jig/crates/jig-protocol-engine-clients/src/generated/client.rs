@@ -1879,23 +1879,6 @@ pub fn settings_outcome_to_record(value: &jig_domain_tasks::SettingsOutcome) -> 
 }
 
 #[must_use]
-pub fn run_why_to_record(value: &jig_domain_tasks::Why) -> jig_client_protocol_wire::v44::RunWhy {
-    match value {
-        jig_domain_tasks::Why::Made => jig_client_protocol_wire::v44::RunWhy::Made,
-        jig_domain_tasks::Why::Ready => jig_client_protocol_wire::v44::RunWhy::Ready,
-        jig_domain_tasks::Why::Message { message: field_000000 } => jig_client_protocol_wire::v44::RunWhy::Message(jig_client_protocol_wire::v44::RunWhyMessage {
-            message: *field_000000
-        }),
-        jig_domain_tasks::Why::Released => jig_client_protocol_wire::v44::RunWhy::Released,
-        jig_domain_tasks::Why::Retry { tries: field_000000 } => jig_client_protocol_wire::v44::RunWhy::Retry(jig_client_protocol_wire::v44::RunWhyRetry {
-            tries: failure_tries_to_record(field_000000)
-        }),
-        jig_domain_tasks::Why::Narrowed => jig_client_protocol_wire::v44::RunWhy::Narrowed,
-        jig_domain_tasks::Why::Changed => jig_client_protocol_wire::v44::RunWhy::Changed,
-    }
-}
-
-#[must_use]
 pub fn suspend_why_to_record(value: &jig_domain_tasks::SuspendWhy) -> jig_client_protocol_wire::v44::SuspendWhy {
     match value {
         jig_domain_tasks::SuspendWhy::Stopped => jig_client_protocol_wire::v44::SuspendWhy::Stopped,

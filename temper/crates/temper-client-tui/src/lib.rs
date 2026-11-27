@@ -33,8 +33,8 @@ pub use state::{
 };
 pub use theme::{Scheme, theme};
 pub use view::{
-    Arrow, HALVES, View, arrow, back, build, chat_number, escape, event, focus, goal_offered, landing, offered,
-    offered_own, pane_key, refused, reply_number, sign_in_drawn, work_runs,
+    Arrow, HALVES, View, arrow, back, build, escape, event, focus, goal_offered, landing, offered, offered_own,
+    pane_key, refused, reply_number, sign_in_drawn, work_runs,
 };
 
 #[cfg(test)]

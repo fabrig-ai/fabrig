@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-20. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-27. Where the tree's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4: the loopback listener on the run's io [in flight:
   change 10574].
@@ -48,8 +48,7 @@ the box's state, "playground", "paused", the count and "/needs", and
 first, at the row's start, where the row is too narrow; the sign-in
 screen draws none; the host keeps its end, `limits::NOTICE` from the
 report that gave it, among `Host::deadline`'s times, and a due at or
-past it lowers it; an unknown command and `/chats N` with no Nth chat
-give it and write no note. `/quit`: `QUIT` and `command_name` name
+past it lowers it; an unknown command gives it and writes no note. `/quit`: `QUIT` and `command_name` name
 `Command::Exit` in the list, completion and `/help`'s note, in front
 too; `/exit` sent whole is the same command, and its beginnings begin
 none. `/theme`: `Own::Theme` wherever the commands are offered, its
@@ -99,7 +98,7 @@ from a need's row, a question's choices, "Tell it something else" and "Next", a
 sign-off's "Review on FORGE ↗" and another kind's "Open it on the
 web", ending in "Nothing else needs you."; the TUI's own commands in
 the list and in `/help`'s note, `/change WORDS` starting the project's
-chat, `/ask WORDS`, `/brief`'s note, `/chats N`, and `/open` handing
+chat, `/ask WORDS`, `/brief`'s note, and `/open` handing
 the opener the page's address alone, else noting it; and a reply's
 `view` blocks printed by `view::printed`, a stop a line after its
 actor's mark, code's stops and a branch's bar four columns in, a way's

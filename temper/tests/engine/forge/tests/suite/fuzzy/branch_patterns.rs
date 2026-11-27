@@ -1,6 +1,8 @@
 //! Branch-relative patterns share full resource paths' exact and open matching
 //! (temper/docs/design/protocol/configuration/settings-kinds.md, 1, and temper/docs/design/protocol/configuration/settings.md, 3).
 use skein_lib::Rng;
+use skein_world::sweep::cases;
+use std::convert::Infallible;
 use temper_engine_domain_forge::{GateLast, GatePattern, Repository, covers_branch};
 use temper_engine_forge_world::{REPO, World};
 
@@ -31,7 +33,7 @@ fn branch_patterns_match_full_patterns_across_repositories() {
     else {
         panic!("adopted fixture")
     };
-    for seed in 0..64 {
+    cases(skein_world::this_test!("branch_patterns_match_full_patterns_across_repositories"), 0..64, |seed| {
         let mut rng = Rng::new(seed);
         let first = repository(&mut rng, base);
         let mut other = repository(&mut rng, base);
@@ -85,5 +87,7 @@ fn branch_patterns_match_full_patterns_across_repositories() {
                 }
             }
         }
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

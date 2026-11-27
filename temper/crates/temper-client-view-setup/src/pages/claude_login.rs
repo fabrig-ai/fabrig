@@ -18,14 +18,22 @@ pub(super) fn waiting(root: &Domain) -> bool {
     let Some(page) = root.pages().connect_model() else { return false };
     match page.login_state(root.client()) {
         LoginState::Waiting { .. } => true,
-        LoginState::Idle | LoginState::Usable { .. } | LoginState::NotFinished | LoginState::Refused { .. } => false,
+        LoginState::Idle
+        | LoginState::Usable { .. }
+        | LoginState::SignedInHeld
+        | LoginState::NotFinished
+        | LoginState::Refused { .. } => false,
     }
 }
 pub(super) fn note(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     let Some(page) = root.pages().connect_model() else { return };
     let cancelled = match page.login_state(root.client()) {
         LoginState::Waiting { cancelled, .. } => cancelled,
-        LoginState::Idle | LoginState::Usable { .. } | LoginState::NotFinished | LoginState::Refused { .. } => return,
+        LoginState::Idle
+        | LoginState::Usable { .. }
+        | LoginState::SignedInHeld
+        | LoginState::NotFinished
+        | LoginState::Refused { .. } => return,
     };
     b.open(Role::Slot);
     b.style(look::WELCOME_AWAY);
@@ -163,6 +171,6 @@ pub(super) fn ending(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
                 super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
             }
         }
-        LoginState::Waiting { .. } | LoginState::Usable { .. } => {}
+        LoginState::Waiting { .. } | LoginState::Usable { .. } | LoginState::SignedInHeld => {}
     }
 }

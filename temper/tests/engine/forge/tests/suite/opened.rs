@@ -197,8 +197,11 @@ fn another_identity_pushing_the_taken_branch_holds_it_as_drift() {
     let kept = world.change(51).kept;
     world.push_as(OWN, b"other", b"outside", 2);
     let found = translate::commit(world.branch(OWN));
-    assert_eq!(step(&mut world, 4, Box::new([])), change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(step(&mut world, 4, Box::new([])), change::Decision::Hold(change::Cause::BranchMoved));
     assert_eq!(world.change(51).kept, kept);
     assert_ne!(Some(found), kept);
-    assert!(matches!(world.change(51).change.state, change::State::Held { why: change::Hold::BranchMoved, .. }));
+    assert!(matches!(
+        world.change(51).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::BranchMoved, .. }, .. }
+    ));
 }

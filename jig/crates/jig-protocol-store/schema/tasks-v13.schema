@@ -6,7 +6,7 @@ record Project { project: u32 }
 enum Party { task: Number, person: Person, deployment: Project }
 enum Class { transient, permanent, run, agent, lost, invalid, infrastructure }
 record Tries { transient: u32 permanent: u32 run: u32 agent: u32 lost: u32 invalid: u32 infrastructure: u32 }
-enum Why { made, ready, message: Number, released, retry: Tries, narrowed, changed }
+enum Why { made, ready, message: Number, released, retry: Tries, narrowed, changed, measured }
 record Role { role: u32 }
 enum PersonAddress { person: Person, role: Role }
 record Agent { charter: u32 }

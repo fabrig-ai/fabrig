@@ -703,7 +703,10 @@ fn a_closers_failed_close_change_holds_it_and_its_release_retries() {
     }
     let close = close.expect("close attempted");
     wait_held(&mut world, close, goal.task);
-    assert!(matches!(row(&world, close).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(matches!(
+        row(&world, close).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+    ));
     assert!(matches!(
         world.scripted_call(
             &goal,
@@ -823,7 +826,10 @@ fn a_closers_landing_held_escalates_to_the_goal() {
     }
     status(&mut world, head, raw::Check::Failed);
     wait_held(&mut world, landing, goal.task);
-    assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Repairs, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Repairs, .. }, .. }
+    ));
     assert!(matches!(live_task(&world, closer).phase, tasks::Phase::Active(_)));
     let name = forge_top::Name {
         forge: forge_world::REPO.forge,
