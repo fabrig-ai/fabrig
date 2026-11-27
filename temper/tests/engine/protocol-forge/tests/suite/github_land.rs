@@ -176,6 +176,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     change::Decision::Failed => panic!("unexpected source failure"),
                     change::Decision::Wait { until: at } => until = at,
                     change::Decision::Hold(why) => panic!("QA: healthy path held: {why:?}"),
+                    change::Decision::ReplayJudgement(replay) => panic!("unexpected replay: {replay:?}"),
                     change::Decision::Finish { merge } => finishes.push(merge),
                     change::Decision::Delegate(delegate) => panic!("unexpected delegate: {delegate:?}"),
                     change::Decision::CancelGates { .. }
@@ -447,11 +448,12 @@ fn ruleset_refuses_merge_without_landing() {
         match step(&mut world, entry, change::Status::Unknown) {
             change::Decision::Failed => panic!("unexpected source failure"),
             change::Decision::Hold(why) => {
-                assert_eq!(why, change::Hold::Failed, "QA: Protected writes fail the change's effect");
+                assert_eq!(why, change::Cause::Failed, "QA: Protected writes fail the change's effect");
                 held = true;
                 break;
             }
             change::Decision::Finish { .. } => panic!("QA: protected merge cannot Finish"),
+            change::Decision::ReplayJudgement(replay) => panic!("unexpected replay: {replay:?}"),
             change::Decision::None
             | change::Decision::CancelProducer
             | change::Decision::Wait { .. }
@@ -521,10 +523,11 @@ fn conflicting_update_requests_resolution_without_merge() {
 
 #[test]
 fn update_conflict_resolved_then_merged() {
-    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; Q3. Resolve as the fixture writer.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; Q3.
     let mut world = Protocol::github(744);
     let entry = conflicting_update(&mut world);
-    world.resolve(b"temper/51", b"resolved both edits");
+    let resolver = (52, 1);
+    world.resolve(resolver, b"temper/51", b"resolved both edits");
     assert!(!matches!(step(&mut world, entry + 1, change::Status::Passed), change::Decision::Hold(_)));
     let finishes = scheduled_landing(&mut world, entry + 2, 30);
     landed_once(&world, &finishes, 3);

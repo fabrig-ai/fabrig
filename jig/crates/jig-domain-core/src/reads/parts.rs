@@ -4,7 +4,7 @@
 use super::{Answer, Destination, EndedGroup, Pending, Range, Scope, TaskPage, Why};
 use crate::{Core, Limits, MadePart, PartAsk, PartFailure, PartsAsk, Request, RowPart, documents};
 use alloc::{boxed::Box, vec::IntoIter};
-use skein_lib::{Env, Id, List, Map, Queue, Token};
+use skein_lib::{Env, List, Map, Queue, Token};
 
 pub(crate) fn assert_kinds(kinds: &[documents::parts::PartKind], connectors: &[u16]) {
     for (index, kind) in kinds.iter().enumerate() {
@@ -76,7 +76,7 @@ fn initialize(rows: &mut List<documents::TaskLine>, kinds: u32) {
     }
 }
 
-fn emit(core: &Core, name: Id<crate::loads::Flight>) -> Queue<Request> {
+fn emit(core: &Core, name: Token) -> Queue<Request> {
     let pending = core.loads.read(name).expect("making answer");
     let page = pending.tasks.as_ref().expect("making page");
     let making = pending.parts.as_ref().expect("making parts");
@@ -101,18 +101,13 @@ fn emit(core: &Core, name: Id<crate::loads::Flight>) -> Queue<Request> {
         }
         out.push(Request::Ask {
             connector: *connector,
-            ask: crate::Ask::Parts(PartsAsk { token: name.token(), party: pending.party, kinds, rows }),
+            ask: crate::Ask::Parts(PartsAsk { token: name, party: pending.party, kinds, rows }),
         });
     }
     out
 }
 
-pub(super) fn loaded(
-    core: &mut Core,
-    env: &Env<Limits>,
-    name: Id<crate::loads::Flight>,
-    mut page: Box<TaskPage>,
-) -> Queue<Request> {
+pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Token, mut page: Box<TaskPage>) -> Queue<Request> {
     let Scope::Tasks { query } = &core.loads.read(name).expect("task read").range.scope else {
         unreachable!("task query")
     };
@@ -207,10 +202,9 @@ pub(crate) fn answered(
     core: &mut Core,
     env: &Env<Limits>,
     connector: u16,
-    token: Token,
+    name: Token,
     parts: List<MadePart>,
 ) -> Queue<Request> {
-    let name = Id::<crate::loads::Flight>::from_token(token);
     let Some(pending) = core.loads.read_mut(name) else { return Queue::uncapped() };
     let Some(making) = &mut pending.parts else { return Queue::uncapped() };
     let Some(slots) = making.waiting.remove(&connector) else { return Queue::uncapped() };
@@ -254,7 +248,7 @@ fn fill(rows: &mut List<documents::TaskLine>, slots: &List<Slot>, parts: &mut In
     }
 }
 
-fn finish(core: &mut Core, env: &Env<Limits>, name: Id<crate::loads::Flight>) -> Queue<Request> {
+fn finish(core: &mut Core, env: &Env<Limits>, name: Token) -> Queue<Request> {
     let pending = core.loads.read_mut(name).expect("completed parts");
     let destination = core::mem::replace(&mut pending.destination, Destination::Done);
     let page = pending.tasks.take().expect("completed page");

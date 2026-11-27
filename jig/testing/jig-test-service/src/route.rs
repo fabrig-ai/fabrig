@@ -253,8 +253,8 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         }
         core::Held::Drained => stop::drained(engine),
 
-        core::Held::Store(load) => {
-            crate::store::request(engine, jig_test_store::StoreOut::Engine(load));
+        core::Held::Store(_) => {
+            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
         }
         held @ (core::Held::PublicRead { .. }
         | core::Held::Read { .. }

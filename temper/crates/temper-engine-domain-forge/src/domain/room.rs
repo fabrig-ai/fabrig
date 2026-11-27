@@ -100,6 +100,7 @@ pub(super) fn drop_erased(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
 
 /// Repository release drops live and ended changes alike (domain/forge/adoption-connection.md, 1).
 pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Queue<Request>) {
+    crate::room::leave(d, crate::room::Waiter::Change(task));
     let Some(row) = d.changes.remove(&task) else { return };
     if row.settling {
         crate::settling::mark_train_waits(d, &row);
@@ -116,6 +117,7 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
     d.merge_withheld.remove(&task);
     d.panel_ci.remove(&task);
     d.settling.remove(&task);
+    d.task_holds.remove(&task);
     d.read_sessions.remove(&task);
     d.start_conflicts.remove(&task);
     d.procedure_wakes.remove(&task);

@@ -75,8 +75,10 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
     use temper_engine_domain_forge_closer::{Closer, ReportCheck, relay::Relay};
     use temper_engine_domain_forge_vocabulary::{CloserRow, Stored};
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
-    let before =
-        family.current.replace("report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none ", "");
+    let before = family.current.replace(
+        "report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none ",
+        "",
+    );
     assert_ne!(before, family.current);
     let old = schema::parse(before.as_bytes()).unwrap();
     let new = schema::parse(family.current.as_bytes()).unwrap();
@@ -96,8 +98,10 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
     let expected = Stored::Closer(row.clone());
     assert_eq!(row.closer.report_check, ReportCheck::Unread);
     assert_eq!(row.closer.goal_left, None);
+    assert_eq!(row.closer.goal_asked, None);
     row.closer.report_check = ReportCheck::Held;
     row.closer.goal_left = Some(b"an earlier layout cannot retain this".as_slice().into());
+    row.closer.goal_asked = Some(b"Asked: earlier layouts\nThis one cannot retain the block.".as_slice().into());
     let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
@@ -874,6 +878,53 @@ fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
         Stands::Held { answer: b"Use the path.".as_slice().into(), question: 0, blocked: None };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(crate::records::decode(now.as_slice(), &bounds), Ok(fixtures::change_hot(row)));
+}
+
+fn previous_branches_layout(current: &str) -> Box<str> {
+    let before = current.replace(", writes: Writes }", " }");
+    assert_ne!(before, current);
+    before.into_boxed_str()
+}
+
+#[test]
+fn a_previous_branch_head_layout_does_not_invent_a_write_record() {
+    use skein_codec::{layout::Plan, schema};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = previous_branches_layout(family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    assert!(old.root(b"Row", Some(b"writes")).is_none());
+    let writes = family.types.iter().find(|ty| ty.number == u16::from(crate::keys::WRITES)).unwrap();
+    assert_eq!(writes.variant, Some("writes"));
+    let old_root = old.root(b"Row", Some(b"branch_head")).unwrap();
+    let new_root = new.root(b"Row", Some(b"branch_head")).unwrap();
+    Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
+}
+
+#[test]
+fn a_previous_hold_keeps_its_waiting_head_and_rereading_writer() {
+    use super::{dev_layouts::Dev, fixtures};
+    use temper_engine_domain_forge_vocabulary as d;
+
+    const GOAL: u64 = 7;
+    const ATTEMPT: u64 = 2;
+    const EXPECTED: [u8; 32] = [3; 32];
+    const WAITING: [u8; 32] = [4; 32];
+    let row = d::Stored::Hold(d::Hold {
+        name: d::Name {
+            forge: fixtures::REPO.forge,
+            repository: fixtures::REPO.repository,
+            what: d::What::Branch(Box::new([b"temper".as_slice().into(), b"g7".as_slice().into()])),
+        },
+        task: GOAL,
+        writer: None,
+        beside: Some(d::HeadBeside { head: EXPECTED, waiting: Some(WAITING) }),
+        design_writers: Box::new([d::DesignWriter { task: GOAL, attempt: ATTEMPT, rereading: true }]),
+        drift: None,
+    });
+    let mut previous = Dev::with_layout(&previous_branches_layout(fixtures::layouts::BINARY));
+    let stored = previous.row(&row, "hold");
+    assert_eq!(previous.read(&stored, "hold"), row);
 }
 
 #[test]

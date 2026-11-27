@@ -319,7 +319,7 @@ fn a_quick_shell_then_a_slow_stream_answers_under_derived_host_limits() {
         &limits,
         98,
         scripts,
-        api::Menu { arguments: Box::default(), invalid: Box::default() },
+        api::Menu { arguments: Box::default(), invalid: Box::default(), slots: Box::new([]) },
     )
     .expect("script fits");
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

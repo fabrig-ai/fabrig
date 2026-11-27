@@ -1,5 +1,6 @@
 //! Feed the domain events, inspect the requests that come out.
 
+mod admission;
 mod kept;
 
 use alloc::boxed::Box;
@@ -175,6 +176,8 @@ impl Harness {
                 }
                 other @ (Request::Results { .. }
                 | Request::DependencyLanded { .. }
+                | Request::AdmitPush { .. }
+                | Request::WithdrawAdmission { .. }
                 | Request::ResultsEnd { .. }
                 | Request::Held { .. }
                 | Request::Prepared { .. }
@@ -256,6 +259,7 @@ fn bytes(text: &[u8]) -> Box<[u8]> {
 fn repository(name: &[u8], writable: bool) -> Repository {
     let push = if writable { Some(bytes(b"main")) } else { None };
     Repository {
+        admit: false,
         prefixes: Box::new([]),
         save: Some(bytes(b"saved/1")),
         git: None,
@@ -342,6 +346,8 @@ fn landings(request: Request) -> Box<[Landing]> {
         | Request::Saved { client: _, outcome: Outcome::Pushed { landings } } => landings,
         other @ (Request::Results { .. }
         | Request::DependencyLanded { .. }
+        | Request::AdmitPush { .. }
+        | Request::WithdrawAdmission { .. }
         | Request::ResultsEnd { .. }
         | Request::Held { .. }
         | Request::Prepared { .. }
@@ -360,6 +366,8 @@ fn refused(request: Request) -> Refusal {
         | Request::Prepared { client: _, prepared: Prepared::Refused { refusal } } => refusal,
         other @ (Request::Results { .. }
         | Request::DependencyLanded { .. }
+        | Request::AdmitPush { .. }
+        | Request::WithdrawAdmission { .. }
         | Request::ResultsEnd { .. }
         | Request::Held { .. }
         | Request::Prepared { .. }
@@ -1275,6 +1283,8 @@ fn pin_trace(h: &mut Harness, client: u64, repo: Repository, tip: Commit, counts
             Request::Prepared { prepared: Prepared::Ready { .. }, .. } => return (hold, seen),
             other @ (Request::Results { .. }
             | Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }
@@ -3397,6 +3407,8 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                 }
                 other @ (Request::Results { .. }
                 | Request::DependencyLanded { .. }
+                | Request::AdmitPush { .. }
+                | Request::WithdrawAdmission { .. }
                 | Request::ResultsEnd { .. }
                 | Request::Held { .. }
                 | Request::Prepared { .. }

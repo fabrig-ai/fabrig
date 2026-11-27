@@ -149,7 +149,7 @@ pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, bra
     assert_eq!(item.push.as_deref(), Some(change_row(world, task).branch.as_ref()));
 }
 
-pub(super) fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
+pub(super) fn push_merge(world: &mut World, writer: super::merge_job::Writer<'_>, head: u64, base: u64) -> u64 {
     let merged = fake::merge_commit(
         &mut world.fake,
         &world.fake_env.limits,
@@ -159,17 +159,7 @@ pub(super) fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> 
         b"Catch up",
     )
     .expect("merge with both parents");
-    assert_eq!(
-        world.external(
-            2,
-            raw::Op::Git(raw::Git::Push {
-                branch: change_row(world, task).branch.clone(),
-                commit: merged,
-                expected: None,
-            })
-        ),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    writer.push(world, merged);
     merged
 }
 
@@ -225,7 +215,7 @@ fn a_catch_up_merges_mains_commit_into_a_branch_at_the_goal_branchs_tip() {
     let task = catch_up(&mut world, &goal, base);
     let job = next_job(&mut world, task);
     check_job(&world, task, &job, &branch, head, base);
-    push_merge(&mut world, task, head, base);
+    push_merge(&mut world, super::merge_job::Writer::Job(CHANNEL, &job), head, base);
     finish_job(&mut world, &job, b"{\"left\":[]}");
     landed(&mut world, task, &branch, base);
     assert_eq!(world.assigned.len(), 1, "the goal's coordinator is the only agent");
@@ -249,7 +239,7 @@ fn a_catch_up_the_merge_job_cannot_settle_goes_to_a_resolution() {
     assert_eq!(item.push.as_deref(), Some(change_row(&world, task).branch.as_ref()));
     assert!(live_task(&world, resolution.task).spec.words.windows(LEFT.len()).any(|words| words == LEFT));
     assert_eq!(change_row(&world, task).change.resolutions, 1);
-    push_merge(&mut world, task, head, base);
+    push_merge(&mut world, super::merge_job::Writer::Run(&resolution), head, base);
     let event = world.protocol.answer(
         CHANNEL,
         resolution.task,

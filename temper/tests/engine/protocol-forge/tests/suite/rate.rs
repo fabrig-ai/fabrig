@@ -87,7 +87,7 @@ impl Scheduler {
                                 )
                             }));
                         }
-                        change::Decision::Hold(change::Hold::BranchMoved) if self.iterating => {
+                        change::Decision::Hold(change::Cause::BranchMoved) if self.iterating => {
                             world.event(forge::Event::ReleaseChange { task, release: None });
                             self.due[index] = true;
                         }
@@ -106,7 +106,8 @@ impl Scheduler {
                         | change::Decision::Failed
                         | change::Decision::NoChange
                         | change::Decision::Cancel
-                        | change::Decision::Hold(_)) => panic!("kept change must wait: {other:?}"),
+                        | change::Decision::Hold(_)
+                        | change::Decision::ReplayJudgement(_)) => panic!("kept change must wait: {other:?}"),
                     }
                 } else if let forge::Request::Refused { task } | forge::Request::ResourceRefused { task, .. } = request
                 {

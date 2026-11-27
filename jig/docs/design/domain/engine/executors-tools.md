@@ -25,6 +25,7 @@ amended task's choice whole, leaving it none.
 | `message` | words, a question or an answer to a task it references | sent; no reference; the inbox full; too large for a run to read |
 | `mark_read`, in the `message` family | records words its own task keeps unrecorded (../tasks/messages.md, 2), named by their message numbers, at least one and at most `tasks.inbox_messages`, once the run has carried them into a spec or a note: each named is no longer kept, shown or listed | recorded, naming them; apart, the numbers that named none of its unrecorded words, already recorded or never kept, which record nothing and are no refusal |
 | `amend`, `release` | a task below it: an amendment naming its spec's revision as the run last read it, but for a change of priority alone, and adding or removing dependencies within its reach (../tasks/changes.md); a release naming its hold's, and, for an effect held uncertain, whether to make it again (../tasks/lifecycle-holds.md, 1 and ../tasks/changes.md) | done, with the task's spec revision after the commit, the one its next amendment names (a release moves none); refused, and why; moved, with what it is now |
+| `measure` | a held procedure's task below it: a release naming its hold's revision that asks its procedure to measure afresh what its hold judged (`Measure`, ../people/acts.md, 1) | done; refused, and why; moved, with what it is now |
 | `cancel` | a task below it and its tree, with a reason, and a grace if the run gives one, within the tasks child's bound: the task is asked to finish first (../tasks/changes.md) | done; refused, and why |
 | `decide` | accepts, rejects or passes up a proposal or an escalation waiting for it, an escalation naming its hold's revision (../tasks/proposals.md) | done; beyond its authority, and passed up; moved, with what it is now |
 | `propose` | an action beyond its authority, with a reason: a batch, an amendment, an effect, or a widening of its own authority (../authority.md, section 9) | proposed, and to whom; refused, when nobody may accept it (../tasks/proposals.md) |
@@ -185,6 +186,52 @@ its channel, or answered busy asks it again with the same name while it
 lives, so the LLM is told the outcome rather than trying anew; an
 effect's key is derived from the call that asked for it (../connectors-effects.md,
 1.4).
+
+**Their room is one, of pending and retained calls.** The core's named
+calls hold `core.call_records` places between them: a call the core is
+still deciding is pending, and one it decided is retained for replay
+until it retires as above. Parts kept between turns have a room of their
+own (`executors-transcripts.md`, 1). Each place is its call's, and each
+use checks it (skein/docs/foundation/programming-model.md, 10.4):
+
+- **Admitted, or answered busy.** A call is admitted only where no call
+  of its name is pending or retained and the pending and retained
+  together are below the bound. A call asked again while its first is
+  pending, and a new call past the bound, are answered busy, as a value
+  the root relays; a call asked again once retained replays its answer
+  and takes no place.
+- **Taken by its admission.** A pending call is recorded only in the
+  step that admitted it, and recording it asserts that no call of its
+  name is pending or retained and that the room had its place, naming
+  the call.
+- **Held by one route, handed on by it.** A pending call's place names
+  the route that continues it: the core's routing; the application, for
+  a connector's call awaiting its translated answer or a subscription
+  the task hub has made going to the connectors; a delegation's loads
+  of its inputs' ended tasks; or the load of a withdrawn proposal's
+  history row, by its number. A route that passes a call to another
+  hands the place on without readmitting the name, and asserts that the
+  place was its own, naming the call and both routes. The hand-offs are
+  six: from the application to the routing, as a connector that loaded
+  a batch's words passes it to the delegation; from the routing to the
+  delegation's input loads, and back once the last input has loaded;
+  from the routing to the load of a proposal no longer live that a
+  withdrawal names; and from the routing to the application, as a
+  subscription or an unsubscription the task hub has done goes to the
+  connectors. The route is the core's alone: the application reads
+  only whether a call is pending.
+- **Moved once by its decision.** Deciding a call moves its place from
+  pending to retained: the decision asserts the call was pending and is
+  not yet retained, naming it. A decision for an attempt that has since
+  moved drops the pending call and keeps nothing, as now.
+- **Given back once.** A pending call that ends undecided (an effect
+  refused, described busy or discarded, a note answered busy, a wait
+  cleared) gives its place back, asserting it was pending. Retirement
+  erases only the retained calls it found, so each goes once.
+- **A stale input is a value.** An answer, a description or a fact
+  naming a call the core no longer holds, a connector's late answer or
+  an attempt that has moved, is looked up first and dropped. Only a step
+  that holds the call's place asserts it.
 
 Three tools a run has are not the engine's: `wait`, which the run and its
 host serve, holding the slot until a message arrives (4); `finish`,

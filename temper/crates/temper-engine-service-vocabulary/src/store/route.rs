@@ -209,7 +209,8 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
         engine::StoreRequest::Catalogue { .. } => unreachable!("the store owner replaces its catalogue directly"),
         engine::StoreRequest::Switch => store::Request::Switch { owner: Token::new(u64::MAX - 2) },
         engine::StoreRequest::Commit { number, writes } => {
-            let mut out = List::with_capacity(u32::try_from(writes.len()).ok()?);
+            // Every input write translates to one store write or refuses the batch.
+            let mut out = List::allocated(u32::try_from(writes.len()).ok()?);
             for write in writes {
                 let translated = match write {
                     engine::Write::DropHistory { task } => store::Write::DropHistory { task },

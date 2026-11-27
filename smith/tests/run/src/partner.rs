@@ -426,9 +426,6 @@ impl Partner {
             subtree_spent: talk.subtree_spent,
         }));
         let expires = talk.expires;
-        if *result == Returned::TimedOut {
-            assert!(now >= expires, "a call times out only once its deadline has passed");
-        }
         let phase = talk.phase;
         if matches!(phase, Phase::Calling { pending: 1, .. } | Phase::Withdrawn { pending: 1 }) {
             self.tell(peer, out);

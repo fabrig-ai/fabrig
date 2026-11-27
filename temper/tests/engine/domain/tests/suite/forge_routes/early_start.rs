@@ -111,12 +111,11 @@ pub(super) fn finish(world: &mut World, producer: &engine::Assignment, title: &[
 }
 
 pub(super) fn push(world: &mut World, producer: &engine::Assignment, base: u64, file: &[u8]) -> u64 {
-    let branch = producer.workspace.repositories[0].push.clone().expect("producer destination");
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: base, expected: None })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, b"added", 2).expect("producer push")
+    let item = &producer.workspace.repositories[0];
+    let branch = item.push.as_ref().expect("producer destination");
+    let head = world.worker_commit(base, file, b"added");
+    world.worker_push((CHANNEL, producer.task, producer.attempt), item, branch, head, 2);
+    head
 }
 
 fn pushed_parts(producer: &engine::Assignment, commit: skein_forge::api::Commit) -> engine::Parts {
@@ -438,7 +437,10 @@ fn an_early_producers_start_lines_keep_dependency_order_and_survive_amendment_an
     let required = [b"Fix the parser\n".as_slice(), &lines, b"## Goal\n..."].concat();
     let spec = &live_task(&world, producer.task).spec;
     assert!(spec.words.starts_with(&required));
-    assert!(spec.words[required.len()..].starts_with(b"\n\nThe host pushes what you deliver;"));
+    assert!(spec.words[required.len()..].starts_with(
+        b"\n\nFinishing with your change checks it and the host pushes it; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is done; only the change task reports landing after merge."
+    ));
     assert_eq!(spec.words.split(|byte| *byte == b'\n').next(), Some(b"Fix the parser".as_slice()));
     let original_revision = spec_revision(&world, producer.task);
     amend_words(&mut world, &goal, change, b"Fix the parser completely\n## Goal\nNew words");
@@ -714,10 +716,7 @@ fn a_failed_early_producer_waits_and_the_next_merges_the_landing_tip() {
         engine::ForgeStart::Merge { branch: c6_branch.clone(), base: translate::commit(tip) }
     );
     let merged = merged_start(&mut world, c6_head, tip);
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Push { branch: c6_branch, commit: merged, expected: Some(c6_head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&next, &c6_branch, merged, 2);
     finish(&mut world, &next, b"Add C6");
     landed(&mut world, c6);
     stop(&mut world, &goal);
@@ -769,10 +768,7 @@ fn a_running_early_producer_asks_then_catches_up_with_a_squashed_dependency() {
     assert_eq!(world.fake.object(caught_up).unwrap().parent, Some(w));
     assert_eq!(world.fake.object(caught_up).unwrap().merge_parent, Some(tip));
     let destination = producer.workspace.repositories[0].push.clone().unwrap();
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Push { branch: destination, commit: caught_up, expected: Some(w) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&producer, &destination, caught_up, 2);
     report_checked_push(&mut world, &producer, caught_up);
     assert_eq!(
         answer(&world.root, producer.task, producer.attempt, Ask::Landed { head: dependency_head }),
@@ -1169,16 +1165,9 @@ fn a_later_attempts_save_leaves_the_early_start_at_the_checked_commit() {
     let dependency = make(&mut world, &goal, b"Prerequisite", &[]);
     let upstream = questions::next_producer(&mut world, dependency);
     let (checked, resumed) = checked_push(&mut world, &upstream, base, b"checked");
-    let saved = fake::advance(
-        &mut world.fake,
-        &world.fake_env,
-        b"org/repo",
-        resumed.workspace.repositories[0].push.as_ref().expect("push branch"),
-        b"unfinished",
-        b"work in progress",
-        2,
-    )
-    .expect("later save");
+    let destination = resumed.workspace.repositories[0].push.as_ref().expect("push branch");
+    let saved = world.worker_commit(checked, b"unfinished", b"work in progress");
+    world.run_push(&resumed, destination, saved, 2);
     report_save(&mut world, &resumed, saved);
     let dependent = make(&mut world, &goal, b"Use checked work", &[dependency]);
     let producer = questions::next_producer(&mut world, dependent);

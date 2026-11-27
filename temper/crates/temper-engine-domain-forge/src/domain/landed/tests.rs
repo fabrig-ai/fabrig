@@ -1,26 +1,48 @@
-use crate::domain::{change, outcome_facts};
-use crate::tests::{domain, env, fixtures};
-use crate::{BranchHead, Domain, Key, Name, Request, Stored, What};
-use skein_forge::api::Commit;
-use skein_lib::{List, Queue};
+use crate::domain::{change, child, scripted_outcome, to_client};
+use crate::tests::{env, fixtures, outputs};
+use crate::{BranchHead, Domain, Event, Key, Name, Request, Stored, What};
+use skein_forge::api::{Commit, MergeHow, Write};
+use skein_forge_client::{Condition, Effect, Entry, Made, Outcome};
+use skein_lib::{List, Queue, Token};
 
 const MERGE: Commit = [6; 32];
 const FIRST: Commit = [10; 32];
 const SECOND: Commit = [11; 32];
 const THIRD: Commit = [12; 32];
+const MERGE_ENTRY: u64 = 12;
+const PULL: u64 = 1;
 
 fn main() -> Name {
     Name { forge: 1, repository: 2, what: What::Branch(Box::new([Box::from(b"main".as_slice())])) }
 }
 
 fn merging() -> Domain {
-    let mut d = domain();
+    merging_into(true)
+}
+
+fn merging_into(owned: bool) -> Domain {
+    let mut d = fixtures::adopted_domain();
     let mut row = fixtures::opening_row();
-    row.pending = None;
+    row.pull = Some(PULL);
+    row.pending = Some(MERGE_ENTRY);
     row.change.state = change::State::Landing { head: fixtures::HEAD };
+    let entry = Entry {
+        number: MERGE_ENTRY,
+        task: row.task,
+        repository: row.repository,
+        effect: Effect {
+            write: Write::Merge { number: PULL, head: fixtures::HEAD, how: MergeHow::Style },
+            condition: Condition::Merge { base: row.base.clone() },
+        },
+        start: None,
+        attempt: None,
+        failures: 0,
+        queued: false,
+    };
     d.changes.insert(row.task, row).unwrap();
-    let head = BranchHead { name: main(), commit: fixtures::BASE, owned: true };
+    let head = BranchHead { name: main(), commit: fixtures::BASE, owned };
     d.heads.insert(head.name.clone(), head).unwrap();
+    outputs(&mut d, Event::Enqueue { entry });
     d
 }
 
@@ -46,12 +68,12 @@ fn full(d: &mut Domain, owner: u64) {
 
 fn merged(d: &mut Domain, commit: Commit) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    outcome_facts(
+    scripted_outcome(
         d,
         &env(),
-        fixtures::OPEN,
+        MERGE_ENTRY,
         fixtures::CHANGE,
-        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), found: false },
+        Outcome::Made { made: Made::Merged(commit), found: false },
         &mut out,
     );
     out
@@ -74,6 +96,43 @@ fn saved(out: &Queue<Request>, record: Stored) -> bool {
         }
     }
     false
+}
+
+#[test]
+fn confirmed_merge_saves_the_shared_head_before_a_keep_read() {
+    let mut d = merging_into(false);
+    let env = env();
+    let resource = to_client(&main(), &env.limits).unwrap();
+    child(
+        &mut d,
+        &env,
+        skein_forge_client::Event::Keep {
+            owner: Token::new(1),
+            watches: Box::new([skein_forge_client::Watch { resource: resource.clone(), participating: false }]),
+        },
+        &mut Queue::uncapped(),
+    );
+    child(
+        &mut d,
+        &env,
+        skein_forge_client::Event::Pushed { resource: resource.clone(), commit: fixtures::BASE },
+        &mut Queue::uncapped(),
+    );
+
+    let out = merged(&mut d, MERGE);
+
+    let head = BranchHead { name: main(), commit: MERGE, owned: false };
+    assert!(saved(&out, Stored::BranchHead(head.clone())), "the merge decision saves the new tip");
+    assert_eq!(d.heads.get(&main()), Some(&head));
+    let mut saved_tip = None;
+    for request in &out {
+        if let Request::Save { record: Stored::Client(skein_forge_client::Stored::Live(row)), .. } = request
+            && row.watch.resource == resource
+        {
+            saved_tip = Some((row.cached.tip, row.pushed));
+        }
+    }
+    assert_eq!(saved_tip, Some((Some(MERGE), Some(MERGE))), "the same decision saves the watch tip and expectation");
 }
 
 #[test]

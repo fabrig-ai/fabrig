@@ -351,6 +351,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Take { .. }
             | Ask::HandBack { .. }
             | Ask::Decide { .. }
+            | Ask::Measure { .. }
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }
@@ -419,6 +420,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::HandBack { .. }
                 | Ask::Decide { .. }
                 | Ask::Lift { .. }
+                | Ask::Measure { .. }
                 | Ask::Release { .. }
                 | Ask::Stop { .. }
                 | Ask::Conclude { .. }
@@ -508,6 +510,7 @@ impl<A: crate::Application> Engine<A> {
         let how = match ask {
             Ask::Decide { on: DecideOn::Proposal { decision, .. }, .. }
             | Ask::Decide { on: DecideOn::Escalation { decision, .. }, .. } => Some(decision.clone()),
+            Ask::Measure { .. } => Some(Decision::Released { again: None }),
             Ask::Release { again, .. } => Some(Decision::Released { again: *again }),
             Ask::Lift { .. }
             | Ask::Propose { .. }
@@ -724,7 +727,7 @@ fn target(ask: &Ask) -> Option<Target> {
             decision_kind(decision),
             Some((*revision, Moved::Hold { reason: None })),
         ),
-        Ask::Release { project, task, revision, .. } => (
+        Ask::Measure { project, task, revision } | Ask::Release { project, task, revision, .. } => (
             Some(*project),
             Some(ObjectKey::Task(*task)),
             ActKind::Release,

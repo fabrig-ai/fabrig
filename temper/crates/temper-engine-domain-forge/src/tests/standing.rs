@@ -48,6 +48,9 @@ fn fixture() -> (Domain, ChangeEvidence) {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let row = opening_row();
     let evidence = ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
         touched: Touched::UNKNOWN,
         size: None,
         prior: row.change.clone(),
@@ -94,39 +97,34 @@ fn landing(d: &mut Domain) {
         asked: None,
         landed: None,
     };
-    d.landing
-        .rows
-        .insert(
-            61,
-            LandingRow {
-                read_hold: None,
-                gate_hold: None,
-                last_event: None,
-                turn_since: None,
-                waiting: None,
-                follows: None,
-                flake_reruns: Box::new([]),
-                room: None,
-                job: None,
-                landing: policy::Landing {
-                    last_left: None,
-                    searched: None,
-                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+    let row = LandingRow {
+        read_hold: None,
+        gate_hold: None,
+        last_event: None,
+        turn_since: None,
+        waiting: None,
+        follows: None,
+        flake_reruns: Box::new([]),
+        room: None,
+        job: None,
+        landing: policy::Landing {
+            last_left: None,
+            searched: None,
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
-                    task: 61,
-                    project: 5,
-                    phase: policy::Phase::Preparing,
-                    members: Box::new([member]),
-                    preparation: 0,
-                    stale_proofs: 0,
-                    last_prepare: None,
-                    branch: Box::from(b"main".as_slice()),
-                },
-                previous_asks: Box::new([]),
-                entries: Box::new([]),
-            },
-        )
-        .expect("landing room");
+            task: 61,
+            project: 5,
+            phase: policy::Phase::Preparing,
+            members: Box::new([member]),
+            preparation: 0,
+            stale_proofs: 0,
+            last_prepare: None,
+            branch: Box::from(b"main".as_slice()),
+        },
+        previous_asks: Box::new([]),
+        entries: Box::new([]),
+    };
+    assert!(d.landing.remember(row).is_none());
 }
 
 #[test]
@@ -404,13 +402,14 @@ fn project_rules_add_to_the_deployments() {
     other_rule.ci = true;
     keep(&mut d, 0, 2, other_rule);
     d.changes.insert(52, second).expect("second change");
-    let row = d.landing.rows.get_mut(&61).expect("landing");
+    let mut row = d.landing(61).expect("landing").clone();
     let first = row.landing.members[0].clone();
     let mut second = first.clone();
     second.change = 52;
     second.repository.repository = 3;
     second.candidate = Some([8; 32]);
     row.landing.members = Box::new([first, second]);
+    landing_routes::restore_landing(&mut d, row);
 
     assert_eq!(d.judge_landing(5, 5, 0, 61, HEAD, &evidence, &[]), Some(JudgeVerdict::Refuse));
     evidence.head = Some([8; 32]);
@@ -601,7 +600,10 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
             Some((true, 1)),
         ),
         (
-            State::Held { was: Box::new(first.clone()), why: change::Hold::Stalled },
+            State::Held {
+                was: Box::new(first.clone()),
+                hold: temper_engine_domain_forge_change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+            },
             Some(1),
             Some(Some(HEAD)),
             true,
@@ -1080,11 +1082,26 @@ fn approval_waits_keep_only_the_size_read_at_the_reviewed_head() {
         row.change.state = change::State::First { head: HEAD, ready_since: env().wall };
         row.change.owns_turn = true;
         outputs(&mut d, Event::Change { row });
-        fixtures::step_change(&mut d);
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-        let pull = skein_forge::api::Pull { commit: pull_head, size: pull_size, ..fixtures::open_pull() };
-        fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+        // A pull behind its branch cannot supply approval facts. The next
+        // gather sees the current pull, still without a size at that head.
+        for (commit, size) in [(pull_head, pull_size), (HEAD, None)] {
+            fixtures::step_change(&mut d);
+            fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
+            fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+            let pull = skein_forge::api::Pull { commit, size, ..fixtures::open_pull() };
+            let read = fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+            if commit == HEAD {
+                break;
+            }
+            let mut waiting = false;
+            for request in &read {
+                waiting |= matches!(
+                    request,
+                    Request::ChangeDecision { decision: change::Decision::Wait { .. }, evidence: None, .. }
+                );
+            }
+            assert!(waiting, "a stale pull cannot supply evidence: {read:?}");
+        }
         fixtures::finish_open(&mut d);
         let requests =
             fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));

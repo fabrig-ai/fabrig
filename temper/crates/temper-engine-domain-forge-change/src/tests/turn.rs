@@ -83,7 +83,7 @@ fn a_prepare_ask_makes_a_rebase_update() {
 fn a_prepare_ask_requires_the_writer_slot() {
     let f = Facts { writer_taken: true, ..prepare_facts() };
     let blocked = step(&ready(), &f, &heard(), at(60), &LIMITS);
-    assert_eq!(blocked.decision, Decision::Hold(Hold::Stalled));
+    assert_eq!(blocked.decision, Decision::Hold(Cause::Stalled));
     assert_eq!(blocked.took, None);
 }
 
@@ -141,7 +141,7 @@ fn a_ready_change_lands_only_when_told_its_prefix() {
     assert_eq!(decide(&ready(), &f, &heard()).change.state, ready().state);
     f.ask = Some(handed(Ask::Landed { prefix: NEW }));
     let mut held = ready();
-    held.state = State::Held { was: Box::new(held.state), why: Hold::Stalled };
+    held.state = State::Held { was: Box::new(held.state), hold: crate::Hold::new(Cause::Stalled, Wall::EPOCH) };
     for c in [ready(), held] {
         let next = decide(&c, &f, &heard());
         assert_eq!(next.change.state, State::Landed { merge: NEW, since: at(1) });
@@ -169,7 +169,7 @@ fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
     let mut exhausted = ready();
     exhausted.repairs = LIMITS.repairs;
     let held = decide(&exhausted, &f, &heard());
-    assert_eq!(held.decision, Decision::Hold(Hold::Repairs));
+    assert_eq!(held.decision, Decision::Hold(Cause::Repairs));
     assert_eq!(held.took, None);
     let mut h = heard();
     h.delegate = Status::Passed;
@@ -209,7 +209,7 @@ fn a_judgement_of_another_landing_is_dropped_while_ready() {
 #[test]
 fn a_held_change_keeps_unanswerable_asks() {
     let mut c = ready();
-    c.state = State::Held { was: Box::new(c.state), why: Hold::Stalled };
+    c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Stalled, Wall::EPOCH) };
     for ask in [Ask::Prepare { head: NEW, main: BASE }, Ask::Judge(judgement())] {
         let next = decide(&c, &Facts { ask: Some(handed(ask)), ..facts() }, &heard());
         assert_eq!(next.took, None);
@@ -331,7 +331,7 @@ fn turn_gate_failures_still_repair_or_hold_and_keep_their_bounds() {
             GateKind::Agent | GateKind::Check | GateKind::Follow => {
                 Decision::Delegate(Delegate::Repair(Repair::Gate(9)))
             }
-            GateKind::Person => Decision::Hold(Hold::Rejected),
+            GateKind::Person => Decision::Hold(Cause::Rejected),
         };
         assert_eq!(next.decision, expected);
     }
@@ -341,7 +341,7 @@ fn turn_gate_failures_still_repair_or_hold_and_keep_their_bounds() {
 fn clean_prepare_history_and_updates_are_bounded() {
     let mut c = ready();
     c.updates = LIMITS.updates;
-    assert_eq!(decide(&c, &prepare_facts(), &heard()).decision, Decision::Hold(Hold::Updates));
+    assert_eq!(decide(&c, &prepare_facts(), &heard()).decision, Decision::Hold(Cause::Updates));
     c.updates = 0;
     c.clean = Box::new([MERGE; 4]);
     let prepared = decide(&c, &prepare_facts(), &heard());
@@ -349,7 +349,7 @@ fn clean_prepare_history_and_updates_are_bounded() {
     f.branch = Some(NEW);
     let mut h = heard();
     h.effect = EffectResult::Made;
-    assert_eq!(decide(&prepared.change, &f, &h).decision, Decision::Hold(Hold::Updates));
+    assert_eq!(decide(&prepared.change, &f, &h).decision, Decision::Hold(Cause::Updates));
 }
 
 fn preparing_change() -> Change {
@@ -376,7 +376,7 @@ fn a_prepare_let_go_holds_updates_at_its_bound() {
     let mut c = preparing_change();
     c.updates = LIMITS.updates;
     let f = Facts { contains_base: Status::Failed, ..facts() };
-    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Hold::Updates));
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Cause::Updates));
 }
 
 #[test]
@@ -404,14 +404,20 @@ fn a_prepare_let_go_takes_a_moved_head_holding_the_base() {
     assert_eq!(next.change.last_head, Some(NEW));
     assert_eq!(next.change.ready_since, Some(at(0)));
     assert_eq!(next.change.since, at(1));
+    // Containing the pinned base does not make a different writer's push
+    // this preparation's update: its clean gates cannot carry over.
+    let pushed = decide(&c, &Facts { update_head: false, ..f.clone() }, &heard());
+    assert_eq!(pushed.change.last_head, Some(NEW));
+    assert!(pushed.change.clean.is_empty());
+    assert_eq!(pushed.decision, Decision::None);
     c.clean = Box::new([MERGE; 4]);
-    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Hold::Updates));
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Cause::Updates));
 }
 
 #[test]
 fn a_prepare_let_go_holds_a_moved_head_not_holding_the_base() {
-    let f = Facts { branch: Some(NEW), contains_base: Status::Failed, ..facts() };
-    assert_eq!(decide(&preparing_change(), &f, &heard()).decision, Decision::Hold(Hold::BranchMoved));
+    let f = Facts { branch: Some(NEW), contains_base: Status::Failed, drift: Some(Cause::BranchMoved), ..facts() };
+    assert_eq!(decide(&preparing_change(), &f, &heard()).decision, Decision::Hold(Cause::BranchMoved));
 }
 
 #[test]
@@ -429,22 +435,22 @@ fn a_prepare_let_go_waits_on_what_it_cannot_read() {
         let next = decide(&c, &f, &heard());
         assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
         assert_eq!(next.change, c);
-        assert_eq!(step(&c, &f, &heard(), at(31), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+        assert_eq!(step(&c, &f, &heard(), at(31), &LIMITS).decision, Decision::Hold(Cause::Stalled));
     }
 }
 
 #[test]
 fn a_released_failed_prepare_decides_again() {
     let mut c = preparing_change();
-    c.updates = LIMITS.updates;
-    c.state = State::Held { was: Box::new(c.state), why: Hold::Failed };
+    c.updates = LIMITS.updates - 1;
+    c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Failed, Wall::EPOCH) };
     let f = Facts { contains_base: Status::Failed, ..facts() };
     let lifted = released(&c, at(1));
     let resumed = decide(&lifted, &f, &heard());
     assert_eq!(resumed.decision, Decision::None);
     let next = decide(&resumed.change, &f, &heard());
     assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
-    assert_eq!(next.change.updates, 1);
+    assert_eq!(next.change.updates, LIMITS.updates);
 }
 
 #[test]
@@ -490,11 +496,13 @@ fn a_stale_update_replans_or_takes_its_observed_head_without_spending_updates() 
         ] {
             let f = Facts { branch: Some(head), contains_base, ..facts() };
             let next = decide(&c, &f, &h);
-            if contains_base == Status::Passed {
-                assert_eq!(next, decide(&c, &f, &heard()));
+            if head == NEW {
+                assert_eq!(next.decision, Decision::None);
+                assert_eq!(next.change.last_head, Some(NEW));
+                assert!(next.change.clean.is_empty());
                 assert_eq!(next.change.stale, None);
-            } else if contains_base == Status::Failed {
-                assert_eq!(next.decision, Decision::Hold(Hold::BranchMoved));
+            } else if contains_base == Status::Passed {
+                assert_eq!(next, decide(&c, &f, &heard()));
                 assert_eq!(next.change.stale, None);
             } else {
                 assert_eq!(next.decision, Decision::Wait { until: Some(at(31)) });
@@ -531,35 +539,33 @@ fn a_stale_update_replans_or_takes_its_observed_head_without_spending_updates() 
 fn stale_reads_back_off_across_a_restart_until_stall_not_updates() {
     let h = Heard { effect: EffectResult::Stale, ..heard() };
     for preparing in [false, true] {
-        for base_read in [BASE, NEW] {
-            let mut c = stale_change(preparing);
-            c.updates = LIMITS.updates;
-            let f = Facts { base_read, contains_base: Status::Failed, ..facts() };
-            let first = decide(&c, &f, &h);
-            assert_eq!(first.decision, Decision::Wait { until: Some(at(2)) });
-            assert_eq!(first.change.stale, Some(at(1)));
-            // A restored row keeps the first refusal and the last decision.
-            c.stale = Some(at(1));
-            c.since = at(5);
-            let early = step(&c, &f, &h, at(6), &LIMITS);
-            assert_eq!(early.decision, Decision::Wait { until: Some(at(9)) });
-            assert_eq!(early.change, c);
-            let retry = step(&c, &f, &h, at(9), &LIMITS);
-            let effect = if preparing {
-                Effect::Prepare { head: HEAD, main: BASE }
-            } else {
-                Effect::Update { head: HEAD, base: BASE }
-            };
-            assert_eq!(retry.decision, Decision::Effect(effect));
-            assert_eq!(retry.change.stale, c.stale);
-            assert_eq!(retry.change.updates, c.updates);
-            assert_eq!(retry.change.since, at(9));
-            assert_eq!(step(&retry.change, &f, &h, at(10), &LIMITS).decision, Decision::Wait { until: Some(at(17)) });
-            let held = step(&retry.change, &f, &h, at(31), &LIMITS);
-            assert_eq!(held.decision, Decision::Hold(Hold::Stalled));
-            assert_eq!(held.change.stale, None);
-            assert_eq!(held.change.updates, c.updates);
-        }
+        let mut c = stale_change(preparing);
+        c.updates = LIMITS.updates;
+        let f = Facts { contains_base: Status::Failed, ..facts() };
+        let first = decide(&c, &f, &h);
+        assert_eq!(first.decision, Decision::Wait { until: Some(at(2)) });
+        assert_eq!(first.change.stale, Some(at(1)));
+        // A restored row keeps the first refusal and the last decision.
+        c.stale = Some(at(1));
+        c.since = at(5);
+        let early = step(&c, &f, &h, at(6), &LIMITS);
+        assert_eq!(early.decision, Decision::Wait { until: Some(at(9)) });
+        assert_eq!(early.change, c);
+        let retry = step(&c, &f, &h, at(9), &LIMITS);
+        let effect = if preparing {
+            Effect::Prepare { head: HEAD, main: BASE }
+        } else {
+            Effect::Update { head: HEAD, base: BASE }
+        };
+        assert_eq!(retry.decision, Decision::Effect(effect));
+        assert_eq!(retry.change.stale, c.stale);
+        assert_eq!(retry.change.updates, c.updates);
+        assert_eq!(retry.change.since, at(9));
+        assert_eq!(step(&retry.change, &f, &h, at(10), &LIMITS).decision, Decision::Wait { until: Some(at(17)) });
+        let held = step(&retry.change, &f, &h, at(31), &LIMITS);
+        assert_eq!(held.decision, Decision::Hold(Cause::Stalled));
+        assert_eq!(held.change.stale, None);
+        assert_eq!(held.change.updates, c.updates);
         let mut c = stale_change(preparing);
         c.stale = Some(at(1));
         c.since = at(100);
@@ -578,7 +584,7 @@ fn releasing_a_stale_update_counts_afresh_then_replans_without_another_count() {
         let mut c = stale_change(preparing);
         c.stale = Some(at(1));
         c.updates = LIMITS.updates;
-        c.state = State::Held { was: Box::new(c.state), why: Hold::Stalled };
+        c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Updates, Wall::EPOCH) };
         let lifted = released(&c, at(40));
         assert_eq!(lifted.stale, None);
         assert_eq!(lifted.updates, 0);

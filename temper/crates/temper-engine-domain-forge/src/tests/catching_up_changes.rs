@@ -8,6 +8,7 @@
 use super::*;
 use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use skein_forge::api::{self, Answer, Op, Read};
+use skein_forge_client as client;
 use temper_engine_domain_forge_change as c;
 use temper_engine_domain_forge_tiers as p;
 
@@ -77,7 +78,40 @@ fn verified_changes_wait_for_fresh_reads_and_use_the_fresh_head() {
             tiers: Box::new([TierVerification { tier: b"browser".as_slice().into(), verdict: None, repaired: None }]),
         }),
     );
-    watched(&mut d, MARKER, HEAD);
+    let marker = crate::tiers::name(REPO, MARKER);
+    restore(&mut d, Stored::BranchHead(BranchHead { name: marker.clone(), commit: HEAD, owned: true }));
+    restore(&mut d, Stored::Names { task: CHANGE, resources: Box::new([marker.clone()]) });
+    restore(
+        &mut d,
+        Stored::Client(client::Stored::Repository(client::RepositoryRecord {
+            repository: REPO,
+            mark: None,
+            clock: env().now,
+        })),
+    );
+    restore(
+        &mut d,
+        Stored::Client(client::Stored::Live(client::LiveRecord {
+            watch: client::Watch {
+                resource: client::Resource { repository: REPO, what: client::What::Branch(MARKER.into()) },
+                participating: false,
+            },
+            position: client::Position { at: Time::ZERO, comment: 0, review: 0, review_page: 1 },
+            listed: Time::ZERO,
+            comment_after: 0,
+            comment_page: 1,
+            comment_scanning: false,
+            comment_repair: false,
+            review_page: 1,
+            comments: Box::new([]),
+            reviews: Box::new([]),
+            cached: Box::new(client::Cached { item: None, pull: None, tip: Some(HEAD) }),
+            pushed: Some(HEAD),
+            echoes: Box::new([]),
+        })),
+    );
+    // The writer's push was admitted before the restart, but had not been seen yet.
+    fixtures::admit_push(&mut d, &marker, CHANGE, 1, Some(HEAD), FRESH);
     begin(&mut d, &env());
     let call = held_branch(&mut d, &env(), MARKER);
     let before = outputs(&mut d, fixtures::change_step());
@@ -85,6 +119,7 @@ fn verified_changes_wait_for_fresh_reads_and_use_the_fresh_head() {
     assert!(d.reds.is_empty());
     assert_eq!(d.change(CHANGE).unwrap().change.gate_failures.as_ref(), &[c::GateFailure { number: 7, count: 1 }]);
     let fresh = answered(&mut d, &env(), call, FRESH);
+    assert_eq!(d.branch_head(&marker), Some(FRESH));
     assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
     assert!(domain::fresh_reads_in(&d));
     assert_eq!(
@@ -127,7 +162,7 @@ fn taking_read_stalls_count_from_the_fresh_reads_not_the_restored_since() {
         assert!(
             !requests(waiting)
                 .iter()
-                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }))
+                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. }))
         );
         assert!(!matches!(d.change(CHANGE).unwrap().change.state, c::State::Held { .. }));
         let fresh = answered(&mut d, &e, call, HEAD);
@@ -144,13 +179,13 @@ fn taking_read_stalls_count_from_the_fresh_reads_not_the_restored_since() {
         assert!(
             !requests(almost)
                 .iter()
-                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }))
+                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. }))
         );
         let expired = requests(fixtures::advance(&mut d, &mut e, Duration::from_secs(1)));
         assert!(
             expired
                 .iter()
-                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. })),
+                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. })),
             "{expired:?}"
         );
     }
@@ -517,7 +552,7 @@ fn moved_branch_facts_wait_and_compare_against_the_fresh_confirmed_head() {
         let fresh = answered(&mut d, &env(), fresh_call, HEAD);
         assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
         assert!(!fresh.contains(&Request::WakeProcedure { task: CHANGE }), "the completed gather resumes in place");
-        assert_eq!(decisions(&fresh).contains(&c::Decision::Hold(c::Hold::BranchMoved)), still_moved, "{fresh:?}");
+        assert_eq!(decisions(&fresh).contains(&c::Decision::Hold(c::Cause::BranchMoved)), still_moved, "{fresh:?}");
         if !still_moved {
             assert_eq!(d.change(CHANGE).unwrap().change.last_head, Some(FRESH));
         }
@@ -563,6 +598,9 @@ fn held_landing_judgements_wait_and_are_woken_by_fresh_reads() {
     let mut row = fixtures::opening_row();
     row.change.state = c::State::Landing { head: HEAD };
     let evidence = ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
         touched: Touched::UNKNOWN,
         prior: row.change.clone(),
         head: Some(HEAD),

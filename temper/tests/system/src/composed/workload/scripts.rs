@@ -4,6 +4,8 @@ use super::{Goal, Script, World, engine};
 use serde_json::{Value, json};
 use temper_workload::draw::Change;
 
+pub(super) const ROOM_CUE: &str = "@branch-room@";
+
 pub(super) fn goal_cue(goal: &Goal) -> String {
     format!("@goal:{}@", goal.name)
 }
@@ -18,12 +20,15 @@ fn turn(name: &[u8], value: &Value) -> skein_fake_llm_domain::api::Turn {
     call(name, &serde_json::to_vec(value).expect("script JSON"))
 }
 
-pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script {
-    if world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
-        || world.parked.contains_key(&assignment.task)
-    {
+pub(super) fn continuing(world: &World, task: u64) -> bool {
+    world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == task) || world.parked.contains_key(&task)
+}
+
+pub(super) fn assigned(world: &mut World, assignment: &engine::Assignment) -> Script {
+    if continuing(world, assignment.task) {
         return Script { cue: Box::default(), turns: Box::default() };
     }
+    let waiting_for_room = world.defer_branch_load(assignment.task);
     let row = world.root.tasks().task(assignment.task).expect("assigned task");
     let words = String::from_utf8_lossy(&row.spec.words);
     if words.starts_with("@chat:questions@") {
@@ -48,11 +53,17 @@ pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script
                     "name":change.name,"landing":if goal.train { "main" } else { "goal" },"after":after,"questions":"up"})
             }).collect();
             let mut turns = Vec::new();
+            let person = match goal.party {
+                super::Party::First => 1,
+                super::Party::Second => 2,
+            };
+            if waiting_for_room {
+                // Park at a real person task, not at an unanswered host call
+                // that would keep the only worker slot from freeing room.
+                turns.push(person_task(person, &format!("{ROOM_CUE} Admit the changes when there is branch room.")));
+                turns.push(call(b"wait", b"{}"));
+            }
             if goal.train {
-                let person = match goal.party {
-                    super::Party::First => 1,
-                    super::Party::Second => 2,
-                };
                 turns.push(person_task(person, &format!("@latch:{}@ Release the ready train.", goal.name)));
             }
             turns.extend([
@@ -65,7 +76,8 @@ pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script
         for change in &goal.changes {
             let failed = format!("Failed test: {} ", change.name);
             if words.contains(&failed) {
-                let mut script = producer(change, 0, true, false);
+                // The separate landing-repair delegate is not the change's producer.
+                let mut script = change_run(change, None, true, false, false);
                 script.cue = failed.into_bytes().into();
                 return script;
             }
@@ -76,7 +88,13 @@ pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script
                     super::Party::First => 1,
                     super::Party::Second => 2,
                 };
-                return producer(change, person, repair, world.workload_parks(assignment.task));
+                return change_run(
+                    change,
+                    Some(person),
+                    repair,
+                    world.workload_parks(assignment.task),
+                    world.observed.stretches.probes_ended_recipient(),
+                );
             }
         }
     }
@@ -94,10 +112,13 @@ fn person_task(person: u64, words: &str) -> skein_fake_llm_domain::api::Turn {
     )
 }
 
-fn producer(change: &Change, person: u64, repair: bool, park: bool) -> Script {
+fn change_run(change: &Change, person: Option<u64>, repair: bool, park: bool, probe: bool) -> Script {
     let mut turns = Vec::new();
     if change.asks && !repair {
-        turns.push(person_task(person, &format!("@ask:{}@ Write the specified files? I recommend yes.", change.name)));
+        turns.push(person_task(
+            person.expect("only producers ask"),
+            &format!("@ask:{}@ Write the specified files? I recommend yes.", change.name),
+        ));
     }
     if !repair {
         for file in &change.files {
@@ -107,10 +128,26 @@ fn producer(change: &Change, person: u64, repair: bool, park: bool) -> Script {
     turns.push(turn(b"read", &json!({"path":super::setup::marker(change)})));
     turns.push(turn(b"write", &json!({"path":super::setup::marker(change),"content":if change.red_once && !repair { format!("{}\n", change.name) } else { String::new() }})));
     let fields = json!({"title":change.name,"body":format!("Deliver {}", change.name)});
+    if person.is_some() {
+        turns.push(super::super::stretches::turn());
+    }
     turns.push(turn(b"deliver", &json!({"fields":fields})));
     if park {
-        turns.push(person_task(person, &format!("@park:{}@ Finish the delivered change?", change.name)));
+        turns.push(person_task(
+            person.expect("only producers park"),
+            &format!("@park:{}@ Finish the delivered change?", change.name),
+        ));
+    }
+    if person.is_some() {
+        turns.push(super::super::stretches::turn());
+    }
+    if park {
         turns.push(call(b"wait", b"{}"));
+    }
+    if probe && change.asks && !repair {
+        // Both stretches stay drawn. The person's report gives this one
+        // conversation a stable ended-recipient witness at the gate.
+        turns.push(super::super::stretches::ended_recipient_probe());
     }
     turns.push(turn(b"finish", &json!({"outcome":{"form":"change","fields":fields}})));
     Script { cue: change_cue(change).into_bytes().into(), turns: turns.into() }

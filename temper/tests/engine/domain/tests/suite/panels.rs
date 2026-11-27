@@ -137,6 +137,7 @@ fn the_panel_stays_held_until_the_asking_decision_is_durable() {
         task: CHANGE,
         child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
+        close_at: None,
     })));
     for _ in 0..8 {
         driver.advance(false);
@@ -160,6 +161,7 @@ fn a_saved_change_marks_the_forges_subject_and_delivers_the_panel_again() {
         task: CHANGE,
         child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
+        close_at: None,
     })));
     driver.settle();
     let got = panels(&driver);
@@ -185,6 +187,7 @@ fn a_project_landings_watch_delivers_its_list_after_the_commit_barrier() {
             task: CHANGE,
             child: PRODUCER,
             kind: temper_engine_domain_forge_change::Delegate::Produce,
+            close_at: None,
         })));
         watch(&mut driver, 1, forge::landings_subject(1, ended));
         for _ in 0..8 {
@@ -221,6 +224,7 @@ fn a_project_changes_watch_delivers_its_document_after_the_commit_barrier() {
         task: CHANGE,
         child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
+        close_at: None,
     })));
     watch(&mut driver, 1, forge::changes_subject(1));
     for _ in 0..8 {

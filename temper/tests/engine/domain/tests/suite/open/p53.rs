@@ -40,7 +40,7 @@ fn a_resolution_keeping_a_deleted_path_is_refused() {
     );
     let merged = merge_job::push_merge_tree(
         &mut world,
-        task,
+        merge_job::Writer::Run(&resolution),
         head,
         base,
         Box::new([raw::File { path: PATH.into(), content: b"producer".as_slice().into() }]),

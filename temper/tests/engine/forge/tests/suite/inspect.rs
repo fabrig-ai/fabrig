@@ -253,14 +253,22 @@ fn settling_lost_merge() -> World {
     row.change.last_head = Some(head);
     row.change.since = world.wall();
     world.event(top::Event::Change { row });
-    world.lose_writes();
+    world.event(top::Event::Names { task: 51, resources: Box::new([changes::branch_name(b"main")]) });
+    world.run_for(1);
+    // The first find still sees the open pull. The admitted copy lands
+    // before the change's fresh reads, while the client still owes a retry.
+    world.land_writes_late(skein_lib::Duration::from_millis(500));
     world.event(top::Event::Enqueue {
         entry: Entry {
             number: ENTRY,
             task: 51,
             repository: REPO,
             effect: Effect {
-                write: skein_forge::api::Write::Merge { number: pull, head, how: skein_forge::api::MergeHow::Style },
+                write: skein_forge::api::Write::Merge {
+                    number: pull,
+                    head,
+                    how: skein_forge::api::MergeHow::FastForwardOnly,
+                },
                 condition: Condition::Merge { base: b"main".as_slice().into() },
             },
             start: None,
@@ -279,7 +287,7 @@ fn settling_lost_merge() -> World {
         "{:?}",
         world.seen()
     );
-    let merge = world.merge(pull, b"temper/51");
+    let merge = temper_engine_forge_world::translate::commit(world.branch(b"main"));
     assert_eq!(
         changes::change_step(&mut world, 101, change::Status::Passed, Box::new([])),
         change::Decision::Finish { merge }

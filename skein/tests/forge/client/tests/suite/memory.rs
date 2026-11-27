@@ -86,7 +86,7 @@ impl Measured {
                 | Request::Erase { .. }
                 | Request::Outcome { .. }
                 | Request::Changed { .. }
-                | Request::Drift { .. }
+                | Request::Moved { .. }
                 | Request::Kept { .. }
                 | Request::Read { .. }
                 | Request::ReadAfreshDone
@@ -341,9 +341,7 @@ fn own_branch(m: &mut Measured, limits: Limits) {
         owner: Token::new(11),
         watches: Box::new([Watch { resource: branch.clone(), participating: false }]),
     });
-    m.event(Event::Writer { resource: branch.clone(), taken: true });
-    m.event(Event::Pushed { resource: branch.clone(), commit: [3; 32] });
-    m.event(Event::Writer { resource: branch, taken: false });
+    m.event(Event::Pushed { resource: branch, commit: [3; 32] });
     m.drive();
     m.event(Event::Keep { owner: Token::new(12), watches: Box::new([]) });
     m.drive();

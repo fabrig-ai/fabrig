@@ -1,7 +1,7 @@
 //! Durability and exchange order in a world with a scripted parent and slow store.
 //! See skein/docs/foundation/programming-model.md, 7.2.
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
-use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved, Streamed};
+use jig_client_protocol_link::{Event, Link, Message, Record, Request, Streamed};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_world::fixtures::{self, PROJECT};
@@ -179,7 +179,7 @@ fn send(number: u8) -> Event {
     }
 }
 
-fn saved(number: u8) -> Saved {
+fn saved(number: u8) -> RequestRecord<Held> {
     let Event::Send { key, ask, .. } = send(number) else { unreachable!("send fixture") };
     RequestRecord {
         key,

@@ -122,18 +122,55 @@ pub(crate) fn finish_job(world: &mut World, job: &host::JobAssignment, result: &
     world.send(event);
 }
 
-pub(super) fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
+#[derive(Clone, Copy)]
+pub(crate) enum Writer<'a> {
+    Job(Token, &'a host::JobAssignment),
+    Run(&'a engine::Assignment),
+}
+
+impl Writer<'_> {
+    pub(super) fn push(self, world: &mut World, commit: u64) {
+        match self {
+            Self::Job(channel, job) => {
+                let branch = world.job_workspaces[&job.run.raw()].repositories[0].push.clone().expect("job branch");
+                world.job_push(channel, job, &branch, commit, 2);
+            }
+            Self::Run(run) => {
+                let item = &run.workspace.repositories[0];
+                let branch = item.push.as_ref().expect("producer branch");
+                world.worker_push((CHANNEL, run.task, run.attempt), item, branch, commit, 2);
+            }
+        }
+    }
+}
+
+pub(super) fn push_merge(world: &mut World, writer: Writer<'_>, head: u64, base: u64) -> u64 {
     push_merge_tree(
         world,
-        task,
+        writer,
         head,
         base,
         Box::new([raw::File { path: b"file".as_slice().into(), content: b"settled".as_slice().into() }]),
     )
 }
 
-pub(crate) fn push_merge_tree(world: &mut World, task: u64, head: u64, base: u64, tree: Box<[raw::File]>) -> u64 {
+pub(crate) fn push_merge_tree(
+    world: &mut World,
+    writer: Writer<'_>,
+    head: u64,
+    base: u64,
+    tree: Box<[raw::File]>,
+) -> u64 {
+    let merged = fake::merge_commit(&mut world.fake, &world.fake_env.limits, head, base, tree, b"Resolve merge")
+        .expect("resolved merge with both parents");
+    writer.push(world, merged);
+    merged
+}
+
+/// Another actor moves the branch before the resolver's assignment.
+pub(super) fn outside_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
     let branch = change_row(world, task).branch.clone();
+    let tree = Box::new([raw::File { path: b"file".as_slice().into(), content: b"settled".as_slice().into() }]);
     let merged = fake::merge_commit(&mut world.fake, &world.fake_env.limits, head, base, tree, b"Resolve merge")
         .expect("resolved merge with both parents");
     assert_eq!(
@@ -186,7 +223,7 @@ fn a_conflict_into_a_goal_branch_is_settled_by_the_merge_job_and_merges() {
     );
     assert_eq!(world.merges, 1, "the conflicting merge was attempted once");
     assert!(live_task(&world, task).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(3)));
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &job), head, base);
     finish_job(&mut world, &job, RESULT);
     landed(&mut world, task, merged);
     assert_eq!(world.assigned.len(), 2, "only the chat and producer ran as agents");
@@ -217,7 +254,7 @@ fn a_conflict_the_merge_job_leaves_goes_to_a_resolution() {
     assert_eq!(change_row(&world, task).change.resolutions, 1);
     assert!(words.ends_with(b"Its current spec, at revision 0:\nSmall fix"));
     assert!(change_row(&world, task).merge_result.is_none(), "making the resolution consumes the account");
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Run(&resolution), head, base);
     finish_resolution(&mut world, &resolution);
     landed(&mut world, task, merged);
     world.close();
@@ -245,7 +282,7 @@ fn a_file_deleted_on_the_base_reaches_the_resolution_with_its_deleting_commit() 
         )
         .as_bytes()
     ));
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Run(&resolution), head, base);
     finish_resolution(&mut world, &resolution);
     landed(&mut world, task, merged);
     world.close();
@@ -301,7 +338,7 @@ fn an_update_conflict_goes_to_the_merge_job_before_a_resolution() {
     let job = next_job(&mut world, task, false);
     check_job(&world, task, &job, head, base);
     assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &job), head, base);
     passed_ci(&mut world, merged);
     finish_job(&mut world, &job, RESULT);
     landed(&mut world, task, merged);
@@ -317,7 +354,7 @@ fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
     let resolution = next_resolution(&mut world, task);
     assert_eq!(world.jobs.len(), 0);
     assert_preserving_resolution(&live_task(&world, resolution.task).spec.words);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Run(&resolution), head, base);
     finish_resolution(&mut world, &resolution);
     landed(&mut world, task, merged);
     world.close();
@@ -342,8 +379,10 @@ fn a_resolution_that_fails_for_good_holds_and_notifies_its_requester() {
             break;
         }
     }
-    assert!(matches!(&change_row(&world, task).change.state, change::State::Held { was, why: change::Hold::Failed }
-        if matches!(was.as_ref(), change::State::Resolving { .. })));
+    assert!(
+        matches!(&change_row(&world, task).change.state, change::State::Held { was, hold: change::Hold { cause: change::Cause::Failed, .. } }
+        if matches!(was.as_ref(), change::State::Resolving { .. }))
+    );
     let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, task).phase
     else {
         panic!("failed resolution holds its change task: {:?}", live_task(&world, task).phase)
@@ -442,7 +481,7 @@ fn a_failed_merge_job_is_held_after_its_retries() {
         ask: people::Ask::Release { project: 1, task: job.run.raw(), revision, again: None },
     }));
     let retry = next_job(&mut world, task, false);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &retry), head, base);
     finish_job(&mut world, &retry, RESULT);
     landed(&mut world, task, merged);
     world.close();
@@ -469,7 +508,7 @@ fn a_failed_merge_jobs_retry_keeps_the_changes_workspace() {
     assert_eq!(retry.run, first.run);
     assert_ne!(retry.attempt, first.attempt);
     check_job(&world, task, &retry, head, base);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &retry), head, base);
     finish_job(&mut world, &retry, RESULT);
     landed(&mut world, task, merged);
     world.close();
@@ -480,7 +519,7 @@ fn merge_job_history_pairs_the_claim_with_its_read_back_head() {
     use forge_top::history as h;
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
     let job = next_job(&mut world, task, true);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &job), head, base);
     finish_job(&mut world, &job, RESULT);
     landed(&mut world, task, merged);
     let events: Vec<_> = world

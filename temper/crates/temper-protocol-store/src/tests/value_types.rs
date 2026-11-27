@@ -49,6 +49,7 @@ fn registered_value_type_numbers_are_pinned() {
         (47, "Row", Some("change_cold"), &[47]),
         (48, "Row", Some("change_hot"), &[48]),
         (50, "Row", Some("person_brief"), &[50]),
+        (52, "Row", Some("writes"), &[52]),
         (41, "Row", Some("history_project"), &[127]),
         (42, "Row", Some("history_event"), &[128]),
         (43, "Row", Some("history_change"), &[129]),

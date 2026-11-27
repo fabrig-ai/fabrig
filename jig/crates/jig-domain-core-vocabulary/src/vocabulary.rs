@@ -1397,6 +1397,11 @@ pub enum NamedAction {
         revision: u64,
         again: Option<bool>,
     },
+    /// Release a held procedure below the run for fresh measurement.
+    Measure {
+        target: u64,
+        revision: u64,
+    },
     Amend {
         target: u64,
         revision: u64,
@@ -1636,6 +1641,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Cancel { .. }
         | tasks::Event::Fail { .. }
         | tasks::Event::Release { .. }
+        | tasks::Event::Measure { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }
@@ -1839,15 +1845,14 @@ fn view_new_work(event: &views::Event) -> bool {
 }
 
 fn notes_new_work(event: &notes::Event) -> bool {
-    if let notes::Event::Index { .. }
-    | notes::Event::Recall { .. }
-    | notes::Event::Write { .. }
-    | notes::Event::WriteLines { .. }
-    | notes::Event::Edit { .. } = event
-    {
-        return true;
+    match event {
+        notes::Event::Index { .. }
+        | notes::Event::Recall { .. }
+        | notes::Event::Write { .. }
+        | notes::Event::WriteLines { .. }
+        | notes::Event::Edit { .. } => true,
+        notes::Event::DropProject { .. } | notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
     }
-    false
 }
 
 #[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
@@ -1906,8 +1911,69 @@ pub fn waits(timer: Timer) -> bool {
 mod admission_tests {
     use super::{Event, Timer};
     use jig_domain_fleet as fleet;
+    use jig_domain_notes as notes;
     use jig_domain_people as people;
     use skein_lib::{ReplyTo, Token};
+
+    #[test]
+    fn notes_events_keep_their_watermark_admission() {
+        use skein_lib::List;
+
+        const PROJECT: u32 = 1;
+        const PARTY: u64 = 2;
+        const NOTE: u64 = 3;
+        const REVISION: u32 = 1;
+        const EMPTY: u32 = 0; // No references or returned records.
+        const INDEX_LIMIT: u32 = 1; // Cap the index at one line.
+        const FIRST_PAGE: u32 = 0; // Recall pages are zero-based.
+        const FIRST_LINE: u32 = 1; // Line ranges are one-based.
+        const REPLACED_LINES: u32 = 1; // The body has one line.
+
+        let owner = Token::new(1);
+        let scope = notes::Scope::Project { project: PROJECT };
+        let scopes = List::from_boxed(Box::new([scope.clone()]));
+        let entry = notes::New {
+            name: NOTE,
+            scope: scope.clone(),
+            description: Box::from(&b"summary"[..]),
+            body: Box::from(&b"one line"[..]),
+            references: List::with_capacity(EMPTY),
+            author: notes::Author::Party { party: PARTY },
+        };
+        for (event, new) in [
+            (notes::Event::Index { owner, scopes, most: INDEX_LIMIT }, true),
+            (notes::Event::Recall { owner, by: notes::Recall::Name { name: NOTE }, page: FIRST_PAGE }, true),
+            (notes::Event::Write { owner, entry: entry.clone(), recalled: None }, true),
+            (
+                notes::Event::WriteLines {
+                    owner,
+                    entry,
+                    recalled: REVISION,
+                    range: notes::LineRange { first: FIRST_LINE, remove: REPLACED_LINES, join: false },
+                },
+                true,
+            ),
+            (
+                notes::Event::Edit {
+                    owner,
+                    party: PARTY,
+                    name: NOTE,
+                    scope,
+                    change: notes::Change::Delete { recalled: REVISION },
+                },
+                true,
+            ),
+            (notes::Event::DropProject { owner, project: PROJECT }, false),
+            (notes::Event::LoadFailed { owner }, false),
+            (
+                notes::Event::Loaded { owner, rows: notes::Rows { records: List::with_capacity(EMPTY) }, more: false },
+                false,
+            ),
+        ] {
+            let event = Event::Notes(event);
+            assert_eq!(event.new_work(), new, "{event:?}");
+        }
+    }
 
     #[test]
     fn completions_and_requests_have_distinct_admission() {

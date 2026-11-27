@@ -169,6 +169,17 @@ fn link(channel: Token, link: engine::Link) -> engine::Event {
     engine::Event::Worker(engine::WorkerInput::Link { channel, link })
 }
 
+/// The protocol decodes the ask the fleet let through.
+#[must_use]
+pub fn push_ask(asking: engine::wire::Asking, bytes: &[u8]) -> Option<engine::Event> {
+    let engine::wire::Ask::Admit { tag, branch, expected, commit } =
+        temper_engine_service_vocabulary::translate::ask(bytes, &temper_protocol_worker_wire::v1::CEILINGS)?
+    else {
+        return None;
+    };
+    Some(engine::Event::Worker(engine::WorkerInput::Admit { asking, tag, branch, expected, commit }))
+}
+
 type DecodeAnswer = (bool, Box<[u8]>);
 
 pub type HostReply = (Box<[u8]>, bool, Box<[u8]>);
@@ -216,6 +227,25 @@ pub struct Protocol {
 }
 
 impl Protocol {
+    /// Ask with a fresh link number, as the scripted worker before a push.
+    pub fn admit(
+        &mut self,
+        (channel, run, attempt): (Token, u64, u64),
+        ask: temper_protocol_worker_wire::v1::Admit,
+    ) -> (u64, engine::Event) {
+        self.serial += 1;
+        let number = self.serial;
+        let bytes = temper_protocol_worker_wire::ask(&temper_protocol_worker_wire::v1::Ask::Admit(ask));
+        (
+            number,
+            up(
+                channel,
+                host::LinkUp::Ask { run: Token::new(run), attempt: Token::new(attempt), number, bytes },
+                engine::Parts::none(),
+            ),
+        )
+    }
+
     /// A run's call that the world's protocol answers as an undecodable tool.
     pub fn undecodable(&mut self, channel: Token, task: u64, attempt: u64, name: u64) -> engine::Event {
         let call: Box<[u8]> = name.to_be_bytes().into();
@@ -381,12 +411,26 @@ impl Protocol {
                     Ok(vec![temper_engine_service_vocabulary::tools::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
-                ask @ engine::HostRequest::Ask { .. } => {
-                    Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(ask)))))
+                engine::HostRequest::Ask { channel, run, attempt, number, bytes } => {
+                    let asking = engine::wire::Asking { channel, run, attempt, number };
+                    if let Some(event) = push_ask(asking, &bytes) {
+                        Ok(vec![event])
+                    } else {
+                        Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(
+                            engine::HostRequest::Ask { channel, run, attempt, number, bytes },
+                        )))))
+                    }
                 }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {
+                    engine::HostDelivery::Asked { asking, answer } => {
+                        Ok(vec![engine::Event::Worker(temper_engine_service_vocabulary::translate::asked(
+                            asking,
+                            answer,
+                            &temper_protocol_worker_wire::v1::CEILINGS,
+                        ))])
+                    }
                     engine::HostDelivery::Render { to, name, answer, read, job, page, ask, .. } => {
                         if let Some(read) = &read {
                             self.read_forms.insert(name.clone(), *read.clone());

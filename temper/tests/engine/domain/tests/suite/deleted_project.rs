@@ -131,6 +131,7 @@ fn tier(repository: Repository) -> forge::Stored {
 fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
         settling: false,
+        behind_wait: None,
         source: None,
         kept: None,
         regate: None,
@@ -372,9 +373,10 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         | forge::Key::Verification { repository: r, .. }
         | forge::Key::LandingLog { repository: r }
         | forge::Key::LandedDraft { repository: r, .. } => *r == repository,
-        forge::Key::Hold(name) | forge::Key::BranchHead(name) | forge::Key::PullState(name) => {
-            name_is(name, repository)
-        }
+        forge::Key::Hold(name)
+        | forge::Key::BranchHead(name)
+        | forge::Key::PullState(name)
+        | forge::Key::Writes(name) => name_is(name, repository),
         forge::Key::Subscription { topic, .. } => topic_is(topic, repository),
         forge::Key::Client(key) => client_key_is(key, repository),
         forge::Key::Receipt(key) => key.repository == repository,
@@ -464,6 +466,7 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         forge::Stored::Names { resources, .. } => resources.iter().any(|name| name_is(name, repository)),
         forge::Stored::Subscription(row) => topic_is(&row.topic, repository),
         forge::Stored::BranchHead(row) => name_is(&row.name, repository),
+        forge::Stored::Writes(row) => name_is(&row.name, repository),
         forge::Stored::PullState(row) => name_is(&row.name, repository),
         forge::Stored::Ci(row) => row.repository == repository,
         forge::Stored::Entry { entry, .. } => entry.repository == repository,

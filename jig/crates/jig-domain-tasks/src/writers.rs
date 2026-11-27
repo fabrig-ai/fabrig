@@ -27,45 +27,72 @@ fn below(domain: &Domain, task: u64, ancestor: u64, limit: u32) -> bool {
     false
 }
 
+fn room(domain: &Domain, count: u32) -> bool {
+    match domain.writers.len().checked_add(count) {
+        Some(used) => used <= domain.writers.capacity(),
+        None => false,
+    }
+}
+
 fn take(domain: &mut Domain, resource: Name, writer: Writer, out: &mut Queue<Request>) {
-    let number = domain.next_writer.checked_add(1).expect("writer number fits");
-    domain.next_writer = number;
+    let current = domain.writers.get(&resource);
+    assert!(current.is_none(), "take writer slot for {resource:?}: {writer:?} needs a vacant slot, found {current:?}");
+    let Some(number) = domain.next_writer.checked_add(1) else {
+        unreachable!("take writer slot for {resource:?}: next slot number must fit for {writer:?}");
+    };
     let slot = WriterSlot { number, resource: resource.clone(), writer, lost: false };
-    assert!(domain.writers.insert(resource, slot.clone()).is_ok(), "preflighted writer capacity");
+    let inserted = domain.writers.insert(resource, slot.clone());
+    assert!(inserted == Ok(None), "take writer slot for {:?}: {writer:?} must have admitted room", slot.resource);
+    domain.next_writer = number;
     out.push(Request::Save { record: Stored::Writer(slot) });
 }
 
-fn free(domain: &mut Domain, env: &Env<Limits>, resource: &Name, out: &mut Queue<Request>) {
-    if let Some(slot) = domain.writers.remove(resource) {
-        out.push(Request::Erase { key: crate::Key::Writer(slot.number) });
-        // A hold handed downward can wait for its ancestor's run writer.
-        // Ordinary delegate results and effect settlements have their own wake
-        // routes, after the connector has received their outcome.
-        if let Some(holder) = crate::holds::writer_holder(domain, resource) {
-            match slot.writer {
-                Writer::Run { task, .. } => {
-                    if holder != task && below(domain, holder, task, env.limits.depth.saturating_add(1)) {
-                        crate::domain::wake_procedure(domain, env, holder, out);
-                    }
+fn held<'a>(domain: &'a mut Domain, resource: &Name, writer: Writer) -> &'a mut WriterSlot {
+    let Some(slot) = domain.writers.get_mut(resource) else {
+        unreachable!("writer slot for {resource:?}: expected {writer:?}, found vacant");
+    };
+    assert!(slot.writer == writer, "writer slot for {resource:?}: expected {writer:?}, found {:?}", slot.writer);
+    slot
+}
+
+fn free(domain: &mut Domain, env: &Env<Limits>, resource: &Name, writer: Writer, out: &mut Queue<Request>) {
+    let number = held(domain, resource, writer).number;
+    domain.writers.remove(resource);
+    out.push(Request::Erase { key: crate::Key::Writer(number) });
+    // A hold handed downward can wait for its ancestor's run writer.
+    // Ordinary delegate results and effect settlements have their own wake
+    // routes, after the connector has received their outcome.
+    if let Some(holder) = crate::holds::writer_holder(domain, resource) {
+        match writer {
+            Writer::Run { task, .. } => {
+                if holder != task && below(domain, holder, task, env.limits.depth.saturating_add(1)) {
+                    crate::domain::wake_procedure(domain, env, holder, out);
                 }
-                Writer::Effect { .. } => {}
             }
+            Writer::Effect { .. } => {}
         }
     }
 }
 
+pub(crate) enum ClaimRefusal {
+    Invalid,
+    Waiting(Name),
+    Full(crate::Capacity),
+}
+
 pub(crate) fn claim(
     domain: &mut Domain,
-    env: &Env<Limits>,
+    limits: &Limits,
     task: u64,
     attempt: u64,
     writes: &[Name],
     out: &mut Queue<Request>,
-) -> Result<(), Option<Name>> {
-    let limits = &env.limits;
-    if writes.len() > skein_lib::length::usize_of(limits.holdings) {
-        return Err(None);
+) -> Result<(), ClaimRefusal> {
+    let Ok(count) = u32::try_from(writes.len()) else { return Err(ClaimRefusal::Invalid) };
+    if count > limits.holdings {
+        return Err(ClaimRefusal::Invalid);
     }
+    let Some(row) = record(domain, task) else { return Err(ClaimRefusal::Invalid) };
     for (index, resource) in writes.iter().enumerate() {
         let mut duplicate = false;
         for prior in writes.iter().take(index) {
@@ -75,35 +102,29 @@ pub(crate) fn claim(
             }
         }
         if !crate::holds::valid_name(limits, resource) {
-            return Err(None);
+            return Err(ClaimRefusal::Invalid);
         }
-        let Some(row) = record(domain, task) else { return Err(None) };
         if crate::holds::available_access(domain, row.project, resource) != crate::ResourceAccess::Writable {
-            return Err(None);
+            return Err(ClaimRefusal::Invalid);
         }
         if !covers(domain, task, resource, limits.depth.saturating_add(1)) || duplicate {
-            return Err(None);
+            return Err(ClaimRefusal::Invalid);
         }
         if domain.writers.contains_key(resource) {
-            return Err(Some(resource.clone()));
+            return Err(ClaimRefusal::Waiting(resource.clone()));
         }
     }
-    if domain.writers.len().saturating_add(u32::try_from(writes.len()).unwrap_or(u32::MAX)) > domain.writers.capacity()
-    {
-        let project = record(domain, task).expect("writer task preflighted").project;
-        domain.remember_capacity(
-            env.wall,
-            crate::Capacity {
-                project: Some(project),
-                by: Party::Task(task),
-                action: crate::CapacityAction::Claim { attempt },
-                cause: crate::CapacityCause::Writers { limit: domain.writers.capacity() },
-            },
-        );
-        return Err(None);
+    if !room(domain, count) {
+        return Err(ClaimRefusal::Full(crate::Capacity {
+            project: Some(row.project),
+            by: Party::Task(task),
+            action: crate::CapacityAction::Claim { attempt },
+            cause: crate::CapacityCause::Writers { limit: domain.writers.capacity() },
+        }));
     }
+    let owner = Writer::Run { task, attempt };
     for resource in writes {
-        take(domain, resource.clone(), Writer::Run { task, attempt }, out);
+        take(domain, resource.clone(), owner, out);
     }
     Ok(())
 }
@@ -116,30 +137,31 @@ pub(crate) fn answered(
     lost: bool,
     out: &mut Queue<Request>,
 ) {
+    let writer = Writer::Run { task, attempt };
     let mut resources = skein_lib::List::with_capacity(domain.writers.capacity());
+    // Runs that wrote nothing have no slots to mark or free.
     for (resource, slot) in &domain.writers {
-        if slot.writer == (Writer::Run { task, attempt }) {
-            resources.push(resource.clone()).expect("bounded writer names");
+        if slot.writer == writer {
+            let added = resources.push(resource.clone());
+            assert!(added.is_ok(), "collect writer slot for {resource:?}: {writer:?} must fit in the slot list");
         }
     }
     for resource in &resources {
         if lost {
-            let slot = domain.writers.get_mut(resource).expect("collected writer");
+            let slot = held(domain, resource, writer);
             slot.lost = true;
             out.push(Request::Save { record: Stored::Writer(slot.clone()) });
         } else {
-            free(domain, env, resource, out);
+            free(domain, env, resource, writer, out);
         }
     }
 }
 
 pub(crate) fn read_afresh(domain: &mut Domain, env: &Env<Limits>, resource: &Name, out: &mut Queue<Request>) {
-    if match domain.writers.get(resource) {
-        Some(slot) => slot.lost,
-        None => false,
-    } {
-        free(domain, env, resource, out);
-    }
+    let Some(WriterSlot { writer: writer @ Writer::Run { .. }, lost: true, .. }) = domain.writers.get(resource) else {
+        return;
+    };
+    free(domain, env, resource, *writer, out);
 }
 
 /// Keep a run writer's task and hold owner until its answer or lost-attempt fresh read.
@@ -167,7 +189,7 @@ pub(crate) fn effect_ready(domain: &Domain, limits: &Limits, task: u64, resource
             Writer::Effect { entry: current } => entry == Some(current),
             Writer::Run { .. } => false,
         },
-        None => domain.writers.len() < domain.writers.capacity(),
+        None => room(domain, 1),
     }
 }
 
@@ -192,8 +214,11 @@ pub(crate) fn effect_in_flight(
         } else {
             out.push(Request::WriterWaiting { reply_to: to, task: Some(task), resource });
         }
-    } else if domain.writers.len() == domain.writers.capacity() {
-        let project = record(domain, task).expect("writer task preflighted").project;
+    } else if !room(domain, 1) {
+        let Some(row) = record(domain, task) else {
+            unreachable!("effect {entry} on {resource:?}: the covered task {task} must be live");
+        };
+        let project = row.project;
         crate::capacity::refuse(
             domain,
             env,
@@ -221,11 +246,12 @@ pub(crate) fn effect_settled(
     entry: u64,
     out: &mut Queue<Request>,
 ) {
-    if match domain.writers.get(resource) {
-        Some(slot) => slot.writer == Writer::Effect { entry },
-        None => false,
-    } {
-        free(domain, env, resource, out);
+    let writer = Writer::Effect { entry };
+    // This entry may have no slot here, including after an earlier settlement.
+    if let Some(slot) = domain.writers.get(resource)
+        && slot.writer == writer
+    {
+        free(domain, env, resource, writer, out);
     }
 }
 

@@ -161,12 +161,7 @@ fn an_inbox_repair_verdict_reaches_the_forge_as_a_flake_with_its_words() {
     row.task = context.task;
     row.change.task = context.task;
     row.delegate = Some((52, change::Delegate::Repair(change::Repair::Landing { gate: 0 })));
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     context.inbox = Box::new([tasks::Word {
         number: 1,
         at: env.wall,
@@ -204,26 +199,23 @@ fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice()
         (forge::ReceiptReport::Tests(Box::new([])), false),
         (forge::ReceiptReport::Unset, true),
     ] {
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore {
-                record: forge::Stored::Receipt {
-                    key: key.clone(),
-                    receipt: forge::Receipt {
-                        passed: false,
-                        run: forge::ReceiptRun { id: 41, number: 42, url: b"run/41".as_slice().into() },
-                        candidate: SHA1,
-                        base: Some(SHA256),
-                        ended: env.wall,
-                        jobs: Box::new([]),
-                        logs: Box::new([]),
-                        report: report.clone(),
-                        failures: None,
-                    },
+        restore_forge(
+            &mut domain,
+            &env,
+            forge::Stored::Receipt {
+                key: key.clone(),
+                receipt: forge::Receipt {
+                    passed: false,
+                    run: forge::ReceiptRun { id: 41, number: 42, url: b"run/41".as_slice().into() },
+                    candidate: SHA1,
+                    base: Some(SHA256),
+                    ended: env.wall,
+                    jobs: Box::new([]),
+                    logs: Box::new([]),
+                    report: report.clone(),
+                    failures: None,
                 },
             },
-            &mut Queue::uncapped(),
         );
         for why in [
             change::Repair::Landing { gate: 0 },
@@ -253,26 +245,23 @@ fn only_landing_repairs_of_a_gate_promising_no_report_offer_the_no_test_choice()
         }
     }
     // An unresolved failure is not evidence of a run naming no tests.
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore {
-            record: forge::Stored::Receipt {
-                key,
-                receipt: forge::Receipt {
-                    passed: false,
-                    run: forge::ReceiptRun { id: 99, number: 99, url: Box::new([]) },
-                    candidate: SHA1,
-                    base: None,
-                    ended: env.wall,
-                    jobs: Box::new([]),
-                    logs: Box::new([]),
-                    report: forge::ReceiptReport::Unset,
-                    failures: None,
-                },
+    restore_forge(
+        &mut domain,
+        &env,
+        forge::Stored::Receipt {
+            key,
+            receipt: forge::Receipt {
+                passed: false,
+                run: forge::ReceiptRun { id: 99, number: 99, url: Box::new([]) },
+                candidate: SHA1,
+                base: None,
+                ended: env.wall,
+                jobs: Box::new([]),
+                logs: Box::new([]),
+                report: forge::ReceiptReport::Unset,
+                failures: None,
             },
         },
-        &mut Queue::uncapped(),
     );
     let delegate = super::super::change_delegate(
         &domain,
@@ -294,12 +283,7 @@ fn an_inbox_repair_verdict_reaches_the_forge_as_no_test_with_its_words() {
     row.task = context.task;
     row.change.task = context.task;
     row.delegate = Some((52, change::Delegate::Repair(change::Repair::Landing { gate: 0 })));
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     context.inbox = Box::new([tasks::Word {
         number: 1,
         at: env.wall,

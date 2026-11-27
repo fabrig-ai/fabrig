@@ -236,7 +236,7 @@ fn exchange(
             reds::seed_reds(&mut service, run.task);
             false
         }
-        temper_worker_domain::wire::Ask::Landed { .. } => false,
+        temper_worker_domain::wire::Ask::Landed { .. } | temper_worker_domain::wire::Ask::Admit { .. } => false,
         temper_worker_domain::wire::Ask::Results(_) => {
             reds::seed_check_change(&mut service, run.task);
             true

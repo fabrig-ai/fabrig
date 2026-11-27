@@ -1,6 +1,7 @@
 # drift: status
 
-2026-11-22. Where the tree's code lags or departs from [drift.md](drift.md).
+2026-11-26. Where the tree's code lags or departs from [drift.md](drift.md).
+
 
 - **Not yet:** 1: a goal's runs push to its run
   branch r, and a `"branch": "run"` change lands r into g; g records no

@@ -70,8 +70,7 @@ fn a_delivered_review_repair_is_reviewed_again_after_a_goal_train_advances_its_b
         tasks::TaskResult::Verdict { code: 2, fields: Box::new([]), words: b"keep both lines".as_slice().into() },
     );
     let repair = reviews::next_assignment(&mut world, assigned + 1);
-    let delivered = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"first", b"repaired", 1)
-        .expect("repair delivers on the goal branch");
+    let delivered = world.run_push_edit(&repair, &branch, b"first", b"repaired", 1);
     finish_child(&mut world, &repair, b"Repair the review");
     finish_child(&mut world, &producer, b"Advance the goal train");
     await_change(&mut world, child);
@@ -115,8 +114,9 @@ fn main_producer(world: &mut World, goal: &engine::Assignment, call: u64, file: 
     };
     let producer = reviews::next_assignment(world, assigned);
     let branch = producer.workspace.repositories[0].push.clone().expect("producer branch");
-    world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, b"added", 1).expect("producer pushes");
+    let base = world.fake.branch(b"org/repo", b"main").expect("main");
+    let commit = world.worker_commit(base, file, b"added");
+    world.run_push(&producer, &branch, commit, 1);
     (made[0].task, producer)
 }
 
@@ -525,8 +525,7 @@ fn a_goal_train_moving_the_head_ends_an_unstarted_landing_repair_and_lands_afres
     // The child is ready to land while the main landing proves.
     let (child, producer) = goal_landing::producing_into_goal(&mut world, &goal, &branch, 102, b"failures");
     let child_branch = goal_landing::row(&world, child).branch.clone();
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &child_branch, b"failures", b"", 1)
-        .expect("child removes the failing test ids");
+    world.run_push_edit(&producer, &child_branch, b"failures", b"", 1);
     world.fail_brief_reads = Some((true, false, api::Error::NotConnected));
     let answer = goal_landing::mine(&mut world, &goal, 103, br#"{"words":"Land the goal","branch":"mine"}"#);
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("main change: {answer:?}") };

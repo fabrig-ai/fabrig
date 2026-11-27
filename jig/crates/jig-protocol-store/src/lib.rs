@@ -352,6 +352,14 @@ impl Store {
         Checked { limits: self.limits, codec: self.codec_limits }
     }
 
+    /// Whether the pending upgrade registered a value type absent from its source (protocol/store/layouts.md, 5).
+    /// A new layout of a previously registered type does not count.
+    #[must_use]
+    pub fn introduced_value_type(&self, family: &'static str, number: u16) -> bool {
+        let Some(pending) = directory::pending(self) else { return false };
+        pending.introduced.as_slice().contains(&(family, number))
+    }
+
     /// Today's models, before a commit that holds them (domain/engine/settings-catalogue.md, 1).
     pub fn catalogue(&mut self, names: Box<[jig_domain_core_vocabulary::settings::ModelName]>) {
         self.names = names;

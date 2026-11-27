@@ -168,12 +168,7 @@ fn a_refusal_is_erased_when_its_last_waiting_changes_leave() {
     for task in [7, 8] {
         let mut row = domain.forge.change(task).expect("ready change").clone();
         row.change.state = temper_engine_domain_forge_change::State::Ended;
-        forge::step(
-            &mut domain.forge,
-            &forge_env,
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        super::restore_in_forge_env(&mut domain, &forge_env, forge::Stored::Change(Box::new(row)));
     }
     forge::step(
         &mut domain.forge,

@@ -163,7 +163,7 @@ fn a_head_pushed_by_another_hand_leaves_and_holds_its_change_as_drift() {
     let ready = world.change(CHANGE).change.ready_since;
     world.push_as(MEMBER, b"new", b"another hand", 2);
     let head = translate::commit(world.branch(MEMBER));
-    assert_eq!(step_change(&mut world, 200), change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(step_change(&mut world, 200), change::Decision::Hold(change::Cause::BranchMoved));
     left(&mut world, landing::Leave::HeadMoved { head });
     assert_eq!(world.change(CHANGE).change.ready_since, ready);
     let hex: String = String::from_utf8(top::commit_text(&head).into_vec()).expect("hex head");
@@ -235,7 +235,7 @@ fn a_real_failure_snapshots_each_failed_job_and_only_changed_keys_run_after_repa
             if attempt.head == candidate && attempt.run == receipt.run.id && attempt.job == job.job && attempt.attempt == job.attempt)));
     }
     left(&mut world, landing::Leave::Failed { gate, run });
-    world.push(MEMBER, b"fixed");
+    world.push_attempt(&changes::branch_name(MEMBER), (52, 1), MEMBER, b"file", b"fixed");
     for entry in 400..410 {
         step_change(&mut world, entry);
         if matches!(world.change(CHANGE).change.state, change::State::Ready { .. }) {

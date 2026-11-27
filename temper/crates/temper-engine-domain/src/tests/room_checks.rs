@@ -607,6 +607,27 @@ fn a_runs_proposal_judges_overlays_over_the_default() {
 }
 
 #[test]
+fn a_runs_measure_reaches_jig_as_a_revisioned_named_act() {
+    let (mut root, env, task) = run_root();
+    let key = crate::CallKey { task, attempt: 1, completion: 1, position: 0 };
+    let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
+    crate::route::relay_payload(
+        &mut root,
+        &env,
+        &mut decision,
+        ReplyTo::new(REPLY),
+        key,
+        crate::Call { completion: 1, position: 0, tool: crate::Tool::Measure { target: 41, revision: 2 } },
+    );
+    let Some(crate::Work::Core(core::Event::NamedAction { to, key: named, action })) = root.work.pop() else {
+        panic!("expected a named act in jig")
+    };
+    assert_eq!((to.into_token(), named), (REPLY, key));
+    let core::NamedAction::Measure { target, revision } = action else { panic!("expected jig's Measure") };
+    assert_eq!((target, revision), (41, 2));
+}
+
+#[test]
 fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
     run_refusal(&HOST, WORDS);
 }

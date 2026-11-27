@@ -218,6 +218,7 @@ fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,
@@ -542,6 +543,7 @@ fn a_project_ending_at_landing_makes_no_verification_and_finishes_in_its_merge_s
             decision: change::Decision::Finish { merge: FIRST },
             entry: None,
             evidence: None,
+            close_at: None,
         }
     ));
     assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
@@ -597,7 +599,8 @@ fn two_landings_in_one_green_run_finish_cleared() {
                 task,
                 decision: change::Decision::Finish { merge: commit },
                 entry: None,
-                evidence: None
+                evidence: None,
+                close_at: None,
             }
         ));
         assert_eq!(d.change(task).expect("change").change.state, change::State::Cleared { merge: commit });
@@ -695,7 +698,8 @@ fn no_verdict_at_the_project_bound_finishes_uncleared() {
             task: CHANGE,
             decision: change::Decision::Wait { until: Some(deadline) },
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
         }
     ));
     d.wait_change(&env(), CHANGE, Some(deadline));
@@ -731,7 +735,8 @@ fn an_unfollowed_goal_branch_finishes_landed_at_once() {
             task: CHANGE,
             decision: change::Decision::Finish { merge: FIRST },
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
         }
     ));
     assert_eq!(
@@ -1128,6 +1133,7 @@ fn goal_tiers_leave_goal_landings_unfollowed_and_main_verified() {
             decision: change::Decision::Finish { merge: FIRST },
             entry: None,
             evidence: None,
+            close_at: None,
         }
     ));
     assert_eq!(

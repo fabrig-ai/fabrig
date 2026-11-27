@@ -1,4 +1,5 @@
 //! The QA model's document and played scripts (protocol/setup/playground.md).
+mod menu;
 pub mod observations;
 mod scripts;
 use crate::{Refusal, credential, read, turn};
@@ -28,6 +29,8 @@ pub struct Document {
     models: Box<[Model]>,
     scripts: api::Scripts,
     rules: api::Rules,
+    menu: api::Menu,
+    calls_per_answer: u32,
     reply_ms: u32,
     strict: bool,
 }
@@ -35,7 +38,7 @@ impl Document {
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         Self::decode_with_scripts(bytes, None)
     }
-    /// Replaces the script members before checking them (protocol/setup/playground.md, document form).
+    /// Replaces the script members before checking them; stretches use the document's menu.
     pub fn decode_with_scripts(bytes: &[u8], scripts: Option<&[u8]>) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
@@ -49,6 +52,7 @@ impl Document {
         let cued_at = read::required(&mut o, &d, b"cued", &p)?;
         let asked_at = read::required(&mut o, &d, b"asked", &p)?;
         let otherwise_at = read::required(&mut o, &d, b"otherwise", &p)?;
+        let menu_at = o.member(&d, b"menu");
         let reply_ms = read::pace(&mut o, &d, b"reply_ms", &p)?;
         read::finish(o, &d, &p)?;
         let listen = read::listen(&d, listen_at, &p.member(b"listen"))?;
@@ -81,8 +85,29 @@ impl Document {
         if control.is_none() && holds(&scripts) {
             return Err(read::why(&p.member(b"control"), b"required when a piece has a hold"));
         }
-        check_inputs(&scripts, &rules, &p.member(b"otherwise"))?;
-        Ok(Self { listen, control, key, added_keys, root, models, scripts, rules, reply_ms, strict: false })
+        let (menu, calls_per_answer) = match menu_at {
+            Some(at) => menu::read(&d, at, &p.member(b"menu"))?,
+            None => {
+                require_menu_for_stretches(&scripts, &p)?;
+                (empty_menu(), LIMITS.calls_per_answer)
+            }
+        };
+        let document = Self {
+            listen,
+            control,
+            key,
+            added_keys,
+            root,
+            models,
+            scripts,
+            rules,
+            menu,
+            calls_per_answer,
+            reply_ms,
+            strict: false,
+        };
+        check_inputs(&document.limits(), &document.scripts, &document.rules, &document.menu, &p)?;
+        Ok(document)
     }
     pub(crate) fn checked(
         listen: SocketAddr,
@@ -103,6 +128,8 @@ impl Document {
             models,
             scripts,
             rules,
+            menu: empty_menu(),
+            calls_per_answer: LIMITS.calls_per_answer,
             reply_ms: 0,
             strict: false,
         })
@@ -141,14 +168,26 @@ impl Document {
     #[must_use]
     pub fn limits(&self) -> domain::Config {
         let latency = Duration::from_millis(u64::from(self.reply_ms));
-        domain::Config { latency_min: latency, latency_max: latency, strict: self.strict, ..LIMITS }
+        domain::Config {
+            latency_min: latency,
+            latency_max: latency,
+            strict: self.strict,
+            calls_per_answer: self.calls_per_answer,
+            ..LIMITS
+        }
     }
-    /// No menu or random failure. Unknown model names receive the same scripts:
+    /// Only stretches draw tool calls from the menu. Unknown model names receive the same scripts:
     /// skein's provider retains no model list and performs no per-model admission.
     #[must_use]
     pub fn domain(&self, seed: u64) -> domain::Domain {
-        domain::Domain::played_by_input(&self.limits(), seed, self.scripts.clone(), empty_menu(), self.rules.clone())
-            .expect("checked scripts and rules")
+        domain::Domain::played_by_input(
+            &self.limits(),
+            seed,
+            self.scripts.clone(),
+            self.menu.clone(),
+            self.rules.clone(),
+        )
+        .expect("checked scripts, rules and menu")
     }
 }
 /// `OpenAI`'s public-route configuration, accepting the primary and added keys.
@@ -214,7 +253,7 @@ fn list_body(models: &[Model], out: &mut skein_json::writer::Encoder) {
     out.object_end();
 }
 fn empty_menu() -> api::Menu {
-    api::Menu { arguments: Box::new([]), invalid: Box::new([]) }
+    api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) }
 }
 fn added_keys(d: &Json, at: u32, key: &[u8], p: &Path) -> Result<Box<[Box<[u8]>]>, Refusal> {
     let items = match jig_protocol_config::read::list(d, at, credential::ADDED_KEYS) {
@@ -335,24 +374,40 @@ fn counted_rules(scripts: &[api::Script]) -> InputRules {
     }
     rules.into_boxed()
 }
-fn empty_rules() -> api::Rules {
-    api::Rules { cued: Box::new([]), asked: Box::new([]) }
-}
 pub(crate) fn check_scripts(scripts: &api::Scripts, p: &Path) -> Result<(), Refusal> {
-    check_inputs(scripts, &empty_rules(), p)
-}
-fn check_inputs(scripts: &api::Scripts, rules: &api::Rules, p: &Path) -> Result<(), Refusal> {
-    // The domain owns the joint byte accounting, including every wrapper.
-    match domain::Domain::played_by_input(&LIMITS, 0, scripts.clone(), empty_menu(), rules.clone()) {
-        Ok(_) => Ok(()),
-        Err(_) => Err(read::why(p, b"scripts past their joint byte bound")),
+    if domain::Domain::played(&LIMITS, 0, scripts.clone(), empty_menu()).is_err() {
+        return Err(read::why(p, b"scripts past their joint byte bound"));
     }
+    Ok(())
+}
+fn check_inputs(
+    limits: &domain::Config,
+    scripts: &api::Scripts,
+    rules: &api::Rules,
+    menu: &api::Menu,
+    p: &Path,
+) -> Result<(), Refusal> {
+    // The domain owns slot semantics and the joint byte accounting, including wrappers.
+    let Err(error) = domain::Domain::played_by_input(limits, 0, scripts.clone(), menu.clone(), rules.clone()) else {
+        return Ok(());
+    };
+    if menu.arguments.is_empty() {
+        return Err(read::why(&p.member(b"otherwise"), b"scripts past their joint byte bound"));
+    }
+    let p = p.member(b"menu");
+    if error == api::Error::InvalidRequest {
+        return Err(read::why(
+            &p.member(b"slots"),
+            b"invalid slots or their use in arguments, or past joint byte bound",
+        ));
+    }
+    Err(read::why(&p, b"scripts and menu past their joint byte bound"))
 }
 pub(crate) fn scripts(d: &Json, at: u32, p: &Path) -> Result<Box<[api::Script]>, Refusal> {
     Ok(scripts_with_inputs(d, at, p, None)?.0)
 }
 type InputRules = Box<[Box<[api::Rule]>]>;
-/// Only standalone scripts may carry input rules, pieces and failing lines.
+/// Only standalone scripts may carry input rules, pieces, failures, takes and stretches.
 fn scripts_with_inputs(
     d: &Json,
     at: u32,
@@ -377,7 +432,7 @@ fn scripts_with_inputs(
         }
         let turns = standalone_turns(d, turns_at, &p.member(b"turns"), credentials)?;
         let inputs = match inputs_at {
-            Some(at) => inputs(d, at, turns.len(), &p.member(b"inputs"))?,
+            Some(at) => inputs(d, at, &turns, &p.member(b"inputs"))?,
             None => Box::new([]),
         };
         rules.push(inputs).expect("sixteen scripts");
@@ -385,7 +440,7 @@ fn scripts_with_inputs(
     }
     Ok((out.into_boxed(), rules.into_boxed()))
 }
-fn inputs(d: &Json, at: u32, turns: usize, p: &Path) -> Result<Box<[api::Rule]>, Refusal> {
+fn inputs(d: &Json, at: u32, turns: &[api::Turn], p: &Path) -> Result<Box<[api::Rule]>, Refusal> {
     const RULES: u32 = 16;
     let items = match jig_protocol_config::read::list(d, at, RULES) {
         Ok(items) => items,
@@ -406,11 +461,16 @@ fn inputs(d: &Json, at: u32, turns: usize, p: &Path) -> Result<Box<[api::Rule]>,
         {
             return Err(read::why(&p.member(b"cue"), b"only the last rule must have an empty cue"));
         }
-        let turn = read::integer(d, turn_at, u64::from(u32::MAX), &p.member(b"turn"))?;
-        if turn >= u64::try_from(turns).expect("sixteen turns") {
-            return Err(read::why(&p.member(b"turn"), b"must index this script's turns"));
+        let path = p.member(b"turn");
+        let turn = read::integer(d, turn_at, u64::from(u32::MAX), &path)?;
+        if turn >= skein_lib::len_u64(turns.len()) {
+            return Err(read::why(&path, b"must index this script's turns"));
         }
-        rules.push(api::Rule { cue, turn: u32::try_from(turn).expect("sixteen turns") }).expect("sixteen rules");
+        let turn = u32::try_from(turn).expect("sixteen turns");
+        if is_stretch(turns.get(skein_lib::usize_of(turn)).expect("checked turn index")) {
+            return Err(read::why(&path, b"must not index a stretch"));
+        }
+        rules.push(api::Rule { cue, turn }).expect("sixteen rules");
     }
     Ok(rules.into_boxed())
 }
@@ -434,6 +494,30 @@ fn read_turns(
         out.push(turn::into_skein(turn)).expect("sixteen turns");
     }
     Ok(out.into_boxed())
+}
+fn is_stretch(turn: &api::Turn) -> bool {
+    if let Some(api::Line::Drawn { .. }) = turn.lines.first() {
+        return true;
+    }
+    false
+}
+fn require_menu_for_stretches(scripts: &api::Scripts, p: &Path) -> Result<(), Refusal> {
+    for (name, group) in [(b"cued".as_slice(), &scripts.cued), (b"asked", &scripts.asked)] {
+        for (i, script) in group.iter().enumerate() {
+            for (j, turn) in script.turns.iter().enumerate() {
+                if is_stretch(turn) {
+                    let p = read::index(&p.member(name), i).member(b"turns");
+                    return Err(read::why(&read::index(&p, j), b"stretch requires menu"));
+                }
+            }
+        }
+    }
+    for (i, turn) in scripts.otherwise.iter().enumerate() {
+        if is_stretch(turn) {
+            return Err(read::why(&read::index(&p.member(b"otherwise"), i), b"stretch requires menu"));
+        }
+    }
+    Ok(())
 }
 fn holds(scripts: &api::Scripts) -> bool {
     for script in scripts.cued.iter().chain(scripts.asked.iter()) {
@@ -482,6 +566,9 @@ pub const LIMITS: domain::Config = domain::Config {
     cache_entries: 0,
     strict: false,
     unscoped_reads: 0,
+    conversations: 0,
+    capture_answers: 0,
+    capture_bytes: 0,
     accounts: 0,
     unserved: 0,
     cut: 0,

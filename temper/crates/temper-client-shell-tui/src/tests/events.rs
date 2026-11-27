@@ -5,7 +5,7 @@ use super::*;
 fn an_own_composer_opens_and_advances_its_write() {
     for command in [Own::Draft, Own::Change, Own::Ask] {
         let (mut host, _, _) = signed_host(true);
-        host.tell(Told::Walk { by_key: true });
+        host.tell(Told::Walk { first: None });
         let before = host.state().box_written();
         let mut duties = Duties::default();
         host.event(Event::Own { command }, &mut duties);
@@ -21,7 +21,7 @@ fn an_own_composer_opens_and_advances_its_write() {
 
 fn check_own_view(event: &Event, brief: bool, walking: bool, open: Option<&[u8]>) {
     let (mut host, _, _) = signed_host(true);
-    host.tell(Told::Walk { by_key: true });
+    host.tell(Told::Walk { first: None });
     let mut duties = Duties::default();
     host.event(event.clone(), &mut duties);
     assert_eq!(host.words(), b"", "{event:?}");
@@ -77,46 +77,45 @@ fn open_uses_the_selected_chat_or_linked_goal() {
             give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
         }
         if selected {
-            host.report(Report::Key(Key::Down));
+            host.report(Report::Key(Key::Up));
         }
         assert_eq!(give(&mut host, Event::Own { command: Own::Open }).open.as_deref(), address);
     }
 }
 
 #[test]
-fn n_walks_only_from_an_empty_launchpad() {
-    for (chat, words, after, event, walking, expected) in [
-        (false, b"".as_slice(), None, Event::Own { command: Own::Needs }, true, b"".as_slice()),
-        (false, b"a".as_slice(), None, Event::Typed { value: b"an".as_slice().into() }, false, b"an".as_slice()),
-        (true, b"".as_slice(), None, Event::Typed { value: b"n".as_slice().into() }, false, b"n".as_slice()),
-        (false, b"".as_slice(), Some('o'), Event::Own { command: Own::Needs }, false, b"no".as_slice()),
-    ] {
-        let mut host = waiting_at(chat);
-        typed(&mut host, words);
-        host.frame();
-        assert_eq!(host.event_of(&Key::Char('n')), Some(event.clone()), "chat={chat}, words={words:?}");
-        host.report(Report::Key(Key::Char('n')));
-        if let Some(character) = after {
-            host.frame();
-            host.report(Report::Key(Key::Char(character)));
-        }
-        assert_eq!(host.words(), expected, "chat={chat}, words={words:?}, after={after:?}");
-        assert_eq!(host.state().walk().is_some_and(|walk| walk.by_key() && !walk.taken()), walking);
+fn n_types_instead_of_walking() {
+    let mut home = waiting_at(false);
+    for (words, expected) in [(b"".as_slice(), b"n".as_slice()), (b"a".as_slice(), b"an".as_slice())] {
+        check_n_types(&mut home, words, expected);
     }
 }
 
 #[test]
-fn typing_restores_only_an_untaken_walk_key() {
-    for (by_key, taken, expected) in
-        [(false, false, b"o".as_slice()), (true, true, b"o".as_slice()), (true, false, b"no".as_slice())]
-    {
-        let mut host = waiting_at(false);
-        host.tell(Told::Walk { by_key });
+fn n_types_on_a_chat_with_a_question() {
+    check_n_types(&mut waiting_at(true), b"", b"n");
+}
+
+fn check_n_types(host: &mut Host, words: &[u8], expected: &[u8]) {
+    typed(host, words);
+    host.frame();
+    assert_eq!(host.event_of(&Key::Char('n')), Some(Event::Typed { value: expected.into() }));
+    host.report(Report::Key(Key::Char('n')));
+    assert_eq!(host.words(), expected);
+    assert!(host.state().walk().is_none());
+}
+
+#[test]
+fn typing_ends_the_walk_without_a_prefix() {
+    let mut host = waiting_at(false);
+    let object = shared_question(&host);
+    for (from_row, taken) in [(false, false), (true, false), (true, true)] {
+        host.tell(Told::Walk { first: from_row.then_some(object) });
         if taken {
-            host.tell(Told::Walked { object: shared_question(&host) });
+            host.tell(Told::Walked { object });
         }
         host.typed(b"o".as_slice().into());
-        assert_eq!(host.words(), expected, "by_key={by_key}, taken={taken}");
+        assert_eq!(host.words(), b"o", "from_row={from_row}, taken={taken}");
         assert!(host.state().walk().is_none(), "typing ends the prompt");
         assert!(host.state().field().is_empty(), "walking keys belong only to the box");
     }
@@ -125,7 +124,7 @@ fn typing_restores_only_an_untaken_walk_key() {
 fn check_walk_step(step: &WalkStep, label: Option<&root::pages::needs::Label>, open: Option<&[u8]>) {
     let mut host = waiting_host();
     let object = shared_question(&host);
-    host.tell(Told::Walk { by_key: false });
+    host.tell(Told::Walk { first: None });
     let duties = give(&mut host, Event::Walk { object, step: step.clone() });
     let answered = host.root.pages().needs().answered(Wall::EPOCH, root::pages::needs::ANSWERED_ON_HOME, Some(3));
     assert_eq!(
@@ -134,7 +133,7 @@ fn check_walk_step(step: &WalkStep, label: Option<&root::pages::needs::Label>, o
         "{step:?}: only a choice answers, in its words"
     );
     assert_eq!(duties.open.as_deref(), open, "{step:?}: page opened");
-    assert!(host.state().walk().is_some_and(|walk| walk.shown(&object) && walk.taken()), "{step:?}: need shown");
+    assert!(host.state().walk().is_some_and(|walk| walk.shown(&object)), "{step:?}: need shown");
 }
 
 #[test]
@@ -169,79 +168,210 @@ fn own_commands_clear_the_composer_and_standing_list() {
         assert!(host.root.pages().listing().is_none(), "{own:?}: standing list dismissed");
         assert!(host.state().box_written() > before, "{own:?}: box write advances");
         assert_eq!(host.state().brief_shown(), brief, "{own:?}");
-        assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
+        assert_eq!(host.state().walk().is_some_and(|walk| walk.first().is_none()), walk, "{own:?}");
     }
 }
 
 #[test]
-fn arrows_select_and_draw_the_left_off_chat() {
-    let passed = {
-        let mut host = left_off_host();
-        let mut passed = true;
-        for (key, task, title) in
-            [(Key::Down, NEWEST, "Newest"), (Key::Down, OLDER, "Older"), (Key::Up, NEWEST, "Newest")]
-        {
-            passed &= host.event_of(&key) == Some(Event::LeftOff { task: Some(task) });
-            host.report(Report::Key(key));
-            passed &= host.state().left_off() == Some(task)
-                && text(&mut host).lines().any(|line| line.starts_with(&format!(" ❯ Project   {title}, a chat")));
-        }
-        passed
-    };
-    assert!(passed);
+fn arrows_and_emacs_aliases_select_and_draw_launchpad_rows() {
+    let mut host = left_off_host();
+    let first = Row::Chat { task: NEWEST };
+    let second = Row::Chat { task: OLDER };
+    for (key, row, title) in [
+        (Key::Up, first, "Newest"),
+        (Key::Control(b'n'), second, "Older"),
+        (Key::BackTab, first, "Newest"),
+        (Key::Down, second, "Older"),
+        (Key::Control(b'p'), first, "Newest"),
+    ] {
+        assert_eq!(host.event_of(&key), Some(Event::Picked { row: Some(row) }));
+        host.report(Report::Key(key));
+        assert_eq!(host.state().picked(), Some((row, true)));
+        let frame = host.frame();
+        assert_eq!(frame.cursor(), None);
+        let text = String::from_utf8(frame.text().into_vec()).expect("frame text");
+        assert!(text.lines().any(|line| line.starts_with(&format!(" ❯ Project   {title}, a chat"))));
+    }
 }
 
 #[test]
-fn enter_opens_and_watches_the_left_off_chat() {
-    let passed = {
-        let mut host = left_off_host();
-        let event = host.event_of(&Key::Down).expect("first chat");
-        give(&mut host, event);
-        host.frame();
-        let selected = host.state().left_off() == Some(NEWEST)
-            && host.event_of(&Key::Enter)
-                == Some(Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
-        let duties = host.report(Report::Key(Key::Enter));
-        read_exchange(&duties, "activity");
-        watch(&duties, &w::Subject::Task(w::SubjectTask { task: NEWEST }));
-        selected && host.root.pages().address() == &Address::Chat { task: NEWEST }
-    };
-    assert!(passed);
-}
-
-#[test]
-fn escape_clears_the_left_off_selection() {
+fn enter_and_right_open_and_watch_the_left_off_chat() {
     let mut host = selected_chat();
-    let event = host.event_of(&Key::Escape);
-    host.report(Report::Key(Key::Escape));
-    assert_eq!(event, Some(Event::LeftOff { task: None }));
-    assert_eq!(host.state().left_off(), None);
+    assert_eq!(host.state().picked(), Some((Row::Chat { task: NEWEST }, true)));
+    let address = Address::Chat { task: NEWEST };
+    for key in [Key::Enter, Key::Right] {
+        assert_eq!(host.event_of(&key), Some(Event::Act { act: Act::Go { address: address.clone() } }));
+    }
+    // The cross-project chat test gives Enter; here Right follows the same address.
+    let duties = host.report(Report::Key(Key::Right));
+    read_exchange(&duties, "activity");
+    watch(&duties, &w::Subject::Task(w::SubjectTask { task: NEWEST }));
+    assert_eq!(host.root.pages().address(), &address);
+    assert_eq!(host.state().picked(), None);
+    assert!(host.frame().cursor().is_some());
 }
 
 #[test]
-fn typing_ends_left_off_selection_and_its_arrows() {
-    let mut host = selected_chat();
-    host.report(Report::Key(Key::Char('a')));
-    assert_eq!(host.state().left_off(), None);
+fn escape_returns_to_the_box_with_its_words() {
+    let mut host = left_off_host();
+    host.frame();
+    check_return_to_box(&mut host, Key::Escape, b"half", Event::Picked { row: None });
+}
+
+#[test]
+fn typing_returns_to_the_box_and_appends_at_the_end() {
+    let mut host = left_off_host();
+    host.frame();
+    check_return_to_box(&mut host, Key::Char('x'), b"halfx", Event::Typed { value: b"halfx".as_slice().into() });
+}
+
+#[test]
+fn paste_returns_to_the_box_and_appends_at_the_end() {
+    let mut host = left_off_host();
+    host.frame();
+    check_return_to_box(
+        &mut host,
+        Key::Paste(b"x".as_slice().into()),
+        b"halfx",
+        Event::Typed { value: b"halfx".as_slice().into() },
+    );
+}
+
+#[test]
+fn delete_keys_return_to_the_box_and_edit_at_the_end() {
+    let mut host = left_off_host();
+    host.frame();
+    check_return_to_box(&mut host, Key::Backspace, b"hal", Event::Typed { value: b"hal".as_slice().into() });
+    check_return_to_box(&mut host, Key::Delete, b"half", Event::Picked { row: None });
+}
+
+fn check_return_to_box(host: &mut Host, key: Key, words: &[u8], event: Event) {
+    typed(host, b"half");
+    host.report(Report::Key(Key::Home));
     assert_eq!(host.event_of(&Key::Down), None);
+    host.report(Report::Key(Key::Up));
+    assert_eq!(host.state().picked(), Some((Row::Chat { task: NEWEST }, true)));
+    assert_eq!(host.words(), b"half");
+    assert_eq!(host.event_of(&key), Some(event));
+    host.report(Report::Key(key));
+    assert_eq!(host.words(), words);
+    assert_eq!(host.state().picked(), None);
+    assert!(host.frame().cursor().is_some());
 }
 
 #[test]
-fn a_command_list_takes_arrows_before_left_off_chats() {
+fn a_commands_list_takes_arrows_before_the_launchpad_list() {
     let mut host = selected_chat();
     host.report(Report::Key(Key::Char('/')));
     host.frame();
-    let event = host.event_of(&Key::Down);
+    assert_eq!(host.state().picked(), Some((Row::Chat { task: NEWEST }, false)));
+    assert_eq!(host.event_of(&Key::Down), None);
     host.report(Report::Key(Key::Down));
-    assert_eq!(host.state().left_off(), Some(NEWEST));
-    assert_eq!(event, None);
-    assert!(text(&mut host).lines().any(|line| line.starts_with("❯ /change")));
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Own { command: Own::Change }));
+    assert_eq!(host.event_of(&Key::Up), None);
+    host.report(Report::Key(Key::Up));
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Own { command: Own::Draft }));
+    host.report(Report::Key(Key::Escape));
+    assert_eq!(host.state().picked(), None);
+}
+
+#[test]
+fn a_closed_picked_chat_returns_to_the_box() {
+    let mut host = left_off_host();
+    give(&mut host, Event::Picked { row: Some(Row::Chat { task: NEWEST }) });
+    host.tell(Told::Closed { task: NEWEST });
+    host.report(Report::Due);
+    assert_eq!(host.state().picked(), None);
+    assert!(host.frame().cursor().is_some());
+    assert_eq!(host.event_of(&Key::Up), Some(Event::Picked { row: Some(Row::Chat { task: OLDER }) }));
+}
+
+#[test]
+fn a_need_row_starts_the_walk_before_up_moves_the_prompt() {
+    let mut host = waiting_at(false);
+    let object = shared_question(&host);
+    for key in [Key::Right, Key::Enter] {
+        give(&mut host, Event::Picked { row: Some(Row::Need { object }) });
+        assert_eq!(host.event_of(&key), Some(Event::WalkFrom { object }));
+        host.report(Report::Key(key));
+        assert_eq!(host.state().picked(), None);
+        assert_eq!(host.state().walk().unwrap().first(), Some(object));
+        host.frame();
+        host.report(Report::Key(Key::Down));
+        assert_eq!(
+            host.event_of(&Key::Enter),
+            Some(Event::Walk { object, step: WalkStep::Choose { words: b"Semicolon".as_slice().into() } })
+        );
+        assert_eq!(host.event_of(&Key::Up), None);
+        host.report(Report::Key(Key::Up));
+        assert_eq!(
+            host.event_of(&Key::Enter),
+            Some(Event::Walk { object, step: WalkStep::Choose { words: b"Comma".as_slice().into() } })
+        );
+        give(&mut host, Event::EndWalk);
+    }
+}
+
+#[test]
+fn a_goal_row_opens_its_page() {
+    let mut host = goal_host();
+    let row = Row::Goal { task: NEWEST };
+    let address = b"http://127.0.0.1:8367/tasks/9".as_slice();
+    for key in [Key::Enter, Key::Right] {
+        assert_eq!(host.event_of(&Key::Up), Some(Event::Picked { row: Some(row) }));
+        give(&mut host, Event::Picked { row: Some(row) });
+        assert_eq!(host.event_of(&key), Some(Event::Open { address: address.into() }));
+        assert_eq!(host.report(Report::Key(key)).open.as_deref(), Some(address));
+        assert_eq!(host.state().picked(), None);
+        assert!(host.frame().cursor().is_some());
+    }
+}
+
+#[test]
+fn a_change_row_opens_its_place() {
+    let (mut host, _, _) = signed_host(true);
+    for key in [Key::Enter, Key::Right] {
+        give(&mut host, Event::Picked { row: Some(Row::Start { command: Own::Change }) });
+        assert_eq!(host.event_of(&key), Some(Event::Own { command: Own::Change }));
+        host.report(Report::Key(key));
+        assert_eq!(host.state().place(), Some(Own::Change));
+        assert_eq!(host.state().picked(), None);
+        assert!(host.frame().cursor().is_some());
+        give(&mut host, Event::Back);
+    }
+}
+
+#[test]
+fn start_lists_roles_and_a_role_row_opens_a_talk() {
+    let mut host = talk::roles_host();
+    host.frame();
+    let role = Row::Role { project: 3, task: 7 };
+    let first = Event::Picked { row: Some(role) };
+    assert_eq!(host.event_of(&Key::Control(b'p')), Some(first.clone()));
+    give(&mut host, first.clone());
+    let draft = Row::Start { command: Own::Draft };
+    assert_eq!(host.event_of(&Key::Tab), Some(Event::Picked { row: Some(draft) }));
+    host.report(Report::Key(Key::Tab));
+    assert_eq!(host.state().picked(), Some((draft, true)));
+    let talk = Row::Start { command: Own::Talk };
+    give(&mut host, Event::Picked { row: Some(talk) });
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Own { command: Own::Talk }));
+    host.report(Report::Key(Key::Enter));
+    assert!(host.state().talk_list());
+    assert_eq!(host.state().picked(), None);
+    assert!(host.frame().cursor().is_some());
+    host.report(Report::Key(Key::Escape));
+    give(&mut host, first);
+    let address = Address::Talk { project: 3, task: 7 };
+    assert_eq!(host.event_of(&Key::Right), Some(Event::Act { act: Act::Go { address: address.clone() } }));
+    host.report(Report::Key(Key::Right));
+    assert_eq!(host.root.pages().address(), &address);
+    assert!(host.frame().cursor().is_some());
 }
 
 fn selected_chat() -> Host {
     let mut host = left_off_host();
-    host.report(Report::Key(Key::Down));
-    host.frame();
+    host.report(Report::Key(Key::Up));
     host
 }
 
@@ -413,6 +543,56 @@ fn escape_dispatches_the_views_event() {
             && keyed.state().aside() == direct.state().aside()
     };
     assert!(passed);
+}
+
+#[test]
+fn left_is_only_a_caret_key_on_the_launchpad() {
+    let (mut host, _, _) = signed_host(true);
+    host.frame();
+    for words in ["", "hi"] {
+        if !words.is_empty() {
+            host.report(Report::Key(Key::Paste(words.as_bytes().into())));
+            host.frame();
+            host.report(Report::Key(Key::Home));
+        }
+        assert_eq!(host.event_of(&Key::Left), None);
+        empty(&host.report(Report::Key(Key::Left)));
+        assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+        assert_eq!(host.words(), words.as_bytes());
+    }
+}
+
+#[test]
+fn left_leaves_a_chat_while_its_question_stands() {
+    let mut host = waiting_host();
+    let object = shared_question(&host);
+    left_leaves_with_prompt(&mut host, Event::Aside { object });
+}
+
+#[test]
+fn left_leaves_a_chat_while_its_reply_choices_stand() {
+    left_leaves_with_prompt(&mut reply_host(), Event::ReplyAside { turn: REPLY_TURN });
+}
+
+fn left_leaves_with_prompt(host: &mut Host, esc: Event) {
+    host.frame();
+    assert_eq!(host.words(), []);
+    assert_eq!(host.event_of(&Key::Escape), Some(esc));
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Command { command: Command::New }));
+    host.report(Report::Key(Key::Left));
+    assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+}
+
+#[test]
+fn escape_sets_aside_the_chats_question() {
+    let mut host = waiting_host();
+    let object = jig_client::contract::ObjectKey::Question { task: 7, message: 7 };
+    assert!(has_option(&host, b"1. Comma"));
+    assert_eq!(host.event_of(&Key::Escape), Some(Event::Aside { object }));
+    empty(&host.report(Report::Key(Key::Escape)));
+    assert_eq!(host.state().aside(), Some(object));
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: 7 });
+    assert!(!has_option(&host, b"1. Comma"));
 }
 
 #[test]

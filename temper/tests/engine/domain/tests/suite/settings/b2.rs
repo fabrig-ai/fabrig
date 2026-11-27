@@ -324,7 +324,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         assert_eq!(worker.charter, 2);
         assert_eq!(worker.run.policy.model, box_model());
         workers.push(worker.task);
-        driver.forge.as_mut().expect("peer").push_checked(2, &branch, round == 0, round == 2);
+        let pushed = push_checked(driver, &worker, &branch, round == 0, round == 2);
         let result = tasks::TaskResult::Change {
             title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
             connector: 1,
@@ -335,7 +335,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         if round == 0 {
             send_end(driver, &worker, result);
             wait_retired(driver, worker.task);
-            restart_after_delegate(driver, restart, worker.task, change, &branch);
+            restart_after_delegate(driver, restart, worker.task, change, &branch, pushed);
             driver.pump();
         } else {
             finish(driver, &worker, result);
@@ -379,6 +379,34 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     );
 }
 
+fn push_checked(driver: &mut Driver, worker: &engine::Assignment, branch: &[u8], first: bool, passing: bool) -> u64 {
+    use jig_domain_host::{AskAnswer, LinkDown};
+    use temper_engine_forge_world::translate::commit;
+    use temper_protocol_worker_wire::v1::{Admit, Answer, CEILINGS, Record as _};
+
+    let item = &worker.workspace.repositories[0];
+    let repository = item.provider.repository;
+    let (expected, head) = driver.forge.as_mut().expect("peer").prepare_checked_push(repository, branch, passing);
+    assert_eq!(expected.is_none(), first, "the producer creates the branch and repairs push over its tip");
+    let (ask, event) = driver.protocol.admit(
+        (CHANNEL, worker.task, worker.attempt),
+        Admit { tag: item.tag, branch: branch.into(), expected: expected.map(commit), commit: commit(head) },
+    );
+    driver.send(event);
+    driver.pump();
+    let answer = driver.delivered.iter().find_map(|delivery| match delivery {
+        Delivery::Link { channel, down: LinkDown::Asked { number, answer: AskAnswer::Bytes(bytes), .. } }
+            if *channel == CHANNEL && *number == ask =>
+        {
+            Some(Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("encoded push answer"))
+        }
+        _ => None,
+    });
+    assert_eq!(answer, Some(Answer::Admitted), "the worker must be admitted before moving the branch");
+    driver.forge.as_mut().expect("peer").push_prepared(repository, branch, expected, head, passing);
+    head
+}
+
 fn wait_retired(driver: &mut Driver, task: u64) {
     let ended = Key::Core(core::Key::Tasks(tasks::Key::Ended(task)));
     for _ in 0..200 {
@@ -390,8 +418,23 @@ fn wait_retired(driver: &mut Driver, task: u64) {
     panic!("the producer retires");
 }
 
-fn restart_after_delegate(driver: &Driver, config: &engine::Config, task: u64, holder: u64, branch: &[u8]) {
+fn restart_after_delegate(
+    driver: &Driver,
+    config: &engine::Config,
+    task: u64,
+    holder: u64,
+    branch: &[u8],
+    pushed: u64,
+) {
     assert!(driver.task(task).is_none(), "the producing delegate has retired");
+    let saved = driver.store.rows.get(&Key::Forge(forge::Key::ChangeHot(holder))).expect("the change is kept");
+    let Record::Forge { row } = saved else { unreachable!("forge row") };
+    let forge::Stored::ChangeHot(change) = row.as_ref() else { unreachable!("kept change state") };
+    assert_eq!(
+        change.change.last_head,
+        Some(temper_engine_forge_world::translate::commit(pushed)),
+        "the producer's retired push is pinned before restart"
+    );
     let commit = driver.store.header().commits;
     eprintln!("restart after delegate {task} retired at commit {commit}");
     let held = driver
@@ -423,7 +466,10 @@ fn restart_after_delegate(driver: &Driver, config: &engine::Config, task: u64, h
             driver.env.wall,
         );
         let mut peer = ForgeStand::with_checks(&[(b"org", b"repo", 2)], &[b"build"]);
-        peer.push_checked(2, branch, true, false);
+        // The peer survives the engine's crash: replay the already admitted push, not another worker ask.
+        let (expected, commit) = peer.prepare_checked_push(2, branch, false);
+        assert_eq!((expected, commit), (None, pushed), "the restarted engine sees the same prepared tip");
+        peer.push_prepared(2, branch, expected, commit, false);
         restarted.forge = Some(peer);
         restarted.connect_forges();
         restarted.pump();

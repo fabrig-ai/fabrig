@@ -4,10 +4,13 @@ use temper_protocol_worker_wire as payload;
 
 #[test]
 fn ask_sizes_take_the_worker_ceiling_and_reds_answers_take_each_sides_bounds() {
+    // Answer takes its largest arm. When Reds is smaller, Unadmitted sets the bound:
+    // worker-wire-v1.schema defines 512 bytes of words, plus a 4-byte length and 1-byte Answer tag.
+    const UNADMITTED_ANSWER_BYTES: u32 = 517;
     let mut settings = fixtures::engine();
     let worker = fixtures::worker_settings();
     let agent = fixtures::worker_agent();
-    for (count, key, answer) in [(64, 256, 18_949), (3, 19, 182)] {
+    for (count, key, answer) in [(64, 256, 18_949), (3, 19, UNADMITTED_ANSWER_BYTES)] {
         settings.limits.forge.branch_reds = count;
         settings.limits.forge.red_key_bytes = key;
         let engine = crate::workers::limits(&settings).unwrap();

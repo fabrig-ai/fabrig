@@ -381,6 +381,7 @@ impl Forge {
                 | Observation::Closed { .. }
                 | Observation::Reopened { .. }
                 | Observation::Labelled { .. }
+                | Observation::Retargeted { .. }
                 | Observation::Revised { .. }
                 | Observation::Depends { .. }
                 | Observation::Requested { .. }

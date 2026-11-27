@@ -19,13 +19,12 @@ pub(super) fn route_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
-    mut requests: Queue<core::Request>,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("core request count");
-        route_request(domain, env, decision, request, work);
-    }
+    let mut out = Queue::with_capacity(requests.len());
+    core::engine::append(requests, &mut out);
+    route_engine(domain, env, decision, out, work);
 }
 
 pub(super) fn route_engine(
@@ -105,7 +104,9 @@ pub(super) fn route_request(
                 decision,
                 jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
             ),
-            core::Held::Store(load) => hold(decision, Delivery::Store(load)),
+            core::Held::Store(_) => {
+                unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+            }
             other @ (core::Held::Read { .. }
             | core::Held::Delivery { .. }
             | core::Held::WatchEnded { .. }
@@ -379,16 +380,8 @@ fn route_ask(
         core::Ask::Workers(workers) => domain.now.push(crate::Request::Workers(workers)),
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
-            let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
-            for row in &models {
-                names
-                    .push(core::settings::ModelName {
-                        name: row.model.name.clone(),
-                        efforts: row.model.efforts.clone(),
-                    })
-                    .expect("one name per position");
-            }
-            domain.now.push(crate::Request::StoreCatalogue { names: names.into_boxed() });
+            let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
+            domain.now.push(crate::Request::StoreCatalogue { names });
             domain.now.push(crate::Request::ClientsCatalogue { models });
         }
         core::Ask::Providers(_)
