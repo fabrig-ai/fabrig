@@ -86,8 +86,9 @@ pub fn read(
                     total - u64::from(tries.lost).min(u64::try_from(lost).expect("attempt count"))
                 })
                 .sum();
-            let end = match &crate::acts::task(store, number).expect("goal row").phase {
-                tasks::Phase::Ended(tasks::Ending::Done(_)) if branch_landed(store, number) => End::Landed,
+            let row = crate::acts::task(store, number).expect("goal row");
+            let end = match &row.phase {
+                tasks::Phase::Ended(tasks::Ending::Done(_)) if branch_landed(store, row) => End::Landed,
                 tasks::Phase::Ended(tasks::Ending::Done(_)) => End::Done,
                 tasks::Phase::Ended(tasks::Ending::Failed { .. }) => End::Failed,
                 tasks::Phase::Ended(tasks::Ending::Cancelled { .. }) => End::Cancelled,
@@ -126,21 +127,31 @@ pub(crate) fn members(store: &Store, goal: u64) -> BTreeSet<u64> {
     }
 }
 
-fn branch_landed(store: &Store, goal: u64) -> bool {
+fn branch_landed(store: &Store, goal: &tasks::TaskRecord) -> bool {
+    let tasks::EndedBy::Closer(closer) = goal.flags.ended_by else { return false };
+    let executor = tasks::Executor::Procedure { connector: closer.connector, code: closer.code };
+    // Closing projection cleanup erases the closer row. The closer's land change
+    // and the task records linking it to its requester outlive that projection.
     store.rows.values().any(|record| {
         let Record::Forge { row } = record else { return false };
-        let forge::Stored::Closer(closer) = row.as_ref() else { return false };
-        closer.goal == goal
-            && closer.closer.landing.is_some_and(|landing| {
-                store.change_hot(landing).is_some_and(|row| {
-                    matches!(
-                        row.change.state,
-                        temper_engine_domain_forge_change::State::Landed { .. }
-                            | temper_engine_domain_forge_change::State::Red { .. }
-                            | temper_engine_domain_forge_change::State::Cleared { .. }
-                            | temper_engine_domain_forge_change::State::Uncleared { .. }
-                    )
-                })
+        let forge::Stored::ChangeCold(change) = row.as_ref() else { return false };
+        // A close-job change is also a direct delegate of the closer, but it lands
+        // into the goal's branch rather than landing the goal's branch itself.
+        if change.goal != Some(goal.number) || change.close.is_some() {
+            return false;
+        }
+        let Some(task) = crate::acts::task(store, change.task) else { return false };
+        let tasks::Party::Task(parent) = task.requester else { return false };
+        crate::acts::task(store, parent)
+            .is_some_and(|parent| parent.requester == tasks::Party::Task(goal.number) && parent.executor == executor)
+            && store.change_hot(change.task).is_some_and(|row| {
+                matches!(
+                    row.change.state,
+                    temper_engine_domain_forge_change::State::Landed { .. }
+                        | temper_engine_domain_forge_change::State::Red { .. }
+                        | temper_engine_domain_forge_change::State::Cleared { .. }
+                        | temper_engine_domain_forge_change::State::Uncleared { .. }
+                )
             })
     })
 }
