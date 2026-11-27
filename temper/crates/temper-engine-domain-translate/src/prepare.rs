@@ -16,6 +16,7 @@ pub struct PrepareMember {
     pub head: api::Commit,
     pub message: Box<[u8]>,
     pub squash: Box<[u8]>,
+    pub head_trailers: bool,
 }
 #[derive(Debug)]
 pub struct PrepareRequest {
@@ -77,6 +78,10 @@ fn encode(json: &mut Encoder, request: &PrepareRequest) {
         json.string(&member.message);
         json.key(b"squash");
         json.string(&member.squash);
+        if member.head_trailers {
+            json.key(b"head_trailers");
+            json.boolean(true);
+        }
         json.object_end();
     }
     json.array_end();
@@ -155,9 +160,8 @@ pub fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_prepare_spec_is_the_empty_command_and_exact_request() {
-        let request = PrepareRequest {
+    fn request(head_trailers: bool) -> PrepareRequest {
+        PrepareRequest {
             repository: b"repo".as_slice().into(),
             main: [1; 32],
             from: [1; 32],
@@ -170,14 +174,28 @@ mod tests {
                 head: [2; 32],
                 message: b"Merge \"title\"\n\nLanded".as_slice().into(),
                 squash: b"title\n\nTemper-Change: 12".as_slice().into(),
+                head_trailers,
             }]),
-        };
+        }
+    }
+
+    #[test]
+    fn a_prepare_spec_is_the_empty_command_and_exact_request() {
+        let request = request(false);
         let bytes = spec(&request, 16_384).expect("bounded prepare");
         let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded spec");
         assert_eq!(decoded.command.as_ref(), b"");
         assert!(!decoded.refusal);
         assert_eq!(decoded.request.as_ref(), br#"{"version":1,"repository":"repo","main":"0101010101010101010101010101010101010101010101010101010101010101","from":"0101010101010101010101010101010101010101010101010101010101010101","combine":"squash","train_upstream":"0303030303030303030303030303030303030303030303030303030303030303","members":[{"number":12,"branch":"temper/7/c12","prefix":"temper/7/l13","head":"0202020202020202020202020202020202020202020202020202020202020202","message":"Merge \"title\"\n\nLanded","squash":"title\n\nTemper-Change: 12"}],"upstreams":[],"gates":[]}"#);
         assert!(spec(&request, u32::try_from(bytes.len()).expect("length") - 1).is_none());
+    }
+
+    #[test]
+    fn a_flagged_prepare_member_encodes_head_trailers_after_squash() {
+        let bytes = spec(&request(true), 16_384).expect("bounded prepare");
+        let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded spec");
+        let member_end = br#""squash":"title\n\nTemper-Change: 12","head_trailers":true}]"#;
+        assert!(skein_lib::bytes::find(&decoded.request, member_end).is_some());
     }
 
     #[test]
