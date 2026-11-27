@@ -18,3 +18,5 @@ the test connector no longer reports one as a default of size 0
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
   horizon, which is not built (`../protocol/store/growth.md`, 1.1).
   13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
+- **Not yet:** 2: `ops`'s infrastructure connector works out each description's form, recovery and waiting, and `ops`'s root restates its kinds by hand, rather than one table of the connector's that the root declares from [in flight: change 21087].
+- **Not yet:** 2: temper declares its forge kinds as a range beside `effect_shape`, rather than from one table of the forge's vocabulary [in flight: change 21082].

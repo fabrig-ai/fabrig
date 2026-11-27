@@ -25,3 +25,5 @@
   in its place reshapes every step of the core, which is the clean-up's
   (3, *The engine as the API*) and moves no behaviour this fix needs.
   Decided by the goal's designer.
+- **Not yet:** 2.1: `Engine::new` and `Core::new` refuse with `jig_domain_link::Problem`, whose cases include the declarations', not with `StartProblem` [in flight: change 21091].
+- **Not yet:** 2.1, 2.3 and 2.4: `append` is private, and the roots route the loads of the core entrances they call directly as `core::Held::Store`, a second arm beside `Out::Held(Peer::Store(..))` [in flight: change 21096].
