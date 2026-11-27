@@ -71,3 +71,35 @@ fn eight_links_are_passed_and_the_ninth_is_left() {
     let answer = scripted_walk(b"l1/f", &calls).expect("eight links passed");
     assert_eq!(&*answer, b"l9/f", "the ninth link is left as written");
 }
+
+#[test]
+fn a_sibling_link_names_one_regular_file_without_following_another_link() {
+    use std::{fs, os::unix::fs::symlink};
+
+    let scratch = skein_scratch::Scratch::new("sibling-link");
+    let root = scratch.path().join("hooks");
+    fs::create_dir(&root).expect("hooks directory");
+    fs::create_dir(root.join("sub")).expect("subdirectory");
+    fs::write(root.join("deliver"), b"regular").expect("regular hook");
+    fs::write(root.join("sub/deliver"), b"regular").expect("nested file");
+    fs::write(scratch.path().join("pre-pr"), b"fallback").expect("neighboring legacy check");
+    for (name, target) in [
+        ("finish", "deliver"),
+        ("outside", "../pre-pr"),
+        ("chain", "finish"),
+        ("nested", "sub/deliver"),
+        ("directory", "sub"),
+        ("dangling", "absent"),
+    ] {
+        symlink(target, root.join(name)).expect("link in the hooks directory");
+    }
+    let dir = crate::open_root(&root).expect("open hooks directory");
+    let lookup = |name: &[u8]| super::sibling_file(dir.raw(), name);
+    assert_eq!(lookup(b"finish").expect("sibling link").as_deref(), Some(b"deliver".as_slice()));
+    assert_eq!(lookup(b"deliver"), Ok(None), "direct name needs no rewrite");
+    assert_eq!(lookup(b"absent"), Err(libc::ENOENT), "absence is distinct from a bad link");
+    for name in [b"outside".as_slice(), b"chain", b"nested", b"directory", b"dangling"] {
+        assert_eq!(lookup(name), Err(libc::ELOOP), "refuse {name:?}");
+    }
+    crate::system::close(dir).expect("close hooks directory");
+}

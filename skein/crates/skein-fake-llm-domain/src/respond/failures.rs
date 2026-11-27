@@ -29,7 +29,7 @@ fn reply(query: &Query, scripts: &[Script]) -> Result<(Answer, Option<crate::pie
         &mut 0,
         &CONFIG,
         &mut played(scripts),
-        &crate::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        &crate::api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
         query,
         Time::ZERO,
     ) {

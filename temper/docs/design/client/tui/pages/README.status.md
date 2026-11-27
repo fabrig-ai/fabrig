@@ -1,6 +1,6 @@
 # pages: status
 
-2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-27. Where the tree's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 1, *The notice*: no group started's notice [in flight:
   change 3434].

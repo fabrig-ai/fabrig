@@ -161,6 +161,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Names { .. }
             | d::Stored::Subscription(_)
             | d::Stored::BranchHead(_)
+            | d::Stored::Writes(_)
             | d::Stored::PullState(_)
             | d::Stored::Ci(_)
             | d::Stored::Client(_)

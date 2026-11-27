@@ -25,6 +25,55 @@ fn quiet(world: &mut World) {
     panic!("forge watches and gathers settle before observation");
 }
 
+#[test]
+fn an_admitted_goal_push_survives_restart_before_it_reaches_the_forge() {
+    use forge_top::writes::{Operation, Sender, WriteState};
+    use temper_protocol_worker_wire::v1::Answer;
+
+    let (mut world, goal, branch) = running_goal();
+    let name = forge_hold(&world, &branch).expect("goal branch hold").name.clone();
+    let before = branch_tip(&mut world, &branch);
+    let commit = world.worker_commit(before, b"design", b"admitted before restart");
+    let attempt = (Token::new(7), goal.task, goal.attempt);
+    let tag = goal.workspace.repositories[0].tag;
+    assert_eq!(world.ask_push(attempt, tag, &branch, Some(before), commit), Some(Answer::Admitted));
+    let written = world.root.forge().nearest_write(&name).expect("admitted push").clone();
+    assert_eq!(written.sender, Sender::Attempt { task: goal.task, attempt: goal.attempt });
+    assert_eq!(
+        written.operation,
+        Operation::Push { before: Some(translate::commit(before)), after: translate::commit(commit) }
+    );
+    assert_eq!(written.state, WriteState::Admitted);
+
+    world.drain_cut();
+    world.restart_same();
+    quiet(&mut world);
+    assert_eq!(world.root.forge().nearest_write(&name), Some(&written), "the live lease survives unchanged");
+
+    // The worker already received admission. It spends that lease, without a new ask.
+    assert_eq!(
+        world.external(1, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit, expected: Some(before) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    hint(&mut world, skein_forge::api::Change::BranchMoved { branch, head: translate::commit(commit), actor: 1 });
+    for _ in 0..STEPS {
+        world.tick();
+        if world
+            .root
+            .forge()
+            .write_entry(&name, written.order)
+            .is_some_and(|entry| entry.state == WriteState::Confirmed)
+        {
+            break;
+        }
+    }
+    assert_eq!(
+        world.root.forge().nearest_write(&name),
+        Some(&forge_top::writes::Written { state: WriteState::Confirmed, ..written })
+    );
+    world.close();
+}
+
 fn landing(world: &mut World, goal: &engine::Assignment, call: u64) -> u64 {
     let answer = mine(world, goal, call, br#"{"words":"Land the goal","branch":"mine"}"#);
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("landing admitted: {answer:?}") };
@@ -295,8 +344,7 @@ fn a_remade_goal_landing_ignores_its_ended_predecessors_news() {
     remade.unheld(&world);
 
     world.forge_reads = Some(Vec::new());
-    let next = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"design", b"goal's push", 1)
-        .expect("the goal pushes its held branch forward");
+    let next = world.run_push_edit(&goal, &branch, b"design", b"goal's push", 1);
     assert_ne!(next, head);
     // Finish the fake's zero-latency run before placing this head's CI in waiting.
     world.external(1, raw::Op::Read(raw::Read::Pull { number: q }));

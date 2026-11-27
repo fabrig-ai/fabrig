@@ -24,10 +24,10 @@ pub enum Store {
     Restored(core::start::Phase),
     /// The generation is active; save the start’s wires.
     Switched,
-    /// Ordered opaque transcript rows for a prepared activation.
-    Transcript { task: u64, rows: Box<[core::TranscriptRow]>, done: bool },
     /// A child-specific loaded page in the core's vocabulary.
     Loaded(core::Event),
+    /// An answer on the engine’s store port.
+    Engine(core::engine::store::In),
 }
 
 /// A released output addressed to a child; iterate feeds it back as one event.
@@ -162,6 +162,8 @@ pub enum Output {
     CoreLoad(core::Now),
     /// Core output for its party, view, note or external protocol owner.
     Core(core::Held),
+    /// A held engine load, released after preceding commits.
+    Store(core::engine::store::Out),
     /// Core output with no durable dependency, such as a view fact.
     Now(core::Now),
     /// One request to the shared production's observability API.

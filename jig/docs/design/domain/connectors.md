@@ -73,7 +73,7 @@ application root            routes between the core and every connector
   |---|---|
   | a live task names these resources; a task is erased, so nothing it named need be kept for it (3.4) | each resource's role and kind of hold; unknown; not adopted |
   | holds taken, handed down or released; a writer slot taken or freed | a pool's slots changed; a resource read afresh after a lost attempt |
-  | describe this effect, from an agent's call or a step | its description: kind, resources, purpose, condition, form, price |
+  | describe this effect, from an agent's call or a step | its description: kind, resources, purpose, condition, price |
   | keep this effect under this key, or under this proposal; drop it | — (part of the decision) |
   | make this outbox entry (the journal released it) | made, with what it made; failed; uncertain |
   | judge this requirement for this effect's state | met; wait, for what; refuse, on which fact |
@@ -122,6 +122,60 @@ application root            routes between the core and every connector
   (`RepairSeed` and `PersonSeed`, which carry the tasks child's events,
   stay in the core's vocabulary), and a word's payload size, a message's
   inbox family and a hold's check (the tasks child's).
+- **Declared once** (`temper/docs/design/draft/jig-domain-api.md`, 6.2).
+  What is a kind's, or the deployment's, a connector gives the engine
+  once, as it is built, and never again per instance:
+
+  ```rust
+  // jig-domain-contract: the crate's root, `resources` and `effects`
+  pub struct Declaration { pub connector: u16, pub resources: Box<[ResourceKind]>, pub effects: Box<[EffectKind]> }
+  pub struct ResourceKind { pub kind: u16, pub hold: Rule }
+  pub enum Rule { Shared, Exclusive { taken: Taken }, Pooled { taken: Taken } }
+  pub enum Taken { Refuses, Waits }
+  pub struct EffectKind { pub kind: u16, pub form: EffectForm, pub recovery: Recovery, pub waits_for_dependencies: bool }
+  ```
+
+  - **A resource kind's rule** is the hold a resource of it takes: none,
+    one holder or a pool's slots, and whether a taken hold refuses or
+    waits (3.3). `Rule` and `Taken` are the tasks child's, moved down and
+    still named there as `HoldKind` and `Taken`; the tasks child holds by
+    the rule wherever no report of the resource has come (tasks/holds.md,
+    2), as after a restart, before its connector reports again.
+  - **An effect kind's form, recovery class and waiting for
+    dependencies** (`connectors-effects.md`, 1.1 and 1.3) are its
+    connector's to declare, from its configuration where its system
+    decides them: `ops`'s infrastructure restarts keyed where its backend
+    gives operations' ids and unrecoverable where it doesn't. Writes that
+    differ in any of the three are different kinds (3.1).
+  - **One table of its kinds:** each effect kind's form, recovery class
+    and waiting are stated once. A connector whose own steps read them
+    or whose configuration decides them (`ops`'s infrastructure, holding
+    an uncertain restart its backend can't recover; temper's forge; the
+    test connector) keeps its effect kinds, each once with all three, in
+    one table of its own vocabulary, and its root builds its declaration
+    from that table, translating each row and restating none. No
+    description and no request of the connector carries them again, so
+    the declaration and the connector can't disagree, and a kind added to
+    the table is declared. A connector that reads none of them and
+    decides none (`ops`'s observability, with its one silence) leaves
+    them to its root's declaration, the one place they are stated.
+  - **Said and judged per instance, as before:** a resource's role and
+    hold in a project, said up (3.2, 3.3), which wins over its kind's
+    rule; a batch member's holdings, its symbols resolved, judged by the
+    connector and refused with the symbol or the holder (3.1); an effect's
+    resources, condition, state and price (`connectors-effects.md`, 1.1).
+  - **Given at construction and checked:** a root gives `Engine::new` one
+    declaration for each connector its configuration names, and the
+    engine refuses a start whose declarations don't hold
+    (engine/vocabulary.md, 2.1). The engine installs the resource kinds'
+    rules in the tasks child itself, before anything is restored, so no
+    root, kit or world steps a child to install them; it keeps the effect
+    kinds, and refuses a description of a kind its connector didn't
+    declare (`connectors-effects.md`, 1.1).
+  - **Why once:** the rules were repeated in every description, and each
+    root installed hold kinds by stepping the tasks child; declared, they
+    are checked once, where a wrong one stops the start rather than one
+    effect.
 - **Tasks are named by number.** The connector keeps the numbers of the
   tasks it serves as plain values; it never sees a task. What it projects
   of a goal, the root gives it, in the connector's own terms.
@@ -176,7 +230,8 @@ participating object is a participant's write.
 ### 3.3 Holds
 
 The core keeps holds and their queues (tasks/holds.md); the
-connector says what they apply to:
+connector says what they apply to, by its kinds in its declaration
+(section 2) and by each resource's report:
 
 - **which kinds of resource take holds,** and whether each is
   *exclusive* (one holder: a service being remediated, a branch being

@@ -1,5 +1,6 @@
 //! Feed the domain events, inspect the requests that come out.
 
+mod admission;
 mod kept;
 
 use alloc::boxed::Box;
@@ -175,6 +176,8 @@ impl Harness {
                 }
                 other @ (Request::Results { .. }
                 | Request::DependencyLanded { .. }
+                | Request::AdmitPush { .. }
+                | Request::WithdrawAdmission { .. }
                 | Request::ResultsEnd { .. }
                 | Request::Held { .. }
                 | Request::Prepared { .. }
@@ -256,6 +259,7 @@ fn bytes(text: &[u8]) -> Box<[u8]> {
 fn repository(name: &[u8], writable: bool) -> Repository {
     let push = if writable { Some(bytes(b"main")) } else { None };
     Repository {
+        admit: false,
         prefixes: Box::new([]),
         save: Some(bytes(b"saved/1")),
         git: None,
@@ -342,6 +346,8 @@ fn landings(request: Request) -> Box<[Landing]> {
         | Request::Saved { client: _, outcome: Outcome::Pushed { landings } } => landings,
         other @ (Request::Results { .. }
         | Request::DependencyLanded { .. }
+        | Request::AdmitPush { .. }
+        | Request::WithdrawAdmission { .. }
         | Request::ResultsEnd { .. }
         | Request::Held { .. }
         | Request::Prepared { .. }
@@ -360,6 +366,8 @@ fn refused(request: Request) -> Refusal {
         | Request::Prepared { client: _, prepared: Prepared::Refused { refusal } } => refusal,
         other @ (Request::Results { .. }
         | Request::DependencyLanded { .. }
+        | Request::AdmitPush { .. }
+        | Request::WithdrawAdmission { .. }
         | Request::ResultsEnd { .. }
         | Request::Held { .. }
         | Request::Prepared { .. }
@@ -1275,6 +1283,8 @@ fn pin_trace(h: &mut Harness, client: u64, repo: Repository, tip: Commit, counts
             Request::Prepared { prepared: Prepared::Ready { .. }, .. } => return (hold, seen),
             other @ (Request::Results { .. }
             | Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }
@@ -2286,7 +2296,10 @@ fn merge_preparation_transfers_conflict_paths_and_facts_keep_only_counts() {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
         panic!("ready with conflicts")
     };
-    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"src/a"), bytes(b"src/b")]) }]);
+    assert_eq!(
+        &*conflicts,
+        &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"src/a"), bytes(b"src/b")]), cut: false }]
+    );
     let facts = h.facts();
     assert!(
         facts.as_slice().contains(&Fact::Ended { client: Token::new(1), done: crate::Ending::Conflicted { files: 2 } })
@@ -2754,7 +2767,7 @@ fn a_producers_uncontained_base_still_leaves_a_conflicted_two_parent_merge() {
     let Request::Prepared { prepared: Prepared::Ready { conflicts, .. }, .. } = ready else {
         panic!("ready with conflicts")
     };
-    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"code")]) }]);
+    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"code")]), cut: false }]);
     let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
         panic!("two parent commit")
     };
@@ -3397,6 +3410,8 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                 }
                 other @ (Request::Results { .. }
                 | Request::DependencyLanded { .. }
+                | Request::AdmitPush { .. }
+                | Request::WithdrawAdmission { .. }
                 | Request::ResultsEnd { .. }
                 | Request::Held { .. }
                 | Request::Prepared { .. }

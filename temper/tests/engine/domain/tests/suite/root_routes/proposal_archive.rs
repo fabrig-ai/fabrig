@@ -1,4 +1,5 @@
 use super::*;
+use jig_domain_core::engine::store as engine_store;
 const DELEGATE: u64 = 81;
 const PROPOSE: u64 = 82;
 const WITHDRAW: u64 = 83;
@@ -16,13 +17,10 @@ fn a_named_withdrawal_answers_from_the_loaded_decided_proposal() {
         Some(&engine::CallAnswer::ProposalDecided { proposal, outcome: tasks::ProposalOutcome::Withdrawn })
     );
     assert!(live(&driver, child).proposal.is_none());
-    driver.loads.clear();
+    driver.point_loads.clear();
     tool_call(&mut driver, &run, WITHDRAW_AGAIN, engine::Tool::Withdraw { proposal });
     assert!(
-        driver
-            .loads
-            .iter()
-            .any(|(_, range)| *range == engine::Range::Core(engine::CoreRange::TaskProposal { task: child, proposal }))
+        driver.point_loads.iter().any(|(_, range)| *range == (engine_store::Range::Proposal { task: child, proposal }))
     );
     assert_eq!(
         driver.answered(WITHDRAW_AGAIN),

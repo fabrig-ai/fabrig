@@ -5,6 +5,7 @@
     reason = "unit tests inspect selected boundary outputs"
 )]
 use crate::settings::{self as s, Kind, KindScope};
+use crate::tests::new_core;
 use crate::tests::*;
 
 // A proposal, its extent, and an acceptance's revision and application state.
@@ -572,7 +573,7 @@ fn load_settings(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) ->
     let mut configured = config(41);
     configured.kinds = core.kinds.clone();
     configured.connectors = Box::new([2, 3]);
-    let mut restarted = Core::new(configured, limits).unwrap();
+    let mut restarted = new_core(configured, limits).unwrap();
     let _begin = restarted.start_begin(false, Wall::EPOCH);
     for (&setting, default) in &core.current.defaults {
         assert!(restarted.restore_setting(s::Record::Default { setting, default: default.clone() }, limits));

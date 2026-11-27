@@ -289,6 +289,7 @@ impl Harness {
                     | crate::Lower::CancelIo { .. }
                     | crate::Lower::Read { .. }
                     | crate::Lower::Probe { .. }
+                    | crate::Lower::ProbeHooks { .. }
                     | crate::Lower::Check { .. }
                     | crate::Lower::Abort { .. },
                 )
@@ -424,6 +425,7 @@ fn charter() -> Charter {
         conventions: Some(smith_domain_run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -1120,6 +1122,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
                 | crate::Lower::CancelIo { .. }
                 | crate::Lower::Read { .. }
                 | crate::Lower::Probe { .. }
+                | crate::Lower::ProbeHooks { .. }
                 | crate::Lower::Check { .. }
                 | crate::Lower::Abort { .. },
             ) => {}
@@ -1530,11 +1533,11 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
     for (selected, expected_path) in [
         (None, b".smith/check".as_slice()),
         (
-            Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite") }),
+            Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite"), hooks: None }),
             b".ci/check-suite".as_slice(),
         ),
         (
-            Some(run::Conventions { guide: bytes(b"AGENTS.md"), checks: bytes(b".temper/pre-pr") }),
+            Some(run::Conventions { guide: bytes(b"AGENTS.md"), checks: bytes(b".temper/pre-pr"), hooks: None }),
             b".temper/pre-pr".as_slice(),
         ),
     ] {
@@ -1593,7 +1596,7 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
     let mut harness = Harness::new();
     let (run, main, _) = convention_main(
         &mut harness,
-        Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite") }),
+        Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite"), hooks: None }),
     );
     let emitted = harness.answer(
         main,
@@ -1647,9 +1650,9 @@ fn invalid_conventions_are_refused_at_original_root_start_before_any_effect() {
         for bad_guide in [true, false] {
             let mut harness = Harness::new();
             let conventions = if bad_guide {
-                run::Conventions { guide: bytes(path), checks: bytes(b".ci/check") }
+                run::Conventions { guide: bytes(path), checks: bytes(b".ci/check"), hooks: None }
             } else {
-                run::Conventions { guide: bytes(b"docs/GUIDE"), checks: bytes(path) }
+                run::Conventions { guide: bytes(b"docs/GUIDE"), checks: bytes(path), hooks: None }
             };
             let emitted = harness.step(Event::Start(crate::Start {
                 workspace: Some(workspace()),
@@ -1731,6 +1734,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
             Some(run::Conventions {
                 guide: Box::new([b'g'; run::Conventions::PATH_CAPACITY]),
                 checks: Box::new([b'c'; run::Conventions::PATH_CAPACITY]),
+                hooks: None,
             })
         } else {
             None

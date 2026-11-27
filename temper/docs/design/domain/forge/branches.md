@@ -243,11 +243,20 @@ comes and lands its branch, and the report carries what the run said
   task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
-  1. **Close,** where the goal holds a goal branch and its project names
-     a `close_job` (`../../protocol/configuration/engine.md`): a change
+  1. **Close,** where the goal holds a goal branch whose tip has a close
+     command: its `.temper/hooks/close`, or, where the tip holds no
+     `.temper/hooks/`, its project's `close_job`
+     (`../../protocol/hooks.md`, 4.2 and 5;
+     `../../protocol/configuration/engine.md`). Once nothing is pending
+     and the goal's landed changes have not been closed, the closer reads
+     `.temper/hooks/` at the goal's branch's tip, its tip read first; a
+     read with no answer leaves the closer waiting, and it reads again,
+     never skipping the step for it. The step is a change
      into the goal's branch whose producer is the close job, kind 4
      (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
      parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
+     and, where the closer found the hook, its bytes parameter 20 the
+     hook's path (`change/README.md`, 1),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
      changes left out; its words `Settle goal G's status.` The change
@@ -255,8 +264,10 @@ comes and lands its branch, and the report carries what the run said
      no agent, and lands as any change into the branch does; nothing
      staged ends it with no change. A refusal of the close's check holds
      it at once, and a check that broke holds it once its job's tries are
-     spent (`change/repairs-releases.md`, 1). Where the project names none, or the
-     goal holds no goal branch, this step is skipped.
+     spent (`change/repairs-releases.md`, 1). Where the tip has no close
+     command, or the goal holds no goal branch, this step is skipped. A
+     close step superseded by more landed changes reads again for its
+     new change.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
      branch into its base, as the goal's `"branch": "mine"` would make
@@ -291,7 +302,9 @@ comes and lands its branch, and the report carries what the run said
     each as the client takes them (`../agent/agents.md`, 3): the last
     line whose start, past spaces, is `Left: `, its words past that,
     trimmed. No such note, or none with a `Left:` line, passes, so a
-    charter that asks for no report meets no check. A read that fails
+    charter that asks for no report meets no check. The same read takes
+    the note's `Asked:` block (`../agent/agents.md`, 3, *What its request
+    asked for in its result*), for the report alone: it holds nothing. A read that fails
     is made again after a wait, as an unknown containment is (below).
   - *Held:* a `Left:` line no release has passed holds the closer,
     before it makes any step, its words `the goal's report leaves work
@@ -307,7 +320,8 @@ comes and lands its branch, and the report carries what the run said
     life; it still reads the line before each step new work makes, for
     its report. One release, final, keeps the goal's word its own and
     the closer out of a loop over wording.
-  - *On its row:* the line it last read, none where it read none, and
+  - *On its row:* the line and the `Asked:` block it last read, each
+    none where it read none, and
     where its check stands, unread, held or released, so that a restart
     neither holds again past a release nor loses what its report
     names. They are added fields of the closer's row in `temper-store`,
@@ -455,8 +469,9 @@ comes and lands its branch, and the report carries what the run said
     person's rejection of a required gate (`Rejected`), its pull
     request closed without a merge (`PullClosed`) or its branch missing
     (`BranchMissing`), the change's holds (`change/repairs.md`). The
-    change keeps the hold its state was in as that state becomes
-    `Ended`, as `Change.ended_held`, an `Option<Hold>`, none where it
+    change keeps the hold's cause its state was in as that state becomes
+    `Ended`, as `Change.ended_held`, an `Option<Cause>`
+    (`change/repairs-releases.md`, 2), none where it
     was not held, so that its reason outlives the hold. The store keeps
     it in the stored state it already has, an ended state with that
     one hold (`ChangeState`'s `holds`), so that its format stays and
@@ -578,6 +593,8 @@ Landed:
   LINE
 Ended without landing:
 - TN TITLE: WHY
+Asked: WORDS
+  LINE
 Left by the goal: WORDS
 The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
 CI selection:
@@ -603,6 +620,12 @@ The goal's finish:
   closer's own left out, ascending: why, `cancelled`,
   `failed: ` then its failure's first line, or `no change: ` then its
   result's first line. The part is left out where none did.
+- **What the goal's request asked for in its result:** the `Asked:`
+  block its report last read (*What its goal's report leaves holds it
+  first*, above): its first line from `Asked: `, then each later line
+  as written, indented two spaces, as a change's `Left` section's are.
+  The part is left out where it read none, so a goal whose report
+  answers nothing reports as it would without the part.
 - **What the goal left:** the `Left:` line its report last read
   (*What its goal's report leaves holds it first*, above), its words
   whole, on one line; left out where it read none.
@@ -635,10 +658,11 @@ The goal's finish:
 - **Cut to the contract's bound** as any report is: where the whole
   passes the contract's words bound, the changes' `Left` sections are
   cut first, from the last change's back, each cut one replaced by `  Left: [N
-  bytes cut]`, the goal's own line never among them; then, if it still passes, the report keeps its first
+  bytes cut]`, the goal's own line and its `Asked:` block never among them; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped, so that the goal's finish, the last part, loses
-  its end first.
+  its end first, and the `Asked:` block, behind only the heading and
+  the changes, loses its end only once every part after it is gone.
 
 ## 3. A goal's design writers
 
@@ -676,66 +700,29 @@ fast-forward never forced. Its repository's other writes are as before.
   slot, each a run's attempt, so merges into g, a landing's repairs and
   the goal's other writers go on while it runs. The hold keeps them with
   it in the store, so a restart keeps them.
-- **Its pushes are g's own.** While g has a design writer, a forward
-  move by temper's identity is that writer's push, never drift, as
-  while any writer holds a branch (`change/drift.md`, 1); a move by another identity, or
-  not forward, is drift as before. When the design writer's run
-  answers, or its attempt is lost, g is read afresh, as a lost writer's
-  branch is (`branches.md`): a tip that descends from the head temper last
-  knew becomes g's recorded head, as the branch's own; one that does not
-  is drift. What the run reports pushing is not taken as the head, since
-  merges land beside it.
-- **In the order the forge took them** (2026-11-19). g's recorded head,
-  and with it the forge client's expected head (`Pushed`), follows
-  temper's own writes in the order they reached the forge, never the
-  order their records reach the engine: no record moves it back to an
-  ancestor of a head temper itself wrote. A design writer's answer is
-  read at once, beside g's other writes, so its push can be recorded
-  while a write in g's slot (a merge into g, its merge job's push, an
-  update of g) is still in flight, and that write's record can come
-  after it, naming a head the design push already descends from. So the
-  hold keeps a **head beside**: the head a design writer's fresh read
-  recorded while another write of temper's held g (its slot taken, or a
-  merge into it handed), a later such read replacing it, dropped once no
-  such write holds g. The record of a write's head W (a merge's commit,
-  an update's made head, a slot run's reported push) that finds the head
-  beside still g's recorded head H, and W another head, waits on one
-  comparison before it moves anything:
-  - *The comparison.* The forge reads whether H contains W, one
-    `Commits` read as a lost writer's reread compares. Meanwhile the hold
-    keeps W beside H, so a restart reads it again, and the write still
-    holds g: g counts as written and its slot stays taken, so no drift is
-    judged on it.
-  - *H contains W* (W is H's ancestor): H stays g's head. The record
-    moves no head and sends no `Pushed`; the write's other effects (its
-    change landed, its landing log, its tiers' observation) are taken as
-    before.
-  - *H does not contain W:* W is g's head, recorded and `Pushed` as any
-    write's head is. A read that fails for good takes W too, as before
-    this rule, and the watch then judges g against it.
-
-  The answer drops the head beside and W, and frees g if nothing else
-  writes it. A record that finds no head beside, or g's head already
-  moved off it, takes W at once, as before.
-  - *While the forge catches up.* Before a restart's fresh reads are in
-    (`catching-up.md`, 4), a record of W on a held branch whose recorded
-    head H is restored from the store keeps W beside H in the same way,
-    with no design writer, and takes the same comparison. The hold is
-    stored, so another restart reads it again, and the write holds the
-    branch until the answer, so the fresh read judges no drift on W.
-    A record on a branch with no hold or no recorded head takes W at
-    once.
-
-  Drift is unchanged: a head
-  none of temper's writes made, even on top of g's head, and a move not
-  forward from it, still hold the goal (`change/drift.md`, 1).
-- **Written while any writes it.** The forge's keep counts g as written
-  while a design writer lives, a run holds its slot, a merge into it
-  is in flight, or a write's head waits on its comparison (above); each
-  of them ending leaves g written while another stands.
+- **Its pushes are admitted first.** Each push of a design writer, at
+  each of its tries, is admitted into g's record of temper's writes
+  before the worker makes it (`writes.md`, 2), so any read of g that
+  shows it, the keep's or a change's, while the run lives or after it
+  has answered, finds it explained, never drift (`writes.md`, 4); a head
+  no entry explains is drift as before (`change/drift.md`, 1), and holds
+  the goal where no change on g reads it. When the run answers, or its
+  attempt is lost, its pushes still unsettled are settled as
+  `writes.md`, 3 says. What the run reports pushing is not taken as the
+  head, since merges land beside it.
+- **In the order the forge took them** (2026-11-19). g's head, and with
+  it the forge client's expected head (`Pushed`), follows temper's own
+  writes in the order they reached the forge, never the order their
+  answers reach the engine: the record orders them (`writes.md`, 4,
+  *Ordered*), so a merge into g whose answer comes after a design push
+  that already descends from its commit never moves g back to it, and a
+  restart, which restores the record, orders them the same. Drift is
+  unchanged: a head none of temper's writes made, even on top of g's
+  head, and a move not forward from it, still hold the goal
+  (`change/drift.md`, 1).
 - **Changes on g take it.** A change on g (the goal's landing,
   `"branch": "mine"`, the closer's land step) treats a live design
-  writer as its requester's own run (`change/drift.md`, 1): a forward move is its new
+  writer as its requester's own run (`change/drift.md`, 1): a head the record explains is its new
   head, checked again, never "branch moved".
 - **Its brief says so**: one line, that `deliver` pushes the
   checkout's Markdown straight to the goal branch, merging its moved tip

@@ -57,7 +57,7 @@ fn restored(rows: &[u64]) -> Domain {
             &mut Queue::uncapped(),
         );
     }
-    d.start_links(&live, &env(), &mut Queue::uncapped()).unwrap();
+    d.start_links(&live, &env(), false, &mut Queue::uncapped()).unwrap();
     for event in [Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, Event::CatchUp] {
         for request in &outputs(&mut d, event) {
             assert!(!matches!(request, Request::LandingDecision { .. }), "startup only wakes a due step");

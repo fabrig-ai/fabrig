@@ -692,6 +692,7 @@ impl Session {
             | root::Delivery::Fleet(_)
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. }) => return unrouted_delivery(&other),
         }

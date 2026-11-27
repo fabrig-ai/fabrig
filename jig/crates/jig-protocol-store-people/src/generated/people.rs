@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 17;
 pub const LAYOUT: [u8; 32] = [
-    0x35, 0xf5, 0x1b, 0x80, 0xc1, 0xb9, 0x58, 0xec, 0xd7, 0xc1, 0xfe, 0x7d, 0x10, 0xa9, 0xa7, 0x40, 0x03, 0xb3, 0x5f,
-    0x0e, 0x13, 0xdb, 0xc8, 0xe5, 0xb0, 0x3b, 0x4f, 0x61, 0xbf, 0xf5, 0x7a, 0xb0,
+    0x39, 0x0e, 0x29, 0x82, 0x27, 0x1b, 0x60, 0x2c, 0xa2, 0xac, 0x7a, 0xce, 0xec, 0xbf, 0xa7, 0x11, 0x3b, 0x15, 0x4b,
+    0x28, 0x53, 0x9b, 0xfd, 0x83, 0xe7, 0x64, 0xa4, 0x03, 0xd8, 0x2a, 0x8e, 0x86,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -1028,6 +1028,10 @@ pub mod paths {
     pub const ASK_RELEASE_REVISION: Path = Path::new("AskRelease.revision");
     pub const ASK_RELEASE_AGAIN: Path = Path::new("AskRelease.again");
     pub const ASK_RELEASE_TAIL: Path = Path::new("AskRelease (tail)");
+    pub const ASK_MEASURE_PROJECT: Path = Path::new("AskMeasure.project");
+    pub const ASK_MEASURE_TASK: Path = Path::new("AskMeasure.task");
+    pub const ASK_MEASURE_REVISION: Path = Path::new("AskMeasure.revision");
+    pub const ASK_MEASURE_TAIL: Path = Path::new("AskMeasure (tail)");
     pub const ASK_TAKE_PERSON_PROJECT: Path = Path::new("AskTakePerson.project");
     pub const ASK_TAKE_PERSON_TASK: Path = Path::new("AskTakePerson.task");
     pub const ASK_TAKE_PERSON_TAIL: Path = Path::new("AskTakePerson (tail)");
@@ -9913,6 +9917,64 @@ impl Record for AskRelease {
     }
 }
 
+// Type: AskMeasure.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AskMeasure {
+    pub project: u32,
+    pub task: u64,
+    pub revision: u64,
+}
+
+// Record: AskMeasure.
+impl AskMeasure {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for AskMeasure {
+    type Limits = Limits;
+    const TAIL: Path = paths::ASK_MEASURE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AskMeasure")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AskMeasure")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::ASK_MEASURE_PROJECT)?;
+        field::write(field::U64, &self.task, limits, out, paths::ASK_MEASURE_TASK)?;
+        field::write(field::U64, &self.revision, limits, out, paths::ASK_MEASURE_REVISION)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::ASK_MEASURE_PROJECT)?,
+            task: field::read(field::U64, limits, reader, paths::ASK_MEASURE_TASK)?,
+            revision: field::read(field::U64, limits, reader, paths::ASK_MEASURE_REVISION)?,
+        })
+    }
+}
+
 // Type: AskTakePerson.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AskTakePerson {
@@ -13859,6 +13921,7 @@ pub enum Ask {
     Delegate(AskDelegate),
     PauseWorker(AskPauseWorker),
     ReissueService(ServiceParty),
+    Measure(AskMeasure),
 }
 
 // Record: Ask.
@@ -13906,7 +13969,8 @@ impl Ask {
         skein_codec::bounds::Node::Named("AskDelegate"),
         skein_codec::bounds::Node::Named("AskPauseWorker"),
         skein_codec::bounds::Node::Named("ServiceParty"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41] },
+        skein_codec::bounds::Node::Named("AskMeasure"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -13977,6 +14041,7 @@ impl Record for Ask {
             Self::Delegate(value) => { field::put(out, &[38], paths::ASK_TAG)?; value.write(limits, out) },
             Self::PauseWorker(value) => { field::put(out, &[39], paths::ASK_TAG)?; value.write(limits, out) },
             Self::ReissueService(value) => { field::put(out, &[40], paths::ASK_TAG)?; value.write(limits, out) },
+            Self::Measure(value) => { field::put(out, &[41], paths::ASK_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -14024,7 +14089,8 @@ impl Record for Ask {
             38 => Ok(Self::Delegate(AskDelegate::read(limits, reader)?)),
             39 => Ok(Self::PauseWorker(AskPauseWorker::read(limits, reader)?)),
             40 => Ok(Self::ReissueService(ServiceParty::read(limits, reader)?)),
-            41..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
+            41 => Ok(Self::Measure(AskMeasure::read(limits, reader)?)),
+            42..=u8::MAX => Err(Problem { path: paths::ASK_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22644,6 +22710,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "AskMakeProject", nodes: AskMakeProject::SHAPE },
     skein_codec::bounds::Declaration { name: "AskMakeService", nodes: AskMakeService::SHAPE },
     skein_codec::bounds::Declaration { name: "AskMarkSeen", nodes: AskMarkSeen::SHAPE },
+    skein_codec::bounds::Declaration { name: "AskMeasure", nodes: AskMeasure::SHAPE },
     skein_codec::bounds::Declaration { name: "AskMove", nodes: AskMove::SHAPE },
     skein_codec::bounds::Declaration { name: "AskMoveToNewest", nodes: AskMoveToNewest::SHAPE },
     skein_codec::bounds::Declaration { name: "AskPauseWorker", nodes: AskPauseWorker::SHAPE },

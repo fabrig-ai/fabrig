@@ -196,7 +196,7 @@ fn a_catch_up_starts_when_the_full_comparison_is_too_large() {
         let (mut world, commit, tip) = catch_up_world(true);
         world.script_ancestry(ancestry);
         assert_eq!(
-            changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
+            changes::change_step_merge_job(&mut world, 1, change::Status::Unknown, Box::new([])),
             change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None })
         );
         assert_eq!(world.change(CHANGE).change.resolutions, 0, "production spends no resolution");
@@ -231,7 +231,7 @@ fn a_catch_up_with_uncertain_ancestry_stalls_and_a_release_retries_it() {
     {
         let (mut world, commit, tip) = catch_up_world(true);
         world.script_ancestry(Some(result.clone()));
-        let decision = changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([]));
+        let decision = changes::change_step_merge_job(&mut world, 1, change::Status::Unknown, Box::new([]));
         let change::Decision::Wait { until: Some(until) } = decision else {
             panic!("uncertain ancestry must schedule a retry: {result:?}: {decision:?}")
         };
@@ -239,16 +239,22 @@ fn a_catch_up_with_uncertain_ancestry_stalls_and_a_release_retries_it() {
         assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: false });
         assert_catch_up_range(&mut world, commit, tip);
         world.run_for(31);
-        assert!(matches!(world.change(CHANGE).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+        assert!(matches!(
+            world.change(CHANGE).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+        ));
         assert!(world.take_seen().iter().any(|request| matches!(
             request,
-            top::Request::ChangeDecision { task: CHANGE, decision: change::Decision::Hold(change::Hold::Stalled), .. }
+            top::Request::ChangeDecision { task: CHANGE, decision: change::Decision::Hold(change::Cause::Stalled), .. }
         )));
-        assert_eq!(changes::change_step(&mut world, 2, change::Status::Unknown, Box::new([])), change::Decision::None);
+        assert_eq!(
+            changes::change_step_merge_job(&mut world, 2, change::Status::Unknown, Box::new([])),
+            change::Decision::None
+        );
         world.script_ancestry(None);
         world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
         assert_eq!(
-            changes::change_step(&mut world, 3, change::Status::Unknown, Box::new([])),
+            changes::change_step_merge_job(&mut world, 3, change::Status::Unknown, Box::new([])),
             change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None }),
             "recovered ancestry: {result:?}"
         );

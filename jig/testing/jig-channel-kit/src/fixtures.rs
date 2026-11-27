@@ -248,15 +248,25 @@ pub fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> jig_test
 /// The agent calls `OpenAI`'s Responses path, which takes a bearer or a key alike.
 #[must_use]
 pub fn agent_configuration() -> smith_agent_service::Config {
-    agent_configuration_for(skein_llm::Endpoint::openai())
+    agent_configuration_for(smith_agent_process_world::configuration(), skein_llm::Endpoint::openai())
 }
 /// The agent calls Anthropic's Messages path, where a key and a bearer differ.
 #[must_use]
 pub fn anthropic_agent_configuration() -> smith_agent_service::Config {
-    agent_configuration_for(skein_llm::Endpoint::anthropic())
+    agent_configuration_for(smith_agent_process_world::configuration(), skein_llm::Endpoint::anthropic())
 }
-fn agent_configuration_for(llm: skein_llm::Endpoint) -> smith_agent_service::Config {
-    let mut config = smith_agent_process_world::configuration();
+/// The `OpenAI` agent with room for a larger host tool inventory.
+#[must_use]
+pub fn agent_configuration_for_host_tools(host_tools: u32) -> smith_agent_service::Config {
+    agent_configuration_for(
+        smith_agent_process_world::configuration_for_host_tools(host_tools),
+        skein_llm::Endpoint::openai(),
+    )
+}
+fn agent_configuration_for(
+    mut config: smith_agent_service::Config,
+    llm: skein_llm::Endpoint,
+) -> smith_agent_service::Config {
     config.limits.llm.accounts = 2;
     config.channel_endpoints = endpoints();
     let (destinations, _) = config.llm_endpoints.into_parts();
@@ -331,13 +341,34 @@ pub fn provider_played_at(
     transport: skein_fake_peers::Transport,
     dialect: skein_fake_llm_protocol::documents::Provider,
 ) -> skein_fake_peers::llm::Peer {
+    provider_with_domain(address, credential, transport, dialect, |config| {
+        config.latency_min = latency;
+        config.latency_max = latency;
+        skein_fake_llm_domain::Domain::played(
+            config,
+            17,
+            scripts,
+            skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
+        )
+        .expect("bounded provider scripts")
+    })
+}
+
+/// The same byte peer with a caller-built domain and its matching bounds.
+#[must_use]
+pub fn provider_with_domain(
+    address: std::net::SocketAddr,
+    credential: skein_llm::Credential,
+    transport: skein_fake_peers::Transport,
+    dialect: skein_fake_llm_protocol::documents::Provider,
+    build: impl FnOnce(&mut skein_fake_llm_domain::Config) -> skein_fake_llm_domain::Domain,
+) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
     let mut config = skein_llm_kit::fake::config();
-    config.latency_min = latency;
-    config.latency_max = latency;
     config.script_bytes = config.script_bytes.max(16_384);
     config.answer_bytes = config.answer_bytes.max(16_384);
     config.query_bytes = config.query_bytes.max(16_384);
+    let domain = build(&mut config);
     let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     protocol.documents.openai.request = 32_768;
     protocol.documents.openai.strings = 16_384;
@@ -366,13 +397,7 @@ pub fn provider_played_at(
         },
         credential,
         protocol,
-        skein_fake_llm_domain::Domain::played(
-            &config,
-            17,
-            scripts,
-            skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
-        )
-        .expect("bounded provider scripts"),
+        domain,
         config,
     )
     .expect("configured provider")

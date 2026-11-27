@@ -201,13 +201,13 @@ tui key enter
 tui see "Tell it something else"
 tui see "checklist.md"
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "The last checkpoint is visible here."
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "Which approach should we take?"
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "checklist.md"
 tui mark
 "#,
@@ -265,7 +265,7 @@ tui mark
     assert_eq!(half, half_again, "the pane returns to the same half frame");
     for (page, next) in [("01.html", "02.html"), ("02.html", "03.html"), ("03.html", "04.html")] {
         let html = String::from_utf8_lossy(&pages[Path::new(page)]);
-        assert!(html.contains(&format!("data-journey-key=\"control p\" data-journey-next=\"{next}\"")), "{html}");
+        assert!(html.contains(&format!("data-journey-key=\"control o\" data-journey-next=\"{next}\"")), "{html}");
     }
     assert!(!String::from_utf8_lossy(&pages[Path::new("04.html")]).contains("data-journey-key"));
 }
@@ -286,11 +286,11 @@ tui see "A report format question waits for you."
 tui see "report-format: text or table?"
 tui key paste "/new"
 tui key enter
-tui see "n to walk"
-tui see "/chats 1"
+tui see "/needs"
 tui see "Choose a report format: report-format"
 tui mark
-tui key char "n"
+tui key paste "/needs"
+tui key enter
 tui see "Next"
 tui mark
 tui key enter
@@ -342,9 +342,10 @@ tui mark
         ["01.html", "01.txt", "02.html", "02.txt", "03.html", "03.txt"]
     );
     let launchpad = String::from_utf8_lossy(&pages[Path::new("01.txt")]);
-    assert!(launchpad.contains("n to walk"), "{launchpad}");
+    assert!(launchpad.contains("needs you · /needs"), "{launchpad}");
     let launchpad_html = String::from_utf8_lossy(&pages[Path::new("01.html")]);
-    assert!(launchpad_html.contains("data-journey-key=\"n\" data-journey-next=\"02.html\""), "{launchpad_html}");
+    assert!(launchpad_html.contains("rel=\"next\" href=\"02.html\""), "{launchpad_html}");
+    assert!(!launchpad_html.contains("data-journey-key"), "the mark precedes typing /needs");
     let prompt = String::from_utf8_lossy(&pages[Path::new("02.txt")]);
     assert!(prompt.contains("report-format: text or table?"), "{prompt}");
     assert!(prompt.contains("❯ 1. Text"), "the recommended choice is active: {prompt}");
@@ -354,7 +355,7 @@ tui mark
     let answered = String::from_utf8_lossy(&pages[Path::new("03.txt")]);
     assert!(answered.contains("Nothing else needs you."), "{answered}");
     assert!(!answered.contains("Needs you"), "{answered}");
-    assert!(!answered.contains("n to walk"), "{answered}");
+    assert!(!answered.contains("needs you · /needs"), "{answered}");
     assert!(!String::from_utf8_lossy(&pages[Path::new("03.html")]).contains("data-journey-key"));
 }
 

@@ -1,6 +1,8 @@
 use core::cell::RefCell;
 
-use crate::sweep::cases::{Case, Test, cases_in, dispatch_hook};
+use crate::faults::{FaultLedger, Kind};
+use crate::sweep::Sweep;
+use crate::sweep::cases::{Case, Test, cases_in, dispatch_hook, input_in};
 use crate::test_env::Mode;
 
 const TEST: Test = Test::new("p", "m", "n", None);
@@ -85,6 +87,73 @@ fn replay_runs_once_even_without_gate_seeds() {
     }
 }
 
+const INPUT_TEST: Test = Test::new("pkg", "suite::fuzzy::walk", "walks", None);
+const INPUT_SEED: u64 = 0xab;
+const INPUT_REPLAY: Mode = Mode::Replay(INPUT_SEED);
+const INPUT_DIGEST: [u8; 32] = [
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12,
+    0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+];
+
+fn record_input(mode: Mode, digest: [u8; 32], lines: &mut Vec<String>) {
+    input_in(|| mode, digest, |line| lines.push(line.to_string()));
+}
+
+fn in_input_case(mode: Mode, test: Test, mut check: impl FnMut()) {
+    cases_in(
+        mode,
+        test,
+        [INPUT_SEED],
+        |_| {
+            check();
+            Ok::<(), &'static str>(())
+        },
+        |_| {},
+        |_| {},
+    )
+    .expect("the input check passes");
+}
+
+#[test]
+fn replay_reports_input_with_case_identity_and_hex_digest() {
+    for (test, digest, expected) in [
+        (
+            INPUT_TEST,
+            INPUT_DIGEST,
+            "fuzzy input: pkg::suite::fuzzy::walk::walks seed 00000000000000ab 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        ),
+        (
+            Test::new("pkg", "suite::fuzzy::walk", "walks", Some("part")),
+            [0xff; 32],
+            "fuzzy input: pkg::suite::fuzzy::walk::walks/part seed 00000000000000ab ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        ),
+    ] {
+        let mut lines = Vec::new();
+        in_input_case(INPUT_REPLAY, test, || record_input(INPUT_REPLAY, digest, &mut lines));
+        assert_eq!(lines, [expected]);
+    }
+}
+
+#[test]
+fn gate_and_campaign_never_report_input() {
+    for mode in [Mode::Gate, CAMPAIGN] {
+        let mut lines = Vec::new();
+        record_input(mode, INPUT_DIGEST, &mut lines);
+        in_input_case(mode, INPUT_TEST, || record_input(mode, INPUT_DIGEST, &mut lines));
+        record_input(mode, INPUT_DIGEST, &mut lines);
+        assert!(lines.is_empty(), "unexpected input in {mode:?}: {lines:?}");
+    }
+}
+
+#[test]
+fn replay_never_reports_input_outside_a_check() {
+    let mut lines = Vec::new();
+    record_input(INPUT_REPLAY, INPUT_DIGEST, &mut lines);
+    in_input_case(INPUT_REPLAY, INPUT_TEST, || {});
+    record_input(INPUT_REPLAY, INPUT_DIGEST, &mut lines);
+    assert!(lines.is_empty(), "unexpected input outside a replay check: {lines:?}");
+}
+
 #[test]
 fn a_finding_stops_the_sweep_and_names_the_case() {
     for (mode, seed, seen, line, summary) in [
@@ -115,6 +184,52 @@ fn a_finding_stops_the_sweep_and_names_the_case() {
             "unexpected case output: {}",
             run.lines.join("\n")
         );
+    }
+}
+
+fn ledger_with_ineligible_draw() -> FaultLedger {
+    const FAULT: Kind = Kind { family: "forge", name: "busy" };
+    let mut ledger = FaultLedger::new();
+    ledger.ineligible(FAULT);
+    ledger
+}
+
+#[test]
+fn folding_ledgers_counts_only_the_cases_in_each_mode() {
+    const GATE_CASES: u64 = 3;
+    const REPLAY_CASES: u64 = 1;
+    let ledger = ledger_with_ineligible_draw();
+    for (mode, expected) in [(Mode::Gate, GATE_CASES), (CAMPAIGN, GATE_CASES), (Mode::Replay(42), REPLAY_CASES)] {
+        let mut sweep = Sweep::new("folding");
+        let counts = RefCell::new(Vec::new());
+        let count = |n| counts.borrow_mut().push(n);
+        cases_in(
+            mode,
+            TEST,
+            0..GATE_CASES,
+            |_| {
+                sweep.ran_in(&ledger, count);
+                Ok::<_, &str>(())
+            },
+            |_| {},
+            count,
+        )
+        .expect("all cases pass");
+        assert_eq!(counts.into_inner(), [expected], "{mode:?}");
+    }
+}
+
+#[test]
+fn folding_ledgers_counts_each_call_before_and_after_a_case() {
+    const ONE_FOLD: u64 = 1;
+    let ledger = ledger_with_ineligible_draw();
+    for result in [Ok(()), Err("boom")] {
+        let mut sweep = Sweep::new("folding");
+        let mut counts = Vec::new();
+        sweep.ran_in(&ledger, |n| counts.push(n));
+        let _case = cases_in(Mode::Gate, TEST, [3], |_| result, |_| {}, |_| {});
+        sweep.ran_in(&ledger, |n| counts.push(n));
+        assert_eq!(counts, [ONE_FOLD, ONE_FOLD], "check returned {result:?}");
     }
 }
 

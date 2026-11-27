@@ -304,6 +304,12 @@ pub enum Ask {
         revision: u64,
         again: Option<bool>,
     },
+    /// Lift a procedure's own hold and ask it to measure afresh.
+    Measure {
+        project: u32,
+        task: u64,
+        revision: u64,
+    },
     /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle-holds.md, 2).
     Lift {
         hold: u64,
@@ -499,6 +505,7 @@ impl Ask {
             | Self::Stop { project, .. }
             | Self::Conclude { project, .. }
             | Self::Cancel { project, .. }
+            | Self::Measure { project, .. }
             | Self::Release { project, .. }
             | Self::Create { project, .. }
             | Self::Delegate { project, .. }
@@ -554,6 +561,7 @@ impl Ask {
             | Self::Conclude { .. }
             | Self::Cancel { .. }
             | Self::Lift { .. }
+            | Self::Measure { .. }
             | Self::Release { .. }
             | Self::Create { .. }
             | Self::Delegate { .. }

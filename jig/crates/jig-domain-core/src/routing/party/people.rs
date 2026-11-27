@@ -4,6 +4,7 @@
 //! current escalation revisions before ended records. Other families select
 //! disjoint variants.
 
+use crate::loads::point::{self, Point};
 use crate::{
     Core, Event, Held, Key, Limits, Now, Record, Request, Write,
     routing::{
@@ -11,8 +12,8 @@ use crate::{
         effect::note::edit_note_request,
         party::{
             controls::{
-                amend_route, answer_question_request, cancel_request, move_request, person_task_request,
-                release_request, say_request, stop_request,
+                amend_route, answer_question_request, cancel_request, measure_request, move_request,
+                person_task_request, release_request, say_request, stop_request,
             },
             decisions::{escalation_request, proposal_request},
             holdings::{adopt_request, change_policy_request, make_service_request, pool_route, roles_route},
@@ -359,6 +360,7 @@ pub(crate) fn tag_people_part(
                     people::Ask::TakePerson { task, .. } => {
                         person_task_request(
                             core,
+                            &env.limits,
                             &mut routed,
                             party,
                             crate::admission::person_task::Action::Take { task },
@@ -367,6 +369,7 @@ pub(crate) fn tag_people_part(
                     people::Ask::HandBackPerson { task, .. } => {
                         person_task_request(
                             core,
+                            &env.limits,
                             &mut routed,
                             party,
                             crate::admission::person_task::Action::HandBack { task },
@@ -375,6 +378,7 @@ pub(crate) fn tag_people_part(
                     people::Ask::AnswerPerson { task, revision, result, .. } => {
                         person_task_request(
                             core,
+                            &env.limits,
                             &mut routed,
                             party,
                             crate::admission::person_task::Action::Answer { task, revision, result },
@@ -392,6 +396,9 @@ pub(crate) fn tag_people_part(
                     }
                     people::Ask::Release { task, revision, again, .. } => {
                         release_request(core, env, &mut routed, party, task, revision, again);
+                    }
+                    people::Ask::Measure { task, revision, .. } => {
+                        measure_request(core, env, &mut routed, party, task, revision);
                     }
                     people::Ask::MakeService { role: service_role, .. } => {
                         make_service_request(core, env, party, &mut pending, service_role);
@@ -587,6 +594,7 @@ pub(crate) fn tag_people_part(
                     }
                     people::Ask::Withdraw { proposal, .. } => super::propose::withdraw_request(
                         core,
+                        &env.limits,
                         &mut routed,
                         super::propose::Withdrawal { request, person, project, proposal },
                     ),
@@ -668,10 +676,13 @@ pub(crate) fn tag_people_part(
                                 }
                             }
                             None => {
-                                routed.out.push(Request::Held(Box::new(Held::Load(Box::new(Now::SeenConversation {
+                                point::party(
+                                    core,
+                                    &env.limits,
+                                    &mut routed,
                                     request,
-                                    task,
-                                })))));
+                                    Point::SeenConversation { request, task },
+                                );
                             }
                         },
                     },

@@ -2,13 +2,14 @@
 //! lands after the preparation it served was dropped, and an answer whose
 //! parts exceed their bounds.
 use jig_conformance::store_check::StoreChecks;
+use jig_domain_core::{self as core, engine::store as engine_store};
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, ReplyTo, Time, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain::{CoreRange, Range};
-use temper_engine_domain_world::direct::{Driver, say_ask};
+use temper_engine_domain_world::direct::{Driver, answer_token, say_ask};
 use temper_engine_domain_world::protocol;
 use temper_engine_domain_world::{store::Store, walking};
 
@@ -66,11 +67,14 @@ fn open_preparations(driver: &mut Driver) {
     for _ in 0..STEPS {
         let runtime = restart_runtime(driver);
         if let Some(index) = driver.events.iter().position(|event| {
-            runtime
-                || !matches!(
-                    event,
-                    engine::Event::Credential { .. } | engine::Event::Worker(engine::WorkerInput::Link { .. })
-                )
+            let window =
+                answer_token(event).is_some_and(|load| driver.windows.iter().any(|(issued, _)| *issued == load));
+            !window
+                && (runtime
+                    || !matches!(
+                        event,
+                        engine::Event::Credential { .. } | engine::Event::Worker(engine::WorkerInput::Link { .. })
+                    ))
         }) {
             let event = driver.events.remove(index).expect("eligible restart input");
             if let engine::Event::Store(engine::StoreInput::Loaded { owner, next, .. }) = &event
@@ -158,7 +162,7 @@ fn park_turns(driver: &mut Driver, run: &engine::Assignment, turns: usize, key: 
     driver.pump();
 }
 
-fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) {
+pub(super) fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) {
     parked_windows_with_results(lengths, false)
 }
 
@@ -184,6 +188,14 @@ fn parked_windows_checked(
     limits.people.inbox_recipients = shipped.people.inbox_recipients;
     limits.people.requests = shipped.people.requests;
     assert_eq!(limits.loads.loads, 2);
+    if with_results {
+        // Isolate storage pacing: none of the three concurrent preparations
+        // should run out of worker places before the story can park them.
+        let places = u32::try_from(CHAT_KEYS.len()).expect("bounded fixture tasks");
+        limits.fleet.slots = places;
+        limits.fleet.workstreams = places;
+        limits.fleet.attempts = places;
+    }
     let mut driver = Driver::configured(Store::new(), [walking::config(91), walking::config(91)], &limits);
     let initial_commit = driver.store.applied;
     if let Some(checks) = checks {
@@ -368,7 +380,8 @@ fn due_windows(checks: Option<&StoreChecks>) {
             assert_ne!(driver.task(run.task).expect("woken chat").last_message, 0);
         }
         driver.reopen(walking::config(91));
-        driver.loads.clear(); // A restarted root's load tokens belong to its own history.
+        driver.loads.clear();
+        driver.windows.clear(); // A restarted root's load tokens belong to its own history.
         driver.hello(CHANNEL);
         restart_preparations(&mut driver);
         // The direct world's worker has one slot; return it after each resumed run.
@@ -452,22 +465,15 @@ fn ended_dependency(driver: &mut Driver, key: u8) -> u64 {
 fn drain_result_preparations(driver: &mut Driver) {
     let mut quiet = 0;
     for _ in 0..200 {
+        // Finish the input's iteration before resuming owner work. In
+        // particular a delivered result retires an archive slot before its
+        // continuation can ask that archive for notes.
         if let Some(event) = driver.events.pop_front() {
-            let window = matches!(&event, engine::Event::Store(engine::StoreInput::Loaded { owner, .. })
-                if driver.loads.iter().any(|(issued, range)| issued == owner && matches!(range, Range::Core(CoreRange::TaskTranscript { .. }))));
-            engine::try_step(&mut driver.root, &driver.env, event).expect("preparation input admitted");
-            if window {
-                release_preparations(driver);
-            }
+            driver.send(event);
         }
         if !driver.store.pending.is_empty() {
             let number = driver.apply_commit();
-            engine::try_step(
-                &mut driver.root,
-                &driver.env,
-                engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }),
-            )
-            .expect("commit admitted");
+            driver.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
         }
         temper_engine_domain_world::poll(&mut driver.root, &driver.env, &mut driver.out);
         let empty = driver.out.is_empty();
@@ -484,7 +490,14 @@ fn drain_result_preparations(driver: &mut Driver) {
             return;
         }
     }
-    panic!("preparation inputs did not drain");
+    panic!(
+        "preparation inputs did not drain: {} events, {} commits, {} held bytes, {} point loads, returned {}",
+        driver.events.len(),
+        driver.store.pending.len(),
+        driver.root.held_bytes(),
+        driver.point_loads.len(),
+        driver.returned
+    );
 }
 
 fn no_brief_failure(driver: &mut Driver) {
@@ -495,7 +508,7 @@ fn no_brief_failure(driver: &mut Driver) {
     }
 }
 
-/// temper/docs/design/domain/root.md, 7: results wait while windows and restore loads hold the slots.
+/// temper/docs/design/domain/root.md, 7: preparations wait for engine load slots.
 #[test]
 fn tasks_due_together_past_the_load_slots_each_read_their_ended_dependency() {
     let (mut driver, parked) = parked_windows_with_results(&[3, 3, 3], true);
@@ -512,6 +525,8 @@ fn tasks_due_together_past_the_load_slots_each_read_their_ended_dependency() {
     eprintln!("reopening with wakes committed");
     driver.reopen(walking::config(91));
     driver.loads.clear();
+    driver.point_loads.clear();
+    driver.windows.clear();
     driver.hello(CHANNEL);
     open_preparations(&mut driver);
     drain_result_preparations(&mut driver);
@@ -561,7 +576,7 @@ fn preparation_step(driver: &mut Driver, event: engine::Event) {
     release_preparations(driver);
 }
 
-fn preparation_commits(driver: &mut Driver) {
+pub(super) fn preparation_commits(driver: &mut Driver) {
     for _ in 0..20 {
         release_preparations(driver);
         if driver.store.pending.is_empty() {
@@ -578,58 +593,129 @@ fn wake_window(driver: &mut Driver, run: &engine::Assignment, key: u8) {
     preparation_commits(driver);
 }
 
-fn take_window(driver: &mut Driver, task: u64) -> engine::Event {
-    let owner = driver
-        .loads
-        .iter()
-        .find_map(|(owner, range)| match range {
-            Range::Core(CoreRange::TaskTranscript { task: found, .. }) if *found == task => Some(*owner),
-            _ => None,
-        })
-        .expect("window issued");
-    let index = driver
-        .events
-        .iter()
-        .position(|event| {
-            matches!(event,
-        engine::Event::Store(engine::StoreInput::Loaded { owner: found, .. }) if *found == owner)
-        })
-        .expect("window's store answer held");
-    driver.events.remove(index).expect("held window")
-}
-
 fn result_tasks(driver: &Driver) -> Vec<u64> {
     driver
-        .loads
+        .point_loads
         .iter()
         .filter_map(|(_, range)| match range {
-            Range::Core(CoreRange::TaskResult { task }) => Some(*task),
+            engine_store::Range::Record(core::Key::Tasks(tasks::Key::Ended(task))) => Some(*task),
             _ => None,
         })
         .collect()
 }
 
-fn waiting_results() -> (Driver, Vec<(engine::Assignment, u8)>, Vec<u64>) {
+fn take_point(driver: &mut Driver, load: Token) -> engine::Event {
+    let index = driver.events.iter().position(|event| {
+        matches!(event, engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load: found, .. })) if *found == load)
+    }).expect("point answer pending");
+    driver.events.remove(index).expect("held point answer")
+}
+
+fn failed_point(load: Token) -> engine::Event {
+    engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+        load,
+        result: engine_store::Answer::Failed(engine_store::Failure::Busy),
+    }))
+}
+
+struct WaitingResults {
+    driver: Driver,
+    parked: Vec<(engine::Assignment, u8)>,
+    dependencies: Vec<u64>,
+    held: [Token; 2],
+}
+
+fn waiting_results() -> WaitingResults {
     let (mut driver, parked) = parked_windows_with_results(&[1, 1, 1], true);
+    // Keep the parked runs but give them no window to load: the two point
+    // requests need to occupy the lane before preparation asks for its result.
+    let proofs: Vec<_> = parked
+        .iter()
+        .map(|(run, _)| {
+            let key = engine::Key::Core(core::Key::Core(core::CoreKey::RunProof(run.task)));
+            let mut record = driver.store.rows[&key].clone();
+            let engine::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = &mut record else {
+                panic!("parked run proof")
+            };
+            assert!(proof.window.take().is_some());
+            record
+        })
+        .collect();
+    driver.store.seed(proofs.into_boxed_slice(), Box::new([]));
+    driver.reopen(walking::config(91));
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
     driver.loads.clear();
+    driver.point_loads.clear();
+    driver.windows.clear();
     driver.delivered.retain(|delivery| !matches!(delivery, engine::Delivery::Assigned { .. }));
-    let dependencies =
+    let dependencies: Vec<_> =
         parked.iter().map(|(run, _)| driver.task(run.task).expect("parked chat").dependencies[0]).collect();
+    // Wake the chats while no worker is available. This lets the wake
+    // requests finish before the unrelated point requests are held open.
     for (run, key) in parked.iter().take(2) {
         wake_window(&mut driver, run, *key);
+        assert_eq!(
+            driver.task(run.task).expect("parked chat remains live").phase,
+            tasks::Phase::Active(tasks::Active::Due)
+        );
     }
+    // Reclaim the completed wake asks before asking for unrelated records.
+    driver.root.reclaim();
+    // Occupy the engine’s load slots before either preparation needs its dependency.
+    let session = driver.session();
+    for key in [95_u8, 96] {
+        preparation_step(
+            &mut driver,
+            engine::Event::Party(engine::PartyInput::Ask {
+                models: Box::new([]),
+                reply_to: ReplyTo::new(Token::new(u64::from(key))),
+                sign_in: session,
+                key: [key; 16],
+                ask: people::Ask::Withdraw { project: PROJECT, proposal: u64::from(key) },
+            }),
+        );
+        preparation_commits(&mut driver);
+    }
+    assert_eq!(
+        driver.point_loads.len(),
+        2,
+        "both party requests issued loads; replies: {:?}",
+        driver
+            .delivered
+            .iter()
+            .filter_map(|delivery| match delivery {
+                engine::Delivery::WebReply { to, reply }
+                    if *to == ReplyTo::new(Token::new(95)) || *to == ReplyTo::new(Token::new(96)) =>
+                    Some(reply),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    );
+    let held = [driver.point_loads[0].0, driver.point_loads[1].0];
+    for load in held {
+        drop(take_point(&mut driver, load));
+    }
+    driver.point_loads.clear();
+    driver.hello(CHANNEL);
+    preparation_commits(&mut driver);
     for (run, _) in parked.iter().take(2) {
-        let window = take_window(&mut driver, run.task);
-        preparation_step(&mut driver, window);
         no_brief_failure(&mut driver);
-        assert!(result_tasks(&driver).is_empty(), "results wait for retired slots' reclaim");
+        assert_eq!(
+            driver.task(run.task).expect("parked chat remains live").phase,
+            tasks::Phase::Active(tasks::Active::Preparing),
+            "windowless preparation waits on its dependency"
+        );
+        assert!(result_tasks(&driver).is_empty(), "results wait for the engine's occupied slots");
     }
-    (driver, parked, dependencies)
+    driver.root.reclaim();
+    WaitingResults { driver, parked, dependencies, held }
 }
 
 #[test]
-fn ended_tasks_wait_for_reclaim_and_keep_arrival_order() {
-    let (mut driver, parked, dependencies) = waiting_results();
+fn ended_tasks_wait_for_a_load_slot_and_keep_arrival_order() {
+    let WaitingResults { mut driver, parked, dependencies, held } = waiting_results();
     let mark = Token::new(1201);
     let session = driver.session();
     preparation_step(
@@ -663,14 +749,13 @@ fn ended_tasks_wait_for_reclaim_and_keep_arrival_order() {
         }),
     );
     assert!(!driver.store.pending.is_empty(), "a preceding write is not durable yet");
-    driver.root.reclaim();
-    release_preparations(&mut driver);
-    assert!(result_tasks(&driver).is_empty(), "reclaimed loads remain held behind the commit");
+    for load in held {
+        preparation_step(&mut driver, failed_point(load));
+    }
+    assert!(result_tasks(&driver).is_empty(), "newly issued loads remain held behind the commit");
     preparation_commits(&mut driver);
-    assert_eq!(result_tasks(&driver), dependencies[..2], "oldest results own reclaimed slots");
-    // The later task still needs its first window page; it cannot pass the queued results.
-    assert!(!driver.loads.iter().any(|(_, range)| matches!(range,
-        Range::Core(CoreRange::TaskTranscript { task, .. }) if *task == last.task)));
+    assert_eq!(result_tasks(&driver), dependencies[..2], "oldest results own the freed slots");
+    assert!(!result_tasks(&driver).contains(&dependencies[2]), "later results cannot pass the queued results");
     drain_result_preparations(&mut driver);
     wake_window(&mut driver, last, *key);
     driver.root.reclaim();
@@ -703,26 +788,15 @@ fn ended_tasks_wait_for_reclaim_and_keep_arrival_order() {
 
 #[test]
 fn an_issued_ended_task_load_that_fails_still_answers_busy_once() {
-    let (mut driver, _, _) = waiting_results();
-    driver.root.reclaim();
-    release_preparations(&mut driver);
-    let (owner, _) = driver
-        .loads
-        .iter()
-        .find(|(_, range)| matches!(range, Range::Core(CoreRange::TaskResult { .. })))
-        .expect("result issued");
-    let owner = *owner;
-    let index = driver
-        .events
-        .iter()
-        .position(|event| {
-            matches!(event,
-        engine::Event::Store(engine::StoreInput::Loaded { owner: found, .. }) if *found == owner)
-        })
-        .expect("result pending");
-    driver.events.remove(index);
-    preparation_step(&mut driver, engine::Event::Store(engine::StoreInput::Unloaded { owner }));
-    preparation_step(&mut driver, engine::Event::Store(engine::StoreInput::Unloaded { owner }));
+    let WaitingResults { mut driver, held, .. } = waiting_results();
+    preparation_step(&mut driver, failed_point(held[0]));
+    preparation_commits(&mut driver);
+    let (load, _) = driver.point_loads.first().expect("result issued");
+    let load = *load;
+    drop(take_point(&mut driver, load));
+    preparation_step(&mut driver, failed_point(load));
+    preparation_step(&mut driver, failed_point(load));
+    preparation_step(&mut driver, failed_point(held[1]));
     preparation_commits(&mut driver);
     let mut failures = Vec::new();
     while let Some(fact) = driver.root.pop_fact() {
@@ -737,9 +811,12 @@ fn an_issued_ended_task_load_that_fails_still_answers_busy_once() {
 
 #[test]
 fn waiting_ended_tasks_are_dropped_at_stop() {
-    let (mut driver, _, _) = waiting_results();
+    let WaitingResults { mut driver, held, .. } = waiting_results();
     driver.broken("deliberately stopped root cannot settle ready for the restart oracle");
     preparation_step(&mut driver, engine::Event::Stop);
+    for load in held {
+        preparation_step(&mut driver, failed_point(load));
+    }
     driver.pump();
     assert!(result_tasks(&driver).is_empty(), "stop never issues a waiting result");
     assert!(
@@ -763,11 +840,7 @@ fn a_window_of_any_length_loads_while_another_load_holds_a_slot() {
         let index = driver
             .events
             .iter()
-            .position(|event| {
-                matches!(event,
-                    engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) if *owner == held
-                )
-            })
+            .position(|event| answer_token(event) == Some(held))
             .expect("the second chat's store answer is queued");
         let answer = driver.events.remove(index).expect("held answer");
         driver.send(say_ask(driver.session(), first.task, 61));
@@ -787,13 +860,10 @@ fn a_window_of_any_length_loads_while_another_load_holds_a_slot() {
 
 /// Step until the root has asked for `task`'s transcript, leaving the
 /// store's answer queued; the answer's owner.
-fn transcript_in_flight(driver: &mut Driver, task: u64) -> Token {
+pub(super) fn transcript_in_flight(driver: &mut Driver, task: u64) -> Token {
     for _ in 0..50 {
         driver.advance(true);
-        let asked = driver.loads.iter().find_map(|(owner, range)| match range {
-            Range::Core(CoreRange::TaskTranscript { task: read, .. }) if *read == task => Some(*owner),
-            Range::Core(_) | Range::Census(_) | Range::Forge | Range::History(_) => None,
-        });
+        let asked = driver.windows.iter().find_map(|(owner, read)| (*read == task).then_some(*owner));
         if let Some(owner) = asked {
             return owner;
         }
@@ -810,36 +880,33 @@ fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() 
         park_turns(&mut driver, &first, window_len, b'x');
         driver.send(say_ask(driver.session(), first.task, 50));
         let owner = transcript_in_flight(&mut driver, first.task);
-        let index = driver
-            .events
-            .iter()
-            .position(|event| {
-                matches!(event,
-                    engine::Event::Store(engine::StoreInput::Loaded { owner: found, .. }) if *found == owner
-                )
-            })
-            .expect("first page is in flight");
+        let index =
+            driver.events.iter().position(|event| answer_token(event) == Some(owner)).expect("first page is in flight");
         let answer = driver.events.remove(index).expect("queued first page");
         if window_len > 1 {
             assert!(
-                matches!(&answer, engine::Event::Store(engine::StoreInput::Loaded { next: Some(_), .. })),
+                matches!(
+                    &answer,
+                    engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                        result: engine_store::Answer::Rows(engine_store::Rows::Turns { more: true, .. }),
+                        ..
+                    }))
+                ),
                 "the stale page would continue the window"
             );
         }
+        let late: Vec<_> = driver.take_window_replies(owner);
         driver.send(say_ask(driver.session(), first.task, 51));
         driver.send(answer);
+        for page in late {
+            driver.send(page);
+        }
         driver.settle();
         assert!(driver.root.quiescent(), "root quiescence includes Loads::quiescent after reclaim");
         assert_eq!(
-            driver
-                .loads
-                .iter()
-                .filter(|(_, range)| matches!(range,
-                    Range::Core(CoreRange::TaskTranscript { task, .. }) if *task == first.task
-                ))
-                .count(),
+            driver.windows.iter().filter(|(_, task)| *task == first.task).count(),
             1,
-            "a stale first page issues no continuation"
+            "stale pages issue no new load"
         );
         // The message ended that preparation; the task backs off and prepares again.
         driver.advance_to(Time::from_nanos(Duration::from_secs(1).as_nanos()));

@@ -37,30 +37,36 @@ impl Counting {
     }
 
     pub(crate) fn measure(&mut self, query: &Query, purpose: Purpose) -> MeasuredPrompt {
-        let parts = std::iter::once((None, Part::Text { text: query.system.clone() })).chain(
+        let system = Part::Text { text: query.system.clone() };
+        let parts = std::iter::once((None, &system)).chain(
             query
                 .messages
                 .iter()
                 .enumerate()
-                .flat_map(|(message, value)| value.parts.iter().cloned().map(move |part| (Some(message), part))),
+                .flat_map(|(message, value)| value.parts.iter().map(move |part| (Some(message), part))),
         );
-        let mut current = Vec::new();
+        let mut length = 0;
         for (index, (message, part)) in parts.enumerate() {
-            let measured = match self.previous.get(index) {
-                Some((old_message, old, measured)) if *old_message == message && *old == part => *measured,
-                _ => {
-                    let counted = counted(&part);
-                    MeasuredBlock {
-                        message,
-                        counted,
-                        rendered: self.rng.between(counted, counted * 6),
-                        ratio: self.rng.between(1, u64::from(skein_llm::TOKEN_BYTES)),
-                    }
-                }
+            length = index + 1;
+            let previous = self.previous.get_mut(index);
+            if previous.as_ref().is_some_and(|old| old.0 == message && old.1 == *part) {
+                continue;
+            }
+            let counted = counted(part);
+            let measured = MeasuredBlock {
+                message,
+                counted,
+                rendered: self.rng.between(counted, counted * 6),
+                ratio: self.rng.between(1, u64::from(skein_llm::TOKEN_BYTES)),
             };
-            current.push((message, part, measured));
+            let entry = (message, part.clone(), measured);
+            if let Some(old) = previous {
+                *old = entry;
+            } else {
+                self.previous.push(entry);
+            }
         }
-        self.previous = current;
+        self.previous.truncate(length);
         let blocks: Vec<_> = self.previous.iter().map(|(_, _, measured)| *measured).collect();
         let input = blocks.iter().map(|block| block.rendered.div_ceil(block.ratio)).sum();
         let guard = match purpose {

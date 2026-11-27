@@ -515,7 +515,11 @@ fn tool_choice_none_and_an_outside_call_cross_both_actual_wires() {
                 &config,
                 3,
                 Box::new([]),
-                api::Menu { arguments: Box::new([b"{}".as_slice().into()]), invalid: Box::new([]) },
+                api::Menu {
+                    arguments: Box::new([b"{}".as_slice().into()]),
+                    invalid: Box::new([]),
+                    slots: Box::new([]),
+                },
             )
             .expect("bounded actual domain");
             let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };

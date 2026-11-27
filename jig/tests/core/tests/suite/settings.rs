@@ -1964,11 +1964,10 @@ fn a_delegation_to_a_removed_charter_is_refused_while_its_version_serves_its_tas
         people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotOffered))
     );
     let member = fixtures::member(&world, jig_domain_tasks::Executor::Agent { charter: 2 }, b"Removed charter");
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9001)),
         key: core::CallKey { task: goal, attempt, completion: 1, position: 0 },
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
     assert!(world.domain.settings().charter(2).is_none());
     assert!(fixtures::live_row(&world, goal).delegates.is_empty());

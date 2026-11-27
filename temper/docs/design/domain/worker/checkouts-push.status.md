@@ -1,6 +1,7 @@
 # checkouts-push: status
 
-2026-11-24. Where the tree's code lags or departs from [checkouts-push.md](checkouts-push.md).
+2026-11-26. Where the tree's code lags or departs from [checkouts-push.md](checkouts-push.md).
+
 
 - **Not yet:** 4: *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in

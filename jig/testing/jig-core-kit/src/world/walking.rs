@@ -82,10 +82,7 @@ impl Walking {
                 }
             }
 
-            root::Delivery::Core(core::Held::Load(load)) => world.store.ask(jig_test_store::StoreOut::Now(*load)),
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                world.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });
-            }
+            root::Delivery::Store(load) => world.store.ask(jig_test_store::StoreOut::Engine(load)),
             root::Delivery::Core(core::Held::PeopleReply {
                 reply: people::Reply::SignedIn { sign_in, .. }, ..
             }) => {
@@ -184,11 +181,10 @@ impl Walking {
                             Scenario::Batch => vec![delegate.clone(), delegate].into_boxed_slice(),
                             Scenario::Chat => unreachable!("chat does not delegate"),
                         };
-                        world.events.push_back(root::Event::Core(core::Event::DelegateValidated {
+                        world.events.push_back(root::Event::Core(core::Event::Delegate {
                             to: ReplyTo::new(Token::new(104)),
                             key: core::CallKey { task, attempt, completion: 1, position: 0 },
                             batch,
-                            stubs: Box::new([]),
                         }));
                     }
                 }

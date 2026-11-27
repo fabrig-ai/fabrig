@@ -3,7 +3,7 @@
 use super::goal_branch::{branch_tip, running_goal_in};
 use super::goal_landing::{ended, finish_run, land_into_goal, mine, row, status};
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold, State};
+use temper_engine_domain_forge_change::{Cause, Delegate, State};
 
 const STEPS: u32 = 1000;
 const CHANNEL: Token = Token::new(7);
@@ -33,7 +33,14 @@ fn wait_held(world: &mut World, task: u64) {
             break;
         }
     }
-    assert!(matches!(row(world, task).change.state, State::Held { why: Hold::Failed, .. }), "{:?}", row(world, task));
+    assert!(
+        matches!(
+            row(world, task).change.state,
+            State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+        ),
+        "{:?}",
+        row(world, task)
+    );
     assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }));
 }
 
@@ -82,10 +89,15 @@ fn fail_delegate(world: &mut World, task: u64, merge_job: bool, head: u64, base:
     )
     .expect("saved merge contains its inputs");
     let branch = row(world, task).branch.clone();
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch, commit: saved, expected: Some(head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    if merge_job {
+        let index = world.jobs.iter().position(|job| job.run.raw() == child).expect("merge job assigned");
+        let job = world.jobs.remove(index);
+        world.job_push(CHANNEL, &job, &branch, saved, 1);
+        world.jobs.insert(index, job);
+    } else {
+        let resolver = world.assigned.iter().find(|run| run.task == child).expect("resolver assigned").clone();
+        world.run_push(&resolver, &branch, saved, 1);
+    }
     status(world, saved, raw::Check::Passed);
     let reason = format!(
         "delivery refused at saved head {}",

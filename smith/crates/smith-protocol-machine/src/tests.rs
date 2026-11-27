@@ -770,6 +770,7 @@ fn every_operation_translates_the_directory_itself_and_nested_paths_once() {
                     | file::Request::OpenWriteNoFollow { .. }
                     | file::Request::OpenRead { .. }
                     | file::Request::OpenReadNoFollow { .. }
+                    | file::Request::OpenSiblingFile { .. }
                     | file::Request::OpenDirectory { .. }
                     | file::Request::Stat { .. }
                     | file::Request::WriteAt { .. }
@@ -1073,7 +1074,11 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
     }
     match terminals.pop().expect("one listing terminal") {
         ToDomain::Done { done, .. } => done,
-        ToDomain::Read { .. } | ToDomain::Probed { .. } | ToDomain::Checked { .. } | ToDomain::Aborted { .. } => {
+        ToDomain::Read { .. }
+        | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
+        | ToDomain::Checked { .. }
+        | ToDomain::Aborted { .. } => {
             panic!("listing terminal")
         }
     }

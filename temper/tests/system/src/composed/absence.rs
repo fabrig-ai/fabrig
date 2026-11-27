@@ -162,9 +162,13 @@ impl World {
         );
     }
 
+    pub(super) fn begin_engine_settle(&mut self) {
+        self.root_step(engine::Event::Stop);
+    }
+
     /// Settle the engine and hear its word before the scripted link is cut.
     pub fn settle_engine(&mut self) {
-        self.root_step(engine::Event::Stop);
+        self.begin_engine_settle();
         for _ in 0..10000 {
             self.tick();
             if self.absence.drained {

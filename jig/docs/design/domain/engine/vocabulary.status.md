@@ -1,7 +1,6 @@
 # vocabulary: status
 
-2026-11-26. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
-
+2026-11-27. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
@@ -17,3 +16,12 @@
   `temper-engine-domain/src/domain.rs`, `fire_routed`, fires it once per
   pass, and `jig-test-service/src/engine.rs`, `fire`, also fires one;
   no reason is recorded.
+- **Design departs:** 2.4: the user asked, on 2026-11-27, that no root
+  receive or name `core::Held::Store`. None receives one, but
+  `core::Held` keeps the case, so a root's match over it, which lists
+  every case, still names it, in an arm that routes nothing. Why: the
+  core's steps queue each load among their other held requests in the
+  one queue of requests they share, and a queue of the engine's outputs
+  in its place reshapes every step of the core, which is the clean-up's
+  (3, *The engine as the API*) and moves no behaviour this fix needs.
+  Decided by the goal's designer.

@@ -186,15 +186,10 @@ fn setup(policy: Policy, batch: u16) -> (World, engine::Assignment) {
 fn push(world: &mut World, producer: &engine::Assignment, file: &[u8], content: &[u8]) -> api::Commit {
     let branch = producer.workspace.repositories[0].push.as_ref().expect("push branch").clone();
     let main = world.fake.branch(b"org/repo", b"main").expect("main");
-    if world.fake.branch(b"org/repo", &branch).is_none() {
-        assert_eq!(
-            world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: main })),
-            raw::Answer::Branch(raw::Created::Created)
-        );
-    }
-    translate::commit(
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, content, 1).expect("push"),
-    )
+    let parent = world.fake.branch(b"org/repo", &branch).unwrap_or(main);
+    let commit = world.worker_commit(parent, file, content);
+    world.run_push(producer, &branch, commit, 1);
+    translate::commit(commit)
 }
 
 fn finish(world: &mut World, producer: &engine::Assignment) {

@@ -1,4 +1,5 @@
 //! Oracle controls (jig/docs/design/domain/engine/world.md, 1).
+use jig_domain_core::engine::store as engine_store;
 use temper_engine_domain::Key;
 use temper_engine_domain_world::{direct::Driver, store::Store};
 
@@ -190,7 +191,9 @@ fn assert_retained_logs(driver: &mut Driver, task: u64, attempt: u64, sign_in: u
         rows: 4,
         bytes: driver.env.limits.loads.read_bytes,
     }));
-    let reads::Loaded::Page { rows, .. } = history else { panic!("ended history: {history:?}") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }) = history else {
+        panic!("ended history: {history:?}")
+    };
     assert!(
         rows.iter().any(|row| matches!(&row.value,
             core::Record::Tasks(tasks::Stored::History(line)) if line.task == task && line.change == tasks::Change::Amended

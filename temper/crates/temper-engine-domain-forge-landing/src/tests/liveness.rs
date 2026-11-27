@@ -47,7 +47,7 @@ fn an_ended_member_still_in_the_landing_is_not_a_wake() {
     let mut facts = stack_facts(1);
     facts.members[0].cancelled = true;
     let step = Stepped { landing, decision: Decision::Wait { until: None, on: Awaited::Ready { member: 0 } } };
-    assert_eq!(check(&step, &facts), Some(Stuck::Member { change: 1, held: false }));
+    assert_eq!(check(&step.landing, &step, &facts), Some(Stuck::Member { change: 1, held: false }));
 }
 
 #[test]
@@ -59,9 +59,9 @@ fn a_wait_without_a_holder_or_deadline_has_no_wake() {
     facts.turn_free = true;
     let on = Awaited::Turn;
     let mut step = Stepped { landing, decision: Decision::Wait { until: None, on } };
-    assert_eq!(check(&step, &facts), Some(Stuck::Wake { on }));
+    assert_eq!(check(&step.landing, &step, &facts), Some(Stuck::Wake { on }));
     step.decision = Decision::Wait { until: Some(Wall::from_nanos(20)), on };
-    assert_eq!(check(&step, &facts), None);
+    assert_eq!(check(&step.landing, &step, &facts), None);
 }
 
 #[test]
@@ -102,9 +102,9 @@ fn held_and_finishing_landings_do_not_need_wakes_and_acts_supply_their_own() {
     let step = decide(&landing, &facts);
     assert_eq!(step, Stepped { landing, decision: Decision::Wait { until: None, on: Awaited::Release } });
     let mut step = Stepped { landing: stack(1), decision: Decision::Finish };
-    assert_eq!(check(&step, &facts), None);
+    assert_eq!(check(&step.landing, &step, &facts), None);
     // An act skips the wake clause but still checks its members and train.
     facts.train_holder = None;
     step.decision = Decision::None;
-    assert_eq!(check(&step, &facts), None);
+    assert_eq!(check(&step.landing, &step, &facts), None);
 }

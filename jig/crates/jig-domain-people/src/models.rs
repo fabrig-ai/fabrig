@@ -138,6 +138,7 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
@@ -236,6 +237,7 @@ fn selectors(ask: &Ask) -> Selectors {
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }

@@ -149,17 +149,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
-            let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
-            for row in &models {
-                names
-                    .push(core::settings::ModelName {
-                        name: row.model.name.clone(),
-                        efforts: row.model.efforts.clone(),
-                    })
-                    .expect("one name per position");
-            }
+            let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
             assert!(
-                super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names: names.into_boxed() })),
+                super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names })),
                 "catalogue store door reserved"
             );
             assert!(
@@ -307,7 +299,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Lost { task, attempt } => {
             if connector == domain.config.forge_connector {
-                match domain.forge_left.remove(&(task, attempt)) {
+                forge_route::push_admission::forget(domain, task, attempt);
+                let pushed = domain.forge_left.remove(&(task, attempt));
+                domain.work.push(Work::Forge(forge::Event::Finished { task, attempt, lost: pushed.is_none() }));
+                match pushed {
                     Some(pushed) if !pushed.is_empty() => {
                         forge_route::left(domain, env, task, attempt, pushed);
                     }
@@ -735,11 +730,7 @@ fn step_made(
             && let Some(child) = child
         {
             // Jobs prepare at activation, after their parent row names them.
-            let event = match close_at {
-                Some(at) => forge::Event::CloseDelegated { task, child, at },
-                None => forge::Event::Delegated { task, child, kind },
-            };
-            super::forge_event(domain, env, decision, event);
+            super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind, close_at });
         }
         if let Some(relayed) = pending.relayed {
             let event = match pending.refusal {

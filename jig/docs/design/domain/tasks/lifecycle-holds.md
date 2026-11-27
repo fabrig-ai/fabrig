@@ -169,6 +169,17 @@
   what held the task is judged afresh; a deadline still past holds it
   again, with a fresh escalation, and so does a dependency ended failed
   or cancelled, until an amendment removes it (1, `changes.md`).
+- **A measurement is a release that asks for one** (`Measure`,
+  `../people/acts.md`, 1): it lifts a procedure's own hold as a release
+  does, at the revision it names, and the task is due as measured
+  (`Measured`, beside `Released`), so that its procedure's next start
+  reads that it was asked to measure afresh what its hold judged. What
+  it measures is the procedure's (temper's
+  `domain/forge/change/repairs-releases.md`, 4); jig only carries the
+  ask, once per accepted act. It is offered for a procedure's task
+  alone, since an agent's run judges nothing to measure, and never
+  lifts a placed hold or settles an effect held uncertain, which keep
+  `Lift` and `Release`'s choice.
 - **A claim's cause stays readable while its attempt is placed,** so that
   an application can say why each assignment left (temper's
   `domain/worker/hosted-runs.md`, 1.3): the due reason the claim found, the

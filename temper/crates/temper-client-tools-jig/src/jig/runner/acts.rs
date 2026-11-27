@@ -9,7 +9,10 @@ use super::{Called, Out, Runner, finish};
 use crate::jig::{
     Limits,
     call::{Call, Value, Values, number, value},
-    render::{self, outcome::Operation},
+    render::{
+        self,
+        outcome::{ActRead, Operation},
+    },
     rows,
 };
 use alloc::boxed::Box;
@@ -529,7 +532,21 @@ fn build(
             Request::Act {
                 ask: c::Ask::Conclude { project, task: number(call, 0).expect("task argument") },
                 phase: subject::ended(document),
-                asked: None,
+                read: None,
+            },
+            None,
+        ));
+    }
+    if call.tool == rows::MEASURE_AT {
+        return Ok((
+            Request::Act {
+                ask: c::Ask::Measure {
+                    project,
+                    task: number(call, 0).expect("task"),
+                    revision: c::Revision { value: number(call, 1).expect("hold") },
+                },
+                phase: subject::ended(document),
+                read: measure_recovery(document),
             },
             None,
         ));
@@ -581,8 +598,33 @@ fn build(
         _ => unreachable!("act tool"),
     };
     let phase = subject::ended(document);
-    Ok((Request::Act { ask, phase, asked: asked(call, document) }, to))
+    Ok((
+        Request::Act {
+            ask,
+            phase,
+            read: match asked(call, document) {
+                Some(asked) => Some(ActRead::Answer(asked)),
+                None => None,
+            },
+        },
+        to,
+    ))
 }
+/// The task read supplies recovery words, never admission (client/ctl/tools-acts.md, 1).
+fn measure_recovery(document: &c::ReadValue) -> Option<ActRead> {
+    use render::outcome::MeasureRecovery;
+    let (task, _) = render::read_task(document)?;
+    let hold = task.hold.as_deref()?;
+    let recovery = if let Some(placed) = hold.placed() {
+        MeasureRecovery::Lift { hold: placed.number, revision: placed.revision.value }
+    } else if let c::HoldCategory::Placed { hold } = hold.reason {
+        MeasureRecovery::ReadPlaced { hold }
+    } else {
+        MeasureRecovery::Release { revision: hold.revision().value, uncertain: hold.uncertain() }
+    };
+    Some(ActRead::Measure(recovery))
+}
+
 /// The read contract explains an engine refusal; it never prevents submission (client/ctl/areas.md).
 fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked> {
     use render::outcome::Asked;
@@ -737,7 +779,7 @@ pub enum Request {
     MoveIn,
     Ask(c::Ask),
     Amend { ask: c::Ask, alternate: Option<c::Ask> },
-    Act { ask: c::Ask, phase: Option<c::Phase>, asked: Option<render::outcome::Asked> },
+    Act { ask: c::Ask, phase: Option<c::Phase>, read: Option<ActRead> },
     Account { ask: c::Ask, context: render::outcome::Account },
     AddKey { holder: c::AskAccountHolder, provider: u32, join: Option<u32> },
     ReplaceKey { holder: c::AskAccountHolder, source: u32 },
@@ -771,15 +813,15 @@ struct Context {
     request: Request,
     account: Option<render::outcome::Account>,
     ended_task: Option<c::Phase>,
-    asked: Option<render::outcome::Asked>,
+    read: Option<ActRead>,
 }
 fn context(request: Request) -> Context {
     match request {
-        Request::Act { ask, phase, asked } => {
-            Context { request: Request::Ask(ask), account: None, ended_task: phase, asked }
+        Request::Act { ask, phase, read } => {
+            Context { request: Request::Ask(ask), account: None, ended_task: phase, read }
         }
         Request::Account { ask, context } => {
-            Context { request: Request::Ask(ask), account: Some(context), ended_task: None, asked: None }
+            Context { request: Request::Ask(ask), account: Some(context), ended_task: None, read: None }
         }
         request @ (Request::MoveOut { .. }
         | Request::Written { .. }
@@ -789,7 +831,7 @@ fn context(request: Request) -> Context {
         | Request::AddKey { .. }
         | Request::ReplaceKey { .. }
         | Request::DeclareProgram { .. }
-        | Request::CheckProgram { .. }) => Context { request, account: None, ended_task: None, asked: None },
+        | Request::CheckProgram { .. }) => Context { request, account: None, ended_task: None, read: None },
     }
 }
 fn amendment_request(request: Request) -> (Request, Option<c::Ask>, bool) {
@@ -835,7 +877,7 @@ fn send(
         Some(name) => Some(crate::jig::key::named(runner.salt, name)),
         None => None,
     };
-    let Context { request, account, ended_task, asked } = context(request);
+    let Context { request, account, ended_task, read } = context(request);
     let mut holder = None;
     let mut exported = None;
     let event = match request {
@@ -891,7 +933,7 @@ fn send(
     }
     operation.account = account;
     operation.ended_task = ended_task;
-    operation.asked = asked;
+    operation.read = read;
     if called.call.tool != rows::EXPORT_AT
         && called.call.tool != rows::CHANGE_SETTINGS_AT
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
@@ -1078,7 +1120,7 @@ fn close_request(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limi
     // Only immutable routing scope enters the ask. Terminal history is kept
     // as answer context: an archived task can be Unknown to a fresh act.
     let phase = subject::ended(document);
-    Ok((Request::Act { ask: close(call, me, task.project, limits)?, phase, asked: None }, None))
+    Ok((Request::Act { ask: close(call, me, task.project, limits)?, phase, read: None }, None))
 }
 
 fn close(call: &Call, me: &c::Me, project: u32, limits: &Limits) -> Result<c::Ask, Failed> {

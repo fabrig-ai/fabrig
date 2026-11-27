@@ -30,7 +30,7 @@ fn failed_round(why: change::Repair) -> Domain {
 }
 
 fn delegate(d: &mut Domain, kind: change::Delegate) {
-    outputs(d, Event::Delegated { task: fixtures::CHANGE, child: CHILD, kind });
+    outputs(d, Event::Delegated { task: fixtures::CHANGE, child: CHILD, kind, close_at: None });
 }
 
 fn seed(saved: bool) -> items::Seed {
@@ -221,7 +221,10 @@ fn a_landing_repair_that_fails_for_good_names_its_base_in_the_hold_account() {
         assert_eq!(op, api::Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
         fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let row = d.change(fixtures::CHANGE).expect("held repair");
-        assert!(matches!(row.change.state, change::State::Held { why: change::Hold::Failed, .. }));
+        assert!(matches!(
+            row.change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+        ));
         assert_eq!(row.producer_failure.as_deref(), Some(expected.as_ref()));
     }
 }

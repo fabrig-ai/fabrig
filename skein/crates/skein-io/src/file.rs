@@ -71,6 +71,13 @@ pub enum Request {
         root: Fd,
         name: Box<[u8]>,
     },
+    /// Opens metadata for one name, following at most one link to a regular
+    /// file beside it: `Opened` (for Stat and Close only) or `Failed`.
+    OpenSiblingFile {
+        owner: Token,
+        directory: Token,
+        name: Box<[u8]>,
+    },
     /// Opens an existing regular file to read and write, never creating it.
     OpenWrite {
         owner: Token,
@@ -235,6 +242,12 @@ impl core::fmt::Debug for Request {
                 .debug_struct("OpenReadNoFollow")
                 .field("owner", owner)
                 .field("root", root)
+                .field("name", name)
+                .finish(),
+            Request::OpenSiblingFile { owner, directory, name } => f
+                .debug_struct("OpenSiblingFile")
+                .field("owner", owner)
+                .field("directory", directory)
                 .field("name", name)
                 .finish(),
             Request::OpenWrite { owner, root, name } => {

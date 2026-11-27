@@ -168,7 +168,7 @@ fn each_family_needs_both_charter_and_authority() {
     let rows: &[(u64, &[&[u8]])] = &[
         (f.delegate.0, &[b"finding", b"red", b"follow", b"goal", b"change", b"delegate"]),
         (f.message.0, &[b"mark_read", b"message", b"introduce"]),
-        (f.control.0, &[b"decided", b"amend", b"cancel", b"release"]),
+        (f.control.0, &[b"decided", b"amend", b"cancel", b"measure", b"release"]),
         (f.decide.0, &[b"decide", b"decide_escalation", b"withdraw"]),
         (f.propose.0, &[b"propose"]),
         (f.subscribe.0, &[b"subscribe", b"unsubscribe", b"subscribe_forge"]),
@@ -361,7 +361,10 @@ fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome
     let deliver = charter.grants.deliver.expect("the workspace delivers");
     assert!(deliver.checks_must_pass);
     assert!(charter.grants.tools.modify);
-    assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
+    let conventions = charter.conventions.expect("repository conventions");
+    assert_eq!(conventions.guide.as_ref(), b"AGENTS.md");
+    assert_eq!(conventions.checks.as_ref(), b".temper/pre-pr");
+    assert_eq!(conventions.hooks.as_deref(), Some(b".temper/hooks".as_slice()));
     assert!(charter.outcome.change.is_none());
     assert!(charter.outcome.report.is_some());
 }
@@ -565,6 +568,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"message", br#"{"target":3,"form":"words","words":"x"}"#, br#"{"target":3,"form":"unknown","words":"x"}"#),
         (b"cancel", br#"{"target":3,"reason":"x"}"#, br#"{"target":3}"#),
         (b"release", br#"{"target":3,"revision":1}"#, br#"{"target":0}"#),
+        (b"measure", br#"{"target":3,"revision":1}"#, br#"{"target":3}"#),
         (b"introduce", br#"{"left":3,"right":4}"#, br#"{"left":3}"#),
         (b"unsubscribe", br#"{"subscription":3}"#, br#"{"subscription":"x"}"#),
         (b"withdraw", br#"{"proposal":3}"#, br#"{"proposal":0}"#),
@@ -643,6 +647,11 @@ fn a_note_without_first_decodes_as_today() {
 
 #[test]
 fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
+    assert_eq!(
+        decided(b"measure", br#"{"target":41,"revision":2}"#).unwrap().tool,
+        engine::Tool::Measure { target: 41, revision: 2 }
+    );
+    assert_eq!(decided(b"measure", br#"{"revision":2}"#), Err(Problem::Missing(b"target")));
     assert_eq!(
         decided(b"see", br#"{"address":" settings charter 3 "}"#).unwrap().tool,
         engine::Tool::See { line: b"settings charter 3".as_slice().into(), from: 0 }
@@ -3000,9 +3009,11 @@ fn a_denied_release_names_the_control_family_once() {
         answer: Answer::Refuse,
         findings: Box::new([Finding::Tool, Finding::Tool, Finding::Tool]),
     };
-    let rendered = crate::answer_for_tool(&denied, b"release", 1024, crate::ForgeReadBounds::STOCK);
-    assert!(rendered.error());
-    assert_eq!(rendered.text(), b"Authority refused: tool family control");
+    for tool in [b"release".as_slice(), b"measure"] {
+        let rendered = crate::answer_for_tool(&denied, tool, 1024, crate::ForgeReadBounds::STOCK);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), b"Authority refused: tool family control");
+    }
 }
 
 #[test]

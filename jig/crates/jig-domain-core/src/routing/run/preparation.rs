@@ -3,6 +3,7 @@
 
 use crate::{
     Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
+    engine::store,
     routing::{NoteRoute, Work, children::remember_due},
 };
 use alloc::boxed::Box;
@@ -681,13 +682,6 @@ pub(crate) fn plan_note_index(
     }
 }
 
-/// Load the saved window for resume, or its tail when closed (jig/docs/design/domain/engine/executors-transcripts.md, 1).
-fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
-    let proof = core.proofs.get(&context.task)?;
-    let window = proof.window?;
-    Some((window.attempt, window.turn))
-}
-
 fn prepare_agent(
     core: &mut Core,
     work: &mut Queue<Work>,
@@ -710,7 +704,7 @@ fn prepare_agent(
         task: number,
     })));
     if let Some(from) = from {
-        out.push(Request::Now(Box::new(Now::StartPreparation { task: number, from })));
+        out.push(core.loads.window(number, from));
     } else {
         work.push(Work::StartBrief { task: number });
     }
@@ -723,7 +717,6 @@ pub(crate) fn route_activate(
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
     ready: bool,
-    busy: bool,
 ) -> Queue<Request> {
     let number = context.task;
     let mut out = Queue::uncapped();
@@ -760,13 +753,12 @@ pub(crate) fn route_activate(
             }
             tasks::Executor::Agent { .. } => match core.run_admission(&context, env.wall, Box::new([])) {
                 crate::RunAdmission::Allow(allowance) => {
-                    let moved = window_moved(core, number, &allowance.choice.accounts, &allowance.choice.policy.model);
-                    let from = transcript_from(core, &context);
-                    if busy && from.is_some() {
-                        remember_due(core, context);
-                    } else {
-                        return prepare_agent(core, work, context, from, moved);
+                    if core.window_room(number, &env.limits) {
+                        let moved =
+                            window_moved(core, number, &allowance.choice.accounts, &allowance.choice.policy.model);
+                        return prepare_agent(core, work, context, core.window_from(number), moved);
                     }
+                    remember_due(core, context);
                 }
                 crate::RunAdmission::Wait(_) => remember_due(core, context),
                 crate::RunAdmission::Hold(why) => {
@@ -788,7 +780,7 @@ pub(crate) fn route_preparation_failed(
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
-    drop(core.transcripts.remove(&task));
+    core.discard_transcript(task);
     let mut out = Queue::uncapped();
     let event = preparation_failure(task, failure, &mut out);
     work.push(Work::Event(Event::Tasks(event)));
@@ -934,70 +926,62 @@ pub(crate) fn transcript_loaded(
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     task: u64,
-    load: crate::routing::TranscriptLoad,
+    answer: store::Answer,
 ) -> Queue<Request> {
-    if !core.transcripts.contains_key(&task) {
-        return Queue::uncapped();
-    }
-    match load {
-        crate::routing::TranscriptLoad::Failed => route_preparation_failed(
-            core,
-            work,
-            task,
-            brief::GatherFailure {
-                fate: brief::GatherFate::Transient,
-                section: b"transcript",
-                words: Box::from(b"its window could not be loaded".as_slice()),
-            },
-        ),
-        crate::routing::TranscriptLoad::Unread => transcript_unread(core, work, task),
-        crate::routing::TranscriptLoad::Cut { turn, bytes, done } => {
-            if !core.append_cut_transcript(task, turn, bytes) {
-                return route_preparation_failed(
-                    core,
-                    work,
-                    task,
-                    brief::GatherFailure {
-                        fate: brief::GatherFate::Transient,
-                        section: b"transcript",
-                        words: Box::from(b"its window could not be loaded".as_slice()),
-                    },
-                );
+    match answer {
+        store::Answer::Failed(store::Failure::Unread) => return transcript_unread(core, work, task),
+        store::Answer::Rows(store::Rows::Records { .. } | store::Rows::Read { .. })
+        | store::Answer::Failed(
+            store::Failure::Busy
+            | store::Failure::Gone
+            | store::Failure::TooLinked { .. }
+            | store::Failure::TurnProblem { .. }
+            | store::Failure::Failed,
+        ) => return transcript_failed(core, work, task),
+        store::Answer::Cut { turn, bytes, more } => {
+            if !turn.transcript.is_empty() || !core.append_cut_transcript(task, turn, bytes) {
+                return transcript_failed(core, work, task);
             }
-            if done { start_brief(core, env, work, task) } else { Queue::uncapped() }
+            if more {
+                return Queue::uncapped();
+            }
         }
-        crate::routing::TranscriptLoad::Page { rows, done } => {
-            for (row, text) in rows {
+        store::Answer::Rows(store::Rows::Turns { turns, more }) => {
+            for (row, text) in turns {
                 if !core.append_transcript(task, row, text) {
-                    return route_preparation_failed(
-                        core,
-                        work,
-                        task,
-                        brief::GatherFailure {
-                            fate: brief::GatherFate::Transient,
-                            section: b"transcript",
-                            words: Box::from(b"its window could not be loaded".as_slice()),
-                        },
-                    );
+                    return transcript_failed(core, work, task);
                 }
             }
-            if done {
-                if !core.transcript_readable(task) {
-                    return transcript_unread(core, work, task);
-                }
-                return start_brief(core, env, work, task);
+            if more {
+                return Queue::uncapped();
             }
-            Queue::uncapped()
+            if !core.transcript_readable(task) {
+                return transcript_unread(core, work, task);
+            }
         }
     }
+    start_brief(core, env, work, task)
 }
 
-pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+fn transcript_failed(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+    route_preparation_failed(
+        core,
+        work,
+        task,
+        brief::GatherFailure {
+            fate: brief::GatherFate::Transient,
+            section: b"transcript",
+            words: Box::from(b"its window could not be loaded".as_slice()),
+        },
+    )
+}
+
+fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
     if let Some(transcript) = core.transcripts.get(&task)
         && transcript.closed
     {
         let previous_attempt = transcript.previous_attempt;
-        drop(core.transcripts.remove(&task));
+        core.discard_transcript(task);
         core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {

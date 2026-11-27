@@ -81,7 +81,7 @@ impl Typed {
         translate::completion_with(answer, |name, arguments| {
             // Owned file calls use the caller's receiving bounds; served
             // calls retain the typed host fixture's contract decoder.
-            if matches!(name, b"read" | b"list" | b"search" | b"write" | b"edit") {
+            if matches!(name, b"read" | b"list" | b"search" | b"write" | b"edit" | b"remove") {
                 smith_protocol_llm::decode(name, arguments, grants, served, asker, &self.translation)
             } else {
                 translate::decode(name, arguments, grants, served, asker)
@@ -92,17 +92,35 @@ impl Typed {
     /// Build the typed provider with caller-supplied scripts and the usual boundaries.
     #[must_use]
     pub fn scripted(settings: &Settings, scripts: Box<[provider::api::Script]>) -> Self {
+        Self::scripted_with_menu(
+            settings,
+            scripts,
+            smith_session_world::provider::menu(),
+            provider::api::Seeds::One(settings.seed ^ 0x25),
+        )
+    }
+
+    /// Build a typed provider with a world's own menu and draw streams.
+    #[must_use]
+    pub fn scripted_with_menu(
+        settings: &Settings,
+        scripts: Box<[provider::api::Script]>,
+        menu: provider::api::Menu,
+        seeds: provider::api::Seeds,
+    ) -> Self {
         let mut client = skein_llm_kit::limits();
         client.input = u32::try_from(settings.limits.session.answer_bytes).expect("domain call input fits u32");
         let stated = smith_protocol_llm::Stated::from_tools(&settings.limits.session.tools, client.input)
             .expect("domain tool declarations fit");
         Self {
             translation: smith_protocol_llm_fixtures::small(client, stated),
-            provider: provider::Domain::configured(
+            provider: provider::Domain::drawn(
                 &settings.provider,
-                settings.seed ^ 0x25,
-                scripts,
-                smith_session_world::provider::menu(),
+                seeds,
+                provider::api::Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) },
+                menu,
+                provider::api::Rules { cued: Box::new([]), asked: Box::new([]) },
+                provider::api::Capture::none(),
             )
             .expect("caller scripts obey provider admission"),
             stage: Stage::uncapped(settings.provider),

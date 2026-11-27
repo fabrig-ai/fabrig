@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::new_core;
 
 fn wires() -> (Core, Env<crate::Limits>, crate::start::Continuation) {
     let limits = limits();
@@ -6,7 +7,7 @@ fn wires() -> (Core, Env<crate::Limits>, crate::start::Continuation) {
     let mut configured = config(41);
     configured.grants = Box::new([]);
     configured.workers_in_process = false;
-    let mut core = Core::new(configured, &limits).expect("core");
+    let mut core = new_core(configured, &limits).expect("core");
     let mut out = Queue::uncapped();
     core.start_begin(false, env.wall);
     through_link(&mut core, &env, &mut out);
@@ -27,7 +28,7 @@ fn stopping_a_start_drains_without_a_mark_or_restart_word() {
             // The loading boundary has no runtime input and no run adopted.
             let mut configured = config(41);
             configured.grants = Box::new([]);
-            core = Core::new(configured, &env.limits).expect("loading core");
+            core = new_core(configured, &env.limits).expect("loading core");
             core.start_begin(false, env.wall);
         }
         let mut out = crate::step(&mut core, &env, crate::Event::Stopping);

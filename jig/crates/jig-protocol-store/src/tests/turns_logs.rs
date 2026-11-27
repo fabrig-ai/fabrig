@@ -2,6 +2,7 @@
 use super::fixtures::{self, LIVE};
 use crate::{Event, Request, Store, TranscriptRead, Write, codec, keys, logs};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{CoreRecord, Record, TurnRecord, reads};
 use skein_lib::{List, Queue, Token};
 
@@ -169,7 +170,7 @@ fn log_read_kinds_match_files_and_keep_directional_offset_cursors() {
     let mut log = opened();
     submit(&mut log, &turns);
     for read in [
-        TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None },
+        TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None, limits: None },
         TranscriptRead::Turn { task: LIVE, attempt: 2, turn: 2 },
         TranscriptRead::Page { task: LIVE, backwards: false, after: None },
         TranscriptRead::Page { task: LIVE, backwards: true, after: None },
@@ -194,12 +195,12 @@ fn log_read_kinds_match_files_and_keep_directional_offset_cursors() {
     let (_, next, _) = page(ask(
         &mut log,
         None,
-        transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None }, 1, 4096),
+        transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None, limits: None }, 1, 4096),
     ));
     let (got, next, _) = page(ask(
         &mut log,
         None,
-        transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: next }, 1, 4096),
+        transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: next, limits: None }, 1, 4096),
     ));
     assert_eq!(got.as_ref(), &turns[2..]);
     assert_eq!(next, None);
@@ -259,7 +260,11 @@ fn activity_and_party_turn_answers_match_files_including_oversize_evidence() {
     let mut range = fixtures::read(fixtures::ALICE, reads::Scope::Turn { task: LIVE, attempt: 1, turn: 2 });
     range.bytes = 65_536;
     let events = ask(&mut log, None, Request::Read { owner: OWNER, range });
-    let [Event::Read { result: reads::Loaded::Page { rows, .. }, .. }] = events.as_ref() else { panic!("sized turn") };
+    let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }), .. }] =
+        events.as_ref()
+    else {
+        panic!("sized turn")
+    };
     let tight = rows.first().unwrap().owned_bytes().unwrap().checked_sub(1).unwrap();
     for backwards in [false, true] {
         for bytes in [65_536, tight, 1] {
@@ -276,7 +281,9 @@ fn activity_and_party_turn_answers_match_files_including_oversize_evidence() {
                     panic!("party read answers")
                 };
                 if bytes == 65_536 {
-                    let reads::Loaded::Page { rows, .. } = expected else { panic!("complete page: {expected:?}") };
+                    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }) = expected else {
+                        panic!("complete page: {expected:?}")
+                    };
                     assert!(!rows.is_empty(), "complete turns page");
                     for row in rows {
                         let record = row.related.as_ref().unwrap_or(&row.value);
@@ -295,7 +302,7 @@ fn log_window_reads_a_record_alone_when_the_page_has_no_room() {
     let turns = [fixtures::window_turn(LIVE, 2, 1, b"one"), fixtures::turn(LIVE, 2, 2, &[b'x'; 1024])];
     submit(&mut store, &turns);
     let first = length(&store, &turns[0]);
-    let read = |after| TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after };
+    let read = |after| TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after, limits: None };
     let (got, next, cut) = page(ask(&mut store, None, transcript(read(None), 2, 67)));
     assert_eq!(got.as_ref(), &turns[..1]);
     assert_eq!(next, Some(first));
@@ -361,7 +368,7 @@ fn dropping_a_turns_log_erases_its_place_and_sweeps_orphans_after_reopen() {
     let events = ask(
         &mut store,
         None,
-        transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None }, 1, 4096),
+        transcript(TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None, limits: None }, 1, 4096),
     );
     let [Event::Unread { .. }] = events.as_ref() else { panic!("dropped log is unread") };
     let mut store = fixtures::reopen(store);
@@ -407,7 +414,7 @@ fn a_record_skein_cannot_read_is_an_unread_frame() {
     disk.file(0, file::Request::WriteAt { owner: OWNER, file, offset: 4, bytes: Box::new([2]) });
     disk.file(0, file::Request::Sync { owner: OWNER, file });
     for read in [
-        TranscriptRead::Window { task: LIVE, attempt: 1, turn: 1, after: None },
+        TranscriptRead::Window { task: LIVE, attempt: 1, turn: 1, after: None, limits: None },
         TranscriptRead::Turn { task: LIVE, attempt: 1, turn: 1 },
         TranscriptRead::Page { task: LIVE, backwards: true, after: None },
     ] {
@@ -494,7 +501,7 @@ fn backward_turns_log_decodes_each_record_once() {
 
 #[test]
 fn resume_window_decodes_each_record_once() {
-    many_turns_decoded_once(TranscriptRead::Window { task: LIVE, attempt: 1, turn: 1, after: None }, 32);
+    many_turns_decoded_once(TranscriptRead::Window { task: LIVE, attempt: 1, turn: 1, after: None, limits: None }, 32);
 }
 
 #[test]

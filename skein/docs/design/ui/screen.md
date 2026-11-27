@@ -431,6 +431,8 @@ moved, closing, or nothing. Pure, step code under the subset.
 | `Char`, `Paste` | a text field or area | `Input` of its value with the text put in at the caret, the caret after it; in a text field a paste's line breaks are spaces, and its last ones are dropped |
 | `Backspace`, `Delete` | a text field or area | `Input` of its value without the character before or after the caret |
 | `Left`, `Right`, `Home`, `End` | a text field or area | the caret moved, by a character or to an end |
+| `Control` `a`; `Control` `e` | a text field or area | as `Home`; as `End` |
+| `Control` `p`; `Control` `n` | anywhere | as `Up`; as `Down`, in each row above that takes those keys |
 | `Char` a letter or a digit | none, or not a field | `Press` of the first enabled node naming it as a shortcut with no modifier (README.md, 6.1) |
 | `Control`, `Alt` and a letter or a digit | anywhere | `Press` of the first enabled node naming it with the primary modifier or with Alt (README.md, 6.1) |
 | `Escape` | anywhere | `Press` as README.md, 6.1 says of Escape |
@@ -447,6 +449,16 @@ moved, closing, or nothing. Pure, step code under the subset.
   limits' text of a node is not made: the key does nothing.
 - **The primary modifier** is Control: the terminal reads keys as
   Control and Alt on every platform (section 11).
+- **Emacs's keys,** Control and `a`, `e`, `p` or `n`, which Claude Code
+  and Codex take as a terminal sends them, Emacs's vterm among them (the
+  user's word of 2026-11-27): each is read as the key it stands for
+  before any other row, so that it never reaches a node's shortcut with
+  the primary modifier; `Control` `a` and `e` stand for `Home` and `End`
+  only while a text field or area has the focus, and are shortcuts'
+  letters elsewhere. `skein_ui_screen_terminal::alias(key: &Key, tree:
+  &Tree, focus: &Focus) -> Option<Key>`, pure, gives the key one stands
+  for, and `None` for any other key, so that an application that reads
+  some keys before the key reader reads them alike.
 
 ## 7. Drawing
 

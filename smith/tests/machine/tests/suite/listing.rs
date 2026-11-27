@@ -142,7 +142,11 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
     }
     match terminals.pop().expect("one listing terminal") {
         ToDomain::Done { done, .. } => done,
-        ToDomain::Read { .. } | ToDomain::Probed { .. } | ToDomain::Checked { .. } | ToDomain::Aborted { .. } => {
+        ToDomain::Read { .. }
+        | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
+        | ToDomain::Checked { .. }
+        | ToDomain::Aborted { .. } => {
             panic!("listing terminal")
         }
     }

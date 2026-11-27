@@ -424,7 +424,12 @@ fn prepared_over(clients: bool, stores: Option<jig_protocol_store::Stores>) -> c
     };
     assert!(root::valid(&limits.root), "test root limits: {:?}", limits.root);
     let seeds = f::seeds();
-    let root = root::Config { core: jig_protocol_config::core(&config, seeds.deployment, seeds.seed), first, second };
+    let root = root::Config {
+        core: jig_protocol_config::core(&config, seeds.deployment, seeds.seed),
+        first,
+        second,
+        resource_kinds: [Box::new([]), Box::new([])],
+    };
     let clients = if clients {
         Some(
             crate::clients::Clients::new(

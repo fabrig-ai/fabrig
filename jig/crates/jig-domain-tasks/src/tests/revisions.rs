@@ -663,6 +663,28 @@ fn an_uncertain_release_needs_exactly_one_repeat_choice() {
 }
 
 #[test]
+fn a_measured_procedure_is_due_with_its_hold_revision_after_restore() {
+    let mut test = Harness::new();
+    let mut procedure = task(1, &[]);
+    procedure.executor = Executor::Procedure { connector: 1, code: 7 };
+    procedure.llm = None;
+    test.make(vec![procedure]);
+    test.send(Event::Hold { task: 1, why: Hold::Procedure });
+    let revision = test.revisions(1).hold;
+    let out = test.send(Event::Measure { reply_to: to(), by: Party::Person(9), task: 1 });
+    assert!(out.iter().any(|request| match request {
+        Request::Done { .. } => true,
+        _ => false,
+    }));
+    test.restart();
+    let row = test.domain.task(1).expect("restored live task");
+    assert_eq!(test.domain.procedure_due(1), Some((1, 7, 1)));
+    assert_eq!(row.due_reason, crate::Why::Measured);
+    assert_eq!(row.revisions.hold, revision);
+    assert_eq!(row.tries, crate::Tries::NONE);
+}
+
+#[test]
 fn words_release_a_stop_before_its_cancelled_run_answers() {
     let mut test = Harness::new();
     test.make(vec![task(1, &[])]);

@@ -43,3 +43,30 @@ pub enum Holding {
     /// Counted pool resource and its connector-defined kind.
     Slot { pool: Name, kind: u16 },
 }
+
+/// Whether a busy resource refuses admission or queues its next holder.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Taken {
+    /// Refuse a batch needing this resource and name its holder.
+    Refuses,
+    /// Admit the task with no holds until the complete set is free.
+    Waits,
+}
+
+/// Connector-configured admission rule for one resource kind.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Rule {
+    /// The connector orders writes itself; no task hold is taken.
+    Shared,
+    /// One task holds the resource.
+    Exclusive { taken: Taken },
+    /// Up to the connector's current number of slots hold the pool.
+    Pooled { taken: Taken },
+}
+
+/// One connector's declared resource kind.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ResourceKind {
+    pub kind: u16,
+    pub hold: Rule,
+}

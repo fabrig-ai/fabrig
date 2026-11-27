@@ -81,7 +81,7 @@ impl Stand {
                 }
             }
             tools::Decoded::Action(action) => core::Event::NamedAction { to, key, action },
-            tools::Decoded::Delegate(batch) => core::Event::DelegateValidated { to, key, batch, stubs: Box::new([]) },
+            tools::Decoded::Delegate(batch) => core::Event::Delegate { to, key, batch },
             tools::Decoded::Problem(problem) => return Some(unreadable(to, call, &problem)),
             tools::Decoded::NotMine => return None,
         };

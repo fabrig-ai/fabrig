@@ -168,6 +168,7 @@ fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: boo
         | Event::Read { .. }
         | Event::Got { .. }
         | Event::Turns { .. }
+        | Event::WindowFailed { .. }
         | Event::Unread { .. }
         | Event::Corrupt { .. }
         | Event::SecretsNotReady { .. }

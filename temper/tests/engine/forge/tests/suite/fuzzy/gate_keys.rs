@@ -1,6 +1,8 @@
 //! Rebasing equal filtered candidates on different generated bases must not
 //! invalidate a non-base gate (domain/landing-proof.md, 1.1).
 use skein_lib::Rng;
+use skein_world::sweep::cases;
+use std::convert::Infallible;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
@@ -8,7 +10,7 @@ use temper_engine_forge_world::{REPO, landings};
 
 #[test]
 fn non_base_gate_keys_ignore_generated_bases_and_ignored_paths() {
-    for seed in 0..32 {
+    cases(skein_world::this_test!("non_base_gate_keys_ignore_generated_bases_and_ignored_paths"), 0..32, |seed| {
         let mut rng = Rng::new(seed);
         let ignored = format!("docs/{}.md", rng.below(100));
         let visible = format!("lib-{}.rs", rng.below(100));
@@ -50,5 +52,7 @@ fn non_base_gate_keys_ignore_generated_bases_and_ignored_paths() {
             keys.push(key);
         }
         assert_eq!(keys[0], keys[1], "seed {seed}: a non-base key depends only on its filtered candidate");
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

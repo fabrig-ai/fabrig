@@ -233,7 +233,7 @@
     write). At a landing, no failed receipt resolves (gone past
     `receipts_per_gate`). Its cause is `RedStands`, its account `its red
     at HEAD stands: repair task R changed nothing, and the same content
-    can't be checked again: WHY; release this change to ask a fresh
+    can't be checked again: WHY; amend this change to ask a fresh
     repair, or cancel it`, WHY `no failed check names a job the forge
     can run again` or `the landing no longer keeps its failed receipt`.
     The update onto its base that a CI repair which changed nothing once
@@ -247,8 +247,8 @@
   - **Red again, it holds.** Its measurement refused
     (`../judgement.md`, 2), the change holds, its cause `RedStands`, its
     account `its red at HEAD stands: repair task R changed nothing, and
-    the same content failed again: KEYS; release this change to ask a
-    fresh repair, or cancel it`. KEYS are the failures as the measurement
+    the same content failed again: KEYS; amend this change to ask a
+    fresh repair, measure it again, or cancel it`. KEYS are the failures as the measurement
     names them, separated by `, `: at a landing, its receipt's failed
     tests' keys as *A landing's repair* (above) names them, else its
     failed jobs' names; at CI, the failed checks' contexts at the head.
@@ -265,10 +265,15 @@
     (`repairs-releases.md`, 1, *Every hold reaches its task*). The
     client's and the public wire read the cause as `failed`, as they read
     `runner`, its account saying which (`../../../protocol/wires.md`, 9).
-  - **Its release** asks a fresh repair for the red that stands, with
-    its reason, under current forge facts and authority, counted against
-    the allowance the release reset (`repairs-releases.md`, 1, *A
-    release*). A hold of this cause at CI also ends at a green read at its
+  - **Its release** is a judgement's (`repairs-releases.md`, 4): with
+    its head and the change's spec as they were when it held, and its
+    check taken, it holds again at once, saying it was not measured
+    again; with its head moved it is checked there; amended since, it
+    asks a fresh repair for the red that stands, with its reason and the
+    amended spec, under current forge facts and authority, counted
+    against the repairs taken; and a fresh measurement (`task measure`)
+    takes one more check of the same content, as above. A hold of this
+    cause at CI also ends at a green read at its
     head, as *A hold ends too* (above) says of a CI repair's hold.
   - **Once per repair:** the record is cleared when the change's head
     moves, a repair is asked for it, or the change ends, so a fresh repair
@@ -281,8 +286,11 @@
   nothing*).
 - **Its record,** on the change's row (family `ChangeHot`): at CI,
   `ci_recheck: option CiRecheck = none`, `record CiRecheck { job:
-  JobAttempt taken: option u32 = none }`, the failed job's attempt that
-  ran again and, once taken, the attempt that took it; at a landing, the
+  JobAttempt taken: option u32 = none semantic: bool = false }`, the
+  failed job's attempt that ran again, once taken the attempt that took
+  it, and whether the repair it checks was `Semantic` rather than `Ci`,
+  so the hold its red leaves and a fresh repair its amendment asks keep
+  that reason through the check and a restart; at a landing, the
   regate (`../../landing-regate.md`, 5). Until the step that reads the
   head classifies the repair, its words wait beside the head it reported
   and its verdict flags, as `delegate_words: option ResultText = none`,
@@ -314,7 +322,8 @@
     words carrying the `No test:` line; never beside the flake's.
 - **The previous build's holds** (`../../../draft/whose-red.md`, 8): a
   change that build held on its repair's flake verdict (`Flake`) or
-  no-test verdict (`NoTest`) stays held, and no step of this build holds
+  no-test verdict (`NoTest`) stays held, read as a red that stands with
+  its one check still owed (`repairs-releases.md`, 5), and no step of this build holds
   so. Its release asks no repair: the change names its regate, untaken,
   as above, and goes on at the head it read, checked again, with its one
   check owed, which the rule above then judges; where no failed receipt

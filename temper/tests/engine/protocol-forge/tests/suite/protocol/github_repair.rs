@@ -57,7 +57,8 @@ fn a_github_change_whose_check_run_fails_is_repaired() {
     read_failed_job(&mut world, first);
     assert_eq!(world.tally().routes.get(&Route::Merge), None);
 
-    world.push_file(BRANCH, b"changes/1.md", REQUIRED);
+    let repairer = (52, 1);
+    world.push_attempt(repairer, BRANCH, b"changes/1.md", REQUIRED);
     let second = world.branch(BRANCH);
     assert_ne!(first, second, "repair pushes a new head");
     let mut finished = false;

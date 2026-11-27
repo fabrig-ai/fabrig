@@ -3,7 +3,8 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
 use temper_engine_forge_world::changes::{
-    change_row, change_step, change_step_merge_job, change_step_task, change_step_with_release, reviewed_change,
+    branch_name, change_row, change_step, change_step_merge_job, change_step_task, change_step_with_release,
+    reviewed_change,
 };
 use temper_engine_forge_world::{REPO, World, translate};
 
@@ -151,6 +152,7 @@ fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
                 task: 51,
                 child: 52,
                 kind: change::Delegate::Merge { base, from: Some(head) },
+                close_at: None,
             });
             assert_eq!(
                 change_step_merge_job(&mut world, 3, change::Status::Passed, Box::new([])),
@@ -693,6 +695,12 @@ fn dropping_a_forge_section_while_it_gathers_releases_its_token() {
     assert_eq!(world.seen(), [top::Request::BriefTaken { section, bytes: None }]);
 }
 
+const CHANGE_BRANCH: &[u8] = b"temper/51";
+
+fn repair_push(world: &mut World, repair: u64, content: &[u8]) -> skein_forge::api::Commit {
+    world.push_attempt(&branch_name(CHANGE_BRANCH), (repair, 1), CHANGE_BRANCH, b"file", content)
+}
+
 #[test]
 fn a_review_asking_for_changes_repeats_at_the_repaired_head() {
     let (mut world, head) = reviewed_change(false, change::Freshness::Exact);
@@ -709,9 +717,8 @@ fn a_review_asking_for_changes_repeats_at_the_repaired_head() {
         ),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(9)))
     );
-    world.push(b"temper/51", b"review repair");
+    let new_head = repair_push(&mut world, 52, b"review repair");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
-    let new_head = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     assert_eq!(
         change_step(&mut world, 3, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head: new_head })
@@ -808,9 +815,8 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         change::Decision::Delegate(change::Delegate::Resolve { base })
     );
     assert_eq!(world.writes(), 1);
-    world.resolve(b"temper/51", b"resolved content");
+    let resolved = world.resolve_attempt(&branch_name(CHANGE_BRANCH), (52, 1), CHANGE_BRANCH, b"resolved content");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
-    let resolved = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     assert_eq!(
         change_step(&mut world, 3, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head: resolved })
@@ -844,9 +850,8 @@ fn a_clean_update_with_broken_ci_is_repaired_as_a_semantic_conflict() {
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Semantic))
     );
     assert_eq!(world.writes(), 1);
-    world.push(b"temper/51", b"semantic repair");
+    let repaired = repair_push(&mut world, 52, b"semantic repair");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
-    let repaired = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     assert_eq!(
         change_step(&mut world, 3, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head: repaired })
@@ -869,8 +874,12 @@ fn a_pull_closed_by_someone_else_is_held_then_reopened_on_release() {
     world.close(pull);
     assert_eq!(
         change_step(&mut world, 1, change::Status::Passed, Box::new([])),
-        change::Decision::Hold(change::Hold::PullClosed)
+        change::Decision::Hold(change::Cause::PullClosed)
     );
+    // The kept pull supplies durable drift evidence on the branch hold.
+    let watched = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Pull(pull) };
+    world.event(top::Event::Names { task: 51, resources: Box::new([name.clone(), watched]) });
+    world.run_for(1);
     assert_eq!(world.writes(), 0);
     let Some(top::Stored::Hold(hold)) = world.stored().get(&top::Key::Hold(name)) else { panic!("held change") };
     assert_eq!(hold.drift.as_ref().expect("closed pull details").change, top::DriftChange::PullClosed { number: pull });
@@ -1116,7 +1125,7 @@ fn a_failed_ci_head_is_repaired_then_checked_again() {
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
     let before = world.writes();
-    world.push(b"temper/51", b"repaired");
+    repair_push(&mut world, 53, b"repaired");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     let mut finished = false;
     for entry in 4..20 {
@@ -1209,7 +1218,7 @@ fn runner_reruns_keep_gates_and_only_a_workflow_red_asks_repair() {
         if fault == Failing::NoStep {
             assert_eq!(
                 change_step(&mut world, 2, change::Status::Passed, Box::new([])),
-                change::Decision::Hold(change::Hold::Runner)
+                change::Decision::Hold(change::Cause::Runner)
             );
             let Some(top::RunnerCi::Held { words }) = &world.change(51).runner_ci else { panic!("runner hold") };
             assert!(String::from_utf8_lossy(words).contains("no step failed, run again 1 time"));
@@ -1219,7 +1228,7 @@ fn runner_reruns_keep_gates_and_only_a_workflow_red_asks_repair() {
         if repairs {
             let brief = world.ci_brief(51, head);
             assert!(!String::from_utf8_lossy(&brief).contains("the runner's:"));
-            world.push(b"temper/51", b"repaired");
+            repair_push(&mut world, 53, b"repaired");
             world.run_for(1);
             world.status(b"temper/51", raw::Check::Passed);
         } else {
@@ -1283,7 +1292,12 @@ fn failed_ci_repair_world() -> World {
         change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
-    world.event(top::Event::Delegated { task: 51, child: 52, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::Delegated {
+        task: 51,
+        child: 52,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.event(top::Event::DelegateResult {
         ended_at: None,
         task: 51,
@@ -1299,7 +1313,7 @@ fn failed_ci_repair_world() -> World {
     });
     assert_eq!(
         change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
-        change::Decision::Hold(change::Hold::Failed)
+        change::Decision::Hold(change::Cause::Failed)
     );
     let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("retained change")
@@ -1320,8 +1334,13 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("retained change")
     };
-    assert_eq!(saved.change.repairs, 1, "release resets the allowance and counts its replacement");
-    world.event(top::Event::Delegated { task: 51, child: 53, kind: change::Delegate::Repair(change::Repair::Ci) });
+    assert_eq!(saved.change.repairs, 2, "failure keeps the spent repair and counts its replacement");
+    world.event(top::Event::Delegated {
+        task: 51,
+        child: 53,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.run_for(1);
     world.restart();
     world.event(top::Event::DelegateResult {
@@ -1343,8 +1362,8 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     };
     assert_eq!(saved.delegate, Some((53, change::Delegate::Repair(change::Repair::Ci))));
     assert_eq!(saved.delegate_status, change::Status::Unknown);
-    assert_eq!(saved.change.repairs, 1);
-    world.push(b"temper/51", b"repaired");
+    assert_eq!(saved.change.repairs, 2);
+    repair_push(&mut world, 53, b"repaired");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     world.event(top::Event::DelegateResult {
         ended_at: None,
@@ -1502,7 +1521,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -1737,10 +1757,15 @@ fn a_goal_branch_with_its_creations_answer_lost_is_found_after_restart_once() {
 fn a_pull_opened_with_its_answer_lost_is_found_by_its_branches_after_restart_once() {
     let mut world = World::new(325);
     world.adopt();
-    world.produce(b"temper/51");
+    let name = branch_name(CHANGE_BRANCH);
+    world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
+    let head = world.push_new_attempt(&name, (52, 1), CHANGE_BRANCH);
+    world.event(top::Event::Finished { task: 52, attempt: 1, lost: false });
+    world.run_for(1);
     world.slow_calls(skein_lib::Duration::from_secs(5));
     let mut row = change_row();
     row.change.state = change::State::Opening { requested: true };
+    row.change.last_head = Some(head);
     row.pending = Some(1);
     row.effect = change::EffectResult::Pending;
     world.event(top::Event::Change { row });
@@ -1842,9 +1867,15 @@ fn a_restored_write_runs_while_the_fresh_repository_read_keeps_failing() {
 fn a_merge_with_its_answer_lost_is_found_after_restart_without_merging_twice() {
     let mut world = World::new(89);
     world.adopt();
-    world.produce(b"temper/51");
-    let pull = world.open_pull(b"temper/51", b"main");
-    let head = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
+    world.produce(CHANGE_BRANCH);
+    let pull = world.open_pull(CHANGE_BRANCH, b"main");
+    let head = translate::commit(world.branch(CHANGE_BRANCH));
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.state = change::State::Landing { head };
+    row.pending = Some(1);
+    world.event(top::Event::Change { row });
     world.slow_calls(skein_lib::Duration::from_secs(5));
     world.event(top::Event::Enqueue {
         entry: skein_forge_client::Entry {
@@ -2467,6 +2498,11 @@ fn cancelling_a_change_comments_its_reason_then_closes_its_pull_and_deletes_its_
             Write::DeleteBranch { branch: Box::from(b"temper/51".as_slice()) },
         ]
     );
+    assert!(!world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::ChangeDecision { decision: change::Decision::Hold(_), .. }
+            | top::Request::Drift { task: RELEASE_TASK, .. }
+    )));
     assert_eq!(world.writes(), 3);
 }
 
@@ -2724,8 +2760,8 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
-    world.produce(b"temper/51");
-    let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
+    let pushed = world.push_new_attempt(&name, (51, 1), CHANGE_BRANCH);
+    world.event(top::Event::Finished { task: 51, attempt: 1, lost: false });
     world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed, true)]) });
     world.run_for(1);
     world.take_seen();
@@ -2774,7 +2810,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
     world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
@@ -2805,7 +2841,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(!world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
 }
 
@@ -2839,15 +2875,11 @@ fn a_released_opening_move_on_a_requesters_branch_opens_before_ci() {
     assert_ne!(head, prior);
     assert_eq!(
         change_step(&mut world, 1, change::Status::Passed, Box::new([])),
-        change::Decision::Hold(change::Hold::BranchMoved)
+        change::Decision::Hold(change::Cause::BranchMoved)
     );
-    assert_eq!(
-        world.change(51).change.state,
-        change::State::Held {
-            was: Box::new(change::State::Opening { requested: false }),
-            why: change::Hold::BranchMoved,
-        }
-    );
+    let change::State::Held { was, hold } = &world.change(51).change.state else { panic!("held at opening") };
+    assert_eq!(**was, change::State::Opening { requested: false });
+    assert_eq!(hold.cause, change::Cause::BranchMoved);
     assert_eq!(world.change(51).pull, None);
     world.status(BRANCH, skein_fake_forge_domain::api::Check::Pending);
     world.event(top::Event::ReleaseChange { task: 51, release: None });
@@ -3169,7 +3201,6 @@ fn a_restart_drops_goal_ci_topics_and_keeps_tasks_own_ci_subscriptions() {
 fn an_outside_push_during_a_worker_slot_holds_the_task_with_evidence() {
     let mut world = World::new(130);
     world.adopt();
-    world.produce(b"temper/51");
     let name = top::Name {
         forge: REPO.forge,
         repository: REPO.repository,
@@ -3178,11 +3209,21 @@ fn an_outside_push_during_a_worker_slot_holds_the_task_with_evidence() {
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
     world.run_for(1);
-    let before = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::Claim {
         designs: Box::new([]),
         task: 51,
         attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
+    let before = world.push_new_attempt(&name, (51, 1), CHANGE_BRANCH);
+    world.event(top::Event::Finished { task: 51, attempt: 1, lost: false });
+    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), before, true)]) });
+    world.run_for(1);
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 2,
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
@@ -3279,7 +3320,6 @@ fn dropping_a_completed_section_frees_it_and_its_token_can_be_reused() {
 fn a_lost_run_confirms_its_unreported_forward_head_by_fresh_reads() {
     let mut world = World::new(132);
     world.adopt();
-    world.produce(b"temper/51");
     let name = top::Name {
         forge: REPO.forge,
         repository: REPO.repository,
@@ -3294,11 +3334,8 @@ fn a_lost_run_confirms_its_unreported_forward_head_by_fresh_reads() {
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
-    world.event(top::Event::Answered {
-        task: 51,
-        attempt: 1,
-        pushed: Box::new([(name.clone(), translate::commit(world.branch(b"temper/51")), true)]),
-    });
+    let first = world.push_new_attempt(&name, (51, 1), CHANGE_BRANCH);
+    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), first, true)]) });
     world.run_for(1);
     world.event(top::Event::Claim {
         designs: Box::new([]),
@@ -3307,8 +3344,7 @@ fn a_lost_run_confirms_its_unreported_forward_head_by_fresh_reads() {
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
-    world.push(b"temper/51", b"unreported work");
-    let head = translate::commit(world.branch(b"temper/51"));
+    let head = world.push_attempt(&name, (51, 2), CHANGE_BRANCH, b"file", b"unreported work");
     let calls = world.calls();
     world.event(top::Event::Lost { task: 51, attempt: 2 });
     world.run_for(5);
@@ -3373,7 +3409,7 @@ fn a_lost_writer_restarts_its_unfinished_fresh_read_before_releasing() {
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
-    world.produce(b"temper/53");
+    world.push_new_attempt(&name, (53, 1), b"temper/53");
     world.slow_calls(skein_lib::Duration::from_secs(5));
     world.event(top::Event::Lost { task: 53, attempt: 1 });
     let Some(top::Stored::Hold(hold)) = world.stored().get(&top::Key::Hold(name.clone())) else {
@@ -3398,7 +3434,6 @@ fn a_repository_with_222_branches_and_two_recorded_prefix_branches_is_adopted() 
     world.adopt();
     for (task, suffix) in [(9, b"one".as_slice()), (10, b"two".as_slice())] {
         let branch = format!("temper/{}", std::str::from_utf8(suffix).expect("ASCII fixture suffix"));
-        world.produce(branch.as_bytes());
         let name = top::Name {
             forge: REPO.forge,
             repository: REPO.repository,
@@ -3413,11 +3448,9 @@ fn a_repository_with_222_branches_and_two_recorded_prefix_branches_is_adopted() 
             writes: Box::new([name.clone()]),
             holders: Box::new([task]),
         });
-        world.event(top::Event::Answered {
-            task,
-            attempt: 1,
-            pushed: Box::new([(name.clone(), translate::commit(world.branch(branch.as_bytes())), true)]),
-        });
+        let pushed = world.push_new_attempt(&name, (task, 1), branch.as_bytes());
+        world.event(top::Event::Finished { task, attempt: 1, lost: false });
+        world.event(top::Event::Answered { task, attempt: 1, pushed: Box::new([(name.clone(), pushed, true)]) });
         world.run_for(1);
         let Some(top::Stored::BranchHead(head)) = world.stored().get(&top::Key::BranchHead(name)) else {
             panic!("writer branch tip retained")
@@ -3462,14 +3495,16 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     world.restart();
     assert_eq!(
         change_step(&mut world, 100, change::Status::Unknown, Box::new([])),
-        change::Decision::Hold(change::Hold::Failed)
+        change::Decision::Hold(change::Cause::Failed)
     );
     let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("retained change")
     };
     assert_eq!(saved.producer_failure.as_deref(), Some(REASON));
-    assert!(matches!(&saved.change.state, change::State::Held { was, why: change::Hold::Failed }
-        if matches!(was.as_ref(), change::State::Producing { .. })));
+    assert!(
+        matches!(&saved.change.state, change::State::Held { was, hold: change::Hold { cause: change::Cause::Failed, .. } }
+        if matches!(was.as_ref(), change::State::Producing { .. }))
+    );
     assert_eq!(world.writes(), 0, "no pull request or other write for an inapplicable change");
 }
 

@@ -648,6 +648,13 @@ fn sign_in(core: &mut Core, limits: &Limits) {
 }
 
 fn ask_now(core: &mut Core, limits: &Limits, key: u8, ask: people::Ask) -> people::Outcome {
+    let people::Reply::Outcome(outcome) = ask_reply(core, limits, key, ask) else {
+        panic!("one terminal keyed outcome")
+    };
+    outcome
+}
+
+fn ask_reply(core: &mut Core, limits: &Limits, key: u8, ask: people::Ask) -> people::Reply {
     let out = step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -661,12 +668,12 @@ fn ask_now(core: &mut Core, limits: &Limits, key: u8, ask: people::Ask) -> peopl
     );
     for row in &out {
         if let Request::Held(held) = row
-            && let Held::PeopleReply { reply: people::Reply::Outcome(outcome), .. } = &**held
+            && let Held::PeopleReply { reply, .. } = &**held
         {
-            return outcome.clone();
+            return reply.clone();
         }
     }
-    panic!("one terminal keyed outcome: {out:?}");
+    panic!("one terminal keyed reply: {out:?}");
 }
 
 #[test]
@@ -1093,10 +1100,14 @@ fn an_ended_proposal_decision_requires_the_exact_maker() {
             let out = keyed_proposal(&mut core, &limits, 1, proposer);
             let mut named_request = None;
             for output in &out {
-                if let Request::Now(now) = output
-                    && let Now::EndedProposal { request, person, project, proposer: named, proposal } = &**now
+                if let Request::Held(held) = output
+                    && let Held::Store(engine_store::Out::Load {
+                        load: request,
+                        range:
+                            engine_store::Range::Record(Key::Core(CoreKey::ProposalDecision { proposer: named, proposal })),
+                    }) = &**held
                 {
-                    assert_eq!((*person, *project, *named, *proposal), (1, 1, proposer, 10));
+                    assert_eq!((*named, *proposal), (proposer, 10));
                     assert!(named_request.replace(*request).is_none(), "one exact ended load");
                 }
             }
@@ -1127,18 +1138,10 @@ fn an_ended_proposal_decision_requires_the_exact_maker() {
                 choice: people::ProposalChoice::Rejected,
                 created: None,
             };
-            let out = step(
+            let out = crate::routing::step_store(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-                Event::EndedProposal {
-                    request,
-                    person: 1,
-                    project: 1,
-                    proposer,
-                    proposal: 10,
-                    row: Some(row),
-                    busy: false,
-                },
+                point_answer(request, Some(Record::Core(CoreRecord::ProposalDecision(row))), false),
             );
             assert_eq!(
                 proposal_answer(&out),
@@ -1200,6 +1203,211 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
     assert_eq!(revisions::release_run(&procedure, Some(true)), Ok(()));
 }
 
+fn measure_task(
+    core: &mut Core,
+    limits: &Limits,
+    requester: tasks::Party,
+    executor: tasks::Executor,
+    why: tasks::Hold,
+) -> u64 {
+    let funder = match requester {
+        tasks::Party::Person(_) => tasks::Funder::Period { project: 1, period: 1 },
+        tasks::Party::Task(task) => tasks::Funder::Task(task),
+        tasks::Party::Deployment { .. } => panic!("a test requester"),
+    };
+    let mut new = new_row(core, 7, funder, None);
+    new.executor = executor;
+    send_task(
+        core,
+        limits,
+        tasks::Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(120)),
+            creator: requester,
+            batch: Box::new([new]),
+        },
+    );
+    send_task(core, limits, tasks::Event::Hold { task: 7, why });
+    core.tasks.task(7).expect("held task").revisions.hold
+}
+
+#[test]
+fn measure_lifts_the_named_hold_and_replays_only_the_kept_answer() {
+    let (mut core, limits) = tree_core();
+    sign_in(&mut core, &limits);
+    let executor = tasks::Executor::Procedure { connector: core.connectors[0], code: u32::MAX };
+    measure_task(&mut core, &limits, tasks::Party::Person(1), executor, tasks::Hold::Procedure);
+    for _ in 0_u8..2 {
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::Release {
+                reply_to: ReplyTo::new(Token::new(120)),
+                by: tasks::Party::Person(1),
+                operation: tasks::Release { task: 7, again: None, message: None },
+            },
+        );
+        send_task(&mut core, &limits, tasks::Event::Hold { task: 7, why: tasks::Hold::Procedure });
+    }
+    let before = core.tasks.task(7).unwrap().clone();
+    assert_eq!(before.revisions.hold, 3);
+    let stale = people::Ask::Measure { project: 1, task: 7, revision: 2 };
+    assert_eq!(
+        ask_now(&mut core, &limits, 3, stale),
+        people::Outcome::Refused(people::Refusal::Moved {
+            now: people::Moved::Hold { revision: 3, reason: people::HoldReason::Procedure },
+        })
+    );
+    assert_eq!(core.tasks.task(7).unwrap(), &before);
+    let measure = people::Ask::Measure { project: 1, task: 7, revision: 3 };
+    assert_eq!(ask_now(&mut core, &limits, 4, measure.clone()), people::Outcome::Released { task: 7 });
+    let due = core.tasks.task(7).unwrap();
+    assert_eq!(due.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(due.due_reason, tasks::Why::Measured);
+    assert_eq!(due.revisions.hold, 3);
+    send_task(&mut core, &limits, tasks::Event::Hold { task: 7, why: tasks::Hold::Procedure });
+    let held_again = core.tasks.task(7).unwrap().clone();
+    assert_eq!(held_again.revisions.hold, 4);
+    assert_eq!(ask_now(&mut core, &limits, 4, measure), people::Outcome::Released { task: 7 });
+    let changed = people::Ask::Measure { project: 1, task: 7, revision: 4 };
+    assert_eq!(ask_reply(&mut core, &limits, 4, changed), people::Reply::Refused(people::Refusal::KeyConflict));
+    assert_eq!(core.tasks.task(7).unwrap(), &held_again);
+}
+
+#[test]
+fn measure_is_not_offered_on_placed_uncertain_or_nonprocedure_holds() {
+    for (executor, why, placed) in [
+        (tasks::Executor::Agent { charter: 1 }, tasks::Hold::Stopped, false),
+        (tasks::Executor::Procedure { connector: 1, code: u32::MAX }, tasks::Hold::Uncertain { entry: 6 }, false),
+        (tasks::Executor::Procedure { connector: 1, code: u32::MAX }, tasks::Hold::Procedure, true),
+    ] {
+        let (mut core, limits) = tree_core();
+        sign_in(&mut core, &limits);
+        let revision = measure_task(&mut core, &limits, tasks::Party::Person(1), executor, why);
+        if placed {
+            send_task(
+                &mut core,
+                &limits,
+                tasks::Event::Place {
+                    reply_to: ReplyTo::new(Token::new(121)),
+                    hold: tasks::PlacedHold {
+                        number: 9,
+                        project: 1,
+                        owner: tasks::Owner::Party { person: 1 },
+                        scope: tasks::Scope::Subtree { task: 7 },
+                        mode: tasks::Mode::Stop,
+                        reason: Box::from(b"pause".as_slice()),
+                        revision: 1,
+                        placed_at: 0,
+                        lifted: false,
+                        exempt: Box::new([]),
+                    },
+                },
+            );
+            assert!(core.tasks.placed_on(7).is_some());
+        }
+        let before = core.tasks.task(7).unwrap().clone();
+        let ask = people::Ask::Measure { project: 1, task: 7, revision };
+        assert_eq!(ask_now(&mut core, &limits, 5, ask), people::Outcome::Refused(people::Refusal::NotOffered));
+        assert_eq!(core.tasks.task(7).unwrap(), &before);
+    }
+}
+
+#[test]
+fn measure_accepts_the_waiting_escalation_holder_without_release_standing() {
+    let (mut core, limits) = tree_core();
+    sign_in(&mut core, &limits);
+    let executor = tasks::Executor::Procedure { connector: core.connectors[0], code: u32::MAX };
+    let revision = measure_task(&mut core, &limits, tasks::Party::Person(2), executor, tasks::Hold::Procedure);
+    let mut policy = core.authority.policy(1).unwrap().clone();
+    let mut decider = policy.roles[0].clone();
+    decider.number = 5;
+    decider.decides = authority::Proposals(16);
+    decider.requests = authority::Requests(4);
+    policy.roles = Box::new([policy.roles[0].clone(), decider]);
+    policy.escalation_role = Some(5);
+    let mut bounds = *core.authority.limits();
+    bounds.roles = 2;
+    core.authority = authority::Domain::new(core.authority.rules().clone(), bounds).unwrap();
+    let mut out = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
+    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
+    holding(&mut core, &limits, people::Role::Policy { role: 5 });
+    let ask = people::Ask::Measure { project: 1, task: 7, revision };
+    assert_eq!(ask_now(&mut core, &limits, 2, ask.clone()), people::Outcome::Refused(people::Refusal::Unknown));
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::RoutedEscalation {
+            task: 7,
+            revision,
+            holder: tasks::EscalationHolder::Role { project: 1, role: 5 },
+            entry: 1,
+        },
+    );
+    assert_eq!(ask_now(&mut core, &limits, 3, ask), people::Outcome::Released { task: 7 });
+    let row = core.tasks.task(7).unwrap();
+    assert_eq!(row.due_reason, tasks::Why::Measured);
+    assert_eq!(row.escalation, tasks::Escalation::Unheld { revision });
+}
+
+#[test]
+fn a_run_measures_only_a_delegate_at_the_seen_hold_revision() {
+    let (mut core, limits) = tree_core();
+    core.call_parts = Map::with_capacity(3);
+    let mut run = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
+    run.authority.tools = tasks::Tools(core.settings.tools.control.0);
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(120)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([run]),
+        },
+    );
+    let executor = tasks::Executor::Procedure { connector: core.connectors[0], code: u32::MAX };
+    let revision = measure_task(&mut core, &limits, tasks::Party::Task(1), executor, tasks::Hold::Procedure);
+    core.proofs.insert(1, RunProof::claimed(1, 1, 1, None, fleet::HostKind::Engine)).unwrap();
+    for (completion, target, seen) in [(1, 1, revision), (2, 7, revision.checked_add(1).unwrap()), (3, 7, revision)] {
+        let key = CallKey { task: 1, attempt: 1, completion, position: 0 };
+        let out = watch_outputs(
+            &mut core,
+            &limits,
+            Event::NamedAction {
+                to: ReplyTo::new(Token::new(91)),
+                key,
+                action: NamedAction::Measure { target, revision: seen },
+            },
+        );
+        let mut part = None;
+        for row in &out {
+            if let Request::Held(held) = row
+                && let Held::CallAnswer { key: answered, part: answer, .. } = held.as_ref()
+                && *answered == key
+            {
+                assert!(part.replace(answer.clone()).is_none());
+            }
+        }
+        let expected = match completion {
+            1 => CallPart::ControlRefused(tasks::Problem::new(Some(1), tasks::Refusal::Reference)),
+            2 => CallPart::Moved {
+                task: 7,
+                now: people::Moved::Hold { revision, reason: people::HoldReason::Procedure },
+            },
+            3 => CallPart::Revised { task: 7, revision: core.tasks.task(7).unwrap().revisions.spec },
+            _ => unreachable!("one of the three calls"),
+        };
+        assert_eq!(part, Some(expected), "{out:?}");
+    }
+    assert_eq!(core.tasks.task(7).unwrap().due_reason, tasks::Why::Measured);
+}
+
 fn person_task_flight(core: &mut Core, token: Token) -> Option<PersonTaskRoute> {
     let mut found = None;
     for (id, flight) in &core.flights {
@@ -1256,4 +1464,76 @@ fn a_party_can_replace_a_tasks_lifetime_allowance_within_its_roles_authority() {
             proposable: Some(people::Accepter::Role(0)),
         })
     );
+}
+
+#[test]
+fn person_task_and_escalation_gets_share_the_engine_load_room() {
+    use crate::engine::{self, Engine, In, Out, Peer};
+    const MISSING: u64 = 12;
+    const REVISION: u64 = 3;
+    let (mut core, mut limits) = make_tree();
+    sign_in(&mut core, &limits);
+    limits.load_slots = 1;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut engine = Engine::from_core(core);
+    let mut out = Queue::uncapped();
+    let escalation = people::Ask::DecideEscalation {
+        project: 1,
+        task: MISSING,
+        revision: REVISION,
+        decision: people::EscalationDecision::Pass,
+    };
+    for (key, ask) in [(1, people::Ask::TakePerson { project: 1, task: MISSING }), (2, escalation.clone())] {
+        engine::step(&mut engine, &env, In::Core(point_ask(key, ask)), &mut out);
+    }
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load, range }))) = out.pop() else {
+        panic!("held ended person task load")
+    };
+    assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(MISSING))));
+    assert_point_reply(&mut out, people::Reply::Again(people::Again::Busy));
+    engine::step(&mut engine, &env, In::Store(point_answer(load, None, false)), &mut out);
+    let missing = people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown));
+    assert_point_reply(&mut out, missing.clone());
+    engine.core_mut().reclaim();
+    engine::step(&mut engine, &env, In::Core(point_ask(3, escalation)), &mut out);
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load, range }))) = out.pop() else {
+        panic!("held escalation decision load")
+    };
+    assert_eq!(
+        range,
+        engine_store::Range::Record(Key::Core(CoreKey::EscalationDecision { task: MISSING, revision: REVISION }))
+    );
+    assert!(out.is_empty());
+    // A row of the wrong family is a miss, not an escalation.
+    let wrong_family =
+        Record::Tasks(tasks::Stored::Ended(Box::new(fixtures::ended_report(MISSING, tasks::Party::Person(1)))));
+    engine::step(&mut engine, &env, In::Store(point_answer(load, Some(wrong_family), false)), &mut out);
+    assert_point_reply(&mut out, missing);
+}
+
+fn point_ask(key: u8, ask: people::Ask) -> Event {
+    Event::People(people::Event::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: 9,
+        key: [key; 16],
+        ask,
+    })
+}
+
+fn assert_point_reply(out: &mut Queue<crate::engine::Out>, expected: people::Reply) {
+    use crate::engine::Out;
+    let mut replies = List::with_capacity(1);
+    while let Some(output) = out.pop() {
+        match output {
+            Out::Held(_) => panic!("answer {expected:?} must not issue another load"),
+            Out::Core(Request::Held(held)) => {
+                if let Held::PeopleReply { reply, .. } = *held {
+                    replies.push(reply).unwrap();
+                }
+            }
+            Out::Core(Request::Write(_) | Request::Now(_) | Request::Ask { .. } | Request::ProjectMade { .. }) => {}
+        }
+    }
+    assert_eq!(replies.as_slice(), [expected]);
 }

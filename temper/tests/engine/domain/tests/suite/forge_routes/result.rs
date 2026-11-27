@@ -39,13 +39,8 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
     let event =
         world.protocol.answer(Token::new(7), chat.task, chat.attempt, 5, tasks::End::Parked, engine::Parts::none());
     world.send(event);
-    assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
-        raw::Answer::Branch(raw::Created::Created)
-    ));
-    let h1 =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"src/main.rs", b"fn main() {}\n", 1)
-            .expect("producer pushed its first source");
+    let h1 = world.worker_commit(1, b"src/main.rs", b"fn main() {}\n");
+    world.run_push(&producer, &branch, h1, 1);
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {
@@ -67,8 +62,7 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
         core::str::from_utf8(&head[..12]).expect("hexadecimal head")
     );
     assert!(cut.starts_with(expected.as_bytes()), "client's cut repair words: {cut:?}");
-    let h2 = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"src/main.rs", CSV, 1)
-        .expect("repair pushed the CSV source");
+    let h2 = world.run_push_edit(&repair, &branch, b"src/main.rs", CSV, 1);
     finish(&mut world, &repair, change_result());
     let review = next(&mut world, 3);
     finish(
@@ -334,7 +328,7 @@ fn repaired_story(path: &[u8], producer_words: &[u8], repair_words: &[u8]) {
     let repair = next(&mut world, 2);
     assert!(contains(ci_words(&repair), b"Failed check: / changes (pull_request)"));
     let note = opened_note(&mut world, number);
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, &note, 1).expect("repair note");
+    world.run_push_edit(&repair, &branch, path, &note, 1);
     finish_report(&mut world, &repair, repair_words);
     finish_repaired_story(world, &chat, change, path, producer_words, repair_words, note);
 }

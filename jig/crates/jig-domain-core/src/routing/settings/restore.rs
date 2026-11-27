@@ -1,4 +1,5 @@
 //! A paged proposal of what later revisions replaced (jig/docs/design/domain/engine/settings.md, 10).
+use crate::engine::store as engine_store;
 use crate::routing::{
     Work,
     party::dispatch::{Party, Routed},
@@ -74,7 +75,7 @@ pub(crate) fn loaded(
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     range: reads::Range,
-    result: reads::Loaded,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
     let mut routed = Routed::new(work);
     let Some(pending) = core.restoring.pending.as_ref() else { return routed.finish(work) };
@@ -82,16 +83,10 @@ pub(crate) fn loaded(
         failed(core, &mut routed, people::Refusal::Stale { newest: core.current.newest() });
         return routed.finish(work);
     }
-    let result = match result {
-        reads::Loaded::Busy => {
-            busy(core, &mut routed);
-            return routed.finish(work);
-        }
-        other @ (reads::Loaded::Page { .. }
-        | reads::Loaded::Gone
-        | reads::Loaded::TooLinked { .. }
-        | reads::Loaded::TurnProblem { .. }) => other,
-    };
+    if let engine_store::Answer::Failed(engine_store::Failure::Busy | engine_store::Failure::Failed) = result {
+        busy(core, &mut routed);
+        return routed.finish(work);
+    }
     let result = page(core, env, &range, result);
     match result {
         Ok(first) => {
@@ -110,18 +105,20 @@ fn page(
     core: &mut Core,
     env: &Env<Limits>,
     range: &reads::Range,
-    result: reads::Loaded,
+    result: engine_store::Answer,
 ) -> Result<u32, people::Refusal> {
     let reads::Scope::SettingsHistory { first, last, .. } = range.scope else {
         unreachable!("restore loads only history")
     };
     let rows = match result {
-        reads::Loaded::Page { rows, next: None } if rows.len() <= skein_lib::length::usize_of(range.rows) => rows,
-        reads::Loaded::Page { .. }
-        | reads::Loaded::Busy
-        | reads::Loaded::Gone
-        | reads::Loaded::TooLinked { .. }
-        | reads::Loaded::TurnProblem { .. } => return Err(people::Refusal::Unknown),
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None })
+            if rows.len() <= skein_lib::length::usize_of(range.rows) =>
+        {
+            rows
+        }
+        engine_store::Answer::Rows(_) | engine_store::Answer::Cut { .. } | engine_store::Answer::Failed(_) => {
+            return Err(people::Refusal::Unknown);
+        }
     };
     let mut records = Map::with_capacity(range.rows);
     for row in rows {

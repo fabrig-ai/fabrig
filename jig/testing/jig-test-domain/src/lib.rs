@@ -15,8 +15,9 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use jig_domain_contract::{Declaration, resources::ResourceKind};
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, Admit, Engine, In};
+use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -99,6 +100,8 @@ pub enum Delivery {
     Start(core::start::Continuation),
     /// Core-held party, host, task or view output.
     Core(core::Held),
+    /// A held engine load, released after preceding commits.
+    Store(engine_store::Out),
     /// An answer with its original opaque call name and durability class.
     CallAnswer {
         channel: Token,
@@ -225,6 +228,8 @@ pub enum Event {
     Timer(core::Timer),
     /// A party, host, account or other event in jig's vocabulary.
     Core(core::Event),
+    /// An answer on the engine’s store port.
+    Store(engine_store::In),
     /// A generation named by the application's credential source.
     Credential { number: u32, generation: u64, valid: skein_lib::Duration },
     /// One numbered connector's input from its system or a scripted peer.
@@ -269,7 +274,6 @@ pub enum Event {
         refused: Box<[u64]>,
     },
     /// A bounded store page of prior opaque turns; pages arrive oldest first.
-    TranscriptLoaded { task: u64, rows: Box<[core::TranscriptRow]>, done: bool },
     /// Store acknowledgement of this exact commit number.
     Committed { number: u64, fill: u64 },
     /// A store failure of this exact commit number.
@@ -325,6 +329,28 @@ pub struct Config {
     pub first: connector::Config,
     /// Connector two.
     pub second: connector::Config,
+    /// Resource kinds for connectors one and two, respectively.
+    pub resource_kinds: [Box<[ResourceKind]>; 2],
+}
+
+impl Config {
+    /// Declare just the connectors the core configuration names.
+    #[must_use]
+    pub fn declarations(&self) -> Box<[Declaration]> {
+        let [first, second] = &self.resource_kinds;
+        let mut declarations = List::with_capacity(2);
+        for number in &self.core.connectors {
+            let (config, resources) = match *number {
+                1 => (&self.first, first),
+                2 => (&self.second, second),
+                _ => continue,
+            };
+            declarations
+                .push(routes::declaration(*number, config, resources))
+                .expect("the testing application has two connectors");
+        }
+        declarations.into_boxed()
+    }
 }
 
 use jig_domain_hub_link::OutboxOwner;
@@ -556,17 +582,6 @@ impl Domain {
         &self.engine.core().accounts
     }
 
-    /// Install the application's fixed hold vocabulary before its first input.
-    pub fn configure_holds(&mut self, env: &Env<Limits>, connector: u16, kinds: Box<[tasks::Kind]>) {
-        let mut out = Queue::uncapped();
-        tasks::step(
-            &mut self.engine.core_mut().tasks,
-            &env.with(env.limits.core.tasks),
-            tasks::Event::Kinds { connector, kinds },
-            &mut out,
-        );
-        assert!(out.is_empty(), "fixed hold vocabulary has no effects");
-    }
     /// Pieces whose kind or offset the core cannot keep (domain/engine/views.md).
     #[must_use]
     pub fn pieces_dropped(&self) -> u64 {
@@ -582,6 +597,7 @@ impl Domain {
         for kind in &config.core.kinds {
             settings_connectors.push(kind.connector).expect("one owner per kind");
         }
+        let declarations = config.declarations();
         Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
@@ -599,7 +615,7 @@ impl Domain {
                 skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
             ),
             settings_connectors: settings_connectors.into_boxed(),
-            engine: Engine::new(config.core, &limits.core).expect("fixture core configuration"),
+            engine: Engine::new(config.core, &declarations, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
             journal: Journal::uncapped(limits.journal.release, 0),
@@ -676,7 +692,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::WriterRead { connector, resource, event } => {
             decide(domain, env, Work::WriterRead { connector, resource, event });
         }
-        Event::TranscriptLoaded { task, rows, done } => transcript_loaded(domain, env, task, rows, done),
         Event::Committed { number, fill } => {
             domain.journal.committed(number);
             domain.engine.core_mut().fill = fill;
@@ -691,6 +706,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         }
         Event::Timer(timer) => decide(domain, env, Work::Timer(timer)),
         Event::Core(event) => decide(domain, env, Work::Core(event)),
+        Event::Store(answer) => decide(domain, env, Work::Store(answer)),
         Event::Credential { number, generation, valid } => decide(
             domain,
             env,
@@ -729,14 +745,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             decide(domain, env, Work::Answer { channel, task, attempt, cumulative, end, read, refused });
         }
     }
-}
-
-fn transcript_loaded(domain: &mut Domain, env: &Env<Limits>, task: u64, rows: Box<[core::TranscriptRow]>, done: bool) {
-    decide(
-        domain,
-        env,
-        Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Page { rows, done } }),
-    );
 }
 
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]
@@ -883,6 +891,11 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             Work::Core(event) => {
                 let mut out = Queue::uncapped();
                 engine::step(&mut domain.engine, &env.with(env.limits.core), In::Core(event), &mut out);
+                route_engine(domain, env, &mut decision, out, &mut work);
+            }
+            Work::Store(answer) => {
+                let mut out = Queue::uncapped();
+                engine::step(&mut domain.engine, &env.with(env.limits.core), In::Store(answer), &mut out);
                 route_engine(domain, env, &mut decision, out, &mut work);
             }
             Work::Finish => finish_only = true,
@@ -1041,7 +1054,8 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
             Delivery::Core(held) => release_core(domain, env, held, out),
             Delivery::Fleet(event) => step(domain, env, Event::Core(core::Event::Fleet(event))),
-            other @ (Delivery::ApplicationDocument { .. }
+            other @ (Delivery::Store(_)
+            | Delivery::ApplicationDocument { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ApplicationRead { .. }
@@ -1122,13 +1136,14 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
             let event = relay_message(domain, task, attempt, word);
             step(domain, env, event);
         }
+        core::Held::Store(_) => {
+            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+        }
         other @ (core::Held::Acted { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }
-        | core::Held::Load(..)
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
         | core::Held::Read { .. }
         | core::Held::Applied { .. }
         | core::Held::CarriedUnused { .. }
@@ -1156,7 +1171,6 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
         | core::Held::Cancel { .. }
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
-        | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }
         | core::Held::NeedArrived { .. }) => out.push(Request::Deliver(Delivery::Core(other))),
@@ -1179,7 +1193,7 @@ fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {
             return;
         }
         if let Some(context) = domain.engine.core_mut().take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
             return;
         }
         if domain.engine.core().fleet.ready_to_resume(!domain.engine.core().settling())

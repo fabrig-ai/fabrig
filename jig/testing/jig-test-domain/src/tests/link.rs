@@ -87,6 +87,57 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     assert_eq!(assignment.grants[0].form.table(), GrantTable::Accounts);
 }
 #[test]
+fn a_resumed_core_load_leaves_once_in_held_order() {
+    use core::engine::store;
+    use jig_domain_notes as notes;
+
+    const PROJECT: u32 = 1;
+    let mut domain = fixtures::domain();
+    let env = fixtures::env();
+    let mut full = env.with(env.limits.core);
+    full.limits.load_slots = 0;
+    let mut blocked = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
+        &full,
+        In::Core(core::Event::Notes(notes::Event::DropProject { owner: Token::new(1), project: PROJECT })),
+        &mut blocked,
+    );
+    assert!(blocked.is_empty(), "the notes page waits for load room");
+
+    let mut decision = domain.journal.decide();
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Entry { name: 1 }))));
+    requests.push(core::Request::ProjectMade { project: 2 });
+    let resumed = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
+    for request in resumed.into_boxed() {
+        requests.push(request);
+    }
+    requests.push(core::Request::ProjectMade { project: 3 });
+    crate::routes::route_core(&mut domain, &env, &mut decision, requests, &mut fixtures::work());
+    domain.journal.accept(decision);
+
+    let mut out = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Commit { number, .. }) = out.pop() else { panic!("the write commits first") };
+    assert!(out.is_empty(), "nothing held leaves before the commit is durable");
+    crate::step(&mut domain, &env, crate::Event::Committed { number, fill: 0 });
+    crate::release(&mut domain, &env, &mut out);
+    let released = out.into_boxed();
+    let [
+        Request::Deliver(Delivery::ProjectMade { project: 2 }),
+        Request::Deliver(Delivery::Store(store::Out::Load {
+            range: store::Range::Notes(notes::Range::Project { project: PROJECT, after: None }),
+            ..
+        })),
+        Request::Deliver(Delivery::ProjectMade { project: 3 }),
+    ] = released.as_ref()
+    else {
+        panic!("one held load at its place: {released:?}");
+    };
+}
+
+#[test]
 fn a_lost_link_reaches_the_fleet_as_its_channel_lost() {
     let event = link::lost(fixtures::CHANNEL);
     let core::Event::Fleet(fleet::Event::Lost { channel }) = event else {

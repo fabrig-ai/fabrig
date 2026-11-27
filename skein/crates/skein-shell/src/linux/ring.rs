@@ -627,13 +627,25 @@ fn prepare(
         Op::Shutdown { fd } => opcode::Shutdown::new(types::Fd(fd.raw()), libc::SHUT_WR).build(),
         Op::Close { fd } => opcode::Close::new(types::Fd(fd.raw())).build(),
         Op::Open { root, path: asked, how } => {
-            *path = c_path(asked);
+            let sibling = if *how == OpenHow::PathSiblingFile {
+                match crate::posix::links::sibling_file(root.raw(), asked) {
+                    Ok(path) => path,
+                    Err(errno) => return Prepared::Done(Err(error(kind, errno, false))),
+                }
+            } else {
+                None
+            };
+            *path = c_path(sibling.as_deref().unwrap_or(asked));
             *open_how.get_mut() = open(*how);
             open_entry(*root, path, open_how)
         }
         Op::Read { fd, buf, at } => {
             let len = u32::try_from(buf.len()).expect("a valid Read buffer's length is a count");
             opcode::Read::new(types::Fd(fd.raw()), buf.as_mut_ptr(), len).offset(*at).build()
+        }
+        Op::ReadLink { dir, name, buf } => {
+            let read = crate::posix::links::read_target(dir.raw(), name, buf);
+            return Prepared::Done(read.map(Done::Count).map_err(|errno| error(kind, errno, false)));
         }
         Op::Write { fd, bytes, from, at } => {
             let from = usize_of(*from);
@@ -773,7 +785,7 @@ fn decode(flight: &mut Flight, res: i32, cancelled: bool) -> Result<Done, Error>
         | Op::Append { .. }
         | Op::PipeRead { .. }
         | Op::PipeWrite { .. } => Ok(Done::Count(u32::try_from(res).expect("a non-negative i32 fits in a u32"))),
-        Op::Open { how: OpenHow::PathNoFollow, .. } => Ok(Done::Fd(Fd::new(res))),
+        Op::Open { how, .. } if how.path_only() => Ok(Done::Fd(Fd::new(res))),
         Op::Open { .. } => opened(res),
         Op::Stat { .. } => Ok(Done::Stat(stat(statx.get_mut()))),
         Op::Wait { .. } => child_exit(siginfo.get_mut()).map(Done::Exit),
@@ -789,7 +801,13 @@ fn decode(flight: &mut Flight, res: i32, cancelled: bool) -> Result<Done, Error>
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::Cancel { .. } => Ok(Done::Nothing),
-        Op::Lock { .. } | Op::Window { .. } | Op::Usage | Op::List { .. } | Op::Spawn { .. } | Op::Signal { .. } => {
+        Op::ReadLink { .. }
+        | Op::Lock { .. }
+        | Op::Window { .. }
+        | Op::Usage
+        | Op::List { .. }
+        | Op::Spawn { .. }
+        | Op::Signal { .. } => {
             unreachable!("a synchronous operation completes at its submit")
         }
     }

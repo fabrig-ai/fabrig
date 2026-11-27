@@ -1,5 +1,6 @@
 //! Four file drivers over the simulated crashing machine (protocol/store/testing.md, 1).
 use crate::{model::Model, root};
+use jig_domain_core::engine::store as engine_store;
 mod checkpoint;
 mod restoring;
 use jig_domain_core as core;
@@ -110,6 +111,7 @@ fn change(ask: &Ask) -> Option<Change> {
         | Ask::Spawn { .. }
         | Ask::Open { .. }
         | Ask::Read { .. }
+        | Ask::ReadLink { .. }
         | Ask::Stat { .. }
         | Ask::List { .. }
         | Ask::Close { .. } => None,
@@ -481,7 +483,11 @@ impl World {
                         bytes: u64::from(self.env.limits.store.page.bytes),
                     },
                 });
-                let [Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. }] = events.as_slice()
+                let [
+                    Event::Read {
+                        result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next, .. }), ..
+                    },
+                ] = events.as_slice()
                 else {
                     panic!("history page: {events:?}")
                 };
@@ -512,9 +518,13 @@ impl World {
         for record in restored.rows.values() {
             if let core::Record::Core(core::CoreRecord::RunProof(proof)) = record {
                 let turns = match proof.window {
-                    Some(core::CurrentWindow { attempt, turn, .. }) => {
-                        self.transcript(TranscriptRead::Window { task: proof.task, attempt, turn, after: None })
-                    }
+                    Some(core::CurrentWindow { attempt, turn, .. }) => self.transcript(TranscriptRead::Window {
+                        task: proof.task,
+                        attempt,
+                        turn,
+                        after: None,
+                        limits: None,
+                    }),
                     None => Vec::new(),
                 };
                 restored.transcripts.insert(proof.task, turns);
@@ -788,6 +798,7 @@ impl World {
                     | Event::Read { .. }
                     | Event::Got { .. }
                     | Event::Turns { .. }
+                    | Event::WindowFailed { .. }
                     | Event::Unread { .. }
                     | Event::Kept { .. }
                     | Event::Carried { .. }
@@ -1263,7 +1274,7 @@ impl World {
             };
             read = match read {
                 TranscriptRead::Window { task, attempt, turn, .. } => {
-                    TranscriptRead::Window { task, attempt, turn, after: Some(*after) }
+                    TranscriptRead::Window { task, attempt, turn, after: Some(*after), limits: None }
                 }
                 TranscriptRead::Page { task, backwards, .. } => {
                     TranscriptRead::Page { task, backwards, after: Some(*after) }
@@ -1291,7 +1302,9 @@ impl World {
             bytes: u64::from(self.env.limits.store.page.bytes),
         };
         let events = self.request(Request::Read { owner: OWNER, range });
-        let [Event::Read { result: core::reads::Loaded::Page { rows, next: None }, .. }] = events.as_slice() else {
+        let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }), .. }] =
+            events.as_slice()
+        else {
             panic!("task read terminal: {events:?}")
         };
         rows.iter().map(|row| row.value.clone()).collect()

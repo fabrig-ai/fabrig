@@ -1,8 +1,10 @@
 //! Restart faults over the connector's existing steps (testing/restarts.md, 9).
+use std::convert::Infallible;
+
 use skein_lib::{Duration, Wall};
 use skein_world::{
     streams::{Stream, Streams},
-    sweep::Sweep,
+    sweep::{Sweep, cases, gate},
 };
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_landing as landing;
@@ -59,7 +61,9 @@ fn run(seed: u64, sweep: &Sweep) -> (Injector, usize) {
     super::super::restarts::project(&mut world, 1);
     if injector.needs_uncertain_write() {
         // Establish the script's precondition, not a drain: the issue was made
-        // but its caller still awaits the answer when the driver begins.
+        // but its caller still awaits the answer when the driver begins. Setup
+        // has at most two members and no outage or timeout; the fake answers
+        // calls in at most 50 ms. Only the successful creation answer is lost.
         for _ in 0..100 {
             if world.made_without_answer() > 0 {
                 break;
@@ -134,13 +138,20 @@ fn seeded_forge_restarts_cover_every_kind() {
         sweep.configure(kind);
     }
     // One extra kind per seed, plus its crash: six seeds are the minimum.
+    let at_gate = gate();
     let mut dispatches = 0;
-    for seed in [0, 1, 2, 5, 12, 21] {
+    cases(skein_world::this_test!("seeded_forge_restarts_cover_every_kind"), [0, 1, 2, 5, 12, 21], |seed| {
         eprintln!("forge restarts seed {seed}");
         let (run, sent) = run(seed, &sweep);
         sweep.ran(run.ledger());
-        dispatches += sent;
-    }
+        if at_gate {
+            dispatches += sent;
+        }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     sweep.check_fell().expect("every configured restart fault fell");
-    assert!(dispatches > 0, "the drawn landings exercise gate dispatches");
+    if at_gate {
+        assert!(dispatches > 0, "the drawn landings exercise gate dispatches");
+    }
 }

@@ -104,7 +104,7 @@ fn a_cursor_that_does_not_decode_is_answered_unknown() {
     use crate::{cursor_v2::LAYOUT, translate::cursor::CURSOR_VERSION};
     for (label, bytes) in [
         ("unknown format", Box::from([0, 3].as_slice())),
-        ("unknown variant", cursor_with_head(CURSOR_VERSION, &LAYOUT, &[2])),
+        ("unknown variant", cursor_with_head(CURSOR_VERSION, &LAYOUT, &[u8::MAX])),
         ("truncated scope", cursor_with_head(CURSOR_VERSION, &LAYOUT, &[0, 1, 10])),
     ] {
         assert_spend_cursor_unknown(bytes, label);
@@ -206,6 +206,34 @@ fn an_application_read_is_routed_and_answered_under_its_family() {
         exchange.release_application_read(ReplyTo::new(name), 9, None);
         assert_eq!(exchange.read_answer(owner), expected, "{label}, late");
         assert!(exchange.component.pending.exchanges.is_empty(), "{label}");
+    }
+}
+
+#[test]
+fn a_family_read_routes_a_current_continuation_and_answers_unknown_for_foreign_ones() {
+    use crate::cursor_v2 as c;
+    let bare = c::DocumentCursor::Number(c::Number { value: 7 });
+    let bare = w::Cursor { value: bare.encode(&c::CEILINGS).expect("bare document position") };
+    for (label, after, known) in [
+        ("foreign layout", f::foreign_window_cursor(), false),
+        ("bare position", bare, false),
+        ("current layout", f::family_window_cursor(), true),
+    ] {
+        let mut exchange = f::read_exchange();
+        let record = f::family_owned(Box::new([255, 0, 1]), Some(after));
+        let owner = exchange.send(crate::Message::Read(record.encode(&w::CEILINGS).expect("family read")));
+        exchange.authenticate();
+        if known {
+            let Some(Request::Application(crate::ToApplication::Read { window, .. })) = exchange.out.pop() else {
+                panic!("application read");
+            };
+            assert_eq!((window.rows, window.after), (3, Some(f::FAMILY_AFTER)));
+            assert!(exchange.read_unanswered(owner));
+        } else {
+            assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown), "{label}");
+            assert!(exchange.component.pending.exchanges.is_empty(), "{label}");
+        }
+        assert!(exchange.out.is_empty(), "{label}: no further application work");
     }
 }
 
@@ -372,7 +400,7 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
     assert_eq!(cursor::decode_window(&tree), None);
     let bare = crate::cursor_v2::DocumentCursor::Number(crate::cursor_v2::Number { value: 7 });
     let bytes = bare.encode(&crate::cursor_v2::CEILINGS).expect("bounded document cursor");
-    assert_eq!(cursor::decode_window(&bytes), Some(after));
+    assert_eq!(cursor::decode_window(&bytes), None);
     let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small cursor"));
     trailing.put(&bytes).expect("document cursor");
     trailing.put(&[0]).expect("extra byte");

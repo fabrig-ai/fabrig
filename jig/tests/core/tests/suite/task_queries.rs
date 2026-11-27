@@ -24,7 +24,7 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
     let mut authority = world.assigned.as_ref().expect("parent run").run.authority.clone();
     authority.budget.spend = 20;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(4001)),
         key: world.call_key(1),
         batch: Box::new([core::Delegate {
@@ -48,7 +48,6 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     let core::CallPart::Delegated(numbers) = &world.answers.last().expect("delegation answered").2 else {
         panic!("admitted delegate")

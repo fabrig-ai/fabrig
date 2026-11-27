@@ -5,6 +5,7 @@ use super::{
     emit, loads, notes, push, tasks,
 };
 use ::core::cmp::Reverse;
+use jig_domain_core::engine::store as engine_store;
 
 pub(crate) fn failed(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, waiter: Token, why: PartFailure) {
     let Some(Read::Parts(mut flight)) = crate::archive::take_read(domain, waiter) else { return };
@@ -149,10 +150,10 @@ fn notes_next(domain: &mut Domain, mut read: NoteLoad) -> Option<(Phase, Range)>
         return None;
     }
     if let Some(name) = read.names.pop() {
-        return Some((Phase::Note(read, name), Range::Core(CoreRange::Notes(notes::Range::Entry { name }))));
+        return Some((Phase::Note(read, name), Range::Core(CoreRange::ApplicationNotes(notes::Range::Entry { name }))));
     }
     if read.next {
-        let range = Range::Core(CoreRange::Notes(notes::Range::Lines {
+        let range = Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines {
             scope: notes::Scope::Goal { project: read.project, goal: read.task },
             after: read.after,
         }));
@@ -167,7 +168,7 @@ pub(crate) fn joined(
     env: &Env<Limits>,
     decision: &mut Decision,
     waiter: Token,
-    result: core::reads::Loaded,
+    result: engine_store::Answer,
 ) {
     let Some(Read::Parts(mut flight)) = crate::archive::take_read(domain, waiter) else { return };
     let Phase::Delegates { project, task, mut ended, page } = ::core::mem::replace(&mut flight.phase, Phase::Making)
@@ -175,7 +176,7 @@ pub(crate) fn joined(
         unreachable!("joined part load")
     };
     let result = match result {
-        core::reads::Loaded::Page { rows, next } => {
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
             let mut ordered = Map::uncapped();
             let mut valid = true;
             for row in rows {
@@ -228,8 +229,8 @@ pub(crate) fn joined(
                 Err(PartFailure::Unreadable)
             }
         }
-        core::reads::Loaded::Busy => Err(PartFailure::Busy),
-        core::reads::Loaded::Gone | core::reads::Loaded::TooLinked { .. } | core::reads::Loaded::TurnProblem { .. } => {
+        engine_store::Answer::Failed(engine_store::Failure::Busy) => Err(PartFailure::Busy),
+        engine_store::Answer::Rows(_) | engine_store::Answer::Cut { .. } | engine_store::Answer::Failed(_) => {
             Err(PartFailure::Unreadable)
         }
     };

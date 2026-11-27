@@ -19,8 +19,8 @@ fn a_closed_proof_restores_until_the_next_attempt() {
     expected.crossed = true;
     assert_eq!(closed, expected, "restart preserves every other proof field");
     let limits = jig_test_profile::limits().core;
-    let mut engine =
-        core::Core::new(jig_core_world::world::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
+    let mut engine = jig_test_profile::new_core(jig_core_world::world::fixture(f::SEED, false).0.core, &limits)
+        .expect("core configuration");
     let _loading = engine.start_begin(false, skein_lib::Wall::EPOCH);
     assert_eq!(
         engine.restore(

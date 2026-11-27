@@ -115,7 +115,7 @@ fn intro(
         if let Some(byline) = &intro.byline {
             text(b, Role::Paragraph, byline, Some(look::HOME_BYLINE));
         }
-        stopped_try(b, root, w, accounts);
+        stopped_try(b, root, w, accounts, times);
         b.close();
         return;
     }
@@ -136,7 +136,7 @@ fn intro(
     if let Some(byline) = intro.byline {
         text(b, Role::Paragraph, &byline, Some(look::HOME_BYLINE));
     }
-    stopped_try(b, root, w, accounts);
+    stopped_try(b, root, w, accounts, times);
     b.close();
 }
 fn intro_lede(b: &mut Builder, w: &Words, bindings: &mut Bindings, lede: &[u8], role: Role, accounts: bool) {
@@ -150,9 +150,9 @@ fn intro_lede(b: &mut Builder, w: &Words, bindings: &mut Bindings, lede: &[u8], 
     }
     b.close();
 }
-fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::accounts::Bindings) {
-    if let Some((who, account)) = crate::common::model_check::stopped(root, w) {
-        text(b, Role::Paragraph, &w.say(Word::HomeTryStopped, &[Hole::Name(who)]), Some(look::HOME_BYLINE));
+fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::accounts::Bindings, times: &mut Times) {
+    if let Some((why, account)) = crate::common::model_check::stopped(root, w, times) {
+        text(b, Role::Paragraph, &why, Some(look::HOME_BYLINE));
         if let Some(to) = bindings.insert(crate::accounts::Meaning::Try { account }) {
             crate::flow::control(b, crate::flow::Control::Button { name: &w.say(Word::WelcomeTryAgain, &[]), to });
         }

@@ -1,5 +1,6 @@
 //! Home's status agent through the root and its durable document (temper/docs/design/domain/forge/attention.md, 3).
 use super::*;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_notes as notes;
 use skein_lib::{List, Wall};
 
@@ -619,17 +620,19 @@ fn a_failed_now_read_omits_only_its_role_and_still_starts_status() {
     land(&mut world, &requester);
     world.advance_to(world.env.now.saturating_add(forge_top::SITTING));
 
+    world.defer_note_answers = true;
     look_request(&mut world, 171);
     let mut failed = false;
     for _ in 0..200 {
         for event in &mut world.events {
-            if let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, .. }) = event
-                && rows.iter().any(|row| {
-                    matches!(row,
-                    Record::Core(jig_domain_core::Record::Notes(notes::Record::Entry(entry))) if entry.name == 1)
+            if let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { result, .. })) = event
+                && let engine_store::Answer::Rows(engine_store::Rows::Records { records, .. }) = result
+                && records.iter().any(|record| {
+                    matches!(record,
+                        jig_domain_core::Record::Notes(notes::Record::Entry(entry)) if entry.name == 1)
                 })
             {
-                *event = engine::Event::Store(engine::StoreInput::Unloaded { owner: *owner });
+                *result = engine_store::Answer::Failed(engine_store::Failure::Failed);
                 failed = true;
             }
         }

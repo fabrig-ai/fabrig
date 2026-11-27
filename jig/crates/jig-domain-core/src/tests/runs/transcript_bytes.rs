@@ -40,14 +40,35 @@ fn transcript_bytes_follow_a_preparation_from_allowance_to_zero() {
         retained += len_u64(body.len() + text.len());
         assert_eq!(core.transcript_bytes(), allowance, "partial loads keep their allowance");
     }
-    let _requests = watch_outputs(
+    let load = fixture_window(&mut core, TASK, (ATTEMPT, FIRST_TURN));
+    let _requests = watch_store_outputs(
         &mut core,
         &limits,
-        Event::TranscriptLoaded { task: TASK, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
+        engine_store::In::Loaded {
+            load,
+            result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
+        },
     );
     assert_eq!(core.transcript_bytes(), retained);
 
-    let _requests =
-        watch_outputs(&mut core, &limits, Event::TranscriptLoaded { task: TASK, load: TranscriptLoad::Failed });
+    let stale = watch_store_outputs(
+        &mut core,
+        &limits,
+        engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Failed) },
+    );
+    assert!(stale.is_empty(), "a late terminal cannot fail the brief");
+    assert_eq!(core.transcript_bytes(), retained);
+    let _requests = watch_outputs(
+        &mut core,
+        &limits,
+        Event::BriefAssembled {
+            task: TASK,
+            failure: Some(brief::GatherFailure {
+                fate: brief::GatherFate::Transient,
+                section: b"fixture",
+                words: b"brief stopped".as_slice().into(),
+            }),
+        },
+    );
     assert_eq!(core.transcript_bytes(), 0);
 }

@@ -1,10 +1,11 @@
 //! A run's read as its task's person (`jig/docs/design/domain/engine/executors-tools.md`, 1).
 use super::{Answer, Destination, Read, Why};
+use crate::engine::store as engine_store;
 use crate::{CallKey, Core, Limits, Now, Request, ToolKind};
 use alloc::boxed::Box;
 use jig_domain_people::{ApplicationScope, Proposer};
 use jig_domain_tasks::Party;
-use skein_lib::{Env, Queue, ReplyTo};
+use skein_lib::{Env, Queue, ReplyTo, Token};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Admission {
@@ -137,10 +138,10 @@ fn unknown(to: ReplyTo, key: CallKey) -> Queue<Request> {
 pub(super) fn owner_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<super::Pending>,
-    result: super::Loaded,
+    name: Token,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get_mut(name).expect("pending owner check");
+    let pending = core.loads.read_mut(name).expect("pending owner check");
     let Destination::Person { to, key, project, owner_read: Some(read) } =
         core::mem::replace(&mut pending.destination, Destination::Done)
     else {
@@ -148,7 +149,7 @@ pub(super) fn owner_loaded(
     };
     let range = pending.range.clone();
     let party = pending.party;
-    core.reads.retire(name);
+    core.loads.retire(name);
     if !core.current_proof(key.task, key.attempt) {
         return Queue::uncapped();
     }
@@ -156,13 +157,17 @@ pub(super) fn owner_loaded(
         return unknown(to, key);
     }
     let checked = match result {
-        super::Loaded::Page { rows, next } => {
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
             super::rows::person_owner(core, &env.limits, &range, &rows, next.as_ref(), project)
         }
-        super::Loaded::Busy => Err(Why::Busy),
-        super::Loaded::TooLinked { joins } => Err(Why::TooLinked { joins }),
-        super::Loaded::Gone => Err(Why::Gone),
-        super::Loaded::TurnProblem { .. } => Err(Why::Unknown),
+        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        | engine_store::Answer::Cut { .. }
+        | engine_store::Answer::Failed(
+            engine_store::Failure::Busy | engine_store::Failure::Failed | engine_store::Failure::Unread,
+        ) => Err(Why::Busy),
+        engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins }) => Err(Why::TooLinked { joins }),
+        engine_store::Answer::Failed(engine_store::Failure::Gone) => Err(Why::Gone),
+        engine_store::Answer::Failed(engine_store::Failure::TurnProblem { .. }) => Err(Why::Unknown),
     };
     if let Err(why) = checked {
         return answer(to, key, Answer::None(why));

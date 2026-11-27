@@ -56,6 +56,8 @@ fn prepare_marker(rerun: Option<u32>, expected: u32) {
             }
             other @ (Request::Results { .. }
             | Request::DependencyLanded { .. }
+            | Request::AdmitPush { .. }
+            | Request::WithdrawAdmission { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }

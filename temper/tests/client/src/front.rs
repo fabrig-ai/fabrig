@@ -10,6 +10,7 @@ use jig_client_kit::{
     harness::{ClientId, Front, FrontFault, Observed},
     joint::transport::Transport,
 };
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_link::{EndpointBound, Phase};
 use skein_lib::{Duration, RequestEnvelope, Time, Token, Wall};
 use smith_domain_session::llm::Block;
@@ -2437,7 +2438,8 @@ impl Joint {
                 });
             }
             for event in &mut self.engine.events {
-                if let engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }) = event
+                if let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })) =
+                    event
                     && self.read_loads.insert(*load)
                     && let Some(range) = self.engine.protocol.reads.get(self.reads)
                 {

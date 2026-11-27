@@ -1,5 +1,5 @@
 use super::revisions::{Harness, LIMITS, task, to};
-use crate::{Event, HoldKind, Holding, Kind, Name, Party, Refusal, Taken};
+use crate::{Event, HoldKind, Holding, Name, Party, Refusal, ResourceKind, Taken};
 
 const HOLDER: u64 = 1;
 const REQUESTER: u64 = 2;
@@ -17,7 +17,7 @@ fn a_holders_added_dependency_cannot_circle_through_a_delegates_queue() {
     let mut test = Harness::new();
     test.send(Event::Kinds {
         connector: CONNECTOR,
-        kinds: Box::new([Kind { connector: CONNECTOR, kind: KIND, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
+        kinds: Box::new([ResourceKind { kind: KIND, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
     });
     let mut holder = task(HOLDER, &[]);
     holder.holdings = Box::new([holding()]);
@@ -44,7 +44,7 @@ fn a_pool_only_propagates_stuckness_at_its_slot_threshold() {
     let mut test = Harness::new();
     test.send(Event::Kinds {
         connector: CONNECTOR,
-        kinds: Box::new([Kind { connector: CONNECTOR, kind: KIND, hold: HoldKind::Pooled { taken: Taken::Waits } }]),
+        kinds: Box::new([ResourceKind { kind: KIND, hold: HoldKind::Pooled { taken: Taken::Waits } }]),
     });
     let Holding::Write { resource: pool, .. } = holding() else { unreachable!() };
     test.send(Event::Slots { pool: pool.clone(), slots: 2 });

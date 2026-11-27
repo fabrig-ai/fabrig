@@ -89,7 +89,31 @@ fn config(seed: u64) -> engine::Config {
     config
 }
 
+fn hook_config(seed: u64) -> engine::Config {
+    let mut config = config(seed);
+    temper_engine_domain_world::oracle::config::landing(&mut config, 1).close_job = None;
+    config
+}
+
 impl World {
+    /// Let the goal's closer discover the close hook and make its close change.
+    #[must_use]
+    pub fn close_hook(seed: u64) -> Self {
+        let goal = Script {
+            cue: b"Help the person with their work.".as_slice().into(),
+            turns: Box::new([call(b"wait", b"{}")]),
+        };
+        let mut world = Self::configured_with(seed, goal.clone(), true, hook_config);
+        world.chat_ending = tasks::EndedBy::Closer(tasks::Closer { connector: 1, code: 6 });
+        world.goal_branch = true;
+        world.scripts.push_back(goal);
+        world.forge.advance(REMOTE, b"main", temper_engine_domain_forge::CLOSE_HOOK, COMMAND);
+        world.forge.advance(REMOTE, b"main", b"status.md", b"in flight\n");
+        world.close_job =
+            Some(Story { row: Row::Settled, job: None, hello: Vec::new(), pushes: 0, tip: None, spawn: None });
+        world
+    }
+
     /// Make a close change directly with bytes parameter 17, into the goal's branch.
     #[must_use]
     pub fn close_job(seed: u64, row: Row) -> Self {
@@ -251,6 +275,11 @@ impl World {
         assert_eq!(job.kind.0, temper_engine_domain_forge::CLOSE_KIND);
         assert_eq!(job.deadline, Duration::from_secs(600));
         story.job = Some(job.run.raw());
+        if story.tip.is_none() {
+            let task = job.workspace.as_ref().expect("job workspace").workstream;
+            let row = self.store.change(task).expect("the closer's close change");
+            story.tip = Some(self.forge.branch(REMOTE, &row.base).expect("goal branch exists before close"));
+        }
         let own = temper_service_core::limits::stock();
         let limits = temper_worker_service::worker_settings::payload_limits(
             &temper_worker_service::worker_settings::Limits::shared(own),
@@ -261,7 +290,7 @@ impl World {
 
     pub(super) fn observe_close_io(&mut self, op: &worker::checkout::git::Op) {
         if let Some(story) = &mut self.close_job
-            && matches!(op, worker::checkout::git::Op::Push { .. })
+            && matches!(op, worker::checkout::git::Op::Push { .. } | worker::checkout::git::Op::Create { .. })
         {
             story.pushes += 1;
         }

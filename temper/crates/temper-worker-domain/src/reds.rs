@@ -246,7 +246,14 @@ pub(crate) fn decoded(
         if read.deadline >= env.now {
             let landed = match answer {
                 Some(wire::Answer::Landed) => true,
-                Some(wire::Answer::Unlanded | wire::Answer::Kept | wire::Answer::Reds { .. }) | None => false,
+                Some(
+                    wire::Answer::Unlanded
+                    | wire::Answer::Kept
+                    | wire::Answer::Reds { .. }
+                    | wire::Answer::Admitted
+                    | wire::Answer::Unadmitted { .. },
+                )
+                | None => false,
             };
             landed_answer(domain, env, owner, landed);
         }

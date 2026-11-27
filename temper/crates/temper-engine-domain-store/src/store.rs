@@ -519,18 +519,6 @@ pub enum Key {
 pub enum CoreRange {
     /// One chat activity record while locating its person's newest whole words.
     RequesterWord { task: u64, position: u64 },
-    /// One immutable decision for a later authenticated proposal caller.
-    ProposalDecision { proposer: jig_domain_people::Proposer, proposal: u64 },
-    /// One task owner and the retained history position of its proposal.
-    TaskProposal { task: u64, proposal: u64 },
-    /// Exactly one root-owned decision archive for a stale authenticated
-    /// decision; no unbounded history restore.
-    EscalationDecision {
-        /// Positive named task.
-        task: u64,
-        /// Positive decided semantic revision.
-        revision: u64,
-    },
     /// Named call decisions for currently live tasks, restored before attempts are adopted.
     Calls,
     /// Singleton header read by the root at startup; at most one row and no continuation.
@@ -551,8 +539,7 @@ pub enum CoreRange {
     People,
     /// The start's second walk of people's live rows for Sweep.
     Sweep,
-    /// Root reads one historical ended task for an authenticated result page.
-    EndedRead { task: u64, party: u64 },
+    /// Temper-owned read of one historical ended task.
     TaskResult {
         /// Positive root-issued ended task key; terminal page has at most one row.
         task: u64,
@@ -564,11 +551,8 @@ pub enum CoreRange {
         /// Positive root-issued activation; other attempts cannot match.
         attempt: u64,
     },
-    /// The committed turns of one task's current window, from its first
-    /// (attempt, turn), in key order, for preparing its next run.
-    TaskTranscript { task: u64, from: (u64, u32) },
-    /// One bounded notes-child load by name or by scope and cursor.
-    Notes(jig_domain_notes::Range),
+    /// An application lookup of a note or its scope index.
+    ApplicationNotes(jig_domain_notes::Range),
 }
 
 /// Child-contiguous live or historical store range.
@@ -633,15 +617,9 @@ impl CoreRange {
             Self::People | Self::Sweep => &[RestoreRange::People],
             Self::Tasks => &[RestoreRange::Core, RestoreRange::Tasks],
             Self::Calls | Self::RunProofs => &[RestoreRange::Core],
-            Self::RequesterWord { .. }
-            | Self::ProposalDecision { .. }
-            | Self::TaskProposal { .. }
-            | Self::EscalationDecision { .. }
-            | Self::EndedRead { .. }
-            | Self::TaskResult { .. }
-            | Self::Turns { .. }
-            | Self::TaskTranscript { .. }
-            | Self::Notes(_) => &[],
+            Self::RequesterWord { .. } | Self::TaskResult { .. } | Self::Turns { .. } | Self::ApplicationNotes(_) => {
+                &[]
+            }
         }
     }
 
@@ -655,33 +633,12 @@ impl CoreRange {
                     && *position != 0
                     && key == &Core::Tasks(jig_domain_tasks::Key::Activity { task: *task, position: *position })
             }
-            CoreRange::TaskProposal { task, proposal } => {
-                let Core::Tasks(
-                    jig_domain_tasks::Key::Live(found) | jig_domain_tasks::Key::History { task: found, .. },
-                ) = key
-                else {
-                    return false;
-                };
-                *task != 0 && *proposal != 0 && found == task
-            }
-            CoreRange::ProposalDecision { proposer, proposal } => {
-                let Core::Core(CoreKey::ProposalDecision { proposer: found, proposal: number }) = key else {
-                    return false;
-                };
-                *proposal != 0 && found == proposer && number == proposal
-            }
             CoreRange::Calls => {
                 if let Core::Core(CoreKey::Part(part)) = key {
                     return part.task != 0 && part.attempt != 0 && part.number != 0;
                 }
                 let Core::Core(CoreKey::Call(call)) = key else { return false };
                 call.task != 0 && call.attempt != 0 && call.completion != 0
-            }
-            CoreRange::EscalationDecision { task, revision } => {
-                let Core::Core(CoreKey::EscalationDecision { task: found, revision: current }) = key else {
-                    return false;
-                };
-                *task != 0 && *revision != 0 && task == found && revision == current
             }
             CoreRange::Deployment => {
                 let Core::Core(CoreKey::Deployment) = key else { return false };
@@ -705,9 +662,6 @@ impl CoreRange {
                 let Core::Core(CoreKey::RunProof(task)) = key else { return false };
                 *task != 0
             }
-            CoreRange::EndedRead { task, party } => {
-                *key == jig_domain_core::Key::People(jig_domain_people::Key::EndedRead { task: *task, party: *party })
-            }
             CoreRange::TaskResult { task } => {
                 let Core::Tasks(jig_domain_tasks::Key::Ended(number)) = key else { return false };
                 task == number
@@ -716,11 +670,7 @@ impl CoreRange {
                 let Core::Core(CoreKey::Turn { task: found, attempt: run, turn }) = key else { return false };
                 found == task && run == attempt && *turn != 0
             }
-            CoreRange::TaskTranscript { task, from } => {
-                let Core::Core(CoreKey::Turn { task: found, attempt, turn }) = key else { return false };
-                *task != 0 && found == task && *attempt != 0 && *turn != 0 && (*attempt, *turn) >= *from
-            }
-            CoreRange::Notes(range) => {
+            CoreRange::ApplicationNotes(range) => {
                 let Core::Notes(child) = key else { return false };
                 notes_contains(range, child)
             }
@@ -1056,6 +1006,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::HandBackPerson { .. }
                     | jig_domain_people::Ask::Conclude { .. }
                     | jig_domain_people::Ask::Lift { .. }
+                    | jig_domain_people::Ask::Measure { .. }
                     | jig_domain_people::Ask::Release { .. }
                     | jig_domain_people::Ask::AccountSignIn { .. }
                     | jig_domain_people::Ask::AccountSignOut { .. } => Some(0),

@@ -333,7 +333,7 @@ impl Continuation {
                         authority.budget.spend = 10;
                         authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
                         let (task, attempt) = parent(world);
-                        world.send(root::Event::Core(core::Event::DelegateValidated {
+                        world.send(root::Event::Core(core::Event::Delegate {
                             to: ReplyTo::new(Token::new(8000 + u64::from(completion))),
                             key: core::CallKey { task, attempt, completion, position: 0 },
                             batch: Box::new([core::Delegate {
@@ -361,7 +361,6 @@ impl Continuation {
                                 dependencies: Box::new([]),
                                 wake: Some(tasks::WakePolicy::DEFAULT),
                             }]),
-                            stubs: Box::new([]),
                         }));
 
                         self.tries += 1;

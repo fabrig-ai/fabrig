@@ -27,7 +27,7 @@ fn path_of(read: &PublicRead) -> PublicPath {
     for id in &read.ids {
         ids.push(*id).expect("at most two ids");
     }
-    PublicPath { owner: read.owner, layout: read.layout.unwrap_or_default(), kind: read.kind, ids }
+    PublicPath { owner: read.owner, layout: read.layout, kind: read.kind, ids }
 }
 
 fn inspect(seed: u64, bytes: &[u8], canonical: bool, case: Arguments<'_>) -> Option<PublicRead> {
@@ -35,18 +35,7 @@ fn inspect(seed: u64, bytes: &[u8], canonical: bool, case: Arguments<'_>) -> Opt
     let read = public_path(bytes);
     if canonical && let Some(read) = &read {
         let path = path_of(read);
-        if read.layout.is_some() {
-            assert_eq!(public_target(&path).as_ref(), bytes, "accepted target prints byte for byte");
-        } else {
-            let version = std::str::from_utf8(bytes)
-                .expect("accepted decimal path is ASCII")
-                .split('/')
-                .nth(4)
-                .expect("decimal version segment")
-                .parse::<u16>()
-                .expect("decimal version is a u16");
-            assert_eq!(target(&path, Some(version)), bytes, "accepted target uses canonical decimal version");
-        }
+        assert_eq!(public_target(&path).as_ref(), bytes, "accepted target prints byte for byte");
     }
     read
 }
@@ -79,10 +68,10 @@ fn drawn(rng: &mut Rng, sample: u32) -> PublicPath {
     PublicPath { owner: number(rng, sample, 0), layout, kind: number(rng, sample, 5), ids }
 }
 
-fn target(path: &PublicPath, version: Option<u16>) -> Vec<u8> {
+fn target(path: &PublicPath, decimal_layout: Option<u16>) -> Vec<u8> {
     let mut text = format!("/v1/public/{}/", path.owner);
-    if let Some(version) = version {
-        write!(text, "{version}").expect("writing to a string");
+    if let Some(decimal_layout) = decimal_layout {
+        write!(text, "{decimal_layout}").expect("writing to a string");
     } else {
         for byte in path.layout {
             write!(text, "{byte:02x}").expect("writing to a string");
@@ -101,7 +90,7 @@ fn printed(seed: u64, path: &PublicPath, bytes: &[u8], sample: u32) {
     let read = inspect(seed, bytes, true, format_args!("sample {sample}, original"))
         .unwrap_or_else(|| panic!("canonical refused, seed {seed:#x}, input {bytes:?}"));
     assert_eq!(read.owner, path.owner, "owner seed {seed:#x}, input {bytes:?}");
-    assert_eq!(read.layout, Some(path.layout), "layout seed {seed:#x}, input {bytes:?}");
+    assert_eq!(read.layout, path.layout, "layout seed {seed:#x}, input {bytes:?}");
     assert_eq!(read.kind, path.kind, "kind seed {seed:#x}, input {bytes:?}");
     let ids: Vec<_> = path.ids.iter().copied().collect();
     assert_eq!(read.ids.as_ref(), ids, "ids seed {seed:#x}, input {bytes:?}");
@@ -193,16 +182,9 @@ pub fn sweep(test: Test, seeds: Range<u64>, arbitrary: u32, canonical_samples: u
             }
             mutations(&mut batch, seed, &mut rng, &bytes, canonical, sample);
             let decimal_target = target(&path, Some(number(&mut rng, sample, 3)));
-            let read = inspect(seed, &decimal_target, canonical, format_args!("sample {sample}, decimal version"));
+            let read = inspect(seed, &decimal_target, false, format_args!("sample {sample}, decimal layout"));
             if canonical {
-                let read = read.expect("canonical decimal target is routed");
-                let expected = PublicRead {
-                    owner: path.owner,
-                    layout: None,
-                    kind: path.kind,
-                    ids: Box::from(path.ids.as_slice()),
-                };
-                assert_eq!(read, expected, "decimal path names no layout, seed {seed:#x}, input {decimal_target:?}");
+                assert!(read.is_none(), "decimal layout was accepted, seed {seed:#x}, input {decimal_target:?}");
             }
         }
         Ok::<(), Infallible>(())

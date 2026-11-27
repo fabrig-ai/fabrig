@@ -315,11 +315,10 @@ fn delegate(world: &mut World, count: usize) -> Result<(), Violation> {
             wake: Some(tasks::WakePolicy::DEFAULT),
         })
         .collect();
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(8120)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         batch,
-        stubs: Box::new([]),
     }));
     world.drain()?;
     let children = match state(world).parts.last() {
@@ -797,6 +796,7 @@ pub(super) fn delivered(peers: &mut Peers, store: &Store, output: &root::Output)
         | root::Output::Switch
         | root::Output::Load { .. }
         | root::Output::CoreLoad(_)
+        | root::Output::Store(_)
         | root::Output::Core(_)
         | root::Output::Now(_)
         | root::Output::Observability(_)

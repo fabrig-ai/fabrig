@@ -41,3 +41,23 @@ pub use super::settings::{setting_value_to_domain, setting_value_to_record};
 pub use super::tiers::post::{tier_posted_blame_to_domain, tier_posted_blame_to_record};
 pub use super::tiers::{failures_to_domain, failures_to_record};
 pub use super::topics::{pending_release_to_domain, pending_release_to_record};
+
+// The old reread flag has no domain meaning. Keep its stored column until
+// the previous-layout write-record conversion retires it.
+#[must_use]
+pub fn design_writer_to_record(
+    value: &temper_engine_domain_forge_vocabulary::DesignWriter,
+) -> crate::v25::DesignWriter {
+    crate::v25::DesignWriter { task: value.task, attempt: value.attempt, rereading: value.rereading }
+}
+
+#[must_use]
+pub fn design_writer_to_domain(
+    record: crate::v25::DesignWriter,
+) -> temper_engine_domain_forge_vocabulary::DesignWriter {
+    temper_engine_domain_forge_vocabulary::DesignWriter {
+        task: record.task,
+        attempt: record.attempt,
+        rereading: record.rereading,
+    }
+}

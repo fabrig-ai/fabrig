@@ -16,24 +16,75 @@ pub(super) use super::fixtures::connect_model::{
 };
 
 const LOGIN: u32 = 91;
+const LOGIN_NAME: &[u8] = b"claude-pat";
+const LOGIN_SOURCE: u32 = fixtures::accounts::SOURCE;
 const WAITING: &str = "Claude Code is signing in, in the terminal where temper runs";
 const APPROVE: &str = "Approve it on Anthropic’s page, in the tab Claude Code opened. This page moves on by itself.";
 const HELP: &str = "Claude Code’s sign-in is in the terminal where temper runs. If no tab opened, press c there to copy its link. If Anthropic’s page shows a code, paste it there.";
 const NOT_FINISHED: &str = "Claude Code’s sign-in didn’t finish.";
 
 fn terminal_lending() -> c::TerminalLogin {
-    c::TerminalLogin { number: LOGIN, provider: PROVIDER + 1, name: b"claude-pat".as_slice().into(), cancelled: false }
+    c::TerminalLogin { number: LOGIN, provider: PROVIDER + 1, name: LOGIN_NAME.into(), cancelled: false }
 }
 fn terminal_source(usable: bool) -> c::Accounts {
-    let mut doc = super::accounts::card_document(b"anthropic", b"claude-pat", c::AccountKind::Program);
-    doc.accounts.get_mut(0).unwrap().provider = Some(PROVIDER + 1);
-    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = usable;
-    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().number = 43;
+    let mut doc = super::accounts::card_document(b"anthropic", LOGIN_NAME, c::AccountKind::Program);
+    let account = doc.accounts.get_mut(0).unwrap();
+    account.provider = Some(PROVIDER + 1);
+    account.cut = false;
+    let source = account.sources.get_mut(0).unwrap();
+    source.usable = usable;
+    source.number = LOGIN_SOURCE;
     doc.usable = usable;
     doc.settled = true;
     doc.cut = false;
     doc.signing.clear();
     doc
+}
+pub(super) fn observed_login(state: c::ProgramState) -> List<c::ProgramHost> {
+    List::from_boxed(Box::new([c::ProgramHost {
+        name: b"worker".as_slice().into(),
+        channel: 1,
+        connected: true,
+        awaiting_logins: false,
+        cut: false,
+        programs: List::from_boxed(Box::new([c::ProgramLogin {
+            name: LOGIN_NAME.into(),
+            state: Some(state),
+            sign_out: None,
+            cleanup: false,
+            cut: false,
+        }])),
+    }]))
+}
+fn ended_terminal(state: c::AccountState, observed: c::ProgramState) -> c::Accounts {
+    let mut doc = terminal_source(false);
+    doc.lendable = true;
+    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = state;
+    doc.program_hosts = observed_login(observed);
+    doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end: c::LoginEnd::SignedIn { source: LOGIN_SOURCE } });
+    doc
+}
+#[test]
+fn a_held_terminal_sign_in_shows_connected_without_a_banner() {
+    let (root, _) =
+        terminal_root(true, ended_terminal(c::AccountState::Later { until: None }, c::ProgramState::Usable));
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        let lead = named_at(tree, Role::Paragraph, "temper’s agents run on a plan you sign in to.");
+        let claude = named_at(tree, Role::Region, "Claude");
+        assert!(!tree.nodes()[lead + 1..claude].iter().any(|n| n.role == Role::Paragraph || n.role == Role::Status));
+        assert!(
+            super::inbox::subtree(tree, claude).iter().any(|n| n.name.as_deref() == Some("✓ Connected".as_bytes()))
+        );
+    }
+}
+#[test]
+fn a_terminal_check_of_a_signed_out_source_shows_the_banner() {
+    let (root, _) = terminal_root(true, ended_terminal(c::AccountState::SignInAgain, c::ProgramState::NotSignedIn));
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        assert!(named_at(tree, Role::Paragraph, NOT_FINISHED) < named_at(tree, Role::Region, "Claude"));
+    }
 }
 fn named_at(tree: &skein_ui::Tree, role: Role, name: &str) -> usize {
     tree.nodes()

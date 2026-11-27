@@ -114,7 +114,7 @@ pub fn access_to_domain(record: temper_protocol_worker_wire::v1::Access) -> temp
 
 #[must_use]
 pub fn repository_to_domain(record: temper_protocol_worker_wire::v1::Repository) -> temper_worker_domain::wire::Repository {
-    let temper_protocol_worker_wire::v1::Repository { tag: field_000000, name: field_000001, remote: field_000002, git: field_000003, start: field_000004, access: field_000005, identity: field_000006, account: field_000007, save: field_000008 } = record;
+    let temper_protocol_worker_wire::v1::Repository { tag: field_000000, name: field_000001, remote: field_000002, git: field_000003, start: field_000004, access: field_000005, identity: field_000006, account: field_000007, save: field_000008, admit: field_000009 } = record;
     temper_worker_domain::wire::Repository {
         tag: field_000000,
         name: field_000001,
@@ -142,7 +142,8 @@ pub fn repository_to_domain(record: temper_protocol_worker_wire::v1::Repository)
                 Some(converted)
             }
             None => None,
-        }
+        },
+        admit: field_000009
     }
 }
 
@@ -333,6 +334,18 @@ pub fn ask_to_record(value: &temper_worker_domain::wire::Ask) -> Result<temper_p
         temper_worker_domain::wire::Ask::Landed { head: field_000000 } => temper_protocol_worker_wire::v1::Ask::Landed(temper_protocol_worker_wire::v1::Head {
             head: *field_000000
         }),
+        temper_worker_domain::wire::Ask::Admit { tag: field_000000, branch: field_000001, expected: field_000002, commit: field_000003 } => temper_protocol_worker_wire::v1::Ask::Admit(temper_protocol_worker_wire::v1::Admit {
+            tag: *field_000000,
+            branch: field_000001.clone(),
+            expected: match field_000002 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            commit: *field_000003
+        }),
     })
 }
 
@@ -364,6 +377,13 @@ pub fn answer_to_domain(record: temper_protocol_worker_wire::v1::Answer) -> Resu
         temper_protocol_worker_wire::v1::Answer::Kept => temper_worker_domain::wire::Answer::Kept,
         temper_protocol_worker_wire::v1::Answer::Landed => temper_worker_domain::wire::Answer::Landed,
         temper_protocol_worker_wire::v1::Answer::Unlanded => temper_worker_domain::wire::Answer::Unlanded,
+        temper_protocol_worker_wire::v1::Answer::Admitted => temper_worker_domain::wire::Answer::Admitted,
+        temper_protocol_worker_wire::v1::Answer::Unadmitted(held) => {
+            let temper_protocol_worker_wire::v1::Unadmitted { words: field_000000 } = held;
+            temper_worker_domain::wire::Answer::Unadmitted {
+                words: field_000000
+            }
+        },
     })
 }
 

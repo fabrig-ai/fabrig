@@ -515,16 +515,14 @@ fn hint_target(world: &mut World) {
     }
     panic!("target hint did not settle");
 }
-fn push_target(world: &mut World, change: u64) {
+fn push_target(world: &mut World, change: u64, run: &engine::Assignment) {
     let row = questions::row(world, change);
     let branch = row.branch.clone();
     let base = row.base.clone();
     let tip = world.fake.branch(b"org/vsr-rs", &base).expect("target base exists");
-    if world.fake.branch(b"org/vsr-rs", &branch).is_none() {
-        world.external_at(b"org/vsr-rs", 1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: tip }));
-    }
-    fake::advance(&mut world.fake, &world.fake_env, b"org/vsr-rs", &branch, b"src/a.rs", b"port", 1)
-        .expect("producer push fits");
+    let parent = world.fake.branch(b"org/vsr-rs", &branch).unwrap_or(tip);
+    let head = world.worker_commit(parent, b"src/a.rs", b"port");
+    world.run_push(run, &branch, head, 1);
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
             repository: TARGET,
@@ -534,7 +532,7 @@ fn push_target(world: &mut World, change: u64) {
     })));
 }
 pub(crate) fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
-    push_target(world, change);
+    push_target(world, change, producer);
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,
@@ -916,7 +914,13 @@ fn exhausted_follow_repairs_keep_the_hold_account_and_the_next_change_waits() {
     settle(&mut world);
     assert!(matches!(
         questions::row(&world, a).change.state,
-        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Repairs, .. }
+        temper_engine_domain_forge_change::State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Repairs,
+                ..
+            },
+            ..
+        }
     ));
     let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, a).phase else { panic!("held change") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
@@ -934,7 +938,7 @@ fn code_follow_waits_for_landing_even_after_a_pushed_head() {
     let producer = next_delegate(&mut world, a, 0);
     let second = push(&mut world, b"Second");
     let b = change(&world, second);
-    push_target(&mut world, a);
+    push_target(&mut world, a, &producer);
     for _ in 0..TICKS {
         world.tick();
     }

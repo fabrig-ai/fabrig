@@ -1,5 +1,7 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
+//! Scripted workers admit their leases as in temper/docs/design/domain/forge/writes.md, 2.
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -12,6 +14,7 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
+use temper_protocol_worker_wire::v1::{self as worker_wire, Record as _};
 
 struct World {
     checks: temper_engine_domain_world::check::Run,
@@ -30,6 +33,7 @@ struct World {
     signed_in: Option<u64>,
     assigned: Vec<engine::Assignment>,
     answers: Vec<temper_engine_domain::CallAnswer>,
+    push_answer: Option<(Token, Token, u64, host::AskAnswer)>,
     protocol: Protocol,
     immediate: VecDeque<engine::Event>,
     /// Whether the funding period and the git identity were sent to the root once it was ready.
@@ -318,6 +322,7 @@ impl World {
             signed_in: None,
             assigned: Vec::new(),
             answers: Vec::new(),
+            push_answer: None,
             protocol: Protocol::default(),
             immediate: VecDeque::new(),
             started: false,
@@ -340,6 +345,58 @@ impl World {
             self.collect();
             self.root.reclaim();
         }
+    }
+
+    /// Publish the producer's starting commit on its new branch.
+    fn run_create_branch(&mut self, run: &engine::Assignment, branch: &[u8], commit: u64) {
+        self.admit_push(run, branch, None, commit);
+        let push = raw::Git::PushNew { branch: branch.into(), commit };
+        assert_eq!(self.external(1, raw::Op::Git(push)), raw::Answer::PushNew { existing: None });
+    }
+
+    /// Deliver the scripted run's edit after the engine admits its lease.
+    fn run_push_edit(&mut self, run: &engine::Assignment, branch: &[u8], content: &[u8]) -> u64 {
+        let expected = self.fake.branch(b"org/repo", branch).expect("branch to edit");
+        let tree = &self.fake.object(expected).expect("delivery parent").tree;
+        let mut files: Vec<_> = tree
+            .iter()
+            .filter(|(path, _)| path.as_ref() != b"file")
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: b"file".as_slice().into(), content: content.into() });
+        let commit =
+            fake::commit_tree(&mut self.fake, &self.fake_env.limits, expected, None, files.into_boxed_slice(), b"")
+                .expect("worker commit fits");
+        self.admit_push(run, branch, Some(expected), commit);
+        let push = raw::Git::Push { branch: branch.into(), commit, expected: Some(expected) };
+        assert_eq!(self.external(1, raw::Op::Git(push)), raw::Answer::Pushed(raw::Pushed::Pushed));
+        commit
+    }
+
+    fn admit_push(&mut self, run: &engine::Assignment, branch: &[u8], expected: Option<u64>, commit: u64) {
+        let item = &run.workspace.repositories[0];
+        assert_eq!(item.push.as_deref(), Some(branch));
+        let (number, event) = self.protocol.admit(
+            (crate::world::CHANNEL, run.task, run.attempt),
+            worker_wire::Admit {
+                tag: item.tag,
+                branch: branch.into(),
+                expected: expected.map(translate::commit),
+                commit: translate::commit(commit),
+            },
+        );
+        self.send(event);
+        for _ in 0..200 {
+            if self.push_answer.is_some() {
+                break;
+            }
+            self.tick();
+        }
+        let (task, attempt, answered, answer) = self.push_answer.take().expect("engine answered the push ask");
+        assert_eq!((task.raw(), attempt.raw(), answered), (run.task, run.attempt, number));
+        let host::AskAnswer::Bytes(bytes) = answer else { panic!("link refused the push ask") };
+        let answer = worker_wire::Answer::decode(&worker_wire::CEILINGS, &mut skein_lib::Reader::new(&bytes));
+        assert_eq!(answer.expect("encoded push answer"), worker_wire::Answer::Admitted);
     }
 
     fn external(&mut self, user: u64, op: raw::Op) -> raw::Answer {
@@ -390,18 +447,32 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.store.pending.push_back((number, writes));
                 }
-                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                    let result = self.store.read(range);
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range:
+                        range @ (engine_store::Range::Read(_)
+                        | engine_store::Range::Record(_)
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
+                })) => {
+                    let result = self.store.load(range);
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                        load,
+                        result,
+                    })));
                 }
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Window { task, from },
+                })) => self.events.extend(
+                    self.store
+                        .window(load, task, from)
+                        .into_iter()
+                        .map(|answer| engine::Event::Store(engine::StoreInput::Engine(answer))),
+                ),
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                        owner,
-                        rows,
-                        next,
-                        texts: None,
-                    }));
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                 }
                 engine::Request::Forge { call, repository, op } => {
                     let located = translate::locate_name(&op);
@@ -434,6 +505,9 @@ impl World {
                         self.signed_in = Some(sign_in);
                     }
                     Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
+                    Delivery::Link { down: host::LinkDown::Asked { run, attempt, number, answer }, .. } => {
+                        assert!(self.push_answer.replace((run, attempt, number, answer)).is_none());
+                    }
                     // The run has its answer once the hub relays it down.
                     Delivery::Link {
                         down: host::LinkDown::Relayed { answer: host::Relayed::Answer { text, .. }, .. },

@@ -1,5 +1,6 @@
 //! Application settings are judged and kept by their connectors (jig/docs/design/domain/engine/settings-application.md, 1).
 use crate::settings::{Kind, KindScope};
+use crate::tests::new_core;
 use crate::tests::*;
 
 #[test]
@@ -21,8 +22,8 @@ fn declared_kinds_with_defaults_preserve_start_outputs_and_save_each_connector()
             }]),
             ..config(seed)
         };
-        let mut declared = Core::new(configured, &limits).unwrap();
-        let mut empty = Core::new(config(seed), &limits).unwrap();
+        let mut declared = new_core(configured, &limits).unwrap();
+        let mut empty = new_core(config(seed), &limits).unwrap();
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let action = declared.start_begin(false, env.wall);
         assert!(

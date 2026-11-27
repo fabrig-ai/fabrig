@@ -170,6 +170,7 @@ impl Referee {
             | root::Delivery::Fleet(_)
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }
@@ -286,6 +287,7 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         people::Ask::MakeService { project, .. } => (Act::MakeService, Subject::Project { project: *project }),
         people::Ask::SetPool { project, .. } => (Act::SetPool, Subject::Project { project: *project }),
         people::Ask::Restore { .. }
+        | people::Ask::Measure { .. }
         | people::Ask::Lift { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::PauseWorker { .. }

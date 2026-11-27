@@ -1,5 +1,6 @@
 //! Link obligations and stored diagnostics (jig/docs/design/domain/engine/restart.md).
 #![expect(clippy::disallowed_macros, reason = "stored fixtures exercise byte limits")]
+use crate::tests::new_core;
 use crate::{
     CoreRecord, Event, Restored,
     start::Linked,
@@ -14,7 +15,7 @@ fn loaded() -> (Core, Env<crate::Limits>) {
     let configured = config(41);
     let policy =
         crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("policy");
-    let mut core = Core::new(configured, &limits).expect("configured core");
+    let mut core = new_core(configured, &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
     let mut header = core.counters.deployment();

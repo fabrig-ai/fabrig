@@ -69,7 +69,7 @@ configuration/limits.md).
 | 0 | `Call` | `Call(NamedCall)`: task, attempt, completion, position | the connector's part of a live named call | `named_calls` |
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
 | 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 11) and landing branch (`../domain/forge/adoption.md`, 12) | `repositories` |
-| 3 | `Hold` | `Hold(Name)` | a held resource: its task, writers, drift and heads beside (`../domain/forge/branches.md`, 3) | `holds` |
+| 3 | `Hold` | `Hold(Name)` | a held resource: its task, writers and drift (`../domain/forge/branches.md`, 3); its `beside`, the previous build's head beside, no step writes, and the first start of this build converts it into a compare entry of the branch's record (`../domain/forge/writes.md`, 7) | `holds` |
 | 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption-connection.md`, 1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
 | 6 | `BranchHead` | `BranchHead(Name)` | a branch's last observed tip | the client's `resources` |
@@ -271,6 +271,14 @@ configuration/limits.md).
   with its project. A family of the forge connector's though it is
   people's, as `Binding` is. Bounded by `bindings` times
   `judge_projects`.
+- **The record of temper's own writes** (`../domain/forge/writes.md`,
+  1 and 7): 52 `Writes`, keyed `Writes(Name)`, a branch's name; its
+  record `{ name, head, next, entries }`, `head` none or a commit, `next`
+  the next order, and `entries` at most 32 `Written`, each `{ order,
+  operation, sender, state }`. Its record is the schema's `Value`
+  variant `writes`, value type 52 over its byte, named `temper.writes`
+  for the census. Written in the decisions that admit, send and settle
+  its entries, and erased as `../domain/forge/writes.md`, 6 says.
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the
   events kept, `whole_since`, its hours' marks, the change being swept

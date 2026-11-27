@@ -19,7 +19,7 @@
 
 ✦ working
 ──────────────────────────────── Hello / Check README.md T2 on 127.0.0.1:8367 ──
-❯ Reply
+❯ Reply, or ← to leave.
 ────────────────────────────────────────────────────────────────────────────────
  ● Live · Hello · Claude Opus 5.5 · high                            1 needs you
 --
@@ -44,7 +44,7 @@ c.cccccccc......................................................................
 ................................................................................
 ceeeeeeee.......................................................................
 dddddddddddddddddddddddddddddddddfffffdddfffffffffffffffeeeeeeeeeeeeeeeeeeeeeddd
-ccddddd.........................................................................
+ccddddddddddddddddddddd.........................................................
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 .ggggggdddeeeeedddeeeeeeeeeeeeeeeeeeeeee............................ccccccccccc.
 --

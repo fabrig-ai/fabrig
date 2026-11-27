@@ -75,6 +75,7 @@ pub(crate) fn buffer(op: &Op) -> (&[u8], u32) {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
@@ -144,6 +145,7 @@ pub(crate) const fn kind(op: &Op) -> Kind {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }

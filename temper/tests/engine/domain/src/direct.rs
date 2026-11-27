@@ -1,6 +1,7 @@
 //! Direct root fixture shared by focused routes and the ending sweep.
 
 use jig_conformance::store_check::StoreChecks;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -44,6 +45,10 @@ pub struct Driver {
     pub switches: Vec<usize>,
     /// Every store load the root asked for, by its owner, in order.
     pub loads: Vec<(Token, temper_engine_domain::Range)>,
+    pub point_loads: Vec<(Token, engine_store::Range)>,
+    pub note_loads: Vec<(Token, jig_domain_notes::Range)>,
+    /// Each held port window issued to the store, by port token and task number.
+    pub windows: Vec<(Token, u64)>,
     /// How many inputs `try_step` handed back at the backlog watermark; the
     /// world offers each again later.
     pub returned: u32,
@@ -165,6 +170,9 @@ impl Driver {
             host_requests: Vec::new(),
             switches: Vec::new(),
             loads: Vec::new(),
+            point_loads: Vec::new(),
+            note_loads: Vec::new(),
+            windows: Vec::new(),
             returned: 0,
             immediate: Vec::new(),
             period_sent: false,
@@ -228,6 +236,14 @@ impl Driver {
         self.root.reclaim();
     }
 
+    /// Take the selected window's queued replies, leaving every other event in order.
+    pub fn take_window_replies(&mut self, load: Token) -> Vec<engine::Event> {
+        let (window, other) =
+            std::mem::take(&mut self.events).into_iter().partition(|event| answer_token(event) == Some(load));
+        self.events = other;
+        window.into()
+    }
+
     #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
         self.store.record_wall = self.store.record_wall.max(self.root.core().inspection_wall());
@@ -241,13 +257,51 @@ impl Driver {
             } else {
                 request
             };
-            let request = if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
-                let result = self.store.read(range);
-                self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
-                continue;
-            } else {
-                request
-            };
+            let request =
+                if let engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) =
+                    request
+                {
+                    let range = match range {
+                        engine_store::Range::Window { task, from } => {
+                            self.windows.push((load, task));
+                            self.events.extend(self.store.window(load, task, from).into_iter().map(|answer| {
+                                engine::Event::Store(engine::StoreInput::Engine(transcript_text(answer)))
+                            }));
+                            continue;
+                        }
+                        other => other,
+                    };
+                    match &range {
+                        engine_store::Range::Read(_) => {}
+                        engine_store::Range::Notes(range) => self.note_loads.push((load, range.clone())),
+                        engine_store::Range::Window { .. } => unreachable!("window answered above"),
+                        engine_store::Range::Record(key) => {
+                            self.point_loads.push((load, engine_store::Range::Record(key.clone())));
+                        }
+                        engine_store::Range::Proposal { task, proposal } => self
+                            .point_loads
+                            .push((load, engine_store::Range::Proposal { task: *task, proposal: *proposal })),
+                    }
+                    let result = if self.fail_archive_once
+                        && matches!(
+                            range,
+                            engine_store::Range::Record(jig_domain_core::Key::Core(
+                                jig_domain_core::CoreKey::EscalationDecision { .. }
+                            ))
+                        ) {
+                        self.fail_archive_once = false;
+                        engine_store::Answer::Failed(engine_store::Failure::Failed)
+                    } else {
+                        self.store.load(range)
+                    };
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                        load,
+                        result,
+                    })));
+                    continue;
+                } else {
+                    request
+                };
             let request = match self.protocol.play(request) {
                 Ok(events) => {
                     self.events.extend(events);
@@ -277,19 +331,7 @@ impl Driver {
                     self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
 
                     assert!(bytes >= self.env.limits.loads.bytes);
-                    if self.fail_archive_once
-                        && matches!(
-                            range,
-                            temper_engine_domain::Range::Core(
-                                temper_engine_domain::CoreRange::EscalationDecision { .. }
-                            )
-                        )
-                    {
-                        self.fail_archive_once = false;
-                        self.events.push_back(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
-                    } else {
-                        self.events.push_back(engine::Event::Store(page_at_owner(terminal, owner, most)));
-                    }
+                    self.events.push_back(engine::Event::Store(page_at_owner(terminal, owner, most)));
                 }
                 engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Push(push))) => {
                     self.events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Pushed {
@@ -802,10 +844,9 @@ pub fn say_ask(sign_in: u64, task: u64, key: u8) -> engine::Event {
 
 pub(crate) fn page_at_owner(terminal: engine::StoreInput, owner: Token, most: u32) -> engine::StoreInput {
     match terminal {
-        engine::StoreInput::Loaded { rows, next, texts, .. } => {
+        engine::StoreInput::Loaded { rows, next, .. } => {
             assert!(rows.len() <= usize::try_from(most).expect("small count"));
-            let texts = transcript_texts(texts, &rows);
-            engine::StoreInput::Loaded { owner, rows, next, texts }
+            engine::StoreInput::Loaded { owner, rows, next }
         }
         engine::StoreInput::Unloaded { .. } => engine::StoreInput::Unloaded { owner },
         terminal @ engine::StoreInput::Uncommitted { .. } => terminal,
@@ -813,30 +854,34 @@ pub(crate) fn page_at_owner(terminal: engine::StoreInput, owner: Token, most: u3
     }
 }
 
-/// The service renders a transcript window's turns as text (temper-engine-service
-/// store/ranges.rs); this world's turns are text already, so each turn's
-/// rendering is its own bytes' end within the tail.
-fn transcript_texts(texts: Option<engine::TranscriptTexts>, rows: &[Record]) -> Option<engine::TranscriptTexts> {
-    let texts = texts?;
-    let tail = usize::try_from(engine::TRANSCRIPT_TAIL_BYTES).expect("tail fits usize");
-    Some(
-        texts
-            .into_iter()
-            .enumerate()
-            .map(|(index, text)| {
-                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn)))) =
-                    rows.get(index)
-                else {
-                    return text;
-                };
-                match text {
-                    engine::TurnText::Cut(bytes) => engine::TurnText::Cut(bytes),
-                    engine::TurnText::Rendered(_) | engine::TurnText::Unrendered => {
-                        let start = turn.transcript.len().saturating_sub(tail);
-                        engine::TurnText::Rendered(Box::from(&turn.transcript[start..]))
-                    }
-                }
-            })
-            .collect(),
-    )
+/// The service renders protocol frames; this fixture already supplies text bodies.
+fn transcript_text(mut answer: engine_store::In) -> engine_store::In {
+    if let engine_store::In::Loaded {
+        result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns, .. }),
+        ..
+    } = &mut answer
+    {
+        let tail = usize::try_from(engine::TRANSCRIPT_TAIL_BYTES).expect("tail fits usize");
+        for (turn, text) in turns {
+            let start = turn.transcript.len().saturating_sub(tail);
+            *text = Some(Box::from(&turn.transcript[start..]));
+        }
+    }
+    answer
+}
+
+/// Answer a named engine window at the root's store boundary.
+#[must_use]
+pub fn window_reply(load: Token, result: engine_store::Answer) -> engine::Event {
+    engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result }))
+}
+
+/// The port token on a store answer (read answers and window answers share the carrier).
+#[must_use]
+pub fn answer_token(event: &engine::Event) -> Option<Token> {
+    if let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, .. })) = event {
+        Some(*load)
+    } else {
+        None
+    }
 }

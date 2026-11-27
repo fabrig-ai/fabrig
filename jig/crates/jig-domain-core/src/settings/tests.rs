@@ -1,3 +1,4 @@
+use crate::tests::new_core;
 use crate::{
     Core, CoreRecord, Limits, Restored,
     settings::*,
@@ -860,7 +861,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
 
 fn restore_settings_fixture() -> (Core, Limits) {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).unwrap();
+    let mut core = new_core(config(41), &limits).unwrap();
     let _start = core.start_begin(false, Wall::EPOCH);
     let mut defaults = List::with_capacity(core.current.defaults.len());
     for (&setting, default) in &core.current.defaults {
@@ -986,7 +987,7 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
     let limits = limits();
     let configured = config(41);
     let rules = configured.defaults.rules.clone();
-    let mut core = Core::new(configured, &limits).unwrap();
+    let mut core = new_core(configured, &limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let out = core.commit_restored_settings(&env, limits.routes);
     assert!(out.is_empty());
@@ -1017,7 +1018,7 @@ fn a_charter_with_a_zero_paced_span_is_refused_as_shape() {
 #[test]
 fn default_wake_reads_current_settings_and_falls_back_without_a_charter() {
     let limits = limits();
-    let mut core = Core::new(config(1), &limits).unwrap();
+    let mut core = new_core(config(1), &limits).unwrap();
     let agent = tasks::Executor::Agent { charter: 1 };
     let mut changed = core.charter(1).unwrap().clone();
     changed.wake.results = tasks::ResultsWake::Each;
@@ -1473,7 +1474,7 @@ fn workers_told(out: &skein_lib::Queue<crate::Request>) -> Option<&[WorkerSettin
 fn workers_restore_replace_and_refuse_removing_a_linked_channel() {
     let limits = limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut core = Core::new(config(1), &limits).expect("default workers");
+    let mut core = new_core(config(1), &limits).expect("default workers");
     assert_eq!(core.fleet.worker_name(0), Some(b"alpha".as_slice()));
     let mut changed = worker_value(1, b"alpha");
     changed.places = 1;
@@ -1580,7 +1581,7 @@ fn providers_told(out: &skein_lib::Queue<crate::Request>) -> Option<&[ProviderSe
 fn providers_check_current_models_and_keep_running_facts_until_start() {
     let limits = limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut core = Core::new(config(1), &limits).unwrap();
+    let mut core = new_core(config(1), &limits).unwrap();
     let local = crate::tests::provider_setting(4, b"local", 5);
     let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
     model.number = 33;
@@ -1654,7 +1655,7 @@ fn providers_check_current_models_and_keep_running_facts_until_start() {
     );
     result.unwrap();
     assert!(providers_told(&out).is_none());
-    let mut restarted = Core::new(config(1), &limits).unwrap();
+    let mut restarted = new_core(config(1), &limits).unwrap();
     assert!(restarted.restore_setting(
         Record::Changed {
             setting: Setting::Provider(4),
@@ -1673,7 +1674,7 @@ fn providers_with_accounts_are_not_removed_and_fixed_providers_are_references_on
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut configured = config(1);
     configured.fixed_providers = Box::new([crate::tests::provider_setting(3, b"fixed", 3)]);
-    let mut core = Core::new(configured, &limits).unwrap();
+    let mut core = new_core(configured, &limits).unwrap();
     let local = crate::tests::provider_setting(4, b"local", 5);
     decide_worker(&mut core, &env, Box::new([provider_item(local)])).0.unwrap();
     crate::tests::restore_key_account(&mut core, &limits, 1, 1, 4);

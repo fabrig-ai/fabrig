@@ -250,6 +250,7 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::Read { .. }
             | protocol::Event::Got { .. }
             | protocol::Event::Turns { .. }
+            | protocol::Event::WindowFailed { .. }
             | protocol::Event::Unread { .. }) => route::up(&mut engine.store.routes, other, &mut engine.store.routed),
         }
         if engine.end.is_some() {

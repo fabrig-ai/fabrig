@@ -128,13 +128,24 @@ fn escalation_outcome(
             None
         }
         tasks::EscalationOutcome::Stale => {
-            out.push(Request::Now(Box::new(Now::EndedEscalation {
+            let party = crate::routing::party::dispatch::Party {
                 request: flight.request,
                 person: flight.person,
                 project: flight.project,
-                task,
-                revision,
-            })));
+                role: None,
+            };
+            let point = crate::loads::point::Point::EscalationDecision { party, task, revision };
+            if !crate::loads::try_point(core, &env.limits, out, point) {
+                append_people(
+                    core,
+                    env,
+                    people::Event::Decided {
+                        request: party.request,
+                        outcome: people::Outcome::Again(people::Again::Busy),
+                    },
+                    out,
+                );
+            }
             None
         }
     }

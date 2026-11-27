@@ -672,6 +672,7 @@ impl Drivers {
             | crate::Event::Read { .. }
             | crate::Event::Got { .. }
             | crate::Event::Turns { .. }
+            | crate::Event::WindowFailed { .. }
             | crate::Event::Unread { .. }
             | crate::Event::SecretsNotReady { .. }
             | crate::Event::Kept { .. }

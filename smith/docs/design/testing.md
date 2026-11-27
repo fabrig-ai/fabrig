@@ -135,12 +135,29 @@ Every component's files and processes go through it:
 - **The menu:** the argument bodies the fake copies into the calls it
   draws, `smith-session-world`'s `provider::menu`, which the session,
   agent, host and local worlds share. The fake draws a tool and a body
-  apart, so each body carries the fields of every tool: a path, a
-  content, a command, a pattern and edits, and in some of them `job`'s
-  number, 1, and a shell's `yield_seconds`, 0. A drawn call reads its
-  own tool's fields, so a `job`, `shell`, `read` or `write` call takes
-  its own from any body. Its invalid entries are an unknown tool's name,
-  a cut object and an empty one.
+  apart, so each body carries the fields of every tool, and a drawn
+  call reads its own tool's fields from any body. Its bodies for every
+  tool, its slots, the refusals they target and its weights are
+  [drawn-agent.md](drawn-agent.md)'s, and what the worlds count of
+  their completions is [shapes.md](shapes.md)'s. Its invalid entries
+  are an unknown tool's name, a cut object and an empty one.
+- **The `job` slot:** `job`'s number in a body is the menu's numeric
+  slot `job` (`skein/docs/design/testing/fakes/drawn-agent.md`, 2),
+  between `job ` and a space, as the product renders a job
+  (`domain/session.md`, 10), within a job number's bounds, 1 to the
+  largest `u32`. Its never-issued value, 999999, is past any number a
+  world's session issues, and its weight is a tenth. So a drawn `job`
+  call names a job its conversation was shown, stale or not, or one no
+  kit issued, and the session world records the class of each
+  (`domain/session.md`, 10) beside the slot's draw in the fake's
+  capture where it captures.
+- **The seeds it draws from:** smith's session world gives the fake
+  the parts of its seed's streams (`skein/docs/design/testing/sweeps.md`,
+  2): `agent/model`, and `Faults`' and `Scheduling`'s `llm`. The agent,
+  host and local worlds, not on streams, give their one seed, so their
+  scripted turns' failures and latencies draw as they did. A test that
+  shows what a seed drew names its seed for what it shows, so that a
+  change of the draws picks it again by that name, or scripts it.
 - **The OAuth issuer:** skein's fake issuer, with the same three faces
   (skein's `oauth/README.md`, section 5), reached through a `sign_in` account's
   moved addresses (shell/credentials.md, 1), so that smith's own registration is
@@ -406,6 +423,84 @@ own command (`testing-tiers.md`, 4).
 |---|---|
 | `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs-claude-code.md`, 1.1, and `protocol/programs.md`, 9) |
 
+### 6.3 Campaigns
+
+A campaign runs smith's fuzzy sweeps after landing with fresh seeds, in
+rounds of smith's pair `campaign-smith` (`tools/tiers/layers.md`, 9.3;
+`tools/tiers/campaign.md`). A sweep takes part through skein's seam
+(`skein/docs/design/testing/sweeps.md`, 4.2 to 4.5), and a world adopts
+it in a change of its own, its binary listed in the pair in the same
+change (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).
+
+- **The tools, run and agent worlds take part:** every loop over seeds
+  in their fuzzy modules takes its cases through `cases`, with its
+  test's identity (`this_test!`) and its gate seeds, unchanged. A loop
+  that hands some of its seeds to other settings (the run world's time
+  pressure, odd stops, high spend and relay loss beside its noisy
+  worlds; its slow checkouts, landings, relays and wind-downs beside
+  them in the cancels' and deadlines' cells) gives each recipe a part of
+  its test and that recipe's own seeds, so that the gate runs the worlds
+  it ran and a campaign draws each recipe fresh. A helper serving
+  several tests takes its caller's identity.
+- **The session world takes part with its loop of 1000 seeds,**
+  `random_worlds_settle_with_every_session_ended`: its cases come
+  through `cases`, with its test's identity and seeds 0 to 999,
+  unchanged. Its fake model draws each request's answer from the
+  case's seed, keyed by conversation, turn and attempt, and captures
+  what it drew (`temper/docs/design/draft/misbehaving-agents.md`, 4.3
+  and 4.4), so a fresh seed draws a fresh agent too. Its other loops
+  over seeds keep their fixed seeds (section 9).
+- **Their binaries,** `smith-tools-world::suite`, `smith-run-world::suite`,
+  `smith-agent-world::suite` and `smith-session-world::suite`, are the
+  pair's list.
+- **Every seed a valid case** (sweeps.md, 4.5):
+  - arithmetic on a seed wraps, and a moment drawn from it stays on the
+    grid its gate seeds draw: the agent world's host cancels at a
+    multiple of 500 ms within its forty steps at any seed;
+  - every draw of a case comes from its seed, never from a stream that
+    runs across the loop: the run world's drawn prices;
+  - a scripted neighbour's draw keeps the order its world assumes: the
+    agent world's parent sends an empty brief's first work after the
+    run's admission, whatever delay it draws;
+  - a fake's answer stays within the contract the product checks: the
+    tools world's memory churn answers a search with no more hits,
+    paths and text than its limits allow;
+  - a referee judges a result against the tree as the case's own acts
+    left it: in the session world, a write that creates a fixture file
+    its session removed fits, as one that creates the missing file
+    does.
+
+  A fix that moves a gate seed's draws keeps the sweep's reach at its
+  gate seeds.
+- **Checks over the loop wait for `gate()`:** the outcomes, refusals and
+  terminals a sweep must see, its minimum totals, the cells and message
+  classes it must reach, the quota of operations each memory churn
+  must run, and the endings, stops, failures, answers, reference classes
+  and slot draws the session world's agents must reach.
+  `Sweep::check_fell` reports its reach itself, and a sample's shape
+  lines are written in every mode (sweeps.md, 4.6).
+- **A case's own checks run in every mode:** settlement, the referees,
+  every call or start answered once, replay compared with its run, each
+  shape in form, and the memory ceilings. A ceiling is a bound its
+  scenario's limits promise (section 6), so a fresh seed past it is a
+  campaign's finding, against the domain or the ceiling, for the user
+  to route.
+- **Kept fixed:** the focused tests and their seeds, a fuzzy test with
+  no loop over seeds (the agent world's longest child usage), and the
+  session world's other loops over seeds (section 9).
+- **Counts:** each case counts a `seed` check (sweeps.md, 4.2), so a
+  loop that counted none counts one a case, and a fault sweep that folds
+  its ledger with `Sweep::ran` counts two; no binary's count falls.
+- **A generated agent's finding is pinned as its capture**
+  (`temper/docs/design/draft/fuzzy-campaigns.md`, 7.5): its repair
+  replays the case by its seed, takes the world's capture
+  (`World::capture`), and plays it back in a fixed scenario
+  (`World::with_replay`, a miss refused), its faults and timing still
+  drawn from the case's seed. A seed draws another agent once the menu
+  or its weights change; the capture is the case whatever the menu
+  becomes. The agent world's loops draw none of their answers at
+  random, so its seeds stand as its cases.
+
 ## 7. Layout
 
 ```
@@ -494,6 +589,14 @@ benchmarks/tests/suite/          real git, login shells, terminals, pipes and th
 - **The agent, run and host worlds' edges** (testing-tiers.status.md): each
   takes fakes of its own, held to the code by a protocol or simulated
   world as the session and tools worlds' are, or says why it can't.
+- **The session world's other loops in campaigns** (6.3): its loops over
+  seeds beside the loop of 1000 seeds, in its fuzzy modules, through
+  skein's seam, each once every draw of its case comes from the case's
+  seed. Three draw their windows, limits, lines or sizes from a stream
+  that runs across their loop.
+- **smith's other worlds in campaigns:** the host, local, protocol and
+  simulated worlds' loops, each world once its draws are valid at any
+  seed.
 - **The key's story after landing.** The story on an Anthropic API key
   is the owner's for now (`testing-tiers.md`, 3): no key is among the after-landing tier's
   inputs. It returns to the after-landing tier when a key becomes one of

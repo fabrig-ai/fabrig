@@ -166,11 +166,10 @@ fn a_small_delegating_task_funds_its_delegates() {
     child.authority.tools = tasks::Tools(0);
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     child.budget = people::Budget::AsAllowed { cap: None };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9001)),
         key,
         batch: Box::new([child]),
-        stubs: Box::new([]),
     }));
     assert!(
         matches!(world.answers.last(), Some((_, _, core::CallPart::Delegated(_)))),

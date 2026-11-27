@@ -1,4 +1,5 @@
 //! Person reads admit one project and recheck retained ownership (domain/engine/executors-tools.md, 1).
+use crate::engine::store as engine_store;
 use crate::reads::{
     self,
     person::{Admission, admitted},
@@ -132,12 +133,12 @@ fn stored_load(core: &mut Core, limits: &Limits) -> (Token, reads::Row) {
         reads::Read::Task { task: RETAINED },
     );
     let Some(Request::Held(held)) = out.pop() else { panic!("retained load") };
-    let Held::ReadLoad { load, .. } = *held else { panic!("retained load") };
+    let Held::Store(engine_store::Out::Load { load, .. }) = *held else { panic!("retained load") };
     assert!(out.is_empty());
     (load, row)
 }
 
-fn completed(core: &mut Core, limits: &Limits, load: Token, result: reads::Loaded) -> Option<reads::Answer> {
+fn completed(core: &mut Core, limits: &Limits, load: Token, result: engine_store::Answer) -> Option<reads::Answer> {
     let mut out = reads::loaded(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -200,7 +201,12 @@ fn stored_person_reads_recheck_the_attempt_requester_and_role() {
         }
         fixtures::restore(&mut core, &limits, Box::new([caller]));
         assert_eq!(
-            completed(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([row]), next: None }),
+            completed(
+                &mut core,
+                &limits,
+                load,
+                engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None })
+            ),
             expected,
             "{change:?}"
         );
@@ -221,7 +227,12 @@ fn stored_person_reads_refuse_foreign_owners_and_linked_rows() {
             owner.project = OTHER_PROJECT;
         }
         assert_eq!(
-            completed(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([row]), next: None }),
+            completed(
+                &mut core,
+                &limits,
+                load,
+                engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None })
+            ),
             Some(reads::Answer::None(reads::Why::Unknown)),
             "linked {linked}"
         );
@@ -243,7 +254,9 @@ fn retained_pages_prove_their_owner_even_when_empty() {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut out = reads::person::run(&mut core, &env, ReplyTo::new(Token::new(500)), KEY, read.clone());
         let Some(Request::Held(held)) = out.pop() else { panic!("owner load: {read:?}") };
-        let Held::ReadLoad { load, range } = *held else { panic!("owner load") };
+        let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = *held else {
+            panic!("owner load")
+        };
         assert_eq!(
             range.scope,
             reads::Scope::TaskText { task: RETAINED, field: reads::TaskTextField::Specification, from: 0 }
@@ -253,13 +266,20 @@ fn retained_pages_prove_their_owner_even_when_empty() {
             &env,
             &mut Queue::uncapped(),
             load,
-            reads::Loaded::Page { rows: Box::new([row]), next: None },
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
         );
         let Some(Request::Held(held)) = next.pop() else { panic!("page load: {read:?}") };
-        let Held::ReadLoad { load, range } = *held else { panic!("page load reuses its admission") };
+        let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = *held else {
+            panic!("page load reuses its admission")
+        };
         assert_eq!(Some(range.scope), reads::scope(&read));
-        let answer = completed(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([]), next: None })
-            .expect("empty page");
+        let answer = completed(
+            &mut core,
+            &limits,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None }),
+        )
+        .expect("empty page");
         let reads::Answer::Page(page) = answer else { panic!("empty retained page: {read:?}") };
         assert!(page.rows.is_empty());
         assert!(page.next.is_none());

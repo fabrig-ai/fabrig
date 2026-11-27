@@ -1,5 +1,6 @@
 //! Charter document bounds at start, change and restart (domain/engine/settings.md, 9).
 use crate::settings::{Changed, Current, Edit, Failure, Fault, Item, Record, Setting, Value};
+use crate::tests::new_core;
 use crate::tests::*;
 
 fn bytes(len: u32) -> Box<[u8]> {
@@ -123,7 +124,7 @@ fn documents_require_a_registered_connector() {
 #[test]
 fn stored_documents_past_a_bound_are_refused_at_restart() {
     let limits = limits();
-    let mut core = Core::new(config(1), &limits).unwrap();
+    let mut core = new_core(config(1), &limits).unwrap();
     let _begin = core.start_begin(false, Wall::EPOCH);
     let mut charter = bounded_charter(&limits);
     charter.documents[0].path = bytes(DOCUMENT_PATH_BYTES.checked_add(1).unwrap());

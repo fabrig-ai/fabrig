@@ -12,19 +12,29 @@ which it keeps. What the core gets is its **description:**
 - **its condition,** where it has one: the state it was decided against
   that the system can check as it applies it (a rollback only from the
   version decided on, a merge at exactly a head);
-- **its form:** a **creation** (an environment, a pull request, a
-  comment), a **transition** (a rollback, a merge, a scale to a size), or
-  a **set** (a body, a label, a silence's end);
-- **its recovery class,** which its kind declares (1.3);
-- **whether it waits for dependencies,** which its kind declares: one
-  that does (a merge, a deploy, a release) is what a task kept by a
-  pending dependency must not make, and is refused while it is, naming
-  them (tasks/lifecycle-endings.md, 1); one that does not (a comment, a status, a draft)
-  is made as ever;
 - **its price,** if its kind is priced: its maximum, in the deployment's
   unit (authority-budgets.md, section 1);
 - **the state its requirements are judged at:** what the judges are
   asked about (`connectors.md`, section 7).
+
+What is its kind's is declared once, in its connector's `EffectKind`
+(`connectors.md`, 2), and no description carries it:
+
+- **its form:** a **creation** (an environment, a pull request, a
+  comment), a **transition** (a rollback, a merge, a scale to a size), or
+  a **set** (a body, a label, a silence's end);
+- **its recovery class** (1.3);
+- **whether it waits for dependencies:** one that does (a merge, a
+  deploy, a release) is what a task kept by a pending dependency must not
+  make, and is refused while it is, naming them
+  (tasks/lifecycle-endings.md, 1), whichever of the task's calls,
+  procedure steps or accepted proposals asks it; one that does not (a
+  comment, a status, a draft) is made as ever. A projection's effect is
+  never refused for it.
+
+The core judges a description by its kind: one whose kind its connector
+did not declare is refused before authority checks it, `Description`
+(`EffectRefusal`), as a description that cannot be judged.
 
 ### 1.2 The outbox
 

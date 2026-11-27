@@ -1,13 +1,13 @@
 # whose-red: status
 
-2026-11-25. Where the design lags or departs from [whose-red.md](whose-red.md).
+2026-11-27. Where the design lags or departs from [whose-red.md](whose-red.md), once its milestone's five goals have landed (`whose-red.execution.md`, 1).
 
-- **Design lags:**
-  - 3: no single judgement of a check's outcome. A change's CI, a landing gate, a known flake and a repair's verdict each have their own path (`../domain/forge/change/repairs.md`, 1; `../domain/landing-proof.md`, 2.4; `../domain/landing-regate.md`, 2), and pre-PR's outer exit and record read a broken check as a refusal (`tools/pre-pr/design.md`, 6). No project setting says whether a project's checks can flake.
-  - 4: a close command's exit 0 is settlement and any other its failure (`../protocol/tooling.md`, 4.2): a refusal is the job's own failure, tried three more times before the close holds.
-  - 5: a no-change landing repair holds `Failed`, and a flake or no-test verdict holds before its regate (`../domain/forge/change/repairs.md`, 1).
-  - 6: fourteen hold arms, each with its own release (`../domain/forge/change/repairs-releases.md`, 1), and no act for a fresh measurement of the same content.
-  - 7: no record of temper's own writes. Drift is judged against the expected head, with a pair of heads beside a branch hold (`../domain/forge/change/drift.md`, 1; `../domain/forge/branches.md`, 3).
-  - 8: no design for how the previous build's holds and branches read.
-- **Design departs:** none.
+- **Design lags:** none.
+- **Design departs:**
+  - 3.3: a CI runner's checkout is the project's own: temper prepares none, so the project's command writes the rerun marker its setting states where it finds none (`../domain/forge/judgement.md`, 4), rather than temper giving it to every checkout it dispatches. Decided by the second goal's design, 2026-11-26.
+  - 4.1: the engine checks a refusal against the head its job's checkout started at, not the tree it judged, which the engine never sees (`../domain/forge/change/repairs-releases.md`, 1, *A close job ends*). Decided by the first goal's design, 2026-11-25.
+  - 4.2: main's tip stands for its published counts: a released refusal checks again when the goal's branch or main moves, not when counts alone are published (`../domain/forge/change/repairs-releases.md`, 1, *A refusal where nothing it judged has moved*). Decided by the first goal's designer, 2026-11-24, and kept by its requester, 2026-11-25, over a forge read of the counts' ref.
+  - 6.3: a fresh measurement is taken by whoever may release the held task or decide its escalation (`../domain/forge/change/repairs-releases.md`, 4), not by the escalation's decider alone: a measurement is a release asking one check more, so jig's standing for a release holds for it. Decided by the fifth goal's design, 2026-11-27.
+  - 7.3: a worker's push that finds its branch's record full is refused at once, not kept waiting, and pushes nothing (`../domain/forge/writes.md`, 6); a write through the outbox waits as the draft says. Decided by the fourth goal's design, 2026-11-26.
+  - 8: a writer the previous build kept as live converts to an entry sent by its attempt, settled when that attempt answers or is lost, and a lost one to an uncertain entry (`../domain/forge/writes.md`, 7), rather than both to uncertain entries. Decided by the fourth goal's design, 2026-11-26.
 - **Open:** none.

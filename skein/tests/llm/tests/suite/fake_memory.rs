@@ -33,6 +33,7 @@ fn menu() -> Menu {
         invalid: (0..ITEMS)
             .map(|_| InvalidInput { name: Some(b"unknown".as_slice().into()), arguments: b"{".as_slice().into() })
             .collect(),
+        slots: Box::new([]),
     }
 }
 
@@ -231,7 +232,7 @@ fn tool_scripts() -> Box<[Script]> {
 }
 
 fn tool_menu() -> Menu {
-    Menu { arguments: Box::new([vec![b'a'; 256].into_boxed_slice()]), invalid: Box::new([]) }
+    Menu { arguments: Box::new([vec![b'a'; 256].into_boxed_slice()]), invalid: Box::new([]), slots: Box::new([]) }
 }
 
 // Bounds random/scripted full and truncated tool answers at seed 7.

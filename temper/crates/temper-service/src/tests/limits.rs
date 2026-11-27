@@ -331,12 +331,15 @@ fn the_stock_has_room_for_its_landing_members() {
 
 #[test]
 fn the_standard_brief_and_its_carriers_share_their_bounds() {
+    // The stock host room less titles, framing and margin (stock.md, 7).
+    const STANDARD_BRIEF_BYTES: u32 = 315_530;
     let own = limits::stock();
     let jig = jig_protocol_config_fixtures::small();
     let root = limits::engine(&jig, &own).expect("coherent brief carriers");
     assert!(temper_engine_domain::valid(&root));
     assert_eq!(own.root.brief.read_bytes, own.root.brief.budgets.task);
     assert_eq!(own.forge.brief_bytes, own.root.brief.read_bytes);
+    assert_eq!(own.root.brief.brief_bytes, STANDARD_BRIEF_BYTES);
     assert_eq!(own.root.journal.result_bytes, own.root.brief.brief_bytes);
     let mut short = own;
     short.forge.brief_bytes -= 1;
@@ -1013,7 +1016,7 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
     let owner = loads::begin(
         &mut domain,
         Token::new(1),
-        engine::Range::Core(engine::CoreRange::Notes(notes::Range::Entry { name: 1 })),
+        engine::Range::Core(engine::CoreRange::ApplicationNotes(notes::Range::Entry { name: 1 })),
         None,
         1,
         &mut out,

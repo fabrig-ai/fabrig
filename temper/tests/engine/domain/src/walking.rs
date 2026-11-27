@@ -9,6 +9,7 @@ use crate::store::Store;
 use crate::walking_referee::{FINAL_SPEND, QUESTION, REPORT, TURNS, WalkingReferee};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Hosting, Phase};
@@ -897,6 +898,7 @@ impl World {
         self.queue(event, 0);
     }
 
+    #[expect(clippy::too_many_lines, reason = "one collection pass routes the world’s finite peers")]
     fn observe(&mut self) {
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
@@ -937,9 +939,28 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
-                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                    let result = self.store.read(range);
-                    self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range:
+                        range @ (engine_store::Range::Read(_)
+                        | engine_store::Range::Record(_)
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
+                })) => {
+                    let result = self.store.load(range);
+                    self.queue(
+                        engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })),
+                        0,
+                    );
+                }
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Window { task, from },
+                })) => {
+                    let pages = self.store.window(load, task, from);
+                    for answer in pages {
+                        self.queue(engine::Event::Store(engine::StoreInput::Engine(answer)), self.settings.page_delay);
+                    }
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
@@ -948,7 +969,7 @@ impl World {
                         self.queue(engine::Event::Store(missing), self.settings.page_delay);
                     }
                     self.queue(
-                        engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
+                        engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }),
                         self.settings.page_delay,
                     );
                 }
@@ -1116,7 +1137,7 @@ impl World {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::PartLoad { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
@@ -1134,9 +1155,7 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }
-            | Delivery::NotesLoad { .. }
             | Delivery::Load { .. } => {
                 panic!("internal handoff leaked to world")
             }
