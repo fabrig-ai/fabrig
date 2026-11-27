@@ -432,14 +432,15 @@ so the store keeps which way each layout lies.
 A change no plan derives (a field computed from others, a type
 changed in meaning), or one whose plan refuses a value the store holds
 (a variant dropped that a value holds, a bound narrowed that a value
-passes, 5.6), is its owner's **written job**
-(`jobs.md`, 4): a job that names the value type and the layout it
-converts from, or each of its layouts no plan reaches, walks that value
-type's keys, and is handed each value at such a layout as it is stored,
-with that layout's texts, to put it again at the binary's. Its owner's function reads the old value by skein's
-generic values (skein's `data/codec/run-time.md`, section 2) and builds
-the new by its generated code. The check takes its layouts as converted
-(5.3), and the next writing open retires them.
+passes, 5.6), is its owner's **written converter** (skein's
+`data/codec/layouts.md`, 4), the same function its engine calls for a
+sent value of that type (`../channel/layouts.md`, 6), run over the
+store by a **written job** (`jobs.md`, 4): a job that names the value
+type and the layout it converts from, or each of its layouts no plan
+converts whole, walks that value type's keys, and is handed each value
+at such a layout as it is stored, with that layout's texts, to put it
+again at the binary's by the converter. The check takes its layouts as
+converted (5.3), and the next writing open retires them.
 
 A written job also takes a layout that a plan reaches when the values
 at that layout are not all the root it names. The read edge leaves

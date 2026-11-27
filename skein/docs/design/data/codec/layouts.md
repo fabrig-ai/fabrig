@@ -13,9 +13,12 @@ open, and runs it on each value read at that layout, its transcripts'
 frames among them. An engine whose worker speaks another layout of a
 wire builds a plan for each value type the wire carries, each way, at
 the connection's opening, and runs one on each message (jig's
-`protocol/channel/layouts.md`). What no plan derives is its owner's: a
-store's written job (jig's `protocol/store/jobs.md`, 4), or a wire's
-written converter (jig's `protocol/channel/layouts.md`, 6).
+`protocol/channel/layouts.md`). What no plan derives is its owner's
+**written converter** (4): one function for a value type, from one
+layout to another given both texts, which a store's written job calls
+for each value it walks (jig's `protocol/store/jobs.md`, 4) and an
+engine calls where that value type's plan would run for a worker's
+messages (jig's `protocol/channel/layouts.md`, 6).
 
 - **A value type's layout** (`fingerprints.md`, 1.4): a root declaration, at
   one variant where the root is broad and its keys tell its variants
@@ -161,8 +164,10 @@ holder that keeps plans for reuse keys them by the two texts.
   come back present.
 - **Not derived,** and so not planned (`Underived`, naming the part by
   the target text's names, or the source's for what it drops): the last
-  row above. These are written changes: a store converts them by its
-  owner's written job (jig's `protocol/store/jobs.md`, 4), never at read.
+  row above. These are written changes, converted by their owner's
+  written converter (4): a store's at open, by a written job (jig's
+  `protocol/store/jobs.md`, 4), never at read; a wire's where the plan
+  would run (jig's `protocol/channel/layouts.md`, 6).
 - **The store's derivation** (`derive`, 4) is the Read mode's, with
   every part a value could be refused at refused as the plan's instead:
   a variant of the reach the target drops is `VariantDropped`, a
@@ -282,7 +287,40 @@ impl Workspace {
     pub fn fit(&mut self, plan: &Plan) -> bool;        // grows to the plan's need, never shrinks; false: its bound overflows
     pub fn fits(&self, plan: &Plan) -> bool;
 }
+
+pub struct Side<'a> { pub text: &'a Schema, pub root: Root, pub held: &'a [&'a Schema] } // one layout of a value type, as a plan is derived from it (1)
+pub struct Refusal { pub declaration: Box<str>, pub part: Box<str>, pub why: Box<str> } // a written converter's refusal of one value, by the source text's names
+
+// an owner's written converters: one function in a crate that owns families, matching the
+// value type by `to`'s family and root:
+pub fn convert(mode: Mode, from: &Side<'_>, to: &Side<'_>, value: &[u8], out: &mut Buffer)
+    -> Result<(), Refusal>;
 ```
+
+- **A written converter** is what its owner writes for a change no plan
+  derives (2's "not derived": a retype, a reshape, a field computed from
+  others, a type changed in meaning): for one value type, from the
+  `from` layout to the `to` layout, given both texts, in the mode its
+  caller names. It is a pass as `convert` is: `value` is the source's
+  bytes, headed as its text writes them (a versioned root's family
+  version first; a whole enumeration's tag, then its payload), and it
+  writes the target's the same way into `out`, cleared first and within
+  its capacity, or refuses that value. It may be called either way
+  between two layouts, and one way may refuse every value. It reads the
+  source as it needs, by a plan of its own or a generic value
+  (`run-time.md`, section 2), and calls no other owner.
+- **Its owner's one function** dispatches on the value type, `to`'s
+  family name and root declaration, by an exhaustive `match`: step code
+  calls no function an owner hands in, so each caller names its owners'
+  functions by crate. A pair of layouts it takes no change between is
+  its `Refusal`, `why` saying so.
+- **Who calls it:** a store's written job, for each value of its
+  layouts, toward the binary's layout (jig's `protocol/store/jobs.md`,
+  4), and an engine's workers, where the value type's plan would run
+  (jig's `protocol/channel/layouts.md`, 6). Each caller declares which
+  layouts a converter takes, so that it knows before it calls: the
+  store by its written jobs' `from`, an engine by its wires' written
+  entries.
 
 - A refusal's part is a field's name for `Field`, `Narrowed` and
   `Absent`, the field holding the level refused, and a variant's for
@@ -344,7 +382,9 @@ builds its deployed directories keep to the binary's.
 
 ## 7. Open questions
 
-- **Written changes at read:** a written change converts by its owner's
-  job at open (jig's `protocol/store/jobs.md`, 4), since step code calls
-  no function an owner hands in; a later design may run a written site
-  at read where its owner reads the value itself.
+- **Written changes at read:** a store's value converts by its owner's
+  written converter at open, through a written job (jig's
+  `protocol/store/jobs.md`, 4), since step code calls no function an
+  owner hands in and a store's read edge has no owner to ask; a later
+  design may run a converter at read where its owner reads the value
+  itself.

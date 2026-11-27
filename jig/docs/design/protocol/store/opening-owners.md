@@ -178,7 +178,7 @@ impl OwnerSets {
   derives is a written job's, at open (`jobs.md`, 4).
 
 - **A job's other stored inputs:** while a job's page is outstanding
-  (`jobs.md`, 3), `Store::patch_page` reads a bounded page of public
+  (`jobs.md`, 3), `Store::job_read` reads a bounded page of public
   application rows from the copy's map, with relative keys and an
   exclusive cursor, for the shell answering the page. No secrets are
   read, no serving codec is selected by the component, and no input is

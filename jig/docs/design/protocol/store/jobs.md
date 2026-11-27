@@ -20,8 +20,9 @@ designs what runs them.
   for the rows it consumed; the store commits them and goes on after
   them. Its end is a commit of the owner's last writes and the job's row.
 - **Written jobs** (4) convert a registered value type's values from
-  layouts no plan reaches (`layouts.md`, 6), one named by its
-  fingerprint or each the registry holds.
+  layouts no plan converts whole (`layouts.md`, 6), one named by its
+  fingerprint or each the registry holds, by calling their owner's
+  written converter for each value (skein's `data/codec/layouts.md`, 4).
 
 ## 1. A job
 
@@ -95,8 +96,8 @@ pub enum Layouts {
     for the rows left held.
   - *Once:* a store runs it once (2). Over its own writes it types
     nothing more, since a task's rejection is not walked again and a
-    person's still names no live ancestor, so patching a store twice
-    changes nothing. An ended task's record keeps a rejection it held
+    person's still names no live ancestor, so running it over a store
+    twice changes nothing. An ended task's record keeps a rejection it held
     at the default, a person's: no start links an ended task's
     escalation and no read shows it, and the ancestor that decided it
     may have ended since.
@@ -154,7 +155,7 @@ pub enum Layouts {
   dispatch for its), and answers `Request::Job`. Frame reads have
   their own written sites and routing (`opening-owners.md`, 1). While a page
   is out, the owner may read other ranges of the map through
-  `Store::patch_page`, its ranges named as the running job's keys
+  `Store::job_read`, its ranges named as the running job's keys
   are: relative to the application's tag for the application's job,
   whole for jig's, whose job reads the tasks child's rows.
 - **The answer:** the writes, puts and erases of whole keys (the
@@ -199,13 +200,13 @@ pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<
 pub struct JobRoom { pub writes: u32, pub bytes: u64 } // what the answer's writes may hold together
 impl JobWrite { pub fn bytes(&self) -> u64; } // a write's bytes as the store counts them against `room.bytes`
 pub struct JobRow { pub key: Box<[u8]>, pub value: Box<[u8]> }
-pub struct JobLayout { pub root: Box<str>, pub variant: Option<Box<str>>, pub text: Box<[u8]>, pub held: Box<[Box<[u8]>]> }
+pub struct JobLayout { pub root: Box<str>, pub variant: Option<Box<str>>, pub text: Box<[u8]>, pub held: Box<[Box<[u8]>]>, pub mode: skein_codec::layout::Mode } // `mode`: Read for an older layout, Keep for a later one (`layouts.md`, 5.6)
 pub struct JobAnswer { pub writes: Box<[JobWrite]>, pub through: Option<Box<[u8]>>, pub counts: Box<[u64]> } // `counts`: one per the job's names
 pub enum JobWrite { Put { key: Box<[u8]>, value: Box<[u8]> }, Erase { key: Box<[u8]> } }
 pub struct JobRefusal { pub key: Option<Box<[u8]>>, pub why: Box<str> }
 // each owner's dispatch, jig's in jig_protocol_store::jobs, the application's in its store crate:
 pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal>;
-// jig's, given the store whose page is out, to read through `Store::patch_page`:
+// jig's, given the store whose page is out, to read through `Store::job_read`:
 pub fn page(job: &str, page: &JobPage, store: &mut Store) -> Result<JobAnswer, JobRefusal>;
 ```
 
@@ -252,21 +253,26 @@ What follows holds for both:
   where the job has no layout. Values at other layouts are not handed
   to it, and a written job's page holding rows without their layout is
   the owner's refusal (`JobRefusal`).
-- **Its owner's function** reads each old value as a generic value of
-  that text (skein's `data/codec/run-time.md`, section 2; the head is the
-  layout id, which the function passes over), after converting it by a
-  plan of its own where it needs one (skein's `data/codec/layouts.md`;
-  temper's does so, `temper/docs/design/protocol/store-versions.md`, 1), and writes the new one by
-  its generated code, a put at the same key, whose head the write edge
-  maps.
+- **Its owner's function** hands each value of its page to the value
+  type's written converter (skein's `data/codec/layouts.md`, 4), the
+  one its engine calls for a sent value of that type
+  (`../channel/layouts.md`, 6): from the page's layout, its texts as
+  `JobLayout` gives them, to the binary's layout of the value type, its
+  owner set's texts, in `JobLayout`'s mode, the value headed by its
+  family's version in place of the layout id (`layouts.md`, 4). It puts
+  what the converter writes at the same key, whose head the write edge
+  maps, and a value the converter refuses is its refusal (`JobRefusal`),
+  naming the key and the converter's why. What a job counts beside is
+  its own (3); temper's `test-ids-*` count the ids they shorten
+  (temper's `protocol/store-versions.md`, 1).
 - **The open's check** takes its layouts as converted (`layouts.md`,
   5.3): `One`'s pending or done, `Unplanned`'s while the job is pending.
   Once done, no value holds them, and the next open that writes retires
   them (`layouts.md`, 5.4). A done `Unplanned` job takes no layout, so a
   layout a later change leaves unplanned is refused as any other, unless
   a job of its own converts it.
-- **Its cost** is a walk of its value type's ranges per layout, a put
-  per value at its layouts: a written change is the one upgrade that
+- **Its cost** is a walk of its value type's ranges per layout, a
+  converter's call and a put per value at its layouts: a written change is the one upgrade that
   costs per record, and its owner weighs it so.
 
 ## 5. Settling jobs
@@ -288,7 +294,12 @@ settling.
   an answer that consumes nothing each refuse the start with the active
   generation unchanged, and the next start runs the job from its first
   page; a written job is handed only its layout's values, with its
-  texts, and its layout passes the check; an `Unplanned` job over a
+  texts and mode, and its layout passes the check; a written job over
+  the fixture family whose texts retype a field, its owner's function
+  calling `jig-test-layouts`' written converter for each value (the one
+  `../channel/layouts.md`, 8 calls for a sent value), opens and reads
+  each value back at the binary's layout, and one the converter refuses
+  refuses the start `Job`, naming its key; an `Unplanned` job over a
   store holding its value type at two underived layouts, beside values
   at the binary's, is handed each layout's values in a walk of its own,
   each page with that layout's texts, both layouts passing the check
