@@ -135,7 +135,7 @@ pub static FORMS: [Form; 101] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"Reasoned override." },
 ];
-pub static FIELDS: [Field; 373] = [
+pub static FIELDS: [Field; 374] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -143,6 +143,14 @@ pub static FIELDS: [Field; 373] = [
         list: Some(Bound::Most(1024)),
         null: false,
         line: b"One item per changed setting, each setting once.",
+    },
+    Field {
+        shape: Shape::File,
+        name: b"format",
+        value: Value::Integer(Width::U64),
+        list: None,
+        null: false,
+        line: b"Optional; whole number from 1, default 1.",
     },
     Field {
         shape: Shape::Item,

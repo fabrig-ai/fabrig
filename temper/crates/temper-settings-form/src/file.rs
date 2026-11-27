@@ -1,5 +1,10 @@
 //! Bounded whole settings input (client/ctl/results.md, 4; jig's client/domain/contract/requests.md, 2).
-use crate::Limits;
+mod formats;
+
+use crate::{
+    Limits,
+    fields::formats::{FORMATS, Formats},
+};
 use jig_client_protocol_wire::Record as _;
 #[path = "settings_file_values.rs"]
 pub(crate) mod values;
@@ -8,6 +13,7 @@ use alloc::boxed::Box;
 use skein_json::{Document, Kind};
 use skein_lib::{List, Writer};
 pub(super) type Fields = List<(Box<[u8]>, u32)>;
+type Notices = List<Box<[u8]>>;
 
 /// A readable repository a host call's charter document may name by OWNER/NAME
 /// (temper/docs/design/domain/agent/ask-temper.md, 2).
@@ -419,7 +425,89 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
 }
 /// Decode the items in a settings file using the same bounds as ctl.
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
-    decode_root(bytes, limits, false, None)
+    Ok(read(bytes, limits)?.items)
+}
+
+/// A person's file, moved to the newest form, with the input's format and notices.
+#[derive(Debug)]
+pub struct Read {
+    pub format: u64,
+    pub notices: Notices,
+    pub items: List<c::SettingItem>,
+}
+
+pub fn read(bytes: &[u8], limits: &Limits) -> Result<Read, Box<[u8]>> {
+    read_with(bytes, limits, FORMATS)
+}
+
+pub(crate) fn read_with(bytes: &[u8], limits: &Limits, formats: Formats) -> Result<Read, Box<[u8]>> {
+    let mut d = decoder(bytes, limits, None)?;
+    let format = formats::read(&d, formats)?;
+    let (doc, notices) = formats::migrate(d.doc, limits, format, formats)?;
+    d.doc = doc;
+    let items = decode_root(&d, limits, false)?;
+    Ok(Read { format, notices, items })
+}
+
+/// Render a file using the settings document's value spellings, without assembling overlays.
+pub fn render(items: &[c::SettingItem], limits: &Limits) -> Result<Box<[u8]>, Box<[u8]>> {
+    render_with(items, limits, FORMATS)
+}
+
+pub(crate) fn render_with(items: &[c::SettingItem], limits: &Limits, formats: Formats) -> Result<Box<[u8]>, Box<[u8]>> {
+    use skein_json::writer::{Encoder, Limits as JsonLimits};
+    let most = u32::try_from(limits.result_bytes).unwrap_or(u32::MAX);
+    let bounds = JsonLimits { depth: 32, length: most };
+    let mut measure = Encoder::measure(&bounds);
+    encode(items, formats.newest, &mut measure);
+    let size = measure.measured().or(Err(message(None, bound(b"rendered file bytes", most))))?;
+    let mut out = Encoder::write(size, &bounds);
+    encode(items, formats.newest, &mut out);
+    let bytes = out.finish();
+    let mut line = crate::Text::measure();
+    line.put(&bytes);
+    line.put(b"\n");
+    let mut line = crate::Text::writing_exact(line);
+    line.put(&bytes);
+    line.put(b"\n");
+    Ok(line.finish())
+}
+
+fn encode(items: &[c::SettingItem], newest: u64, out: &mut skein_json::writer::Encoder) {
+    out.object_start();
+    out.key(b"items");
+    out.array_start();
+    for item in items {
+        out.object_start();
+        out.key(b"setting");
+        crate::render::encode_setting(item.setting, out);
+        match &item.edit {
+            c::SettingEdit::Set(set) => {
+                if let c::SettingValue::Overlay(overlay) = &set.value {
+                    out.key(b"overlay");
+                    crate::values::encode_file_overlay(overlay, out);
+                } else {
+                    out.key(b"set");
+                    crate::render::encode_named_value(item.setting, &set.value, out);
+                }
+            }
+            c::SettingEdit::Removed => {
+                out.key(b"edit");
+                out.string(b"removed");
+            }
+            c::SettingEdit::Reset => {
+                out.key(b"edit");
+                out.string(b"reset");
+            }
+        }
+        out.object_end();
+    }
+    out.array_end();
+    if newest > 1 {
+        out.key(b"format");
+        out.unsigned(newest);
+    }
+    out.object_end();
 }
 /// Decode a host read's setting through the settings file's kind decoder.
 pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8]>> {
@@ -454,22 +542,25 @@ pub fn proposal_items_in(
     limits: &Limits,
     repositories: Option<&[Repository<'_>]>,
 ) -> Result<List<c::SettingItem>, Box<[u8]>> {
-    decode_root(bytes, limits, true, repositories)
+    decode_root(&decoder(bytes, limits, repositories)?, limits, true)
 }
 
-fn decode_root(
+fn decoder<'a>(
     bytes: &[u8],
     limits: &Limits,
-    proposal: bool,
-    repositories: Option<&[Repository<'_>]>,
-) -> Result<List<c::SettingItem>, Box<[u8]>> {
+    repositories: Option<&'a [Repository<'a>]>,
+) -> Result<Decoder<'a>, Box<[u8]>> {
     if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
     }
     let doc = crate::json::document_depth(bytes, 32)
         .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
-    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds, repositories };
-    let fields = match d.object(0, if proposal { &[b"items", b"against", b"reason", b"more"] } else { &[b"items"] }) {
+    Ok(Decoder { doc, limits: limits.settings, kinds: limits.kinds, repositories })
+}
+
+fn decode_root(d: &Decoder<'_>, limits: &Limits, proposal: bool) -> Result<List<c::SettingItem>, Box<[u8]>> {
+    let allowed: &[&[u8]] = if proposal { &[b"items", b"against", b"reason", b"more"] } else { &[b"items", b"format"] };
+    let fields = match d.object(0, allowed) {
         Ok(fields) => fields,
         Err(why) => return Err(message(None, why)),
     };
@@ -487,7 +578,7 @@ fn decode_root(
     let mut encoded = 0_u32;
     for (index, at) in positions.iter().enumerate() {
         let index = u32::try_from(index).expect("bounded items").checked_add(1).expect("item count fits");
-        let next = match item(&d, *at) {
+        let next = match item(d, *at) {
             Ok(item) => item,
             Err(why) => return Err(message(Some(index), why)),
         };
@@ -677,3 +768,6 @@ mod tests {
 #[cfg(test)]
 #[path = "settings_file_tests.rs"]
 mod wake_tests;
+
+#[cfg(test)]
+pub(crate) mod format_tests;

@@ -9,6 +9,7 @@ Read/edit/set whole: `settings show KIND N`. Refusals=shape/count/reference/rule
 ## file
 `settings apply`/`settings propose` file.
 - items:[1024] item;One item per changed setting, each setting once.
+- format:u64;? whole number from 1, default 1.
 
 ## item
 A `setting`; exactly one `set`/`edit`/`overlay`.
@@ -699,3 +700,7 @@ Reasoned override.
 - name:t[64];! 1-64 bytes: a-z/0-9/_/.; ascending, unique.
 - value:u64;! limit's unit.
 - reason:t[120];! 1-120 UTF-8 bytes: why override stock.
+
+## Formats
+
+Format 1 is the newest temper ctl reads; a file without format is format 1.

@@ -1,3 +1,4 @@
+use super::formats::{FORMATS, Formats};
 use super::{Choice, FIELDS, FORMS, Field, Form, Shape, Value, Width, Word, most, overlay_replaces};
 use crate::{Limits, Text};
 use alloc::boxed::Box;
@@ -7,15 +8,17 @@ pub const INTRO: &[u8] = b"Read/edit/set whole: `settings show KIND N`. Refusals
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
-    page_of(&FORMS, &FIELDS, limits)
+    page_of(&FORMS, &FIELDS, limits, FORMATS)
 }
 
 #[must_use]
-pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
+pub(super) fn page_of(forms: &[Form], fields: &[Field], limits: &Limits, formats: Formats) -> Box<[u8]> {
     let mut measure = Text::measure();
     write(forms, fields, limits, &mut measure);
+    formats.write(&mut measure);
     let mut out = Text::writing_exact(measure);
     write(forms, fields, limits, &mut out);
+    formats.write(&mut out);
     let bytes = out.finish();
     for byte in &bytes {
         assert!(*byte == b'\n' || (b' '..=b'~').contains(byte), "page is printable ASCII and line ends");
