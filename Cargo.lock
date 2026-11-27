@@ -4033,6 +4033,7 @@ dependencies = [
  "skein-llm-kit",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
