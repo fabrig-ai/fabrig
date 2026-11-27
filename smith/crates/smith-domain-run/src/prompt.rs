@@ -286,7 +286,7 @@ pub(crate) fn non_brief_host_bytes(charter: &Charter, mounted: Option<&Workspace
     count_host_bytes(charter, mounted, guide_bytes, false)
 }
 
-const HOOK_LABEL_BYTES: usize = b"/deliver` at `deliver`, `/finish` at `finish".len();
+const HOOKS_LABEL: &[u8] = b"hooks `deliver` and `finish` in ";
 
 fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32, brief: bool) -> Option<u64> {
     let repositories = workspace::directories(mounted);
@@ -294,10 +294,7 @@ fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes:
     for (index, directory) in repositories.iter().enumerate() {
         if directory.writable {
             let kind = match conventions::hooks(charter) {
-                Some(hooks)
-                    if hooks.len().saturating_mul(2).saturating_add(HOOK_LABEL_BYTES)
-                        >= conventions::checks(charter).len() =>
-                {
+                Some(hooks) if hooks.len().saturating_add(HOOKS_LABEL.len()) >= conventions::checks(charter).len() => {
                     Kind::Hooks(Hooks { deliver: Hook::Executable, finish: Hook::Executable })
                 }
                 Some(_) | None => Kind::Legacy,
@@ -750,19 +747,17 @@ fn render_checks(text: &mut Text, kind: &Kind, check_path: &[u8], hooks_path: Op
         }
         Kind::Hooks(hooks) => {
             let directory = hooks_path.expect("hooks directory selected");
-            if hooks.deliver != Hook::Missing {
-                text.put(b"`");
-                text.put(directory);
-                text.put(b"/deliver` at `deliver`");
-            }
-            if hooks.finish != Hook::Missing {
-                if hooks.deliver != Hook::Missing {
-                    text.put(b", ");
-                }
-                text.put(b"`");
-                text.put(directory);
-                text.put(b"/finish` at `finish`");
-            }
+            let label = if hooks.deliver == Hook::Missing {
+                b"hook `finish` in ".as_slice()
+            } else if hooks.finish == Hook::Missing {
+                b"hook `deliver` in ".as_slice()
+            } else {
+                HOOKS_LABEL
+            };
+            text.put(label);
+            text.put(b"`");
+            text.put(directory);
+            text.put(b"`");
         }
     }
     text.put(b")");

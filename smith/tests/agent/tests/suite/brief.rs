@@ -871,17 +871,22 @@ fn saved_prompt_messages(saved: &smith_domain::Transcript) -> Vec<skein_fake_llm
 
 #[test]
 fn the_workspace_prompt_names_only_the_checks_found_for_each_moment() {
-    use run::{Hook, Hooks};
+    use run::{Hook, HookProblem, Hooks};
 
     for (hooks, expected, fallback) in [
         (
             Some(Hooks { deliver: Hook::Executable, finish: Hook::Executable }),
-            b"with checks (`.temper/hooks/deliver` at `deliver`, `.temper/hooks/finish` at `finish`)".as_slice(),
+            b"with checks (hooks `deliver` and `finish` in `.temper/hooks`)".as_slice(),
             false,
         ),
         (
             Some(Hooks { deliver: Hook::Executable, finish: Hook::Missing }),
-            b"with checks (`.temper/hooks/deliver` at `deliver`)".as_slice(),
+            b"with checks (hook `deliver` in `.temper/hooks`)".as_slice(),
+            false,
+        ),
+        (
+            Some(Hooks { deliver: Hook::Missing, finish: Hook::Broken(HookProblem::NotExecutable) }),
+            b"with checks (hook `finish` in `.temper/hooks`)".as_slice(),
             false,
         ),
         (None, b"with checks (`.temper/pre-pr`)".as_slice(), true),
