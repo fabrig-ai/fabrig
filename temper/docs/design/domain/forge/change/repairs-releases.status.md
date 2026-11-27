@@ -1,6 +1,13 @@
 # repairs-releases: status
 
-2026-11-26. Where the tree's code lags or departs from [repairs-releases.md](repairs-releases.md).
+2026-11-27. Where the tree's code lags or departs from [repairs-releases.md](repairs-releases.md).
+
+- **Not yet:** 2: the hold as one record, its cause of a kind, its words and since stored and said again unchanged, held once, a refused close's `close_refused` [in flight: change 19919].
+- **Not yet:** 3: one release function for every cause and trigger, settling what is owed first and resetting its cause's allowance alone, the engine's releases through it [in flight: change 19922].
+- **Not yet:** 4: judgements held again with nothing changed, a red that stands going on at a moved head or once amended, and a fresh measurement taken once [in flight: change 19924].
+- **Not yet:** 5: the record's `since` and `words`, `close_refused`, and the previous build's arms read as causes [in flight: change 19919].
+- **Not yet:** 5: a red that stands's `judged` and `TaskRelease`'s `measure` [in flight: change 19924].
+- **Not yet:** 6: the release property in the change policy's fuzzy sweep [in flight: change 19925].
 
 
 

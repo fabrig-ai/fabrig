@@ -1,6 +1,9 @@
 # repairs: status
 
-2026-11-26. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-27. Where the tree's code lags or departs from [repairs.md](repairs.md).
+
+- **Not yet:** 1: a red that stands released as a judgement, held again with nothing changed, a fresh repair once amended and one check more by a measurement; its words naming an amendment and a measurement [in flight: change 19924].
+- **Not yet:** 1: a previous build's `Flake` and `NoTest` read as a red that stands with its one check owed [in flight: change 19919].
 
 A stall's gaps are `stalls.status.md`'s.
 
