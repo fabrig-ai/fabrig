@@ -52,6 +52,8 @@ pub(crate) struct Process {
     pub(super) history_messages: Option<u32>,
     pub(super) tool_payload: Option<u32>,
     pub(super) configure_settings: Option<fn(&mut Settings)>,
+    /// The first activation of the composed park cell mounts one long-running command.
+    pub(super) park_cell_job: bool,
     mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
     up: VecDeque<agent::Up>,
@@ -186,6 +188,7 @@ impl Process {
             history_messages: None,
             tool_payload: None,
             configure_settings: None,
+            park_cell_job: false,
             mounts: Vec::new(),
             agent: None,
             up: VecDeque::new(),
@@ -467,7 +470,7 @@ impl Process {
         }
         self.plan_stretches(assignment.task, restored, around);
         let mut mounted = Disk::new();
-        let workspace = mount(&start.directories, around.disk, &mut mounted);
+        let workspace = mount(&start.directories, around.disk, &mut mounted, self.park_cell_job);
         self.mounts = mount_paths(&start.directories);
         let charter = start.charter.into_value();
         if matches!(assignment.run.contract, jig_domain_tasks::Contract::Verdict { .. }) {
@@ -785,7 +788,23 @@ fn durable(store: &Store, name: &run::CallName, body: &[u8]) -> bool {
 
 /// Mount each prepared directory into smith's disk, under its name, at the
 /// absolute path the process would see it.
-fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) -> Option<run::Workspace> {
+fn mount(
+    directories: &[agent::Directory],
+    disk: &Checkout,
+    mounted: &mut Disk,
+    park_cell_job: bool,
+) -> Option<run::Workspace> {
+    if park_cell_job {
+        mounted.program(
+            b"park-cell-job",
+            skein_fake_checkout::Program {
+                duration: std::time::Duration::from_secs(60),
+                output: Vec::new(),
+                exit: skein_fake_checkout::Exit::Code(0),
+                changes: Vec::new(),
+            },
+        );
+    }
     if directories.is_empty() {
         return None;
     }

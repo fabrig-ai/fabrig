@@ -8496,6 +8496,7 @@ name = "temper-system-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
