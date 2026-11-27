@@ -152,7 +152,7 @@ impl FaultDraw {
             .copied()
             .filter(|kind| match *kind {
                 bounds::FORGE_READ_ADMISSIONS => true,
-                bounds::BRANCH_HOLDS => catalogue_rng(streams, *kind).below(2) != 0,
+                bounds::BRANCH_HOLDS | bounds::LANDING_ROWS => catalogue_rng(streams, *kind).below(2) != 0,
                 _ => false,
             })
             .collect();

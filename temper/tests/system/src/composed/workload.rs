@@ -65,7 +65,7 @@ impl World {
         }
         let planned_bounds = draw.as_ref().map_or(&[][..], faults::FaultDraw::bounds);
         let world = Self::configured_values(scheduling, scripts::idle(), true, config, |limits| {
-            setup::limits(limits, planned_bounds);
+            setup::limits(limits, planned_bounds, &workload);
         });
         let mut world = Self::with_two_accounts(world);
         world.account_case.take().expect("two people");
@@ -413,11 +413,14 @@ impl World {
     }
 
     fn workload_finished(&self) -> bool {
+        self.workload_goals_ended() && self.workload_tier_green()
+    }
+
+    fn workload_goals_ended(&self) -> bool {
         self.workload()
             .goals
             .iter()
             .all(|goal| self.workload_names().task(&goal.name).is_some_and(|task| self.workload_task_ended(task)))
-            && self.workload_tier_green()
     }
 
     fn workload_task_ended(&self, task: u64) -> bool {

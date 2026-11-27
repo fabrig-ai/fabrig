@@ -1,7 +1,10 @@
 //! Mixed finite faults over the composed draw (temper/docs/design/testing/workloads.md, 8.2).
 use super::World;
 use skein_lib::Time;
-use skein_world::faults::{Counter, FaultLedger, Injection, Kind, Struck};
+use skein_world::{
+    faults::{Counter, FaultLedger, Injection, Kind, Struck},
+    inspect::{Inspection, Release},
+};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use temper_engine_domain_world::acts::Watch;
 use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
@@ -69,6 +72,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // runs that park, resume and move
     // the engine's own bounds
     bounds::BRANCH_HOLDS,
+    bounds::LANDING_ROWS,
     // restarts
     restarts::ENGINE_RESTART_MID_TURN,
 ];
@@ -301,13 +305,26 @@ impl World {
     }
 
     pub(in crate::composed) fn workload_bounds(&mut self) {
-        let Some(f) = &mut self.workload_faults else { return };
+        let Some(f) = &self.workload_faults else { return };
         if f.bounds.is_empty() {
             return;
         }
-        let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
         temper_engine_inspect::inspect(&self.root, &mut inspection);
+        let landing_rows = bounds::LANDING_ROWS;
+        let settled = f.bounds.contains(&landing_rows)
+            && self.workload_goals_ended()
+            && inspection.tables().iter().any(|table| {
+                table.name == landing_rows.name && table.entries.iter().all(|entry| entry.release == Release::Kept)
+            });
+        let f = self.workload_faults.as_mut().expect("faulted workload");
         f.ledger.saturation(&f.bounds, &[&inspection], self.env.now).expect("quiet-point bounds");
+        if settled {
+            // Terminal rows keep their places until another admission. Retire
+            // only this observation once those places can all be reclaimed.
+            f.ledger.saturation(&[landing_rows], &[], self.env.now).expect("landing rows settled at a quiet point");
+            f.bounds.retain(|&kind| kind != landing_rows);
+        }
         if let Some(at) = f.ledger.entries().iter().filter_map(|entry| entry.until).max() {
             f.stopped(at);
         }

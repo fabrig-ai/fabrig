@@ -174,6 +174,39 @@ fn branch_holds_draws_its_own_coin_without_a_goal() {
 }
 
 #[test]
+fn landing_rows_draws_its_own_coin_without_a_goal() {
+    use bounds::LANDING_ROWS;
+    assert!(!GATE_KINDS.contains(&LANDING_ROWS));
+    assert!(CAMPAIGN_KINDS.contains(&LANDING_ROWS));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != LANDING_ROWS).collect();
+    let (mut planned, mut skipped) = (false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let draw = FaultDraw::new(seed, &kinds);
+        let unchanged = FaultDraw::new(seed, &without);
+        let coin = Streams::new(seed).rng(Stream::Faults, "the engine's own bounds/landing rows").below(2);
+        let observed: Vec<_> = draw.planned().into_iter().filter(|&(kind, _)| kind == LANDING_ROWS).collect();
+        if coin == 0 {
+            assert!(observed.is_empty(), "seed {seed}: the coin skips landing rows");
+            skipped = true;
+        } else {
+            assert_eq!(observed, [(LANDING_ROWS, "")], "seed {seed}: the coin plans landing rows without a goal");
+            planned = true;
+        }
+        assert_eq!(draw.bounds().contains(&LANDING_ROWS), coin != 0, "seed {seed}: observed bound");
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != LANDING_ROWS).collect::<Vec<_>>(),
+            unchanged.planned(),
+            "seed {seed}: other kinds"
+        );
+        assert_eq!(draw.plans, unchanged.plans, "seed {seed}: injection plans");
+        assert_eq!(draw.acts(), unchanged.acts(), "seed {seed}: acts");
+        assert_eq!(draw.ineligible(), unchanged.ineligible(), "seed {seed}: ineligible kinds");
+    }
+    assert!(planned && skipped);
+}
+
+#[test]
 fn fetch_cut_draws_its_own_coin_goal_and_moment() {
     assert!(CAMPAIGN_KINDS.contains(&FETCH_CUT));
     let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
