@@ -91,6 +91,30 @@ fn step_keeps_the_existing_output_at_the_front() {
     assert_eq!(project, PROJECT);
 }
 
+#[test]
+fn append_converts_a_load_at_its_place_in_the_batch() {
+    use engine::{Peer, store};
+
+    let mut requests = Queue::uncapped();
+    requests.push(Request::ProjectMade { project: 1 });
+    requests.push(Request::Held(Box::new(crate::Held::Store(store::Out::Load {
+        load: Token::new(17),
+        range: store::Range::Window { task: 2, from: (3, 4) },
+    }))));
+    requests.push(Request::Held(Box::new(crate::Held::Drained)));
+
+    let mut out = Queue::uncapped();
+    out.push(Out::Core(Request::ProjectMade { project: 9 }));
+    engine::append(requests, &mut out);
+    let Some(Out::Core(Request::ProjectMade { project: 9 })) = out.pop() else { panic!("existing output first") };
+    let Some(Out::Core(Request::ProjectMade { project: 1 })) = out.pop() else { panic!("plain request next") };
+    let Some(Out::Held(Peer::Store(load))) = out.pop() else { panic!("load crosses the store port at its place") };
+    assert_eq!(load, store::Out::Load { load: Token::new(17), range: store::Range::Window { task: 2, from: (3, 4) } });
+    let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("the next request stays held") };
+    let crate::Held::Drained = *held else { panic!("the next held request is unchanged") };
+    assert!(out.is_empty());
+}
+
 fn arm_timer(core: &mut Core, env: &Env<Limits>) {
     // Put the initial retention pass in flight, so its deadline cannot hide the task alarm.
     drop(crate::fire(core, env, Timer::Retention));

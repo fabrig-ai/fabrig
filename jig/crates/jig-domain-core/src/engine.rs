@@ -77,8 +77,9 @@ pub fn idle(engine: &Engine) -> bool {
     engine.core.quiescent(true)
 }
 
+/// Append requests from a direct core entrance, keeping each held load at its place.
 #[expect(clippy::wildcard_enum_match_arm, reason = "only the store port leaves the core request vocabulary")]
-fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
+pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..requests.len() {
         let request = requests.pop().expect("core request count");
         let output = match request {

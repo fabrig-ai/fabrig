@@ -67,7 +67,9 @@ pub(crate) fn document(
         };
         match request {
             core::Request::Held(held) => match *held {
-                core::Held::Store(load) => crate::hold(decision, Delivery::Store(load)),
+                core::Held::Store(_) => {
+                    unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+                }
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
                     assert!(owner == number && named == subject, "construction keeps its owner");
                     let document = value.take().expect("ready construction owns its whole document");
