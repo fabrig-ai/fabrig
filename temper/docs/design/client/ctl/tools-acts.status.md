@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [tools-acts.md](tools-acts.md).
 
-- **Not yet:** 1: `task measure TASK --hold REV` [in flight: change 19923].
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].

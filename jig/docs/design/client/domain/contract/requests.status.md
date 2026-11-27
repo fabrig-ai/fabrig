@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [requests.md](requests.md).
 
-- **Not yet:** 2: `Measure` [in flight: change 19918].
 
 
 - **Not yet:** 2: `RemoveProject` of a project with a live task is admitted, not refused *live tasks* [in flight: change 628].

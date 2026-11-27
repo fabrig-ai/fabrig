@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [executors-tools.md](executors-tools.md).
 
-- **Not yet:** 1: `measure` [in flight: change 19918].
 
 
 - **Not yet:** 1: the tools `move`, `succeed`,

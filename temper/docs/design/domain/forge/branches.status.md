@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 2: `Change.ended_held` the hold's cause, an `Option<Cause>` [in flight: change 19919].
 
 
 
