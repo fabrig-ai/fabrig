@@ -143,6 +143,54 @@ fn catalogue_kind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn unavailable_draws_its_own_coin_target_and_moment() {
+    use forge_faults::UNAVAILABLE;
+
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    assert!(CAMPAIGN_KINDS.contains(&UNAVAILABLE));
+    assert!(!GATE_KINDS.contains(&UNAVAILABLE));
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != UNAVAILABLE).collect();
+    let mut targets = BTreeSet::new();
+    let mut skipped = false;
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != UNAVAILABLE).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|(kind, _)| *kind != UNAVAILABLE).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}"
+        );
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}");
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}");
+
+        let mut rng = streams.rng(Stream::Faults, "busy/unavailable");
+        let expected = (rng.below(2) != 0).then(|| {
+            let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
+                .expect("goal index");
+            targets.insert(index);
+            (workload.goals[index].name.as_str(), rng.below(16))
+        });
+        skipped |= expected.is_none();
+        let plans: Vec<_> = draw
+            .plans
+            .iter()
+            .filter(|plan| plan.kind == UNAVAILABLE)
+            .map(|plan| (plan.goal.as_str(), plan.after))
+            .collect();
+        assert_eq!(plans, expected.as_slice(), "seed {seed}: unavailable coin, target and moment");
+    }
+    assert!(skipped);
+    assert_eq!(targets.len(), usize::from(COMPOSED.goals.most));
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);

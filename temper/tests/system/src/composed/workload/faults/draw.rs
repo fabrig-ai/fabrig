@@ -16,7 +16,7 @@ type Eligible = fn(&Goal) -> bool;
 
 // The injected catalogue kinds and their eligible targets. Observed kinds
 // take no coin (temper/docs/design/testing/composed-catalogue.md, 1).
-const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[];
+const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[(forge_faults::UNAVAILABLE, |_| true)];
 
 /// The composed world's plans and acts for one seed and its configured kinds.
 pub struct FaultDraw {

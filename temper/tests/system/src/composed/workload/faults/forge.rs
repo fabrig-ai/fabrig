@@ -8,6 +8,7 @@ use skein_world::faults::{Kind, Struck};
 use temper_blame::{Observed, Reaction};
 
 const REMOTE: &[u8] = b"org/repo";
+const UNAVAILABLE_SPAN: Duration = Duration::from_secs(2);
 
 fn hex(commit: u64) -> String {
     String::from_utf8(
@@ -81,6 +82,16 @@ impl World {
         {
             f.fire(kinds::TIMED_OUT);
             config.timeouts = 1000;
+        } else if let api::Op::Read(api::Read::Pull { number, .. }) = op
+            && (f.unavailable_until.is_some_and(|until| self.env.now < until) || f.due(kinds::UNAVAILABLE))
+            && self.pull_goal(*number) == f.target(kinds::UNAVAILABLE)
+        {
+            // A call takes one busy reply; give the timeout above its own call.
+            if f.unavailable_until.is_none() {
+                f.fire(kinds::UNAVAILABLE);
+                f.unavailable_until = Some(self.env.now.saturating_add(UNAVAILABLE_SPAN));
+            }
+            config.unavailable = 1000;
         }
         if f.due(temper_blame::LOST)
             && let api::Op::Write(api::Write::Dispatch { branch, .. }) = op
@@ -219,7 +230,9 @@ impl World {
                     ..Struck::default()
                 },
             );
-            let until = fell.until.unwrap_or(fell.at);
+            let until = fell.until.unwrap_or_else(|| {
+                if kind == kinds::UNAVAILABLE { f.unavailable_until.unwrap_or(fell.at) } else { fell.at }
+            });
             f.ledger.stop(entry, until).expect("fake forge interval");
             f.stopped(until);
         }

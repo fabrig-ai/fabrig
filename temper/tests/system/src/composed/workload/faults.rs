@@ -45,6 +45,7 @@ pub const GATE_KINDS: &[Kind] = &[
 /// Additional kinds configured in a campaign or replay, in family order.
 pub const CAMPAIGN_KINDS: &[Kind] = &[
     // busy
+    forge_faults::UNAVAILABLE,
     // lagging
     // bounds
     // refusing
@@ -75,6 +76,7 @@ pub(in crate::composed) struct Faults {
     steps: BTreeMap<String, u64>,
     ledger: FaultLedger,
     last: Time,
+    unavailable_until: Option<Time>,
     lag_until: Option<Time>,
     log_restore: Option<(u64, u32, Box<[u8]>, Injection)>,
     closed: Option<(u64, Injection, Time)>,
@@ -128,6 +130,7 @@ impl Faults {
             steps: BTreeMap::new(),
             ledger,
             last: Time::ZERO,
+            unavailable_until: None,
             lag_until: None,
             log_restore: None,
             closed: None,
