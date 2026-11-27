@@ -51,7 +51,7 @@ Draft, 2026-11-27, from a session with the user on 2026-11-27. It takes the hook
 - **`deliver` and `finish`: smith finds them** in each writable directory when the run starts, as it finds the check today (smith's `domain/run-start.md`, 1.1, and `domain/run-delivery.md`, 1.1). temper's conventions name a check for each moment, `.temper/hooks/deliver` and `.temper/hooks/finish`, where today they name one for both, and, while section 4 holds, `.temper/pre-pr` beside them, taken for both only in a directory with no `.temper/hooks/`. The brief names the checks smith found, and which tool runs each.
 - **`merge` and `close`: the job's checkout decides** (the user, 2026-11-27): temper makes the job wherever a hook could run, a merge job for a conflict and a close change once a goal's changes have ended, and the job looks in its own checkout. A hook there runs. None there is none: the merge job answers so, and the conflict goes to a resolution at once, spending no try; the close change ends with no change. No forge read decides it, and a job that finds no hook costs its checkout and ends at once.
 - **A job that fails is no answer:** it is tried again within its tries, as a job is (`../protocol/tooling.md`, 4.1 and 4.2), and never taken as no hook, which would skip a close's check.
-- **A hook uses only what its checkout holds** (the user, 2026-11-27): the files of the version it runs from, and what the job's directory gives it. One that needs anything else is a bug, of the hook or of what it does, and is fixed there.
+- **A hook uses only what its checkout holds** (the user, 2026-11-27): the files of the version it runs from, and what the job's directory gives it. One that needs anything else is a bug, of the hook or of what it does, and is fixed there. It is a hook's contract, not a sandbox: a hook runs under tooling's environment and the worker's containment, as today (`../protocol/tooling.md`, sections 1 and 2), and temper promises no filesystem confinement beyond them.
 - **What must be cheap** (the user, 2026-11-27): `merge`, which runs in a landing's way, and `deliver` and `finish`, which every delivery waits on. `close` may check at length, within its timeout (3.4).
 
 ### 3.4 How long each may run
@@ -60,6 +60,7 @@ Draft, 2026-11-27, from a session with the user on 2026-11-27. It takes the hook
 
   ```toml
   # .temper/hooks/config.toml: how long each hook may run
+  format = 1
   [close]
   timeout_seconds = 1800
   ```
@@ -68,7 +69,8 @@ Draft, 2026-11-27, from a session with the user on 2026-11-27. It takes the hook
 - **Unset, today's bound holds:** for `deliver` and `finish`, the check's bound, the project's `check_timeout_ms` or the agent's own, with its one retry at twice the bound (`../domain/agent/charter.md`, section 4); for `merge` and `close`, their kinds' deadlines (`../protocol/tooling.md`, sections 2, 4.1 and 4.2), ten minutes for `close`.
 - **Never past the project's ceiling:** `hook_timeout_max_seconds`, a project landing setting beside `check_timeout_ms` (`../domain/landing-settings.md`, 1.1), 3,600 unless an owner sets it. A value above it runs at the ceiling, and the hook's run says so. The file is the work's own, as a hook is (3.2), so the ceiling, which spends a worker's time, stays in settings, where landing can't reach it.
 - **Read where the hook runs,** from the same version (3.2): temper's worker reads the file in the checkout it prepared, when a run starts for `deliver` and `finish`, and before the job's command for `merge` and `close`, and bounds each value by the ceiling the engine sends. The job's deadline follows the ceiling, so that the hook's own timeout, not the job's, ends a hook that runs long.
-- **A file that doesn't parse,** a value of 0, or a key it doesn't know is the hook's failure, named with its line, as an unreadable hook is.
+- **A file that doesn't parse,** a value of 0, or a key it doesn't know is the hook's failure, named with its line, as an unreadable hook is. Its `format` left out is 1 ([formats.md](formats.md)).
+- **Two reads, two outcomes** (a review of [ways.md](ways.md), 2026-11-27): the home repository's `.temper/`, read whole for its ways and charters, keeps its last good revision when a read fails ([ways.md](ways.md), 8.5); a hook's `config.toml`, read in the checkout where the hook runs, fails that hook alone. A repository's hooks are its own, home or not. The landing check judges `config.toml`'s form with the rest of `.temper/`, by the same decoder.
 
 ## 4. By repository, while the old ones stay
 
