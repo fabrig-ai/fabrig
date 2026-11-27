@@ -90,7 +90,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
   COMMIT, "from": COMMIT, "combine": "merge" | "squash",
   "train_upstream": COMMIT, "members": [{"number": N, "branch": BRANCH,
-  "head": COMMIT, "message": TEXT, "squash": TEXT, "prefix": BRANCH}],
+  "head": COMMIT, "message": TEXT, "squash": TEXT, "head_trailers":
+  true, "prefix": BRANCH}],
   "upstreams": [{"repository": NAME, "main": COMMIT, "candidate":
   COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
   names as the project's settings give them, `main` the round's base.
@@ -119,6 +120,18 @@ what they write, and how they end. temper runs them as jobs on a worker
     (`../testing/qa/landings.md`, 4). `message` carries no TRAILERS: a
     merge keeps the member's own commits, and their trailers with them.
     Neither ends in a newline.
+  - **`head_trailers`,** present, and `true`, only for a member whose
+    producer's words keep no TRAILERS in a train whose `combine` is
+    `squash`: its TRAILERS are its head commit's, which the job reads
+    from its checkout (`git-operations.md`, 1.9, `Message`) where it
+    squashes the member, and nowhere else. Its squash's message is then
+    `squash` with the head's TRAILERS in place of any it holds, composed
+    by this section's order and bound, DESCRIPTION cut again where they
+    take its room: what `squash` would be had the engine composed it
+    with them. A head whose message the read gives none of leaves
+    `squash` as it is. A member the job merges reads nothing. A worker
+    of an earlier build ignores the field, and a request of an earlier
+    engine, without it, reads as `false`: `version` stays 1.
   - **TITLE** is the member's change's title, as its pull request
     carries it, N the pull request's number, C the change's task, G its
     goal's task (the tracked task it serves), and HEAD the member's head
@@ -137,8 +150,10 @@ what they write, and how they end. temper runs them as jobs on a worker
     line, so the trailers are always the message's last paragraph.
   - **TRAILERS** are the member's own: those of the last paragraph of
     its producer's words, or, where the words keep none, of its head
-    commit's message, as the round read it
-    (`../domain/landing-prepare.md`, 1.2). A text's last paragraph is
+    commit's message: as the job reads it under `head_trailers`, and in
+    `squash` as the first page of the round's containment read gave it,
+    where that page held the head (`../domain/landing-prepare.md`, 1.2).
+    A text's last paragraph is
     what follows its last blank line (a line empty or of whitespace
     alone), blank lines at its end aside. It holds trailers where a
     paragraph comes before it and each of its lines, its trailing

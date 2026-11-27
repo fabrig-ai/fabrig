@@ -59,6 +59,8 @@ pub(super) struct World {
     pub(super) operations: VecDeque<(Token, tooling::Request)>,
     pub(super) disk: Checkout,
     pub(super) forge: Forge,
+    pub(super) message_reads: Vec<git::Commit>,
+    pub(super) cut_message: bool,
     pub(super) workspace: Option<Token>,
     held_push: Option<(Token, git::Op)>,
     pub(super) report: Report,
@@ -101,6 +103,8 @@ impl World {
             operations: VecDeque::new(),
             disk: Checkout::new(),
             forge,
+            message_reads: Vec::new(),
+            cut_message: false,
             workspace: None,
             held_push: None,
             stops: 0,
@@ -174,6 +178,10 @@ impl World {
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
                     }
+                    git::Op::Message { at, commit } => {
+                        assert_eq!(at.repository, self.repository);
+                        self.message_reads.push(*commit);
+                    }
                     git::Op::Keep { .. } | git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
@@ -191,6 +199,10 @@ impl World {
                     | git::Op::Merge { .. } => {}
                 }
                 let done = translate::perform(&mut self.forge, &mut self.disk, op);
+                let done = match done {
+                    git::Done::Message { .. } if self.cut_message => git::Done::Message { message: None },
+                    done => done,
+                };
                 self.owed.push_back(Event::Done { owner, done });
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),

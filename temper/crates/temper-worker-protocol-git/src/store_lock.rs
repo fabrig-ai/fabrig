@@ -35,6 +35,7 @@ impl Access {
                 | git::Op::Create { .. }
                 | git::Op::CheckOut { .. }
                 | git::Op::IsAncestor { .. }
+                | git::Op::Message { .. }
                 | git::Op::Brings { .. }
                 | git::Op::DiffPaths { .. }
                 | git::Op::Merge { .. }
@@ -71,6 +72,7 @@ impl Access {
             | Command::WriteTree
             | Command::CommitTree { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => None,

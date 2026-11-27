@@ -120,6 +120,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::MergeHistory { .. }
             | Command::DiffPaths { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => return Err(Refusal::Broken("author outside commit")),
@@ -262,6 +263,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Origin { .. }
         | Command::DiffPaths { .. }
         | Command::MergeBases { .. }
+        | Command::ReadMessage { .. }
         | Command::BringsList { .. }
         | Command::IsAncestor { .. } => None,
     }
@@ -462,6 +464,7 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             }
             Command::BringsList { bases: ids.into(), base }
         }
+        [b"cat-file", b"commit", commit] => Command::ReadMessage { commit: invocation::object(commit)? },
         [b"merge-base", b"--is-ancestor", old, commit] => {
             Command::IsAncestor { expected: invocation::object(old)?, commit: invocation::object(commit)? }
         }
