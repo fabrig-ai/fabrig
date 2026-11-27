@@ -12,7 +12,7 @@ impl Sim {
         let process = self.process(pid);
         for fd in kind.fds().into_iter().flatten() {
             if let Some(file) = process.files.get(&fd)
-                && file.access == files::Access::Record(OpenHow::PathNoFollow)
+                && matches!(file.access, files::Access::Record(how) if how.path_only())
                 && !matches!(kind, Summary::Stat { .. } | Summary::Close { .. })
             {
                 return Err(self.finding(pid, "only Stat and Close may use a path-only descriptor"));

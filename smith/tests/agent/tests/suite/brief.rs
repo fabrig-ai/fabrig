@@ -113,6 +113,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
         conventions: Some(run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: settings.resume,
         waiting: settings.waiting,
@@ -866,4 +867,143 @@ fn saved_prompt_messages(saved: &smith_domain::Transcript) -> Vec<skein_fake_llm
                 .collect(),
         })
         .collect()
+}
+
+#[test]
+fn the_workspace_prompt_names_only_the_checks_found_for_each_moment() {
+    use run::{Hook, Hooks};
+
+    for (hooks, expected, fallback) in [
+        (
+            Some(Hooks { deliver: Hook::Executable, finish: Hook::Executable }),
+            b"with checks (`.temper/hooks/deliver` at `deliver`, `.temper/hooks/finish` at `finish`)".as_slice(),
+            false,
+        ),
+        (
+            Some(Hooks { deliver: Hook::Executable, finish: Hook::Missing }),
+            b"with checks (`.temper/hooks/deliver` at `deliver`)".as_slice(),
+            false,
+        ),
+        (None, b"with checks (`.temper/pre-pr`)".as_slice(), true),
+    ] {
+        let cue = "@prompt-with-hooks";
+        let mut world = hooks_world(cue, hooks, Box::new([calls(vec![call(b"finish", FINISH_INPUT)], 2)]), false);
+        world.run(20_000);
+        let prompt = &world.prompts()[0].system;
+        assert!(
+            contains(
+                prompt,
+                &[
+                    b"- `work`, which you may change, a git working tree, ",
+                    expected,
+                    b"\n",
+                    b"- `archive`, which you may only read, a plain directory\n",
+                ]
+                .concat()
+            ),
+            "{}",
+            String::from_utf8_lossy(prompt)
+        );
+        let paths: Vec<_> = world
+            .boundaries()
+            .iter()
+            .filter_map(|(_, request)| match request {
+                Boundary::Probe { at } => Some(at.path.as_ref()),
+                Boundary::Read { .. } | Boundary::Check { .. } | Boundary::Io { .. } => None,
+            })
+            .collect();
+        let expected = if fallback {
+            vec![b".temper/hooks".as_slice(), b".temper/pre-pr".as_slice()]
+        } else {
+            vec![b".temper/hooks".as_slice()]
+        };
+        assert_eq!(paths, expected, "probe the writable mount, not the archive");
+        assert!(world.checked().is_empty() && world.pushes().is_empty(), "a report does not deliver");
+    }
+}
+
+#[test]
+fn finish_hook_feedback_names_the_selected_path_and_explains_broken_entries() {
+    use run::{Hook, HookProblem, Hooks};
+
+    for (hook, reason, exit, checked) in [
+        (Hook::Executable, b"a failing hook".as_slice(), "code:1", true),
+        (
+            Hook::Broken(HookProblem::BadLink),
+            b"the hook does not link directly to an executable file beside it".as_slice(),
+            "unstarted",
+            false,
+        ),
+        (Hook::Broken(HookProblem::NotExecutable), b"the hook is not executable".as_slice(), "unstarted", false),
+        (Hook::Broken(HookProblem::NotFile), b"the hook is not a regular file".as_slice(), "unstarted", false),
+        (Hook::Broken(HookProblem::Unreadable), b"the hook could not be read".as_slice(), "unstarted", false),
+    ] {
+        let mut world = hooks_world(
+            "@broken-finish-hook",
+            Some(Hooks { deliver: Hook::Executable, finish: hook }),
+            Box::new([
+                calls(vec![call(b"finish", br#"{"title":"a change","body":"exercise the finish hook"}"#)], 2),
+                calls(vec![call(b"finish", FINISH_INPUT)], 3),
+            ]),
+            true,
+        );
+        if checked {
+            world.script_checks(vec![run::Ran {
+                exit: run::Exit::Code { code: 1 },
+                said_not_judged: false,
+                output: reason.into(),
+                cut: 0,
+            }]);
+        }
+        world.run(20_000);
+        let named = br#"checks-failed repository="work" check=".temper/hooks/finish""#;
+        assert!(
+            world.prompts().iter().any(|query| feedback_has(query, named)),
+            "feedback names the selected path for {hook:?}"
+        );
+        let ending = if checked { b" cut=0 tail=\"".as_slice() } else { b" given_ms=0 cut=0 tail=\"".as_slice() };
+        let expected = [ending, reason, b"\""].concat();
+        assert!(world.prompts().iter().any(|query| feedback_has(query, &expected)), "feedback tail for {hook:?}");
+        let end = [b"exit=".as_slice(), exit.as_bytes(), b" "].concat();
+        assert!(world.prompts().iter().any(|query| feedback_has(query, &end)), "exit for {hook:?}");
+        let checks: Vec<_> = world
+            .boundaries()
+            .iter()
+            .filter_map(|(_, b)| match b {
+                Boundary::Check { program } => Some(program.path.as_ref()),
+                Boundary::Read { .. } | Boundary::Probe { .. } | Boundary::Io { .. } => None,
+            })
+            .collect();
+        let paths: &[&[u8]] = if checked { &[b".temper/hooks/finish"] } else { &[] };
+        assert_eq!(checks, paths);
+        assert_eq!(world.pushes(), []);
+        assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(_), .. }));
+    }
+}
+
+fn hooks_world(cue: &str, hooks: Option<run::Hooks>, turns: Box<[Turn]>, change: bool) -> World {
+    let settings = Settings::calm(17);
+    let mut charter = charter(&settings, cue);
+    charter.conventions.as_mut().expect("workspace conventions").hooks = Some(b".temper/hooks".as_slice().into());
+    if change {
+        charter.reserve.time = settings.limits.run.check_timeout;
+        charter.outcome.change = Some(run::outcome::ChangeSpec {
+            checks_must_pass: true,
+            fields: Box::new([run::outcome::FieldRule { name: b"title".as_slice().into(), max: 128 }]),
+        });
+    }
+    let (mut disk, mounted) = workspace();
+    if change {
+        disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
+    }
+    let mut world = World::with_workspace_scripts_charter(
+        settings,
+        None,
+        Some(mounted),
+        disk,
+        Box::new([Script { cue: cue.as_bytes().into(), turns }]),
+        charter,
+    );
+    world.script_hooks(vec![hooks]);
+    world
 }

@@ -608,6 +608,7 @@ impl Counted {
                     | smith_domain::Lower::Io { .. }
                     | smith_domain::Lower::Job { .. }
                     | smith_domain::Lower::CancelIo { .. }
+                    | smith_domain::Lower::ProbeHooks { .. }
                     | smith_domain::Lower::Check { .. }
                     | smith_domain::Lower::Abort { .. },
                 ) => {
@@ -1211,7 +1212,7 @@ fn maximum_convention_charter() -> run::Charter {
     };
     run::Charter {
         reserve: run::charter::Reserve { turns: 0, time: bounds(16).run.check_timeout },
-        conventions: Some(run::Conventions { guide: make_path(b'g'), checks: make_path(b'c') }),
+        conventions: Some(run::Conventions { guide: make_path(b'g'), checks: make_path(b'c'), hooks: None }),
         outcome: run::outcome::OutcomeSpec {
             change: Some(run::outcome::ChangeSpec { checks_must_pass: true, fields: Box::new([]) }),
             ..charter(false).outcome

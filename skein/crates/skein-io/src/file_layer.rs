@@ -53,7 +53,7 @@ enum Pending {
     Lock(Token),
     Create(Token),
     OpenRead(Token),
-    OpenDirectory(Token),
+    OpenMetadata(Token),
     Stat {
         owner: Token,
         fd: Fd,
@@ -172,7 +172,7 @@ impl Pending {
         match self {
             Pending::Create(owner)
             | Pending::OpenRead(owner)
-            | Pending::OpenDirectory(owner)
+            | Pending::OpenMetadata(owner)
             | Pending::Stat { owner, .. }
             | Pending::Stating(owner)
             | Pending::Cleanup { owner, .. }
@@ -207,7 +207,7 @@ impl Pending {
         match self {
             Pending::Create(_)
             | Pending::OpenRead(_)
-            | Pending::OpenDirectory(_)
+            | Pending::OpenMetadata(_)
             | Pending::Write(_)
             | Pending::Read { .. }
             | Pending::Sync(_)
@@ -429,6 +429,19 @@ fn down_inner(
         Request::OpenReadNoFollow { owner, root, name } => {
             opens::open_read(io, owner, root, name, OpenHow::ReadNoFollow, events, subs)
         }
+        Request::OpenSiblingFile { owner, directory, name } => {
+            let Some(root) = io.file(directory) else {
+                return terminal_failure(events, owner, Error::NotFound);
+            };
+            let op = Op::Open { root, path: name, how: OpenHow::PathSiblingFile };
+            if !op.is_valid() {
+                return terminal_failure(events, owner, Error::InvalidArgument);
+            }
+            if io.files.len() == io.files.capacity() {
+                return terminal_failure(events, owner, Error::TooManyOpenFiles);
+            }
+            issue(io, Pending::OpenMetadata(owner), op, subs)
+        }
         Request::OpenWrite { owner, root, name } => {
             opens::open_read(io, owner, root, name, OpenHow::Write, events, subs)
         }
@@ -446,7 +459,7 @@ fn down_inner(
                 return Work::Idle;
             }
             let how = if no_follow { OpenHow::DirectoryNoFollow } else { OpenHow::Directory };
-            issue(io, Pending::OpenDirectory(owner), Op::Open { root, path: name, how }, subs)
+            issue(io, Pending::OpenMetadata(owner), Op::Open { root, path: name, how }, subs)
         }
         Request::Load { owner, root, path, max, no_follow } => {
             let Some(fd) = io.file(root) else {
@@ -641,7 +654,7 @@ pub fn cancel(io: &mut FileIo, owner: Token, subs: &mut Queue<Submit>) {
                 Pending::Lock(_)
                 | Pending::Create(_)
                 | Pending::OpenRead(_)
-                | Pending::OpenDirectory(_)
+                | Pending::OpenMetadata(_)
                 | Pending::Stat { .. }
                 | Pending::Stating(_)
                 | Pending::Write(_)
@@ -705,7 +718,7 @@ fn follow_work(io: &mut FileIo, deadline: Option<Time>) {
                 Pending::Store(store) => store.deadline(deadline),
                 Pending::Create(_)
                 | Pending::OpenRead(_)
-                | Pending::OpenDirectory(_)
+                | Pending::OpenMetadata(_)
                 | Pending::Stat { .. }
                 | Pending::Stating(_)
                 | Pending::Cleanup { .. }
@@ -761,7 +774,7 @@ fn cancelled(
         Pending::Write(_) => !write_finished(&complete),
         Pending::Read { max, bytes, .. } => !read_finished(&complete, *max, bytes.0.len()),
         Pending::Create(_)
-        | Pending::OpenDirectory(_)
+        | Pending::OpenMetadata(_)
         | Pending::Stating(_)
         | Pending::Cleanup { .. }
         | Pending::Cut(_)
@@ -781,7 +794,7 @@ fn cancelled(
             Pending::Store(_) | Pending::Private(_) => can_abandon,
             Pending::Create(_)
             | Pending::OpenRead(_)
-            | Pending::OpenDirectory(_)
+            | Pending::OpenMetadata(_)
             | Pending::Stat { .. }
             | Pending::Stating(_)
             | Pending::Cleanup { .. }
@@ -898,7 +911,7 @@ fn stopped(
 
         Pending::Create(_)
         | Pending::OpenRead(_)
-        | Pending::OpenDirectory(_)
+        | Pending::OpenMetadata(_)
         | Pending::ListOpening(_)
         | Pending::LoadOpening { .. }
         | Pending::ScanOpening { .. } => match complete.result {
@@ -1027,7 +1040,7 @@ fn up_inner(
             }
             Pending::Create(owner)
             | Pending::OpenRead(owner)
-            | Pending::OpenDirectory(owner)
+            | Pending::OpenMetadata(owner)
             | Pending::Stating(owner)
             | Pending::Write(owner)
             | Pending::Read { owner, .. }
@@ -1066,7 +1079,7 @@ fn up_inner(
             let fd = store::done_fd(done);
             return issue(io, Pending::Stat { owner, fd }, Op::Stat { fd }, subs);
         }
-        Pending::OpenDirectory(owner) => {
+        Pending::OpenMetadata(owner) => {
             let fd = store::done_fd(done);
             if let Some(file) = io.insert(fd) {
                 events.push(Event::Opened { owner, file, len: 0 });

@@ -829,6 +829,10 @@ pub enum Exit {
 pub enum OpenHow {
     /// An entry itself, links refused in its parents, for Stat and Close only (runtime/kernel-files.md, 1).
     PathNoFollow,
+    /// A bare name in an already open directory, for Stat and Close only. If
+    /// it is a link, open its bare regular-file target in the same directory,
+    /// refusing unreadable or non-regular targets and link chains.
+    PathSiblingFile,
     /// An existing file or directory, to `Read` or `Stat` (`O_RDONLY`).
     Read,
     /// An existing file to read, refusing a symbolic link in any path part.
@@ -1162,6 +1166,24 @@ enum Files {
     List,
 }
 
+impl OpenHow {
+    /// Whether the open yields a descriptor for metadata alone.
+    #[must_use]
+    pub const fn path_only(self) -> bool {
+        match self {
+            Self::PathNoFollow | Self::PathSiblingFile => true,
+            Self::Read
+            | Self::ReadNoFollow
+            | Self::Directory
+            | Self::DirectoryNoFollow
+            | Self::Create { .. }
+            | Self::CreateNoFollow { .. }
+            | Self::Write
+            | Self::WriteNoFollow => false,
+        }
+    }
+}
+
 impl Op {
     /// A `Recv` into `buf`, or `buf` handed back when it is empty (a zero count
     /// would read as the end of the stream) or longer than a count can say.
@@ -1231,6 +1253,7 @@ impl Op {
                     OpenHow::Create { mode: Some(mode) } | OpenHow::CreateNoFollow { mode: Some(mode) } => {
                         *mode & !PERMISSIONS == 0
                     }
+                    OpenHow::PathSiblingFile => is_name(path) && path.len() <= LONGEST_NAME,
                     OpenHow::Create { mode: None }
                     | OpenHow::CreateNoFollow { mode: None }
                     | OpenHow::Read

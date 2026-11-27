@@ -18,11 +18,11 @@ use crate::budget::{Budget, Granted};
 use crate::charter::{Brief, Mode, Reserve};
 use skein_lib::{Duration, Writer};
 
-use crate::boundary::Stop;
+use crate::boundary::{Hook, Hooks, Stop};
 use crate::charter::{Charter, Families, HostTool, Llm, Tools};
 use crate::conventions;
 use crate::outcome::{FieldRule, OutcomeSpec, TextSpec, VerdictRule};
-use crate::prepare::{Found, Guide};
+use crate::prepare::{Check, Found, Guide, Kind};
 use crate::workspace::{self, Directory, Workspace};
 
 /// A waking instruction scopes exhaustion to the activation that spent its allowance.
@@ -82,7 +82,7 @@ pub fn fixed_prompt() -> Box<[u8]> {
 fn render_fixed(text: &mut Text) {
     render_tools(text, Tools { inspect: true, modify: true, shell: true });
     text.put(b"\n");
-    render_checkout(text, &[], &[], b"");
+    render_checkout(text, &[], &[], b"", None);
     text.put(b"\n");
     render_agents(text, &[]);
     text.put(b"\n");
@@ -286,12 +286,23 @@ pub(crate) fn non_brief_host_bytes(charter: &Charter, mounted: Option<&Workspace
     count_host_bytes(charter, mounted, guide_bytes, false)
 }
 
+const HOOK_LABEL_BYTES: usize = b"/deliver` at `deliver`, `/finish` at `finish".len();
+
 fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32, brief: bool) -> Option<u64> {
     let repositories = workspace::directories(mounted);
     let mut found = Found::with_capacity(u32::try_from(repositories.len()).ok()?);
     for (index, directory) in repositories.iter().enumerate() {
         if directory.writable {
-            found.checks.push(u32::try_from(index).ok()?).expect("one check per directory");
+            let kind = match conventions::hooks(charter) {
+                Some(hooks)
+                    if hooks.len().saturating_mul(2).saturating_add(HOOK_LABEL_BYTES)
+                        >= conventions::checks(charter).len() =>
+                {
+                    Kind::Hooks(Hooks { deliver: Hook::Executable, finish: Hook::Executable })
+                }
+                Some(_) | None => Kind::Legacy,
+            };
+            found.checks.push(Check { directory: u32::try_from(index).ok()?, kind }).expect("one check per directory");
         }
     }
     let mut text = Text::measuring();
@@ -532,7 +543,13 @@ fn render_system(
     if mounted.is_some() {
         render_tools(text, families.tools);
         text.put(b"\n");
-        render_checkout(text, repositories, found.checks.as_slice(), conventions::checks(charter));
+        render_checkout(
+            text,
+            repositories,
+            found.checks.as_slice(),
+            conventions::checks(charter),
+            conventions::hooks(charter),
+        );
         text.put(b"\n");
     }
     if families.agents {
@@ -665,7 +682,13 @@ fn render_tools(text: &mut Text, tools: Tools) {
     }
 }
 
-fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], check_path: &[u8]) {
+fn render_checkout(
+    text: &mut Text,
+    repositories: &[Directory],
+    checks: &[Check],
+    check_path: &[u8],
+    hooks_path: Option<&[u8]>,
+) {
     text.put(b"## Checkout\n\n");
     if repositories.is_empty() {
         text.put(b"There is no checkout.\n");
@@ -682,6 +705,7 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
     }
     let mut index: u32 = 0;
     let mut merging = false;
+    let mut checked = 0_usize;
     for Directory { name, host: _, root: _, writable, git, conflicts, results: _ } in repositories {
         if repositories.len() == 1 {
             text.put(b"- The working directory");
@@ -701,10 +725,11 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
                 text.put(b"` ");
             }
         }
-        if checks.contains(&index) {
-            text.put(b", with checks (`");
-            text.put(check_path);
-            text.put(b"`)");
+        if let Some(check) = checks.get(checked)
+            && check.directory == index
+        {
+            render_checks(text, &check.kind, check_path, hooks_path);
+            checked = checked.saturating_add(1);
         }
         text.put(b"\n");
         index = index.saturating_add(1);
@@ -713,6 +738,34 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
         text.put(b"A directory with initial merge conflicts holds a merge in progress: `HEAD` is your work so far and `MERGE_HEAD` the tip the host merged into it. Every other staged file is what that merge brought in, not stray work: leave those files in place and restore nothing. Settle the files named; a delivery commits the whole tree as the merge, with both parents.\n");
     }
     text.host = false;
+}
+
+fn render_checks(text: &mut Text, kind: &Kind, check_path: &[u8], hooks_path: Option<&[u8]>) {
+    text.put(b", with checks (");
+    match kind {
+        Kind::Legacy => {
+            text.put(b"`");
+            text.put(check_path);
+            text.put(b"`");
+        }
+        Kind::Hooks(hooks) => {
+            let directory = hooks_path.expect("hooks directory selected");
+            if hooks.deliver != Hook::Missing {
+                text.put(b"`");
+                text.put(directory);
+                text.put(b"/deliver` at `deliver`");
+            }
+            if hooks.finish != Hook::Missing {
+                if hooks.deliver != Hook::Missing {
+                    text.put(b", ");
+                }
+                text.put(b"`");
+                text.put(directory);
+                text.put(b"/finish` at `finish`");
+            }
+        }
+    }
+    text.put(b")");
 }
 
 fn render_finishing(text: &mut Text, spec: &OutcomeSpec, checks: bool) {
@@ -878,7 +931,7 @@ mod tests {
     use crate::boundary::Stop;
     use crate::charter::{Charter, Families, Grants, Mode, Tools};
     use crate::outcome::{ChangeSpec, FieldRule, ItemRule, ItemSpec, OutcomeSpec, TextSpec, VerdictRule};
-    use crate::prepare::{Found, Guide};
+    use crate::prepare::{Check, Found, Guide, Kind};
     use crate::tests::{bytes, charter, workspace};
     use alloc::boxed::Box;
 
@@ -893,7 +946,7 @@ mod tests {
             .guides
             .push(Guide { directory: 0, text: bytes(b"Run `make test` before you finish."), whole: false })
             .expect("room");
-        found.checks.push(1).expect("room");
+        found.checks.push(Check { directory: 1, kind: Kind::Legacy }).expect("room");
         found
     }
 

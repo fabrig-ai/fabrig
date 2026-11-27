@@ -577,6 +577,8 @@ fn measure_turn(number: u32) {
             let request = out.pop().unwrap();
             if let smith_domain::Request::Lower(smith_domain::Lower::Read { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::ProbeHooks { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::HooksProbed { owner, hooks: None }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Probe { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Probed { owner, executable: false }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {

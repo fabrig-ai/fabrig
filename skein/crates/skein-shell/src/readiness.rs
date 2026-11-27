@@ -512,12 +512,16 @@ fn side(kind: &Op) -> Option<(Fd, Side)> {
 fn perform(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut system::Listings) -> Result<Done, Error> {
     match kind {
         Op::Open { root, path, how } => {
-            let raw = system::files::open(*root, path, *how).map_err(|errno| calls::error(kind, errno, false))?;
-            if matches!(kind, Op::Open { how: OpenHow::PathNoFollow, .. }) {
-                Ok(Done::Fd(Fd::new(raw)))
+            let path_only = how.path_only();
+            let opened = if *how == OpenHow::PathSiblingFile {
+                crate::posix::links::sibling_file(root.raw(), path).and_then(|sibling| {
+                    system::files::open(*root, sibling.as_deref().unwrap_or(path), OpenHow::PathNoFollow)
+                })
             } else {
-                system::opened(raw)
-            }
+                system::files::open(*root, path, *how)
+            };
+            let raw = opened.map_err(|errno| calls::error(kind, errno, false))?;
+            if path_only { Ok(Done::Fd(Fd::new(raw))) } else { system::opened(raw) }
         }
         Op::Spawn { spawn } => system::process::spawn(spawn),
         Op::Signal { pidfd, signal, to, .. } => system::process::signal_child(*pidfd, *signal, *to),

@@ -82,6 +82,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
         conventions: Some(run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: settings.resume,
         waiting: settings.waiting,

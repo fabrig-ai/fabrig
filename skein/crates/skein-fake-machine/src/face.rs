@@ -47,6 +47,12 @@ pub fn step(machine: &mut Machine, call: Call, answers: &mut Queue<Answer>) {
                 program_of(&program, &args, &pipes).map(Reply::Program)
             }
         }
+        Ask::Open { root, path, how: OpenHow::PathSiblingFile } => {
+            match machine.open_sibling_file(opened(root), &path) {
+                Ok(file) => Ok(Reply::Opened(Handle::new(file.raw()))),
+                Err(refusal) => Err(kernel_error(refusal)),
+            }
+        }
         Ask::Open { root, path, how } => match machine.open(opened(root), &path, how_of(how)) {
             Ok(file) => Ok(Reply::Opened(Handle::new(file.raw()))),
             Err(refusal) => Err(kernel_error(refusal)),
@@ -177,9 +183,10 @@ fn done(result: Result<(), Refusal>) -> Result<Reply, Error> {
 
 /// How the machine opens: a file created with the mode asked for, or the
 /// one the kernel's contract gives when none is.
-const fn how_of(how: OpenHow) -> How {
+fn how_of(how: OpenHow) -> How {
     match how {
         OpenHow::PathNoFollow => How::PathNoFollow,
+        OpenHow::PathSiblingFile => unreachable!("opened by the sibling-file lookup"),
         OpenHow::Write => How::Write,
         OpenHow::WriteNoFollow => How::WriteNoFollow,
         OpenHow::Read => How::Read,

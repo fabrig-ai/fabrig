@@ -485,6 +485,7 @@ impl Frame {
             let mode = match how {
                 OpenHow::Create { mode } | OpenHow::CreateNoFollow { mode } => mode.expect("private file mode"),
                 OpenHow::PathNoFollow
+                | OpenHow::PathSiblingFile
                 | OpenHow::Read
                 | OpenHow::ReadNoFollow
                 | OpenHow::Directory

@@ -339,6 +339,7 @@ pub struct World<B: Backend = Typed> {
     answered: Option<Time>,
     checked: Vec<bool>,
     scripted_checks: VecDeque<run::Ran>,
+    scripted_hooks: VecDeque<Option<run::Hooks>>,
     check_marker: Option<Vec<u8>>,
     check_results: Vec<(Box<[u8]>, bool)>,
     check_notices: Vec<(Time, bool)>,
@@ -578,6 +579,7 @@ impl<B: Backend> World<B> {
             answered: None,
             checked: Vec::new(),
             scripted_checks: VecDeque::new(),
+            scripted_hooks: VecDeque::new(),
             check_marker: None,
             check_results: Vec::new(),
             check_notices: Vec::new(),
@@ -818,6 +820,11 @@ impl<B: Backend> World<B> {
     /// Supply the next check terminals at the typed machine boundary, in request order.
     pub fn script_checks(&mut self, checks: Vec<run::Ran>) {
         self.scripted_checks.extend(checks);
+    }
+
+    /// Answers the run's hooks discovery from scenario data, in request order.
+    pub fn script_hooks(&mut self, hooks: Vec<Option<run::Hooks>>) {
+        self.scripted_hooks.extend(hooks);
     }
 
     /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
@@ -1444,6 +1451,27 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
+            Request::Lower(smith_domain::Lower::ProbeHooks { owner, at, deadline }) => {
+                self.boundaries.push((self.now, Boundary::Probe { at }));
+                let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
+                let hooks = if complete <= deadline {
+                    self.scripted_hooks.pop_front().expect("scenario supplies hooks for each probe")
+                } else {
+                    Some(run::Hooks::UNREADABLE)
+                };
+                let key = self.schedule.send(
+                    complete.min(deadline),
+                    Delivery::Terminal {
+                        family: Family::Probe,
+                        owner,
+                        event: Event::Below(smith_domain::Below::HooksProbed { owner, hooks }),
+                    },
+                );
+                self.flights.open(
+                    (Family::Probe, owner),
+                    Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
+                );
+            }
             Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
                 if let Some(marker) = &self.check_marker {
                     let results = results.expect("scripted check requires its results directory");
@@ -1459,9 +1487,13 @@ impl<B: Backend> World<B> {
                 let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
-                assert_eq!(&*program.path, fixture::CHECKS, "the host explicitly selected its Temper fixture checks");
                 let complete = self.now.saturating_add(self.settings.check.draw(&mut self.rng));
                 let ran = self.scripted_checks.pop_front().unwrap_or_else(|| {
+                    assert_eq!(
+                        &*program.path,
+                        fixture::CHECKS,
+                        "the host explicitly selected its Temper fixture checks"
+                    );
                     let (passed, output) = fixture::check(&self.disk, program.root.raw());
                     let exit = if complete > deadline {
                         run::Exit::TimedOut
@@ -1848,6 +1880,7 @@ impl<B: Backend> World<B> {
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::Aborted { .. },
             ) => {
@@ -1930,7 +1963,8 @@ impl<B: Backend> World<B> {
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
-                | smith_domain::Below::Probed { .. },
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. },
             ) => {}
         }
         match &event {
@@ -1961,6 +1995,7 @@ impl<B: Backend> World<B> {
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::Aborted { .. }
                 | smith_domain::Below::Done { .. },
@@ -2305,6 +2340,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
         conventions: Some(smith_domain::run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: settings.resume,
         waiting: settings.waiting,

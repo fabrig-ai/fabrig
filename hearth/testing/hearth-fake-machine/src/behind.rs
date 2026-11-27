@@ -159,6 +159,7 @@ pub fn answer(behind: &mut Behind, ask: Ask) -> Result<Reply, Error> {
 fn open_how(how: OpenHow) -> How {
     match how {
         OpenHow::PathNoFollow => How::PathNoFollow,
+        OpenHow::PathSiblingFile => unreachable!("hearth does not ask to open a single sibling link"),
         OpenHow::Read => How::Read,
         OpenHow::ReadNoFollow => How::ReadNoFollow,
         OpenHow::Directory => How::Directory,

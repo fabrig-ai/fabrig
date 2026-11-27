@@ -281,6 +281,7 @@ impl Disk {
                     OpenHow::WriteNoFollow => How::WriteNoFollow,
                     OpenHow::CreateNoFollow { mode } => How::CreateNoFollow { mode: mode.unwrap_or(0o600) },
                     other @ (OpenHow::PathNoFollow
+                    | OpenHow::PathSiblingFile
                     | OpenHow::Read
                     | OpenHow::Directory
                     | OpenHow::Create { .. }
