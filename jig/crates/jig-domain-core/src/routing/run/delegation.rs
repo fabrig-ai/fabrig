@@ -35,7 +35,7 @@ pub(crate) fn delegate_refused(
     out
 }
 
-/// The connector has translated the batch; the engine owns its historical input loads.
+/// The connector translates the batch; the engine loads ended task records for its inputs.
 pub(crate) fn delegate(
     core: &mut Core,
     env: &Env<Limits>,

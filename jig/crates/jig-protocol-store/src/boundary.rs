@@ -142,7 +142,7 @@ pub enum TranscriptRead {
     Page { task: u64, backwards: bool, after: Option<u64> },
 }
 
-/// Additional decoded page bounds for an engine window (temper/docs/design/domain/root.md, 7).
+/// Additional decoded page bounds for an engine window (jig/docs/design/protocol/store/README.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct WindowPage {
     pub row_bytes: u32,
