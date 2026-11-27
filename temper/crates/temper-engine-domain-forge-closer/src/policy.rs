@@ -23,7 +23,20 @@ pub enum ReportCheck {
 pub enum ReportRead {
     Unread,
     Failed,
-    Read(Option<Box<[u8]>>),
+    Read(ReportFields),
+}
+
+#[derive(Clone, Debug, Hash)]
+pub struct ReportFields {
+    pub left: Option<Box<[u8]>>,
+    pub asked: Option<Box<[u8]>>,
+}
+
+impl ReportFields {
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self { left: None, asked: None }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,6 +55,7 @@ pub struct Closer {
     pub selections: Box<[crate::PullSelection]>,
     pub report_check: ReportCheck,
     pub goal_left: Option<Box<[u8]>>,
+    pub goal_asked: Option<Box<[u8]>>,
 }
 
 impl Closer {
@@ -57,6 +71,7 @@ impl Closer {
             selections: Box::new([]),
             report_check: ReportCheck::Unread,
             goal_left: None,
+            goal_asked: None,
         }
     }
 }
@@ -140,13 +155,13 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
             match &facts.report {
                 ReportRead::Unread => Stepped { closer, decision: Decision::ReadReport },
                 ReportRead::Failed => Stepped { closer, decision: Decision::Wait },
-                ReportRead::Read(left) if left.is_some() && closer.report_check != ReportCheck::Released => {
-                    closer.goal_left.clone_from(left);
-                    closer.report_check = ReportCheck::Held;
-                    Stepped { closer, decision: Decision::HoldReport }
-                }
-                ReportRead::Read(left) => {
-                    stepped.closer.goal_left.clone_from(left);
+                ReportRead::Read(fields) => {
+                    if fields.left.is_some() && closer.report_check != ReportCheck::Released {
+                        closer.report_check = ReportCheck::Held;
+                        stepped = Stepped { closer, decision: Decision::HoldReport };
+                    }
+                    stepped.closer.goal_left.clone_from(&fields.left);
+                    stepped.closer.goal_asked.clone_from(&fields.asked);
                     stepped
                 }
             }
