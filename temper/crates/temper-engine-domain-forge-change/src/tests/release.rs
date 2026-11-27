@@ -16,6 +16,9 @@ fn a_release_resets_only_its_causes_allowance() {
         (Cause::Updates, 5, (5, 2, 0)),
         (Cause::Stalled, 5, (5, 2, 3)),
         (Cause::Runner, 5, (5, 2, 3)),
+        (Cause::RedStands, 5, (5, 2, 3)),
+        (Cause::CloseRefused, 5, (5, 2, 3)),
+        (Cause::Rejected, 5, (5, 2, 3)),
         (Cause::Questions, 5, (5, 2, 3)),
         (Cause::Authority(authority), 5, (5, 2, 3)),
         (Cause::BranchMoved, 5, (5, 2, 3)),
@@ -23,9 +26,6 @@ fn a_release_resets_only_its_causes_allowance() {
         (Cause::PullClosed, 5, (5, 2, 3)),
         (Cause::Retargeted, 5, (5, 2, 3)),
         (Cause::Failed, 5, (5, 2, 3)),
-        (Cause::RedStands, 5, (5, 2, 3)),
-        (Cause::CloseRefused, 5, (5, 2, 3)),
-        (Cause::Rejected, 5, (5, 2, 3)),
     ] {
         let mut held = change(State::Held {
             was: Box::new(State::Gating { head: HEAD, asked: Box::new([9]) }),
@@ -34,7 +34,12 @@ fn a_release_resets_only_its_causes_allowance() {
         (held.repairs, held.resolutions, held.updates) = (repairs, 2, 3);
         held.gate_failures = Box::new([GateFailure { number: 9, count: 2 }]);
         held.clean = Box::new([HEAD]);
-        let released = released(&held, at(10));
+        let lifted = released(&held, at(10));
+        let released = if cause.kind() == crate::Kind::Judgement {
+            step(&lifted, &facts(), &heard(), at(10), &LIMITS).change
+        } else {
+            lifted
+        };
         assert_eq!((released.repairs, released.resolutions, released.updates), expected, "{cause:?}");
         assert!(released.gate_failures.is_empty(), "{cause:?}");
         assert!(released.clean.is_empty(), "{cause:?}");
@@ -86,4 +91,32 @@ fn a_release_keeps_a_landings_repair_ask() {
     assert_eq!(asked.took, Some(Took::Taken(1)));
     assert_eq!(asked.decision, Decision::Delegate(Delegate::Repair(why)));
     assert_eq!(asked.change.repairs, 1);
+}
+
+#[test]
+fn a_persons_rejection_needs_a_new_answer_and_a_release() {
+    let gate = Gate { number: 9, kind: GateKind::Person, freshness: Freshness::Exact, blocking: true, eager: false };
+    let mut live = change(State::Gating { head: HEAD, asked: Box::new([9]) });
+    live.gates = Box::new([gate]);
+    let mut read = Facts {
+        gates: Box::new([GateReport { number: 9, head: HEAD, status: Status::Failed, revision: 0 }]),
+        ..facts()
+    };
+    let stopped = decide(&live, &read, &heard());
+    assert_eq!(stopped.decision, Decision::Hold(Cause::Rejected));
+    let held = stopped.change;
+    for measure in [false, true] {
+        read.measure = measure;
+        let replay = decide(&released(&held, at(1)), &read, &heard());
+        assert_eq!(replay.decision, Decision::Hold(Cause::Rejected));
+        let State::Held { hold, .. } = replay.change.state else { panic!("replayed rejection") };
+        assert!(hold.words.starts_with(b"not measured again: its rejection at 010101010101 stands;"));
+    }
+    read.gates[0].status = Status::Passed;
+    let read_only = decide(&held, &read, &heard());
+    assert_eq!(read_only.decision, Decision::None);
+    assert_eq!(read_only.change, held, "even a fresh green forge read and a new answer don't release it");
+    let lifted = decide(&released(&held, at(1)), &read, &heard());
+    assert_eq!(lifted.change.state, State::Gating { head: HEAD, asked: Box::new([]) });
+    assert!(matches!(decide(&lifted.change, &read, &heard()).change.state, State::Queued { head: HEAD, .. }));
 }

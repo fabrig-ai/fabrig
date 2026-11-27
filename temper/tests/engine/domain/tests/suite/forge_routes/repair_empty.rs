@@ -102,11 +102,82 @@ fn an_empty_ci_repairs_later_red_holds_without_spending_the_bound() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref().expect("hold account").as_ref() else {
         panic!("red stands account")
     };
+    assert_eq!(hold.judged, Some(temper_engine_domain_forge_change::Judged { head, spec: row.spec_revision }));
     let head = forge_top::commit_text(&head);
     assert_eq!(words.as_ref(), format!(
-        "its red at {} stands: repair task {} changed nothing, and the same content failed again: build; release this change to ask a fresh repair, or cancel it",
+        "its red at {} stands: repair task {} changed nothing, and the same content failed again: build; amend this change to ask a fresh repair, measure it again, or cancel it",
         std::str::from_utf8(&head[..12]).expect("hex head"),
         repair.task,
     ).as_bytes());
+    let original = words.clone();
+    let initial_revision = live_task(&world, change).revisions.hold;
+    red_act(
+        &mut world,
+        [76; 16],
+        766,
+        people::Ask::Release { project: 1, task: change, revision: initial_revision, again: None },
+    );
+    wait_for_red_release(&mut world, change, initial_revision, false);
+    world.crash_restart(766);
+    world.until(Until::Ready);
+    let revision = reheld(&mut world, change, initial_revision);
+    let retained = questions::row(&world, change);
+    assert_eq!(retained.ci_recheck, Some(measured), "ordinary release measures nothing");
+    let State::Held { hold, .. } = &retained.change.state else { panic!("red re-held") };
+    let prefix = format!(
+        "not measured again: its red at {} stands at the same content and spec; amend this change to ask a fresh repair, measure it again, or cancel it.\n\n",
+        std::str::from_utf8(&head[..12]).unwrap()
+    );
+    assert_eq!(hold.words.as_ref(), [prefix.as_bytes(), original.as_ref()].concat());
+
+    let measure = people::Ask::Measure { project: 1, task: change, revision };
+    red_act(&mut world, [77; 16], 767, measure.clone());
+    wait_for_red_release(&mut world, change, revision, true);
+    world.crash_restart(767);
+    world.until(Until::Ready);
+    red_act(&mut world, [77; 16], 768, measure);
+    let new_revision = reheld(&mut world, change, revision);
+    let fresh = questions::row(&world, change);
+    let fresh_check = fresh.ci_recheck.expect("accepted measurement rechecks once");
+    assert_eq!(Some(fresh_check.job.attempt), measured.taken);
+    assert_eq!(fresh_check.taken, measured.taken.map(|old| old + 1));
+    assert_eq!(fresh.change.repairs, 1);
+    assert_eq!(world.assigned.len(), assigned);
+    world.advance_ticks(STEPS);
+    assert_eq!(live_task(&world, change).revisions.hold, new_revision);
     world.close();
+}
+
+fn red_act(world: &mut World, key: [u8; 16], token: u64, ask: people::Ask) {
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(token)),
+        sign_in: world.signed_in.expect("owner signed in"),
+        key,
+        ask,
+    }));
+}
+
+fn wait_for_red_release(world: &mut World, change: u64, revision: u64, measure: bool) {
+    for _ in 0..STEPS {
+        world.tick();
+        if row(world, change).task_release.is_some_and(|took| took.revision == revision && took.measure == measure) {
+            return;
+        }
+    }
+    panic!("release was not kept: {:?}", row(world, change).task_release);
+}
+
+fn reheld(world: &mut World, change: u64, release: u64) -> u64 {
+    for _ in 0..STEPS {
+        world.tick();
+        let task = live_task(world, change);
+        if task.revisions.hold > release
+            && matches!(task.phase, tasks::Phase::Held { .. })
+            && world.store.pending.is_empty()
+        {
+            return task.revisions.hold;
+        }
+    }
+    panic!("expected a new hold after release: {:?}", row(world, change).change.state);
 }

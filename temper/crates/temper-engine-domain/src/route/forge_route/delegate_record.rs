@@ -8,10 +8,14 @@ use crate::boundary::Read;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 
+pub(super) fn release_reason(why: tasks::Why) -> bool {
+    why == tasks::Why::Released || why == tasks::Why::Measured
+}
+
 pub(super) fn is_release(domain: &Domain, task: u64) -> bool {
     let Some(record) = domain.engine.core().tasks.task(task) else { return false };
     let Some(row) = domain.forge.change(task) else { return false };
-    if record.due_reason != tasks::Why::Released {
+    if !release_reason(record.due_reason) {
         return false;
     }
     let revision = record.revisions.hold;
@@ -40,6 +44,7 @@ pub(crate) fn start(
                 super::ChangeStep { delegate: None, relayed: None, refusal: None, released: true, passing: None },
             )
             .expect("one release per change step");
+        let record = domain.engine.core().tasks.task(task).expect("released task");
         super::super::forge_event(
             domain,
             env,
@@ -47,8 +52,9 @@ pub(crate) fn start(
             forge::Event::ReleaseChange {
                 task,
                 release: Some(forge::TaskRelease {
-                    revision: domain.engine.core().tasks.task(task).expect("released task").revisions.hold,
-                    at: domain.engine.core().tasks.task(task).expect("released task").phase_since,
+                    revision: record.revisions.hold,
+                    at: record.phase_since,
+                    measure: record.due_reason == tasks::Why::Measured,
                 }),
             },
         );

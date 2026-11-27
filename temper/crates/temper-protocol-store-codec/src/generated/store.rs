@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xd1, 0x1d, 0x50, 0xe8, 0x83, 0xb4, 0xe9, 0xdf, 0xdc, 0xc7, 0x3c, 0xda, 0xb3, 0x2d, 0x1e, 0x78, 0x60, 0x7d, 0xa0,
-    0xee, 0x04, 0x3b, 0x0c, 0xb3, 0xf0, 0x8e, 0x6b, 0x50, 0xa4, 0x34, 0x4a, 0xa7,
+    0x09, 0x18, 0x92, 0xf4, 0x88, 0xbd, 0x4d, 0x9b, 0x99, 0x46, 0x43, 0x33, 0xa4, 0x19, 0xc2, 0xd2, 0xf7, 0x18, 0x50,
+    0xaa, 0x07, 0x7c, 0xb6, 0x48, 0xf0, 0xc6, 0xd1, 0x39, 0xba, 0x9b, 0xb2, 0xa9,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -2932,10 +2932,14 @@ pub mod paths {
     pub const JUDGING_ASKED: Path = Path::new("Judging.asked");
     pub const JUDGING_TAIL: Path = Path::new("Judging (tail)");
     pub const CHANGE_LIVE_TAG: Path = Path::new("ChangeLive (tag)");
+    pub const CHANGE_JUDGED_HEAD: Path = Path::new("ChangeJudged.head");
+    pub const CHANGE_JUDGED_SPEC: Path = Path::new("ChangeJudged.spec");
+    pub const CHANGE_JUDGED_TAIL: Path = Path::new("ChangeJudged (tail)");
     pub const CHANGE_STATE_LIVE: Path = Path::new("ChangeState.live");
     pub const CHANGE_STATE_HOLDS: Path = Path::new("ChangeState.holds");
     pub const CHANGE_STATE_SINCE: Path = Path::new("ChangeState.since");
     pub const CHANGE_STATE_WORDS: Path = Path::new("ChangeState.words");
+    pub const CHANGE_STATE_JUDGED: Path = Path::new("ChangeState.judged");
     pub const CHANGE_STATE_TAIL: Path = Path::new("ChangeState (tail)");
     pub const GATE_NUMBER: Path = Path::new("Gate.number");
     pub const GATE_KIND: Path = Path::new("Gate.kind");
@@ -4179,6 +4183,7 @@ pub mod paths {
     pub const HISTORY_LAST_TAIL: Path = Path::new("HistoryLast (tail)");
     pub const TASK_RELEASE_REVISION: Path = Path::new("TaskRelease.revision");
     pub const TASK_RELEASE_AT: Path = Path::new("TaskRelease.at");
+    pub const TASK_RELEASE_MEASURED: Path = Path::new("TaskRelease.measured");
     pub const TASK_RELEASE_TAIL: Path = Path::new("TaskRelease (tail)");
     pub const FINDINGS_TOPIC_PROJECT: Path = Path::new("FindingsTopic.project");
     pub const FINDINGS_TOPIC_TAIL: Path = Path::new("FindingsTopic (tail)");
@@ -4236,6 +4241,7 @@ pub mod paths {
     pub const RUNNER_CI_TAG: Path = Path::new("RunnerCi (tag)");
     pub const CI_RECHECK_JOB: Path = Path::new("CiRecheck.job");
     pub const CI_RECHECK_TAKEN: Path = Path::new("CiRecheck.taken");
+    pub const CI_RECHECK_SEMANTIC: Path = Path::new("CiRecheck.semantic");
     pub const CI_RECHECK_TAIL: Path = Path::new("CiRecheck (tail)");
     pub const CHANGE_HOT_BEHIND_WAIT: Path = Path::new("ChangeHot.behind_wait");
     pub const CHANGE_HOT_RUNNER_CI: Path = Path::new("ChangeHot.runner_ci");
@@ -15129,6 +15135,60 @@ impl Record for ChangeLive {
     }
 }
 
+// Type: ChangeJudged.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ChangeJudged {
+    pub head: [u8; 32],
+    pub spec: u64,
+}
+
+// Record: ChangeJudged.
+impl ChangeJudged {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 40;
+}
+
+impl Record for ChangeJudged {
+    type Limits = Limits;
+    const TAIL: Path = paths::CHANGE_JUDGED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ChangeJudged")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ChangeJudged")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Fixed::<32>, &self.head, limits, out, paths::CHANGE_JUDGED_HEAD)?;
+        field::write(field::U64, &self.spec, limits, out, paths::CHANGE_JUDGED_SPEC)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            head: field::read(field::Fixed::<32>, limits, reader, paths::CHANGE_JUDGED_HEAD)?,
+            spec: field::read(field::U64, limits, reader, paths::CHANGE_JUDGED_SPEC)?,
+        })
+    }
+}
+
 // Type: ChangeState.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeState {
@@ -15136,6 +15196,7 @@ pub struct ChangeState {
     pub holds: List<ChangeHold>,
     pub since: Option<u64>,
     pub words: Option<Box<[u8]>>,
+    pub judged: Option<ChangeJudged>,
 }
 
 // Record: ChangeState.
@@ -15148,11 +15209,13 @@ impl ChangeState {
         skein_codec::bounds::Node::Option { item: 3 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_state_words_some) },
         skein_codec::bounds::Node::Option { item: 5 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6] },
+        skein_codec::bounds::Node::Named("ChangeJudged"),
+        skein_codec::bounds::Node::Option { item: 7 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 8] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 121;
+    pub const ENCODED_AT_ZERO: u64 = 162;
 }
 
 impl Record for ChangeState {
@@ -15181,6 +15244,7 @@ impl Record for ChangeState {
         field::write(field::Sequence { limit: limits.change_state_holds.min(CEILINGS.change_state_holds), minimum: 1, item: field::Nested }, &self.holds, limits, out, paths::CHANGE_STATE_HOLDS)?;
         field::write(field::Optional { item: field::U64 }, &self.since, limits, out, paths::CHANGE_STATE_SINCE)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.change_state_words_some.min(CEILINGS.change_state_words_some) } }, &self.words, limits, out, paths::CHANGE_STATE_WORDS)?;
+        field::write(field::Optional { item: field::Nested }, &self.judged, limits, out, paths::CHANGE_STATE_JUDGED)?;
         Ok(())
     }
 
@@ -15190,6 +15254,7 @@ impl Record for ChangeState {
             holds: field::read(field::Sequence { limit: limits.change_state_holds.min(CEILINGS.change_state_holds), minimum: 1, item: field::Nested }, limits, reader, paths::CHANGE_STATE_HOLDS)?,
             since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::CHANGE_STATE_SINCE)?,
             words: field::read(field::Optional { item: field::Bytes { limit: limits.change_state_words_some.min(CEILINGS.change_state_words_some) } }, limits, reader, paths::CHANGE_STATE_WORDS)?,
+            judged: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHANGE_STATE_JUDGED)?,
         })
     }
 }
@@ -16212,7 +16277,7 @@ impl Change {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 476;
+    pub const ENCODED_AT_ZERO: u64 = 517;
 }
 
 impl Record for Change {
@@ -36948,6 +37013,7 @@ impl Record for HistoryLast {
 pub struct TaskRelease {
     pub revision: u64,
     pub at: u64,
+    pub measured: bool,
 }
 
 // Record: TaskRelease.
@@ -36955,11 +37021,12 @@ impl TaskRelease {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 16;
+    pub const ENCODED_AT_ZERO: u64 = 17;
 }
 
 impl Record for TaskRelease {
@@ -36986,6 +37053,7 @@ impl Record for TaskRelease {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U64, &self.revision, limits, out, paths::TASK_RELEASE_REVISION)?;
         field::write(field::U64, &self.at, limits, out, paths::TASK_RELEASE_AT)?;
+        field::write(field::Boolean, &self.measured, limits, out, paths::TASK_RELEASE_MEASURED)?;
         Ok(())
     }
 
@@ -36993,6 +37061,7 @@ impl Record for TaskRelease {
         Ok(Self {
             revision: field::read(field::U64, limits, reader, paths::TASK_RELEASE_REVISION)?,
             at: field::read(field::U64, limits, reader, paths::TASK_RELEASE_AT)?,
+            measured: field::read(field::Boolean, limits, reader, paths::TASK_RELEASE_MEASURED)?,
         })
     }
 }
@@ -37844,6 +37913,7 @@ impl Record for RunnerCi {
 pub struct CiRecheck {
     pub job: JobAttempt,
     pub taken: Option<u32>,
+    pub semantic: bool,
 }
 
 // Record: CiRecheck.
@@ -37852,11 +37922,12 @@ impl CiRecheck {
         skein_codec::bounds::Node::Named("JobAttempt"),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 57;
+    pub const ENCODED_AT_ZERO: u64 = 58;
 }
 
 impl Record for CiRecheck {
@@ -37883,6 +37954,7 @@ impl Record for CiRecheck {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.job, limits, out, paths::CI_RECHECK_JOB)?;
         field::write(field::Optional { item: field::U32 }, &self.taken, limits, out, paths::CI_RECHECK_TAKEN)?;
+        field::write(field::Boolean, &self.semantic, limits, out, paths::CI_RECHECK_SEMANTIC)?;
         Ok(())
     }
 
@@ -37890,6 +37962,7 @@ impl Record for CiRecheck {
         Ok(Self {
             job: field::read(field::Nested, limits, reader, paths::CI_RECHECK_JOB)?,
             taken: field::read(field::Optional { item: field::U32 }, limits, reader, paths::CI_RECHECK_TAKEN)?,
+            semantic: field::read(field::Boolean, limits, reader, paths::CI_RECHECK_SEMANTIC)?,
         })
     }
 }
@@ -38021,7 +38094,7 @@ impl ChangeHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1713;
+    pub const ENCODED_AT_ZERO: u64 = 1756;
 }
 
 impl Record for ChangeHot {
@@ -43186,7 +43259,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1714;
+    pub const ENCODED_AT_ZERO: u64 = 1757;
 }
 
 impl Record for Value {
@@ -43341,7 +43414,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1716;
+    pub const ENCODED_AT_ZERO: u64 = 1759;
 }
 
 impl Record for Row {
@@ -43440,6 +43513,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ChangeHistory", nodes: ChangeHistory::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeHold", nodes: ChangeHold::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeHot", nodes: ChangeHot::SHAPE },
+    skein_codec::bounds::Declaration { name: "ChangeJudged", nodes: ChangeJudged::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeLive", nodes: ChangeLive::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeReply", nodes: ChangeReply::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeResult", nodes: ChangeResult::SHAPE },

@@ -197,6 +197,7 @@ fn a_refused_relay_keeps_the_existing_hold() {
         cause: change::Cause::BranchMoved,
         since: Wall::from_nanos(31),
         words: b"its branch moved".as_slice().into(),
+        judged: None,
     };
     let state = change::State::Held { was: Box::new(was), hold };
     row.change.state = state.clone();
@@ -2105,7 +2106,7 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
 fn assert_engine_release_taken(d: &mut Domain) {
     let task = fixtures::CHANGE;
     let before = d.change(task).expect("released").clone();
-    assert_eq!(before.task_release, Some(TaskRelease { revision: 3, at: env().wall }));
+    assert_eq!(before.task_release, Some(TaskRelease { revision: 3, at: env().wall, measure: false }));
     let repeated = outputs(d, Event::ReleaseChange { task, release: before.task_release.clone() });
     assert!(repeated.is_empty(), "no reset or read on deployment's release: {repeated:?}");
     assert_eq!(d.change(task), Some(&before));

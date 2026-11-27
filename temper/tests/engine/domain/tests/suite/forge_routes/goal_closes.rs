@@ -959,6 +959,9 @@ fn a_released_close_does_not_measure_unchanged_tips_again() {
     let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
     let words = replay_words(at);
     release(&mut world, &run, close, 93);
+    park_goal(&mut world, &run);
+    restart_closing(&mut world);
+    wait_held(&mut world, close, run.task);
     world.advance_ticks(100);
     assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
     super::goal_closer::assert_hold_words(&world, close, &words);

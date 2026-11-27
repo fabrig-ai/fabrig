@@ -84,7 +84,7 @@ fn releasing_a_runner_hold_counts_job_attempts_afresh() {
     let job = head_job(&world);
     world.external(raw::Op::Write(raw::Write::Rerun { job }), 2);
     world.run_for(JOB_FINISH);
-    let release = top::TaskRelease { revision: RELEASE_REVISION, at: world.wall() };
+    let release = top::TaskRelease { revision: RELEASE_REVISION, at: world.wall(), measure: false };
     world.event(top::Event::ReleaseChange { task: TASK, release: Some(release.clone()) });
     // The accepted release must still use a fresh baseline after restart.
     world.restart();

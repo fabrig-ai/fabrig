@@ -4313,16 +4313,16 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
 fn a_consumed_task_release_is_not_replayed_after_restore() {
     use super::{forge, tasks};
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
-    for revision in [1, 2] {
+    for (measure, revision) in [(false, 1), (false, 2), (true, 1), (true, 2)] {
         let (mut domain, env) = two_forges();
         reset_tasks_for_restore(&mut domain, &env, 7);
         let mut task = fixture.engine.core().tasks.task(task).unwrap().clone();
         task.number = 7;
-        task.due_reason = tasks::Why::Released;
+        task.due_reason = if measure { tasks::Why::Measured } else { tasks::Why::Released };
         task.revisions.hold = revision;
         task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(task)) });
         let mut row = change_row(None);
-        row.task_release = Some(forge::TaskRelease { revision: 1, at: env.wall });
+        row.task_release = Some(forge::TaskRelease { revision: 1, at: env.wall, measure });
         restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         assert_eq!(
             super::delegate_record::is_release(&domain, 7),

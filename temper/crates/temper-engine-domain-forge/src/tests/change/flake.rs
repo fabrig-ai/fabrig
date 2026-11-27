@@ -185,15 +185,20 @@ fn a_previous_flake_hold_releases_into_one_regate_whose_red_stands() {
         held.change.state,
         change::State::Held {
             was: Box::new(change::State::Repairing { requested: false, why: why() }),
-            hold: change::Hold::new(change::Cause::RedStands, env().wall),
+            hold: change::Hold {
+                judged: Some(change::Judged { head: fixtures::HEAD, spec: held.spec_revision }),
+                ..change::Hold::new(change::Cause::RedStands, env().wall)
+            },
         }
     );
-    assert_eq!(held.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: test a::t x; release this change to ask a fresh repair, or cancel it".as_slice()));
+    assert_eq!(held.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: test a::t x; amend this change to ask a fresh repair, measure it again, or cancel it".as_slice()));
     assert_eq!(held.change.repairs, 1);
     assert_eq!(held.repair_tasks.as_ref(), [52]);
     assert_eq!(held.regate.as_ref().unwrap().taken, Some(57));
     assert!(d.landing.flights.is_empty(), "the taken regate never dispatches again");
     assert_eq!(d.receipt(&key).unwrap().run.id, 57);
+    let revised = held.spec_revision + 1;
+    d.refresh_spec_revision(fixtures::CHANGE, revised, &mut Queue::uncapped());
     outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
     assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Delegate(change::Delegate::Repair(why())));
     let next = d.change(fixtures::CHANGE).unwrap();
@@ -209,7 +214,7 @@ fn a_flake_without_its_receipt_holds_and_keeps_its_words() {
     verdict_terminal(&mut d, 52, words.as_bytes());
     assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Hold(change::Cause::RedStands));
     let row = d.change(fixtures::CHANGE).unwrap();
-    assert_eq!(row.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content can't be checked again: the landing no longer keeps its failed receipt; release this change to ask a fresh repair, or cancel it".as_slice()));
+    assert_eq!(row.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content can't be checked again: the landing no longer keeps its failed receipt; amend this change to ask a fresh repair, or cancel it".as_slice()));
     assert!(row.result.repairs.bytes.ends_with(words.as_bytes()));
     assert_eq!(row.regate, None);
     assert_eq!(row.repair_tasks.as_ref(), [52]);
@@ -305,5 +310,5 @@ fn a_red_stands_account_cuts_whole_keys_before_its_way_out() {
     let keys = [b"test a::t x".as_slice().into(), Box::from([b'x'; 512]), b"test b::t x".as_slice().into()];
     let words = recheck::stands_again(fixtures::HEAD, 52, &keys);
     assert!(words.len() <= skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES));
-    assert_eq!(&*words, "its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: test a::t x …; release this change to ask a fresh repair, or cancel it".as_bytes());
+    assert_eq!(&*words, "its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: test a::t x …; amend this change to ask a fresh repair, measure it again, or cancel it".as_bytes());
 }

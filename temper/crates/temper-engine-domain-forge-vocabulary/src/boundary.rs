@@ -1074,6 +1074,7 @@ pub struct FollowCheck {
 pub struct TaskRelease {
     pub revision: u64,
     pub at: skein_lib::Wall,
+    pub measure: bool,
 }
 
 /// A pushed branch selected once (temper/docs/design/domain/forge/change/opened.md, 3.1 and 4).
@@ -1213,6 +1214,7 @@ pub struct Regate {
 pub struct CiRecheck {
     pub job: skein_forge::api::JobAttempt,
     pub taken: Option<u32>,
+    pub semantic: bool,
 }
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

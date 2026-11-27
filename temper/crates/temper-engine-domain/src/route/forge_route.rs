@@ -1655,7 +1655,7 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         return;
     }
     let Some(owner) = domain.engine.core().tasks.task(task) else { return };
-    if owner.due_reason != tasks::Why::Released {
+    if !delegate_record::release_reason(owner.due_reason) {
         return;
     }
     let Some(row) = domain.forge.change(task) else { return };
@@ -2087,7 +2087,7 @@ pub(super) fn start_recovered_change(
         // release retries that entrance before the first producer claims it.
         let resource = forge::branch_name(provider, &branch);
         let released = match domain.engine.core().tasks.task(task) {
-            Some(owner) => owner.due_reason == tasks::Why::Released,
+            Some(owner) => delegate_record::release_reason(owner.due_reason),
             None => false,
         };
         let starting = match domain.forge.change(task) {
@@ -2118,7 +2118,9 @@ pub(super) fn start_recovered_change(
     }
     let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return false };
     let released_questions = match (domain.forge.change(task), domain.engine.core().tasks.task(task)) {
-        (Some(row), Some(task)) => relay::questions_held(&row.change.state) && task.due_reason == tasks::Why::Released,
+        (Some(row), Some(task)) => {
+            relay::questions_held(&row.change.state) && delegate_record::release_reason(task.due_reason)
+        }
         _ => false,
     };
     if released_questions && let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) {
@@ -2130,7 +2132,11 @@ pub(super) fn start_recovered_change(
             )
             .expect("one released relay per change step");
         let record = domain.engine.core().tasks.task(task).expect("released change");
-        let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
+        let release = forge::TaskRelease {
+            revision: record.revisions.hold,
+            at: record.phase_since,
+            measure: record.due_reason == tasks::Why::Measured,
+        };
         domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
@@ -4136,7 +4142,7 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
 // Every hold reaches its task, including a later wake or restore (change/repairs.md).
 fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Cause> {
     let task_row = domain.engine.core().tasks.task(task)?;
-    if task_row.due_reason == tasks::Why::Released {
+    if delegate_record::is_release(domain, task) {
         return None;
     }
     match task_row.phase {

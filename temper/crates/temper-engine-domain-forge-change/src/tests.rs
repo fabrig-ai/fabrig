@@ -73,7 +73,9 @@ pub(super) fn facts() -> Facts {
         fault: crate::Fault::Change,
         rerun: false,
         regate: false,
-        legacy_regate: false,
+        measure: false,
+        hold_account_bytes: 512,
+        semantic_recheck: false,
         recheck: crate::Recheck::None,
         repair_head: None,
         pending: Box::new([]),
@@ -530,8 +532,12 @@ fn a_live_task_does_not_suspend_ci_or_gate_stalls() {
 #[test]
 fn a_spent_record_bound_does_not_wrap_an_existing_hold() {
     let was = State::Checking { head: HEAD };
-    let hold =
-        crate::Hold { cause: Cause::BranchMoved, since: at(1), words: b"original branch evidence".as_slice().into() };
+    let hold = crate::Hold {
+        cause: Cause::BranchMoved,
+        since: at(1),
+        words: b"original branch evidence".as_slice().into(),
+        judged: None,
+    };
     let mut c = change(State::Held { was: Box::new(was), hold });
     c.gates = Box::new([Gate {
         number: 1,

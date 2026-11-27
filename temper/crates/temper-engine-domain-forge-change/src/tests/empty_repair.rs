@@ -50,6 +50,10 @@ fn an_empty_ci_repair_without_a_job_holds_even_behind_its_base() {
             assert_eq!(next.change.state, ci_hold(why));
             assert_eq!(next.change.last_head, Some(HEAD));
             assert_eq!((next.change.repairs, next.change.updates), (1, updates));
+            let red = Facts { rerun: true, ..f };
+            let owed = decide(&released(&next.change, at(1)), &red, &heard());
+            assert_eq!(owed.decision, Decision::Effect(Effect::Rerun { head: HEAD }));
+            assert_eq!((owed.change.repairs, owed.change.updates), (1, updates));
         }
     }
 }
@@ -57,7 +61,10 @@ fn an_empty_ci_repair_without_a_job_holds_even_behind_its_base() {
 fn ci_hold(why: Repair) -> State {
     State::Held {
         was: Box::new(State::Repairing { requested: false, why }),
-        hold: crate::Hold::new(Cause::RedStands, at(1)),
+        hold: crate::Hold {
+            judged: Some(crate::Judged { head: HEAD, spec: 0 }),
+            ..crate::Hold::new(Cause::RedStands, at(1))
+        },
     }
 }
 
@@ -129,7 +136,10 @@ fn a_landing_repair_without_its_receipt_holds_red_stands() {
                 held.change.state,
                 State::Held {
                     was: Box::new(State::Repairing { requested: false, why }),
-                    hold: crate::Hold::new(Cause::RedStands, at(1)),
+                    hold: crate::Hold {
+                        judged: Some(crate::Judged { head: HEAD, spec: 0 }),
+                        ..crate::Hold::new(Cause::RedStands, at(1))
+                    },
                 }
             );
             assert_eq!(held.change.repairs, 1);
@@ -146,7 +156,7 @@ fn a_flake_release_checks_then_gates_without_a_repair() {
     c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::RedStands, Wall::EPOCH) };
     c.clean = Box::new([BASE]);
     let lifted = released(&c, at(1));
-    let checked = decide(&lifted, &Facts { regate: true, legacy_regate: true, ..facts() }, &heard());
+    let checked = decide(&lifted, &Facts { regate: true, ..facts() }, &heard());
     assert_eq!(checked.decision, Decision::None);
     assert_eq!(checked.change.state, State::Checking { head: HEAD });
     assert!(checked.change.clean.is_empty());
@@ -222,17 +232,22 @@ fn only_the_taken_measurement_holds_at_the_landing_ask() {
 }
 
 #[test]
-fn releasing_red_stands_asks_a_fresh_repair_for_that_red() {
+fn an_amended_release_asks_a_fresh_repair_for_the_judged_reason() {
     for why in [LANDING_REASONS[1], Repair::Ci, Repair::Semantic] {
         let was = State::Repairing { requested: false, why };
-        let mut held =
-            change(State::Held { was: Box::new(was.clone()), hold: crate::Hold::new(Cause::RedStands, Wall::EPOCH) });
+        let mut held = change(ci_hold(why));
         (held.repairs, held.resolutions, held.updates) = (1, LIMITS.resolutions, LIMITS.updates);
         let released = released(&held, at(1));
-        assert_eq!(released.state, was);
+        assert_eq!(released.state, held.state, "the judgement waits for the fresh gather");
         assert_eq!((released.repairs, released.resolutions, released.updates), (1, LIMITS.resolutions, LIMITS.updates));
-        let red = Facts { ci: Ci { head: HEAD, status: Status::Failed }, ..facts() };
+        let red = Facts {
+            revision: 1,
+            recheck: crate::Recheck::Taken,
+            ci: Ci { head: HEAD, status: Status::Failed },
+            ..facts()
+        };
         let lifted = decide(&released, &red, &heard());
+        assert_eq!(lifted.change.state, was);
         let repair = decide(&lifted.change, &red, &heard());
         assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
         assert_eq!(repair.change.repairs, 2);
@@ -245,7 +260,7 @@ fn a_no_test_release_checks_then_gates_without_a_repair() {
     c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::RedStands, Wall::EPOCH) };
     c.clean = Box::new([BASE]);
     let lifted = released(&c, at(1));
-    let checked = decide(&lifted, &Facts { regate: true, legacy_regate: true, ..facts() }, &heard());
+    let checked = decide(&lifted, &Facts { regate: true, ..facts() }, &heard());
     assert_eq!(checked.decision, Decision::None);
     assert_eq!(checked.change.state, State::Checking { head: HEAD });
     assert!(checked.change.clean.is_empty());
@@ -253,4 +268,23 @@ fn a_no_test_release_checks_then_gates_without_a_repair() {
     let gated = decide(&checked.change, &facts(), &heard());
     assert_eq!(gated.decision, Decision::None);
     assert_eq!(gated.change.state, State::Gating { head: HEAD, asked: Box::new([]) });
+}
+
+#[test]
+fn a_release_checks_a_new_head_instead_of_measuring_the_held_red() {
+    let mut held = change(ci_hold(Repair::Semantic));
+    held.repairs = 1;
+    let fresh = Facts {
+        branch: Some(NEW),
+        ci: Ci { head: NEW, status: Status::Failed },
+        pull: Pull::Open { head: NEW, base: BASE },
+        measure: true,
+        rerun: true,
+        ..facts()
+    };
+    let next = decide(&released(&held, at(1)), &fresh, &heard());
+    assert_eq!(next.decision, Decision::None);
+    assert_eq!(next.change.state, State::Checking { head: NEW });
+    assert_eq!(next.change.last_head, Some(NEW));
+    assert_eq!(next.change.repairs, 1);
 }

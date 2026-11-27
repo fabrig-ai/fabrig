@@ -66,7 +66,7 @@ pub(super) fn branch(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, o
     let pin = row.change.state.pinned_head().or(row.change.last_head).or(row.kept);
     let expected = writes::record_head(d, &name).or(pin);
     let actor = actor(d, row, pending.branch, BehindRead::Branch);
-    let accept = super::takes_released_head(&row.change);
+    let accept = if let Some(head) = pending.branch { super::takes_released_head(&row.change, head) } else { false };
     let recovery = recovery(&row.change.state);
     let creating = recovery == Recovery::Taking || recovery == Recovery::Recreating;
     let legacy = if let Some(head) = d.heads.get(&name)

@@ -1411,6 +1411,11 @@ fn held_review() -> (World, u64, [u8; 32]) {
 }
 
 fn release(world: &mut World, task: u64) {
+    release_held(world, task, false);
+}
+
+fn release_held(world: &mut World, task: u64, judgement: bool) {
+    use temper_engine_domain_forge_change::State;
     let revision = live_task(world, task).revisions.hold;
     let mut key = [95; 16];
     key[15] = u8::try_from(revision).expect("small hold revision");
@@ -1449,11 +1454,11 @@ fn release(world: &mut World, task: u64) {
         writes.iter().any(|write| matches!(write,
             engine::Write::Save(Record::Forge { row }) if matches!(row.as_ref(),
                 forge_top::Stored::ChangeHot(row) if row.task == task
-                    && !matches!(row.change.state, temper_engine_domain_forge_change::State::Held { .. })
+                    && matches!(row.change.state, State::Held { .. }) == judgement
                     && row.change.gate_failures.is_empty()
                     && row.change.released.is_some())
         )),
-        "the same commit clears the change's hold and review tries"
+        "the same commit admits the change's release, retaining judgement inputs until the fresh read"
     );
 }
 
@@ -1671,14 +1676,19 @@ fn a_released_change_counts_its_repairs_anew() {
 #[test]
 fn a_released_change_with_a_declined_approval_is_held_again() {
     use temper_engine_domain_forge_change::{Cause, State};
-    let (mut world, task, _) = held_for(Cause::Rejected);
+    let (mut world, task, head) = held_for(Cause::Rejected);
+    world.advance_ticks(MAX_TICKS);
+    assert!(matches!(change_row(&world, task).change.state, State::Held { .. }), "forge reads cannot end a rejection");
     let revision = live_task(&world, task).revisions.hold;
-    release(&mut world, task);
+    release_held(&mut world, task, true);
     world.advance_ticks(MAX_TICKS);
     assert!(matches!(
         change_row(&world, task).change.state,
         State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Rejected, .. }, .. }
     ));
+    let State::Held { hold, .. } = change_row(&world, task).change.state else { panic!("rejection re-held") };
+    let hex = forge_top::commit_text(&head);
+    assert_eq!(hold.words.as_ref(), [b"not measured again: its rejection at ".as_slice(), &hex[..12], b" stands; it goes on once the person answers their gate again.\n\na person rejected its required gate; resolve the rejection before releasing; change was gating"].concat());
     assert!(matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
     assert!(live_task(&world, task).revisions.hold > revision, "a fresh task hold matches the unchanged verdict");
     assert_eq!(world.assigned.len(), 4, "a declined approval is not asked again at the same head");

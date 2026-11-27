@@ -281,6 +281,10 @@ fn encode_change_state(state: &d::State, ended_held: Option<d::Cause>) -> w::Cha
             holds,
             since: Some(hold.since.as_nanos()),
             words: if hold.words.is_empty() { None } else { Some(hold.words.clone()) },
+            judged: match hold.judged {
+                Some(judged) => Some(w::ChangeJudged { head: judged.head, spec: judged.spec }),
+                None => None,
+            },
         };
     }
     if *state == d::State::Ended
@@ -288,19 +292,26 @@ fn encode_change_state(state: &d::State, ended_held: Option<d::Cause>) -> w::Cha
     {
         holds.push(encode_hold(cause)).expect("one ending hold");
     }
-    w::ChangeState { live: encode_live(state), holds, since: None, words: None }
+    w::ChangeState { live: encode_live(state), holds, since: None, words: None, judged: None }
 }
 
 fn decode_change_state(value: w::ChangeState, step_since: u64, close_refused: bool) -> (d::State, Option<d::Cause>) {
-    let w::ChangeState { live, holds, since, words } = value;
+    let w::ChangeState { live, holds, since, words, judged } = value;
     let state = decode_live(live);
     let Some(outer) = holds.as_slice().first() else { return (state, None) };
     let cause = decode_hold(outer.clone(), close_refused && since.is_none());
     if state == d::State::Ended {
         return (state, Some(cause));
     }
-    let hold =
-        d::Hold { cause, since: Wall::from_nanos(since.unwrap_or(step_since)), words: words.unwrap_or_default() };
+    let hold = d::Hold {
+        cause,
+        since: Wall::from_nanos(since.unwrap_or(step_since)),
+        words: words.unwrap_or_default(),
+        judged: match judged {
+            Some(judged) => Some(d::Judged { head: judged.head, spec: judged.spec }),
+            None => None,
+        },
+    };
     (d::State::Held { was: Box::new(state), hold }, None)
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {

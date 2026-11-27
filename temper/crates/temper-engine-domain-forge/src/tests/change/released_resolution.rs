@@ -28,7 +28,13 @@ fn failed(kind: Delegate) -> Domain {
 }
 
 fn release(d: &mut Domain, revision: u64) -> Box<[Request]> {
-    outputs(d, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(TaskRelease { revision, at: env().wall }) })
+    outputs(
+        d,
+        Event::ReleaseChange {
+            task: fixtures::CHANGE,
+            release: Some(TaskRelease { revision, at: env().wall, measure: false }),
+        },
+    )
 }
 
 #[test]

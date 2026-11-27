@@ -236,12 +236,19 @@ pub struct Hold {
     pub cause: Cause,
     pub since: Wall,
     pub words: Box<[u8]>,
+    pub judged: Option<Judged>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Judged {
+    pub head: Commit,
+    pub spec: u64,
 }
 
 impl Hold {
     #[must_use]
     pub fn new(cause: Cause, since: Wall) -> Self {
-        Self { cause, since, words: Box::new([]) }
+        Self { cause, since, words: Box::new([]), judged: None }
     }
 }
 
@@ -495,8 +502,12 @@ pub struct Facts {
     pub rerun: bool,
     /// Whether the landing repair's reason still resolves to a failed receipt.
     pub regate: bool,
-    /// The previous build's flake or no-test hold still owes its one check.
-    pub legacy_regate: bool,
+    /// The admitted task release asks to measure the held verdict again.
+    pub measure: bool,
+    /// Limit on a hold account delivered to the task.
+    pub hold_account_bytes: u32,
+    /// Preserve the repair reason while its CI check has only a head.
+    pub semantic_recheck: bool,
     pub recheck: Recheck,
     /// The head its current repair was asked to repair, even after a push.
     pub repair_head: Option<Commit>,

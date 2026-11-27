@@ -553,6 +553,33 @@ fn releasing_a_broken_close_rechecks_unchanged_tips() {
 }
 
 #[test]
+fn measuring_a_refused_close_runs_one_fresh_job_at_unchanged_tips() {
+    let (mut world, goal, branch, tip) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let landing = translate::commit(branch_tip(&mut world, b"main"));
+    finish_with(&mut world, &first, &check_refusal(translate::commit(tip), landing));
+    super::goal_closer::wait_held(&mut world, task, goal.task);
+    let revision = live_task(&world, task).revisions.hold;
+    let tool = engine::Tool::Measure { target: task, revision };
+    let answer = world.scripted_call(&goal, 95, tool);
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    let fresh = next_job(&mut world, task);
+    assert_ne!(fresh.run.raw(), first.run.raw());
+    let row = change_row(&world, task);
+    let accepted = row.task_release.expect("measurement release was kept");
+    assert_eq!((accepted.revision, accepted.measure), (revision, true));
+    assert_eq!(
+        row.close_at,
+        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None })
+    );
+    finish_job(&mut world, &fresh);
+    assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
+    assert!(world.jobs.is_empty(), "one accepted measurement made one fresh job");
+    world.close();
+}
+
+#[test]
 fn moving_main_alone_rechecks_a_refused_close() {
     let (mut world, goal, branch, tip) = goal_world(true, true);
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);

@@ -806,7 +806,10 @@ fn previous_hold_layout(row: v25::Row) -> Box<[u8]> {
     use skein_codec::layout::{Mode, Plan, Workspace};
     let current = crate::OWNER_SET.families.first().expect("store family").current;
     let prior = current
-        .replace(" since: option u64 = none words: option bytes 512 = none", "")
+        .replace(" since: option u64 = none words: option bytes 512 = none judged: option ChangeJudged = none", "")
+        .replace("record ChangeJudged { head: fixed 32 spec: u64 }\n", "")
+        .replace(" measured: bool = false", "")
+        .replace(" semantic: bool = false", "")
         .replace(", close_refused }", " }");
     let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
     let old = skein_codec::schema::parse(prior.as_bytes()).unwrap();
@@ -911,6 +914,7 @@ fn previous_hold_arms_read_without_releasing_the_change() {
         let state = State::Producing { requested: true };
         let mut row = fixtures::change_row(state.clone());
         row.close_at = at;
+        row.task_release = Some(forge::TaskRelease { revision: 4, at: Wall::EPOCH, measure: true });
         row.change.released = None;
         let since = Wall::from_nanos(123);
         row.change.since = since;
@@ -928,6 +932,7 @@ fn previous_hold_arms_read_without_releasing_the_change() {
             State::Held { was: Box::new(state), hold: temper_engine_domain_forge_change::Hold::new(cause, since) }
         );
         assert_eq!(decoded.change.released, None);
+        assert_eq!(decoded.task_release, Some(forge::TaskRelease { revision: 4, at: Wall::EPOCH, measure: false }));
         assert_eq!(decoded.close_at, at);
         assert_eq!((decoded.delegate_flake, decoded.delegate_no_test), (flake, no_test));
         let State::Held { hold, .. } = &mut decoded.change.state else { panic!("hold") };
@@ -960,12 +965,16 @@ fn a_runner_hold_round_trips_with_its_account() {
 
 #[test]
 fn red_stands_round_trips_with_its_repair_reason_and_account() {
-    use temper_engine_domain_forge_change::{Cause, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Hold, Judged, Repair, State};
     let mut row = fixtures::change_row(State::Held {
         was: Box::new(State::Repairing { requested: false, why: Repair::Landing { gate: 0 } }),
-        hold: temper_engine_domain_forge_change::Hold::new(Cause::RedStands, Wall::EPOCH),
+        hold: Hold {
+            judged: Some(Judged { head: [3; 32], spec: 123 }),
+            words: b"its red stands".as_slice().into(),
+            ..Hold::new(Cause::RedStands, Wall::EPOCH)
+        },
     });
-    row.producer_failure = Some(b"its red stands".as_slice().into());
+    row.task_release = Some(forge::TaskRelease { revision: 5, at: Wall::EPOCH, measure: true });
     let row = fixtures::change_hot(row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
@@ -4617,7 +4626,7 @@ fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
     let job = skein_forge::api::JobAttempt { head, run: 7, job: 41, attempt: 2 };
     for taken in [None, Some(3)] {
         let mut row = fixtures::change_row(State::Checking { head });
-        row.ci_recheck = Some(forge::CiRecheck { job, taken });
+        row.ci_recheck = Some(forge::CiRecheck { job, taken, semantic: taken.is_some() });
         let (cold, hot) = row.clone().split();
         let stored = forge::Stored::ChangeHot(Box::new(hot));
         let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
