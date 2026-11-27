@@ -414,6 +414,7 @@ pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core_voc
             | file::Request::CreateNoFollow { .. }
             | file::Request::OpenRead { .. }
             | file::Request::OpenReadNoFollow { .. }
+            | file::Request::OpenSiblingFile { .. }
             | file::Request::OpenWrite { .. }
             | file::Request::OpenDirectory { .. }
             | file::Request::Load { .. }

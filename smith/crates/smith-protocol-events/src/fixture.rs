@@ -9,6 +9,7 @@ use smith_domain::llm;
 pub fn prompt(thread: u32) -> llm::Prompt {
     llm::Prompt {
         effort: Some(b"medium".as_slice().into()),
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         endpoint: llm::Endpoint(0),
         affinity: llm::Affinity { key: [0; 16], thread },
@@ -69,6 +70,7 @@ pub fn priced_charter() -> smith_domain::run::Charter {
         budget: run::Budget { turns: 512, spend: 25_000_000, time: Duration::from_secs(3600) },
         llm: run::charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices {
                 input: 1_250_000,
                 cached: 125_000,

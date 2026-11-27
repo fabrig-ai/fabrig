@@ -51,6 +51,7 @@ pub fn call(owner: u64) -> Call {
                 content: Box::new([Block::Text { text: b"Hello".to_vec().into(), replay: None }]),
             }]),
             reasoning_effort: None,
+            speed: None,
             affinity: Some(skein_llm::Affinity { key: [0x42; 16], thread: 0 }),
             choice: skein_llm::ToolChoice::Auto,
             max_output_tokens: None,

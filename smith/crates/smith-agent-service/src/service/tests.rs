@@ -185,6 +185,7 @@ fn diagnostic_answer(agent: &mut Service, owner: Token, ask: run::Ask) {
         Input::Provider(llm::ToDomain::Completed {
             owner,
             completion: domain::llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 stop: domain::llm::Stop::ToolUse,
                 usage: domain::llm::Usage::ZERO,

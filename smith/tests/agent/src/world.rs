@@ -9,7 +9,7 @@ mod jobs;
 use std::collections::{BTreeMap, BTreeSet, VecDeque, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
 
-use skein_fake_checkout::Checkout;
+use skein_fake_checkout::{Checkout, Failure};
 use skein_fake_llm_domain as provider;
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Referee, Schedule, Span, Stage, Trace};
@@ -339,6 +339,7 @@ pub struct World<B: Backend = Typed> {
     answered: Option<Time>,
     checked: Vec<bool>,
     scripted_checks: VecDeque<run::Ran>,
+    scripted_hooks: VecDeque<Option<run::Hooks>>,
     check_marker: Option<Vec<u8>>,
     check_results: Vec<(Box<[u8]>, bool)>,
     check_notices: Vec<(Time, bool)>,
@@ -357,8 +358,8 @@ pub struct World<B: Backend = Typed> {
     landed: Vec<u8>,
     prompts: Vec<provider::api::Query>,
     completions: Vec<CompletionObservation>,
-    model_prices: BTreeMap<Box<[u8]>, run::Prices>,
-    main_prices: run::Prices,
+    model_prices: BTreeMap<Box<[u8]>, ModelPrices>,
+    main_prices: ModelPrices,
     turns: Vec<agent::Turn>,
     parts: Vec<(Time, u32, u32, agent::session::record::Part)>,
     command_writes: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
@@ -529,11 +530,11 @@ impl<B: Backend> World<B> {
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
         let config = configuration(settings.endpoint, settings.window, settings.output);
-        let main_prices = charter.llm.prices;
+        let main_prices = ModelPrices::of(&charter.llm);
         let mut model_prices = BTreeMap::new();
-        model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
+        model_prices.insert(charter.llm.model.clone(), main_prices);
         for model in &charter.models {
-            model_prices.insert(model.model.clone(), model.prices);
+            model_prices.insert(model.model.clone(), ModelPrices::of(model));
         }
         let messages_seen = opening_observations(charter, messages);
         let host_run = *host_run;
@@ -578,6 +579,7 @@ impl<B: Backend> World<B> {
             answered: None,
             checked: Vec::new(),
             scripted_checks: VecDeque::new(),
+            scripted_hooks: VecDeque::new(),
             check_marker: None,
             check_results: Vec::new(),
             check_notices: Vec::new(),
@@ -818,6 +820,11 @@ impl<B: Backend> World<B> {
     /// Supply the next check terminals at the typed machine boundary, in request order.
     pub fn script_checks(&mut self, checks: Vec<run::Ran>) {
         self.scripted_checks.extend(checks);
+    }
+
+    /// Override hooks discovery in request order. An unscripted probe may only find no directory.
+    pub fn script_hooks(&mut self, hooks: Vec<Option<run::Hooks>>) {
+        self.scripted_hooks.extend(hooks);
     }
 
     /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
@@ -1444,6 +1451,35 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
+            Request::Lower(smith_domain::Lower::ProbeHooks { owner, at, deadline }) => {
+                let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
+                let hooks = if complete <= deadline {
+                    self.scripted_hooks.pop_front().unwrap_or_else(|| {
+                        // The fake checkout has no execute bits; scenarios with hooks script the terminal.
+                        let listing = self.disk.scan(at.root.raw(), &at.path, 0);
+                        assert!(
+                            matches!(listing, Err(Failure::Missing | Failure::NotDirectory)),
+                            "scenario must script hooks for {at:?}: {listing:?}"
+                        );
+                        None
+                    })
+                } else {
+                    Some(run::Hooks::UNREADABLE)
+                };
+                self.boundaries.push((self.now, Boundary::Probe { at }));
+                let key = self.schedule.send(
+                    complete.min(deadline),
+                    Delivery::Terminal {
+                        family: Family::Probe,
+                        owner,
+                        event: Event::Below(smith_domain::Below::HooksProbed { owner, hooks }),
+                    },
+                );
+                self.flights.open(
+                    (Family::Probe, owner),
+                    Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
+                );
+            }
             Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
                 if let Some(marker) = &self.check_marker {
                     let results = results.expect("scripted check requires its results directory");
@@ -1459,9 +1495,13 @@ impl<B: Backend> World<B> {
                 let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
-                assert_eq!(&*program.path, fixture::CHECKS, "the host explicitly selected its Temper fixture checks");
                 let complete = self.now.saturating_add(self.settings.check.draw(&mut self.rng));
                 let ran = self.scripted_checks.pop_front().unwrap_or_else(|| {
+                    assert_eq!(
+                        &*program.path,
+                        fixture::CHECKS,
+                        "the host explicitly selected its Temper fixture checks"
+                    );
                     let (passed, output) = fixture::check(&self.disk, program.root.raw());
                     let exit = if complete > deadline {
                         run::Exit::TimedOut
@@ -1848,6 +1888,7 @@ impl<B: Backend> World<B> {
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::Aborted { .. },
             ) => {
@@ -1878,7 +1919,7 @@ impl<B: Backend> World<B> {
                 let index = flight.completion_index.expect("completion observation");
                 let prices = self.model_prices.get(&self.completions[index].model).copied().unwrap_or(self.main_prices);
                 let usage = completion.usage;
-                let units = observed_price(prices, usage).unwrap_or(0);
+                let units = observed_price(prices.for_speed(&completion.served), usage).unwrap_or(0);
                 self.observe(Seen::Completed {
                     owner,
                     spent: run::Spend {
@@ -1930,7 +1971,8 @@ impl<B: Backend> World<B> {
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
-                | smith_domain::Below::Probed { .. },
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. },
             ) => {}
         }
         match &event {
@@ -1961,6 +2003,7 @@ impl<B: Backend> World<B> {
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::Aborted { .. }
                 | smith_domain::Below::Done { .. },
@@ -2313,6 +2356,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
         conventions: Some(smith_domain::run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: settings.resume,
         waiting: settings.waiting,
@@ -2322,7 +2366,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
 fn copy_answer(answer: &run::Answer) -> run::Answer {
     use run::outcome::Declared;
     match answer {
-        run::Answer::Refused(refusal) => run::Answer::Refused(*refusal),
+        run::Answer::Refused(refusal) => run::Answer::Refused(refusal.clone()),
         run::Answer::Parked { spent, turns } => run::Answer::Parked { spent: *spent, turns: *turns },
         run::Answer::Failed { failure, spent, turns } => {
             run::Answer::Failed { failure: failure.clone(), spent: *spent, turns: *turns }
@@ -2348,6 +2392,25 @@ impl<B: Backend> World<B> {
 }
 
 // Independent outside scalar oracle from caller data and provider counts.
+#[derive(Clone, Copy, Debug)]
+struct ModelPrices {
+    standard: run::Prices,
+    selected: Option<run::Prices>,
+}
+
+impl ModelPrices {
+    fn of(model: &run::charter::Llm) -> Self {
+        Self { standard: model.prices, selected: model.speed.as_ref().map(|speed| speed.prices) }
+    }
+
+    fn for_speed(self, served: &llm::ServedSpeed) -> run::Prices {
+        match served {
+            llm::ServedSpeed::Standard => self.standard,
+            llm::ServedSpeed::Named(_) | llm::ServedSpeed::Unreported => self.selected.unwrap_or(self.standard),
+        }
+    }
+}
+
 fn observed_price(prices: run::Prices, usage: llm::Usage) -> Option<u64> {
     let denominator = u128::from(prices.unit);
     let fresh = u128::from(usage.input_tokens.expect("scripted peer supplies count"));
@@ -2410,6 +2473,7 @@ fn main_model(endpoint: u32, window: u32) -> run::charter::Llm {
     use run::charter::{Endpoint, Llm};
     Llm {
         effort: None,
+        speed: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         account: Some(0),
         endpoint: Endpoint(endpoint),

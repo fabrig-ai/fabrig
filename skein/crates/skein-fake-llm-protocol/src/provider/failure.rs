@@ -66,7 +66,8 @@ pub fn scripts(config: &Config, accepted: &[Credential], scripts: &[api::Script]
                     | api::Line::Text { .. }
                     | api::Line::Opaque { .. }
                     | api::Line::Call { .. }
-                    | api::Line::Pieces { .. } => {}
+                    | api::Line::Pieces { .. }
+                    | api::Line::Served { .. } => {}
                 }
             }
         }
@@ -459,7 +460,8 @@ mod tests {
                 let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: bounds() };
                 let mut server = Server::new(skein_lib::Token::new(1), &env.limits).expect("server limits");
                 server.route = route;
-                server.answer = Some(api::Answer { parts, finish: api::Finish::Stop, usage: api::Usage::NONE });
+                server.answer =
+                    Some(api::Answer { parts, finish: api::Finish::Stop, usage: api::Usage::NONE, served: None });
                 server.pieces.fail(api::Error::Cut(api::Cut::BeforeOutput).into());
                 crate::provider::pieces::head(&mut server);
                 let Some(http::Request::Respond(head)) = server.requests.pop() else { panic!("success head") };

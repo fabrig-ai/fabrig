@@ -75,6 +75,25 @@ impl Prices {
     }
 }
 
+/// The selected provider speed and the names and rates it may serve under.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Speed {
+    pub name: Box<[u8]>,
+    pub also: Box<[Box<[u8]>]>,
+    pub prices: Prices,
+}
+
+impl Speed {
+    pub(crate) fn owned_bytes(&self) -> Option<u64> {
+        let cell = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
+        let mut bytes = skein_lib::len_u64(self.name.len());
+        for name in &self.also {
+            bytes = bytes.checked_add(cell)?.checked_add(skein_lib::len_u64(name.len()))?;
+        }
+        Some(bytes)
+    }
+}
+
 /// Parent-owned concrete opening, validated before any tools or provider effect.
 /// `transcript: None` starts fresh under the same reservation and terminal rules.
 #[derive(PartialEq, Eq, Debug)]
@@ -87,6 +106,7 @@ pub struct Opening {
     pub dialect: u32,
     /// Immutable integer prices for charging each accepted completion.
     pub prices: Prices,
+    pub speed: Option<Speed>,
     /// Allowance supplied at admission, checked before starting more work.
     pub budget: u64,
     /// Optional concrete history admitted before any provider work.
@@ -127,6 +147,7 @@ pub struct Llm {
     pub window: u32,
     pub output: u32,
     pub prices: Prices,
+    pub speed: Option<Speed>,
 }
 
 /// One post-transcript result, keyed by the saved completion and block position.

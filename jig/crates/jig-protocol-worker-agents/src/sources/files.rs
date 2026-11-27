@@ -102,6 +102,7 @@ impl FileStage {
             | file::Request::CreateNoFollow { .. }
             | file::Request::OpenRead { .. }
             | file::Request::OpenReadNoFollow { .. }
+            | file::Request::OpenSiblingFile { .. }
             | file::Request::OpenWrite { .. }
             | file::Request::OpenWriteNoFollow { .. }
             | file::Request::Load { .. }
@@ -175,6 +176,7 @@ fn cancel_target(kind: &mut kernel::Op, prefix: u64, tagging: bool) {
         | kernel::Op::Sync { .. }
         | kernel::Op::Lock { .. }
         | kernel::Op::Stat { .. }
+        | kernel::Op::ReadLink { .. }
         | kernel::Op::HardLink { .. }
         | kernel::Op::Rename { .. }
         | kernel::Op::Remove { .. }

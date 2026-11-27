@@ -159,6 +159,7 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
     charter.conventions = Some(jig_protocol_charter::Conventions {
         guide: bytes::copy_of(b"AGENTS.md"),
         checks: bytes::copy_of(b".temper/pre-pr"),
+        hooks: Some(bytes::copy_of(b".temper/hooks")),
     });
     let mut charter = jig_protocol_charter::charter(charter).expect("bounded charter");
     charter.check_timeout = assignment.check_timeout;

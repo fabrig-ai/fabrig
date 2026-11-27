@@ -377,6 +377,8 @@ pub enum Below {
         /// Whether IO found an executable within the named root before its deadline.
         executable: bool,
     },
+    /// Terminal for `ProbeHooks`: no hooks directory, or its two checks.
+    HooksProbed { owner: Token, hooks: Option<run::Hooks> },
     /// Terminal for `Check`: what the checks' process did.
     Checked {
         owner: Token,
@@ -460,6 +462,8 @@ pub enum Lower {
     /// Find out whether an executable file is at `at`, giving up at
     /// `deadline`.
     Probe { owner: Token, at: run::Place, deadline: Time },
+    /// Find the delivery hooks in the directory at `at`; ends in `HooksProbed`.
+    ProbeHooks { owner: Token, at: run::Place, deadline: Time },
     /// Run the executable at `program`, in its repository's root, as a
     /// contained process, given `bound` of held time within `cap`; keep the last `tail`
     /// bytes of what it writes.

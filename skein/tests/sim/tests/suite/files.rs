@@ -5,7 +5,7 @@
 //! What the records answer, rule by rule, is the conformance suite's.
 
 use skein_fake_machine::Item;
-use skein_io::kernel::{Complete, Done, Entry, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
+use skein_io::kernel::{Complete, Done, Entry, Error, Fd, Kind, LINK_BYTES, Op, OpenHow, Stat, Submit};
 use skein_lib::{Duration, Queue, Token};
 use skein_sim::{Answer, Ask, Call, Config, Event, Fault, Faults, Handle, Pid, Reply, Ticket};
 use skein_sim_tests::World;
@@ -16,9 +16,13 @@ fn tree() -> [Item; 3] {
 
 /// A calm world with a process and its root.
 fn rooted() -> (World, Pid, Fd) {
+    rooted_at(&tree())
+}
+
+fn rooted_at(items: &[Item]) -> (World, Pid, Fd) {
     let mut world = World::calm();
     let pid = world.spawn();
-    let root = world.root(pid, &tree());
+    let root = world.root(pid, items);
     (world, pid, root)
 }
 
@@ -67,6 +71,20 @@ fn a_file_is_made_written_read_listed_renamed_and_removed_through_the_machine() 
     assert_eq!(world.call(pid, remove).result, Ok(Done::Nothing));
     assert_eq!(world.read(pid, file, 0, 3), Ok(b"abc".to_vec()), "a file removed while open stays readable");
     close_all(&mut world, pid, &[file, root]);
+}
+
+/// skein/docs/design/runtime/kernel-files.md, 2: a link read returns bytes, never a lookup of its target.
+#[test]
+fn a_link_read_returns_its_unresolved_target() {
+    const NAME: &[u8] = b"link";
+    const TARGET: &[u8] = b"../missing";
+    let (mut world, pid, root) = rooted_at(&[Item::link(NAME, TARGET)]);
+    let complete =
+        world.call(pid, Op::ReadLink { dir: root, name: NAME.into(), buf: skein_lib::bytes::zeroed(LINK_BYTES) });
+    let Op::ReadLink { buf, .. } = complete.kind else { panic!("readlink returns its operation") };
+    assert_eq!(complete.result, Ok(Done::Count(u32::try_from(TARGET.len()).unwrap())));
+    assert_eq!(&buf[..TARGET.len()], TARGET);
+    close_all(&mut world, pid, &[root]);
 }
 
 #[test]

@@ -110,6 +110,7 @@ fn machine_up(service: &mut Stages, framed: bool) {
             machine::ToDomain::Done { owner, done } => domain::Below::Done { owner, done },
             machine::ToDomain::Read { owner, read } => domain::Below::Read { owner, read },
             machine::ToDomain::Probed { owner, executable } => domain::Below::Probed { owner, executable },
+            machine::ToDomain::HooksProbed { owner, hooks } => domain::Below::HooksProbed { owner, hooks },
             machine::ToDomain::Checked { owner, ran } => domain::Below::Checked { owner, ran },
             machine::ToDomain::Aborted { owner } => domain::Below::Aborted { owner },
         };
@@ -514,6 +515,7 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
             | smith_domain::Below::Done { .. }
             | smith_domain::Below::Read { .. }
             | smith_domain::Below::Probed { .. }
+            | smith_domain::Below::HooksProbed { .. }
             | smith_domain::Below::Checked { .. }
             | smith_domain::Below::BuiltinResult { .. }
             | smith_domain::Below::ReadVersion { .. }

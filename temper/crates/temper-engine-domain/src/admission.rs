@@ -168,6 +168,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::ParkCloser { .. }
             | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
+            | forge::Event::ReadCloserClose { .. }
             | forge::Event::ChangeEnding { .. }
             | forge::Event::RetireFailedClose { .. }
             | forge::Event::ReleaseChange { .. }

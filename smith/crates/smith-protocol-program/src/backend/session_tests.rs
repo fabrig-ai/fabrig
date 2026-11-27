@@ -103,6 +103,24 @@ fn a_compaction_runs_without_tools() {
 }
 
 #[test]
+fn a_fast_compaction_keeps_settings_in_one_argument() {
+    let mut prompt = ordinary();
+    prompt.purpose = llm::Purpose::Compaction { room: 1000 };
+    for fast in [false, true] {
+        prompt.speed = fast.then(|| b"fast".as_slice().into());
+        let args =
+            compact::arguments(&prompt, b"instructions.md", b"session", false, false).expect("compact arguments");
+        let flags: Box<[_]> = args.iter().enumerate().filter(|(_, arg)| arg.as_ref() == b"--settings").collect();
+        if fast {
+            let [(flag, _)] = flags.as_ref() else { panic!("one settings flag") };
+            assert_eq!(args[flag + 1].as_ref(), br#"{"fastMode": true}"#);
+        } else {
+            assert!(flags.is_empty(), "no settings at default speed");
+        }
+    }
+}
+
+#[test]
 fn a_compaction_renders_the_window_as_one_message() {
     let mut backend = backend();
     let mut next = request(&backend);

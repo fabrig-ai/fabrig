@@ -34,7 +34,11 @@ pub fn done(terminal: &ToDomain) -> tools::Done {
             assert_eq!(*owner, Token::new(10));
             done.clone()
         }
-        ToDomain::Read { .. } | ToDomain::Probed { .. } | ToDomain::Checked { .. } | ToDomain::Aborted { .. } => {
+        ToDomain::Read { .. }
+        | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
+        | ToDomain::Checked { .. }
+        | ToDomain::Aborted { .. } => {
             panic!("job owes Done")
         }
     }

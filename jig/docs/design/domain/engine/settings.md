@@ -21,7 +21,7 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   | policy | the policy's, 1 to 64, the defaults' 1 to 32 (below) | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
   | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
-  | model | the model's, 1 to 64, the defaults' 1 to 32 (below), never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
+  | model | the model's, 1 to 64, the defaults' 1 to 32 (below), never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, speeds and default speed (`settings-catalogue.md`, 1), description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
   | worker | the worker's, 1 to the fleet's configured workers, never given to another name (`workers.md`, 2) | a worker whole: its name, its places, its secret's digest, whether it is withdrawn (`workers.md`, 1) | at each opening and each hello, and when a deployment document is built: the newest (`workers.md`, 4) |
   | provider | the LLM provider's, 1 to 16, never given to another name (`llm-providers.md`, 3) | a provider whole: its name, its sources, its list's patterns, its terms and its endpoints, whether it is withdrawn (`llm-providers.md`, 1 and 2) | by the check and the keeping ask: the newest; by what dials, signs in and lists: the providers the start ran, so a change applies at the next start (`llm-providers.md`, 5) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (5) | by the application, from that connector: the newest |
@@ -129,7 +129,8 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   ): each value in its shape and within its bound
   (a charter's instructions within the journal's run bytes, its budgets
   above its reserve and holding one of its default model's costliest
-  completions, its models configured; a template's charter offered and
+  completions, at the prices of the speed it runs that model at
+  (`executors.md`, 1), its models configured; a template's charter offered and
   its grace within the tasks child's span; a model in 11's shape; a policy within the rules,
   its roles well formed, its overrides' templates offered, its owner
   role able to be a root's requester), each number within its kind's

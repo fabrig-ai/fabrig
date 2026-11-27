@@ -38,6 +38,7 @@ fn charter() -> Box<[u8]> {
             reserve: charter::Reserve { turns: 1, time: Duration::from_secs(10) },
         },
         model: charter::Llm {
+            speed: None,
             model: charter::Model {
                 prices: charter::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 dialect: 3,
