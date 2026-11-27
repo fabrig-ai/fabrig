@@ -245,7 +245,8 @@ pub enum Failure {
     Gone,                       // a read's range is no longer there
     TooLinked { joins: u32 },   // a read's first row needs more joins than the read's bound
     TurnProblem { task: u64, attempt: u64, turn: u32, owner: Box<tasks::TaskRecord>, why: reads::TurnFailure },
-    Unread,                     // a window whose first turn the store did not find
+    Unread,                     // a window's first turn not found, or a frame past pages already given
+                                // unread or refused: ends the load and discards those pages
     Failed,                     // the store could not read it
 }
 ```
@@ -272,7 +273,9 @@ The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::He
   - `Window`: `Turns`, each turn with its text as the protocol layer renders it, or `Cut`, a
     turn past its page's room, alone in its page, with its fields, its transcript empty and its
     length (`executors-transcripts.md`, 1; `../../protocol/store/transcripts.md`, 3); or
-    `Unread`, its first turn not found, or `Failed`, either of which ends it.
+    `Unread`, its first turn not found or a frame past the pages already given unread or refused
+    (`../../protocol/store/transcripts.md`, 3). `Unread` ends the load and discards the pages
+    already given (`executors-transcripts.md`, 1). `Failed` also ends the load.
   - `Notes`: `Records` holding the page's notes records, `more` if any remain past it; or
     `Failed`.
   - `Read`: `Read`, the page's rows, each with its joins, and the position the next page
