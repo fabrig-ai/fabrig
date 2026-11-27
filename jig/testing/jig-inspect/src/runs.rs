@@ -69,8 +69,10 @@ fn cancelled(core: &Core, key: CallKey) -> bool {
 }
 
 pub(crate) fn host_calls(core: &Core, into: &mut Inspection) {
-    for (&key, _) in &core.pending_calls {
+    let mut after = None;
+    while let Some(key) = core.inspection_pending_call_after(after) {
         relations::host_call(into, key, if cancelled(core, key) { CANCELLED } else { CALL_RECORD });
+        after = Some(key);
     }
     for (&key, part) in &core.call_parts {
         let side = if cancelled(core, key) {
