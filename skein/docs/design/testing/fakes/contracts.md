@@ -44,9 +44,9 @@ In `skein_fake_llm_domain::api`:
 /// What a fake draws from (drawn-agent.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Seeds {
-    /// A world not on streams: its one seed.
+    /// One seed: one generator draws answers, faults and timing, as before.
     One(u64),
-    /// A world on streams: `Parties`' `agent/NAME`, `Faults`' `llm`, `Scheduling`'s `llm`.
+    /// Three parts: `Parties`' `agent/NAME`, `Faults`' `llm`, `Scheduling`'s `llm`.
     Parts { agent: u64, faults: u64, scheduling: u64 },
 }
 ```
