@@ -30,7 +30,7 @@ fn conversion_does_not_repair_a_head_that_moved() {
     }
     let mut out = Queue::uncapped();
     let tasks = jig_tasks_kit::domain(&jig_tasks_kit::LIMITS, 71);
-    assert_eq!(d.start_links(&tasks, &env(), &mut out), Ok(()));
+    assert_eq!(d.start_links(&tasks, &env(), false, &mut out), Ok(()));
     let row = d.change(fixtures::CHANGE).expect("member kept by the unmade pass");
     assert!(row.asks.is_empty());
 }

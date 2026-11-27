@@ -2,6 +2,7 @@
 use super::{
     Action, ReplyTo, Store, Token, Violation, World, chat, check, ended, finish, people, root, state, state_mut, tasks,
 };
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, documents, reads as transport};
 fn query() -> documents::TaskQuery {
     jig_test_profile::fixtures::own_tasks()
@@ -92,35 +93,47 @@ pub(super) fn action(world: &mut World, action: Action) -> Result<(), Violation>
     Ok(())
 }
 
+pub(crate) fn point(store: &Store, range: &engine_store::Range) -> engine_store::Answer {
+    let key = match range {
+        engine_store::Range::Record(key) => Some(key.clone()),
+        engine_store::Range::Proposal { task, proposal } => {
+            match store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(*task)))) {
+                Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) => {
+                    row.proposal_rows.iter().find(|pointer| pointer.proposal == *proposal).map(|pointer| {
+                        core::Key::Tasks(tasks::Key::History { task: *task, revision: pointer.revision })
+                    })
+                }
+                _ => None,
+            }
+        }
+        engine_store::Range::Read(_) | engine_store::Range::Window { .. } | engine_store::Range::Notes(_) => {
+            unreachable!("not a point load")
+        }
+    };
+    let record = key.and_then(|key| match store.rows.get(&root::Key::Core(key)) {
+        Some(root::Record::Core(row)) => Some(row.clone()),
+        _ => None,
+    });
+    let records: Box<[core::Record]> = match record {
+        Some(row) => Box::new([row]),
+        None => Box::new([]),
+    };
+    engine_store::Answer::Rows(engine_store::Rows::Records { records, more: false })
+}
+
 pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> {
     match output {
-        root::Output::Core(core::Held::ReadLoad { load, range }) => Some(page(store, *load, range)),
+        root::Output::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
+            Some(page(store, *load, range))
+        }
 
-        root::Output::CoreLoad(core::Now::LoadEndedRead { request, task, party }) => {
-            let through = store
-                .rows
-                .get(&root::Key::Core(core::Key::People(people::Key::EndedRead { party: *party, task: *task })))
-                .map_or(0, |row| match row {
-                    root::Record::Core(core::Record::People(people::Stored::EndedRead { through, .. })) => *through,
-                    root::Record::Core(_) | root::Record::Observability(_) | root::Record::Infrastructure(_) => 0,
-                });
-            Some(root::Event::Core(core::Event::EndedReadLoaded {
-                request: *request,
-                task: *task,
-                party: *party,
-                through,
-                busy: false,
-            }))
-        }
-        root::Output::CoreLoad(core::Now::SeenConversation { request, task }) => {
-            let row = store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(*task)))).and_then(|record| {
-                match record {
-                    root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) => Some(row.clone()),
-                    root::Record::Core(_) | root::Record::Observability(_) | root::Record::Infrastructure(_) => None,
-                }
-            });
-            Some(root::Event::Core(core::Event::SeenConversationLoaded { request: *request, row, busy: false }))
-        }
+        root::Output::Store(engine_store::Out::Load {
+            load,
+            range: range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }),
+        }) => Some(root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
+            load: *load,
+            result: point(store, range),
+        }))),
         root::Output::ProjectMade { .. }
         | root::Output::ApplicationDocument { .. }
         | root::Output::ApplicationRead { .. }
@@ -138,6 +151,10 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::Read { .. }
         | root::Output::Agent(_)
         | root::Output::ToChild(_)
+        | root::Output::Store(engine_store::Out::Load {
+            range: engine_store::Range::Window { .. } | engine_store::Range::Notes(_),
+            ..
+        })
         | root::Output::Stop => None,
     }
 }
@@ -227,8 +244,8 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
     let more = rows.len() > skein_lib::length::usize_of(range.rows);
     rows.truncate(skein_lib::length::usize_of(range.rows));
     let next = if more { rows.last().and_then(transport::row_key) } else { None };
-    root::Event::Core(core::Event::ReadLoaded {
+    root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
         load,
-        result: transport::Loaded::Page { rows: rows.into_boxed_slice(), next },
-    })
+        result: engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed_slice(), next }),
+    }))
 }

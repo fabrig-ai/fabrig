@@ -52,6 +52,31 @@ pub(in crate::tests) fn context(task: u64, charter: u32) -> Box<tasks::RunContex
 }
 
 #[test]
+fn a_full_store_work_lane_does_not_delay_a_procedure() {
+    let (mut core, limits) = core();
+    core.opened = true;
+    make_task(&mut core, &limits, 1);
+    let mut procedure = new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None);
+    procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
+    procedure.llm = None;
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([procedure]));
+    for n in 0..limits.load_slots {
+        fixture_window(&mut core, 100 + u64::from(n), (1, 1));
+    }
+    assert!(!core.loads.room(&limits));
+    core.due.push(core.tasks.run_context(2).unwrap());
+    let context = core.take_due().expect("a procedure has no window to load");
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    for request in out {
+        if let Request::Ask { connector: 1, ask: Ask::StartProcedure { context, step: 1 } } = request {
+            assert_eq!(context.task, 2);
+            return;
+        }
+    }
+    panic!("ready procedure asks its connector");
+}
+
+#[test]
 fn take_due_skips_an_unusable_account_and_starts_a_procedure() {
     let (mut core, limits) = core();
     make_task(&mut core, &limits, 1);

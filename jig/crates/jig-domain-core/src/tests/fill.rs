@@ -162,11 +162,6 @@ fn a_full_sign_in_pool_holds_its_answer_and_advances_the_deployment_numbers() {
 
 fn take_write_holdings(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
-    send_task(
-        core,
-        &env.limits,
-        tasks::Event::Kinds { connector: 2, kinds: Box::new([tasks::Kind { connector: 2, kind: 1, hold }]) },
-    );
     let mut member = new_row(core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
     let mut holdings = List::with_capacity(2);
     for path in [b"first".as_slice(), b"second".as_slice()] {
@@ -200,7 +195,7 @@ fn take_write_holdings(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 
 #[test]
 fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
-    let (mut core, limits) = tree_core();
+    let (mut core, limits) = tree_core_with_write_hold();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = take_write_holdings(&mut core, &env);
     let mut entries = List::with_capacity(2);
@@ -248,7 +243,7 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
 #[test]
 fn an_exhausted_taking_holds_the_task_without_telling_any_connector() {
     for remaining in [0, 1] {
-        let (mut core, limits) = tree_core();
+        let (mut core, limits) = tree_core_with_write_hold();
         core.counters.deployment.connector_rows = u64::MAX - remaining;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut out = take_write_holdings(&mut core, &env);

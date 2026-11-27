@@ -93,8 +93,8 @@ pub(super) fn connected(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut
         let start = start.max(row.change.since);
         let elapsed = env.wall.as_nanos().saturating_sub(start.as_nanos());
         row.change.since = Wall::from_nanos(row.change.since.as_nanos().saturating_add(elapsed));
-        let saved = row.clone();
-        super::read_session::ended(d, env, task, env.wall);
+        super::read_session::ended(d, env, task, env.wall, out);
+        let saved = d.changes.get(&task).expect("waiting change").clone();
         save_change(d, out, saved);
         branch_due(d, task);
         d.procedure_wakes.insert(task, true).expect("one wake per bounded change");

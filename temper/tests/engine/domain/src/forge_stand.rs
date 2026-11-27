@@ -17,6 +17,10 @@ pub struct ForgeStand {
     pub writes: u32,
 }
 
+fn checked_content(passing: bool) -> &'static [u8] {
+    if passing { b"repaired" } else { b"needs repair" }
+}
+
 impl Default for ForgeStand {
     fn default() -> Self {
         Self::new()
@@ -187,19 +191,72 @@ impl ForgeStand {
         self.domain.reclaim();
     }
 
-    /// A scripted worker pushes a new head, then publishes its CI status.
+    /// Move a branch outside the engine, then publish its CI status.
     pub fn push_checked(&mut self, repository: u32, branch: &[u8], first: bool, passing: bool) {
         if first {
             self.push_branch(repository, branch);
         }
+        assert!(self.quiescent(), "external push between forge calls");
+        let name = self.repositories.get(&repository).expect("repository").clone();
+        self.next_push();
+        let head = fake::advance(&mut self.domain, &self.env, &name, branch, b"file", checked_content(passing), 1)
+            .expect("external push moved the head");
+        self.publish_check(name, head, passing);
+    }
+
+    /// Prepare the scripted worker's commit without moving its destination before admission.
+    pub fn prepare_checked_push(&mut self, repository: u32, branch: &[u8], passing: bool) -> (Option<u64>, u64) {
+        assert!(self.quiescent(), "prepare between forge calls");
+        let name = self.repositories.get(&repository).expect("worker repository");
+        let expected = self.domain.branch(name, branch);
+        let parent = expected.unwrap_or_else(|| self.domain.branch(name, b"main").expect("repository's main head"));
+        let files = Box::new([raw::File { path: b"file".as_slice().into(), content: checked_content(passing).into() }]);
+        let commit = fake::commit_tree(&mut self.domain, &self.env.limits, parent, None, files, b"")
+            .expect("scripted worker commit fits");
+        (expected, commit)
+    }
+
+    /// Make the worker's admitted, leased push and publish its CI status.
+    pub fn push_prepared(&mut self, repository: u32, branch: &[u8], expected: Option<u64>, head: u64, passing: bool) {
         assert!(self.quiescent(), "worker push between forge calls");
         let name = self.repositories.get(&repository).expect("worker repository").clone();
+        self.next_push();
+        let op = if expected.is_some() {
+            raw::Git::Push { branch: branch.into(), commit: head, expected }
+        } else {
+            raw::Git::PushNew { branch: branch.into(), commit: head }
+        };
+        fake::step(
+            &mut self.domain,
+            &self.env,
+            fake::Event::Call {
+                reply_to: ReplyTo::new(Token::new(10_001)),
+                user: 1,
+                repository: name.clone(),
+                op: raw::Op::Git(op),
+            },
+            &mut self.out,
+        );
+        fake::fire(&mut self.domain, &self.env, &mut self.out);
+        let Some(fake::Request::Reply { result: Ok(answer), .. }) = self.out.pop() else { panic!("worker push") };
+        assert_eq!(
+            answer,
+            if expected.is_some() {
+                raw::Answer::Pushed(raw::Pushed::Pushed)
+            } else {
+                raw::Answer::PushNew { existing: None }
+            }
+        );
+        self.publish_check(name, head, passing);
+    }
+
+    fn next_push(&mut self) {
         // Distinct pushes must have distinct forge update times for incremental polls.
         self.env.now = self.env.now.saturating_add(skein_lib::Duration::from_secs(1));
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
-        let content: &[u8] = if passing { b"repaired" } else { b"needs repair" };
-        let head = fake::advance(&mut self.domain, &self.env, &name, branch, b"file", content, 1)
-            .expect("worker pushed a new head");
+    }
+
+    fn publish_check(&mut self, name: Box<[u8]>, head: u64, passing: bool) {
         // The fake recomputes pull mergeability two seconds after a push.
         self.env.now = self.env.now.saturating_add(skein_lib::Duration::from_secs(2));
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());

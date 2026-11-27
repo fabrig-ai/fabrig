@@ -55,12 +55,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
         row.change.way = change::Way::Turn;
         row.change.state = change::State::Ready { head: super::SHA1, ready_since: env.wall };
         row.change.ready_since = Some(env.wall);
-        forge::step(
-            &mut domain.forge,
-            &crate::translate::environment_forge(&env),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     }
     let mut made = Queue::uncapped();
     tasks::step(
@@ -101,9 +96,9 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
 // As in train_root, end the completed readiness step without changing its ready row.
 pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     let (_, _, step) = domain.engine.core().tasks.procedure_due(task).expect("step due before settling");
-    tasks::step(
-        &mut domain.engine.core_mut().tasks,
-        &env.with(env.limits.tasks),
+    super::task_event(
+        domain,
+        env,
         tasks::Event::Procedure {
             reads_project: false,
             reply_to: super::super::super::internal(u64::MAX),
@@ -112,7 +107,6 @@ pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
             read: None,
             decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
         },
-        &mut Queue::uncapped(),
     );
     assert!(domain.engine.core().tasks.procedure_due(task).is_none());
     domain.forge.offered_change(task);
@@ -120,22 +114,12 @@ pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 pub(super) fn wake(domain: &mut Domain, env: &Env<Limits>, task: u64) {
-    tasks::step(
-        &mut domain.engine.core_mut().tasks,
-        &env.with(env.limits.tasks),
-        tasks::Event::WakeProcedure { task },
-        &mut Queue::uncapped(),
-    );
+    super::task_event(domain, env, tasks::Event::WakeProcedure { task });
     assert!(domain.engine.core().tasks.procedure_due(task).is_some());
 }
 
 fn restore_change(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
-    forge::step(
-        &mut domain.forge,
-        &crate::translate::environment_forge(env),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge_with_engine_waits(domain, env, forge::Stored::Change(Box::new(row)));
 }
 
 fn judge_main(domain: &mut Domain, env: &Env<Limits>) {
@@ -203,17 +187,10 @@ fn two_landings_form_within_one_minute_without_turning_main() {
         repository: repository.repository,
         what: forge::What::Branch(Box::new([b"main".as_slice().into()])),
     };
-    forge::step(
-        &mut domain.forge,
-        &crate::translate::environment_forge(&env),
-        forge::Event::Restore {
-            record: forge::Stored::BranchHead(forge::BranchHead {
-                name: main.clone(),
-                commit: super::SHA1,
-                owned: false,
-            }),
-        },
-        &mut Queue::uncapped(),
+    super::restore_forge_with_engine_waits(
+        &mut domain,
+        &env,
+        forge::Stored::BranchHead(forge::BranchHead { name: main.clone(), commit: super::SHA1, owned: false }),
     );
     let tip = domain.forge.branch_head(&main);
     assert_eq!(tip, Some(super::SHA1));
@@ -496,12 +473,7 @@ fn due_ready_and_gating_changes_do_not_hold_another_branchs_train() {
             let (mut domain, env) = ready_changes(&[7, 8], 3);
             let mut goal = domain.forge.change(8).unwrap().clone();
             goal.base = b"goal".as_slice().into();
-            forge::step(
-                &mut domain.forge,
-                &crate::translate::environment_forge(&env),
-                forge::Event::Restore { record: forge::Stored::Change(Box::new(goal)) },
-                &mut Queue::uncapped(),
-            );
+            super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(goal)));
             if gating {
                 let mut row = domain.forge.change(due).unwrap().clone();
                 row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([1]) };
@@ -519,12 +491,7 @@ fn due_ready_and_gating_changes_do_not_hold_another_branchs_train() {
                     status: change::Status::Passed,
                 }]);
                 row.change.last_head = Some(super::SHA1);
-                forge::step(
-                    &mut domain.forge,
-                    &crate::translate::environment_forge(&env),
-                    forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-                    &mut Queue::uncapped(),
-                );
+                super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
             }
             wake(&mut domain, &env, due);
             super::judge_trains(&mut domain, &env);

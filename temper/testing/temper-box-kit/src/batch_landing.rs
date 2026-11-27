@@ -751,7 +751,7 @@ fn peer(root: &Path, forge: &Throwaway) -> super::llm::Listening {
         &recipe.domain_limits,
         17,
         scripts,
-        skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
         rules,
     )
     .expect("concurrent batch scripts");

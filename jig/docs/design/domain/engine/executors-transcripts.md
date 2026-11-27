@@ -105,7 +105,11 @@
   for the cut turn and plans it afresh, as before parts. A committed turn retires
   every part of its task from an earlier attempt and those of its own
   attempt whose turn is at most its number; the task's end retires the
-  rest. A resumed run is given those kept, by attempt, then number,
+  rest. Each use checks the part's own place
+  (skein/docs/foundation/programming-model.md, 10.4): keeping a part
+  asserts that its key is new to the room and that the room had its
+  place in the same step, naming the part and its task, and a
+  retirement erases only the parts it found, so each goes once. A resumed run is given those kept, by attempt, then number,
   when its window resumes and the window's bytes and theirs fit the
   resume limit: main's parts first, then each sub-agent's all or none in
   call order while they fit, none where main's do not. A run that
@@ -157,7 +161,7 @@
   each within the store's page room. A turn past that room is loaded
   cut: its fields and its length, never its bytes
   (`../../protocol/store/transcripts.md`, 3), handed to the core in its place as
-  `TranscriptLoad::Cut`. The core counts its length in the window's bytes,
+  a cut answer (`vocabulary.md`, 2.4). The core counts its length in the window's bytes,
   keeps the fixed text `[a turn too large to load]` in its place in the
   tail (cut to the tail's budget as any turn's text is), and resumes no
   window that holds one: the run starts fresh from a brief carrying the

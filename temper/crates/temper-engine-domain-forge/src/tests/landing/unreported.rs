@@ -21,7 +21,7 @@ fn prepared_gate(members: u16, format: Format, blocking: bool, retries: u32) -> 
     let project = d.landing.projects.get_mut(&5).unwrap();
     project.5.gate_retries = retries;
     project.1[0].gates[0].blocking = blocking;
-    let row = d.landing.rows.get_mut(&61).unwrap();
+    let mut row = d.landing(61).unwrap().clone();
     row.landing.round.branch = b"temper/1/l61".as_slice().into();
     row.landing.members[0].gates[0] = policy::GateProof {
         proof: policy::Proof::Dispatched { key: key.key, try_: 1 },
@@ -45,17 +45,17 @@ fn prepared_gate(members: u16, format: Format, blocking: bool, retries: u32) -> 
     }
     let top = members.checked_sub(1).unwrap();
     row.follows.as_mut().unwrap()[0].entry.member = top;
-    let flight = d.landing.flights.get_mut(&key).unwrap();
-    flight.purpose = purpose::EffectPurpose::Landing {
-        task: 61,
-        member: top,
-        gate: 0,
-        operation: 1,
-        preparation: row.landing.preparation,
-        attempt: 1,
+    let preparation = row.landing.preparation;
+    if members == 2 {
+        restore_landing(&mut d, row);
+    } else {
+        assert!(d.landing.remember(row).is_some());
     }
-    .identity()
-    .unwrap();
+    let flight = d.landing.flights.get_mut(&key).unwrap();
+    flight.purpose =
+        purpose::EffectPurpose::Landing { task: 61, member: top, gate: 0, operation: 1, preparation, attempt: 1 }
+            .identity()
+            .unwrap();
     flight.entry = 9;
     flight.inputs = Box::new([
         api::Input { name: b"temper_commit".as_slice().into(), value: commit_text(&run.commit) },

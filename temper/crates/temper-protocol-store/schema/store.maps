@@ -3,6 +3,7 @@ records crate::v25
 use a = skein_forge::api
 use c = temper_engine_domain_forge_change
 use d = temper_engine_domain_forge_vocabulary
+use wr = temper_engine_domain_forge_vocabulary::writes
 use h = temper_engine_domain_forge_vocabulary::history
 use l = temper_engine_domain_forge_landing
 use o = temper_engine_domain_forge_closer
@@ -77,7 +78,7 @@ record BranchDrift
 record Retargeted
 enum DriftChange = d::DriftChange
 record Drift = d::Drift { at via s::wall }
-record DesignWriter = d::DesignWriter
+record DesignWriter by hand
 record HeadBeside = d::HeadBeside
 record Hold = d::Hold { design_writers slice }
 record Names by hand
@@ -580,6 +581,9 @@ record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
 record CloseAt = c::CloseAt
+enum BehindRead = d::BehindRead
+record ReadBehind = d::ReadBehind
+record BehindWait = d::BehindWait { since via s::wall, until via s::wall }
 record RunnerHold
 record RunnerBaseline { attempts slice }
 enum RunnerCi = d::RunnerCi
@@ -643,5 +647,22 @@ record VerdictFiling = d::VerdictFiling
 record TierRow by hand
 record Finding by hand
 record Device by hand
+record WrittenPush
+record WrittenCreate
+record WrittenDelete
+record WrittenUpdate
+record WrittenMergedInto
+record WrittenMerge
+record WrittenOpen
+record WrittenPull
+record WrittenRetarget
+record WrittenCompare
+enum WrittenOperation = wr::Operation
+record WriteAttempt
+record WriteEntry
+enum WriteSender = wr::Sender
+enum WriteState = wr::WriteState
+record Written = wr::Written
+record Writes = wr::Writes { entries slice }
 enum Value by hand
 record Row by hand

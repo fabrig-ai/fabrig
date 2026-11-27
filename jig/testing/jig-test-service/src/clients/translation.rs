@@ -19,7 +19,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Restarting { .. }
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
+        | core::Held::Store(_)
         | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
@@ -50,8 +50,6 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::StopRun { .. }
-        | core::Held::Load(..)
-        | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. } => None,
     }
@@ -89,21 +87,12 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::NoteBusy { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
-        | core::Now::StartPreparation { .. }
-        | core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
-        | core::Now::EndedEscalation { .. }
         | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => None,
     }
@@ -132,6 +121,7 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Fleet(..)
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
+        | root::Delivery::Store(_)
         | root::Delivery::Start(_)
         | root::Delivery::Procedure { .. } => return None,
     };
@@ -150,7 +140,6 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::PublicRead { .. }
         | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
@@ -184,7 +173,6 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::PartPayload { .. }
@@ -193,19 +181,10 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
@@ -243,7 +222,6 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
@@ -271,7 +249,6 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::PartPayload { .. }
@@ -280,19 +257,10 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }

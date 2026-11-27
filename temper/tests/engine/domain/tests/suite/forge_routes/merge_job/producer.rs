@@ -50,9 +50,8 @@ fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64
         producer =
             world.assigned.iter().rev().find(|run| run.task == producer.task).expect("producer's current run").clone();
     }
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: BRANCH.into(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer", 2)
-        .expect("producer pushes H1");
+    let head = world.worker_commit(1, b"file", b"producer");
+    Writer::Run(&producer).push(&mut world, head);
     let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"base moved", 1)
         .expect("conflicting base");
     passed_ci(&mut world, head);
@@ -176,8 +175,9 @@ fn a_conflict_waits_for_the_producers_last_push_and_terminal() {
     let (mut world, task, producer, _, base) = live_producer(world(false, true, true));
     wait_for_conflict(&mut world, task, base, 2);
     let producer = resume(&mut world, &producer);
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer H2", 2)
-        .expect("producer pushes H2 after conflict");
+    let parent = world.fake.branch(b"org/repo", BRANCH).expect("producer branch");
+    let head = world.worker_commit(parent, b"file", b"producer H2");
+    Writer::Run(&producer).push(&mut world, head);
     world.forge_reads = Some(Vec::new());
     finish_resolution(&mut world, &producer);
     let deadline =
@@ -215,7 +215,7 @@ fn a_conflict_waits_for_the_producers_last_push_and_terminal() {
         "the brief was gathered once, not retried for a moved head"
     );
     assert_eq!(reads.iter().filter(|(_, read)| matches!(read, skein_forge::api::Read::PullFiles { head: pinned, page: 1, .. } if *pinned == translate::commit(head))).count(), 1);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Run(&resolution), head, base);
     finish_resolution(&mut world, &resolution);
     landed(&mut world, task, merged);
     world.close();
@@ -242,8 +242,9 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
     wait_for_conflict(&mut world, task, base, 2);
     assert_eq!(change_row(&world, task).change.way, change::Way::Turn);
     let producer = resume(&mut world, &producer);
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer H2", 2)
-        .expect("producer pushes H2");
+    let parent = world.fake.branch(b"org/repo", BRANCH).expect("producer branch");
+    let head = world.worker_commit(parent, b"file", b"producer H2");
+    Writer::Run(&producer).push(&mut world, head);
     let terminal = world.protocol.answer(
         CHANNEL,
         producer.task,
@@ -308,7 +309,7 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
         engine::ForgeStart::Merge { branch: BRANCH.into(), base: translate::commit(base) }
     );
     assert_eq!(change_row(&world, task).change.resolutions, 1);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Run(&resolution), head, base);
     passed_ci(&mut world, merged);
     finish_resolution(&mut world, &resolution);
     world.automatic_prepare_jobs();
@@ -339,13 +340,14 @@ fn a_merge_job_waits_for_the_producers_final_head() {
     let (mut world, task, producer, _, base) = live_producer(world(true, true, true).with_merge_job(COMMAND));
     wait_for_conflict(&mut world, task, base, 2);
     let producer = resume(&mut world, &producer);
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer H2", 2)
-        .expect("producer pushes H2");
+    let parent = world.fake.branch(b"org/repo", BRANCH).expect("producer branch");
+    let head = world.worker_commit(parent, b"file", b"producer H2");
+    Writer::Run(&producer).push(&mut world, head);
     finish_resolution(&mut world, &producer);
     let job = next_job(&mut world, task, false);
     check_job(&world, task, &job, head, base);
     assert_eq!(change_row(&world, task).change.last_head, Some(translate::commit(head)));
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &job), head, base);
     passed_ci(&mut world, merged);
     finish_job(&mut world, &job, RESULT);
     landed(&mut world, task, merged);
@@ -358,7 +360,7 @@ fn a_producer_that_cleans_the_conflict_needs_no_resolution() {
     let (mut world, task, producer, first, base) = live_producer(world(true, true, true));
     wait_for_conflict(&mut world, task, base, 2);
     let producer = resume(&mut world, &producer);
-    let head = push_merge(&mut world, task, first, base);
+    let head = push_merge(&mut world, Writer::Run(&producer), first, base);
     finish_resolution(&mut world, &producer);
     world.advance_ticks(STEPS);
     let row = change_row(&world, task);

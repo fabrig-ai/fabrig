@@ -4,7 +4,7 @@
 mod tests;
 use crate::{
     Decision, Domain, Limits,
-    boundary::{EndedRead, Read, Work},
+    boundary::{Read, Work},
 };
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -155,13 +155,25 @@ fn advance(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, entr
             continue;
         }
         for (_, read) in &domain.archive_reads {
-            if let Some(Read::Ended(EndedRead::ChangeFrom { task: pending })) = read
+            if let Some(Read::ChangeFrom { task: pending }) = read
                 && *pending == task
             {
                 return;
             }
         }
-        super::route::now::ended(domain, env, decision, EndedRead::ChangeFrom { task });
+        if let Ok(waiter) = domain.archive_reads.insert(Some(Read::ChangeFrom { task })) {
+            crate::domain::emit(
+                decision,
+                &env.limits,
+                crate::Delivery::Load {
+                    waiter: waiter.token(),
+                    range: crate::Range::Core(crate::CoreRange::TaskResult { task }),
+                    after: None,
+                },
+            );
+        } else {
+            domain.work.push(Work::ChangeFromLoaded { task, row: None });
+        }
         return;
     }
     entry.fail();

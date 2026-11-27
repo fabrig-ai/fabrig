@@ -1,6 +1,6 @@
-//! A party's retained inputs, loaded by the root and judged by the core.
+//! A party's retained inputs, loaded one at a time by the engine.
 use crate::{
-    Core, Limits, Now, Request,
+    Core, Limits,
     routing::{
         CreationKind,
         party::{dispatch::Routed, holdings::begin_creation},
@@ -10,7 +10,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue, Token};
+use skein_lib::{Env, List, Token};
 #[derive(Hash, Debug)]
 pub(crate) struct Inputs {
     pub beneath: Option<u64>,
@@ -46,17 +46,20 @@ pub(crate) fn begin(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, mut
         pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
-    retain(core, &mut routed.out, request, flight);
+    retain(core, &env.limits, routed, request, flight);
 }
-fn retain(core: &mut Core, out: &mut Queue<Request>, request: Token, flight: Inputs) {
-    let tasks: Box<[u64]> = match &flight.row {
-        Some(row) => Box::new([row.root]),
-        None => flight.ids.get(flight.at..).expect("remaining inputs").into(),
+fn retain(core: &mut Core, limits: &Limits, routed: &mut Routed, request: Token, flight: Inputs) {
+    let task = match &flight.row {
+        Some(row) => row.root,
+        None => *flight.ids.get(flight.at).expect("remaining input"),
     };
-    let person = flight.person;
-    let project = flight.project;
+    if !core.loads.room(limits) {
+        pool_again(&mut routed.work, request, people::Again::Busy);
+        return;
+    }
     let request = core.fly(crate::routing::flight::Flight::CreatingInputs { request, route: flight });
-    out.push(Request::Now(Box::new(Now::PartyInputs { request, person, project, tasks })));
+    let point = crate::loads::point::Point::PartyInput { request, task };
+    assert!(crate::loads::try_point(core, limits, &mut routed.out, point), "input load room checked");
 }
 pub(crate) struct Loaded {
     pub request: Token,
@@ -109,7 +112,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, lo
                 return;
             }
             flight.row = Some(row);
-            retain(core, &mut routed.out, request, flight);
+            retain(core, &env.limits, routed, request, flight);
             return;
         }
         row
@@ -125,7 +128,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, lo
     flight.stubs.push(tasks::Stub { task: wanted, phase, result: Token::new(wanted) }).expect("one stub per input");
     flight.at = flight.at.checked_add(1).expect("bounded input position");
     if flight.at < flight.ids.len() {
-        retain(core, &mut routed.out, request, flight);
+        retain(core, &env.limits, routed, request, flight);
     } else {
         let stubs = core::mem::replace(&mut flight.stubs, List::with_capacity(0)).into_boxed();
         begin_creation(core, env, routed, request, kind(&mut flight, stubs), flight.members, flight.symbols);

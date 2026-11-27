@@ -122,6 +122,21 @@ pub fn ask_to_domain(record: temper_protocol_worker_wire::v1::Ask) -> Result<tem
                 head: field_000000
             }
         },
+        temper_protocol_worker_wire::v1::Ask::Admit(held) => {
+            let temper_protocol_worker_wire::v1::Admit { tag: field_000000, branch: field_000001, expected: field_000002, commit: field_000003 } = held;
+            temper_engine_domain::wire::Ask::Admit {
+                tag: field_000000,
+                branch: field_000001,
+                expected: match field_000002 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                commit: field_000003
+            }
+        },
     })
 }
 

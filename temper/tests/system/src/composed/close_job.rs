@@ -261,7 +261,7 @@ impl World {
 
     pub(super) fn observe_close_io(&mut self, op: &worker::checkout::git::Op) {
         if let Some(story) = &mut self.close_job
-            && matches!(op, worker::checkout::git::Op::Push { .. })
+            && matches!(op, worker::checkout::git::Op::Push { .. } | worker::checkout::git::Op::Create { .. })
         {
             story.pushes += 1;
         }

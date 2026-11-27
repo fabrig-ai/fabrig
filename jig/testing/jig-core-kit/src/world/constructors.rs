@@ -325,7 +325,6 @@ impl World {
             sweep: Vec::new(),
             fork_child: None,
             case_child: false,
-            hold_kinds: Rc::default(),
             wall: 0,
             wall_lag: 0,
             supplied_wall: None,

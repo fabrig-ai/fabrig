@@ -3,7 +3,7 @@
 use super::early_start::{make, observe_push, push, stop};
 use super::light_rules::change_row;
 use super::reviews::next_assignment;
-use super::update_first::{assert_landed, finish, goal_world_stall, move_base, status};
+use super::update_first::{assert_landed, finish, goal_world_stall, status};
 use super::*;
 use skein_forge_client::Condition;
 use temper_engine_domain_forge_change as change;
@@ -16,13 +16,17 @@ fn update_writes(world: &World) -> usize {
     world.writes.iter().filter(|write| matches!(write, skein_forge::api::Write::Update { .. })).count()
 }
 
+fn move_base(world: &mut World, goal: &engine::Assignment, branch: &[u8]) -> u64 {
+    world.run_push_edit(goal, branch, b"other", b"base moved", 1)
+}
+
 fn pending_update(stall: Option<Duration>) -> (World, engine::Assignment, u64, u64, u64, Box<[u8]>) {
     let (mut world, goal, branch, main) = goal_world_stall(true, stall);
     let task = make(&mut world, &goal, b"Add change", &[]);
     let producer = next_assignment(&mut world, 1);
     let head = push(&mut world, &producer, main, b"change");
     status(&mut world, head, raw::Check::Pending);
-    let base = move_base(&mut world, &branch);
+    let base = move_base(&mut world, &goal, &branch);
     observe_push(&mut world, &producer);
     finish(&mut world, &producer);
     for _ in 0..STEPS {
@@ -187,7 +191,7 @@ fn an_update_whose_base_went_on_while_lost_takes_the_new_tip() {
         }
     }
     assert_eq!(update_writes(&world), 1);
-    let next_base = move_base(&mut world, &branch);
+    let next_base = move_base(&mut world, &goal, &branch);
     for _ in 0..STEPS {
         world.tick();
         assert_not_held(&world, task);
@@ -227,7 +231,7 @@ fn an_updates_hold_without_a_lost_write_names_the_spent_allowance() {
             checked = head;
             let updated = world.fake.branch(b"org/repo", &change_row(&world, task).branch).expect("updated branch");
             status(&mut world, updated, raw::Check::Passed);
-            move_base(&mut world, &branch);
+            move_base(&mut world, &goal, &branch);
         }
         if matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }) {
             break;

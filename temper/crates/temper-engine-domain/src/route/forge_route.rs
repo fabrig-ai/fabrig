@@ -4,7 +4,7 @@
 use super::{
     CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeWorkspace, Id, Key, Limits, List, ProcedureStep,
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,
-    emit, escalation, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
+    emit, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
 use crate::{PersonForge, commit_text};
 use forge::change_words::{
@@ -25,7 +25,7 @@ pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
 pub(super) const STATUS_CHARTER: u32 = 9;
-use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
+use jig_domain_core::effects::connector::EffectDescription;
 
 pub use forge::routing::adopt_repository_ask;
 pub(crate) use forge::routing::{
@@ -64,6 +64,7 @@ use landing_route::{describe_landing_effect, landing_decision};
 pub(super) mod reds;
 pub(crate) use reds::landed_for_run;
 pub use reds::{RunRed, reds_for_run};
+pub(crate) mod push_admission;
 mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
@@ -286,7 +287,7 @@ pub(crate) fn effect_call(
             return;
         }
     };
-    assert!(domain.forge_effects.insert(owner, flight).is_ok(), "admitted forge effect handoff");
+    stage_call(domain, owner, key.task, flight);
     let deadline = skein_lib::Wall::from_nanos(
         // A call's timeout is its task's charter's (jig's `domain/engine/executors.md`, 1).
         env.wall.as_nanos().saturating_add(domain.engine.core().charter_of(key.task).policy.call_timeout.as_nanos()),
@@ -300,6 +301,13 @@ pub(crate) fn effect_call(
         connector: domain.config.forge_connector,
         origin,
     }));
+}
+
+fn stage_call(domain: &mut Domain, owner: Token, task: u64, flight: EffectFlight) {
+    domain.forge.assert_call_reservation(owner, task);
+    assert!(!domain.forge_effects.contains_key(&owner), "fresh staged call flight {owner:?} of task {task}");
+    let inserted = domain.forge_effects.insert(owner, flight);
+    assert!(inserted.is_ok(), "staged call flight {owner:?} of task {task} fits the effect table");
 }
 
 fn describe_agent(
@@ -329,19 +337,7 @@ fn describe_agent(
     };
     let name = resource_name(adopted, &resource, env.limits.authority.segments)
         .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?;
-    let form = match described.form {
-        forge::EffectForm::Creation => EffectForm::Creation,
-        forge::EffectForm::Transition => EffectForm::Transition,
-        forge::EffectForm::Set => EffectForm::Set,
-    };
-    let recovery = match described.recovery {
-        forge::Recovery::Keyed => Recovery::Keyed,
-        forge::Recovery::Conditional => Recovery::Conditional,
-        forge::Recovery::Idempotent => Recovery::Idempotent,
-        forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-    };
     let description = EffectDescription {
-        waits_for_dependencies: forge::waits_for_dependencies(described.kind),
         connector: domain.config.forge_connector,
         purpose: key.completion.into(),
         effect: authority::Effect {
@@ -354,8 +350,6 @@ fn describe_agent(
             additional: Box::new([]),
             guards: Box::new([]),
         },
-        form,
-        recovery,
     };
     // A staging owner belongs to the core until EffectStart, so allocate none for a refused description.
     if !domain.forge.effect_room(&env.limits.forge) {
@@ -365,10 +359,8 @@ fn describe_agent(
         Some(owner) => owner,
         None => effect_owner(domain),
     };
-    assert!(
-        domain.forge.reserve_call(&super::environment_forge(env), owner, key.task),
-        "room checked without an intervening write"
-    );
+    let reserved = domain.forge.reserve_call(&super::environment_forge(env), owner, key.task);
+    assert!(reserved, "call flight {owner:?} of task {} keeps room checked without an intervening write", key.task);
     Ok((
         owner,
         EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource },
@@ -824,6 +816,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::CheckResults { .. }
             | Work::Decoded { .. }
             | Work::Core(_)
+            | Work::EngineStore(_)
             | Work::Tasks(_)
             | Work::RepairFindings { .. }
             | Work::People(_)
@@ -833,16 +826,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)
             | Work::Activate { .. }
-            | Work::EscalationLoaded { .. }
-            | Work::EscalationFailed { .. }
-            | Work::ProposalLoaded { .. }
-            | Work::ProposalFailed { .. }
             | Work::CloserReportReady { .. }
-            | Work::EndedLoad { .. }
-            | Work::EndedLoaded { .. }
             | Work::ChangeFromLoaded { .. }
-            | Work::TaskProposalLoaded { .. }
-            | Work::EndedFailed { .. }
             | Work::ForgeSettings(_)
             | Work::PartsLoaded { .. }
             | Work::PartsFailed { .. }
@@ -1414,7 +1399,7 @@ fn landing_reviewers(
         reviews
             .push(forge::Reviewer {
                 person,
-                role: escalation::role_number(role),
+                role: role.number(),
                 head: review.commit,
                 verdict: review.verdict,
                 at: skein_lib::Wall::from_nanos(review.at.as_nanos()),
@@ -1475,25 +1460,10 @@ fn describe_change_effect(
         additional: Box::new([]),
         guards: Box::new([]),
     };
-    let (forge_form, forge_recovery) = forge::effect_shape(kind)?;
-    let form = match forge_form {
-        forge::EffectForm::Creation => EffectForm::Creation,
-        forge::EffectForm::Transition => EffectForm::Transition,
-        forge::EffectForm::Set => EffectForm::Set,
-    };
-    let recovery = match forge_recovery {
-        forge::Recovery::Keyed => Recovery::Keyed,
-        forge::Recovery::Conditional => Recovery::Conditional,
-        forge::Recovery::Idempotent => Recovery::Idempotent,
-        forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-    };
     Some(EffectDescription {
-        waits_for_dependencies: forge::waits_for_dependencies(kind),
         connector: domain.config.forge_connector,
         purpose: if kind == 16 || kind == 17 { 18 } else { u64::from(kind) },
         effect,
-        form,
-        recovery,
     })
 }
 
@@ -1557,7 +1527,15 @@ pub(crate) fn step_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     event: jig_domain_core::Event,
-) -> Queue<jig_domain_core::Request> {
+) -> Queue<jig_domain_core::engine::Out> {
+    step_engine(domain, env, jig_domain_core::engine::In::Core(event))
+}
+
+pub(super) fn step_engine(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    input: jig_domain_core::engine::In,
+) -> Queue<jig_domain_core::engine::Out> {
     let mut makings = List::with_capacity(env.limits.forge.holds);
     for task in &domain.forge.making_retry_candidates() {
         let Some(row) = domain.engine.core().tasks.task(*task) else { continue };
@@ -1565,7 +1543,7 @@ pub(crate) fn step_core(
             makings.push(*task).expect("goal makings bounded by holds");
         }
     }
-    let requests = crate::engine::step(&mut domain.engine, env, event);
+    let requests = crate::engine::step(&mut domain.engine, env, input);
     // Released or lifted, a passed-over making is asked again in its place
     // (temper/docs/design/domain/forge/room.md, 3).
     for task in makings.into_boxed() {
@@ -1589,6 +1567,11 @@ pub(crate) fn revision_saved(
     let jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)) = record else {
         return;
     };
+    if let tasks::Phase::Held { .. } = task.phase
+        && domain.forge.room_asked(task.number)
+    {
+        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task: task.number }));
+    }
     let mut out = Queue::uncapped();
     domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
     landing_route::cohort_saved(domain, env, task, &mut out);
@@ -1944,6 +1927,7 @@ pub(super) fn start_recovered_change(
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 settling: false,
+                behind_wait: None,
                 room: None,
                 kept: None,
                 regate: None,
@@ -4736,12 +4720,16 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::ProjectionEffect { row, entry, description } => {
+                let goal = row.goal;
+                let number = entry.number;
+                assert_eq!(entry.task, goal, "projection entry {number} belongs to goal {goal}");
+                domain.forge.assert_projection_reservation(number, goal);
                 let Some(adopted) = domain.forge.repository(entry.repository) else {
-                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number }));
+                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number, goal }));
                     continue;
                 };
                 let Some(name) = resource_name(adopted, &description.resource, env.limits.authority.segments) else {
-                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number }));
+                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number, goal }));
                     continue;
                 };
                 let access = match description.access {
@@ -4751,7 +4739,6 @@ pub(crate) fn outputs(
                     forge::Access::Unavailable => authority::EffectAccess::Unavailable,
                 };
                 let description = EffectDescription {
-                    waits_for_dependencies: forge::waits_for_dependencies(description.kind),
                     connector: domain.config.forge_connector,
                     purpose: entry.number,
                     effect: authority::Effect {
@@ -4764,28 +4751,17 @@ pub(crate) fn outputs(
                         additional: Box::new([]),
                         guards: Box::new([]),
                     },
-                    form: match description.form {
-                        forge::EffectForm::Creation => EffectForm::Creation,
-                        forge::EffectForm::Transition => EffectForm::Transition,
-                        forge::EffectForm::Set => EffectForm::Set,
-                    },
-                    recovery: match description.recovery {
-                        forge::Recovery::Keyed => Recovery::Keyed,
-                        forge::Recovery::Conditional => Recovery::Conditional,
-                        forge::Recovery::Idempotent => Recovery::Idempotent,
-                        forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-                    },
                 };
-                let goal = row.goal;
-                let number = entry.number;
                 let owner = effect_owner(domain);
-                domain
-                    .forge_effects
-                    .insert(
-                        owner,
-                        EffectFlight::Projection { description: Box::new(description), row: Box::new(row), entry },
-                    )
-                    .expect("bounded projection handoff");
+                assert!(
+                    !domain.forge_effects.contains_key(&owner),
+                    "fresh flight {owner:?} for projection entry {number} of goal {goal}"
+                );
+                let inserted = domain.forge_effects.insert(
+                    owner,
+                    EffectFlight::Projection { description: Box::new(description), row: Box::new(row), entry },
+                );
+                assert!(inserted.is_ok(), "flight {owner:?} for projection entry {number} of goal {goal} fits");
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {
                     owner,
                     connector: domain.config.forge_connector,
@@ -4926,14 +4902,16 @@ pub(crate) fn outputs(
                                     let routed = crate::engine::step(
                                         &mut domain.engine,
                                         env,
-                                        jig_domain_core::Event::Tasks(tasks::Event::EffectInFlight {
-                                            reply_to: ReplyTo::new(owner),
-                                            task,
-                                            resource: resource.clone(),
-                                            entry,
-                                        }),
+                                        jig_domain_core::engine::In::Core(jig_domain_core::Event::Tasks(
+                                            tasks::Event::EffectInFlight {
+                                                reply_to: ReplyTo::new(owner),
+                                                task,
+                                                resource: resource.clone(),
+                                                entry,
+                                            },
+                                        )),
                                     );
-                                    super::route_core_requests(domain, env, decision, routed);
+                                    super::route_engine_requests(domain, env, decision, routed);
                                 }
                                 assert!(
                                     domain
@@ -5092,9 +5070,9 @@ fn effect_owner(domain: &mut Domain) -> Token {
     domain.engine.core_mut().effect_owner()
 }
 
-fn return_call_room(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, owner: Token) {
+fn return_call_room(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, owner: Token, task: u64) {
     let mut out = Queue::uncapped();
-    domain.forge.unreserve_call(&super::environment_forge(env), owner, &mut out);
+    domain.forge.unreserve_call(&super::environment_forge(env), owner, task, &mut out);
     outputs(domain, env, decision, &mut out);
 }
 
@@ -5164,12 +5142,18 @@ pub(crate) fn effect_ask(
         jig_domain_core::effects::connector::Ask::Describe { owner } => {
             let description = match domain.forge_effects.get(&owner) {
                 Some(
-                    EffectFlight::Call { description, .. }
-                    | EffectFlight::Procedure { description, .. }
+                    EffectFlight::Procedure { description, .. }
                     | EffectFlight::Landing { description, .. }
-                    | EffectFlight::Tier { description, .. }
-                    | EffectFlight::Projection { description, .. },
+                    | EffectFlight::Tier { description, .. },
                 ) => description.clone(),
+                Some(EffectFlight::Call { description, key, .. }) => {
+                    domain.forge.assert_call_reservation(owner, key.task);
+                    description.clone()
+                }
+                Some(EffectFlight::Projection { description, row, entry }) => {
+                    domain.forge.assert_projection_reservation(entry.number, row.goal);
+                    description.clone()
+                }
                 None => return,
             };
             domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
@@ -5208,7 +5192,10 @@ pub(crate) fn effect_ask(
             };
             match flight {
                 Ok((owner, flight)) => {
-                    assert!(domain.forge_effects.insert(owner, flight).is_ok(), "fresh proposal description");
+                    let EffectFlight::Call { key, .. } = &flight else {
+                        unreachable!("a described agent proposal stages call flight {owner:?} for proposal {proposal}");
+                    };
+                    stage_call(domain, owner, key.task, flight);
                     effect_ask(
                         domain,
                         env,
@@ -5228,8 +5215,12 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::KeepProposal { owner, proposal, task, project: _ } => {
             match domain.forge_effects.remove(&owner) {
-                Some(EffectFlight::Call { repository, effect, resource, .. }) => {
-                    return_call_room(domain, env, decision, owner);
+                Some(EffectFlight::Call { repository, effect, resource, key, .. }) => {
+                    assert_eq!(
+                        task, key.task,
+                        "call flight {owner:?} holds room for proposal {proposal} of task {task}"
+                    );
+                    return_call_room(domain, env, decision, owner, task);
                     domain.work.push(Work::Forge(forge::Event::KeepProposedEffect {
                         row: forge::ProposedEffect {
                             number: proposal,
@@ -5254,7 +5245,7 @@ pub(crate) fn effect_ask(
                     | EffectFlight::Projection { .. },
                 )
                 | None => {
-                    unreachable!("agent effect proposal was described")
+                    unreachable!("staged call flight {owner:?} for proposal {proposal} of task {task}")
                 }
             }
         }
@@ -5264,6 +5255,8 @@ pub(crate) fn effect_ask(
         jig_domain_core::effects::connector::Ask::Keep { owner, entry, task, key: core_key } => {
             match domain.forge_effects.remove(&owner) {
                 Some(EffectFlight::Call { repository, effect, key, description, .. }) => {
+                    assert_eq!(task, key.task, "call flight {owner:?} owns the room for entry {entry} of task {task}");
+                    domain.forge.assert_call_reservation(owner, task);
                     assert!(
                         core_key
                             == jig_domain_core::EffectKey {
@@ -5297,7 +5290,11 @@ pub(crate) fn effect_ask(
                     }));
                 }
                 Some(EffectFlight::Projection { row, entry: kept, .. }) => {
-                    assert!(kept.number == entry && kept.task == task, "admitted projection entry");
+                    assert!(
+                        kept.number == entry && kept.task == task && row.goal == task,
+                        "projection flight {owner:?} owns the room for entry {entry} of goal {task}"
+                    );
+                    domain.forge.assert_projection_reservation(entry, task);
                     domain.work.push(Work::Forge(forge::Event::KeepProjection { row: *row, entry: kept }));
                 }
                 Some(EffectFlight::Procedure { entry: kept, task, evidence, description, .. }) => {
@@ -5326,7 +5323,17 @@ pub(crate) fn effect_ask(
                 Some(EffectFlight::Tier { entry: kept, .. }) => {
                     assert!(kept == entry, "core releases the described procedure entry");
                 }
-                None => {}
+                None => {
+                    if number == domain.config.forge_connector {
+                        match core_key.origin {
+                            jig_domain_core::EffectPurpose::Call { .. }
+                            | jig_domain_core::EffectPurpose::Projection { .. } => {
+                                unreachable!("staged forge flight {owner:?} for admitted entry {entry} of task {task}");
+                            }
+                            jig_domain_core::EffectPurpose::Procedure { .. } => {}
+                        }
+                    }
+                }
             }
         }
         jig_domain_core::effects::connector::Ask::Drop { owner, answer, findings, why } => {
@@ -5371,7 +5378,9 @@ pub(crate) fn effect_ask(
                     }
                 }
                 Some(EffectFlight::Projection { row, entry, .. }) => {
-                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number }));
+                    let goal = row.goal;
+                    domain.forge.assert_projection_reservation(entry.number, goal);
+                    domain.work.push(Work::Forge(forge::Event::DropProjection { entry: entry.number, goal }));
                     let closing = match &row.desired {
                         Some(view) => view.finished.is_some(),
                         None => false,
@@ -5401,7 +5410,7 @@ pub(crate) fn effect_ask(
                         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
                     }
                 }
-                Some(EffectFlight::Call { .. }) => return_call_room(domain, env, decision, owner),
+                Some(EffectFlight::Call { key, .. }) => return_call_room(domain, env, decision, owner, key.task),
                 None => {}
             }
         }

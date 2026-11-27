@@ -13,7 +13,7 @@ fn window_reads_convert_without_calling_the_shell() {
     world.open_switched().expect("job copy opens");
     let frames = world.contents();
     let mut reads = vec![
-        (TranscriptRead::Window { task: root::LIVE, attempt: 1, turn: 1, after: None }, TURNS_PER_TASK),
+        (TranscriptRead::Window { task: root::LIVE, attempt: 1, turn: 1, after: None, limits: None }, TURNS_PER_TASK),
         (TranscriptRead::Turn { task: root::LIVE, attempt: 1, turn: 1 }, 1),
         (TranscriptRead::Page { task: root::LIVE, backwards: false, after: None }, TURNS_PER_TASK),
         (TranscriptRead::Page { task: root::LIVE, backwards: true, after: None }, TURNS_PER_TASK),
@@ -40,7 +40,7 @@ fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
     for (bytes, expected) in [(size, 1), (size - 1, 0)] {
         let events = world.request(Request::Transcript {
             owner: Token::new(719),
-            read: TranscriptRead::Window { task: root::LIVE, attempt: 1, turn: 1, after: None },
+            read: TranscriptRead::Window { task: root::LIVE, attempt: 1, turn: 1, after: None, limits: None },
             rows: 1,
             bytes,
         });

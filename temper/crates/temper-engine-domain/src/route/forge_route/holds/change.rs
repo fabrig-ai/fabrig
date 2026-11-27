@@ -2,6 +2,7 @@
 use super::super::{Domain, Env, Limits, List, append, commit_text, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 
+#[expect(clippy::too_many_lines, reason = "one hold account chooses among runner, repair and forge read evidence")]
 pub(in super::super) fn account(
     domain: &Domain,
     env: &Env<Limits>,
@@ -43,38 +44,55 @@ pub(in super::super) fn account(
             &forge::Topic::Landings { repository: row.repository, branch: row.branch.clone() },
             &env.limits.forge,
         )?;
-        let mut observed = match evidence {
+        let mut expected = was.pinned_head().or(row.change.last_head).or(row.kept);
+        let observed = match evidence {
             Some(read) => read.head,
-            None => domain.forge.branch_head(&name),
+            None => match domain.forge.hold(&name) {
+                Some(hold) => match &hold.drift {
+                    Some(forge::Drift {
+                        change: forge::DriftChange::Branch { expected: before, observed }, ..
+                    }) => {
+                        expected = Some(*before);
+                        *observed
+                    }
+                    Some(_) | None => domain.forge.branch_head(&name),
+                },
+                None => domain.forge.branch_head(&name),
+            },
         };
-        let mut expected = expected_head(was).or(row.change.last_head).or(row.kept);
-        if let Some(hold) = domain.forge.hold(&name)
-            && let Some(forge::Drift {
-                change: forge::DriftChange::Branch { expected: before, observed: found }, ..
-            }) = &hold.drift
-        {
-            expected = Some(*before);
-            observed = *found;
-        }
         append(&mut words, b"its branch moved: expected ");
         head(&mut words, expected.as_ref());
         append(&mut words, b", found ");
         head(&mut words, observed.as_ref());
+        let order = match evidence {
+            Some(read) => read.nearest_write,
+            None => None,
+        };
+        let nearest = match order {
+            Some(order) => domain.forge.write_entry(&name, order),
+            None => domain.forge.nearest_write(&name),
+        };
+        if let Some(entry) = nearest {
+            last_write(&mut words, entry);
+        }
     } else if why == change::Hold::PullClosed {
         append(&mut words, b"its pull request closed: ");
         append(&mut words, skein_lib::Decimal::of(row.pull?).as_bytes());
+    } else if why == change::Hold::Stalled
+        && let Some(read) = evidence
+        && let Some(behind) = read.behind
+    {
+        behind_words(&mut words, behind);
+    } else if why == change::Hold::Stalled
+        && let Some(read) = evidence
+        && read.readback_owed
+    {
+        append(&mut words, b"can't tell whether the forge read shows a write of temper's: its readback did not settle");
     } else if why == change::Hold::Stalled {
         append(&mut words, b"no progress at ");
         append(&mut words, was.step_name());
         append(&mut words, b" for ");
-        let runner = if let change::State::Checking { .. } = was.as_ref() {
-            match row.change.clock {
-                Some(clock) => clock.waited >= env.limits.forge.change_policy.runner_wait,
-                None => false,
-            }
-        } else {
-            false
-        };
+        let runner = runner_stalled(was, row, env);
         let bound =
             if runner { env.limits.forge.change_policy.runner_wait } else { env.limits.forge.change_policy.stall };
         append(&mut words, skein_lib::Decimal::of(bound.as_nanos() / 60_000_000_000).as_bytes());
@@ -94,6 +112,15 @@ pub(in super::super) fn account(
         return None;
     }
     Some(forge::text::fit(words.as_slice(), skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"..."))
+}
+
+fn runner_stalled(state: &change::State, row: &forge::ChangeRow, env: &Env<Limits>) -> bool {
+    if let change::State::Checking { .. } = state
+        && let Some(clock) = row.change.clock
+    {
+        return clock.waited >= env.limits.forge.change_policy.runner_wait;
+    }
+    false
 }
 
 /// Every change hold has an account even when the deciding neighbour gave none.
@@ -154,33 +181,78 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
     words.into_boxed()
 }
 
-fn expected_head(state: &change::State) -> Option<[u8; 32]> {
-    match state {
-        change::State::Checking { head }
-        | change::State::Gating { head, .. }
-        | change::State::Queued { head, .. }
-        | change::State::First { head, .. }
-        | change::State::Ready { head, .. }
-        | change::State::Judging { head, .. }
-        | change::State::CancellingGates { head }
-        | change::State::Recreating { head }
-        | change::State::Landing { head } => Some(*head),
-        change::State::Updating { from, .. } | change::State::Preparing { from, .. } => Some(*from),
-        change::State::Held { was, .. } => expected_head(was),
-        change::State::Taking { .. }
-        | change::State::Producing { .. }
-        | change::State::Opening { .. }
-        | change::State::Reopening { .. }
-        | change::State::WaitingProducer { .. }
-        | change::State::Resolving { .. }
-        | change::State::Repairing { .. }
-        | change::State::Landed { .. }
-        | change::State::Red { .. }
-        | change::State::Cleared { .. }
-        | change::State::Uncleared { .. }
-        | change::State::NoChange { .. }
-        | change::State::Ended => None,
+fn behind_words(words: &mut List<u8>, behind: forge::ReadBehind) {
+    append(
+        words,
+        match behind.read {
+            forge::BehindRead::Branch => b"its branch reads ",
+            forge::BehindRead::Base => b"its base branch reads ",
+            forge::BehindRead::PullHead => b"its pull request's head reads ",
+            forge::BehindRead::PullBase => b"its pull request's base reads ",
+            forge::BehindRead::PullState => b"its pull request reads an older state of temper's",
+        },
+    );
+    if let Some(found) = behind.found {
+        head(words, Some(&found));
+        append(words, b", an older head of temper's (expected ");
+        head(words, behind.expected.as_ref());
+        append(words, b")");
+    } else if behind.read != forge::BehindRead::PullState {
+        append(words, b"as missing (expected ");
+        head(words, behind.expected.as_ref());
+        append(words, b")");
     }
+    append(words, b": the read may be stale or another's write");
+}
+
+pub(super) fn last_write(words: &mut List<u8>, entry: &forge::Written) {
+    use forge::writes::{Operation, Sender, WriteState};
+    use skein_lib::Decimal;
+    append(words, b"; temper's last write on it: ");
+    let (action, commit) = match &entry.operation {
+        Operation::Push { after, .. } => (b"push".as_slice(), Some(after)),
+        Operation::Create { after } => (b"create branch".as_slice(), Some(after)),
+        Operation::Delete { before } => (b"delete branch".as_slice(), before.as_ref()),
+        Operation::Update { after, .. } => (b"update".as_slice(), after.as_ref()),
+        Operation::MergedInto { after, .. } => (b"merge into branch".as_slice(), after.as_ref()),
+        Operation::Merge { head, .. } => (b"merge".as_slice(), Some(head)),
+        Operation::Open { head, .. } => (b"open pull".as_slice(), Some(head)),
+        Operation::Close { .. } => (b"close pull".as_slice(), None),
+        Operation::Reopen { .. } => (b"reopen pull".as_slice(), None),
+        Operation::Retarget { .. } => (b"retarget pull".as_slice(), None),
+        Operation::Writer { before } => (b"writer".as_slice(), before.as_ref()),
+        Operation::Compare { after } => (b"comparison".as_slice(), Some(after)),
+    };
+    append(words, action);
+    if let Some(commit) = commit {
+        append(words, b" of ");
+        head(words, Some(commit));
+    }
+    match entry.sender {
+        Sender::Attempt { task, attempt } => {
+            append(words, b" by task ");
+            append(words, Decimal::of(task).as_bytes());
+            append(words, b" attempt ");
+            append(words, Decimal::of(attempt).as_bytes());
+        }
+        Sender::Entry { task, entry } => {
+            append(words, b" by task ");
+            append(words, Decimal::of(task).as_bytes());
+            append(words, b" entry ");
+            append(words, Decimal::of(entry).as_bytes());
+        }
+        Sender::Previous => append(words, b" by the previous build"),
+    }
+    append(
+        words,
+        match entry.state {
+            WriteState::Admitted => b", admitted",
+            WriteState::Sent => b", sent",
+            WriteState::Confirmed => b", confirmed",
+            WriteState::Refused => b", refused",
+            WriteState::Uncertain => b", uncertain",
+        },
+    );
 }
 
 fn head(words: &mut List<u8>, commit: Option<&[u8; 32]>) {

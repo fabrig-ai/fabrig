@@ -6,7 +6,6 @@ mod asks;
 pub(crate) mod calendar;
 pub(crate) mod checkpoints;
 mod diagnostics;
-pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;
 pub(crate) mod host_route;
@@ -29,7 +28,6 @@ pub(crate) mod now;
 mod panels;
 pub(crate) mod parts;
 pub(crate) mod policy_translate;
-pub(crate) mod proposals;
 pub(crate) mod public;
 mod red_tool;
 pub(crate) mod remember;
@@ -38,11 +36,10 @@ pub(crate) mod settings_parts;
 mod tools;
 pub(crate) mod trials;
 pub(crate) mod ways;
-use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
 use crate::boundary::{
-    Call, EscalationChoice, Event, ForgeWorkspace, InputCheck, MessageForm, Payload, PreparedWorkspace, ProposalChoice,
-    ProposedAction, Read, Request, Tool, Work,
+    Call, EscalationChoice, Event, ForgeWorkspace, MessageForm, Payload, PreparedWorkspace, ProposalChoice,
+    ProposedAction, Request, Tool, Work,
 };
 use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
@@ -53,11 +50,12 @@ use crate::translate::{
     call_needs_input, checked_call, connector_answer, core_call, environment_forge, keep_connector_answer, named_call,
     relay_call, tool_kind,
 };
-use crate::{CallAnswer, CallKey, Decision, Delivery, Family, Key, Range, Record, Write, loads};
+use crate::{CallAnswer, CallKey, Decision, Delivery, Family, Key, Record, Write, loads};
 use alloc::boxed::Box;
 pub use forge_route::adopt_repository_ask;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
+use jig_domain_core::engine::{In, Out, Peer};
 use jig_domain_core::{Delegate, ProcedureStep, StepEnd};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -324,7 +322,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             }
             domain.durable_commit = number;
             if domain.start_runtime() {
-                let _filled = crate::engine::step(&mut domain.engine, env, core::Event::Fill { bytes: fill });
+                let _filled = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Fill { bytes: fill }));
             } else {
                 domain.startup_fill = Some(fill);
             }
@@ -336,11 +334,11 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             journal_outputs(&mut journal_out, out);
             return;
         }
-        Event::Store(crate::StoreInput::Loaded { owner, rows, next, texts }) => {
+        Event::Store(crate::StoreInput::Loaded { owner, rows, next }) => {
             let mut decision = Some(load_decision(domain, &env.limits));
             let mut load_out = Queue::with_capacity(1);
             loads::loaded(&mut domain.loads, owner, rows, next, &mut load_out);
-            load_outputs(domain, env, &mut load_out, texts, &mut decision, out);
+            load_outputs(domain, env, &mut load_out, &mut decision, out);
             accept_load(domain, env, decision);
             return;
         }
@@ -348,7 +346,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             let mut decision = Some(load_decision(domain, &env.limits));
             let mut load_out = Queue::with_capacity(1);
             loads::unloaded(&mut domain.loads, owner, &mut load_out);
-            load_outputs(domain, env, &mut load_out, None, &mut decision, out);
+            load_outputs(domain, env, &mut load_out, &mut decision, out);
             accept_load(domain, env, decision);
             return;
         }
@@ -368,9 +366,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Store(crate::StoreInput::PartLoaded { waiter, result }) => {
             domain.work.push(Work::PartsLoaded { waiter, result });
         }
-        Event::Store(crate::StoreInput::ReadLoaded { load, result }) => {
-            domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
-        }
+        Event::Store(crate::StoreInput::Engine(answer)) => domain.work.push(Work::EngineStore(answer)),
         Event::Restart { pending } => {
             if domain.start_wall.is_some() {
                 return;
@@ -382,6 +378,13 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             let action = domain.engine.core_mut().start_begin(pending, env.wall);
             start_action(domain, env, &mut decision, action);
+            route_into(domain, env, &mut decision);
+            close(domain, env, decision, out);
+            return;
+        }
+        Event::Worker(crate::WorkerInput::Admit { asking, tag, branch, expected, commit }) => {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            forge_route::push_admission::ask(domain, env, &mut decision, asking, tag, &branch, expected, commit);
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
             return;
@@ -456,24 +459,43 @@ pub(crate) fn route_core_requests(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
-    requests: Queue<core::Request>,
+    mut requests: Queue<core::Request>,
 ) {
-    route_core_with_job(domain, env, decision, requests, None);
+    let mut outputs = Queue::with_capacity(requests.len());
+    for _ in 0..requests.len() {
+        outputs.push(Out::Core(requests.pop().expect("core output count")));
+    }
+    route_engine_requests(domain, env, decision, outputs);
 }
 
-fn route_core_with_job(
+pub(crate) fn route_engine_requests(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
-    requests: Queue<core::Request>,
+    outputs: Queue<Out>,
+) {
+    route_engine_with_job(domain, env, decision, outputs, None);
+}
+
+fn route_engine_with_job(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    mut outputs: Queue<Out>,
     job_answer: Option<forge_route::job_history::Answer>,
 ) {
     forge_route::limit_holds::reconcile(domain, env, decision);
-    standing::saved(domain, env, decision, &requests);
-    let note_projects = parts::note_projects(&requests);
-    let mut output = requests;
-    for _ in 0..output.len() {
-        match output.pop().expect("core output count") {
+    standing::saved(domain, env, decision, &outputs);
+    let note_projects = parts::note_projects(&outputs);
+    for _ in 0..outputs.len() {
+        let request = match outputs.pop().expect("engine output count") {
+            Out::Core(request) => request,
+            Out::Held(Peer::Store(load)) => {
+                emit(decision, &env.limits, Delivery::EngineStore(load));
+                continue;
+            }
+        };
+        match request {
             core::Request::Write(core::Write::Save(record)) => {
                 if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
                     domain.hold_bytes(skein_lib::len_u64(part.body.len()));
@@ -600,10 +622,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let period = if let core::Event::Period { project, .. } = &event { Some(*project) } else { None };
                 let job_answer = forge_route::job_history::answer(domain, &event);
                 let routed = forge_route::step_core(domain, env, event);
-                route_core_with_job(domain, env, decision, routed, job_answer);
+                route_engine_with_job(domain, env, decision, routed, job_answer);
                 if let Some(project) = period {
                     standing::move_roles(domain, project, None);
                 }
+            }
+            Work::EngineStore(answer) => {
+                let routed = forge_route::step_engine(domain, env, In::Store(answer));
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::RepairFindings { goal, writes } => {
                 assert!(domain.engine.core().tasks.task(goal).is_some(), "a preflighted repair goal was made");
@@ -613,19 +639,19 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Tasks(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Tasks(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::People(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::People(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::Fleet(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Fleet(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::Brief(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
-                route_core_requests(domain, env, decision, routed);
+                route_engine_requests(domain, env, decision, routed);
             }
             Work::ForgeLimitHold { row, words } => {
                 forge_route::limit_holds::apply_hold(domain, env, decision, row, words);
@@ -636,7 +662,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 let mut output = Queue::uncapped();
-                let links = domain.forge.start_links(&domain.engine.core().tasks, &environment_forge(env), &mut output);
+                let convert_branch_writes = domain.convert_branch_writes;
+                domain.convert_branch_writes = false;
+                let links = domain.forge.start_links(
+                    &domain.engine.core().tasks,
+                    &environment_forge(env),
+                    convert_branch_writes,
+                    &mut output,
+                );
                 forge_route::outputs(domain, env, decision, &mut output);
                 if let Err(failure) = links {
                     let stop = match failure {
@@ -644,6 +677,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                         forge::StartLink::Fit(failure) => {
                             crate::StartStop::ForgeFit { phase: domain.start_phase(), failure }
                         }
+                        forge::StartLink::BranchWrites(name, count) => crate::StartStop::BranchWrites(name, count),
                         forge::StartLink::Link(link) => {
                             crate::StartStop::ForgeLink { phase: domain.start_phase(), link }
                         }
@@ -674,27 +708,15 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal, decision),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
-            Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),
+            Work::AgreedGoal(read) => goal::ready(domain, env, *read),
             Work::Activate { context, ready } => activate(domain, env, decision, context, ready),
-            Work::EscalationLoaded { waiter, rows } => escalation::loaded(domain, env, waiter, rows),
-            Work::EscalationFailed { waiter } => escalation::failed(domain, waiter),
-            Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
-            Work::ProposalFailed { waiter } => proposals::historical_failed(domain, waiter),
-            Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
             Work::CloserReportReady { task } => forge_route::resume_closer_step(domain, env, decision, task),
-            Work::EndedLoad { waiter, task } => emit(
-                decision,
-                &env.limits,
-                Delivery::Load { waiter, range: Range::Core(crate::CoreRange::TaskResult { task }), after: None },
-            ),
-            Work::EndedLoaded { waiter, rows } => crate::archive::ended_loaded(domain, waiter, rows),
-            Work::EndedFailed { waiter } => crate::archive::ended_failed(domain, waiter),
             Work::ChangeFromLoaded { task, row } => crate::changes_from::loaded(domain, env, decision, task, row),
         }
     }
 }
 
-/// One activation's step: the load it allows finds both its read slot and its load slot.
+/// One activation’s step, with the root’s readiness.
 fn activate(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -709,9 +731,8 @@ fn activate(
     if !domain.engine.core().settling() && ready && due && domain.forge.design_workspace_waiting(context.task) {
         forge_event(domain, env, decision, forge::Event::GoalReleased { task: context.task });
     }
-    let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
-    let routed = crate::engine::step(&mut domain.engine, env, core::Event::Activate { context, ready, busy });
-    route_core_requests(domain, env, decision, routed);
+    let routed = crate::engine::step(&mut domain.engine, env, In::Core(core::Event::Activate { context, ready }));
+    route_engine_requests(domain, env, decision, routed);
 }
 
 pub(crate) fn call_answer(domain: &Domain, key: CallKey) -> Option<CallAnswer> {
@@ -784,17 +805,7 @@ pub(crate) fn decide_call(
     relay_call(domain, limits, decision, to, answer);
 }
 
-#[expect(clippy::too_many_arguments, reason = "validated historical input pointers travel with the delegated call")]
-pub(crate) fn delegate_call(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision,
-    to: ReplyTo,
-    key: CallKey,
-    batch: Box<[Delegate]>,
-    validated: bool,
-    stubs: Box<[tasks::Stub]>,
-) {
+pub(crate) fn delegate_call(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, key: CallKey, batch: Box<[Delegate]>) {
     if let Some(context) = domain.engine.core().tasks.delegation(key.task)
         && let Err(body) = forge_route::follow_route::check_batch(
             domain,
@@ -808,49 +819,7 @@ pub(crate) fn delegate_call(
         host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body });
         return;
     }
-    if let Err(part) = domain.engine.core().delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
-        domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part: *part }));
-        return;
-    }
-    if !validated {
-        let (project, ids) = match domain.engine.core().delegate_inputs(&env.limits.tasks, key, &batch) {
-            Ok(value) => value,
-            Err(part) => {
-                domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part: *part }));
-                return;
-            }
-        };
-        if let Some(&first) = ids.first() {
-            let capacity = batch
-                .len()
-                .checked_mul(skein_lib::usize_of(env.limits.tasks.inputs))
-                .expect("bounded batch input count");
-            let to = to.into_token();
-            let read = InputCheck {
-                to,
-                key,
-                batch,
-                ids,
-                at: 0,
-                project,
-                stubs: List::with_capacity(u32::try_from(capacity).expect("bounded input IDs")),
-            };
-            let waiter =
-                domain.archive_reads.insert(Some(Read::InputCheck(read))).expect("preflighted input read slot").token();
-            assert!(domain.engine.core_mut().reserve_connector_call(key), "reserved call record room");
-            emit(
-                decision,
-                &env.limits,
-                Delivery::Load {
-                    waiter,
-                    range: Range::Core(crate::CoreRange::TaskResult { task: first }),
-                    after: None,
-                },
-            );
-            return;
-        }
-    }
-    domain.work.push(Work::Core(core::Event::DelegateValidated { to, key, batch, stubs }));
+    domain.work.push(Work::Core(core::Event::Delegate { to, key, batch }));
 }
 
 pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
@@ -885,7 +854,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
             | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
-            | crate::StoreInput::ReadLoaded { .. }
+            | crate::StoreInput::Engine(_)
             | crate::StoreInput::PartLoaded { .. },
         )
         | Event::Account(_) => {}

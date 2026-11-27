@@ -1,5 +1,6 @@
 //! Cold store rehearsals (`temper/docs/design/testing/store-check.md`, 2–4).
 
+use jig_domain_core::engine::store as engine_store;
 use std::collections::VecDeque;
 
 use jig_conformance::store_check::{StoreChecks, finding};
@@ -105,9 +106,9 @@ impl Rehearsal {
                     assert!(bytes >= self.env.limits.loads.bytes);
                     self.events.push_back(Event::Store(crate::direct::page_at_owner(terminal, owner, most)));
                 }
-                Request::Store(StoreRequest::Read { load, range }) => {
-                    let result = self.store.read(range);
-                    self.events.push_back(Event::Store(StoreInput::ReadLoaded { load, result }));
+                Request::Store(StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                    let result = self.store.load(range);
+                    self.events.push_back(Event::Store(StoreInput::Engine(engine_store::In::Loaded { load, result })));
                 }
                 Request::Store(StoreRequest::PartRead { waiter, range }) => {
                     let result = self.store.read(range);

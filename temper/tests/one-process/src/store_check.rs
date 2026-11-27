@@ -291,15 +291,15 @@ mod tests {
 
     #[test]
     fn the_default_sample_reports_the_storys_commits() {
-        // Seed 45 keeps commit 17 out of this phase's 24 commits.
+        // Seed 45 keeps commit 17 out of this phase's 18 commits.
         let (outcome, _, _) = story(CHAT_SEED, world::Phase::Story);
         assert_eq!(outcome.chats_answered, 1);
-        assert_eq!(outcome.store_checks.commits, 24);
+        assert_eq!(outcome.store_checks.commits, 18);
         assert_eq!(outcome.store_checks.checked, 1);
         assert_eq!(outcome.store_checks.rehearsals, 1);
         assert_eq!(
             outcome.store_checks.words,
-            "store check: 1 of 24 commits checked (one per run, seed 45, commit 17)"
+            "store check: 1 of 18 commits checked (one per run, seed 45, commit 17)"
         );
     }
 
@@ -318,9 +318,9 @@ mod tests {
         .err()
         .expect("the phase must return the kept record's refusal");
         assert!(run.borrow().applied > CHAT_KEPT, "the live phase continued past the kept commit");
-        // Frame 18 is already on disk when the referee observes commit 17;
-        // the corrupt record appends commit 19 to that copy, not the live disk.
-        assert!(words.contains("store check: commit 19: start refused at upgrade rehearsal:"), "{words}");
+        // The referee keeps the reply's commit 17 before the live terminal's frame is on disk.
+        // The corrupt record appends commit 18 to the kept copy, not the live disk.
+        assert!(words.contains("store check: commit 18: start refused at upgrade rehearsal:"), "{words}");
         assert!(words.contains("record not decodable: jig-store-core 0, store key 010000"), "{words}");
     }
 

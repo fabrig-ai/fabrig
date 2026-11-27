@@ -125,15 +125,10 @@ struct ProjectionWriterFixture {
 }
 
 fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
-    let (mut core, limits) = tree_core();
+    let (mut core, limits) = tree_core_with_write_hold();
     let resources = [b"first".as_slice(), b"other".as_slice()]
         .map(|path| tasks::Name { connector: 2, path: Box::new([Box::from(path)]) });
     let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
-    send_task(
-        &mut core,
-        &limits,
-        tasks::Event::Kinds { connector: 2, kinds: Box::new([tasks::Kind { connector: 2, kind: 1, hold }]) },
-    );
     for resource in &resources {
         send_task(&mut core, &limits, tasks::Event::Resource { name: resource.clone(), hold });
         send_task(

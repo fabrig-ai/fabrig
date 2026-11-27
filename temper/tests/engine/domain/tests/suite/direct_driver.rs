@@ -26,10 +26,10 @@ fn a_store_fork_keeps_transcript_bytes_after_its_source_drops_them() {
     let mut source = driver.take_store();
     let mut copy = source.fork();
     let range = engine::Range::Core(engine::CoreRange::Turns { task: run.task, attempt: run.attempt });
-    let before = source.page_with_texts(&range, None, 2);
+    let before = source.page(&range, None, 2);
     assert!(!before.0.is_empty(), "the source has a committed turn");
     let before = format!("{before:?}");
-    assert_eq!(format!("{:?}", copy.page_with_texts(&range, None, 2)), before);
+    assert_eq!(format!("{:?}", copy.page(&range, None, 2)), before);
     let mut header = source.header();
     header.commits += 1;
     source.submit(
@@ -42,11 +42,7 @@ fn a_store_fork_keeps_transcript_bytes_after_its_source_drops_them() {
     );
     source.apply();
     assert!(matches!(source.page_terminal(&range, None, 2), engine::StoreInput::Unloaded { .. }));
-    assert_eq!(
-        format!("{:?}", copy.page_with_texts(&range, None, 2)),
-        before,
-        "copied transcript logs and maps are independent"
-    );
+    assert_eq!(format!("{:?}", copy.page(&range, None, 2)), before, "copied transcript logs and maps are independent");
     let original = source.header();
     let mut header = copy.header();
     header.messages += 1;
@@ -57,11 +53,7 @@ fn a_store_fork_keeps_transcript_bytes_after_its_source_drops_them() {
     assert_eq!(copy.header().messages, header.messages);
     source.crash(0);
     copy.crash(0);
-    assert_eq!(
-        format!("{:?}", copy.page_with_texts(&range, None, 2)),
-        before,
-        "both copies cold-open their durable backing"
-    );
+    assert_eq!(format!("{:?}", copy.page(&range, None, 2)), before, "both copies cold-open their durable backing");
 }
 
 #[test]

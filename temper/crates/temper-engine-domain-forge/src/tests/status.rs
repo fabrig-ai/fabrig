@@ -97,6 +97,8 @@ fn observe_pull(d: &mut Domain) {
         pending: Box::new([]),
         branch: Some(HEAD),
         branch_fresh: false,
+        drift: None,
+        behind: None,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
         close_landing: None,

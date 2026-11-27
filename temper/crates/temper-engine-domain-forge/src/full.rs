@@ -40,11 +40,23 @@ impl State {
         }
     }
     pub(crate) fn reserve(&mut self, reservation: Reservation, task: u64, ended: Option<Wall>) {
-        if self.reservations.contains_key(&reservation) {
-            return;
-        }
-        self.sequence = self.sequence.checked_add(1).expect("reservation sequence fits a process");
-        self.reservations.insert(reservation, (self.sequence, task, ended)).expect("reservations fit outbox");
+        assert!(
+            !self.reservations.contains_key(&reservation),
+            "one full-report record for outbox reservation {reservation:?} of task {task}"
+        );
+        let Some(sequence) = self.sequence.checked_add(1) else {
+            unreachable!("sequence for outbox reservation {reservation:?} of task {task} fits the process");
+        };
+        self.sequence = sequence;
+        let inserted = self.reservations.insert(reservation, (self.sequence, task, ended));
+        assert!(inserted.is_ok(), "full-report record for outbox reservation {reservation:?} of task {task} fits");
+    }
+    pub(crate) fn assert_owner(&self, reservation: Reservation, task: u64) {
+        let owner = match self.reservations.get(&reservation) {
+            Some((_, owner, _)) => Some(*owner),
+            None => None,
+        };
+        assert_eq!(owner, Some(task), "outbox reservation {reservation:?} belongs to task {task}");
     }
     pub(crate) fn reserved_owner_ended(&self, reservation: Reservation) -> Option<Wall> {
         self.reservations.get(&reservation)?.2
@@ -129,7 +141,7 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
 }
 fn reservation_held(d: &Domain, reservation: Reservation) -> bool {
     match reservation {
-        Reservation::Asked(waiter) => d.room.asked.contains(&waiter),
+        Reservation::Asked(waiter) => crate::room::asked(d, waiter),
         Reservation::Call(owner) => d.call_room.contains(&owner),
         Reservation::Projection(entry) => d.projection_room.contains(&entry),
     }

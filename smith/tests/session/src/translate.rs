@@ -1,7 +1,8 @@
 //! The mapping between the agent's vocabulary and the provider's: what the two
 //! protocol layers and the wire between them do, without the bytes. The
 //! agent's side owns the tools' schemas, decodes the arguments the LLM writes
-//! into typed calls, and renders what comes of them as text.
+//! into typed calls, and renders owned outcomes as the product does
+//! (smith/docs/design/protocol/llm.md, sections 5 and 8).
 
 use smith_domain_session::Event;
 use smith_domain_session::llm as agent;
@@ -10,7 +11,14 @@ use crate::tickets::{Ticketed, Tickets};
 use skein_fake_llm_domain::api as provider;
 use skein_json::{Document, Kind};
 use skein_lib::{Duration, Token};
-use smith_domain_tools::{Budget, Call, Effect, Exit, Grants, JobNumber, Namespace, Outcome, Timeout, Wait, Yield};
+use smith_domain_tools::{Budget, Call, Effect, Grants, JobNumber, Namespace, Timeout, Wait, Yield};
+use smith_protocol_llm::{Error, render_outcome};
+
+/// The product's result bound; this world has no separate host tool or message replies.
+pub(crate) fn render_bound(limits: &smith_domain_session::Limits) -> u32 {
+    smith_protocol_llm::render_bound(&limits.tools, 0, limits.delegated_result_bytes)
+        .expect("fixture limits give a result bound")
+}
 
 /// The tools the agent's side offers, by name: the family that grants each,
 /// and its schema.
@@ -32,10 +40,15 @@ enum Family {
 }
 
 /// The provider's query for an agent's prompt, its tickets resolved in
-/// `tickets`: the live tools the opener serves. Concrete results are rendered directly. There is one
-/// provider, so the endpoint names nothing.
+/// `tickets`: the live tools the opener serves. Uses the calm fixture's result
+/// bound. There is one provider, so the endpoint names nothing.
 #[must_use]
 pub fn query(prompt: agent::Prompt, tickets: &Tickets) -> provider::Query {
+    query_bounded(prompt, tickets, render_bound(&crate::Settings::calm(0).agent))
+        .expect("scripted fixture prompt renders")
+}
+
+pub(crate) fn query_bounded(prompt: agent::Prompt, tickets: &Tickets, maximum: u32) -> Result<provider::Query, Error> {
     let agent::Prompt {
         purpose: _,
         endpoint: _,
@@ -63,9 +76,12 @@ pub fn query(prompt: agent::Prompt, tickets: &Tickets) -> provider::Query {
             parameters: (*schema).into(),
         });
     }
-    let messages = messages.into_iter().map(|message| translate_message(message, &namespace)).collect();
+    let messages = messages
+        .into_iter()
+        .map(|message| translate_message(message, &namespace, maximum))
+        .collect::<Result<_, _>>()?;
     let caching = provider::Caching::Scope(affinity.key);
-    provider::Query {
+    Ok(provider::Query {
         credential: None,
         caching,
         model,
@@ -74,7 +90,7 @@ pub fn query(prompt: agent::Prompt, tickets: &Tickets) -> provider::Query {
         choice: provider::ToolChoice::Auto,
         messages,
         max_tokens,
-    }
+    })
 }
 
 /// The agent's terminal event for the provider's answer to the call of `owner`,
@@ -118,16 +134,17 @@ fn offer(grants: Grants) -> Box<[provider::ToolSpec]> {
         .collect()
 }
 
-fn translate_message(message: agent::Message, namespace: &Namespace) -> provider::Message {
+fn translate_message(message: agent::Message, namespace: &Namespace, maximum: u32) -> Result<provider::Message, Error> {
     let role = match message.role {
         agent::Role::User => provider::Role::User,
         agent::Role::Assistant => provider::Role::Assistant,
     };
-    provider::Message { role, parts: message.content.into_iter().map(|block| part(block, namespace)).collect() }
+    let parts = message.content.into_iter().map(|block| part(block, namespace, maximum)).collect::<Result<_, _>>()?;
+    Ok(provider::Message { role, parts })
 }
 
-fn part(block: agent::Block, namespace: &Namespace) -> provider::Part {
-    match block {
+fn part(block: agent::Block, namespace: &Namespace, maximum: u32) -> Result<provider::Part, Error> {
+    Ok(match block {
         agent::Block::Text { text, .. } | agent::Block::Refusal { text, .. } => provider::Part::Text { text },
         agent::Block::Opaque { bytes } => provider::Part::Opaque { bytes },
         // The call goes back as the LLM wrote it.
@@ -135,10 +152,10 @@ fn part(block: agent::Block, namespace: &Namespace) -> provider::Part {
             provider::Part::ToolCall { id, name, arguments: input }
         }
         agent::Block::ToolResult { id, result } => {
-            let (output, is_error) = render_with_namespace(&result, namespace);
+            let (output, is_error) = render_bounded(&result, namespace, maximum)?;
             provider::Part::ToolOutput { id, output, is_error }
         }
-    }
+    })
 }
 
 fn completion(
@@ -329,32 +346,17 @@ pub fn render(result: &agent::Returned) -> (Box<[u8]>, bool) {
     render_with_namespace(result, &Namespace::One)
 }
 
-/// Render a tool result in the conversation's fixed namespace.
+/// Render a tool result in the conversation's fixed namespace at the calm fixture's bound.
 #[must_use]
 pub fn render_with_namespace(result: &agent::Returned, namespace: &Namespace) -> (Box<[u8]>, bool) {
-    match result {
+    render_bounded(result, namespace, render_bound(&crate::Settings::calm(0).agent))
+        .expect("scripted fixture result renders")
+}
+
+fn render_bounded(result: &agent::Returned, namespace: &Namespace, maximum: u32) -> Result<(Box<[u8]>, bool), Error> {
+    Ok(match result {
         agent::Returned::Text { text, error, replay: _ } => (text.clone(), *error),
-        agent::Returned::Owned { outcome } => {
-            if let Some(feedback) = path_feedback(outcome, namespace) {
-                return feedback;
-            }
-            let failed = !matches!(
-                outcome,
-                Outcome::Read { .. }
-                    | Outcome::Listed { .. }
-                    | Outcome::Found { .. }
-                    | Outcome::Removed
-                    | Outcome::Written { .. }
-                    | Outcome::Edited { .. }
-                    | Outcome::Exited { exit: Exit::Code { code: 0 }, .. }
-            );
-            let text = if let Outcome::Read { content, .. } = outcome {
-                content.clone()
-            } else {
-                format!("{outcome:?}").into_bytes().into()
-            };
-            (text, failed)
-        }
+        agent::Returned::Owned { outcome } => return render_outcome(outcome, namespace, maximum),
         agent::Returned::Invalid { problem } => (format!("malformed call: {problem:?}").into_bytes().into(), true),
         agent::Returned::Withdrawn => (b"withdrawn".as_slice().into(), true),
         agent::Returned::NotRun { why: agent::NotRun::OutsideChoice { .. } } => {
@@ -366,37 +368,5 @@ pub fn render_with_namespace(result: &agent::Returned, namespace: &Namespace) ->
         agent::Returned::NotRun { why: agent::NotRun::Stopped } => {
             (b"not run: the answer stopped first".as_slice().into(), true)
         }
-    }
-}
-
-/// The words `render_outcome` gives a path the tool refused, and that they're a failure.
-fn path_feedback(outcome: &Outcome, namespace: &Namespace) -> Option<(Box<[u8]>, bool)> {
-    use smith_domain_tools::Resolved;
-    let (prefix, path): (&[u8], _) = match outcome {
-        Outcome::NotFound { path } => (b"path not found: ", path),
-        Outcome::NotDirectory { path } => (b"path is not a directory: ", path),
-        Outcome::Outside { path } => (b"path is outside the workspace: ", path),
-        Outcome::ReadOnly { path } => (b"path is read-only: ", path),
-        _ => return None,
-    };
-    let (directory, path) = match path {
-        Resolved::Working { path } => match namespace {
-            Namespace::NoWorkspace | Namespace::One => (None, if path.is_empty() { b"." } else { path.as_ref() }),
-            Namespace::Several { working } => (Some(working.as_bytes()), path.as_ref()),
-        },
-        Resolved::Other { directory, path } => (Some(directory.as_bytes()), path.as_ref()),
-        Resolved::Outside { path } => (Some(b"".as_slice()), path.as_ref()),
-    };
-    let mut text = prefix.to_vec();
-    if let Some(directory) = directory {
-        text.push(b'/');
-        text.extend_from_slice(directory);
-        text.extend_from_slice(if directory.is_empty() || path.is_empty() { b"" } else { b"/" });
-    }
-    text.extend_from_slice(path);
-    assert!(
-        std::str::from_utf8(&text).is_ok_and(|text| text.chars().all(|c| !c.is_control() || c == '\n' || c == '\t')),
-        "the finite fixture doesn't send a path that needs escaping"
-    );
-    Some((text.into(), true))
+    })
 }

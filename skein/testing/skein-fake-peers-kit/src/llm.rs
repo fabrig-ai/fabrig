@@ -56,7 +56,7 @@ pub fn make_scripted_with_limits(
         &machine_limits,
         23,
         scripts,
-        api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
     )
     .expect("configured script domain");
     make_domain_with_limits(endpoint, credential, address, transport, domain, limits)

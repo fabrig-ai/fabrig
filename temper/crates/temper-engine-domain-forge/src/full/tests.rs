@@ -103,20 +103,22 @@ fn waiting_making(d: &mut Domain, env: &Env<Limits>, task: u64, order: u64) -> T
         .unwrap();
     domain::goal_branch::start(d, env, name, None, &mut Queue::uncapped());
     let owner = *d.makings.iter().find(|(_, pending)| pending.task == task).unwrap().0;
-    d.makings.get_mut(&owner).unwrap().outbox_wait = Some(domain::goal_branch::RoomWait { order, since: env.wall });
+    let pending = d.makings.get_mut(&owner).unwrap();
+    pending.outbox_wait = Some(domain::goal_branch::RoomWait { order, since: env.wall });
+    pending.state = domain::LostReadState::WaitingForOutbox;
     owner
 }
 
 #[test]
-fn a_waiter_leaving_between_updates_prunes_its_reservation_on_resume() {
+fn leaving_the_line_removes_an_ask_from_the_next_full_report() {
     let (mut d, env) = setup(1, 4);
     let waiter = crate::room::Waiter::Change(7);
     waiting_change(&mut d, 7, 1);
-    d.room.asked.insert(waiter).unwrap();
-    d.full.reserve(Reservation::Asked(waiter), 7, None);
+    crate::room::reserve_ask(&mut d, waiter, 7);
     update(&mut d, &env, &mut Queue::uncapped());
     assert_eq!(d.inspection_reservations().as_ref(), &[7]);
-    d.room.asked.remove(&waiter);
+    crate::room::leave(&mut d, waiter);
+    d.changes.get_mut(&7).unwrap().room = None;
     domain::resume(&mut d, &env, &mut Queue::uncapped());
     assert!(d.inspection_reservations().is_empty());
     assert!(!d.full.reservations.contains_key(&Reservation::Asked(waiter)));
@@ -129,8 +131,7 @@ fn pruning_inside_ask_reports_room_before_admitting_the_next_waiter() {
     let (mut d, mut env) = setup(1, 4);
     let owner = waiting_making(&mut d, &env, 7, 1);
     let waiter = crate::room::Waiter::Making(owner);
-    d.room.asked.insert(waiter).unwrap();
-    d.full.reserve(Reservation::Asked(waiter), 7, None);
+    crate::room::reserve_ask(&mut d, waiter, 7);
     waiting_change(&mut d, 8, 2);
     d.room.ready = true;
     update(&mut d, &env, &mut Queue::uncapped());
@@ -163,7 +164,6 @@ fn pruning_inside_ask_reports_room_before_admitting_the_next_waiter() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "The FIFO and eligibility checks share one queue setup")]
 fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
     use crate::room::Waiter;
     use temper_engine_domain_forge_change as change;
@@ -172,48 +172,42 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
         let (mut d, env) = setup(4, 4);
         d.room.ready = true;
         d.landing.held = globally_held;
-        d.landing
-            .rows
-            .insert(
-                50,
-                crate::LandingRow {
-                    read_hold: None,
-                    gate_hold: None,
-                    last_event: None,
-                    turn_since: None,
-                    waiting: None,
-                    follows: None,
-                    flake_reruns: Box::new([]),
-                    room: Some(1),
-                    job: None,
-                    landing: landing::Landing {
-                        last_left: None,
-                        searched: None,
-                        round: landing::Round::new(b"temper/1/l50".as_slice().into()),
-                        task: 50,
-                        project: 5,
-                        phase: if globally_held {
-                            landing::Phase::Preparing
-                        } else {
-                            landing::Phase::Held {
-                                was: Box::new(landing::Phase::Preparing),
-                                why: landing::Hold::Faults { member: 0, gate: 0 },
-                            }
-                        },
-                        members: Box::new([]),
-                        preparation: 0,
-                        stale_proofs: 0,
-                        last_prepare: None,
-                        branch: b"main".as_slice().into(),
-                    },
-                    previous_asks: Box::new([]),
-                    entries: Box::new([]),
+        let row = crate::LandingRow {
+            read_hold: None,
+            gate_hold: None,
+            last_event: None,
+            turn_since: None,
+            waiting: None,
+            follows: None,
+            flake_reruns: Box::new([]),
+            room: Some(1),
+            job: None,
+            landing: landing::Landing {
+                last_left: None,
+                searched: None,
+                round: landing::Round::new(b"temper/1/l50".as_slice().into()),
+                task: 50,
+                project: 5,
+                phase: if globally_held {
+                    landing::Phase::Preparing
+                } else {
+                    landing::Phase::Held {
+                        was: Box::new(landing::Phase::Preparing),
+                        why: landing::Hold::Faults { member: 0, gate: 0 },
+                    }
                 },
-            )
-            .unwrap();
+                members: Box::new([]),
+                preparation: 0,
+                stale_proofs: 0,
+                last_prepare: None,
+                branch: b"main".as_slice().into(),
+            },
+            previous_asks: Box::new([]),
+            entries: Box::new([]),
+        };
+        assert!(d.landing.remember(row).is_none());
         waiting_change(&mut d, 20, 2);
-        d.room.asked.insert(Waiter::Change(20)).unwrap();
-        d.full.reserve(Reservation::Asked(Waiter::Change(20)), 20, None);
+        crate::room::reserve_ask(&mut d, Waiter::Change(20), 20);
         waiting_change(&mut d, 21, 3);
         crate::room::pass(&mut d, 21);
         waiting_change(&mut d, 22, 4);
@@ -251,7 +245,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
         ];
         assert!(out.iter().eq(&expected), "{out:?}");
         assert_eq!(
-            d.room.asked.iter().copied().collect::<Vec<_>>(),
+            d.room.asked.iter().map(|(waiter, _)| *waiter).collect::<Vec<_>>(),
             [Waiter::Change(20), Waiter::Change(30), Waiter::Making(owner), Waiter::Release(10),]
         );
         for (waiter, sequence) in [(Waiter::Change(30), 2), (Waiter::Release(10), 3), (Waiter::Making(owner), 4)] {
@@ -486,19 +480,19 @@ fn reservations_follow_entries_in_creation_order_and_only_eight_holders_are_name
         keep(&mut d, number, number);
     }
     let waiter = crate::room::Waiter::Change(42);
-    d.room.asked.insert(waiter).unwrap();
-    d.full.reserve(Reservation::Asked(waiter), 42, None);
+    waiting_change(&mut d, 42, 1);
+    crate::room::reserve_ask(&mut d, waiter, 42);
     assert!(d.reserve_call(&env, Token::new(1), 43));
     d.projection_room.insert(2).unwrap();
     d.full.reserve(Reservation::Projection(2), 44, None);
     let words = outbox_words(&d, 10);
-    assert!(words.ends_with(b"room asked for task 42, and 2 more"));
+    assert!(words.ends_with(b"room asked for task 42, and 2 more; 1 waiting for room"));
     for number in 1..=7 {
         d.entries.remove(&number);
     }
     assert_eq!(
         outbox_words(&d, 3).as_ref(),
-        b"3 of 3, held by room asked for task 42, room for task 43's call, room for goal 44's projection"
+        b"3 of 3, held by room asked for task 42, room for task 43's call, room for goal 44's projection; 1 waiting for room"
     );
     assert_eq!(d.room.asked.len(), 1);
     assert_eq!(d.call_room.len(), 1);
@@ -519,11 +513,9 @@ fn read_admission_reports_oldest_holders_doublings_and_room_after_reclaim() {
                     repository: 2,
                     what: crate::What::Branch(Box::new([b"temper".as_slice().into(), b"42".as_slice().into()])),
                 },
-                comparison: None,
-                baseline: None,
                 state: super::super::LostReadState::Asked,
                 last_answer: None,
-                kind: super::super::LostWriterKind::Written,
+                kind: super::super::LostWriterKind::Slot,
             },
         )
         .unwrap();

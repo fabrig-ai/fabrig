@@ -110,6 +110,7 @@ pub fn decode_with_limits(line: &[u8], limits: &Limits) -> Result<Recorded, Refu
         | Observation::Closed { .. }
         | Observation::Reopened { .. }
         | Observation::Labelled { .. }
+        | Observation::Retargeted { .. }
         | Observation::Revised { .. }
         | Observation::Depends { .. }
         | Observation::Requested { .. }
@@ -388,6 +389,7 @@ fn observation(tokens: &List<Token>, root: &Object, variant: &[u8], limits: &Lim
         ],
         b"closed" | b"reopened" => &[b"observation".as_slice(), b"repository", b"number", b"by"],
         b"labelled" => &[b"observation".as_slice(), b"repository", b"number", b"labels", b"by"],
+        b"retargeted" => &[b"observation".as_slice(), b"repository", b"number", b"from", b"to", b"by"],
         b"revised" => &[b"observation".as_slice(), b"repository", b"number", b"title", b"body", b"by"],
         b"depends" => &[b"observation".as_slice(), b"repository", b"number", b"dependencies", b"by"],
         b"requested" => &[b"observation".as_slice(), b"repository", b"number", b"reviewers", b"by"],
@@ -499,6 +501,19 @@ fn observation(tokens: &List<Token>, root: &Object, variant: &[u8], limits: &Lim
             )?,
             number: number(tokens, root.at(tokens, b"number", variant)?, b"number", variant)?,
             labels: names(tokens, root.at(tokens, b"labels", variant)?, b"labels", variant, limits)?,
+            by: number(tokens, root.at(tokens, b"by", variant)?, b"by", variant)?,
+        },
+        b"retargeted" => Observation::Retargeted {
+            repository: name(
+                tokens,
+                root.at(tokens, b"repository", variant)?,
+                b"repository",
+                variant,
+                limits.name_bytes,
+            )?,
+            number: number(tokens, root.at(tokens, b"number", variant)?, b"number", variant)?,
+            from: name(tokens, root.at(tokens, b"from", variant)?, b"from", variant, limits.name_bytes)?,
+            to: name(tokens, root.at(tokens, b"to", variant)?, b"to", variant, limits.name_bytes)?,
             by: number(tokens, root.at(tokens, b"by", variant)?, b"by", variant)?,
         },
         b"revised" => Observation::Revised {

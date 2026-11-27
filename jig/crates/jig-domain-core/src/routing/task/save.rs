@@ -395,7 +395,7 @@ fn clear_stale_preparation(
         crate::routing::run::results::clear(core, task.number);
         drop(core.contexts.remove(&task.number));
         drop(core.dependency_results.remove(&task.number));
-        drop(core.transcripts.remove(&task.number));
+        core.discard_transcript(task.number);
         let mut abandoned = Queue::uncapped();
         crate::routing::step::step_brief(
             core,

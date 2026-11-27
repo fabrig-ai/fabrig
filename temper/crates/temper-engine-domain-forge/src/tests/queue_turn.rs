@@ -80,6 +80,8 @@ fn pending(task: u64) -> PendingStep {
         pending: Box::new([]),
         branch: Some(HEAD),
         branch_fresh: true,
+        drift: None,
+        behind: None,
         base_tip: Some(BASE),
         base_read: Some(BASE),
         close_landing: None,
@@ -138,8 +140,29 @@ fn a_drift_hold_carries_the_branch_read_that_decided_it() {
     let mut read = pending(OWNER);
     let observed = [5; 32];
     read.branch = Some(observed);
+    let env = env();
     let mut out = Queue::uncapped();
-    decide_step(&mut d, &env(), read, &mut out);
+    let row = d.change(OWNER).unwrap();
+    let name = writes::branch(&env.limits, row.repository, &row.branch).unwrap();
+    d.writes
+        .insert(
+            name.clone(),
+            crate::Writes {
+                name,
+                head: Some(HEAD),
+                next: 2,
+                entries: Box::new([crate::Written {
+                    order: 1,
+                    sender: crate::Sender::Attempt { task: 412, attempt: 2 },
+                    operation: crate::writes::Operation::Push { before: None, after: HEAD },
+                    state: crate::WriteState::Confirmed,
+                }]),
+            },
+        )
+        .unwrap();
+    let verdict = change_reads::branch(&mut d, &env, &read, &mut out);
+    assert!(change_reads::keep(&mut d, &env, &mut read, verdict, &mut out));
+    decide_step(&mut d, &env, read, &mut out);
     let mut carried = None;
     while let Some(request) = out.pop() {
         if let Request::ChangeDecision {
@@ -149,8 +172,53 @@ fn a_drift_hold_carries_the_branch_read_that_decided_it() {
             carried = evidence;
         }
     }
-    assert_eq!(carried.expect("the held step carries its deciding read").head, Some(observed));
+    let evidence = carried.expect("the held step carries its deciding read");
+    assert_eq!(evidence.head, Some(observed));
+    assert_eq!(evidence.nearest_write, Some(1));
     assert_eq!(d.change(OWNER).expect("held change").change.last_head, Some(HEAD));
+}
+
+#[test]
+fn a_change_waits_for_the_records_update_readback_before_using_a_new_head() {
+    let mut d = changes_setup(updating(), SINCE);
+    fixtures::connect(&mut d);
+    let row = d.change(OWNER).unwrap();
+    let env = env();
+    let name = writes::branch(&env.limits, row.repository, &row.branch).unwrap();
+    let mut out = Queue::uncapped();
+    let observed = [5; 32];
+    d.writes
+        .insert(
+            name.clone(),
+            crate::Writes {
+                name,
+                head: Some(HEAD),
+                next: 2,
+                entries: Box::new([crate::Written {
+                    order: 1,
+                    sender: crate::Sender::Entry { task: OWNER, entry: 1 },
+                    operation: crate::writes::Operation::Update { pull: 1, before: HEAD, base: BASE, after: None },
+                    state: crate::WriteState::Uncertain,
+                }]),
+            },
+        )
+        .unwrap();
+    let mut read = pending(OWNER);
+    read.stage = StepStage::Branch;
+    let owner = Token::new(100);
+    d.steps.insert(owner, read).unwrap();
+    step_read(&mut d, &env, owner, Ok(skein_forge::api::Answer::Commit(observed)), &mut out);
+    let mut waiting = false;
+    for request in &out {
+        if let Request::ChangeDecision { task: OWNER, decision: change::Decision::Wait { until: Some(_) }, .. } =
+            request
+        {
+            waiting = true;
+        }
+    }
+    assert!(waiting, "{out:?}");
+    assert!(!d.steps.contains_key(&owner), "no later reads until the record finishes the readback");
+    assert_eq!(d.change(OWNER).unwrap().change.state, updating());
 }
 
 #[test]
@@ -396,12 +464,17 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             let entry = p.entry;
             decide_step(d, &env(), p, &mut out);
             veto_change(d, &env(), OWNER, entry, prior, matches!(how, Leave::Veto), &mut out);
+            fixtures::assert_write_withdrawn(d, OWNER, entry);
             if matches!(how, Leave::ReviewVeto) {
                 step(d, &env(), Event::ReviewRequested { task: OWNER, head: HEAD }, &mut out);
             }
             return out;
         }
-        Leave::PolicyHold => d.changes.get_mut(&OWNER).unwrap().drift = Some(change::Hold::BranchMoved),
+        Leave::PolicyHold => {
+            p.branch = Some([5; 32]);
+            let verdict = change_reads::branch(d, &env(), &p, &mut out);
+            assert!(change_reads::keep(d, &env(), &mut p, verdict, &mut out));
+        }
         Leave::CiCancelsGates => {
             p.ci = change::Status::Failed;
             d.changes.get_mut(&OWNER).unwrap().delegate =

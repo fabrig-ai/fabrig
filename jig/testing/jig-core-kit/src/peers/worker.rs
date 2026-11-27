@@ -88,11 +88,10 @@ impl Peers {
                 key,
                 action: core::NamedAction::Message { target, kind: tasks::MessageKind::Question, words },
             }),
-            workers::Call::Delegate { words, budget } => root::Event::Core(core::Event::DelegateValidated {
+            workers::Call::Delegate { words, budget } => root::Event::Core(core::Event::Delegate {
                 to,
                 key,
                 batch: Box::new([delegate(words, tasks::Executor::Agent { charter: 1 }, budget)]),
-                stubs: Box::new([]),
             }),
             workers::Call::Opaque { name, tool, input, writes } => {
                 self.opaque.insert((key.task, key.attempt, name.clone()), (channel, number));
@@ -125,12 +124,7 @@ impl Peers {
                         tasks::Verdict { fields: Box::new([]), code: 2, words: 64, followups: 0 },
                     ]),
                 };
-                root::Event::Core(core::Event::DelegateValidated {
-                    to,
-                    key,
-                    batch: Box::new([member]),
-                    stubs: Box::new([]),
-                })
+                root::Event::Core(core::Event::Delegate { to, key, batch: Box::new([member]) })
             }
         }
     }

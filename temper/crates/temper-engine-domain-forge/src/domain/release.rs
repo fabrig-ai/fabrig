@@ -1,5 +1,5 @@
 //! Whole repository retirement and link-preserving pages (domain/forge/adoption-connection.md, 1).
-use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit};
+use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit, take_entry};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
 use skein_lib::Set;
@@ -227,19 +227,18 @@ fn entries(
     groups: &mut Queue<Box<[Key]>>,
     out: &mut Queue<Request>,
 ) {
-    let mut numbers = List::with_capacity(d.entries.len());
+    let mut entries = List::with_capacity(d.entries.len());
     for (number, row) in &d.entries {
         if row.entry.repository == repository {
-            numbers.push(*number).expect("bounded entries");
+            entries.push((*number, row.entry.task)).expect("bounded entries");
         }
     }
-    for number in numbers.into_boxed() {
-        let task = d.entries.get(&number).expect("collected entry").entry.task;
+    for (number, task) in entries.into_boxed() {
         let mut settled = Queue::uncapped();
         d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
-        super::settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
+        super::outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
         super::outage::forget_entry(d, number);
-        d.entries.remove(&number);
+        take_entry(d, number, task);
         if d.flights.remove(&(task, number)).is_some() {
             erase(groups, Key::Flight { task, entry: number });
         }
@@ -465,6 +464,25 @@ fn observations(d: &mut Domain, repository: Repository, groups: &mut Queue<Box<[
             erase(groups, Key::BranchHead(key));
         } else {
             d.heads.insert(key, row).expect("retained heads");
+        }
+    }
+    let mut keys = core::mem::replace(&mut d.writes, Map::uncapped());
+    for _ in 0..keys.len() {
+        let key = keys.first().expect("counted write records").0.clone();
+        let row = keys.remove(&key).expect("counted write records");
+        let mut unsettled = false;
+        for entry in &row.entries {
+            unsettled |= entry.state.unsettled();
+        }
+        // Unsettled history outlives even adoption of this repository: a
+        // subsequent adoption still must not forget a write that may land.
+        if owns(&key, repository) && !unsettled {
+            for entry in &row.entries {
+                super::writes::readback::forget(d, &key, entry.order);
+            }
+            erase(groups, Key::Writes(key));
+        } else {
+            d.writes.insert(key, row).expect("uncapped write records");
         }
     }
     let capacity = d.pulls.capacity();
@@ -703,7 +721,6 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
         d.capabilities.remove(&key);
     }
     super::goal_branch::release_repository(d, repository);
-    super::rebase::release_repository(d, repository);
     super::outage::release_repository(d, repository);
     crate::brief::release_repository(d, repository);
     crate::brief_document::release_repository(d, repository);

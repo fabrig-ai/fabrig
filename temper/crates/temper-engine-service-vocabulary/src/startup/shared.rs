@@ -78,9 +78,15 @@ pub fn admission(
 /// Translate the kit's configured membership refusal into its startup path.
 #[must_use]
 pub fn membership(problem: Problem) -> (Path, config::What) {
-    let limits = Path::root().member(b"engine").member(b"limits").member(b"overrides");
+    let engine = Path::root().member(b"engine");
+    let limits = engine.member(b"limits").member(b"overrides");
     match problem {
         Problem::Workers { .. } => (limits.member(b"fleet.configured_workers"), config::What::Bound),
         Problem::WorkerName { .. } => (limits.member(b"fleet.worker_name_bytes"), config::What::Bound),
+        Problem::Declared { .. } | Problem::ResourceKind { .. } | Problem::EffectKind { .. } => {
+            (engine.member(b"connectors"), config::What::Duplicate)
+        }
+        Problem::Undeclared { .. } => (engine.member(b"connectors"), config::What::Missing),
+        Problem::HoldKinds { .. } => (limits.member(b"tasks.hold_kinds"), config::What::Bound),
     }
 }

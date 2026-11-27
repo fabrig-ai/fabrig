@@ -1,10 +1,45 @@
 //! Shared adoption and change fixtures.
 use super::*;
 
+/// Admit the worker's push before the fake exposes it to the connector.
+pub fn admit_push(
+    d: &mut Domain,
+    name: &Name,
+    task: u64,
+    attempt: u64,
+    before: Option<skein_forge::api::Commit>,
+    after: skein_forge::api::Commit,
+) {
+    d.admit_push(&env(), name, before, after, Sender::Attempt { task, attempt }, &mut Queue::uncapped())
+        .expect("fixture push is admitted");
+}
+
+/// Save the outbox flight of a write whose forge reply the test scripts.
+pub fn send_write(d: &mut Domain, number: u64) {
+    let mut entry = d.entries.get(&number).expect("admitted outbox entry").entry.clone();
+    let clock = env();
+    entry.start = Some(skein_forge_client::Position { at: clock.now, comment: 0, review: 0, review_page: 1 });
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: clock.now,
+        deadline: clock.now.saturating_add(clock.limits.client.poll),
+        wall: clock.wall,
+        expires: Wall::from_nanos(clock.wall.as_nanos().saturating_add(clock.limits.client.poll.as_nanos())),
+    });
+    domain::save_entry_progress(d, entry, None, &mut Queue::uncapped());
+}
+
 /// Change reads start after routing has reported access.
 pub fn connected_domain() -> Domain {
     let mut d = domain();
     connect(&mut d);
+    d
+}
+
+pub fn adopted_domain() -> Domain {
+    let mut d = connected_domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
     d
 }
 
@@ -115,6 +150,7 @@ pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,
@@ -210,10 +246,11 @@ pub fn opening() -> (Domain, Token) {
 }
 
 pub fn opening_with(row: ChangeRow) -> (Domain, Token) {
-    let mut d = connected_domain();
-    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::CatchUp);
+    let mut d = adopted_domain();
+    // Opening is admitted against the head already observed for the change.
+    let name = domain::writes::branch(&LIMITS, row.repository, &row.branch).expect("fixture branch name");
+    let commit = row.change.last_head.expect("opening head");
+    d.heads.insert(name.clone(), BranchHead { name, commit, owned: true }).expect("fixture head room");
 
     let entry = skein_forge_client::Entry {
         number: OPEN,
@@ -430,10 +467,32 @@ pub fn missing_pull_reads(d: &mut Domain) {
 }
 
 pub fn finish_missing(d: &mut Domain) -> Box<[Request]> {
-    let green = checks(skein_forge::api::Check::Passed);
-    answer_next(d, Ok(green.clone()));
-    answer_next(d, Ok(green));
-    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
+    let [head, base, ancestry] = missing_tail();
+    answer_next(d, head);
+    answer_next(d, base);
+    answer_next(d, ancestry)
+}
+
+pub fn finish_missing_at(d: &mut Domain, clock: &Env<Limits>) -> Box<[Request]> {
+    let [head, base, ancestry] = missing_tail();
+    answer_next_at(d, clock, head);
+    answer_next_at(d, clock, base);
+    answer_next_at(d, clock, ancestry)
+}
+
+pub fn answer_next_at(
+    d: &mut Domain,
+    clock: &Env<Limits>,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    let (call, _) = next_at(d, clock);
+    collected(answer_at(d, clock, call, result))
+}
+
+fn missing_tail() -> [Result<skein_forge::api::Answer, skein_forge::api::Error>; 3] {
+    use skein_forge::api::{Answer, Check};
+    let green = checks(Check::Passed);
+    [Ok(green.clone()), Ok(green), Ok(Answer::Commits { commits: Box::new([]), more: false })]
 }
 
 /// `OpenPull` succeeds after the current chain has already read Missing.
@@ -493,6 +552,16 @@ pub fn workflows_absent(d: &mut Domain) {
         let (call, op) = next_call(d);
         assert_eq!(op, Op::Read(Read::File { head: BASE, path: path.into(), max_bytes: LIMITS.client.answer_bytes }));
         answer(d, call, Err(Error::Missing));
+    }
+}
+
+/// A veto or deferral gives back the unsent entry's room in every branch record.
+pub fn assert_write_withdrawn(d: &Domain, task: u64, entry: u64) {
+    let sender = Sender::Entry { task, entry };
+    for (_, record) in &d.writes {
+        for write in &record.entries {
+            assert_ne!(write.sender, sender, "an unsent withdrawal frees its branch write record");
+        }
     }
 }
 

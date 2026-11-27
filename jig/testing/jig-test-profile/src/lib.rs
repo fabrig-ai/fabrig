@@ -356,6 +356,7 @@ pub fn config(seed: u64) -> root::Config {
         stall: Duration::from_secs(1),
     }]);
     root::Config {
+        resource_kinds: [Box::new([]), Box::new([])],
         first,
         second,
         core: core::Config {
@@ -478,6 +479,25 @@ pub use credentials::with_workspace_credential;
 
 mod funding;
 pub use funding::edit_role;
+
+/// Build a direct core for a test that needs no connector kinds.
+///
+/// # Errors
+/// Configured membership or declarations do not hold.
+pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_link::Problem> {
+    let declarations: Box<[_]> =
+        config.connectors.iter().copied().map(jig_domain_contract::Declaration::empty).collect();
+    core::Core::new(config, &declarations, limits)
+}
+
+/// The fake connector's exclusive-write and pool-slot rules for resource stories.
+#[must_use]
+pub fn resource_kinds() -> Box<[tasks::ResourceKind]> {
+    Box::new([
+        tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
+        tasks::ResourceKind { kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
+    ])
+}
 
 fn grant() -> authority::Grant {
     authority::Grant {

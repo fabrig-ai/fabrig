@@ -1,6 +1,7 @@
 //! Application metadata and settings addresses (jig/docs/design/protocol/store/keys.md, 1.4, and jig/docs/design/protocol/store/records.md, 1).
 use super::{codec, core, fixtures, people, s};
 use crate::{Event, Request, keys};
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use s::application::{Follows, Recorded, SizedEdit, State};
 use skein_lib::{List, Token, Wall};
 
@@ -194,7 +195,9 @@ fn revision_reads_keep_application_items_beside_jig_items() {
         bytes: core::reads::settings::load_bytes(&fixtures::CORE_LIMITS, 2).unwrap(),
     };
     let events = fixtures::run(&mut store, Request::Read { owner: Token::new(7), range });
-    let [Event::Read { result: core::reads::Loaded::Page { rows, next: None }, .. }] = events.as_ref() else {
+    let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }), .. }] =
+        events.as_ref()
+    else {
         panic!("revision page: {events:?}")
     };
     assert_eq!(rows.len(), 2);

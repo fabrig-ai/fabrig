@@ -71,6 +71,22 @@ fn key() -> CallKey {
     CallKey { task: 1, attempt: 1, completion: 1, position: 0 }
 }
 
+fn pending_call(core: &mut Core) {
+    let CallKey { task, attempt, .. } = key();
+    core.proofs
+        .insert(task, RunProof::claimed(task, attempt, 1, None, fleet::HostKind::Worker))
+        .expect("current call proof");
+    assert!(core.reserve_call(key(), PendingCall::Routed));
+}
+
+fn kept_call(out: &mut Queue<Request>) -> CallRecord {
+    let Some(Request::Write(Write::Save(Record::Core(CoreRecord::Call(row))))) = out.pop() else {
+        panic!("a call row commits before its answer")
+    };
+    assert_eq!(row.key, key());
+    row
+}
+
 #[test]
 fn an_unknown_done_is_ignored_and_an_unknown_refusal_returns_the_payload() {
     let (mut core, limits) = core();
@@ -97,11 +113,13 @@ fn a_stale_reply_cannot_continue_the_flight_that_reuses_its_slot() {
     let (mut core, limits) = core();
     let stale = core.internal(Internal::Admission);
     assert!(outputs(&mut core, &limits, tasks::Request::Done { reply_to: ReplyTo::new(stale) }).is_empty());
+    pending_call(&mut core);
     let current = core.fly_call(Token::new(99), RoutedCall::Introduce(key()));
     assert_ne!(stale, current);
     assert!(outputs(&mut core, &limits, tasks::Request::Done { reply_to: ReplyTo::new(stale) }).is_empty());
     assert_eq!(core.flights.len(), 1);
     let mut out = outputs(&mut core, &limits, tasks::Request::Done { reply_to: ReplyTo::new(current) });
+    assert_eq!(kept_call(&mut out).part, CallPart::Introduced);
     let Some(Request::Held(held)) = out.pop() else { panic!("named answer") };
     let Held::CallAnswer { to, key: named, part } = *held else { panic!("call continuation") };
     assert_eq!(to, ReplyTo::new(Token::new(99)));
@@ -191,6 +209,7 @@ fn person_origin_and_task_origin_proposals_choose_their_own_party_reply() {
 #[test]
 fn an_effect_proposal_refusal_drops_the_connector_owner_before_answering_the_call() {
     let (mut core, limits) = core();
+    pending_call(&mut core);
     let token = core.fly(Flight::Call {
         request: Token::new(99),
         route: RoutedCall::Propose { key: key(), proposal: 3 },
@@ -206,6 +225,7 @@ fn an_effect_proposal_refusal_drops_the_connector_owner_before_answering_the_cal
         panic!("effect dropped first")
     };
     assert_eq!(owner, Token::new(88));
+    assert_eq!(kept_call(&mut out).part, CallPart::ProposalRefused(problem.clone()));
     let Some(Request::Held(held)) = out.pop() else { panic!("call refused next") };
     let Held::CallAnswer { to, part, .. } = *held else { panic!("named proposal refusal") };
     assert_eq!(to, ReplyTo::new(Token::new(99)));
@@ -261,6 +281,7 @@ fn person_and_task_escalations_choose_their_own_terminal() {
         },
     );
     assert_eq!(outcome(&out), people::Outcome::Refused(people::Refusal::NoFurther));
+    pending_call(&mut core);
     let token =
         core.fly_call(Token::new(99), RoutedCall::Escalation { key: key(), task: 4, revision: 2, passed_up: true });
     let mut out = outputs(
@@ -273,6 +294,7 @@ fn person_and_task_escalations_choose_their_own_terminal() {
             outcome: tasks::EscalationOutcome::Passed { revision: 3 },
         },
     );
+    assert_eq!(kept_call(&mut out).part, CallPart::PassedUp { task: 4 });
     let Some(Request::Held(held)) = out.pop() else { panic!("task escalation answer") };
     let Held::CallAnswer { to, part, .. } = *held else { panic!("task escalation continuation") };
     assert_eq!(to, ReplyTo::new(Token::new(99)));
@@ -322,7 +344,12 @@ fn an_ended_load_resumes_its_party_and_a_stale_load_leaves_the_next_read_pending
         at: 0,
         results: List::with_capacity(0),
     }));
-    let mut out = step(&mut core, &env, Event::EndedTaskLoaded { request: stale, row: None, busy: true });
+    loads::wait_point(&mut core, stale, 12);
+    let mut issued = Queue::uncapped();
+    loads::resume_waiting(&mut core, &env.limits, &mut issued);
+    let Some(Request::Held(held)) = issued.pop() else { panic!("held result load") };
+    let Held::Store(engine_store::Out::Load { load: stale_load, .. }) = *held else { panic!("point load") };
+    let mut out = crate::routing::step_store(&mut core, &env, ended_answer(stale_load, None, true));
     let Some(Request::Held(held)) = out.pop() else { panic!("load answer") };
     let Held::PeopleReply { to, reply } = *held else { panic!("party load answer") };
     assert_eq!(to, ReplyTo::new(Token::new(77)));
@@ -334,9 +361,15 @@ fn an_ended_load_resumes_its_party_and_a_stale_load_leaves_the_next_read_pending
         results: List::with_capacity(0),
     }));
     assert_ne!(stale, current);
-    assert!(step(&mut core, &env, Event::EndedTaskLoaded { request: stale, row: None, busy: true }).is_empty());
+    loads::wait_point(&mut core, current, 13);
+    loads::resume_waiting(&mut core, &env.limits, &mut issued);
+    let Some(Request::Held(held)) = issued.pop() else { panic!("held replacement result load") };
+    let Held::Store(engine_store::Out::Load { load, .. }) = *held else { panic!("point load") };
+    assert_ne!(stale_load, load);
+    assert!(crate::routing::step_store(&mut core, &env, ended_answer(stale_load, None, true)).is_empty());
     assert!(core.flights.get(skein_lib::Id::from_token(current)).is_some());
     drop(core.take_result_read(current));
+    loads::cancel_waiting_result(&mut core, current);
     assert!(core.flights.is_empty());
 }
 

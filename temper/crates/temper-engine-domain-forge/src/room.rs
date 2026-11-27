@@ -1,10 +1,12 @@
 //! One first-come-first-served outbox line (domain/forge/room.md, 2–4).
-use crate::{Domain, Limits, Request};
+use crate::domain::writes;
+use crate::{Domain, Limits, Name, Request};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::waits::{AtBound, Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
 use skein_lib::{Decimal, Duration, Env, List, Map, Queue, Set, Token, Wall, bytes};
-use temper_client_protocol_wire::waits::THING_ENTRY;
+use temper_client_protocol_wire::waits::{THING_ENTRY, THING_WRITE_ENTRY, THING_WRITE_RECORD};
 use temper_engine_domain_forge_landing::Phase;
+use temper_engine_domain_forge_vocabulary::writes::{Sender, WRITES};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Waiter {
@@ -17,8 +19,9 @@ pub(crate) enum Waiter {
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) places: Map<Waiter, Place>,
-    pub(crate) asked: Set<Waiter>,
+    pub(crate) asked: Map<Waiter, Asked>,
     passed: Set<Waiter>,
+    write_blocks: Map<Waiter, Name>,
     pub(crate) ready: bool,
     pub(crate) deadline: Option<Wall>,
     // Release cleanup can keep new entries after its task has begun to close.
@@ -30,13 +33,8 @@ impl State {
     pub(crate) fn new(limits: &Limits) -> Self {
         Self {
             places: Map::uncapped(),
-            asked: Set::with_capacity(
-                limits
-                    .changes
-                    .saturating_add(limits.holds)
-                    .saturating_add(limits.landings)
-                    .saturating_add(limits.tasks),
-            ),
+            write_blocks: Map::uncapped(),
+            asked: Map::with_capacity(limits.entries),
             passed: Set::with_capacity(
                 limits
                     .changes
@@ -50,6 +48,12 @@ impl State {
             restored_owners_known: false,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Hash)]
+pub(crate) struct Asked {
+    task: u64,
+    place: u64,
 }
 
 #[derive(Debug, Hash)]
@@ -260,6 +264,7 @@ fn mark_restored(d: &mut Domain, ended: &List<u64>, started: Wall) {
 pub(crate) fn release_started(d: &mut Domain, task: u64, now: Wall) {
     if !d.room.closing.contains_key(&task) {
         d.room.closing.insert(task, now).expect("one clock per release row");
+        crate::domain::goal_branch::end_room_waits(d, task);
         owner_ended(d, task, now);
         crate::waits::changed(d, task);
     }
@@ -298,8 +303,69 @@ pub(crate) fn observe(d: &mut Domain, task: u64, since: Wall) {
     }
 }
 
+/// Keep only the reason a place cannot yet be asked. The procedure's next
+/// turn re-reads and decides the write again, just as for an outbox wait.
+pub(crate) fn block_write(d: &mut Domain, waiter: Waiter, name: Option<Name>) {
+    if let Some(name) = name {
+        // A blocked write keeps its place, not a reservation it cannot use.
+        give_back_ask(d, waiter);
+        d.room.write_blocks.insert(waiter, name).expect("one branch record per waiting write");
+    } else {
+        d.room.write_blocks.remove(&waiter);
+    }
+    if let Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) = waiter {
+        crate::waits::changed(d, task);
+    }
+}
+
+fn write_block(d: &Domain, waiter: Waiter) -> Option<&Name> {
+    let name = d.room.write_blocks.get(&waiter)?;
+    if writes::full(d, name) { Some(name) } else { None }
+}
+
+fn write_holders(d: &Domain, name: &Name, since: Wall) -> Holders {
+    let mut entries = [None; NAMED_ENTRIES];
+    let mut things = entries.iter_mut();
+    *things.next().expect("the record is the first thing") =
+        Some(Thing { what: THING_WRITE_RECORD, number: u64::try_from(WRITES).expect("write limit"), owner: None });
+    let mut behind = None;
+    let mut latest_end = Some(since);
+    for entry in &d.writes.get(name).expect("full record").entries {
+        if !entry.state.unsettled() {
+            continue;
+        }
+        let (task, ended) = match entry.sender {
+            Sender::Entry { task, entry } => {
+                let ended = match d.entries.get(&entry) {
+                    Some(row) => row.owner_ended,
+                    None => d.room.closing.get(&task).copied(),
+                };
+                (Some(task), ended)
+            }
+            Sender::Attempt { task, .. } => (Some(task), d.room.closing.get(&task).copied()),
+            Sender::Previous => (None, None),
+        };
+        if let Some(place) = things.next() {
+            *place = Some(Thing { what: THING_WRITE_ENTRY, number: entry.order, owner: task });
+        }
+        if let Some(at) = ended {
+            latest_end = latest_end.max(Some(at));
+        } else if behind.is_none() {
+            behind = task;
+        }
+    }
+    Holders { entries, behind, latest_end, oldest_reservation: None }
+}
+
+fn waiting_holders(d: &Domain, waiter: Waiter, since: Wall) -> Holders {
+    match write_block(d, waiter) {
+        Some(name) => write_holders(d, name, since),
+        None => holders(d),
+    }
+}
+
 fn blocked_since(d: &Domain, limits: &Limits, waiter: Waiter) -> Option<Wall> {
-    if asked(d, waiter) || free(d, limits) != 0 {
+    if asked(d, waiter) || (free(d, limits) != 0 && write_block(d, waiter).is_none()) {
         return None;
     }
     match waiter {
@@ -310,16 +376,21 @@ fn blocked_since(d: &Domain, limits: &Limits, waiter: Waiter) -> Option<Wall> {
 
 /// The room wait's bound, shared by wait reports, holds and inspection.
 pub(crate) fn bound(d: &Domain, limits: &Limits, waiter: Waiter) -> Option<ReportedBound> {
-    holders(d).bound(blocked_since(d, limits, waiter)?, limits.waits.room)
+    let since = blocked_since(d, limits, waiter)?;
+    waiting_holders(d, waiter, since).bound(since, limits.waits.room)
 }
 
 /// Recheck the deadline on the landing's admitted step, after any freeing of room.
 pub(crate) fn expired_landing(d: &Domain, env: &Env<Limits>, task: u64) -> Option<Box<[u8]>> {
-    let since = blocked_since(d, &env.limits, Waiter::Landing(task))?;
-    let holders = holders(d);
+    let waiter = Waiter::Landing(task);
+    let since = blocked_since(d, &env.limits, waiter)?;
+    let holders = waiting_holders(d, waiter, since);
     if let Some(ReportedBound::At { at, .. }) = holders.bound(since, env.limits.waits.room)
         && at <= env.wall
     {
+        if let Some(name) = write_block(d, waiter) {
+            return Some(writes::room_account(d, &env.limits, name));
+        }
         let (_, holder) = holders.oldest_words()?;
         return Some(bytes::concat(&[b"held by ", &holder]));
     }
@@ -331,12 +402,12 @@ pub(crate) fn waited(d: &Domain, limits: &Limits, task: u64, step: u32) -> Optio
     let mut since = None;
     for waiter in [Waiter::Change(task), Waiter::Landing(task)] {
         if let Some(joined) = blocked_since(d, limits, waiter) {
-            since = Some(joined);
+            since = Some((waiter, joined));
             break;
         }
     }
-    let since = since?;
-    let holders = holders(d);
+    let (waiter, since) = since?;
+    let holders = waiting_holders(d, waiter, since);
     let bound = holders.bound(since, limits.waits.room)?;
     let mut things = List::with_capacity(u32::try_from(NAMED_ENTRIES).expect("wait object bound"));
     for entry in holders.entries.into_iter().flatten() {
@@ -346,29 +417,24 @@ pub(crate) fn waited(d: &Domain, limits: &Limits, task: u64, step: u32) -> Optio
 }
 
 pub(crate) fn refresh_deadline(d: &mut Domain, limits: &Limits) {
-    d.room.deadline =
-        if d.stopping || !d.room.ready || free(d, limits) != 0 || (d.room.places.is_empty() && d.makings.is_empty()) {
-            None
-        } else {
-            match next(d, limits, &holders(d)) {
-                Some((at, _)) => Some(at),
-                None => None,
-            }
-        };
+    d.room.deadline = if d.stopping || !d.room.ready || (d.room.places.is_empty() && d.makings.is_empty()) {
+        None
+    } else {
+        match next(d, limits) {
+            Some((at, _)) => Some(at),
+            None => None,
+        }
+    };
 }
 
-fn next(d: &Domain, limits: &Limits, holders: &Holders) -> Option<(Wall, Waiter)> {
-    holders.latest_end?;
-    if free(d, limits) != 0 {
-        return None;
-    }
+fn next(d: &Domain, limits: &Limits) -> Option<(Wall, Waiter)> {
     let mut first: Option<(Wall, Waiter)> = None;
     for (waiter, _) in &d.room.places {
-        select_due(d, limits, holders, *waiter, &mut first);
+        select_due(d, limits, *waiter, &mut first);
     }
     for (owner, pending) in &d.makings {
         if pending.outbox_wait.is_some() {
-            select_due(d, limits, holders, Waiter::Making(*owner), &mut first);
+            select_due(d, limits, Waiter::Making(*owner), &mut first);
         }
     }
     first
@@ -400,16 +466,15 @@ fn eligible(d: &Domain, waiter: Waiter) -> bool {
             }
         }
         Waiter::Making(owner) => match d.makings.get(&owner) {
-            Some(pending) => pending.state == crate::domain::LostReadState::WaitingForOutbox,
+            Some(pending) => pending.state == crate::domain::LostReadState::WaitingForOutbox && making_live(d, pending),
             None => false,
         },
     }
 }
 
-fn select_due(d: &Domain, limits: &Limits, holders: &Holders, waiter: Waiter, first: &mut Option<(Wall, Waiter)>) {
+fn select_due(d: &Domain, limits: &Limits, waiter: Waiter, first: &mut Option<(Wall, Waiter)>) {
     if eligible(d, waiter)
-        && let Some(since) = blocked_since(d, limits, waiter)
-        && let Some(ReportedBound::At { at, .. }) = holders.bound(since, limits.waits.room)
+        && let Some(ReportedBound::At { at, .. }) = bound(d, limits, waiter)
     {
         let due = (at, waiter);
         *first = Some(match *first {
@@ -427,8 +492,7 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     } {
         return false;
     }
-    let holders = holders(d);
-    let (_, waiter) = next(d, &env.limits, &holders).expect("armed room wait");
+    let (_, waiter) = next(d, &env.limits).expect("armed room wait");
     if let Waiter::Landing(task) = waiter {
         // The core must make a step due before a landing can commit its hold.
         d.room.passed.insert(waiter).expect("one expiry per waiter");
@@ -441,7 +505,10 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         Waiter::Making(_) => b"making",
         Waiter::Landing(_) => unreachable!("landing's room hold is handled by the landing"),
     };
-    let account = holders.account(step, env.limits.waits.room).expect("expired wait has ended holders");
+    let account = match write_block(d, waiter) {
+        Some(name) => crate::EffectAccount { entry: 0, words: writes::room_account(d, &env.limits, name) },
+        None => holders(d).account(step, env.limits.waits.room).expect("expired wait has ended holders"),
+    };
     match waiter {
         Waiter::Change(task) => crate::domain::hold_room_change(d, env, task, account, out),
         Waiter::Release(task) => crate::domain::room_release_failed(d, task, account.words, out),
@@ -463,11 +530,21 @@ pub(crate) fn release_place(d: &mut Domain, waiter: Waiter, at: Wall) {
 }
 
 pub(crate) fn reserved(d: &Domain) -> u32 {
-    d.room.asked.len().saturating_add(d.call_room.len()).saturating_add(d.projection_room.len())
+    let asked_and_calls =
+        d.room.asked.len().checked_add(d.call_room.len()).expect("asked waiters and calls fit within forge.entries");
+    asked_and_calls.checked_add(d.projection_room.len()).expect("all outbox reservations fit within forge.entries")
+}
+
+pub(crate) fn taken(d: &Domain) -> u32 {
+    d.entries.len().checked_add(reserved(d)).expect("outbox entries and reservations together fit within forge.entries")
 }
 
 pub(crate) fn free(d: &Domain, limits: &Limits) -> u32 {
-    limits.entries.saturating_sub(d.entries.len()).saturating_sub(reserved(d))
+    free_at(d, limits.entries)
+}
+
+fn free_at(d: &Domain, limit: u32) -> u32 {
+    limit.checked_sub(taken(d)).expect("forge.entries covers all outbox entries and reservations")
 }
 
 pub(crate) fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
@@ -482,27 +559,13 @@ pub(crate) fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
 fn first(d: &Domain) -> Option<Waiter> {
     let mut next: Option<(u64, Waiter)> = None;
     for (task, row) in &d.changes {
-        if let Some(order) = row.room
-            && !row.frozen()
-            && !crate::domain::matches_held(&row.change.state)
-        {
+        if let Some(order) = row.room {
             select(d, &mut next, order, Waiter::Change(*task));
         }
     }
     for (task, row) in &d.landing.rows {
-        if let Some(order) = row.room
-            && !d.landing.held
-        {
-            match row.landing.phase {
-                Phase::Held { .. } => {}
-                Phase::Waiting
-                | Phase::Preparing
-                | Phase::Proving
-                | Phase::Proved { .. }
-                | Phase::Turn { .. }
-                | Phase::Landed
-                | Phase::Cancelled => select(d, &mut next, order, Waiter::Landing(*task)),
-            }
+        if let Some(order) = row.room {
+            select(d, &mut next, order, Waiter::Landing(*task));
         }
     }
     for (owner, pending) in &d.makings {
@@ -528,16 +591,20 @@ fn select(d: &Domain, next: &mut Option<(u64, Waiter)>, order: u64, waiter: Wait
     } {
         return;
     }
-    if !d.room.asked.contains(&waiter) && !d.room.passed.contains(&waiter) {
+    if !asked(d, waiter) && eligible(d, waiter) && write_block(d, waiter).is_none() {
         *next = Some((order, waiter));
     }
 }
 
 pub(crate) fn check(d: &Domain, limits: &Limits, waiter: Option<Waiter>) -> bool {
-    if let Some(waiter) = waiter
-        && d.room.asked.contains(&waiter)
-    {
-        return d.entries.len() < limits.entries;
+    if let Some(waiter) = waiter {
+        if asked(d, waiter) {
+            assert_asked(d, waiter);
+            return true;
+        }
+        if d.room.passed.contains(&waiter) {
+            return false;
+        }
     }
     if free(d, limits) == 0 {
         return false;
@@ -572,43 +639,107 @@ pub(crate) fn next_place(d: &Domain) -> u64 {
 }
 
 pub(crate) fn waiting(d: &Domain) -> bool {
-    d.room.ready && d.entries.len().saturating_add(reserved(d)) < d.entries.capacity() && first(d).is_some()
+    d.room.ready && free_at(d, d.entries.capacity()) > 0 && first(d).is_some()
 }
 
 pub(crate) fn asked(d: &Domain, waiter: Waiter) -> bool {
-    d.room.asked.contains(&waiter)
+    d.room.asked.contains_key(&waiter)
 }
 
+fn waiter_task(d: &Domain, waiter: Waiter) -> Option<u64> {
+    match waiter {
+        Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) => Some(task),
+        Waiter::Making(owner) => Some(d.makings.get(&owner)?.task),
+    }
+}
+
+fn assert_place(d: &Domain, waiter: Waiter, ask: Asked) {
+    let Asked { task, place: order } = ask;
+    assert_eq!(waiter_task(d, waiter), Some(task), "room ask for {waiter:?} belongs to task {task}");
+    assert_eq!(place(d, waiter), Some(order), "room ask for {waiter:?} at place {order} belongs to task {task}");
+}
+
+pub(crate) fn assert_asked(d: &Domain, waiter: Waiter) {
+    let task = waiter_task(d, waiter);
+    let Some(ask) = d.room.asked.get(&waiter).copied() else {
+        unreachable!("waiter {waiter:?} of task {task:?} holds its outbox reservation");
+    };
+    assert_place(d, waiter, ask);
+    let live = match waiter {
+        // The making keeps its promise while it reads the default branch afresh.
+        Waiter::Making(owner) => match d.makings.get(&owner) {
+            Some(pending) => making_live(d, pending) && !d.room.passed.contains(&waiter),
+            None => false,
+        },
+        Waiter::Change(_) | Waiter::Landing(_) | Waiter::Release(_) => eligible(d, waiter),
+    };
+    assert!(live, "asked waiter {waiter:?} of task {task:?} is neither held nor ended when taking room");
+}
+
+fn making_live(d: &Domain, pending: &crate::domain::goal_branch::Making) -> bool {
+    crate::domain::goal_branch::held(d, pending) && !d.room.closing.contains_key(&pending.task)
+}
+
+pub(crate) fn reserve_ask(d: &mut Domain, waiter: Waiter, task: u64) {
+    assert!(!asked(d, waiter), "one room reservation for asked waiter {waiter:?} of task {task}");
+    let Some(order) = place(d, waiter) else {
+        unreachable!("asked waiter {waiter:?} of task {task} has a place in the outbox line");
+    };
+    let ask = Asked { task, place: order };
+    assert_place(d, waiter, ask);
+    assert!(eligible(d, waiter), "waiter {waiter:?} of task {task} is eligible for its outbox ask");
+    let inserted = d.room.asked.insert(waiter, ask);
+    assert!(inserted.is_ok(), "outbox reservation for waiter {waiter:?} of task {task} fits its room");
+    let ended = d.room.closing.get(&task).copied();
+    d.full.reserve(crate::domain::full::Reservation::Asked(waiter), task, ended);
+}
+
+/// An owner may leave without ever having been asked (including on restart).
 pub(crate) fn leave(d: &mut Domain, waiter: Waiter) {
+    give_back_ask(d, waiter);
+    d.room.write_blocks.remove(&waiter);
     if let Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) = waiter {
         crate::waits::changed(d, task);
     }
-    d.room.asked.remove(&waiter);
     d.room.passed.remove(&waiter);
 }
 
+fn give_back_ask(d: &mut Domain, waiter: Waiter) {
+    if let Some(ask) = d.room.asked.get(&waiter).copied() {
+        // Passing or ending a turn can itself be the reason its owner is no longer eligible.
+        assert_place(d, waiter, ask);
+        assert!(
+            !d.room.passed.contains(&waiter),
+            "asked outbox waiter {waiter:?} for task {} has not already been passed over",
+            ask.task
+        );
+        d.full.assert_owner(crate::domain::full::Reservation::Asked(waiter), ask.task);
+        let removed = d.room.asked.remove(&waiter);
+        assert!(removed.is_some(), "return the held outbox reservation of {waiter:?} for task {}", ask.task);
+    }
+}
+
+fn pass_waiter(d: &mut Domain, waiter: Waiter, task: u64) {
+    give_back_ask(d, waiter);
+    if place(d, waiter).is_some() {
+        let inserted = d.room.passed.insert(waiter);
+        assert!(inserted.is_ok(), "pass over outbox waiter {waiter:?} for task {task} in its own place");
+    }
+}
+
 pub(crate) fn pass(d: &mut Domain, task: u64) {
-    let release = Waiter::Release(task);
-    d.room.asked.remove(&release);
-    if place(d, release).is_some() {
-        d.room.passed.insert(release).expect("one pass per waiter");
+    for waiter in [Waiter::Release(task), Waiter::Change(task), Waiter::Landing(task)] {
+        pass_waiter(d, waiter, task);
     }
-    let waiter = Waiter::Change(task);
-    d.room.asked.remove(&waiter);
-    if place(d, waiter).is_some() {
-        d.room.passed.insert(waiter).expect("one pass per waiter");
-    }
-    let waiter = Waiter::Landing(task);
-    d.room.asked.remove(&waiter);
-    if place(d, waiter).is_some() {
-        d.room.passed.insert(waiter).expect("one pass per waiter");
-    }
+    let mut makings = List::with_capacity(d.makings.len());
     for (owner, pending) in &d.makings {
         if pending.task == task && pending.outbox_wait.is_some() {
-            let waiter = Waiter::Making(*owner);
-            d.room.asked.remove(&waiter);
-            d.room.passed.insert(waiter).expect("one pass per waiter");
+            let pushed = makings.push(*owner);
+            assert!(pushed.is_ok(), "bounded making {owner:?} for task {task} to pass in the outbox line");
         }
+    }
+    for owner in &makings {
+        pass_waiter(d, Waiter::Making(*owner), task);
     }
 }
 
@@ -635,21 +766,9 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             stale.push(*owner).expect("making waits");
         }
     }
-    let mut pruned = !stale.is_empty();
+    let pruned = !stale.is_empty();
     for owner in stale.into_boxed() {
-        d.makings.remove(&owner);
-        leave(d, Waiter::Making(owner));
-    }
-    // A completed making may have left during its read's answer.
-    let mut gone = List::uncapped();
-    for waiter in &d.room.asked {
-        if place(d, *waiter).is_none() {
-            gone.push(*waiter).expect("asked waiters");
-        }
-    }
-    pruned |= !gone.is_empty();
-    for waiter in gone.into_boxed() {
-        leave(d, waiter);
+        crate::domain::goal_branch::drop_making(d, owner);
     }
     // Pruning can end a full interval before the next admission fills it again.
     // At the clock's maximum a saturated report deadline remains due.
@@ -665,13 +784,10 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     while free(d, &env.limits) > 0 {
         let Some(waiter) = first(d) else { break };
         admitted = true;
-        d.room.asked.insert(waiter).expect("one ask per waiter");
-        let task = match waiter {
-            Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) => task,
-            Waiter::Making(owner) => d.makings.get(&owner).expect("selected making").task,
+        let Some(task) = waiter_task(d, waiter) else {
+            unreachable!("selected outbox waiter {waiter:?} has its owner task");
         };
-        let ended = d.room.closing.get(&task).copied();
-        d.full.reserve(crate::domain::full::Reservation::Asked(waiter), task, ended);
+        reserve_ask(d, waiter, task);
         crate::waits::changed(d, task);
         let request = match waiter {
             Waiter::Change(task) => {
@@ -680,10 +796,7 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             Waiter::Landing(task) => Request::WakeProcedure { task },
             Waiter::Release(task) => Request::ContinueRelease { task },
-            Waiter::Making(owner) => {
-                let pending = d.makings.get(&owner).expect("selected making");
-                Request::ContinueGoalBranch { task: pending.task }
-            }
+            Waiter::Making(_) => Request::ContinueGoalBranch { task },
         };
         out.push(request);
     }

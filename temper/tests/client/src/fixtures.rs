@@ -6,6 +6,7 @@ mod tests;
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::FrontFault;
 use jig_client_kit::harness::{Settings, World};
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, RequestLimits, Time, Token};
 use std::{
@@ -560,16 +561,16 @@ pub fn held_chat(front: &mut Joint) -> u64 {
 pub fn read(
     store: &temper_engine_domain_world::store::Store,
     range: &jig_domain_core::reads::Range,
-) -> jig_domain_core::reads::Loaded {
+) -> engine_store::Answer {
     use jig_domain_core::{Key, Record, reads};
     let (reads::Scope::Task { task } | reads::Scope::Result { task } | reads::Scope::PersonTask { task }) = range.scope
     else {
-        return reads::Loaded::Gone;
+        return engine_store::Answer::Failed(engine_store::Failure::Gone);
     };
     let Some(engine::Record::Core(Record::Tasks(tasks::Stored::Ended(row)))) =
         store.rows.get(&engine::Key::Core(Key::Tasks(tasks::Key::Ended(task))))
     else {
-        return reads::Loaded::Gone;
+        return engine_store::Answer::Failed(engine_store::Failure::Gone);
     };
     let value = reads::Row {
         value: Record::Tasks(tasks::Stored::Ended(row.clone())),
@@ -583,12 +584,12 @@ pub fn read(
         inbox: None,
     };
     if range.after.is_some() {
-        return reads::Loaded::Page { rows: Box::new([]), next: None };
+        return engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None });
     }
     if range.rows == 0 || value.owned_bytes().expect("finite ended row") > range.bytes {
-        return reads::Loaded::Busy;
+        return engine_store::Answer::Failed(engine_store::Failure::Busy);
     }
-    reads::Loaded::Page { rows: Box::new([value]), next: None }
+    engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([value]), next: None })
 }
 #[must_use]
 pub fn project() -> temper_client_domain::Address {

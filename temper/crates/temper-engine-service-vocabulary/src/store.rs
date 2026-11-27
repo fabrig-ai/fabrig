@@ -3,6 +3,7 @@
 mod ranges;
 pub mod route;
 mod unreadable;
+mod window;
 use alloc::boxed::Box;
 use jig_protocol_store as protocol;
 use protocol::host::{check_read_page, max_whole};

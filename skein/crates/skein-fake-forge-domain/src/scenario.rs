@@ -304,6 +304,73 @@ pub fn advance(
     Ok(commit)
 }
 
+/// Another party resets an existing branch to a commit the repository holds.
+/// The branch is never absent: its open pulls follow the move as on a push.
+/// This is a scenario action, not an exception to the git lease's fast-forward rule.
+pub fn reset_branch(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    repository: &[u8],
+    branch: &[u8],
+    commit: u64,
+    by: u64,
+) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let tip = *repository.branches.get(branch).ok_or(Error::Missing(What::Branch))?;
+    if !repository.has.contains(&commit) {
+        return Err(Error::Missing(What::Commit));
+    }
+    if tip != commit {
+        repository.branches.insert(copy_of(branch), commit).expect("the branch is there");
+        git::moved(domain, env, id, branch, Some(tip), commit, by);
+    }
+    Ok(())
+}
+
+/// Another party changes the base of an open pull without changing its
+/// number, head or state. This does not add a forge client operation.
+pub fn retarget_pull(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    repository: &[u8],
+    number: u64,
+    base: &[u8],
+    by: u64,
+) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    if !repository.branches.contains_key(base) {
+        return Err(Error::Missing(What::Branch));
+    }
+    for entry in &repository.queue {
+        if entry.number == number {
+            return Err(Error::Refused);
+        }
+    }
+    let item = repository.items.get_mut(&number).ok_or(Error::Missing(What::Pull))?;
+    let pull = item.pull.as_mut().ok_or(Error::Missing(What::Pull))?;
+    if item.state != crate::api::State::Open || &*pull.head == base {
+        return Err(Error::Refused);
+    }
+    if &*pull.base != base {
+        let from = core::mem::replace(&mut pull.base, copy_of(base));
+        // A snapshot of commits on the old pair of branches no longer applies.
+        pull.lagging = None;
+        repository.touch(number, crate::domain::clock(env).max(domain.floor));
+        let observation = crate::Observation::Retargeted {
+            repository: copy_of(&repository.name),
+            number,
+            from,
+            to: copy_of(base),
+            by,
+        };
+        let hook = crate::hooks::Hook::item(crate::api::Change::Pull, number, by);
+        crate::domain::changed(domain, env, id, observation, hook);
+    }
+    Ok(())
+}
+
 /// Stores a fixture's root commit without naming a reference or starting CI.
 /// # Errors
 /// Refuses a tree or object store past the fixture's limits.

@@ -668,9 +668,58 @@ budgets.
     it; a bound weighted toward one cell, which still rests on those
     few sessions; and full cells checked by the stories alone, which
     drops what the sweep was asked to reach.
+  - **Why some worlds grant only `shell` and `job`:** with `job` a
+    slot, a `consumed` job needs a launch, a read to its end and a
+    second poll in separate turns, and a withdraw needs an answer still
+    in flight. So an eighth of the noisy worlds grant `shell` and `job`
+    alone, draw one call per answer, and read up to 1200 cached tokens
+    and write up to 512, where the others keep 600 and 80; and every
+    noisy world draws a delegated call's latency from 10 to 6000 ms,
+    room for a withdraw to race an answer. That reaches
+    `consumed` and an answer after its withdraw at the gate's seeds,
+    with none added.
 - **Its referee takes a running job's answers.** A yielding command's
   `running` answer is what comes of it, naming its session's next job
   number, and a `job` call's answer names the job the call asked for.
+- **It renders a tool's outcome as the product does.** Each owned
+  outcome reaches the model as `smith-protocol-llm` renders it
+  (`protocol/llm.md`, 5), at the bound the product derives for a
+  rendered result (`protocol/llm.md`, 8), with the same failure flag. So
+  the model reads `job N running; use job to read the rest`, `job N
+  output since its last answer:` and a read's `[next line N]` as a
+  deployment's model does, and a drawn call can name what they name.
+  The world's other results, a delegated call's text, a malformed call
+  and a call withdrawn or not run, keep the world's words.
+  - **Why:** the world's own words were the outcome's debug print. They
+    named no job as the product does, so nothing drawn could find one,
+    and they marked a running job a failure where the product doesn't.
+- **It classifies the job each drawn `job` call names,** as the
+  answer arrives, against what the world knows of its sessions' jobs:
+  - `live`: a job of this session's kit, running;
+  - `held`: one that has ended, its end not yet read, so its cell is
+    still held;
+  - `consumed`: one whose last answer, its end, has been given, so its
+    cell is free;
+  - `before_opening`: a number at or below the one the session was
+    opened with, which its transcript restored, from an earlier kit;
+  - `foreign`: a number this session's kit never issued and another
+    session's did;
+  - `unissued`: a number no session in the world issued;
+  - `unknown`: a call the translator refuses before it names a job.
+
+  The class goes beside the answer the tools gave that call, in the
+  world's record of the call.
+  - **A mention isn't a lifetime.** A class is the world's knowledge as
+    the answer arrives. An earlier call of the same answer may read the
+    job to its end first, and a number past the largest the model was
+    shown may be issued by a yielding command earlier in the batch. So
+    the referee asks only what holds whatever the batch does: a call
+    naming a `consumed` or `before_opening` job is answered as naming an
+    unknown job, since a kit never issues a number twice.
+  - **Why the world:** the fake that draws the call knows only the
+    delimiters around a number (`skein/docs/design/testing/fakes/llm.md`,
+    1). Only the world knows a job's life, its kit and the other
+    sessions.
 - **The fuzzy suite** draws usage, appended sizes, rendered sizes and
   those ratios, and checks that no request's bound or reported size
   exceeds its window, that none sent passes the line, and that no
@@ -686,6 +735,11 @@ budgets.
     refused because every cell was held.
   - **Its reach check asks for all three** at the gate's seeds, beside
     the ends, stops, failures and races it already asks for.
+  - **It counts the classes of the jobs drawn calls name,** each with
+    the answer its call got, prints them, and asks for `live`,
+    `consumed` and `unissued` at the gate's seeds. `before_opening`
+    needs a session opened from a transcript, which the sweep doesn't
+    draw, so it is printed, not asked for.
 
 ## 11. Open questions
 

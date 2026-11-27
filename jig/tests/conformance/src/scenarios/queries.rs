@@ -177,6 +177,7 @@ pub(crate) fn delivered(peers: &mut Neighbours, store: &Store, delivery: &root::
         | root::Delivery::Fleet(_)
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
+        | root::Delivery::Store(_)
         | root::Delivery::Start(_)
         | root::Delivery::Procedure { .. } => {}
     }

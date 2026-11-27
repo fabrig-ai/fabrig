@@ -114,6 +114,7 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
         let workspace = worker_route::items(&fixtures::worker_assignment(), &parts, &limits).unwrap();
         let mut expected = fixtures::one_repository();
         expected.rerun = Some(2);
+        expected.repositories[0].admit = true;
         expected.repositories[0].git = program;
         expected.repositories[0].save = Some(b"temper/7/s7".as_slice().into());
         assert_eq!(workspace, expected);

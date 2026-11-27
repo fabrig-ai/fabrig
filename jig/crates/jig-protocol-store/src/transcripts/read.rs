@@ -1,8 +1,9 @@
 //! Reads bounded by durable places, walking complete frames (protocol/store/transcripts.md, 3).
 use super::{File, Stage, frame};
 use crate::registry::{self, Frame};
-use crate::{Arrived, Below, Event, Phase, Store, TranscriptRead, keys, reads};
+use crate::{Arrived, Below, Event, Phase, Store, TranscriptRead, WindowPage, keys, reads};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
 use skein_io::file;
@@ -58,6 +59,7 @@ pub(crate) struct Read {
     turns: List<TurnRecord>,
     budget: u64,
     cut: Option<u32>,
+    window_page: Option<WindowPage>,
     party: Option<Party>,
     activity: Option<Activity>,
 }
@@ -71,10 +73,29 @@ pub(crate) fn transcript(
     below: &mut Below,
 ) {
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
-    assert!(crate::view::count(store) < store.limits.reads, "startup bounds cover transcript reads");
-    let Some(read) = prepare(store, owner, read, rows, bytes) else {
-        above.push(Event::Unread { owner });
+    let engine_window = match read {
+        TranscriptRead::Window { limits, .. } => limits.is_some(),
+        TranscriptRead::Turn { .. } | TranscriptRead::Page { .. } => false,
+    };
+    if crate::view::count(store) >= store.limits.reads {
+        assert!(engine_window, "startup bounds cover transcript reads");
+        above.push(Event::WindowFailed { owner });
         return;
+    }
+    let read = match prepare(store, owner, read, rows, bytes) {
+        Ok(Some(read)) => read,
+        Ok(None) | Err(()) if !engine_window => {
+            above.push(Event::Unread { owner });
+            return;
+        }
+        Ok(None) => {
+            above.push(Event::Unread { owner });
+            return;
+        }
+        Err(()) => {
+            above.push(Event::WindowFailed { owner });
+            return;
+        }
     };
     store.transcripts.reads.insert(owner, read).expect("read slot checked at admission");
     fire(store, above, below);
@@ -121,7 +142,7 @@ impl Activity {
             self.index = self.index.checked_add(1).expect("bounded page index");
         }
     }
-    fn finish(self, cut: bool) -> domain::reads::Loaded {
+    fn finish(self, cut: bool) -> engine_store::Answer {
         let next = if cut && self.index > 0 {
             Some(domain::reads::Position::Owner(
                 self.rows
@@ -140,7 +161,7 @@ impl Activity {
             }
             rows.push(row).expect("accepted page prefix");
         }
-        domain::reads::Loaded::Page { rows: rows.into_boxed(), next }
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next })
     }
 }
 pub(crate) fn activity(
@@ -151,7 +172,7 @@ pub(crate) fn activity(
     range: &domain::reads::Range,
     above: &mut Queue<Event>,
     below: &mut Below,
-) -> Result<Option<domain::reads::Loaded>, reads::Failure> {
+) -> Result<Option<engine_store::Answer>, reads::Failure> {
     let mut page =
         Activity { rows, next, bytes: range.bytes, bound: range.bytes, backwards: range.backwards, index: 0 };
     let done = page.charge_words().or(Err(reads::Failure::Corrupt))?;
@@ -177,14 +198,14 @@ pub(crate) fn activity(
     }
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
     if store.transcripts.reads.len() == store.limits.reads {
-        return Ok(Some(domain::reads::Loaded::Busy));
+        return Ok(Some(engine_store::Answer::Failed(engine_store::Failure::Busy)));
     }
     let request = if range.backwards && range.after.is_none() {
         TranscriptRead::Page { task, backwards: true, after: None }
     } else {
         TranscriptRead::Turn { task, attempt, turn }
     };
-    let Some(mut read) = prepare(store, owner, request, 1, u64::from(store.limits.store.page.bytes)) else {
+    let Ok(Some(mut read)) = prepare(store, owner, request, 1, u64::from(store.limits.store.page.bytes)) else {
         page.unread();
         return Ok(Some(page.finish(true)));
     };
@@ -193,43 +214,49 @@ pub(crate) fn activity(
     fire(store, above, below);
     Ok(None)
 }
-fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, bytes: u64) -> Option<Read> {
+fn prepare(
+    store: &mut Store,
+    owner: Token,
+    request: TranscriptRead,
+    rows: u32,
+    bytes: u64,
+) -> Result<Option<Read>, ()> {
     match store.phase {
         Phase::Ready { .. } => {}
-        Phase::Closed | Phase::Stopped => return None,
+        Phase::Closed | Phase::Stopped => return Err(()),
     }
     let task = match request {
         TranscriptRead::Window { task, .. } | TranscriptRead::Turn { task, .. } | TranscriptRead::Page { task, .. } => {
             task
         }
     };
-    let (source, place) = source::place(store, owner, task).ok()??;
-    let (position, backwards, scan) = match request {
-        TranscriptRead::Window { attempt, turn, after, .. } => {
+    let Some((source, place)) = source::place(store, owner, task)? else { return Ok(None) };
+    let (position, backwards, scan, window_page) = match request {
+        TranscriptRead::Window { attempt, turn, after, limits, .. } => {
             if place.window >= place.length
                 || after.unwrap_or(place.window) < place.window
                 || after.unwrap_or(place.window) > place.length
             {
-                return None;
+                return Ok(None);
             }
-            (place.window, false, Scan::Window { attempt, turn, after, checked: false })
+            (place.window, false, Scan::Window { attempt, turn, after, checked: false }, limits)
         }
         TranscriptRead::Turn { attempt, turn, .. } => {
-            let offset = source::attempt(store, owner, source, task, attempt)?;
+            let Some(offset) = source::attempt(store, owner, source, task, attempt) else { return Ok(None) };
             if offset >= place.length {
-                return None;
+                return Ok(None);
             }
-            (offset, false, Scan::Turn { attempt, turn })
+            (offset, false, Scan::Turn { attempt, turn }, None)
         }
         TranscriptRead::Page { backwards, after, .. } => {
             let offset = after.unwrap_or(if backwards { place.length } else { 0 });
             if offset > place.length {
-                return None;
+                return Ok(None);
             }
-            (offset, backwards, Scan::Page)
+            (offset, backwards, Scan::Page, None)
         }
     };
-    Some(Read {
+    Ok(Some(Read {
         task,
         source,
         end: place.length,
@@ -240,9 +267,10 @@ fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, 
         turns: List::with_capacity(rows.min(store.limits.store.page.rows)),
         budget: bytes.min(u64::from(store.limits.store.page.bytes)),
         cut: None,
+        window_page,
         party: None,
         activity: None,
-    })
+    }))
 }
 pub(crate) fn fire(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     // A memory-log terminal can schedule its next demand immediately. Drain
@@ -700,7 +728,8 @@ fn accept(store: &mut Store, read: &mut Read, frame: Decoded, below: &mut Below)
         Scan::Window { attempt, turn: number, after, checked } => {
             if !*checked {
                 if turn.attempt != *attempt || turn.turn != *number || !turn.opens_window {
-                    return Err(());
+                    // The requested first turn is not at the durable window start.
+                    return Ok(true);
                 }
                 *checked = true;
                 if let Some(after) = *after
@@ -744,14 +773,28 @@ fn accept(store: &mut Store, read: &mut Read, frame: Decoded, below: &mut Below)
         if read.turns.room() == 0 {
             return Ok(true);
         }
-        if !single && u64::from(size) > read.budget {
+        let payload = match cut {
+            Some(bytes) => bytes,
+            None => u32::try_from(turn.transcript.len()).or(Err(()))?,
+        };
+        let outside_page = match &mut read.window_page {
+            Some(page) => {
+                let cost = payload.checked_add(page.turn_overhead);
+                match cost {
+                    Some(cost) if payload <= page.row_bytes && cost <= page.bytes => {
+                        page.bytes = page.bytes.checked_sub(cost).expect("turn within decoded page bounds");
+                        false
+                    }
+                    Some(_) | None => true,
+                }
+            }
+            None => false,
+        };
+        if !single && (u64::from(size) > read.budget || outside_page) {
             if !window(read) || !read.turns.is_empty() {
                 return Ok(true);
             }
-            read.cut = Some(match cut {
-                Some(bytes) => bytes,
-                None => u32::try_from(turn.transcript.len()).or(Err(()))?,
-            });
+            read.cut = Some(payload);
             turn.transcript = Box::new([]);
         } else if !single {
             read.budget = read.budget.checked_sub(u64::from(size)).expect("frame within budget");
@@ -831,6 +874,7 @@ fn settle(store: &mut Store, owner: Token, mut read: Read, result: Result<bool, 
                     let result = party::finish(store, read, true);
                     reads::answer(store, owner, reads::ready(result), above);
                 }
+                // A frame that cannot be read makes the window unread, even after previous pages.
                 None => above.push(Event::Unread { owner }),
             }
         }

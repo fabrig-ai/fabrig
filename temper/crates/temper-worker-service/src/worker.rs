@@ -962,6 +962,19 @@ impl Worker {
             root::Request::ResultsIgnored { owner, tag, reason } => {
                 self.notes.push(crate::worker_alone::Note::ResultsIgnored { owner: owner.raw(), tag, reason });
             }
+            root::Request::AdmitAsk { client, cookie, ask } => {
+                let bytes = translate::ask(ask);
+                root::step(&mut self.root, &self.env, root::Event::AdmitAsk { client, cookie, bytes }, &mut self.out);
+            }
+            root::Request::AdmitAnswer { client, cookie, bytes } => {
+                let answer = translate::answer(&bytes, &self.payload);
+                root::step(
+                    &mut self.root,
+                    &self.env,
+                    root::Event::AdmitAnswer { client, cookie, answer },
+                    &mut self.out,
+                );
+            }
             root::Request::RedsAsk { owner, check, ask } => {
                 let bytes = translate::ask(ask);
                 root::step(&mut self.root, &self.env, root::Event::RedsAsk { owner, check, bytes }, &mut self.out);

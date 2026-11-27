@@ -5,6 +5,11 @@ use alloc::boxed::Box;
 use skein_lib::{List, Map, Time, Token, Wall};
 
 impl Domain {
+    #[cfg(test)]
+    pub(crate) fn test_expected(&self, resource: &skein_forge_client::Resource) -> Option<skein_forge::api::Commit> {
+        self.client.expected(resource)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn inspection_limits(&self) -> &crate::Limits {
@@ -101,6 +106,12 @@ impl Domain {
         self.landing.unmade.contains_key(&task)
     }
 
+    /// The start's next read for a taskless turn (temper/docs/design/domain/landing-liveness.md, 6.2).
+    #[must_use]
+    pub fn inspection_landing_readback_due(&self, task: u64) -> Option<Time> {
+        self.landing.unmade.get(&task)?.due()
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     /// A turn change has settled its gates, without a delegate terminal guessed by the reader.
     #[must_use]
@@ -123,6 +134,13 @@ impl Domain {
         super::read_session::inspection_bound(self, task)
     }
 
+    /// A caller's bound when the last read was a view behind its expected state.
+    #[must_use]
+    pub fn inspection_change_behind(&self, task: u64) -> Option<Wall> {
+        super::read_session::last_behind(self, task)?;
+        self.inspection_change_read_bound(task)
+    }
+
     /// Client resources still owed by the repositories this task awaits after restart
     /// (temper/docs/design/domain/forge/catching-up.md, 2 and 4).
     #[must_use]
@@ -133,6 +151,11 @@ impl Domain {
                 Some(row) => Some(row.repository),
                 None => None,
             }
+        } else if self.inspection_landing_readback(task)
+            && let Some(row) = self.landing.rows.get(&task)
+            && let Some(member) = row.landing.members.first()
+        {
+            Some(crate::landing::repository(member))
         } else {
             None
         };
@@ -227,7 +250,7 @@ impl Domain {
         }
         match self.makings.get(&owner) {
             Some(making) => Some(making.task),
-            None => None,
+            None => crate::unmade::reader(self, owner),
         }
     }
 

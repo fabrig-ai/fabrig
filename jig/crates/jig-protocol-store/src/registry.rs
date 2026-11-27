@@ -170,6 +170,7 @@ struct Range {
 pub(crate) struct Layouts {
     active: bool,
     types: List<Type>,
+    introduced: List<(&'static str, u16)>,
     frame_types: FrameTypes,
     ranges: Map<Box<[u8]>, Range>,
     rows: Map<RowKey, Row>,
@@ -190,6 +191,7 @@ impl Layouts {
         Self {
             active: false,
             types: List::uncapped(),
+            introduced: List::uncapped(),
             frame_types: FrameTypes { body: None, turn: None },
             ranges: Map::uncapped(),
             rows: Map::uncapped(),
@@ -206,6 +208,10 @@ impl Layouts {
             walk_reads: 0,
         }
     }
+    pub(crate) fn take_introduced(&mut self) -> List<(&'static str, u16)> {
+        core::mem::replace(&mut self.introduced, List::uncapped())
+    }
+
     fn resolve_index(&self, key: &[u8]) -> Option<u32> {
         use core::ops::Bound::{Included, Unbounded};
         let (_, range) = self.ranges.range::<[u8], _>((Unbounded, Included(key))).next_back()?;
@@ -491,6 +497,9 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     check::retired(store, &mut layouts)?;
     let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
+    if empty {
+        layouts.take_introduced();
+    }
     let mut work = Workspace::new();
     let mut frames = Workspace::new();
     let later = check::plans(store, &mut layouts, &mut binary, &mut work, &mut frames)?;

@@ -14,7 +14,7 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_
     let limits = jig_test_profile::limits().core;
     let meter = Meter::new();
     meter.start();
-    let mut domain = core::Core::new(jig_test_profile::config(192).core, &limits).expect("fixture core");
+    let mut domain = jig_test_profile::new_core(jig_test_profile::config(192).core, &limits).expect("fixture core");
     domain.counters = core::Counters::new(domain.counters.deployment());
     let setup = meter.end();
     // The current catalogue adds a boxed default and the resolved charter map;

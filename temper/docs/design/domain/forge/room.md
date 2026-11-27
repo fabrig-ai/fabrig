@@ -55,6 +55,12 @@ cleanup wait the same way, in the same line.
 - **Room frees** as an entry leaves the outbox, by its write's outcome,
   its withdrawal or its settling as not made, and as a reservation ends
   without an entry.
+- **A branch's record of temper's writes** has room of its own, 32
+  entries (`writes.md`, 6): a write on a branch or a pull request whose
+  record has none takes no room here either, and waits in the line as a
+  write finding no free room does, its wait naming that record and its
+  unsettled entries' senders, until an entry of it settles; an agent's
+  call meeting it is answered at once, as section 5 says.
 - **An entry lives as long as its write, no longer:** it leaves at its
   write's outcome even where its writer goes on following what the
   write made, as a landing follows its gate's run; the writer keeps what
@@ -88,6 +94,57 @@ outbox whose eight places cancelled landings held, and no line said so.
   5, *Its holders*).
 - **A report changes nothing:** no holder is released, no waiter moved,
   and the figure stays the user's (section 6).
+
+### 2.2 Each use checks its holder
+
+From `../../draft/misbehaving-agents.md`, 3.2. The room is held by
+records, each its owner's, and the room taken is the sum of their
+counts, never above `forge.entries` at any step. Each step that takes,
+moves or gives back room checks the holder it uses
+(skein/docs/foundation/programming-model.md, 10.4); a write that finds
+no room still waits, or is answered `Unavailable`, as a value (sections
+3 and 5).
+
+- **The holders:** each entry in the outbox, under its number with its
+  write's task; each asked waiter's reservation, by its waiter; each
+  agent call's, by its flight; each goal projection's, by its entry's
+  number. A full outbox's report reads them (2.1) and holds none.
+- **A new entry takes one place.** It is kept only where its write's
+  check found free room in that step, or into its own reservation,
+  which the same step gives back first. Keeping it asserts that its
+  number is new to the outbox and that the outbox had its place, naming
+  the entry and its task. An entry already in the outbox takes none
+  (section 2): keeping it again asserts that it is the same task's
+  write.
+- **A reservation is made once and used by its holder.** An ask asserts
+  that its waiter is not asked already, a call's reservation that its
+  flight holds none, a projection's that its number holds none. An
+  entry kept into one, and one that ends without an entry, assert that
+  the reservation was held, naming its holder and its owner. A call or
+  a projection whose reservation is not held never falls back to the
+  open room. An asked waiter's check finds its own reservation and needs
+  no other room.
+- **An entry leaves once, by its own write.** Its outcome, its
+  withdrawal or its settling as not made asserts that the entry is in
+  the outbox under its write's task. An outcome for an entry the outbox
+  no longer holds, reported again by the client or late from an outage,
+  is a value, dropped as now.
+- **Each holder against its owner.** At each use, the holder is checked
+  against its owner's state, where the forge or the root keeps it: an
+  asked waiter's owner keeps its place in the line and is neither held
+  nor ended (sections 3 and 4); an agent call's or a goal projection's
+  reservation has its effect staged in the root (section 5,
+  `issues.md`); an entry is its write's task's, marked as its ended
+  owner's from that task's end, which section 4's bound reads. An owner
+  that ends (a change or a landing cancelled, release cleanup done, a
+  goal branch's making dropped, a staged effect ended) gives back its
+  place and its reservation in the step it ends, each asserted as its
+  own, and a landing withdraws its unsent entries (section 2), so that
+  an ended owner holds no place and no reservation, only entries
+  waiting for their outcome.
+- **Its sums are exact:** free room and the room reserved are counted by
+  checked arithmetic, never saturated, since every take above asserts
+  its place.
 
 ## 3. The line
 

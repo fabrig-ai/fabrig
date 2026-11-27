@@ -205,7 +205,7 @@ fn task_rows(world: &mut World) {
     let mut authority = row(world, task).authority.clone();
     authority.budget.spend = 10;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9800)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         batch: Box::new([core::Delegate {
@@ -229,7 +229,6 @@ fn task_rows(world: &mut World) {
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     drain(world);
     let child = world

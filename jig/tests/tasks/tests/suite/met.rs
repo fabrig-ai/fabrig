@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Amendment, Ending, Event, Executor, Hold, HoldKind, Holding, Kind, MessageKind, Name, Party,
-    Phase, ProcedureDecision, ProcedureEnd, Release, Taken, TaskResult, WakePolicy, WakeRule,
+    self as tasks, Active, Amendment, Ending, Event, Executor, Hold, HoldKind, Holding, MessageKind, Name, Party,
+    Phase, ProcedureDecision, ProcedureEnd, Release, ResourceKind, Taken, TaskResult, WakePolicy, WakeRule,
 };
 use jig_tasks_world::{LIMITS, PERSON_PARTY as AMENDER, Reply, World, done, response, task};
 use skein_lib::Duration;
@@ -226,7 +226,7 @@ fn a_live_met_leaves_all_ordinary_sender_room_available() {
 #[test]
 fn a_waiters_last_dependency_removed_returns_it_to_its_place_without_a_met() {
     let mut world = World::new(872, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     let resource = Holding::Write { resource: Name { connector: 1, path: Box::new([Box::new([1])]) }, kind: 1 };
     for number in [OTHER, KEPT] {
         let mut new = task(number, &[]);

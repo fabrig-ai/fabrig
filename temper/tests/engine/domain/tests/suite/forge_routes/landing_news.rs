@@ -441,7 +441,7 @@ fn ready_goal_change_with_failure(world: &mut World, goal: &engine::Assignment, 
     push_change(world, &producer, b"org/repo");
     if red {
         let branch = super::light_rules::change_row(world, change).branch.clone();
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"failures", b"a\n", 1).expect("red top");
+        world.run_push_edit(&producer, &branch, b"failures", b"a\n", 1);
     }
     finish_producer(world, &producer, forge_world::REPO);
     world.advance_ticks(100);

@@ -65,18 +65,9 @@ pub(crate) fn heard(world: &mut World, after: Commit) {
     panic!("source move never heard: {:?}", row(world));
 }
 pub(crate) fn port(world: &mut World, change: u64, producer: &engine::Assignment, red: bool) {
-    push_target(world, change);
+    push_target(world, change, producer);
     let branch = questions::row(world, change).branch.clone();
-    fake::advance(
-        &mut world.fake,
-        &world.fake_env,
-        b"org/vsr-rs",
-        &branch,
-        b"failures",
-        if red { b"tests/handoff\n" } else { b"" },
-        1,
-    )
-    .expect("worker writes report cue");
+    world.run_push_edit(producer, &branch, b"failures", if red { b"tests/handoff\n" } else { b"" }, 1);
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,

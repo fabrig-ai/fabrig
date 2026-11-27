@@ -294,6 +294,8 @@ impl World {
             | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
+            | Request::AdmitAsk { .. }
+            | Request::AdmitAnswer { .. }
             | Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
@@ -532,6 +534,7 @@ impl World {
 
     fn assign(&mut self) -> Result<(), String> {
         let repository = wire::Repository {
+            admit: false,
             save: Some(Box::from(&b"saved"[..])),
             git: None,
             tag: 19,

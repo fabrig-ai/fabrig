@@ -134,6 +134,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Hold { .. }
             | forge::Event::Claim { .. }
             | forge::Event::Answered { .. }
+            | forge::Event::Finished { .. }
             | forge::Event::Lost { .. }
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
@@ -212,7 +213,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     crate::domain::invalidate_input(domain, &event);
     match event {
         event @ Event::Store(
-            StoreInput::ReadLoaded { .. }
+            StoreInput::Engine(_)
             | StoreInput::PartLoaded { .. }
             | StoreInput::Switched
             | StoreInput::Checkpointed { .. }
@@ -287,7 +288,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
 
 fn worker_completes(worker: &WorkerInput) -> bool {
     match worker {
-        WorkerInput::CheckResults { .. }
+        WorkerInput::Admit { .. }
+        | WorkerInput::CheckResults { .. }
         | WorkerInput::Asked { .. }
         | WorkerInput::Opened { .. }
         | WorkerInput::DecodedHostCall { .. }

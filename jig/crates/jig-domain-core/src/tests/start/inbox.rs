@@ -1,4 +1,5 @@
 //! Census loading before people's durable opening (domain/engine/restart.md, domain/engine/views.md, 4).
+use crate::tests::new_core;
 use crate::{
     CoreRecord, Limits, Record, Restored,
     start::LiveSet,
@@ -11,7 +12,7 @@ use skein_lib::Map;
 
 pub(in crate::tests) fn loaded() -> (Core, Env<Limits>) {
     let limits = limits();
-    let mut core = Core::new(config(401), &limits).expect("configured core");
+    let mut core = new_core(config(401), &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
     {
         step_phase(core.start_begin(false, env.wall), Phase::LoadCore);

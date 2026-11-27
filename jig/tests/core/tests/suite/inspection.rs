@@ -643,11 +643,10 @@ fn a_parked_batch_waits_for_the_missing_connectors_report() {
     world.domain.script_holdings();
     let parent = world.assignments[0];
     let child = resource_member(&world, 1, b"missing report");
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9940)),
         key: key(parent, 1),
         batch: Box::new([child]),
-        stubs: Box::new([]),
     }));
     let mut reports = Vec::new();
     let mut replies = Vec::new();

@@ -182,7 +182,7 @@ fn finish(domain: &mut Domain, waiter: Token, task: u64, answer: Result<Option<B
 }
 
 fn index_range(scope: &notes::Scope, after: Option<u64>) -> Range {
-    Range::Core(CoreRange::Notes(notes::Range::Lines { scope: scope.clone(), after }))
+    Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines { scope: scope.clone(), after }))
 }
 
 fn index(
@@ -256,7 +256,7 @@ fn entry(
 fn next_range(flight: &mut Flight) -> Option<Range> {
     let Phase::Entries { names, at, after } = &flight.phase else { unreachable!("candidate page selected") };
     if let Some(&(name, _revision)) = names.get(*at) {
-        return Some(Range::Core(CoreRange::Notes(notes::Range::Entry { name })));
+        return Some(Range::Core(CoreRange::ApplicationNotes(notes::Range::Entry { name })));
     }
     let after = (*after)?;
     flight.phase = Phase::Index { after: Some(after) };

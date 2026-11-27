@@ -1685,8 +1685,12 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
         } else {
             row.branch = if made == deleting { TierBranch::Absent } else { TierBranch::Made };
         }
-        if made && deleting && d.heads.remove(&name(row.repository, named)).is_some() {
-            out.push(Request::Erase { key: crate::Key::BranchHead(name(row.repository, named)) });
+        if made && deleting {
+            let name = name(row.repository, named);
+            if d.heads.remove(&name).is_some() {
+                crate::domain::writes::remove(d, &name, out);
+                out.push(Request::Erase { key: crate::Key::BranchHead(name) });
+            }
         }
         if !made {
             row.held = Some(TierHeld::Faults(landing::Fault::Lost));
@@ -1764,7 +1768,7 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
         return;
     }
     if post::settled(d, entry, out) {
-        d.entries.remove(&entry);
+        crate::domain::take_entry(d, entry, task);
         out.push(Request::Erase { key: crate::Key::Entry(entry) });
         return;
     }
@@ -1803,7 +1807,7 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
     }
     save(row, out);
     d.tier_ops.follows.remove(&key);
-    d.entries.remove(&entry);
+    crate::domain::take_entry(d, entry, task);
     out.push(Request::Erase { key: crate::Key::Entry(entry) });
 }
 pub(crate) fn released(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {

@@ -58,10 +58,9 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         other @ (core::Held::Acted { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }
-        | core::Held::Load(..)
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::ReadLoad { .. }
+        | core::Held::Store(_)
         | core::Held::Read { .. }
         | core::Held::PublicRead { .. }
         | core::Held::PublicWait { .. }
@@ -86,7 +85,6 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::TaskTurnKept { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::StopRun { .. }
-        | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }
         | core::Held::ReadUsage { .. }

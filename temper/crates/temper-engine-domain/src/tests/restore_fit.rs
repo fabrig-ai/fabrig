@@ -174,7 +174,6 @@ fn a_cut_startup_page_stops_as_load_bytes_before_restoring_its_prefix() {
             owner,
             rows: Box::new([crate::Record::Core(jig_domain_core::Record::People(person))]),
             next: None,
-            texts: None,
         }),
     );
     assert_eq!(

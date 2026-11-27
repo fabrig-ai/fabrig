@@ -403,7 +403,7 @@ fn subscribe(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, ta
             },
         }),
     );
-    super::route_core_requests(domain, env, decision, requests);
+    super::route_engine_requests(domain, env, decision, requests);
     if !subscribed(domain, task, number) {
         return None;
     }

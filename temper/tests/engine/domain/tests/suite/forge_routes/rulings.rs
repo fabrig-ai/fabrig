@@ -66,8 +66,7 @@ fn repair_answer() -> (World, u64, engine::Assignment, u64) {
     );
     let resumed = next_assignment(&mut world, 5);
     assert_eq!(resumed.task, repair.task);
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"both lines", 1)
-        .expect("repair pushes");
+    world.run_push_edit(&resumed, &branch, b"file", b"both lines", 1);
     super::delegates::fixtures::answer_producer(&mut world, &resumed);
     let next_review = next_assignment(&mut world, 6);
     (world, change, next_review, repair.task)
@@ -89,8 +88,7 @@ fn a_repair_answer_reaches_the_next_review_and_approval_merges() {
     let next_repair = next_assignment(&mut world, 7);
     assert_answer(&world, &next_repair, repair);
     let branch = row(&world, change).branch;
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"both lines kept", 1)
-        .expect("next repair pushes");
+    world.run_push_edit(&next_repair, &branch, b"file", b"both lines kept", 1);
     super::delegates::fixtures::answer_producer(&mut world, &next_repair);
     let reviewer = next_assignment(&mut world, 8);
     assert_answer(&world, &reviewer, repair);
@@ -152,8 +150,7 @@ fn an_amended_request_reaches_the_next_review_and_repair() {
     review(&mut world, &first_review, 2);
     let repair = next_assignment(&mut world, 4);
     assert_amended(&world, &repair);
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"amended change", 1)
-        .expect("amended repair pushes");
+    world.run_push_edit(&repair, &branch, b"file", b"amended change", 1);
     super::delegates::fixtures::answer_producer(&mut world, &repair);
     let next_review = next_assignment(&mut world, 5);
     assert_amended(&world, &next_review);

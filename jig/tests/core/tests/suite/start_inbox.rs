@@ -80,11 +80,10 @@ fn stored_world_with_proposal(amendment: bool) -> World {
     let mut delegate =
         jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"ask the parent");
     delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(900)),
         key,
         batch: Box::new([delegate]),
-        stubs: Box::new([]),
     }));
     assert_ne!(world.task(), target, "delegate is assigned: {:?}", world.answers.last());
     let key = world.call_key(1);
@@ -134,7 +133,7 @@ fn stored_world_with_proposal(amendment: bool) -> World {
 }
 
 fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits) -> core::Core {
-    let mut domain = core::Core::new(configuration().core, &limits.core).expect("configured direct core");
+    let mut domain = jig_test_profile::new_core(configuration().core, &limits.core).expect("configured direct core");
     let env = core_env(limits);
     {
         phase(&domain.start_begin(false, env.wall), Phase::LoadCore);

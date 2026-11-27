@@ -901,7 +901,7 @@ pub(crate) fn propose_run(
     let (next, number, set) = match checked {
         Ok(value) => value,
         Err(why) => {
-            return crate::routing::run::calls::route_named_answer(
+            return crate::routing::run::calls::route_pending_answer(
                 core,
                 to,
                 key,
@@ -927,7 +927,7 @@ pub(crate) fn propose_run(
     };
     // Preflight before retaining the full set; the child repeats its entrance check.
     if let Some(problem) = core.tasks.proposal_problem(&env.limits.tasks, &proposal) {
-        return crate::routing::run::calls::route_named_answer(
+        return crate::routing::run::calls::route_pending_answer(
             core,
             to,
             key,
@@ -938,7 +938,6 @@ pub(crate) fn propose_run(
     assert!(fresh == next && core.settings_offering_flights() == 0, "one fresh settings offering");
     let token = to.into_token();
     core.fly(crate::routing::flight::Flight::SettingsOffering { request: token, by: key.task, number, value: set });
-    core.pending_calls.insert(key, true).expect("call room reserved");
     let token = core.fly_call(token, crate::RoutedCall::Propose { key, proposal: next });
     work.push(Work::Event(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal })));
     Queue::uncapped()

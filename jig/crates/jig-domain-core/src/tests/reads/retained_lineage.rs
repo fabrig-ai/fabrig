@@ -1,4 +1,5 @@
 //! Complete stored ancestry must not keep the live walk's provisional cut.
+use crate::engine::store as engine_store;
 use crate::tests::*;
 
 const PARENT: u64 = 98;
@@ -21,14 +22,18 @@ fn task_with_stored_parent(subscriptions: Box<[tasks::Subscription]>) -> Box<Tas
     let mut row = stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(child))), None);
     row.ancestors = Box::new([PARENT]);
     row.linked = Box::new([Box::new(parent)]);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: CHILD })
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: CHILD })
     else {
         panic!("retained task load")
     };
-    let crate::reads::Answer::Ended(value) =
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None })
-            .unwrap()
-    else {
+    let crate::reads::Answer::Ended(value) = loaded_answer(
+        &mut core,
+        &limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+    )
+    .unwrap() else {
         panic!("retained task document")
     };
     let crate::reads::EndedValue::Task { document, .. } = value.value else { panic!("task") };

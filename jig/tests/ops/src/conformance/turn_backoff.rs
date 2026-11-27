@@ -148,13 +148,17 @@ impl World {
                         }
                         self.send(root::Event::Released(child));
                     }
-                    root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                        self.send(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                            owner,
-                            rows: jig_domain_notes::Rows {
-                                records: skein_lib::List::with_capacity(self.env.limits.core.notes.load_rows),
-                            },
+                    root::Output::Store(core::engine::store::Out::Load {
+                        load,
+                        range: core::engine::store::Range::Notes(_),
+                    }) => {
+                        let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                            records: Box::new([]),
                             more: false,
+                        });
+                        self.send(root::Event::Store(root::Store::Engine(core::engine::store::In::Loaded {
+                            load,
+                            result,
                         })));
                     }
                     root::Output::Load { phase, .. } => {
@@ -166,6 +170,7 @@ impl World {
                     | root::Output::IncidentAssociationRefused { .. }
                     | root::Output::Application { .. }
                     | root::Output::CoreLoad(_)
+                    | root::Output::Store(_)
                     | root::Output::Core(_)
                     | root::Output::Now(_)
                     | root::Output::Observability(_)

@@ -235,7 +235,7 @@ fn a_real_failure_snapshots_each_failed_job_and_only_changed_keys_run_after_repa
             if attempt.head == candidate && attempt.run == receipt.run.id && attempt.job == job.job && attempt.attempt == job.attempt)));
     }
     left(&mut world, landing::Leave::Failed { gate, run });
-    world.push(MEMBER, b"fixed");
+    world.push_attempt(&changes::branch_name(MEMBER), (52, 1), MEMBER, b"file", b"fixed");
     for entry in 400..410 {
         step_change(&mut world, entry);
         if matches!(world.change(CHANGE).change.state, change::State::Ready { .. }) {
