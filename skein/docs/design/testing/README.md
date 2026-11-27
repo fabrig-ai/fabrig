@@ -315,12 +315,16 @@ seeds and every sweep's whole sample.
     representable wall day, a fixed enumeration that takes no case.
 - **What each adoption keeps:** a helper's focused callers their fixed
   seeds, conformance's focused `each_seed` among them, its fuzzy sweeps
-  taking theirs through a helper given their test's identity; a stream
+  taking theirs through a helper given their test's identity, and a fuzzy
+  test of its that ran a counted loop a configuration becoming a test a
+  loop; a stream
   drawn across a loop's rounds, as lib's, codec's decodes and layouts,
   oauth's records, the fake peers' endpoints and the LLM client's
   declarations draw, as one case at its stream's seed; io's appends and
-  stores the fixed seeds their gate ran before they stopped on coverage
-  (sweeps.md, 4.2 and 4.5).
+  stores the fixed seeds their gate ran before they stopped on coverage;
+  the forge client's update its grid of every cut, and lib's digests their
+  fixed messages, fixed enumerations that take no case (sweeps.md, 4.2 and
+  4.5).
 - **Its cost** is reported against skein's fuzzy ceilings, as warnings
   (`tools/tiers/budgets.md`, 4.2).
 

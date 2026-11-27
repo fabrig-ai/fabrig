@@ -196,7 +196,7 @@ They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 - **A stream across a loop:** a loop whose rounds draw from one `Rng` made before it, not one a round, is one case at that stream's seed, running every round inside it, so that the gate's draws stay. A campaign gives it a fresh stream.
 - **A check returns its finding,** as jig's core sweeps return theirs, or panics (4.4). A test returns `cases`'s result, or words it in its own failure.
 - **A case's seed is the world's seed.** A world on streams takes it as `Streams::new(seed)`, and one that isn't takes it as it took its loop's seed. A draw made some other way, as a fixture picked by `seed % n`, takes it from the case's seed too, so that a campaign moves every draw.
-- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts. A loop that counted its seeds by hand stops, since `cases` counts them, and one that counted none gains one a case: no count falls.
+- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts. A loop that counted its seeds by hand stops, since `cases` counts them, and one that counted none gains one a case: no count falls. A test that ran several such counted loops over the same seeds, one a configuration, becomes a test a loop, so that each keeps its count and a replay of each runs one case.
 - **`each_seed` stays** as it is, for the loops that keep fixed seeds, focused tests' among them: it runs its range in every mode, as given, and counts it.
 
 ### 4.3 Its modes
