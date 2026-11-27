@@ -156,7 +156,12 @@ fn take_terminal(peer: &mut RawWorld) -> client::Event {
     peer.seen.remove(*position)
 }
 
-fn completed(context: Context, peer: &mut RawWorld, expected_owner: Token) -> llm::Completion {
+fn completed(
+    context: Context,
+    provider: skein_llm::Provider,
+    peer: &mut RawWorld,
+    expected_owner: Token,
+) -> llm::Completion {
     peer.request(client::Request::Start);
     peer.run();
     let client::Event::Completed { owner, completion } = take_terminal(peer) else {
@@ -164,7 +169,7 @@ fn completed(context: Context, peer: &mut RawWorld, expected_owner: Token) -> ll
     };
     assert_eq!(owner, expected_owner);
     let Event::Below(smith_domain::Below::Completed { owner, completion }) =
-        codec::completion(context, completion).expect("observed owned terminal translates")
+        codec::completion(context, provider, completion).expect("observed owned terminal translates")
     else {
         panic!("completed translation")
     };
@@ -276,7 +281,7 @@ fn openai_reasoning_refusal_and_message_identity_continue_exactly() {
     let configuration = client_peer::configurations().into_iter().next().expect("literal OpenAI fixture");
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(OPENAI_RESPONSE), true);
     let (context, mut peer) = adopt(&configuration, Token::new(0), Box::new([user(b"Start.")]), source);
-    let mut completion = completed(context, &mut peer, Token::new(0));
+    let mut completion = completed(context, configuration.endpoint.provider, &mut peer, Token::new(0));
     assert!(openai_evidence(&completion), "observed translated ordered replay/refusal: {completion:?}");
     usage(completion.usage, [Some(8), Some(3), Some(4), None]);
     completion.content.swap(0, 1);
@@ -290,7 +295,7 @@ fn openai_reasoning_refusal_and_message_identity_continue_exactly() {
     assert!(openai_evidence(&completion));
     close(&mut peer);
     let (context, mut next) = adopt(&configuration, Token::new(99), history(completion), text_response(false));
-    let continued = completed(context, &mut next, Token::new(99));
+    let continued = completed(context, configuration.endpoint.provider, &mut next, Token::new(99));
     assert_eq!(continued.stop, llm::Stop::EndTurn);
     native_corruptions(
         &next,
@@ -305,7 +310,7 @@ fn anthropic_all_usage_signed_and_redacted_replay_continue_exactly() {
     let configuration = client_peer::configurations().into_iter().nth(1).expect("literal Anthropic fixture");
     let source = response(200, "Content-Type: text/event-stream\r\n", ANTHROPIC_RESPONSE, true);
     let (context, mut peer) = adopt(&configuration, Token::new(99), Box::new([user(b"Start.")]), source.clone());
-    let mut completion = completed(context, &mut peer, Token::new(99));
+    let mut completion = completed(context, configuration.endpoint.provider, &mut peer, Token::new(99));
     assert!(anthropic_evidence(&completion), "observed translated ordered thinking: {completion:?}");
     usage(completion.usage, [Some(7), Some(9), Some(11), Some(13)]);
     completion.content.swap(0, 1);
@@ -319,7 +324,7 @@ fn anthropic_all_usage_signed_and_redacted_replay_continue_exactly() {
     assert!(anthropic_evidence(&completion));
     close(&mut peer);
     let (context, mut next) = adopt(&configuration, Token::new(7), history(completion), source);
-    let continued = completed(context, &mut next, Token::new(7));
+    let continued = completed(context, configuration.endpoint.provider, &mut next, Token::new(7));
     assert!(anthropic_evidence(&continued));
     usage(continued.usage, [Some(7), Some(9), Some(11), Some(13)]);
     native_corruptions(
@@ -685,7 +690,7 @@ fn an_oversized_call_beside_an_ordinary_one_completes_with_a_fixable_error() {
     bounds.client.input = 16;
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(BLOCK_RESPONSE), true);
     let (context, mut peer) = block_peer(&configuration, &bounds, source);
-    let observed = completed(context, &mut peer, Token::new(71));
+    let observed = completed(context, configuration.endpoint.provider, &mut peer, Token::new(71));
     let [
         llm::Said::ToolCall { id, input, call: llm::Decoded::Invalid { problem }, replay: None, .. },
         llm::Said::ToolCall { call: llm::Decoded::Served { ask: run::Ask::Host { .. } }, .. },
@@ -711,7 +716,7 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
     let bounds = limits();
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(&messages), true);
     let (context, mut peer) = block_peer(&configuration, &bounds, source);
-    let observed = completed(context, &mut peer, Token::new(71));
+    let observed = completed(context, configuration.endpoint.provider, &mut peer, Token::new(71));
     let [llm::Said::ToolCall { id, name, input, call: llm::Decoded::Invalid { problem }, replay: None }] =
         observed.content.as_ref()
     else {
@@ -740,7 +745,7 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
     close(&mut peer);
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(OPENAI_RESPONSE), true);
     let (context, mut next) = adopt(&configuration, Token::new(72), history, source);
-    drop(completed(context, &mut next, Token::new(72)));
+    drop(completed(context, configuration.endpoint.provider, &mut next, Token::new(72)));
     let body = native_body(&next);
     assert!(skein_lib::bytes::find(&body, b"\"arguments\":\"{}\"").is_some());
     assert!(skein_lib::bytes::find(&body, b"input cut off after 7 bytes").is_some());
@@ -765,7 +770,7 @@ fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
                 panic!("drop keeps completion");
             };
             let Event::Below(smith_domain::Below::Completed { completion, .. }) =
-                codec::completion(context, completion).expect("drop translates")
+                codec::completion(context, configuration.endpoint.provider, completion).expect("drop translates")
             else {
                 panic!("completed");
             };

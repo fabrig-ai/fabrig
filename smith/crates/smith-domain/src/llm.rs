@@ -19,7 +19,7 @@ use smith_domain_tools as tools;
 
 pub use smith_domain_session::llm::{
     Affinity, Cap, CompletionName, CompletionPhase, Endpoint, Evidence, Failure, Guard, Limit, Problem, Purpose,
-    Replay, Report, Role, Stop, ToolCall, Usage,
+    Replay, Report, Role, ServedSpeed, Stop, ToolCall, Usage,
 };
 
 /// One call to an LLM: everything it needs to produce the next assistant
@@ -212,6 +212,7 @@ pub struct Completion {
     pub content: Box<[Said]>,
     pub stop: Stop,
     pub usage: Usage,
+    pub served: ServedSpeed,
 }
 
 /// A piece of an assistant message.

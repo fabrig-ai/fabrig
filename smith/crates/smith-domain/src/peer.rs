@@ -125,7 +125,7 @@ impl Peer {
     /// becomes a ticket for its ask, while what the asks hold fits `limit`; a
     /// call to one the session was not offered is no call.
     pub(crate) fn completion(&mut self, completion: llm::Completion, limit: u64) -> sllm::Completion {
-        let llm::Completion { reasoning_dropped, content, stop, usage } = completion;
+        let llm::Completion { reasoning_dropped, content, stop, usage, served } = completion;
         self.assistant_text = false;
         let mut blocks = List::with_capacity(u32::try_from(content.len()).expect("a completion fits in memory"));
         // Every call keeps a classification cell even when decoding is refused.
@@ -171,7 +171,7 @@ impl Peer {
             };
             blocks.push(block).expect("room for every block");
         }
-        sllm::Completion { reasoning_dropped, content: blocks.into_boxed(), stop, usage }
+        sllm::Completion { reasoning_dropped, content: blocks.into_boxed(), stop, usage, served }
     }
 
     fn host_offered(&self, name: &[u8], effect: run::HostEffect) -> bool {

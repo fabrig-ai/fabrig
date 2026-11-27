@@ -583,6 +583,7 @@ fn measure_turn(number: u32) {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Completed {
                     owner,
                     completion: smith_domain::llm::Completion {
+                        served: smith_domain::llm::ServedSpeed::Unreported,
                         reasoning_dropped: Box::default(),
                         content: Box::new([smith_domain::llm::Said::Text {
                             text: b"measured first turn".as_slice().into(),

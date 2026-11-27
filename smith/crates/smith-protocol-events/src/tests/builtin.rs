@@ -53,6 +53,7 @@ fn a_builtin_call_is_a_workspace_tool_event() {
                     call: llm::Decoded::Builtin { effect: tools::Effect::Read },
                     replay: None,
                 }]),
+                served: llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 stop: llm::Stop::ToolUse,
                 usage: llm::Usage::ZERO,

@@ -164,8 +164,8 @@ use crate::domain::Domain;
 use crate::facts::{FactKind, Facts};
 use crate::limits::Limits;
 use crate::llm::{
-    Block, Completion, Decoded, Descriptor, Endpoint, Failure, Message, Problem, Prompt, Returned, Role, Stop,
-    ToolChoice, Usage,
+    Block, Completion, Decoded, Descriptor, Endpoint, Failure, Message, Problem, Prompt, Returned, Role, ServedSpeed,
+    Stop, ToolChoice, Usage,
 };
 
 #[derive(Debug)]
@@ -258,6 +258,13 @@ struct Spending {
 }
 
 impl Spending {
+    fn reservation_prices(&self) -> crate::record::Prices {
+        match &self.speed {
+            Some(speed) => speed.prices,
+            None => self.prices,
+        }
+    }
+
     fn speed_name(&self) -> Option<Box<[u8]>> {
         Some(self.speed.as_ref()?.name.clone())
     }
@@ -931,9 +938,9 @@ pub(crate) fn completed(
 
 /// Check one completion before the parent decodes any of its calls, using
 /// the same admission calculation as the accepted completion.
-pub fn preview_completion(domain: &Domain, owner: Token, usage: Usage) -> Result<u64, End> {
+pub fn preview_completion(domain: &Domain, owner: Token, usage: Usage, served: &ServedSpeed) -> Result<u64, End> {
     let session = domain.sessions.get(Id::from_token(owner)).expect("completion retains its session");
-    Ok(accounting::accepted(&session.conversation, usage)?.price)
+    Ok(accounting::accepted(&session.conversation, usage, served)?.price)
 }
 
 /// Check the maximum completion charge against this session's spend allowance.
@@ -1765,7 +1772,7 @@ fn answered(
         let Cursor { sequence, .. } = conversation.cursor;
         sequence.checked_add(1).is_some()
     } && u32::try_from(completion.content.len()).is_ok();
-    if let Err(end) = used(conversation, completion.usage, out) {
+    if let Err(end) = used(conversation, completion.usage, &completion.served, out) {
         release_provider(conversation);
         return finish(end);
     }
@@ -1813,7 +1820,7 @@ fn answered_late(
     limits: &Limits,
     out: &mut Queue<Request>,
 ) -> State {
-    if let Err(overflow) = used(conversation, completion.usage, out) {
+    if let Err(overflow) = used(conversation, completion.usage, &completion.served, out) {
         release_provider(conversation);
         return State::Closing { end: overflow, waiting: Waiting { completion: false, ..waiting }, tools: None };
     }

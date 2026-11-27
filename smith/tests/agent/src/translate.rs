@@ -160,7 +160,13 @@ pub(crate) fn completion_with(
             provider::Part::ToolOutput { .. } => panic!("a fake completion contains no tool result"),
         })
         .collect();
-    agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
+    agent::Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
+        reasoning_dropped: Box::default(),
+        content,
+        stop,
+        usage,
+    }
 }
 
 /// Classify a saved answer through the same finite decoder as a live fake completion.
@@ -193,6 +199,7 @@ pub fn classify(
     }
     Some(agent::Completion {
         content: decoded.into(),
+        served: smith_domain::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         usage: agent::Usage::NONE,
         stop: agent::Stop::ToolUse,

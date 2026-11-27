@@ -746,6 +746,7 @@ impl Counted {
         let event = Event::Below(smith_domain::Below::Completed {
             owner: complete.owner,
             completion: llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::new([]),
                 content: Box::new([content]),
                 stop: if waiting { llm::Stop::ToolUse } else { llm::Stop::EndTurn },

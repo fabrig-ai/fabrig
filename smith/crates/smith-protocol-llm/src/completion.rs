@@ -14,8 +14,17 @@ use crate::{Cause, Error, Refusal};
 /// Decode the client's blocks under the retained charter and receiving contract.
 /// Original provider bytes and replay survive decoding. Decoded ownership beyond
 /// the secured aggregate becomes `TooLarge`; invalid replay refuses translation.
-pub fn completion(context: Context, completion: skein_llm::Completion) -> Result<Event, Error> {
-    let skein_llm::Completion { content, stop, usage, .. } = completion;
+pub fn completion(
+    context: Context,
+    provider: skein_llm::Provider,
+    completion: skein_llm::Completion,
+) -> Result<Event, Error> {
+    let skein_llm::Completion { content, stop, usage, served } = completion;
+    let served = match served {
+        Some(name) if name.as_ref() == provider.standard_speed() => llm::ServedSpeed::Standard,
+        Some(name) => llm::ServedSpeed::Named(name),
+        None => llm::ServedSpeed::Unreported,
+    };
     let maximum = usize::try_from(context.receiving.max_completion_blocks.min(context.limits.client.output_items))
         .expect("u32 fits usize");
     if content.len() > maximum {
@@ -75,6 +84,7 @@ pub fn completion(context: Context, completion: skein_llm::Completion) -> Result
             content: translated.into_boxed(),
             stop,
             usage,
+            served,
         },
     }))
 }
@@ -143,6 +153,7 @@ pub fn classify(
         content: decoded.into_boxed(),
         stop: llm::Stop::ToolUse,
         usage: llm::Usage::NONE,
+        served: llm::ServedSpeed::Unreported,
     })
 }
 

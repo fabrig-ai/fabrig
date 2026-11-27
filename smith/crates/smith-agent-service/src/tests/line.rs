@@ -61,6 +61,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
         session::Event::Completed {
             owner: session_owner.unwrap(),
             completion: session::llm::Completion {
+                served: llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::new([]),
                 content,
                 stop: llm::Stop::ToolUse,

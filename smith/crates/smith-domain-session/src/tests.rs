@@ -549,7 +549,13 @@ const USAGE: Usage = Usage {
 };
 
 fn completion(content: Box<[Block]>, stop: Stop) -> Completion {
-    Completion { reasoning_dropped: Box::default(), content, stop, usage: USAGE }
+    Completion {
+        served: crate::llm::ServedSpeed::Unreported,
+        reasoning_dropped: Box::default(),
+        content,
+        stop,
+        usage: USAGE,
+    }
 }
 
 fn done() -> Completion {

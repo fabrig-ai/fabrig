@@ -354,6 +354,17 @@ pub struct CompletionName {
     pub retry: u32,
 }
 
+/// Serving speed reported by the protocol for one completion, used only for pricing.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ServedSpeed {
+    /// The provider reported its own standard speed.
+    Standard,
+    /// The provider reported another speed, bounded at the protocol to 32 bytes.
+    Named(Box<[u8]>),
+    /// The provider did not report a usable name.
+    Unreported,
+}
+
 /// The next assistant message.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Completion {
@@ -364,6 +375,7 @@ pub struct Completion {
     pub content: Box<[Block]>,
     pub stop: Stop,
     pub usage: Usage,
+    pub served: ServedSpeed,
 }
 
 /// A native LLM path cap, sent by the protocol in a terminal failure.

@@ -348,7 +348,13 @@ fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
 }
 
 fn received(content: Box<[Block]>, stop: Stop) -> Completion {
-    Completion { reasoning_dropped: Box::default(), content, stop, usage: Usage::ZERO }
+    Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
+        reasoning_dropped: Box::default(),
+        content,
+        stop,
+        usage: Usage::ZERO,
+    }
 }
 
 fn assert_retained_payload(meter: &Meter, limits: &Limits, route: Route, full_service: bool, pressure: u64) {
@@ -386,6 +392,7 @@ fn fill_service_tail(
             step(Event::Completed {
                 owner,
                 completion: Completion {
+                    served: smith_domain::llm::ServedSpeed::Unreported,
                     reasoning_dropped: Box::default(),
                     content,
                     stop: Stop::EndTurn,
@@ -588,6 +595,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
     let (_, delegate) = drive(Event::Completed {
         owner: owner.expect("the counted scenario fits"),
         completion: Completion {
+            served: smith_domain::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::new([
                 Block::Opaque { bytes: bytes(1) },
@@ -965,6 +973,7 @@ fn read_completion(width: u32) -> Completion {
         }));
     }
     Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         content: blocks.into_boxed_slice(),
         stop: Stop::ToolUse,
@@ -1135,6 +1144,7 @@ fn maximum_admissible_backoff_preserves_the_exact_next_provider_credit() {
         Event::Completed {
             owner,
             completion: Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 content: Box::new([Block::Text { text: bytes(1), replay: None }]),
                 stop: Stop::EndTurn,
@@ -1239,6 +1249,7 @@ fn the_original_maximum_parallel_width_has_live_result_rights() {
 
 fn missing_completion(field: u64) -> Completion {
     Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         content: Box::new([Block::ToolCall(ToolCall {
             id: bytes(1),
@@ -1323,6 +1334,7 @@ fn the_four_message_cap_asks_for_compaction_before_provider_growth() {
                     Event::Completed {
                         owner,
                         completion: Completion {
+                            served: smith_domain::llm::ServedSpeed::Unreported,
                             reasoning_dropped: Box::default(),
                             content: Box::new([Block::Text { text: bytes(1), replay: None }]),
                             stop: Stop::EndTurn,

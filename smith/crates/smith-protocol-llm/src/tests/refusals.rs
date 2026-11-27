@@ -211,6 +211,7 @@ fn guard_render_and_completion_refusals_name_their_causes() {
             .expect("context");
     let error = crate::completion(
         context,
+        skein_llm::Provider::Anthropic,
         skein_llm::Completion {
             content: Box::new([skein_llm::Block::ToolResult {
                 id: b"call".as_slice().into(),

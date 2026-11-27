@@ -30,6 +30,7 @@ impl Driver {
             let size = if self.rng.chance(500) { available } else { self.rng.below(available + 1) };
             let text = Said::Text { text: bytes(size), replay: None };
             return Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 content: Box::new([text]),
                 stop: Stop::EndTurn,
@@ -65,7 +66,13 @@ impl Driver {
                 }
             })
             .collect();
-        Completion { reasoning_dropped: Box::default(), content, stop: Stop::ToolUse, usage }
+        Completion {
+            served: smith_domain::llm::ServedSpeed::Unreported,
+            reasoning_dropped: Box::default(),
+            content,
+            stop: Stop::ToolUse,
+            usage,
+        }
     }
 
     fn call(&mut self, limits: &Limits, size: u64, finish: bool, agents: bool) -> Decoded {

@@ -938,6 +938,7 @@ fn dropped_reasoning_has_one_fact_per_item_and_never_enters_history() {
     world.step(session::Event::Completed {
         owner: world.completing.expect("pending completion"),
         completion: llm::Completion {
+            served: smith_domain::llm::ServedSpeed::Unreported,
             reasoning_dropped: sizes.clone(),
             content: said(b"answer"),
             stop: llm::Stop::EndTurn,

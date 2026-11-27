@@ -180,7 +180,13 @@ fn completion(
         reasoning_tokens: reasoning,
     };
     let content = answer.parts.into_iter().map(|part| block(part, tickets, opener, served)).collect();
-    agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
+    agent::Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
+        reasoning_dropped: Box::default(),
+        content,
+        stop,
+        usage,
+    }
 }
 
 fn block(part: provider::Part, tickets: &mut Tickets, opener: u64, served: &[agent::Descriptor]) -> agent::Block {

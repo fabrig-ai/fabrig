@@ -478,7 +478,7 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
     let (_owner, observed_completion) = owned_completion(&mut peer);
     let Event::Below(smith_domain::Below::Completed { completion, .. }) =
-        codec::completion(context, observed_completion)
+        codec::completion(context, configuration.endpoint.provider, observed_completion)
             .expect("fallback wrappers stay in the secured aggregate before later host decoding")
     else {
         panic!("translated observed completion");

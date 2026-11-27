@@ -235,7 +235,7 @@ fn completed(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: c
     capture(domain, env, owner, issued.name, &completion);
     let id = *domain.sessions.get(&owner).expect("a session lives until its call has ended");
     let conversation = domain.peers.get(id).expect("a peer lives as its session").conversation;
-    let preview = session::preview_completion(&domain.session, owner, completion.usage);
+    let preview = session::preview_completion(&domain.session, owner, completion.usage, &completion.served);
     let overflow = match &preview {
         Err(end) => Some(end.clone()),
         Ok(price) => priced_overflow(run::completion_overflow(
