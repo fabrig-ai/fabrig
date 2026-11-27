@@ -1,7 +1,7 @@
 //! Stock template goals close without an agent's judgement after their work lands
 //! (temper/docs/design/protocol/configuration/stock.md;
 //! temper/docs/design/domain/forge/branches.md, 2; jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
-use super::close_change::{CLOSE_COUNTS, check_refusal, finish_with, refusal_with};
+use super::close_change::{CLOSE_COUNTS, CLOSE_FAILURE, finish_with, refusal_with};
 use super::goal_branch::{branch_tip, stock_defaults};
 use super::goal_closer::{
     close_job, closer_row, finish_close as push_close, producer_for, result_words, wait_ended, wait_held, wait_landing,
@@ -875,12 +875,13 @@ fn goal_at_close() -> (World, u64, u64, u64, host::JobAssignment, change::CloseA
     (world, goal.task, closer, close, job, at)
 }
 
-fn goal_with_refused_close() -> RefusedClose {
+fn goal_with_refused_close(failures: &[&str], more: usize, counts: Option<[u8; 32]>) -> RefusedClose {
     let (mut world, goal, closer, close, job, at) = goal_at_close();
-    finish_with(&mut world, &job, &check_refusal(at.branch, at.landing));
+    let result = refusal_with(at.branch, counts.map(|counts| (at.landing, counts)), failures, more);
+    finish_with(&mut world, &job, &result);
     wait_held(&mut world, close, goal);
     let run = awakened(&mut world, goal);
-    let at = change::CloseAt { refused: Some(change::CloseRefused { counts: Some(CLOSE_COUNTS) }), ..at };
+    let at = change::CloseAt { refused: Some(change::CloseRefused { counts }), ..at };
     RefusedClose { world, run, closer, close, job: job.run.raw(), at }
 }
 
@@ -889,26 +890,30 @@ fn short(commit: [u8; 32]) -> String {
     core::str::from_utf8(&digits[..12]).expect("short commit").to_owned()
 }
 
-fn refusal_words(at: change::CloseAt) -> String {
+fn refusal_words(at: change::CloseAt, failures: &[&str], more: usize) -> String {
     let branch = short(at.branch);
-    let main = short(at.landing);
+    let (base, counts) = match at.refused.expect("refusal fixture").counts {
+        Some(counts) => (short(at.landing), short(counts)),
+        None => ("no base".to_owned(), "none".to_owned()),
+    };
+    let names = failures.join(", ");
+    let more = if more == 0 { String::new() } else { format!(" and {more} more") };
     format!(
-        "the close check refused the goal's branch at {branch}, against main at {main} with counts 333333333333: test A::rules rule_00; it checks again once the goal's branch or main moves."
+        "the close check refused the goal's branch at {branch}, against main at {base} with counts {counts}: {names}{more}; it checks again once the goal's branch or main moves."
     )
 }
 
 fn replay_words(at: change::CloseAt) -> String {
     let branch = short(at.branch);
     let main = short(at.landing);
-    let words = refusal_words(at);
+    let words = refusal_words(at, &[CLOSE_FAILURE], 0);
     format!(
         "not measured again: the goal's branch is at {branch} and main at {main}, as when its close check refused; it checks again once either moves.\n\n{words}"
     )
 }
 
-#[test]
-fn a_refused_close_holds_and_wakes_its_goal_once() {
-    let RefusedClose { mut world, run, close, job, at, .. } = goal_with_refused_close();
+fn assert_refused_close(refusal: RefusedClose, words: &str) {
+    let RefusedClose { mut world, run, close, job, at, .. } = refusal;
     world.advance_ticks(100);
     let ended = ended(&world, job).expect("one successful terminal at the first attempt");
     assert!(matches!(ended.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Job { .. }))));
@@ -918,16 +923,49 @@ fn a_refused_close_holds_and_wakes_its_goal_once() {
     let change::State::Held { was, hold } = &row(&world, close).change.state else { panic!("close held at producing") };
     assert_eq!(**was, change::State::Producing { requested: true });
     assert_eq!(hold.cause, change::Cause::CloseRefused);
-    assert_eq!(hold.words.as_ref(), refusal_words(at).as_bytes());
-    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    assert_eq!(hold.words.as_ref(), words.as_bytes());
+    super::goal_closer::assert_hold_words(&world, close, words);
     world.close();
+}
+
+#[test]
+fn a_refused_close_holds_and_wakes_its_goal_once() {
+    let refusal = goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
+    let words = refusal_words(refusal.at, &[CLOSE_FAILURE], 0);
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_refusal_holds_all_failures_in_check_order() {
+    let failures = [CLOSE_FAILURE, "test B::world rule_01", "test A::fuzzy rule_02"];
+    let refusal = goal_with_refused_close(&failures, 0, Some(CLOSE_COUNTS));
+    let words = refusal_words(refusal.at, &failures, 0);
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_refusal_counts_failures_that_do_not_fit() {
+    const ALREADY_OMITTED: usize = 3; // Omitted by the check, before the engine fits the hold.
+    const KEPT: usize = 1; // The first name fits; including the second would cross the hold bound.
+    const LONG_NAME_BYTES: usize = 323; // 513 minus 169 bytes of fixed text/separators and 21 for the second name.
+    let bound = usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("hold bound");
+    let prefix = "test A::rules ";
+    let long_name = format!("{prefix}{}", "x".repeat(LONG_NAME_BYTES - prefix.len()));
+    let failures = [long_name.as_str(), "test B::world rule_01"];
+    // With no base or counts, the two names fit in the 512-byte JSON result, but not in the hold.
+    let refusal = goal_with_refused_close(&failures, ALREADY_OMITTED, None);
+    assert_eq!(refusal_words(refusal.at, &failures, ALREADY_OMITTED).len(), bound + 1);
+    let (kept, omitted) = failures.split_at(KEPT);
+    let words = refusal_words(refusal.at, kept, omitted.len() + ALREADY_OMITTED);
+    assert!(words.len() <= bound);
+    assert_refused_close(refusal, &words);
 }
 
 #[test]
 fn a_close_refusal_naming_no_failure_is_broke() {
     const RESULT_PREFIX: usize = 64; // tooling.md, 4.2 and repairs-releases.md, 1
     let (mut world, goal, _, close, job, at) = goal_at_close();
-    let result = refusal_with(at.branch, at.landing, "");
+    let result = refusal_with(at.branch, Some((at.landing, CLOSE_COUNTS)), &[], 0);
     finish_with(&mut world, &job, &result);
     wait_held(&mut world, close, goal);
     let prefix = core::str::from_utf8(&result[..RESULT_PREFIX]).expect("ASCII refusal");
@@ -945,18 +983,20 @@ fn a_close_refusal_naming_no_failure_is_broke() {
 
 #[test]
 fn a_restart_keeps_a_refused_closes_hold_and_inputs() {
-    let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
+    let RefusedClose { mut world, run, close, at, .. } =
+        goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
     park_goal(&mut world, &run);
     restart_closing(&mut world);
     wait_held(&mut world, close, run.task);
     assert_eq!(row(&world, close).close_at, Some(at));
-    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
+    super::goal_closer::assert_hold_words(&world, close, &refusal_words(at, &[CLOSE_FAILURE], 0));
     world.close();
 }
 
 #[test]
 fn a_released_close_does_not_measure_unchanged_tips_again() {
-    let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
+    let RefusedClose { mut world, run, close, at, .. } =
+        goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
     let words = replay_words(at);
     release(&mut world, &run, close, 93);
     park_goal(&mut world, &run);
@@ -970,7 +1010,8 @@ fn a_released_close_does_not_measure_unchanged_tips_again() {
 
 #[test]
 fn a_released_close_wakes_when_its_repair_changes_nothing() {
-    let RefusedClose { mut world, run, closer, close, at, .. } = goal_with_refused_close();
+    let RefusedClose { mut world, run, closer, close, at, .. } =
+        goal_with_refused_close(&[CLOSE_FAILURE], 0, Some(CLOSE_COUNTS));
     let words = replay_words(at);
     let (work, producer) = make_change(&mut world, &run, 93);
     release(&mut world, &run, close, 94);
