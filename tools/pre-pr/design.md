@@ -313,11 +313,13 @@ A later head or destination requires a fresh invocation.
 The checker's entry points are `.temper/hooks/deliver`,
 `.temper/hooks/finish`, `.temper/hooks/close`, and the wrappers
 `.temper/pre-pr`, `.temper/close` and `.temper/checked-close`, beside
-`.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`: a delivery that
-changes one runs the checker's own tests, and the gate's scope
-(`.forgejo/scripts/gate_scope.py`) holds the same list, as before. Each
-wrapper only runs its hook, with its arguments, so a build that reads no
-hooks runs the same code (`temper/docs/design/protocol/hooks.md`, 5).
+`.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`. The non-executable
+`.temper/hooks/config.toml` sets hook time limits
+(`temper/docs/design/protocol/hooks.md`, 2.3). A delivery that changes an
+entry point or the time file runs the checker's own tests; the gate's
+scope (`.forgejo/scripts/gate_scope.py`) uses the same inputs. Each wrapper
+only runs its hook, with its arguments, so a build that reads no hooks runs
+the same code (`temper/docs/design/protocol/hooks.md`, 5).
 
 ## 3. What it selects
 
@@ -349,8 +351,8 @@ hooks runs the same code (`temper/docs/design/protocol/hooks.md`, 5).
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/hooks/deliver`, `.temper/hooks/finish`, `.temper/pre-pr`,
-  `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
+  `.temper/hooks/deliver`, `.temper/hooks/finish`, `.temper/hooks/config.toml`,
+  `.temper/pre-pr`, `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
   `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
