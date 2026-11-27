@@ -1,6 +1,6 @@
 # Layers
 
-Provisional, 2026-11-21. Which layer of the pyramid each test binary is in: `tools/tiers/layers.toml`, the boundary check that keeps it whole, and which layers run where: the gate's and the delivery check's runs the layers that replay, each tree's real pair the real loop and end to end after landing. Written from `temper/docs/design/draft/test-budgets.md`, 4 and 7.
+Provisional, 2026-11-21. Which layer of the pyramid each test binary is in: `tools/tiers/layers.toml`, the boundary check that keeps it whole, and which layers run where: the gate's and the delivery check's runs the layers that replay, each tree's real pair the real loop and end to end after landing, and each tree's campaign pair its sweeps' fresh seeds after landing. Written from `temper/docs/design/draft/test-budgets.md`, 4 and 7, and, for the campaign pairs, `temper/docs/design/draft/fuzzy-campaigns.md`, 5.2.
 
 ## 1. In one page
 
@@ -8,9 +8,10 @@ Provisional, 2026-11-21. Which layer of the pyramid each test binary is in: `too
 - **Every test binary is in one layer,** since CPU is measured per process and a process runs one binary's tests (`tools/tiers/design.md`, 11). A binary's tests are of its layer (the strategy's 8.1), and a binary of the real loop or end to end holds no test that replays (section 6.1).
 - **By rule, with no line:** a library's own tests and a binary's own are step tests; every binary of a package outside the five trees is the repository's checks (section 4).
 - **Every other binary has a line** in `tools/tiers/layers.toml`: its id and its layer, under its tree's table, as its tree's testing document places it (sections 5 and 6).
-- **A boundary check keeps the table whole** (section 7): from `cargo metadata`, which builds nothing, every test binary has its layer, and every line names a binary that exists, in its own tree, at a layer the file names; and each tree's real pair names every real-loop and end-to-end line of the tree.
+- **A boundary check keeps the table whole** (section 7): from `cargo metadata`, which builds nothing, every test binary has its layer, and every line names a binary that exists, in its own tree, at a layer the file names; and each tree's real pair names every real-loop and end-to-end line of the tree, and its campaign pair only binaries that replay.
 - **The gate runs what replays** (section 9): `tools/tiers/one-process`, for the focused and fuzzy profiles, runs by default only the binaries of the layers that replay and the repository's checks, and judges only those layers; a caller asks for others with `--layers`.
 - **The real loop and end to end after landing** (section 9.2): each tree's pair `real-TREE` runs its real-loop and end-to-end tests that the focused and fuzzy suites select, as the after-landing tier runs every slow pair.
+- **Campaigns after landing** (section 9.3): a tree's pair `campaign-TREE` runs the fuzzy tests of the binaries, of layers that replay, whose sweeps take their cases from skein's seam, for `tools/tiers/campaign`.
 - **Who reads it:** the boundary check, the suites' summaries by layer, and one-process's choice of what to run (section 8).
 
 ## 2. The layers
@@ -110,6 +111,7 @@ A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/
 - a line whose layer the `layers` list doesn't name, a `layers` list with a name twice or without `step`, or anything at the top but that list and the trees' tables;
 - from `.config/nextest.toml`'s text, for a tree with a line at `real-loop` or `end-to-end`: no `[profile.real-TREE]`, or one whose `default-filter` doesn't name, by `binary_id(=ID)`, each such line of the tree, or names by `binary_id(=…)` an id that is no such line of the tree (section 9.2). A `real-TREE` profile for a tree with no such line is a finding too.
 - from `tools/tiers/packages.toml`, for each such tree: no `real-TREE` list, a package of one of those lines missing from it, or a package on it that is no such line's. The lines of binaries the slow tiers own by name, `browser_*`, `conformance_*`, `recorded_*`, `live` and `live_github`, need no package there, since the pair's clause leaves them out (section 9.2): the runner builds only the packages its list names, so a missing one's tests run nowhere.
+- from `.config/nextest.toml`'s text, for each `[profile.campaign-TREE]` (section 9.3): a TREE that is no tree; a `default-filter` that names no `binary_id(=…)`; an id it names that is no test binary of TREE's packages, or one placed at `real-loop` or `end-to-end`, by its line or unplaced. From `tools/tiers/packages.toml`, for each such profile: no `campaign-TREE` list, or one that doesn't hold exactly the packages of the ids its filter names; and no `campaign-TREE` list in `[binaries]`.
 - from `tools/tiers/packages.toml`'s `[binaries]` table: a pair's list not sorted and unique by package then binary, which the runner refuses before any command (`tools/tiers/design.md`, 2.1).
 
 The check passes with no finding. Its findings are computed from the metadata's, the table's and the configuration's text, so its own tests run it on small fixtures of each, and once on the workspace's.
@@ -118,7 +120,7 @@ The check passes with no finding. Its findings are computed from the metadata's,
 
 - **The boundary check** (section 7).
 - **The suites' summaries:** `tools/tiers/one-process` places each binary it runs by the file and section 4's rules, as the check does, and sums CPU by tree, suite and layer (`tools/tiers/budgets.md`, 3 and 4).
-- **What a run runs:** one-process leaves out the binaries of the layers its run doesn't run (section 9), and a real pair's summary places its tests' binaries by the file (`tools/tiers/budgets.md`, 4.2).
+- **What a run runs:** one-process leaves out the binaries of the layers its run doesn't run (section 9), and a real or campaign pair's summary places its tests' binaries by the file (`tools/tiers/budgets.md`, 4.2).
 - **The budgets:** `tools/tiers/budgets.toml`'s gate tables name their layers from the file's `layers` list (`tools/tiers/budgets.md`, 2).
 
 ## 9. The layers a run runs
@@ -146,6 +148,18 @@ The real loop and end to end don't stop running: each tree with a line at `real-
 - **Its settings:** `junit = { path = "junit.xml" }`, as every pair writes its report, and no `global-timeout`, `slow-timeout` or `test-threads` of its own: it takes `[profile.default]`'s, 810 s and a 6 s period, and its overrides after its own, until the user sets the pair's figures. Its macOS overrides double its Linux slow periods, as every profile's do (`temper/docs/design/testing/macos.md`, 7).
 - **Its packages** in `tools/tiers/packages.toml`: the packages of the binaries it selects tests from, sorted, as the map is generated (`tools/tiers/design.md`, 1 and 6), and the boundary check holds the list to the tree's lines (section 7). Its `[binaries]` list holds what its tree's `[test-binaries]` list holds, since the tests that run another package's program are its own now: `smith-fake-claude`'s `fake-claude` for `real-smith`, an empty list for the others.
 - **Its budgets** are the tree's `real-loop` and `end-to-end` ceilings of both suites in `tools/tiers/budgets.toml`'s gate tables, reported by its runs as warnings, never red (draft, 11; `tools/tiers/budgets.md`, 4.2). It has no table of its own; a table the user adds later applies as any pair's.
+
+### 9.3 The campaign pairs
+
+A campaign runs a tree's fuzzy sweeps with fresh seeds after landing, in rounds of the tree's pair `campaign-TREE`, run by `tools/tiers/campaign` (`tools/tiers/campaign.md`) through `tools/tiers/run TREE campaign` as every pair is run (`temper/docs/design/draft/fuzzy-campaigns.md`, 5.2).
+
+- **What it runs:** the tests that the fuzzy profile selects in the binaries it lists. Its `[profile.campaign-TREE]` in `.config/nextest.toml` has the `default-filter` `(FUZZY)` and'ed with `binary_id(=ID) | …`, FUZZY a copy of the tree's clause of `[profile.fuzzy]`'s `default-filter`, as a real pair copies it (section 9.2): a change to the clause changes its copy here too.
+- **The binaries it lists** are of layers that replay (section 9.1), and their sweeps take their cases from skein's seam (`skein/docs/design/testing/sweeps.md`, 4.2). A binary of the real loop or end to end is never listed, since a case there doesn't replay, and the boundary check holds the list to the table (section 7). A world lists its binary in the change that adopts the seam, and a tree's pair comes with its first. A listed binary's other fuzzy tests run as the gate runs them, and a round names each with its time (`tools/tiers/campaign.md`, 3); a binary whose fixed tests outweigh its sweeps moves them to a binary of their own, or stays off the list.
+- **temper's,** `campaign-temper`, lists `temper-engine-domain-world::suite`, whose walking sweep is the first to take its cases from the seam (`temper/tests/engine/domain/tests/suite/fuzzy/walking.rs`). No other tree has a pair yet.
+- **Its settings:** `junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }`, since a campaign reads the seam's lines in passing tests' output too, and no `global-timeout`, `slow-timeout` or `test-threads` of its own: it takes `[profile.default]`'s, 810 s and a 6 s period, until the user sets the campaign's wall (the draft, 5.3). Its macOS overrides double its Linux slow periods, as every profile's do (`temper/docs/design/testing/macos.md`, 7).
+- **Its packages** in `tools/tiers/packages.toml`: the packages of the binaries it lists, sorted, generated and verified as every pair's are (`tools/tiers/design.md`, 1 and 6), and the boundary check holds the list to the filter's ids (section 7). Its `[binaries]` list holds the programs of other packages its tests run, an empty list for temper's.
+- **Its budgets** are the tree's fuzzy ceilings for each layer, reported by its runs as warnings, never red (`tools/tiers/budgets.md`, 4.2). It has no table of its own.
+- **Not in the after-landing tier's list:** campaigns run once a day, on a builder apart from the gate (the user, 11-26), and by hand until a runner runs them (`tools/tiers/campaign.md`, 8).
 
 ## 10. Later
 
