@@ -4154,6 +4154,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         State::Answered { seconds: 3 },
         State::Failed { why: Why::Refused },
         State::Failed { why: Why::Waited },
+        State::Limited { reset: None },
+        State::Limited { reset: Some(skein_lib::Wall::from_nanos(u64::MAX)) },
         State::Failed { why: Why::Ended { class: Class::Transient } },
         State::Failed { why: Why::Ended { class: Class::Infrastructure } },
         State::Failed { why: Why::Ended { class: Class::Permanent } },
@@ -4168,6 +4170,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         w::TrialState::Answered(w::TrialAnswered { seconds: 3 }),
         w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Refused }),
         w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }),
+        w::TrialState::Limited(w::TrialLimited { reset: None }),
+        w::TrialState::Limited(w::TrialLimited { reset: Some(u64::MAX) }),
     ];
     for (index, state) in states.into_iter().enumerate() {
         let rows = Box::new([
