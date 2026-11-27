@@ -557,7 +557,7 @@ fn an_operation_on_sockets_never_answers_a_files_error() {
 fn the_operations_on_files_are_those_on_names_beneath_a_root() {
     let files = [
         false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true,
-        true, true, true, true, false, false, false, false, false, false, false, false, true,
+        true, true, true, true, true, false, false, false, false, false, false, false, false, true,
     ];
     assert_eq!(every_op().len(), files.len(), "the classification table covers every fixture");
     for (op, file) in every_op().into_iter().zip(files) {
