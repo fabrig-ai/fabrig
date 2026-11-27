@@ -66,11 +66,10 @@ impl World {
         }
     }
 
-    pub(super) fn answer_workload_questions(&mut self, tasks: &[tasks::ViewTask]) {
+    pub(super) fn answer_workload_questions(&mut self) {
         let mut answers = Vec::new();
         let story = self.workload.as_ref().expect("workload");
-        for view in tasks {
-            let row = self.root.tasks().task(view.number).expect("view task");
+        for row in self.workload_tasks() {
             if !matches!(row.executor, tasks::Executor::Person(_)) || story.answered.contains(&row.number) {
                 continue;
             }
@@ -145,17 +144,16 @@ impl World {
         }
     }
 
-    pub(super) fn latch_workload(&mut self, tasks: &[tasks::ViewTask]) {
+    pub(super) fn latch_workload(&mut self) {
         let story = self.workload.as_ref().expect("workload");
         if story.latch.is_some_and(|latch| story.answered.contains(&latch)) {
             return;
         }
         let goal = self.workload().goals.iter().find(|goal| goal.train).expect("train");
         let marker = format!("@latch:{}@", goal.name);
-        let latch = tasks.iter().find_map(|view| {
-            let row = self.root.tasks().task(view.number)?;
-            row.spec.words.starts_with(marker.as_bytes()).then_some((row.number, row.revisions.spec))
-        });
+        let latch = self
+            .workload_tasks()
+            .find_map(|row| row.spec.words.starts_with(marker.as_bytes()).then_some((row.number, row.revisions.spec)));
         let Some((latch, revision)) = latch else { return };
         let goal = goal.clone();
         self.workload.as_mut().expect("workload").latch = Some(latch);

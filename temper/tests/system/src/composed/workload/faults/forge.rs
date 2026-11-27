@@ -822,29 +822,36 @@ impl World {
     }
 
     fn observe_gate_call(&self, f: &mut Faults, op: &api::Op) {
-        let runs = self.gate_runs();
         let retry = match op {
             api::Op::Write(api::Write::Rerun { attempt }) => {
                 if !f.retries.insert((attempt.run, attempt.job, attempt.attempt)) {
                     return;
                 }
-                runs.iter().find(|run| run.id == attempt.run)
+                self.gate_runs().into_iter().find(|run| run.id == attempt.run)
             }
-            api::Op::Write(api::Write::Dispatch { inputs, .. }) => runs
-                .iter()
-                .filter(|run| {
-                    run.inputs.iter().any(|old| {
-                        old.0.as_ref() == b"temper_key"
-                            && inputs.iter().any(|input| input.name == old.0 && input.value == old.1)
+            api::Op::Write(api::Write::Dispatch { inputs, .. }) => {
+                let faults = f
+                    .ledger
+                    .entries()
+                    .iter()
+                    .filter(|fault| matches!(fault.kind, temper_blame::LOST | temper_blame::SET_UP));
+                if faults.clone().next().is_none() {
+                    return;
+                }
+                self.gate_runs()
+                    .into_iter()
+                    .filter(|run| {
+                        run.inputs.iter().any(|old| {
+                            old.0.as_ref() == b"temper_key"
+                                && inputs.iter().any(|input| input.name == old.0 && input.value == old.1)
+                        })
                     })
-                })
-                .filter(|run| {
-                    f.ledger.entries().iter().any(|fault| {
-                        matches!(fault.kind, temper_blame::LOST | temper_blame::SET_UP)
-                            && fault.struck.gate_run == Some(run.id.to_string())
+                    .filter(|run| {
+                        let id = run.id.to_string();
+                        faults.clone().any(|fault| fault.struck.gate_run.as_ref() == Some(&id))
                     })
-                })
-                .max_by_key(|run| run.id),
+                    .max_by_key(|run| run.id)
+            }
             _ => None,
         };
         if let Some(run) = retry {

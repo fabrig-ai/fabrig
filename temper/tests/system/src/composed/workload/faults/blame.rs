@@ -115,9 +115,11 @@ impl World {
         let runs = self.gate_runs();
         let missing = self.workload_missing_report(f, &runs);
         for run in runs {
+            // A commit's tree cannot change between failed runs. A missing
+            // report is not evidence for judging that tree yet.
             if run.conclusion != Some(raw::Conclusion::Failure)
-                || f.wrong.contains(&run.commit)
                 || Some(run.id) == missing
+                || !f.judged_red_trees.insert(run.commit)
             {
                 continue;
             }
@@ -126,7 +128,6 @@ impl World {
                 tree.get(super::super::setup::marker(change).as_bytes()).is_some_and(|bytes| !bytes.is_empty())
             });
             if wrong {
-                f.wrong.insert(run.commit);
                 let entry = f.ledger.inject(
                     WRONG_TREE,
                     self.env.now,

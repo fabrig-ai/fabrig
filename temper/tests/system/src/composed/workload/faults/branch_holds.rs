@@ -39,7 +39,7 @@ impl World {
         defer
     }
 
-    pub(in crate::composed::workload) fn release_branch_load(&mut self, tasks: &[tasks::ViewTask]) {
+    pub(in crate::composed::workload) fn release_branch_load(&mut self) {
         let Some(admission) = self.workload_faults.as_ref().and_then(|f| f.branch_holds.as_ref()) else { return };
         // Restored task rows can precede restored holds. Read both only once
         // the root has opened.
@@ -47,8 +47,7 @@ impl World {
             return;
         }
         let story = self.workload.as_ref().expect("workload");
-        let ready = tasks.iter().find_map(|view| {
-            let row = self.root.tasks().task(view.number)?;
+        let ready = self.workload_tasks().find_map(|row| {
             let tasks::Party::Task(owner) = row.requester else { return None };
             if !row.spec.words.starts_with(ROOM_CUE.as_bytes()) || story.answered.contains(&row.number) {
                 return None;

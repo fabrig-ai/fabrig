@@ -125,7 +125,7 @@ pub(in crate::composed) struct Faults {
     retries: BTreeSet<(u64, u64, u32)>,
     repairs: BTreeSet<u64>,
     holds: BTreeSet<String>,
-    wrong: BTreeSet<u64>,
+    judged_red_trees: BTreeSet<u64>,
     missing_report: Option<blame::MissingReport>,
     bounds: Vec<Kind>,
     branch_holds: Option<BTreeMap<u64, branch_holds::Load>>,
@@ -210,7 +210,7 @@ impl Faults {
             retries: BTreeSet::new(),
             repairs: BTreeSet::new(),
             holds: BTreeSet::new(),
-            wrong: BTreeSet::new(),
+            judged_red_trees: BTreeSet::new(),
             missing_report: missing_report.then_some(blame::MissingReport::Waiting),
         }
     }

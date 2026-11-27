@@ -261,13 +261,17 @@ impl World {
         self.discover_workload_names();
         self.link_workload_changes();
         self.prepare_workload_questions();
-        // Enqueuing the scripts' requests does not change the task projection.
-        let tasks = self.root.tasks().view_tasks();
-        self.answer_workload_questions(&tasks);
-        self.workload_answer_park(&tasks);
-        self.latch_workload(&tasks);
-        self.release_branch_load(&tasks);
+        // These scripts enqueue requests without changing the live rows.
+        self.answer_workload_questions();
+        self.workload_answer_park();
+        self.latch_workload();
+        self.release_branch_load();
         self.workload_comparison_tick();
+    }
+
+    fn workload_tasks(&self) -> impl Iterator<Item = &tasks::TaskRecord> {
+        let tasks = self.root.tasks();
+        std::iter::successors(tasks.inspection_task_after(None), |row| tasks.inspection_task_after(Some(row.number)))
     }
 
     fn discover_workload_names(&mut self) {
