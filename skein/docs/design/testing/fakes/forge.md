@@ -248,6 +248,10 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   became ready, and runs its span from taking one; it holds its runner
   until it completes, is lost or is cancelled. Commit statuses' CI is
   outside it. An image keeps none: a restored waiting job is runnable.
+- **A silent workflow:** `scenario::set_workflow_silent(domain, repository,
+  file, silent)` sets the workflow's `silent` chance per mille. Jobs that
+  have already started keep their scheduling decision; a world can set the
+  chance for a dispatch and clear it for the next one.
 - **Lagging views** (temper's `draft/failure-worlds.md`, 4.1):
   `scenario::lag(domain, Lag { chance, min, max })`, `chance` per
   mille, none by default. When a write moves a branch, each open pull

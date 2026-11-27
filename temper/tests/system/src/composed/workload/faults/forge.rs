@@ -12,6 +12,7 @@ use temper_engine_forge_world::{open, translate::commit};
 use temper_worker_checkout_world::forge::Move;
 
 pub(super) const REMOTE: &[u8] = b"org/repo";
+const OUTSIDE_USER: u64 = 2;
 const UNAVAILABLE_SPAN: Duration = Duration::from_secs(2);
 const LIMITED_SPAN: Duration = Duration::from_secs(2);
 const LAG: fake::Lag = fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) };
@@ -179,6 +180,16 @@ impl World {
                 f.fire(temper_blame::SET_UP);
                 config.setup_faults = 1000;
             }
+        }
+        if config.lost == 0
+            && config.setup_faults == 0
+            && f.due(temper_blame::SILENT)
+            && let api::Op::Write(api::Write::Dispatch { branch, workflow, .. }) = op
+            && self.branch_goal(branch) == f.target(temper_blame::SILENT)
+        {
+            // This workflow's job decides whether to report as it starts.
+            fake::set_workflow_silent(self.forge.domain_mut(), REMOTE, workflow, 1000);
+            f.silent_workflow = Some(workflow.clone());
         }
         if f.due(stale::MOVED_BASE)
             && let api::Op::Write(api::Write::Merge { number, .. }) = op
@@ -486,6 +497,9 @@ impl World {
 
     pub(in crate::composed) fn workload_forge_answer(&mut self, _op: &api::Op) {
         let Some(mut f) = self.workload_faults.take() else { return };
+        if let Some(workflow) = f.silent_workflow.take() {
+            fake::set_workflow_silent(self.forge.domain_mut(), REMOTE, &workflow, 0);
+        }
         self.copy_workload_forge_faults(&mut f);
         self.record_workload_reds(&mut f);
         if let Some((job, step, log, entry)) = f.log_restore.take() {
@@ -559,12 +573,58 @@ impl World {
                     ..Struck::default()
                 },
             );
+            if kind == temper_blame::SILENT {
+                assert_eq!(
+                    fell.commit.and_then(|commit| self.candidate_goal(commit)),
+                    f.target(kind),
+                    "ci/silent must strike its planned goal"
+                );
+                f.fire(kind);
+                f.silent_run = Some((fell.run.expect("silent workflow run"), entry));
+                continue;
+            }
             f.ledger.stop(entry, until).expect("fake forge interval");
             f.stopped(until);
         }
     }
 
+    fn release_silent_gate(&mut self, f: &mut Faults) {
+        let Some((run, injection)) = f.silent_run else { return };
+        let held = self.workload_landings().find_map(|row| {
+            use temper_engine_domain_forge_landing::{Hold, Phase};
+            let Phase::Held { why: Hold::Timeout { run: timed_out, member, .. }, .. } = row.landing.phase else {
+                return None;
+            };
+            if timed_out != run {
+                return None;
+            }
+            let task = self.workload_live_task(row.landing.task)?;
+            if !matches!(task.phase, tasks::Phase::Held { why, .. } if !matches!(why, tasks::Hold::Placed { .. })) {
+                return None;
+            }
+            let goal = self.task_goal(row.landing.members[usize::from(member)].change)?;
+            let party = self.workload().goals.iter().find(|drawn| drawn.name == goal)?.party;
+            Some((task.number, task.revisions.hold, party))
+        });
+        if let Some((task, revision, party)) = held {
+            // A release follows the old run until it ends (landing-proof.md, 2.1).
+            // Only now that the real timeout held the landing, end its silent run.
+            self.forge.at(self.env.now);
+            assert_ne!(OUTSIDE_USER, self.forge_binding.user);
+            assert_eq!(
+                self.forge.api(REMOTE, OUTSIDE_USER, raw::Op::Write(raw::Write::Cancel { run })),
+                Ok(raw::Answer::Done),
+                "cancel the still-running silent gate"
+            );
+            f.ledger.stop(injection, self.env.now).expect("silent gate reached its timeout");
+            f.stopped(self.env.now);
+            f.silent_run = None;
+            self.workload_enqueue(party, people::Ask::Release { project: 1, task, revision, again: None });
+        }
+    }
+
     pub(super) fn workload_forge_tick(&mut self, f: &mut Faults) {
+        self.release_silent_gate(f);
         if f.due(kinds::HEAD_BEHIND) {
             f.fire(kinds::HEAD_BEHIND);
             fake::lag(self.forge.domain_mut(), LAG);

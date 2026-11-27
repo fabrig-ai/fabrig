@@ -57,8 +57,12 @@ impl World {
         let streams = Streams::new(seed);
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
-        let config = setup::config(scheduling, &workload);
         let draw = (!kinds.is_empty()).then(|| faults::FaultDraw::for_workload(seed, &workload, kinds));
+        let mut config = setup::config(scheduling, &workload);
+        if draw.as_ref().is_some_and(faults::FaultDraw::plans_silent_gate) {
+            // Let the real timeout hold the landing within the workload's bound.
+            temper_engine_domain_world::oracle::config::landing(&mut config, 1).gate_timeout_ms = 60_000;
+        }
         let planned_bounds = draw.as_ref().map_or(&[][..], faults::FaultDraw::bounds);
         let world = Self::configured_values(scheduling, scripts::idle(), true, config, |limits| {
             setup::limits(limits, planned_bounds);

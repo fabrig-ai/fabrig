@@ -578,6 +578,49 @@ fn merge_late_draws_its_own_coin_train_and_moment() {
 }
 
 #[test]
+fn silent_draws_its_own_coin_goal_and_moment() {
+    use temper_blame::SILENT;
+    assert!(!GATE_KINDS.contains(&SILENT));
+    assert!(CAMPAIGN_KINDS.contains(&SILENT));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != SILENT).collect();
+    let mut targets = BTreeSet::new();
+    let mut skipped = false;
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != SILENT).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: other injection plans"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|(kind, _)| *kind != SILENT).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}: other planned goals"
+        );
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}");
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}");
+
+        let mut rng = streams.rng(Stream::Faults, "ci/silent");
+        let expected = (rng.below(2) != 0).then(|| {
+            let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
+                .expect("goal index");
+            targets.insert(index);
+            (workload.goals[index].name.as_str(), rng.below(16))
+        });
+        skipped |= expected.is_none();
+        let planned: Vec<_> =
+            draw.plans.iter().filter(|plan| plan.kind == SILENT).map(|plan| (plan.goal.as_str(), plan.after)).collect();
+        assert_eq!(planned, expected.as_slice(), "seed {seed}: ci/silent coin, goal and moment");
+    }
+    assert!(skipped, "silence is skipped on a losing coin");
+    assert_eq!(targets.len(), usize::from(COMPOSED.goals.most), "silence can strike any goal");
+}
+
+#[test]
 fn close_refused_draws_its_own_coin_target_and_moment() {
     use forge_faults::CLOSE_REFUSED;
 

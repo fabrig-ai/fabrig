@@ -28,6 +28,7 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     (forge_faults::CLOSE_REFUSED, |_| true),
     // ci
     (temper_blame::SET_UP, |_| true),
+    (temper_blame::SILENT, |_| true),
     (temper_blame::MISSING_REPORT, has_red_change),
     // provider
     (skein_llm_kit::faults::SPENT_CREDITS, |_| true),
@@ -167,6 +168,10 @@ impl FaultDraw {
             read_latency: Duration::from_millis(streams.rng(Stream::Scheduling, "system").between(1000, 1500)),
             release_configured: kinds.contains(&people::RELEASES_A_MEMBER),
         }
+    }
+
+    pub(in crate::composed::workload) fn plans_silent_gate(&self) -> bool {
+        self.plans.iter().any(|plan| plan.kind == temper_blame::SILENT)
     }
 
     pub(in crate::composed::workload) fn bounds(&self) -> &[Kind] {

@@ -183,6 +183,21 @@ pub fn refuse_close(domain: &mut Domain, repository: &[u8], number: u64, refused
     }
 }
 
+/// Sets the per-mille chance that a job of this workflow never reports.
+/// A job already running keeps the scheduling decision made when it started.
+pub fn set_workflow_silent(domain: &mut Domain, repository: &[u8], file: &[u8], silent: u32) {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let mut selected = None;
+    for workflow in &mut repository.workflows {
+        if workflow.file.as_ref() == file {
+            selected = Some(workflow);
+            break;
+        }
+    }
+    selected.expect("a configured workflow").silent = silent;
+}
+
 /// Limits simultaneous dispatched jobs across the forge; `None` removes the pool.
 /// Existing jobs keep their runner until they end (testing/fakes/forge.md, 2.3).
 pub fn runners(domain: &mut Domain, runners: Option<u32>) {

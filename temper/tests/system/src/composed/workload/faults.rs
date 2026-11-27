@@ -57,6 +57,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // ci
     temper_blame::WRONG_TREE,
     temper_blame::SET_UP,
+    temper_blame::SILENT,
     temper_blame::MISSING_REPORT,
     // stale
     // provider
@@ -102,6 +103,9 @@ pub(in crate::composed) struct Faults {
     close_permission_restored: Option<u64>,
     restored: Option<u64>,
     stale_release: Option<u64>,
+    silent_workflow: Option<Box<[u8]>>,
+    silent_run: Option<(u64, Injection)>,
+    silent_timeout: Option<u64>,
     settling: Option<String>,
     opening: Option<Injection>,
     rejoining: Option<usize>,
@@ -183,6 +187,9 @@ impl Faults {
             close_permission_restored: None,
             restored: None,
             stale_release: None,
+            silent_workflow: None,
+            silent_run: None,
+            silent_timeout: None,
             settling: None,
             opening: None,
             rejoining: None,
@@ -323,6 +330,18 @@ impl World {
                 || entry.count(Counter::Repairs) != 0)
         {
             return Err(format!("seed {}: ci/set_up must fall once and be retried without repair", f.seed));
+        }
+        if let Some(entry) = f.ledger.entries().iter().find(|entry| entry.kind == temper_blame::SILENT) {
+            let held_run = f.silent_timeout.map(|run| run.to_string());
+            if held_run.is_none() || held_run != entry.struck.gate_run || entry.count(Counter::Repairs) != 0 {
+                return Err(format!(
+                    "seed {}: ci/silent on run {:?} must explain a runner timeout hold without repair; saw hold on {:?}, {} repairs",
+                    f.seed,
+                    entry.struck.gate_run,
+                    held_run,
+                    entry.count(Counter::Repairs)
+                ));
+            }
         }
         if let Some(entry) = f.ledger.entries().iter().find(|entry| entry.until.is_none()) {
             return Err(format!("{:?} has no last moment", entry.kind));

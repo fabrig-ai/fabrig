@@ -90,7 +90,7 @@ pub use observe::{Branches, Observation, Operation};
 pub use scenario::{
     Lag, advance, check, commit, commit_tree, grant, lag, manual_merges, merge_commit, omit_report_once, refuse_close,
     repository, reset_branch, retarget_pull, root_commit, runners, set_failing, set_job_log, set_opening,
-    set_reachable, set_refusing, settings, unborn_repository,
+    set_reachable, set_refusing, set_workflow_silent, settings, unborn_repository,
 };
 pub use trees::blob_id;
 

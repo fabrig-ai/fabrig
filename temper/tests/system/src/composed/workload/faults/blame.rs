@@ -88,6 +88,11 @@ impl World {
                     });
                     let identity = format!("{}:{run:?}", row.landing.task);
                     if f.holds.insert(identity) {
+                        if let landing::Hold::Timeout { run, .. } = why
+                            && f.silent_run.is_some_and(|(silent, _)| silent == run)
+                        {
+                            f.silent_timeout = Some(run);
+                        }
                         f.reactions.push(Observed {
                             at: self.env.now,
                             reaction: Reaction::Hold {
