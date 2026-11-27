@@ -5,6 +5,11 @@
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.
+  3, 5, 6, 9: `ops`'s root routing connectors' asks and releases one arm
+  per connector, translating none [in flight: change 21660].
+  3, 5, 6, 9: the test root doing the same [in flight: change 21661].
+  3, 5, 6, 9: temper's root doing the same for its forge
+  [in flight: change 21662].
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks
