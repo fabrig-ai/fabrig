@@ -377,6 +377,94 @@ fn merged_template_choices_outside_the_effective_charter_are_refused() {
     }
 }
 
+#[test]
+fn settings_changes_and_restore_check_retained_template_speeds() {
+    use crate::settings::{self as s, Changed, Edit, Failure, Fault, Item, Setting, Value};
+
+    for (speed, accepted) in [(b"fast".as_slice(), true), (tasks::STANDARD_SPEED, true), (b"priority", false)] {
+        let (mut config, limits) = super::charters::with_model_speeds();
+        config.defaults.templates = Box::new([template()]);
+        config.defaults.charters[0].policy.resume = false;
+        config.defaults.models = Box::default();
+        let current = s::Current::new(config.defaults.clone(), &limits, &[]);
+        let choice = with_later(
+            FIRST_CHOICE,
+            tasks::ModelEffort { speed: skein_lib::Name::from_checked(speed), ..FIRST_CHOICE },
+        );
+        let value = Value::Template(Box::new(Template {
+            executor: people::TemplateExecutor::Charter(PROJECT),
+            llm: Some(choice.clone()),
+            ..template()
+        }));
+        let setting = Setting::Template(PROJECT);
+        let failure = Failure { setting, fault: Fault::Reference, detail: None };
+        let items = [Item { setting, edit: Edit::Set(value.clone()) }];
+        assert_eq!(
+            s::check_change(&current, &items, &config.settings, &config.connectors, &limits),
+            if accepted { Ok(()) } else { Err(failure) },
+            "change with {speed:?}",
+        );
+
+        let mut core = new_core(config, &limits).unwrap();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let _begin = core.start_begin(false, env.wall);
+        let mut head = core.current.newest_head().clone();
+        head.against = 1;
+        head.number = 2;
+        assert!(core.restore_setting(
+            s::Record::Revision {
+                history: false,
+                revision: s::Revision { head, items: Box::default(), applications: Box::default() },
+            },
+            &limits,
+        ));
+        assert!(core.restore_setting(
+            s::Record::Changed { setting, changed: Changed { value: Some(value), revision: 2 } },
+            &limits,
+        ));
+        assert_eq!(core.settings_restored(&env), accepted, "restore with {speed:?}");
+        if accepted {
+            assert_eq!(core.current.template(PROJECT).unwrap().llm, Some(choice));
+        } else {
+            assert_eq!(core.start_failure(), Some(crate::start::Failure::Settings { failure, changed: true }));
+        }
+    }
+}
+
+#[test]
+fn a_policy_override_checks_the_speed_in_the_resolved_charter() {
+    let (mut core, limits) = make_tree();
+    let mut catalogue_model = scripted_model();
+    speed_example(&mut catalogue_model);
+    // Keep the catalogue choice valid, so only the effective charter distinguishes the cases.
+    core.settings.models = Box::new([catalogue_model.clone()]);
+    for (speed, model, accepted) in [
+        (b"fast".as_slice(), catalogue_model, true),
+        (tasks::STANDARD_SPEED, scripted_model(), true),
+        (b"fast", scripted_model(), false),
+    ] {
+        let mut charter = core.charter(PROJECT).unwrap().clone();
+        charter.policy.model = model;
+        core.current.resolved.insert(PROJECT, charter).unwrap();
+        let choice =
+            choice(FIRST_CHOICE, &[tasks::ModelEffort { speed: skein_lib::Name::from_checked(speed), ..FIRST_CHOICE }]);
+        core.current.test_templates(Box::new([Template { llm: Some(choice.clone()), ..template() }]));
+        let overrides = Box::new([executor_override(PROJECT)]);
+        let change = people::PolicyChange::Templates { overrides };
+        let before = template_policy(&core);
+        let outcome = core.change_policy(&limits, OWNER, PROJECT, change);
+        if accepted {
+            assert!(outcome.is_ok(), "declared speed or standard: {speed:?}");
+            let merged = core.project_templates(PROJECT);
+            assert_eq!(merged[0].executor, people::TemplateExecutor::Charter(PROJECT));
+            assert_eq!(merged[0].llm, Some(choice));
+        } else {
+            assert_eq!(outcome, Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape }));
+            assert_eq!(template_policy(&core), before);
+        }
+    }
+}
+
 fn template_core() -> (Core, Limits) {
     let (mut core, limits) = make_tree();
     let configured = template_settings();

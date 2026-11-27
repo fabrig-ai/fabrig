@@ -359,7 +359,7 @@ pub static SHAPES: [Shape; 66] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 286] = [
+pub static MEMBERS: [Member; 287] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1968,7 +1968,7 @@ pub static MEMBERS: [Member; 286] = [
         kind: "model-effort",
         bound: "",
         required: true,
-        line: "Chooses the main model and its effort.",
+        line: "Chooses the main model, its effort and optionally its speed.",
         gone: None,
     },
     Member {
@@ -1977,7 +1977,7 @@ pub static MEMBERS: [Member; 286] = [
         kind: "list of model-effort",
         bound: "64 models; no model twice",
         required: true,
-        line: "Chooses the models and efforts the run's sub-agents may use.",
+        line: "Chooses the models, efforts and optional speeds the run's sub-agents may use.",
         gone: None,
     },
     Member {
@@ -1986,7 +1986,7 @@ pub static MEMBERS: [Member; 286] = [
         kind: "llm-later",
         bound: "",
         required: false,
-        line: "Gives the models and efforts for runs after the first activation.",
+        line: "Gives the models, efforts and optional speeds for runs after the first activation.",
         gone: None,
     },
     Member {
@@ -1995,7 +1995,7 @@ pub static MEMBERS: [Member; 286] = [
         kind: "model-effort",
         bound: "",
         required: true,
-        line: "Names the main model and its effort for later runs.",
+        line: "Names the main model, its effort and optionally its speed for later runs.",
         gone: None,
     },
     Member {
@@ -2004,7 +2004,7 @@ pub static MEMBERS: [Member; 286] = [
         kind: "list of model-effort",
         bound: "64; each model once",
         required: true,
-        line: "Names each model later runs may delegate to, with its effort.",
+        line: "Names each model later runs may delegate to, with its effort and optional speed.",
         gone: None,
     },
     Member {
@@ -2023,6 +2023,15 @@ pub static MEMBERS: [Member; 286] = [
         bound: "32 bytes; null only when the model takes none",
         required: true,
         line: "Names an effort the model takes, or none for a model without efforts.",
+        gone: None,
+    },
+    Member {
+        shape: "model-effort",
+        name: "speed",
+        kind: "text",
+        bound: "32 bytes; a declared speed or standard",
+        required: false,
+        line: "Names a speed the model declares, or standard; omitted takes the charter's resolved speed.",
         gone: None,
     },
     Member {

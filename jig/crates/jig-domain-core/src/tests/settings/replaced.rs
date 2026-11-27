@@ -111,6 +111,27 @@ fn a_revision_records_what_each_item_replaced() {
 }
 
 #[test]
+fn changing_only_a_charters_speed_makes_its_next_version() {
+    let (config, limits) = super::charters::with_model_speeds();
+    let mut core = seeded_core(config, &limits).unwrap();
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    make_task(&mut core, &limits, 1);
+    assert_eq!(core.charter_at(1, 1).unwrap().policy.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
+
+    let setting = s::Setting::Charter(1);
+    let mut value = core.current.value(setting).unwrap().as_charter().unwrap().clone();
+    value.policy.model.speed = Some(tasks::STANDARD_SPEED.into());
+    let value = s::Value::Charter(Box::new(value));
+    let revision =
+        commit(&mut core, &limits, Box::new([s::Item { setting, edit: s::Edit::Set(value.clone()) }]), Box::default());
+    assert_eq!(revision.head.number, 2);
+    assert_eq!(core.current.lookup(setting), (Some(&value), Some((true, 2))));
+    assert_eq!(core.charter_at(1, 2).unwrap().policy.model.speed, None);
+    assert_eq!(core.charter_at(1, 1).unwrap().policy.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
+}
+
+#[test]
 fn a_release_revision_records_its_items_as_default() {
     let configured = config(41);
     let limits = limits();
