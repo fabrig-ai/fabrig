@@ -52,5 +52,3 @@ deployment's lines, which no record shows.
   close kinds (`temper-worker-service/src/worker_settings.rs`,
   `job_kinds`), its prepare temper's own alone, and with neither the
   `Rewrite` delivery (`../../protocol/git-operations.md`, 1.10).
-- **Not yet:** 2: kind 1's `squash`: no head's message is read for a
-  member the request marks `head_trailers`. [in flight: change 21516]
