@@ -1,10 +1,14 @@
 //! Keep/Read round trips over the `every` texts and one-edit pairs (skein/docs/design/data/codec/layouts.md, 2 and 6).
+//! Each case keeps one stream across all draws (skein/docs/design/testing/sweeps.md, 4.2 and 4.5).
 
 use crate::support::generated;
+use core::convert::Infallible;
 use skein_codec::layout::{Misconverted, Mode, Plan, Refused, Underived, Why, Workspace};
 use skein_codec::schema::{self, DeclIx, FieldIx, Root, Schema, Shape, Type, VariantIx};
 use skein_codec::value::Value;
 use skein_lib::{Buffer, Rng};
+use skein_world::sweep::{Case, cases, gate};
+use skein_world::this_test;
 
 const EVERY: [&str; 3] = [
     include_str!("../../../../schema/every-v1.schema"),
@@ -141,6 +145,7 @@ impl<'a> Trip<'a> {
             return Drawn::Refused;
         }
         assert_eq!(converted, Ok(()), "{label} draw {round}: Keep conversion");
+        assert!(!matches!(self.expected, AllRefused(_)), "{label} draw {round}: expected Keep refusal");
         let target = scratch.out.to_boxed();
         assert!(accepts_root(self.to.schema, self.to.root, &target), "{label} draw {round}: target variant");
         let decoded = scratch.value.decode(self.to.schema, self.to.root.decl, target);
@@ -168,9 +173,17 @@ impl<'a> Trip<'a> {
 }
 
 #[test]
-fn shipped_every_layouts_round_trip_seeded_draws() {
+fn shipped_every_layouts_round_trip_seeded_draws() -> Result<(), Case<Infallible>> {
+    cases(this_test!("shipped_every_layouts_round_trip_seeded_draws"), [0x1A70_0750_0000_0003], |seed| {
+        check_shipped(seed);
+        Ok(())
+    })
+}
+
+fn check_shipped(stream_seed: u64) {
+    let at_gate = gate();
     let texts = EVERY.map(Text::parse);
-    let mut rng = Rng::new(0x1A70_0750_0000_0003);
+    let mut rng = Rng::new(stream_seed);
     let mut scratch = Scratch::new();
     for old in &texts {
         for new in &texts {
@@ -199,11 +212,15 @@ fn shipped_every_layouts_round_trip_seeded_draws() {
                             seen.record(trip.check(&mut bytes, &mut scratch, round));
                         }
                     }
-                    seen.check(expected, &label);
-                    any_round_trips |= seen.equal;
+                    if at_gate {
+                        seen.check(expected, &label);
+                        any_round_trips |= seen.equal;
+                    }
                 }
             }
-            assert!(any_round_trips, "every v{a} → v{b}: no root made a round trip");
+            if at_gate {
+                assert!(any_round_trips, "every v{a} → v{b}: no root made a round trip");
+            }
         }
     }
 }
@@ -396,8 +413,16 @@ fn edited(text: &str, (before, after): (&str, &str)) -> String {
 }
 
 #[test]
-fn edited_every_layouts_round_trip_seeded_draws() {
-    let mut rng = Rng::new(0x1A70_0750_0000_0004);
+fn edited_every_layouts_round_trip_seeded_draws() -> Result<(), Case<Infallible>> {
+    cases(this_test!("edited_every_layouts_round_trip_seeded_draws"), [0x1A70_0750_0000_0004], |seed| {
+        check_edited(seed);
+        Ok(())
+    })
+}
+
+fn check_edited(stream_seed: u64) {
+    let at_gate = gate();
+    let mut rng = Rng::new(stream_seed);
     let mut scratch = Scratch::new();
     for text in EVERY {
         let base = Text::parse(text);
@@ -424,7 +449,9 @@ fn edited_every_layouts_round_trip_seeded_draws() {
                     let mut bytes = generated::draw(&source.draw, edit.root, &mut rng);
                     seen.record(trip.check(&mut bytes, &mut scratch, round));
                 }
-                seen.check(expected, &label);
+                if at_gate {
+                    seen.check(expected, &label);
+                }
             }
         }
     }
