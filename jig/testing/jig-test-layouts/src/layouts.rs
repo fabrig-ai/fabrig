@@ -15,7 +15,8 @@ pub const CHILD_WRITTEN: &str = "family fixture-child 1\nversioned record Child 
 // A payload can fill the input without expanding; each item adds eight bytes on conversion.
 pub const BUFFER_KEPT: &str = "family fixture-layouts 2\nrecord Item { n: u8 }\nversioned record Growing { payload: bytes 100000, items: list 100000 Item }\n";
 pub const BUFFER_CURRENT: &str = "family fixture-layouts 2\nrecord Item { n: u8, added: u64 = 7 }\nversioned record Growing { payload: bytes 100000, items: list 100000 Item }\n";
-pub const PATCH: &str = "patch 1\nowner fixture-layouts 1\nfamily fixture-layouts 1 to 2\nwiden Growing.n u8 u16\n";
+pub const WRITTEN_NUMBER: &str = "family fixture-written 1\nversioned record Retyped { n: u32, label: text 16 }\n";
+pub const WRITTEN_TEXT: &str = "family fixture-written 1\nversioned record Retyped { n: text 10, label: text 16 }\n";
 pub const SETTLING_KEEPING: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { old: u16, choice: Choice, added: u8 }\nversioned record Stable { ok: bool }\n";
 pub const SETTLING_CONVERTING: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { old: u16, choice: Choice }\nversioned record Stable { ok: bool }\n";
 pub const SETTLING_DROPPING: &str = "family fixture-layouts 2\nenum Choice { kept, gone }\nversioned record Growing { n was old: u16, choice: Choice, added: u8 = 7 }\nversioned record Stable { ok: bool }\n";

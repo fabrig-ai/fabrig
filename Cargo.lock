@@ -2568,6 +2568,10 @@ dependencies = [
 [[package]]
 name = "jig-test-layouts"
 version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-test-profile"
