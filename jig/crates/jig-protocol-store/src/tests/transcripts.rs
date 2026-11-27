@@ -754,7 +754,7 @@ fn a_window_named_at_another_turn_reads_as_unread() {
     unread(&events);
 }
 #[test]
-fn an_engine_window_distinguishes_an_absent_start_from_a_failed_frame() {
+fn an_engine_window_with_an_absent_start_or_a_damaged_frame_is_unread() {
     let limits = Some(crate::WindowPage { row_bytes: 4096, bytes: 4096, turn_overhead: 32 });
     for damaged in [false, true] {
         let (mut store, mut disk) = readable(&pair());
@@ -768,12 +768,7 @@ fn an_engine_window_distinguishes_an_absent_start_from_a_failed_frame() {
         let (events, below) = ask(&mut store, 801, read, 2, 4096);
         assert!(events.is_empty());
         let events = answer_reads(&mut store, below, &disk, 4096);
-        if damaged {
-            let [Event::WindowFailed { owner }] = events.as_ref() else { panic!("damaged engine window: {events:?}") };
-            assert_eq!(*owner, Token::new(801));
-        } else {
-            unread(&events);
-        }
+        unread(&events);
     }
 }
 
@@ -966,6 +961,13 @@ fn the_bounded_table_holds_its_limit_of_reads_until_each_owners_terminal() {
         assert!(waiting.transcripts.is_empty());
     }
     assert_eq!(store.transcripts.reads.len(), store.limits.reads);
+    let refused = FIRST.checked_add(u64::from(store.limits.reads)).expect("fixture owner");
+    let limits = Some(crate::WindowPage { row_bytes: 4096, bytes: 4096, turn_overhead: 32 });
+    let read = crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None, limits };
+    let (events, waiting) = ask(&mut store, refused, read, 1, 4096);
+    let [Event::WindowFailed { owner }] = events.as_ref() else { panic!("window not admitted: {events:?}") };
+    assert_eq!(*owner, Token::new(refused));
+    assert!(waiting.transcripts.is_empty());
     for index in 0..store.limits.reads {
         let expected = Token::new(FIRST.checked_add(u64::from(index)).expect("fixture owner"));
         let mut terminal = false;

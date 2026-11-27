@@ -874,7 +874,7 @@ fn settle(store: &mut Store, owner: Token, mut read: Read, result: Result<bool, 
                     let result = party::finish(store, read, true);
                     reads::answer(store, owner, reads::ready(result), above);
                 }
-                None if read.window_page.is_some() => above.push(Event::WindowFailed { owner }),
+                // A frame that cannot be read makes the window unread, even after previous pages.
                 None => above.push(Event::Unread { owner }),
             }
         }

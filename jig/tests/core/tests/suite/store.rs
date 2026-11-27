@@ -253,7 +253,13 @@ fn a_ended_escalation_is_read_through_the_store() {
     world.restart(132, false);
     world.enable_tracing();
     release_escalation(&mut world, 65, task, revision);
-    assert!(world.trace.iter().any(|line| line.starts_with("output Now(EndedEscalation")), "ended store lookup");
+    let range =
+        core::engine::store::Range::Record(core::Key::Core(core::CoreKey::EscalationDecision { task, revision }));
+    let lookup = format!(", range: {range:?} }}))");
+    assert!(
+        world.trace.iter().any(|line| line.starts_with("output Deliver(Store(Load {") && line.ends_with(&lookup)),
+        "ended store lookup"
+    );
     assert_eq!(world.people_answers.last().cloned(), answer);
 }
 

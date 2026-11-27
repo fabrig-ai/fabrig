@@ -51,6 +51,36 @@ fn an_unread_closed_tail_continues_the_brief_without_counting() {
 }
 
 #[test]
+fn an_unread_closed_tail_discards_a_loaded_prefix_and_ends_the_load() {
+    use engine_store::{Answer, Failure, In, Rows};
+    let (mut core, limits) = unread_window(0, true);
+    let load = fixture_window(&mut core, 1, (1, 1));
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut work = Queue::with_capacity(2);
+    let turn = TurnRecord {
+        task: 1,
+        attempt: 1,
+        turn: 1,
+        spent: 0,
+        read: None,
+        opens_window: true,
+        at: Wall::EPOCH,
+        transcript: b"first turn".as_slice().into(),
+    };
+    let page =
+        Answer::Rows(Rows::Turns { turns: Box::new([(turn, Some(b"first turn".as_slice().into()))]), more: true });
+    assert!(loads::loaded(&mut core, &env, &mut work, In::Loaded { load, result: page }).is_empty());
+    assert!(work.is_empty());
+    assert!(loads::awaited(&core, load));
+    assert_eq!(core.transcripts.get(&1).unwrap().last, Some((1, 1)));
+
+    let terminal = In::Loaded { load, result: Answer::Failed(Failure::Unread) };
+    assert!(loads::loaded(&mut core, &env, &mut work, terminal).is_empty());
+    assert_fresh(&core, &mut work);
+    assert!(!loads::awaited(&core, load));
+}
+
+#[test]
 fn an_unread_open_window_after_a_transient_try_counts_once_and_closes() {
     assert_open_unread_counts(1);
 }
