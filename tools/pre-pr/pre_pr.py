@@ -445,7 +445,8 @@ def code_inputs(paths, data, root, *, local_manifests=False):
         # alone must not turn a package README into a build.
         if source or registered or (not documentation(path) and (
                 '.cargo' in Path(path).parts[:-1] or path.startswith(('.config/', 'tools/'))
-                or path in ('.temper/pre-pr', '.temper/goal-pre-pr', '.temper/goal-child-pre-pr')
+                or path in ('.temper/hooks/deliver', '.temper/hooks/finish', '.temper/pre-pr',
+                            '.temper/goal-pre-pr', '.temper/goal-child-pre-pr')
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
                 or owner(root / path, directories) is not None
@@ -1399,7 +1400,7 @@ def goal_checks(root, paths, env, errors, rerun):
                 warnings.append(warning)
             if any(error['name'].startswith('build') for error in found):
                 break
-    if '.temper/merge' in paths:
+    if any(path in paths for path in ('.temper/hooks/merge', '.temper/merge')):
         errors += timed('merge', lambda: merge_tests(root, env))[1]
     return lints, tests, warnings
 
@@ -1573,7 +1574,9 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     return suites
 
 
-HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
+HOOKS = {'.temper/hooks/deliver', '.temper/hooks/finish', '.temper/hooks/close',
+         '.temper/pre-pr', '.temper/close', '.temper/checked-close',
+         '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
 
 
 def with_rust_tools(env):

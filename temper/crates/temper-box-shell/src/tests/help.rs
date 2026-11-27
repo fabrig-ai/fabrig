@@ -945,6 +945,7 @@ fn box_help_names_delivery_checks_path_and_tools() {
         .collect::<Vec<_>>()
         .join(" ");
     for required in [
+        "`.temper/hooks/`",
         "`.temper/pre-pr`",
         "inherit the box's startup `PATH`",
         "unit's `PATH` in a service",

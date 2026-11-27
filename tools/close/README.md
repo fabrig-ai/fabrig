@@ -1,11 +1,12 @@
 # fabrig's close command
 
-`.temper/close close <request.json>` settles a goal's in-flight status entries
-(`DESIGN.md`, section 2) once every change of the goal has ended, before its
-closer lands the goal (temper/docs/design/protocol/tooling.md, 4.2;
-temper/docs/design/domain/forge/branches.md, 2). It runs from a job directory with
-the goal's branch checked out in `<repository name>/`, with no model, no
-credential and no network, and needs only Python's standard library and git.
+`<repository name>/.temper/hooks/close close <request.json>` settles a goal's
+in-flight status entries (`DESIGN.md`, section 2) once every change of the goal
+has ended, then checks the goal (temper/docs/design/protocol/tooling.md, 4.2;
+temper/docs/design/domain/forge/branches.md, 2). It runs from a job directory
+with the goal's branch checked out in `<repository name>/`, with no model or
+credential. Settlement uses only Python's standard library and git, and no
+network.
 
 - **The request:** `{"version": 1, "goal": G, "changes": [{"task": N,
   "landed": BOOL}]}`, as temper writes it. Anything else, a task named twice
@@ -80,12 +81,13 @@ change ends, each seed printed so that it replays (`--seed N`).
 
 ## Goal validation
 
-A project selecting `.temper/checked-close` as its close job first runs the
-settlement above. It then runs `tools/pre-pr/pre_pr.py --close` from the
-repository root, even when settlement stages nothing. The check covers the
-goal's changes since its merge base with the checkout's main
-(`tools/pre-pr/design.md`, 1) and returns its exit status to the worker. A missing verifier, unavailable comparison,
-failed check or expired job prevents successful close. The worker still
+The close hook runs `tools/close/close.py` to settle status, then runs
+`tools/pre-pr/pre_pr.py --close` from the repository root, even when settlement
+stages nothing. The older `.temper/close` and `.temper/checked-close` both
+forward to the hook. The check compares the goal's tree with the newest
+published main commit that the goal contains (`tools/pre-pr/design.md`, 1)
+and returns its exit status to the worker. A missing verifier, unavailable
+comparison, failed check or expired job prevents successful close. The worker still
 owns committing and pushing the settled tree. Where the worker asks for a
 typed refusal, `TEMPER_CLOSE_REFUSAL=3` in the environment, a refusal
 replaces settlement's result with its own and exits 3, and an error of
