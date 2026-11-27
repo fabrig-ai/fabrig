@@ -46,7 +46,10 @@ Each within jig's suites' budgets.
     least once at the story's seed: a task never issued (`Refused;
     missing reference`, and the subscription's refusal), and the
     cancelled task as an ended recipient. The world classifies each
-    drawn target as live, ended or never issued, beside its answer.
+    drawn target as live, ended or never issued, beside its answer,
+    and counts the shapes the story reached in the shapes' shared
+    vocabulary (`temper/docs/design/draft/misbehaving-agents.md`, 8),
+    beside its sample's size.
   - **What it can't reach,** and why: an answered question, since no
     party here asks the chat a question; and `read_task`, which the
     reference service doesn't declare (`service.md`, section 7).

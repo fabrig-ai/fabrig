@@ -641,7 +641,9 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   scripted agent wakes out of its script. The goals' expectations
   stay; a stretch adds that each drawn call is answered once, and
   counts each refusal its draws reach: a task it holds no reference
-  to, an answered question, an ended recipient.
+  to, an answered question, an ended recipient. Its sweep counts the
+  shapes its cases reached in the shapes' shared vocabulary (the
+  draft's 8), beside its sample's size.
 - **Its streams:** the workload from `Workload`; the acts from `Parties`;
   the world's scheduling from `Scheduling`, part `system`; each injector
   from its `Faults` part.
