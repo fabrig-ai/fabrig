@@ -304,9 +304,9 @@ fn echo(name: &[u8]) -> Box<[u8]> {
     }
     out.finish()
 }
-/// The first named effort of `items` that its model, as `me` shows it, doesn't offer
+/// The first named effort or speed its model, as `me` shows it, does not offer
 /// (client/ctl/tools-acts.md, 1).
-pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Box<[u8]>> {
+pub(crate) fn settings_choice(items: &[c::SettingItem], me: &c::Me) -> Option<Box<[u8]>> {
     for (index, item) in items.iter().enumerate() {
         let set = match &item.edit {
             c::SettingEdit::Set(set) => set,
@@ -315,36 +315,42 @@ pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Bo
         match &set.value {
             c::SettingValue::Template(template) => {
                 if let Some(llm) = &template.llm {
-                    if let Some(why) = setting_effort(index, &llm.main.model, llm.main.effort.as_ref(), me) {
+                    if let Some(why) = setting_llm(index, &llm.main, &llm.subagents, me) {
                         return Some(why);
                     }
-                    for model in &llm.subagents {
-                        if let Some(why) = setting_effort(index, &model.model, model.effort.as_ref(), me) {
-                            return Some(why);
-                        }
+                    if let Some(later) = &llm.later
+                        && let Some(why) = setting_llm(index, &later.main, &later.subagents, me)
+                    {
+                        return Some(why);
                     }
                 }
             }
             c::SettingValue::Overlay(overlay) => {
                 if let Some(model) = &overlay.model
-                    && let Some(why) = setting_effort(index, &model.name, model.effort.as_ref(), me)
+                    && let Some(why) =
+                        setting_model(index, &model.name, model.effort.as_ref(), model.speed.as_ref(), me)
                 {
                     return Some(why);
                 }
                 if let Some(models) = &overlay.alternatives {
                     for model in models {
-                        if let Some(why) = setting_effort(index, &model.name, model.effort.as_ref(), me) {
+                        if let Some(why) =
+                            setting_model(index, &model.name, model.effort.as_ref(), model.speed.as_ref(), me)
+                        {
                             return Some(why);
                         }
                     }
                 }
             }
             c::SettingValue::Charter(charter) => {
-                if let Some(why) = setting_effort(index, &charter.model.name, charter.model.effort.as_ref(), me) {
+                let main = &charter.model;
+                if let Some(why) = setting_model(index, &main.name, main.effort.as_ref(), main.speed.as_ref(), me) {
                     return Some(why);
                 }
                 for model in &charter.alternatives {
-                    if let Some(why) = setting_effort(index, &model.name, model.effort.as_ref(), me) {
+                    if let Some(why) =
+                        setting_model(index, &model.name, model.effort.as_ref(), model.speed.as_ref(), me)
+                    {
                         return Some(why);
                     }
                 }
@@ -360,42 +366,84 @@ pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Bo
     }
     None
 }
-fn setting_effort(index: usize, name: &c::Text, effort: Option<&c::Text>, me: &c::Me) -> Option<Box<[u8]>> {
-    let effort = effort?;
-    for project in &me.projects {
-        for model in &project.models {
-            if model.name == *name {
-                if offered_effort(model, effort.bytes()).is_some() {
-                    return None;
-                }
-                return Some(effort_refusal(index, name.bytes(), effort.bytes(), model));
-            }
+fn setting_llm(index: usize, main: &c::ModelEffort, subagents: &List<c::ModelEffort>, me: &c::Me) -> Option<Box<[u8]>> {
+    if let Some(why) = setting_model(index, &main.model, main.effort.as_ref(), main.speed.as_ref(), me) {
+        return Some(why);
+    }
+    for model in subagents {
+        if let Some(why) = setting_model(index, &model.model, model.effort.as_ref(), model.speed.as_ref(), me) {
+            return Some(why);
         }
     }
     None
 }
-fn effort_refusal(index: usize, name: &[u8], effort: &[u8], model: &c::MeModel) -> Box<[u8]> {
+fn setting_model(
+    index: usize,
+    name: &c::Text,
+    effort: Option<&c::Text>,
+    speed: Option<&c::Text>,
+    me: &c::Me,
+) -> Option<Box<[u8]>> {
+    if effort.is_none() && speed.is_none() {
+        return None;
+    }
+    for project in &me.projects {
+        for model in &project.models {
+            if model.name != *name {
+                continue;
+            }
+            if let Some(effort) = effort
+                && offered_effort(model, effort.bytes()).is_none()
+            {
+                return Some(setting_refusal(index, effort.bytes(), model, SettingMember::Effort));
+            }
+            if let Some(speed) = speed
+                && speed.bytes() != b"standard"
+            {
+                for declared in &model.speeds {
+                    if declared.name == *speed {
+                        return None;
+                    }
+                }
+                return Some(setting_refusal(index, speed.bytes(), model, SettingMember::Speed));
+            }
+            return None;
+        }
+    }
+    None
+}
+enum SettingMember {
+    Effort,
+    Speed,
+}
+fn setting_refusal(index: usize, supplied: &[u8], model: &c::MeModel, member: SettingMember) -> Box<[u8]> {
+    let (prefix, listed, count) = match member {
+        SettingMember::Effort => (b" offers no effort ".as_slice(), b"; it offers ".as_slice(), model.efforts.len()),
+        SettingMember::Speed => (b" declares no speed ".as_slice(), b"; it declares ".as_slice(), model.speeds.len()),
+    };
     let item = skein_lib::Decimal::of(
         u64::try_from(index).expect("bounded item index").checked_add(1).expect("item number fits"),
     );
-    let name = echo(name);
-    let effort = echo(effort);
-    let mut parts = List::with_capacity(model.efforts.len().saturating_mul(2).saturating_add(9));
+    let mut parts = List::with_capacity(count.saturating_mul(2).saturating_add(9));
     parts.push(Box::from(b"settings file item ".as_slice())).expect("prefix fits");
     parts.push(Box::from(item.as_bytes())).expect("item fits");
     parts.push(Box::from(b": model ".as_slice())).expect("model prefix fits");
-    parts.push(name).expect("name fits");
-    parts.push(Box::from(b" offers no effort ".as_slice())).expect("effort prefix fits");
-    parts.push(effort).expect("effort fits");
-    parts.push(Box::from(b"; it offers ".as_slice())).expect("offered prefix fits");
-    if model.efforts.is_empty() {
-        parts.push(Box::from(b"none".as_slice())).expect("empty efforts fit");
+    parts.push(echo(model.name.bytes())).expect("name fits");
+    parts.push(Box::from(prefix)).expect("member prefix fits");
+    parts.push(echo(supplied)).expect("supplied name fits");
+    parts.push(Box::from(listed)).expect("list prefix fits");
+    if count == 0 {
+        parts.push(Box::from(b"none".as_slice())).expect("empty list fits");
     }
-    for (index, effort) in model.efforts.as_slice().iter().enumerate() {
-        if index != 0 {
+    for at in 0..count {
+        if at != 0 {
             parts.push(Box::from(b", ".as_slice())).expect("separator fits");
         }
-        parts.push(echo(effort.bytes())).expect("offered effort fits");
+        let name = match member {
+            SettingMember::Effort => model.efforts.get(at).expect("effort within count"),
+            SettingMember::Speed => &model.speeds.get(at).expect("speed within count").name,
+        };
+        parts.push(echo(name.bytes())).expect("offered name fits");
     }
     let mut length = 0usize;
     for part in &parts {

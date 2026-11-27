@@ -59,9 +59,9 @@ pub static FORMS: [Form; 102] = [
         line: b"Task ending.",
     },
     Form { shape: Shape::Closer, name: b"closer", choice: Choice::Every, line: b"Closes task when nothing remains to await." },
-    Form { shape: Shape::Llm, name: b"llm", choice: Choice::Every, line: b"The models a task asks for." },
+    Form { shape: Shape::Llm, name: b"llm", choice: Choice::Every, line: b"Task model choice." },
     Form { shape: Shape::LlmLater, name: b"llm-later", choice: Choice::Every, line: b"Model choice after the first activation." },
-    Form { shape: Shape::ModelEffort, name: b"model_effort", choice: Choice::Every, line: b"model, by name, and its effort." },
+    Form { shape: Shape::ModelEffort, name: b"model_effort", choice: Choice::Every, line: b"model, by name, with its effort and speed." },
     Form { shape: Shape::Policy, name: b"policy", choice: Choice::Every, line: b"Project policy copied at creation; changes affect later projects." },
     Form { shape: Shape::Role, name: b"role", choice: Choice::Every, line: b"role in a project." },
     Form { shape: Shape::TemplateOverride, name: b"template_override", choice: Choice::Every, line: b"Project template override; null keeps the template's member." },
@@ -136,7 +136,7 @@ pub static FORMS: [Form; 102] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"Reasoned override." },
 ];
-pub static FIELDS: [Field; 381] = [
+pub static FIELDS: [Field; 382] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -837,7 +837,7 @@ pub static FIELDS: [Field; 381] = [
         value: Value::Shape(Shape::ModelEffort),
         list: None,
         null: false,
-        line: b"main model and its effort.",
+        line: b"Main model choice.",
     },
     Field {
         shape: Shape::Llm,
@@ -845,18 +845,18 @@ pub static FIELDS: [Field; 381] = [
         value: Value::Shape(Shape::ModelEffort),
         list: Some(Bound::Limit(Limit::LlmChoiceSubagents)),
         null: false,
-        line: b"models its runs' sub-agents may use, each named once.",
+        line: b"Sub-agent models, each named once.",
     },
-    Field { shape: Shape::Llm, name: b"later", value: Value::Shape(Shape::LlmLater), list: None, null: false, line: b"Optional, left out none: the choice after the task's first activation." },
-    Field { shape: Shape::LlmLater, name: b"main", value: Value::Shape(Shape::ModelEffort), list: None, null: false, line: b"later main model and its effort." },
-    Field { shape: Shape::LlmLater, name: b"subagents", value: Value::Shape(Shape::ModelEffort), list: Some(Bound::Limit(Limit::LlmChoiceSubagents)), null: false, line: b"Absent: []. Models for later runs' sub-agents, each named once." },
+    Field { shape: Shape::Llm, name: b"later", value: Value::Shape(Shape::LlmLater), list: None, null: false, line: b"Absent: none. Choice after first activation." },
+    Field { shape: Shape::LlmLater, name: b"main", value: Value::Shape(Shape::ModelEffort), list: None, null: false, line: b"Later main model choice." },
+    Field { shape: Shape::LlmLater, name: b"subagents", value: Value::Shape(Shape::ModelEffort), list: Some(Bound::Limit(Limit::LlmChoiceSubagents)), null: false, line: b"Absent: []. Later sub-agent models, each named once." },
     Field {
         shape: Shape::ModelEffort,
         name: b"model",
         value: Value::Text(Bound::Limit(Limit::ModelEffortModel)),
         list: None,
         null: false,
-        line: b"configured model's name, one the task's charter offers.",
+        line: b"Named model the charter offers.",
     },
     Field {
         shape: Shape::ModelEffort,
@@ -865,6 +865,14 @@ pub static FIELDS: [Field; 381] = [
         list: None,
         null: true,
         line: b"Model's effort; null if it takes none.",
+    },
+    Field {
+        shape: Shape::ModelEffort,
+        name: b"speed",
+        value: Value::Text(Bound::Limit(Limit::ModelEffortSpeedSome)),
+        list: None,
+        null: false,
+        line: b"A declared speed by name or `standard`; absent: the charter's speed for the model.",
     },
     Field {
         shape: Shape::Policy,

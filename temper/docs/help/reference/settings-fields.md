@@ -320,21 +320,22 @@ Closes task when nothing remains to await.
 - code:u32;procedure's code.
 
 ## llm
-The models a task asks for.
+Task model choice.
 - account:u32|null;Paying account; null: any able to pay.
-- main:model_effort;main model and its effort.
-- subagents:[64] model_effort;models its runs' sub-agents may use, each named once.
-- later:llm-later;Optional, left out none: the choice after the task's first activation.
+- main:model_effort;Main model choice.
+- subagents:[64] model_effort;Sub-agent models, each named once.
+- later:llm-later;Absent: none. Choice after first activation.
 
 ## llm-later
 Model choice after the first activation.
-- main:model_effort;later main model and its effort.
-- subagents:[64] model_effort;Absent: []. Models for later runs' sub-agents, each named once.
+- main:model_effort;Later main model choice.
+- subagents:[64] model_effort;Absent: []. Later sub-agent models, each named once.
 
 ## model_effort
-model, by name, and its effort.
-- model:t[4096];configured model's name, one the task's charter offers.
+model, by name, with its effort and speed.
+- model:t[4096];Named model the charter offers.
 - effort:t[32]|null;Model's effort; null if it takes none.
+- speed:t[32];declared speed by name or `standard`; absent: the charter's speed for the model.
 
 ## policy
 Project policy copied at creation; changes affect later projects.

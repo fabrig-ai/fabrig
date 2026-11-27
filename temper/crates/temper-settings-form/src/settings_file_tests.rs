@@ -254,21 +254,79 @@ fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
 fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
     use jig_client_protocol_wire as jig;
     use temper_client_protocol_wire::v1 as w;
-    let mut landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
-    let repairs = landing.repairs.as_mut().unwrap();
+    let landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high","speed":"fast"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    let repairs = landing.repairs.as_ref().unwrap();
     assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
-    let named = repairs.goal.llm.as_mut().unwrap();
+    let named = repairs.goal.llm.as_ref().unwrap();
     assert_eq!(named.main.model.as_ref(), b"main");
-    assert_eq!(named.main.speed, None, "the settings file does not yet read a speed");
+    assert_eq!(named.main.speed.as_deref(), Some(b"fast".as_slice()));
+    assert_eq!(named.subagents.get(0).unwrap().speed, None);
 
     // The named repair choice and jig wire choice share a layout, even for a populated speed.
-    named.main.speed = Some(b"fast".as_slice().into());
     let bytes = named.encode(&w::CEILINGS).unwrap();
     let choice = jig::LlmChoice::decode(&jig::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
     assert_eq!(choice.main.speed.as_deref(), Some(b"fast".as_slice()));
     assert_eq!(choice.encode(&jig::CEILINGS).unwrap(), bytes);
     let bytes = landing.encode(&w::CEILINGS).unwrap();
     assert_eq!(w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)), Ok(landing));
+}
+#[test]
+fn a_templates_model_speeds_round_trip_through_jigs_client_wire() {
+    use jig_client_protocol_wire as jig;
+    for (llm, speeds) in [
+        (
+            br#"{"account":null,"main":{"model":"main","effort":"high","speed":"fast"},"subagents":[{"model":"helper","effort":null,"speed":"standard"}],"later":{"main":{"model":"later","effort":"low","speed":"ultrafast"},"subagents":[]}}"#.as_slice(),
+            [Some(b"fast".as_slice()), Some(b"standard".as_slice()), Some(b"ultrafast".as_slice())],
+        ),
+        (
+            br#"{"account":null,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}}"#,
+            [None, None, None],
+        ),
+    ] {
+        let limits = Limits::standard();
+        let value = template(&joined(&[TEMPLATE_PREFIX, llm, SUFFIX]), &limits);
+        let choice = value.llm.as_ref().unwrap();
+        for (model, speed) in [&choice.main, choice.subagents.get(0).unwrap(), &choice.later.as_ref().unwrap().main]
+            .into_iter()
+            .zip(speeds)
+        {
+            let named = match &model.speed {
+                Some(speed) => Some(speed.bytes()),
+                None => None,
+            };
+            assert_eq!(named, speed);
+        }
+        let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
+        let bytes = wire.encode(&limits.settings).unwrap();
+        let wire = jig::Template::decode(&limits.settings, &mut skein_lib::Reader::new(&bytes)).unwrap();
+        let restored = crate::wire::documents_me_template(&wire, &limits).unwrap();
+        assert_eq!(restored, value);
+
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        let choice = restored.llm.as_ref().unwrap();
+        values::encode_llm_choice(choice, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        values::encode_llm_choice(choice, &mut out);
+        assert_eq!(out.finish().as_ref(), llm);
+    }
+}
+#[test]
+fn a_template_speed_is_text_bounded_at_the_wire_limit() {
+    let prefix = br#"{"account":null,"main":{"model":"main","effort":null,"speed":"#;
+    let suffix = br#"},"subagents":[]}"#;
+    let limits = Limits::standard();
+    let at_bound = br#""0123456789abcdef0123456789abcdef""#;
+    file::decode(&joined(&[TEMPLATE_PREFIX, prefix, at_bound, suffix, SUFFIX]), &limits).expect("a 32-byte speed fits");
+    for (speed, reason) in
+        [(br#""0123456789abcdef0123456789abcdefg""#.as_slice(), b"bound 32".as_slice()), (b"null", b"expected string")]
+    {
+        let file = joined(&[TEMPLATE_PREFIX, prefix, speed, suffix, SUFFIX]);
+        assert_eq!(
+            file::decode(&file, &limits).unwrap_err().as_ref(),
+            joined(&[b"settings file item 1: llm.main.speed: ", reason]).as_ref(),
+        );
+    }
 }
 #[test]
 fn repair_settings_refuse_unknown_and_missing_members_by_path() {
@@ -593,19 +651,9 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
     }
 }
 
-const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null"#;
+const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":"#;
 fn template_file(resources: &[u8]) -> Box<[u8]> {
-    let length = TEMPLATE_PREFIX
-        .len()
-        .checked_add(resources.len())
-        .expect("fixture resources")
-        .checked_add(SUFFIX.len())
-        .expect("suffix");
-    let mut out = Writer::new(length);
-    out.put(TEMPLATE_PREFIX).unwrap();
-    out.put(resources).unwrap();
-    out.put(SUFFIX).unwrap();
-    out.finish()
+    joined(&[TEMPLATE_PREFIX, b"null", resources, SUFFIX])
 }
 fn template(bytes: &[u8], limits: &Limits) -> c::Template {
     let items = file::decode(bytes, limits).expect("template file");
@@ -1049,6 +1097,7 @@ fn a_templates_closer_reads_and_writes() {
     let original = joined(&[
         br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"resources":[],"#,
         TEMPLATE_PREFIX.strip_prefix(br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"#).unwrap(),
+        b"null",
         SUFFIX,
     ]);
     let at = skein_lib::bytes::find(&original, br#""ended_by":"result""#).unwrap();

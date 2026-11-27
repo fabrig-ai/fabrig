@@ -161,6 +161,8 @@ pub struct ModelEffort {
     pub model: Text,
     /// One of the efforts the model declares; `None` is its LLM provider's default.
     pub effort: Option<Text>,
+    /// A declared speed by name, `standard`, or `None` for the charter's speed.
+    pub speed: Option<Text>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Authority {

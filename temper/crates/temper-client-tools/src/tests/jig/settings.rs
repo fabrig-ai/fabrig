@@ -716,8 +716,14 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
     charter.resume = false;
     cases.push((setting, c::SettingValue::Charter(charter)));
     let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
-    template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
-        main: c::ModelEffort { model: words("later-model"), effort: Some(words("medium")), speed: None },
+    let llm = template.llm.as_mut().expect("choice");
+    llm.main.speed = Some(words("fast"));
+    llm.later = Some(c::LlmLater {
+        main: c::ModelEffort {
+            model: words("later-model"),
+            effort: Some(words("medium")),
+            speed: Some(words("ultrafast")),
+        },
         subagents: list([c::ModelEffort { model: words("later-agent"), effort: None, speed: None }]),
     });
     cases.push((setting, c::SettingValue::Template(template)));
@@ -739,6 +745,11 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
             Some(jig::form_setting_value(&value))
         );
         let json = setting_json(setting, value.clone());
+        if let c::SettingValue::Template(template) = &value
+            && template.llm.as_ref().expect("fixture choice").later.is_none()
+        {
+            assert!(!core::str::from_utf8(&json).unwrap().contains(r#""speed""#));
+        }
         let file = file_from_setting(&json);
         let items = settings_file::decode(&file, &crate::limits::tools()).expect("whole setting round trip");
         assert_eq!(items.as_slice(), &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }]);
@@ -3608,54 +3619,75 @@ fn revision_show_preserves_unavailable_and_oversized_replaced_values() {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum EffortPlace {
+enum ModelPlace {
     Main,
     Subagent,
+    LaterMain,
+    LaterSubagent,
     Charter,
     Alternative,
 }
+const CHOICE_PLACES: [ModelPlace; 6] = [
+    ModelPlace::Main,
+    ModelPlace::Subagent,
+    ModelPlace::LaterMain,
+    ModelPlace::LaterSubagent,
+    ModelPlace::Charter,
+    ModelPlace::Alternative,
+];
 
-fn effort_file(place: EffortPlace, name: &str, effort: Option<&str>) -> Vec<u8> {
-    let choice = fixtures::model_effort(name.as_bytes(), effort.map(str::as_bytes));
+fn choice_setting(place: ModelPlace, choice: c::ModelEffort) -> (c::Setting, c::SettingValue) {
     let valid = fixtures::model_effort(fixtures::MODEL_NAME, Some(fixtures::EFFORT_NAME));
-    let (setting, value) = match place {
-        EffortPlace::Main | EffortPlace::Subagent => {
+    match place {
+        ModelPlace::Main | ModelPlace::Subagent | ModelPlace::LaterMain | ModelPlace::LaterSubagent => {
             let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else {
                 panic!("template fixture")
             };
-            template.llm = Some(match place {
-                EffortPlace::Main => c::LlmChoice { later: None, account: None, main: choice, subagents: list([]) },
-                EffortPlace::Subagent => {
-                    c::LlmChoice { later: None, account: None, main: valid, subagents: list([choice]) }
+            let mut llm = c::LlmChoice { later: None, account: None, main: valid.clone(), subagents: list([]) };
+            match place {
+                ModelPlace::Main => llm.main = choice,
+                ModelPlace::Subagent => llm.subagents = list([choice]),
+                ModelPlace::LaterMain => {
+                    llm.later = Some(c::LlmLater { main: choice, subagents: list([]) });
                 }
-                EffortPlace::Charter | EffortPlace::Alternative => unreachable!("template position"),
-            });
+                ModelPlace::LaterSubagent => {
+                    llm.later = Some(c::LlmLater { main: valid, subagents: list([choice]) });
+                }
+                ModelPlace::Charter | ModelPlace::Alternative => unreachable!("template position"),
+            }
+            template.llm = Some(llm);
             (setting, c::SettingValue::Template(template))
         }
-        EffortPlace::Charter | EffortPlace::Alternative => {
+        ModelPlace::Charter | ModelPlace::Alternative => {
             let (setting, c::SettingValue::Charter(mut charter)) = values().remove(0) else {
                 panic!("charter fixture")
             };
             let mut selected = model();
             selected.name = choice.model;
             selected.effort = choice.effort;
+            selected.speed = choice.speed;
             let mut valid_model = model();
             valid_model.name = valid.model;
             valid_model.effort = valid.effort;
             match place {
-                EffortPlace::Charter => {
+                ModelPlace::Charter => {
                     charter.model = selected;
                     charter.alternatives = list([]);
                 }
-                EffortPlace::Alternative => {
+                ModelPlace::Alternative => {
                     charter.model = valid_model.clone();
                     charter.alternatives = list([valid_model, selected]);
                 }
-                EffortPlace::Main | EffortPlace::Subagent => unreachable!("charter position"),
+                ModelPlace::Main | ModelPlace::Subagent | ModelPlace::LaterMain | ModelPlace::LaterSubagent => {
+                    unreachable!("charter position")
+                }
             }
             (setting, c::SettingValue::Charter(charter))
         }
-    };
+    }
+}
+fn effort_file(place: ModelPlace, name: &str, effort: Option<&str>) -> Vec<u8> {
+    let (setting, value) = choice_setting(place, fixtures::model_effort(name.as_bytes(), effort.map(str::as_bytes)));
     file_from_setting(&setting_json(setting, value))
 }
 
@@ -3670,7 +3702,7 @@ fn effort_me() -> c::Me {
     me
 }
 
-fn effort_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::Harness, u32) {
+fn choice_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::Harness, u32) {
     let mut root = fixtures::choice_root(me);
     let argv = if propose {
         vec!["settings", "propose", "FILE", "Choose effort", "--against", "5", "--key", "effort-file"]
@@ -3685,7 +3717,7 @@ fn effort_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::
 
 #[test]
 fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() {
-    for place in [EffortPlace::Main, EffortPlace::Subagent, EffortPlace::Charter, EffortPlace::Alternative] {
+    for place in CHOICE_PLACES {
         for propose in [false, true] {
             for (name, offered) in [("chosen-model", "high, medium"), ("plain-model", "none")] {
                 let file = effort_file(place, name, Some("xhigh"));
@@ -3694,7 +3726,7 @@ fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() 
                     "\"items\":[",
                     r#""items":[{"setting":{"kind":"charter","number":7},"edit":"removed"},{"setting":{"kind":"rules"},"edit":"reset"},"#,
                 );
-                let (mut root, call) = effort_call(file.as_bytes(), propose, effort_me(), false);
+                let (mut root, call) = choice_call(file.as_bytes(), propose, effort_me(), false);
                 assert!(root.sends.is_empty(), "{place:?}, propose {propose}");
                 assert!(root.saved.is_empty(), "a local refusal keeps no request");
                 let answer = root.answer(call).expect("local effort refusal");
@@ -3712,7 +3744,7 @@ fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() 
 
 #[test]
 fn settings_offered_absent_and_unshown_efforts_send_unchanged() {
-    for place in [EffortPlace::Main, EffortPlace::Subagent, EffortPlace::Charter, EffortPlace::Alternative] {
+    for place in CHOICE_PLACES {
         for propose in [false, true] {
             for (name, effort) in [
                 ("chosen-model", Some("high")),
@@ -3723,7 +3755,7 @@ fn settings_offered_absent_and_unshown_efforts_send_unchanged() {
             ] {
                 let file = effort_file(place, name, effort);
                 let items = settings_file::decode(&file, &crate::limits::tools()).expect("items");
-                let (mut root, call) = effort_call(&file, propose, effort_me(), false);
+                let (mut root, call) = choice_call(&file, propose, effort_me(), false);
                 let ask = fixtures::act_ask(&root, call);
                 let expected = if propose {
                     c::Ask::Propose {
@@ -3770,8 +3802,8 @@ fn settings_effort_names_use_the_terminal_name_cut() {
                 let model = me.projects.get_mut(1).expect("other project").models.get_mut(0).expect("model");
                 model.name = words(&name);
                 model.efforts = list([words(&name)]);
-                let file = effort_file(EffortPlace::Main, &name, Some("xhigh"));
-                let (mut root, call) = effort_call(&file, propose, me, json);
+                let file = effort_file(ModelPlace::Main, &name, Some("xhigh"));
+                let (mut root, call) = choice_call(&file, propose, me, json);
                 assert!(root.sends.is_empty());
                 let answer = root.answer(call).expect("cut name refusal");
                 let text = format!("settings file item 1: model {cut} offers no effort xhigh; it offers {cut}");
@@ -3782,8 +3814,8 @@ fn settings_effort_names_use_the_terminal_name_cut() {
                 if name.len() > 32 {
                     continue;
                 }
-                let file = effort_file(EffortPlace::Main, "chosen-model", Some(&name));
-                let (mut root, call) = effort_call(&file, propose, effort_me(), json);
+                let file = effort_file(ModelPlace::Main, "chosen-model", Some(&name));
+                let (mut root, call) = choice_call(&file, propose, effort_me(), json);
                 assert!(root.sends.is_empty());
                 let answer = root.answer(call).expect("cut effort refusal");
                 let text =
@@ -3793,6 +3825,85 @@ fn settings_effort_names_use_the_terminal_name_cut() {
             }
         }
     }
+}
+
+#[test]
+fn settings_speeds_are_refused_at_every_choice_before_apply_or_propose_sends() {
+    for place in CHOICE_PLACES {
+        for propose in [false, true] {
+            for (name, speed, declared) in
+                [("chosen-model", "priority", "fast, ultrafast"), ("plain-model", "fast", "none")]
+            {
+                let (setting, value) = speed_setting(place, name, Some(speed));
+                let file = file_from_setting(&setting_json(setting, value));
+                let (mut root, call) = choice_call(&file, propose, speed_me(), false);
+                assert!(root.sends.is_empty(), "{place:?}, propose {propose}");
+                assert!(root.saved.is_empty(), "a local refusal keeps no request");
+                let answer = root.answer(call).expect("local speed refusal");
+                assert_eq!(answer.status, 1);
+                assert_eq!(
+                    answer.stderr.as_ref(),
+                    format!("settings file item 1: model {name} declares no speed {speed}; it declares {declared}\n")
+                        .as_bytes(),
+                    "{place:?}, propose {propose}",
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn settings_declared_standard_absent_and_unshown_speeds_send_unchanged() {
+    for (place, name, speed) in [
+        (ModelPlace::Main, "chosen-model", Some("fast")),
+        (ModelPlace::LaterMain, "chosen-model", Some("ultrafast")),
+        (ModelPlace::Subagent, "plain-model", Some("standard")),
+        (ModelPlace::LaterSubagent, "plain-model", None),
+        (ModelPlace::Charter, "plain-model", Some("standard")),
+        (ModelPlace::Alternative, "unshown-model", Some("fast")),
+    ] {
+        let (setting, value) = speed_setting(place, name, speed);
+        let file = file_from_setting(&setting_json(setting, value.clone()));
+        let items = list([c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }]);
+        for propose in [false, true] {
+            let (root, call) = choice_call(&file, propose, speed_me(), false);
+            let ask = fixtures::act_ask(&root, call);
+            let expected = if propose {
+                c::Ask::Propose {
+                    project: 0,
+                    reason: words("Choose effort"),
+                    action: c::ProposeAction::Settings(c::ProposeSettings { against: 5, items: items.clone() }),
+                }
+            } else {
+                c::Ask::ChangeSettings(c::ChangeSettings {
+                    against: 5,
+                    items: items.clone(),
+                    running: c::Running::Stays,
+                })
+            };
+            assert_eq!(ask, &expected, "{place:?}, propose {propose}");
+        }
+    }
+}
+
+fn speed_me() -> c::Me {
+    let mut me = effort_me();
+    let chosen = me.projects.get_mut(1).expect("other project").models.get_mut(0).expect("chosen model");
+    let fast = c::SettingSpeed {
+        name: words("fast"),
+        also: list([words("priority")]),
+        input_price: 4,
+        cached_price: 1,
+        cache_write_price: None,
+        output_price: 5,
+    };
+    let ultrafast = c::SettingSpeed { name: words("ultrafast"), also: list([]), ..fast.clone() };
+    chosen.speeds = list([fast, ultrafast]);
+    chosen.speed = Some(words("fast"));
+    me
+}
+fn speed_setting(place: ModelPlace, name: &str, speed: Option<&str>) -> (c::Setting, c::SettingValue) {
+    choice_setting(place, c::ModelEffort { model: words(name), effort: None, speed: speed.map(words) })
 }
 
 #[test]

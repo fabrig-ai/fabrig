@@ -16,7 +16,12 @@ fn the_page_leaves_room_for_more_fields() {
 #[test]
 fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
-    let rendered = fields::page(&temper_client_tools::limits::form());
+    let limits = temper_client_tools::limits::form();
+    let speed = fields::resolve(b"template.llm.main.speed").expect("model_effort speed field");
+    assert_eq!(speed.shape, Shape::ModelEffort);
+    assert!(matches!(speed.value, Value::Text(fields::Bound::Limit(fields::Limit::ModelEffortSpeedSome))));
+    assert!(!speed.null);
+    let rendered = fields::page(&limits);
     let rendered = std::str::from_utf8(&rendered).expect("printable ASCII page");
     if temper_test_env::rewrite() {
         let path = skein_scratch::paths::tree().join("docs/help/reference/settings-fields.md");

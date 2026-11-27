@@ -179,7 +179,7 @@ fn settings_request(call: &Call, limits: &Limits, me: &c::Me) -> Prepared {
         Ok(settings) => settings,
         Err(why) => return Err(Failed::Detail(why)),
     };
-    if let Some(why) = choice::settings_effort(settings.items.as_slice(), me) {
+    if let Some(why) = choice::settings_choice(settings.items.as_slice(), me) {
         return Err(Failed::Detail(why));
     }
     let ask = if call.tool == rows::PROPOSE_SETTINGS_AT {
