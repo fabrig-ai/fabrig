@@ -186,6 +186,10 @@ where
 /// Whether the cases are the gate's seeds: for a check over all of them,
 /// and for a sweep's configuration.
 pub fn gate() -> bool;
+
+/// 4.4's input line, under a replay, for the case the calling thread runs:
+/// a digest of what the case drew.
+pub fn input(digest: [u8; 32]);
 ```
 
 They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
@@ -213,6 +217,7 @@ They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 - **One line a failing case:** the seam writes exactly one `fuzzy case:` line for it, whichever way it failed, and a reader names a case by its TEST and SEED.
 - **Outside the gate's mode,** `cases` writes `fuzzy cases: TEST N` to stderr as it returns, N the cases it ran, a failing one included, so that a campaign tells a sweep that ran from a test that took no case. A case that panics leaves the hook's line in its place.
 - **At the gate too,** a failing case names its seed, as no loop of its own does unless its test prints it.
+- **A case's input, under a replay:** `input(digest)` writes `fuzzy input: TEST seed SEED DIGEST` to stderr, DIGEST the 32 bytes as 64 lower-case hex digits, for the case the calling thread holds (as the hook reads it). It writes it under a replay alone, and nothing at the gate, in a campaign, or outside a case's check, so that a round's thousands of cases write none. A world calls it once its case's draws are made, with a digest of what it drew (`skein_lib::sha256::digest` over its draws' bytes, say), so that a campaign that replays one case at two commits can tell whether both drew the same input (`tools/tiers/campaign.md`, 4.2). A world that doesn't call it leaves its input uncompared.
 - **These lines are the contract** a campaign reads (`temper/docs/design/draft/fuzzy-campaigns.md`, 5.4); the replay command is the campaign's to write, since the campaign knows the binary and the full test name.
 
 ### 4.5 What a case checks
@@ -263,6 +268,7 @@ Step tests in the crate's own `src/tests/`, with no world:
 - **A sweep:** a sweep whose configured fault never falls in any seed fails `check_fell` at the gate, naming the fault and the seeds; one where it falls in one seed of several passes; `ran` counts each kind's cases, once a case however often it fell in it; outside the gate's mode, `check_fell` passes and writes one reach line for each configured kind, in `Kind`'s order, nought included.
 - **Cases,** each mode given to the seam directly, so that no test sets or depends on the process's environment: at the gate, the seeds as given, in order; in a campaign, as many fresh seeds as given, their values pinned for a campaign seed and a test with and without a part, and the same whatever other tests derived before; under a replay, the one seed once, whatever the seeds given; the first finding ends the sweep with its test and seed; `gate()` in each mode; the lines' format; `this_test!`'s identity.
 - **The variables:** read from captured pairs, empty is unset; a value of other than sixteen hex digits (fifteen, seventeen, a `0x` prefix, a byte that isn't a hex digit, bytes that aren't UTF-8) and both set at once are setup errors naming the variable; either case reads.
+- **The input line,** each mode given to the seam directly: under a replay, written for the case its thread holds, in its format, its digest's bytes in order; none at the gate, none in a campaign, none outside a case's check.
 - **The hook,** with no panic, since no test catches or expects one (`tools/lints/panics.py`): it writes its line for the case its thread holds and then calls the hook before it, writes none when its thread holds no case, and a case is let go of once its check returns.
 - **The test table:** its names, each `Set::Test`, in order, and its document, byte for byte, rewritten under the rewrite switch.
 - **Exclusions:** an exclusion that names no ignored scenario (empty, or not a function's name) is refused; so are one with no work, one with no conditions, one on a fault not configured, and a duplicate; `leaves_out` answers only while every condition holds; left-out draws are counted by scenario.
@@ -273,5 +279,6 @@ Step tests in the crate's own `src/tests/`, with no world:
 - A sweep's report of its coverage, each check's finding kinds over its seeds (the draft, 12).
 - Moving today's worlds to streams, each with its own goal's sweeps.
 - Moving sweeps to `cases`, world by world (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).
+- Each world's digest of what its case drew, given to `input`, world by world with its adoption or after it.
 - A sweep asking a campaign for more cases than its gate seeds (the same draft, 6), with the first sweep that needs it.
 - A replay naming one part of a test that runs several sweeps: today it runs its seed once in each, so a campaign replays such a test's case as one test and one case only where it has one part.
