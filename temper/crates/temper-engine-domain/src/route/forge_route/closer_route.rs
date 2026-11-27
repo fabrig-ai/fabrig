@@ -456,13 +456,17 @@ fn close_child(domain: &Domain, task: &tasks::TaskRecord) -> c::Child {
     match &row.change.state {
         State::Held {
             was,
-            hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed | Cause::CloseRefused, .. },
-        } if **was == (State::Producing { requested: true }) => c::Child::Idle { held: true },
-        State::Producing { requested: false }
-            if task.phase == tasks::Phase::Active(tasks::Active::Idle) && !live_delegate(domain, row) =>
-        {
-            c::Child::Idle { held: false }
+            hold: temper_engine_domain_forge_change::Hold { cause: cause @ (Cause::Failed | Cause::CloseRefused), .. },
+        } if **was == (State::Producing { requested: true }) => {
+            // A released refusal keeps its judgement until fresh reads arrive.
+            // While its task waits for work, the closer must still wake it.
+            if row.change.released == Some(*cause) {
+                idle_close(domain, task, row)
+            } else {
+                c::Child::Idle { held: true }
+            }
         }
+        State::Producing { requested: false } => idle_close(domain, task, row),
         State::Taking { .. }
         | State::Producing { .. }
         | State::Opening { .. }
@@ -488,6 +492,14 @@ fn close_child(domain: &Domain, task: &tasks::TaskRecord) -> c::Child {
         | State::Uncleared { .. }
         | State::NoChange { .. }
         | State::Ended => c::Child::Pending,
+    }
+}
+
+fn idle_close(domain: &Domain, task: &tasks::TaskRecord, row: &forge::ChangeRow) -> c::Child {
+    if task.phase == tasks::Phase::Active(tasks::Active::Idle) && !live_delegate(domain, row) {
+        c::Child::Idle { held: false }
+    } else {
+        c::Child::Pending
     }
 }
 

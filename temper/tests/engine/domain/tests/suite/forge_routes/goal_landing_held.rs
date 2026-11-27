@@ -121,6 +121,7 @@ fn repair(world: &mut World, goal: u64, branch: &[u8], landing: u64, head: u64, 
 
 fn exhausted(world: &mut World, goal: &engine::Assignment, landing: u64, head: u64) {
     let assigned = world.assigned.len();
+    let before_failure = world.env.wall;
     status(world, head, raw::Check::Failed);
     for _ in 0..STEPS {
         world.tick();
@@ -131,13 +132,12 @@ fn exhausted(world: &mut World, goal: &engine::Assignment, landing: u64, head: u
         }
     }
     world.until(Until::Ready);
-    assert_eq!(
-        row(world, landing).change.state,
-        State::Held {
-            was: Box::new(State::Checking { head: translate::commit(head) }),
-            hold: temper_engine_domain_forge_change::Hold::new(Cause::Repairs, skein_lib::Wall::EPOCH)
-        }
-    );
+    let State::Held { was, hold } = &row(world, landing).change.state else { panic!("landing not held for repairs") };
+    assert_eq!(**was, State::Checking { head: translate::commit(head) });
+    assert_eq!(hold.cause, Cause::Repairs);
+    assert!((before_failure..=world.env.wall).contains(&hold.since));
+    assert_eq!(hold.words.as_ref(), format!("its repairs are spent: {REPAIRS} of {REPAIRS} taken").as_bytes());
+    assert_eq!(hold.judged, None);
     assert_eq!(row(world, landing).change.repairs, REPAIRS);
     assert!(matches!(live_task(world, landing).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }));
     assert_eq!(world.assigned.len(), assigned, "the fourth CI failure makes no fourth repair");

@@ -1349,7 +1349,7 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     let fresh = world.assigned.get(8).expect("successful repair must be reviewed");
     assert_review_head(&world, fresh, head);
     if moved {
-        assert_eq!(row.change.repairs, 0, "the owner's release starts the repair count again");
+        assert_eq!(row.change.repairs, 2, "releasing branch drift keeps the repairs already taken");
     } else {
         assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
     }

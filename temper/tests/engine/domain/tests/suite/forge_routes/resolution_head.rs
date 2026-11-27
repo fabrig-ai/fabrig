@@ -41,6 +41,7 @@ fn moved_head(conflict: bool) {
     let (mut world, change, head, base) = pushed_change_in(configured, true, b"temper/goal");
     let resolution = idle_resolution(&mut world, change);
     let branch = change_row(&world, change).branch.clone();
+    let before_move = world.env.wall;
     let moved = if conflict {
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"other", b"another push", 2)
             .expect("branch advanced while resolution prepares")
@@ -88,14 +89,18 @@ fn moved_head(conflict: bool) {
         assert_eq!(counts, "transient");
         assert_eq!(reason.as_ref(), b"pull: the change's head moved");
     }
-    assert_eq!(
-        change_row(&world, change).change.state,
-        State::Held {
-            was: Box::new(State::WaitingProducer { base: translate::commit(base) }),
-            hold: temper_engine_domain_forge_change::Hold::new(Cause::BranchMoved, skein_lib::Wall::EPOCH)
-        }
-    );
-    assert_eq!(change_row(&world, change).change.last_head, Some(translate::commit(head)));
+    let row = change_row(&world, change);
+    let State::Held { was, hold } = &row.change.state else { panic!("moved branch not held: {:?}", row.change.state) };
+    assert_eq!(**was, State::WaitingProducer { base: translate::commit(base) });
+    assert_eq!(hold.cause, Cause::BranchMoved);
+    assert!((before_move..=world.env.wall).contains(&hold.since));
+    let expected = forge_top::commit_text(&translate::commit(head));
+    let expected = core::str::from_utf8(&expected[..12]).expect("short head text");
+    let account = format!("its branch moved: expected {expected}, found {}; temper's last write on it: ", &hex[..12]);
+    assert!(hold.words.starts_with(account.as_bytes()), "{:?}", hold.words);
+    assert_eq!(hold.judged, None);
+    assert_eq!(row.change.resolutions, 1);
+    assert_eq!(row.change.last_head, Some(translate::commit(head)));
     let shown = temper_engine_domain_world::tier_task_show::show(&mut world, change);
     assert_eq!(shown.status, 0);
     assert!(contains(&shown.stdout, b"its branch moved:"));
@@ -116,7 +121,9 @@ fn moved_head(conflict: bool) {
     } else {
         super::merge_job::landed(&mut world, change, moved);
         assert_eq!(world.assigned.len(), 2, "no fresh resolution when the conflict is gone");
-        assert_eq!(change_row(&world, change).change.last_head, Some(moved_commit));
+        let row = change_row(&world, change);
+        assert_eq!(row.change.last_head, Some(moved_commit));
+        assert_eq!(row.change.resolutions, 1, "releasing branch drift keeps the resolution already taken");
     }
     observe(&mut world, &mut facts);
     assert!(
@@ -160,7 +167,7 @@ fn fresh_resolution(world: &mut World, change: u64, prior: u64, head: [u8; 32]) 
         "{}",
         String::from_utf8_lossy(pull)
     );
-    assert_eq!(change_row(world, change).change.resolutions, 1, "release resets the resolution allowance");
+    assert_eq!(change_row(world, change).change.resolutions, 2, "the fresh resolution counts on after branch drift");
     assert_eq!(change_row(world, change).change.last_head, Some(head));
     fresh
 }

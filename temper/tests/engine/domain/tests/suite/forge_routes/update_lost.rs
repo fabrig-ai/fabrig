@@ -161,6 +161,7 @@ fn an_update_lost_for_good_holds_at_its_count_told_why() {
 fn a_released_update_holds_no_longer() {
     let (mut world, goal, task, head) = lost_for_good();
     world.lose_writes = 0;
+    let spent = change_row(&world, task).change;
     let revision = live_task(&world, task).revisions.hold;
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
@@ -176,6 +177,20 @@ fn a_released_update_holds_no_longer() {
             break;
         }
     }
+    // The change retains its predecessor until it reads back the uncertain update.
+    // A new hold is not allowed: only the original record may survive this wait.
+    for _ in 0..STEPS {
+        let row = change_row(&world, task);
+        if !matches!(row.change.state, change::State::Held { .. }) {
+            break;
+        }
+        assert_eq!(row.change.state, spent.state);
+        assert_eq!(row.change.updates, spent.updates);
+        assert_eq!(row.change.released, Some(change::Cause::Updates));
+        assert!(!matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
+        world.tick();
+    }
+    assert_not_held(&world, task);
     let updated = checking(&mut world, task, head, 1);
     status(&mut world, updated, raw::Check::Passed);
     assert_landed(&mut world, task, updated, 1);
