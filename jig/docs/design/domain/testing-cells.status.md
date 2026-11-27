@@ -4,4 +4,5 @@
 
 - **Not yet:** 2, 3, 4: `jig_core_kit::cells`: the family, its 21 cells,
   the 27 pairs that can't occur, and the pairing, with their tests.
+  [in flight: change 21519]
 - **Not yet:** 5: jig's one-process world's driver and its story.

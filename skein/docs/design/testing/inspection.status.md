@@ -4,4 +4,4 @@
 
 - **Not yet:** 3, 4.3, 6 and 7: the relation records, `Inspection::related`
   and `relateds`, `check_relations`, a relation's finding and their step
-  tests.
+  tests. [in flight: change 21518]

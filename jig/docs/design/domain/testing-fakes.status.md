@@ -1,7 +1,10 @@
 # testing-fakes: status
 
-2026-11-25. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
+2026-11-27. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
 
+- **Not yet:** 1.1: `core`'s `placements` and `flights`, `jig_inspect::host`,
+  jig's and the host's records of its relations, and `HOST_CALLS` and
+  `PLACEMENTS`, with their tests.
 - **Not yet:**
   1: the core kit's `World` keeps one commit per run, rehearsed in
   `World::finish`, and its rehearsal pays for its store and start alone.

@@ -68,3 +68,46 @@ impl Pairing {
 ```
 
 `jig-core-kit` takes `smith-faults` as a dependency for this module.
+
+## 3. smith's inspection adapter
+
+```rust
+// smith/testing/smith-inspect, package smith-inspect (smith/docs/design/testing.md, 6)
+use skein_world::inspect::{Inspection, Moment};
+
+/// The waits smith's design documents, in its words; component "smith".
+pub const KINDS: &[&str];
+/// The root and every child's waits and tables.
+pub fn inspect(domain: &smith_domain::Domain, into: &mut Inspection);
+/// The session child's alone, for a world that holds it alone; `inspect` calls it.
+pub fn session(domain: &smith_domain_session::Domain, into: &mut Inspection);
+/// smith's own check of the session child's room, cells and shares.
+pub fn room(domain: &smith_domain_session::Domain, moment: Moment) -> Result<(), String>;
+/// Each host call a run holds open, as `jig_inspect::HOST_CALLS`' smith side;
+/// `task` the task the domain's run serves.
+pub fn host_calls(domain: &smith_domain::Domain, task: u64, into: &mut Inspection);
+```
+
+## 4. jig's inspection adapter, its host and its relations
+
+```rust
+// jig/testing/jig-inspect (jig/docs/design/domain/testing-fakes.md, 1.1)
+use skein_world::inspect::{Inspection, Relation};
+
+/// Unchanged in form; it now adds the tables `placements` and `flights`
+/// and jig's records of both relations.
+pub fn core(core: &jig_domain_core::Core, into: &mut Inspection);
+/// A host's hub, component "jig host": its relation records.
+pub fn host(hub: &jig_domain_host::Hub, into: &mut Inspection);
+pub const HOST_CALLS: Relation;  // "a run's host calls"
+pub const PLACEMENTS: Relation;  // "a run's placement"
+```
+
+The words, as testing-fakes.md, 1.1's table gives them:
+
+| Relation | Key, by `format!` | Components and what they hold |
+|---|---|---|
+| `a run's host calls` | `"task {task} attempt {attempt} completion {completion} position {position}"` | `smith`: `an open call`; `jig`: `a call record`, `an answer retained for replay`, `a cancelled run's call`, `a relay in flight`; `jig host`: `a relay in flight`; `links`: `a relay in flight` |
+| `a run's placement` | `"run {run} attempt {attempt}"`, the fleet's numbers | `jig`: `a placement`; `jig host`: `a hosted slot`, `a terminal awaiting its acknowledgement`; `links`: `a relay in flight` |
+
+A composed world's own inspection is `Inspection::new("links", &[])`, holding only `Related` records.
