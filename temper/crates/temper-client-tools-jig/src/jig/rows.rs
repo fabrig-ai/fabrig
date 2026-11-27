@@ -247,7 +247,7 @@ pub const TASK: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"`acts:` lists the calls the engine offers your party, ready to copy.\nAn act marked `(no tool)` has no tool here yet; one followed by a\ncolon and a reason is refused as it stands; one marked `proposed\nto` asks another party first. A change task adds `next:` and the\ncall that reads its change. An ended task prints its result.\nText reads and waits fill `asked:` from the specification within their output\nbounds. If words remain, `task text TASK --field specification --from OFFSET`\nreads on from the first undisplayed byte. JSON keeps the bounded overview\nand its digest.\n",
+    notes: b"`acts:` lists the calls the engine offers your party, ready to copy.\nAn act marked `(no tool)` has no tool here yet; one followed by a\ncolon and a reason is refused as it stands; one marked `proposed\nto` asks another party first. A change task adds `next:` and the\ncall that reads its change. An ended task prints its result.\nA model choice with a named speed ends with `at SPEED`.\nText reads and waits fill `asked:` from the specification within their output\nbounds. If words remain, `task text TASK --field specification --from OFFSET`\nreads on from the first undisplayed byte. JSON keeps the bounded overview\nand its digest.\n",
 };
 pub const CHAT: Tool = Tool {
     name: b"chat show",
@@ -392,6 +392,8 @@ pub const CHAT_CREATE: Tool = Tool {
             64,
             b"Sub-agent choices: each model once, its effort optional as --model's",
         ),
+        SPEED,
+        SUBAGENT_SPEED,
     ]],
     keyed: Keyed::Required,
     area: 1,
@@ -409,6 +411,9 @@ those me offers (exit 1).
 Available choices only: they neither start children nor assign by order.
 The parent's sub_agent selects optional llm; omitted, main's model/effort.
 Each model has one child effort; multiple children may use that choice.
+--speed needs --model; --sub-agent-speed needs a model named by --sub-agent.
+A faster speed costs more. Choose a speed from model list, or standard.
+Leave it out to use the charter's speed or the model's default.
 Then task show TASK --until replied.
 ",
 };
@@ -659,12 +664,12 @@ pub const ACCOUNTS: Tool = Tool {
 pub const MODELS: Tool = Tool {
     name: b"model list",
     line: b"Read the models your projects may use, by provider",
-    prints: b"`models:`, each project's providers and models with their windows, efforts and prices, then the accounts and `digest: models`",
+    prints: b"`models:`, each project's providers and models with their windows, efforts, speeds and prices, then the accounts and `digest: models`",
     result: b"models",
     forms: &[&[flag(b"project", b"PROJECT", Kind::Project { empty: false }, Optional, b"Only this project")]],
     keyed: Keyed::Never,
     area: 5,
-    notes: b"Its digest is the models' read, not the accounts'; to wait on the\naccounts, use the digest account list prints.\n",
+    notes: b"Use these speed names with --speed SPEED or --sub-agent-speed MODEL:SPEED\non chat start, goal start or task amend. A faster speed costs more.\nChoose a listed speed or standard; leave it out to use the charter's\nspeed or the model's default.\nIts digest is the models' read, not the accounts'; to wait on the\naccounts, use the digest account list prints.\n",
 };
 
 /// Account source shorthand is resolved against the current accounts watch.
@@ -790,6 +795,32 @@ const MODEL: super::table::Argument = flag(b"model", b"MODEL", Kind::Text, Optio
 const EFFORT: super::table::Argument =
     flag(b"effort", b"EFFORT", Kind::Text, Optional, b"Effort offered by that model");
 
+const SPEED: super::table::Argument =
+    flag(b"speed", b"SPEED", Kind::Text, Optional, b"The main model's speed; needs --model");
+const SUBAGENT_SPEED: super::table::Argument = super::table::repeated(
+    b"sub-agent-speed",
+    b"MODEL:SPEED",
+    Kind::Text,
+    64,
+    b"A sub-agent's speed; repeatable, each model once",
+);
+
+/// Positions of the model-choice flags in each act's form.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ChoiceFlags {
+    pub model: usize,
+    pub effort: usize,
+    pub speed: usize,
+    pub subagent: Option<usize>,
+    pub subagent_speed: usize,
+}
+pub(crate) const CHAT_CHOICE: ChoiceFlags =
+    ChoiceFlags { model: 3, effort: 4, speed: 6, subagent: Some(5), subagent_speed: 7 };
+pub(crate) const GOAL_CHOICE: ChoiceFlags =
+    ChoiceFlags { model: 8, effort: 9, speed: 14, subagent: Some(10), subagent_speed: 15 };
+pub(crate) const AMEND_CHOICE: ChoiceFlags =
+    ChoiceFlags { model: 10, effort: 11, speed: 17, subagent: None, subagent_speed: 18 };
+
 /// The published whole dependency list fits one client document window.
 pub const DEPENDENCIES: u32 = 32;
 
@@ -823,10 +854,12 @@ pub const AMEND: Tool = Tool {
         flag(b"to-party", b"PARTY", Kind::Number, Optional, b"Address the person task to this party"),
         flag(b"to-role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"Address the person task to this role of its project"),
         flag(b"budget", b"AMOUNT", Kind::Amount, Optional, b"Its budget, as task show prints it; the rest of its authority kept"),
+        SPEED,
+        SUBAGENT_SPEED,
     ]],
     keyed: Keyed::Optional,
     area: 2,
-    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\nAn address re-addresses at this read's person revision; a non-person\ntask fails (exit 1).\n",
+    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\nAn address re-addresses at this read's person revision; a non-person\ntask fails (exit 1).\n--speed needs --model. --sub-agent-speed changes a kept sub-agent's speed;\nthe other sub-agents keep theirs. A faster speed costs more.\nChoose a speed from model list, or standard. A new main with no speed\nuses the charter's speed or the model's default, not the old main's speed.\n",
 };
 
 /// Appended so existing keyed tool identities stay stable.
@@ -1363,6 +1396,8 @@ pub const GOAL_START: Tool = Tool {
             b"Wait on this task; repeatable, each task once, in order",
         ),
         switch(b"no-deadline", b"Give the goal no deadline; the alternative to --deadline"),
+        SPEED,
+        SUBAGENT_SPEED,
     ]],
     keyed: Keyed::Required,
     area: 2,
@@ -1379,6 +1414,9 @@ a second --as-allowed goal in it is refused for its budget: give each
 goal in a milestone --budget AMOUNT.
 --effort needs --model, defaults if absent. --model wins each run
 and replaces the later choice; only --sub-agent replaces sub-agents.
+--speed needs --model; --sub-agent-speed needs a model named by --sub-agent.
+A faster speed costs more. Choose a speed from model list, or standard.
+Leave it out to use the charter's speed or the model's default.
 Without --model the choice holds whole.
 Refused model flags name value and bound; nothing made.
 Within bounds: created; past but proposable: proposed (exit 0);

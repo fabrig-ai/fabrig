@@ -41,8 +41,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `settings: revision R`, plus the run's own and newest where they differ.
 - **Its model choice:** when the task carries an LLM choice, `task show`
   prints `main model: MODEL/EFFORT`, then `sub-agent model: MODEL/EFFORT`
-  for each sub-agent choice in order. A model without an effort prints
-  just its name.
+  for each sub-agent choice in order. If it names a speed, the line
+  ends with `at SPEED`. A model without an effort prints without `/EFFORT`.
 
 ## How it changes
 
@@ -112,7 +112,12 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   and tracking, deadline, instructions, spec, dependencies, model) and
   keeps the rest; all but a tracked task's priority name the spec
   revision the amender saw. Words a read cut short are replaced whole
-  at that revision.
+  at that revision. With `--model MODEL`, `--speed SPEED` sets how fast
+  the new main model generates its reply. Use `--sub-agent-speed MODEL:SPEED`
+  to change a kept sub-agent's speed, once per model; the others keep
+  theirs. A faster speed costs more. See `model list` for
+  the names, or choose `standard`. A new main without a named speed uses
+  the charter's speed or the model's default, not the old main's speed.
 
 ## What temper guarantees
 

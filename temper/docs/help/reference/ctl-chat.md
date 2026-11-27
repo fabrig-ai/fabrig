@@ -26,13 +26,15 @@ they consume no conversation words budget. JSON leaves those payload fields null
 ## chat start
 
 ```
-chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY
+chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--speed SPEED] [--sub-agent-speed MODEL:SPEED]... --key KEY
   --project PROJECT: a project's name or number; required. The project
   --template TEMPLATE: a number; optional. A chat's template by its number; the project's chat template when absent
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The opening words
   --model MODEL: text, at most 1048576 bytes, or - to read stdin; optional. A model the chat may use, as model list shows it
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. An effort that model offers
   --sub-agent MODEL[:EFFORT]: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. Sub-agent choices: each model once, its effort optional as --model's
+  --speed SPEED: text, at most 1048576 bytes, or - to read stdin; optional. The main model's speed; needs --model
+  --sub-agent-speed MODEL:SPEED: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. A sub-agent's speed; repeatable, each model once
 Start a chat in a project
 Prints: `done: task N, chat`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record chat_create.
@@ -51,6 +53,9 @@ those me offers (exit 1).
 Available choices only: they neither start children nor assign by order.
 The parent's sub_agent selects optional llm; omitted, main's model/effort.
 Each model has one child effort; multiple children may use that choice.
+--speed needs --model; --sub-agent-speed needs a model named by --sub-agent.
+A faster speed costs more. Choose a speed from model list, or standard.
+Leave it out to use the charter's speed or the model's default.
 Then task show TASK --until replied.
 ```
 

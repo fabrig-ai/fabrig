@@ -1,9 +1,10 @@
-//! Model names come from me; explicit sub-agents replace the template choices
-//! (client/ctl/areas.md).
+//! Model-choice flags are checked against me's offer
+//! (temper/docs/design/client/ctl/areas-accounts.md, 1).
 use super::{Call, Failed, value};
 use crate::jig::{
-    call::{Value, Values},
+    call::{Value, repeated, split_model_value},
     render,
+    rows::{AMEND_CHOICE, ChoiceFlags},
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -15,41 +16,64 @@ pub(crate) const NAME_ECHO_BYTES: usize = 256;
 /// Override the main and, when explicit, the sub-agents using offered model names.
 pub(crate) fn selection(
     call: &Call,
-    model: u8,
-    effort: u8,
-    subagent: u8,
+    flags: ChoiceFlags,
     me: &c::Me,
     project: u32,
     before: Option<&c::LlmChoice>,
 ) -> Result<Option<c::LlmChoice>, Failed> {
-    let mut choice = llm(call, model, effort, me, project, before)?;
-    if value(call, usize::from(model)).is_some()
-        && let Some(choice) = choice.as_mut()
-    {
+    let mut choice = llm(call, flags, me, project, before)?;
+    let explicit_main = value(call, flags.model).is_some();
+    if explicit_main && let Some(choice) = choice.as_mut() {
         choice.later = None;
     }
-    if let Some(Some(_)) = call.values.get(usize::from(subagent))
-        && value(call, usize::from(model)).is_none()
-    {
+    let subagent = flags.subagent.expect("a start takes --sub-agent");
+    if repeated(call, subagent).is_some() && !explicit_main {
         return Err(Failed::Fixed(b"--sub-agent needs --model"));
     }
-    if let Some(subagents) = sub_agents(call, subagent, me, project)? {
+    let mut subagents = sub_agents(call, subagent, me, project)?;
+    subagent_speeds(
+        call,
+        flags.subagent_speed,
+        subagents.as_mut(),
+        me,
+        project,
+        b" is not a sub-agent --sub-agent names",
+    )?;
+    if let Some(subagents) = subagents {
         choice.as_mut().expect("sub-agents require a main model").subagents = subagents;
     }
     Ok(choice)
 }
 
-pub fn llm(
+/// Replace the main choice only when named, and set speeds on the kept sub-agents.
+pub fn amendment(call: &Call, task: &c::Task, me: &c::Me) -> Result<Option<c::LlmChoice>, Failed> {
+    let flags = AMEND_CHOICE;
+    let speeds = match repeated(call, flags.subagent_speed) {
+        Some(values) => !values.is_empty(),
+        None => false,
+    };
+    if value(call, flags.model).is_none() && !speeds {
+        return Ok(None);
+    }
+    let mut choice = llm(call, flags, me, task.project, task.llm.as_ref())?;
+    let subagents = match choice.as_mut() {
+        Some(choice) => Some(&mut choice.subagents),
+        None => None,
+    };
+    subagent_speeds(call, flags.subagent_speed, subagents, me, task.project, b" is not one of the task's sub-agents")?;
+    Ok(choice)
+}
+
+fn llm(
     call: &Call,
-    model_argument: u8,
-    effort_argument: u8,
+    flags: ChoiceFlags,
     me: &c::Me,
     project: u32,
     before: Option<&c::LlmChoice>,
 ) -> Result<Option<c::LlmChoice>, Failed> {
-    let Some(Value::Text(name)) = value(call, usize::from(model_argument)) else { return Ok(before.cloned()) };
+    let Some(Value::Text(name)) = value(call, flags.model) else { return Ok(before.cloned()) };
     let Some(model) = offered(me, project, name) else { return Err(not_offered(b"--model", name, None)) };
-    let effort = match value(call, usize::from(effort_argument)) {
+    let effort = match value(call, flags.effort) {
         Some(value) => {
             let Value::Text(name) = value else { return Err(Failed::Fixed(b"effort not loaded")) };
             let Some(effort) = offered_effort(model, name) else {
@@ -59,7 +83,17 @@ pub fn llm(
         }
         None => model.effort.clone(),
     };
-    let main = c::ModelEffort { model: model.name.clone(), effort, speed: None };
+    let speed = match value(call, flags.speed) {
+        Some(value) => {
+            let Value::Text(name) = value else { return Err(Failed::Fixed(b"speed not loaded")) };
+            let Some(speed) = offered_speed(model, name) else {
+                return Err(unknown_speed(b"--speed", name, model, None));
+            };
+            Some(speed)
+        }
+        None => None,
+    };
+    let main = c::ModelEffort { model: model.name.clone(), effort, speed };
     let mut choice = match before {
         Some(choice) => choice.clone(),
         None => c::LlmChoice { later: None, account: None, main: main.clone(), subagents: List::with_capacity(0) },
@@ -67,28 +101,14 @@ pub fn llm(
     choice.main = main;
     Ok(Some(choice))
 }
-pub(crate) fn sub_agents(
-    call: &Call,
-    argument: u8,
-    me: &c::Me,
-    project: u32,
-) -> Result<Option<List<c::ModelEffort>>, Failed> {
-    let Some(Some(Values::Many(values))) = call.values.get(usize::from(argument)) else { return Ok(None) };
+fn sub_agents(call: &Call, argument: usize, me: &c::Me, project: u32) -> Result<Option<List<c::ModelEffort>>, Failed> {
+    let Some(values) = repeated(call, argument) else { return Ok(None) };
     let mut subagents: List<c::ModelEffort> =
         List::with_capacity(u32::try_from(values.len()).expect("bounded sub-agents"));
     for value in values {
         let Value::Text(text) = value else { return Err(Failed::Fixed(b"sub-agent not loaded")) };
-        let mut colon = None;
-        for (index, byte) in text.iter().enumerate() {
-            if *byte == b':' {
-                colon = Some(index);
-            }
-        }
-        let (name, effort) = match colon {
-            Some(index) => {
-                let (name, rest) = text.split_at_checked(index).expect("colon in model choice");
-                (name, Some(rest.get(1..).expect("colon before effort")))
-            }
+        let (name, effort) = match split_model_value(text) {
+            Some((name, effort)) => (name, Some(effort)),
             None => (text.as_ref(), None),
         };
         let Some(model) = offered(me, project, name) else {
@@ -113,6 +133,79 @@ pub(crate) fn sub_agents(
             .expect("parsed sub-agents fit");
     }
     Ok(Some(subagents))
+}
+fn subagent_speeds(
+    call: &Call,
+    argument: usize,
+    mut subagents: Option<&mut List<c::ModelEffort>>,
+    me: &c::Me,
+    project: u32,
+    not_named: &[u8],
+) -> Result<(), Failed> {
+    let Some(values) = repeated(call, argument) else { return Ok(()) };
+    let flag = b"--sub-agent-speed";
+    let mut named = List::with_capacity(u32::try_from(values.len()).expect("bounded sub-agent speeds"));
+    for value in values {
+        let Value::Text(text) = value else { return Err(Failed::Fixed(b"sub-agent speed not loaded")) };
+        let (name, speed) = split_model_value(text).expect("checked model:speed");
+        let selection = match subagents.as_deref_mut() {
+            Some(subagents) => subagent_named(subagents, name),
+            None => None,
+        };
+        let Some(selection) = selection else { return Err(flag_refusal(flag, text, &[&echo(name), not_named])) };
+        for previous in &named {
+            if *previous == name {
+                return Err(flag_refusal(flag, text, &[&echo(name), b" already has a speed"]));
+            }
+        }
+        let Some(model) = offered(me, project, name) else { return Err(not_offered(flag, text, Some(name))) };
+        let Some(speed) = offered_speed(model, speed) else {
+            return Err(unknown_speed(flag, text, model, Some(speed)));
+        };
+        selection.speed = Some(speed);
+        named.push(name).expect("one name per sub-agent speed");
+    }
+    Ok(())
+}
+fn subagent_named<'a>(subagents: &'a mut List<c::ModelEffort>, name: &[u8]) -> Option<&'a mut c::ModelEffort> {
+    for index in 0..subagents.len() {
+        let entry = subagents.get(index).expect("sub-agent index");
+        if entry.model.bytes() == name {
+            return subagents.get_mut(index);
+        }
+    }
+    None
+}
+fn offered_speed(model: &c::MeModel, name: &[u8]) -> Option<c::Text> {
+    if name == b"standard" {
+        return Some(c::Text::new(Box::from(name), 32).expect("standard fits a speed name"));
+    }
+    for speed in &model.speeds {
+        if speed.name.bytes() == name {
+            return Some(speed.name.clone());
+        }
+    }
+    None
+}
+fn unknown_speed(flag: &[u8], value: &[u8], model: &c::MeModel, speed: Option<&[u8]>) -> Failed {
+    let mut parts: List<Box<[u8]>> = List::with_capacity(model.speeds.len().saturating_mul(2).saturating_add(6));
+    if let Some(speed) = speed {
+        parts.push(echo(speed)).expect("speed fits");
+        parts.push(Box::from(b" is ".as_slice())).expect("speed separator fits");
+    }
+    parts.push(Box::from(b"not a speed ".as_slice())).expect("reason fits");
+    parts.push(echo(model.name.bytes())).expect("model fits");
+    parts.push(Box::from(b" declares; it declares ".as_slice())).expect("declaration fits");
+    if model.speeds.is_empty() {
+        parts.push(Box::from(b"none".as_slice())).expect("no speeds fit");
+    }
+    for (index, speed) in model.speeds.iter().enumerate() {
+        if index != 0 {
+            parts.push(Box::from(b", ".as_slice())).expect("separator fits");
+        }
+        parts.push(echo(speed.name.bytes())).expect("declared speed fits");
+    }
+    flag_refusal(flag, value, &[&joined(&parts)])
 }
 fn offered<'a>(me: &'a c::Me, project: u32, name: &[u8]) -> Option<&'a c::MeModel> {
     for membership in &me.projects {

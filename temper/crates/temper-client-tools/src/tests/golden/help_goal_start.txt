@@ -1,4 +1,4 @@
-goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--milestone TASK] [--after TASK]... [--no-deadline] --key KEY
+goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--milestone TASK] [--after TASK]... [--no-deadline] [--speed SPEED] [--sub-agent-speed MODEL:SPEED]... --key KEY
   --project PROJECT: a project's name or number; required. The project
   --template TEMPLATE: a number from 1 to 4294967295; optional. An offered template; stock goal template 2 when absent
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The goal's words; the first line, at most 60 characters, is its title
@@ -13,6 +13,8 @@ goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--p
   --milestone TASK: a number; optional. Start beneath this live milestone of the project
   --after TASK: a number; repeated, at most 64. Wait on this task; repeatable, each task once, in order
   --no-deadline: a switch. Give the goal no deadline; the alternative to --deadline
+  --speed SPEED: text, at most 1048576 bytes, or - to read stdin; optional. The main model's speed; needs --model
+  --sub-agent-speed MODEL:SPEED: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. A sub-agent's speed; repeatable, each model once
 Start a goal from a project's template
 Prints: `done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record goal_create.
@@ -30,6 +32,9 @@ a second --as-allowed goal in it is refused for its budget: give each
 goal in a milestone --budget AMOUNT.
 --effort needs --model, defaults if absent. --model wins each run
 and replaces the later choice; only --sub-agent replaces sub-agents.
+--speed needs --model; --sub-agent-speed needs a model named by --sub-agent.
+A faster speed costs more. Choose a speed from model list, or standard.
+Leave it out to use the charter's speed or the model's default.
 Without --model the choice holds whole.
 Refused model flags name value and bound; nothing made.
 Within bounds: created; past but proposable: proposed (exit 0);

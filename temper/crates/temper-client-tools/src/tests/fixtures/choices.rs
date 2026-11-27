@@ -86,6 +86,17 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
         .expect("effortless model");
     me
 }
+pub(crate) fn speed_offer(name: &[u8]) -> c::SettingSpeed {
+    c::SettingSpeed {
+        name: act_text(name),
+        also: List::with_capacity(0),
+        input_price: 2,
+        cached_price: 2,
+        cache_write_price: None,
+        output_price: 2,
+    }
+}
+
 pub(crate) fn choice_root(me: c::Me) -> Harness {
     let mut root = started(List::with_capacity(EMPTY));
     root.deliver(c::Delivery::Me(Box::new(me)));

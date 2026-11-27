@@ -72,6 +72,22 @@ pub fn value(call: &Call, index: usize) -> Option<&Value> {
         _ => None,
     }
 }
+pub(crate) fn repeated(call: &Call, index: usize) -> Option<&[Value]> {
+    let Some(Some(Values::Many(values))) = call.values.get(index) else { return None };
+    Some(values)
+}
+
+/// A model may contain colons; effort and speed names do not.
+pub(crate) fn split_model_value(text: &[u8]) -> Option<(&[u8], &[u8])> {
+    for (index, byte) in text.iter().enumerate().rev() {
+        if *byte == b':' {
+            let (model, tail) = text.split_at_checked(index)?;
+            return Some((model, tail.get(1..)?));
+        }
+    }
+    None
+}
+
 #[must_use]
 pub fn number(call: &Call, index: usize) -> Option<u64> {
     match value(call, index) {
