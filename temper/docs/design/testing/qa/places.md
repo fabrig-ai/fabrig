@@ -349,10 +349,14 @@ reached has run (`../../draft/archive/landed-qa.md`, 5):
 - **Written** to `passes/P/setups/NAME/`: `recipe`, `recipe 1`, then
   `after PARENT` unless `fresh`, then the lines; `README.md`;
   `scripts.json` where given; never `config/`, a root's alone; and
-  `files/`, where its `forge commit`, `forge push` or `deployment patch`
-  lines name any, each PATH they name copied from the pass's `files/`
-  (`passes.md`, 2) to `files/PATH`, so that the recipe holds all it
-  gives (`../../client/recipe.md`, 2). A PATH the pass's `files/` lacks
+  `files/`, where its `forge commit`, `forge push`, `deployment patch`,
+  `ctl settings apply` or `ctl settings propose` lines name any, each
+  PATH they name copied from the pass's `files/` (`passes.md`, 2) to
+  `files/PATH`, so that the recipe holds all it gives
+  (`../../client/recipe.md`, 2). A settings line's PATHs are those the
+  drive session reads (`../../client/drive.md`, 3.4): its fields after
+  `apply` or `propose`, up to the first field other than `-` that starts
+  with `-`; `-` is no PATH. A PATH the pass's `files/` lacks
   refuses, naming it, exit 1. A recipe that does not read
   (`recipe hash`) is removed, its refusal printed, exit 1.
 - **Proven:** walked from its parent on the same build, as section 4
