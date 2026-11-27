@@ -6,6 +6,7 @@ use worker::agent;
 
 /// Inspection buffers belong to the world, not to any of the roots it drives.
 pub(super) struct Scratch {
+    engine: Inspection,
     jig: Inspection,
     links: Inspection,
     worker: Inspection,
@@ -17,6 +18,7 @@ pub(super) struct Scratch {
 impl Default for Scratch {
     fn default() -> Self {
         Self {
+            engine: Inspection::new("engine", temper_engine_inspect::KINDS),
             jig: Inspection::new("jig", jig_inspect::KINDS),
             links: Inspection::new("links", &[]),
             worker: temper_worker_inspect::inspection(),
@@ -72,12 +74,15 @@ impl World {
         let mut scratch = std::mem::take(&mut self.inspections);
         let result = scratch
             .observe(self, moment)
-            .and_then(|()| self.checks.quiet_with(&self.root, moment.at, moment.iteration, &[&scratch.jig]))
+            .and_then(|()| {
+                self.checks.quiet_reusing(&self.root, moment.at, moment.iteration, &mut scratch.engine, &[&scratch.jig])
+            })
             .and_then(|()| scratch.related(&scratch.links, moment));
+        if result.is_ok() {
+            self.workload_bounds(&scratch.engine);
+        }
         self.inspections = scratch;
-        result?;
-        self.workload_bounds();
-        Ok(())
+        result
     }
 
     /// At a held host call's quiet point, remove its matching relay from a copy of the link inspection.

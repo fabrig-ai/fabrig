@@ -396,12 +396,8 @@ impl World {
             R::WithdrawHost { relay } => {
                 (self.relays.owners.get(&relay.owner).copied(), "withdrew a host call after its final answer")
             }
-            R::Open { .. }
-            | R::Read { .. }
-            | R::Probe { .. }
-            | R::ProbeHooks { .. }
-            | R::Check { .. }
-            | R::Abort { .. } => (current, "requested more work after its final answer"),
+            // Work without a run or conversation key belongs to the step that emitted it.
+            _ => (current, "requested more work after its final answer"),
         };
         if let Some(view) = owner.and_then(|owner| self.views.get(&owner)) {
             let park = parks.get(view.host_run);

@@ -70,6 +70,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
 /// Real domain plus scripted typed peers, pending terminals and external observations for this component story.
 pub struct Scripted {
     shapes: Option<ShapeRecord>,
+    record_replay: bool,
     /// Real session state under test, advanced only through its declared boundary.
     pub domain: session::Domain,
     /// Injected monotonic and wall times together with immutable session limits.
@@ -154,8 +155,15 @@ impl Scripted {
         limits.sessions = 1;
         limits.spend = u64::MAX;
         limits.history_messages = 32;
+        Scripted::with_limits(seed, limits)
+    }
+
+    /// Construct the same scripted driver with the supplied session limits.
+    #[must_use]
+    pub fn with_limits(seed: u64, limits: session::Limits) -> Scripted {
         Scripted {
             shapes: None,
+            record_replay: true,
             domain: session::Domain::new(&limits, seed),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -185,6 +193,11 @@ impl Scripted {
             detail: Box::default(),
             trace: vec![],
         }
+    }
+
+    /// Leave request and state rendering to replay scenarios; keep typed observations and checks.
+    pub fn omit_replay(&mut self) {
+        self.record_replay = false;
     }
 
     /// Delivers one typed terminal or entrance, drains the emitted requests and checks terminal ownership.
@@ -264,7 +277,9 @@ impl Scripted {
 
     fn collect_outputs(&mut self) {
         while let Some(request) = self.out.pop() {
-            self.trace.push(format!("{request:?}"));
+            if self.record_replay {
+                self.trace.push(format!("{request:?}"));
+            }
             self.observe(request);
         }
         while let Some(fact) = self.domain.pop_fact() {
@@ -276,7 +291,9 @@ impl Scripted {
         if self.end.is_some() {
             assert!(self.jobs.is_empty() && self.held.is_empty(), "no job outlives its session");
         }
-        self.snapshots.push(format!("{:?}", self.domain));
+        if self.record_replay {
+            self.snapshots.push(format!("{:?}", self.domain));
+        }
     }
 
     /// Records boundary outputs and checks their single-owner obligations.

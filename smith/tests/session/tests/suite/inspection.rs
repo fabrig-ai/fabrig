@@ -1,6 +1,6 @@
 //! Quiet-point controls for the session inspection (smith/docs/design/testing.md, 6).
 
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token};
 use skein_world::inspect::{Inspection, Moment, Release, Wake, check_tables, check_waits};
 use smith_domain_session::{self as session, llm};
 use smith_domain_tools::Effect;
@@ -34,33 +34,13 @@ fn inspection_reads_the_provider_requests_own_deadline() {
 #[test]
 fn inspection_reads_one_open_call_and_balanced_room_mid_batch() {
     let limits = Settings::calm(SEED).agent;
-    let env = Env { now: MOMENT.at, wall: Wall::EPOCH, limits };
-    let mut domain = session::Domain::new(&limits, SEED);
-    let mut out = Queue::uncapped();
-    let waiting = start(&mut domain, &env, &mut out, 31);
-    let tooling = start(&mut domain, &env, &mut out, 32);
-    session::step(
-        &mut domain,
-        &env,
-        session::Event::Completed {
-            owner: tooling,
-            completion: llm::Completion {
-                served: llm::ServedSpeed::Unreported,
-                reasoning_dropped: Box::default(),
-                content: Box::new([read(b"first"), read(b"second")]),
-                stop: llm::Stop::ToolUse,
-                usage: llm::Usage::ZERO,
-            },
-        },
-        &mut out,
-    );
-    let mut delegates = Vec::new();
-    while let Some(request) = out.pop() {
-        if let session::Request::Delegate { owner, .. } = request {
-            delegates.push(owner);
-        }
-    }
-    let &[first, second] = delegates.as_slice() else { panic!("two reads in one batch") };
+    let mut world = Scripted::with_limits(SEED, limits);
+    let waiting = start(&mut world.domain, &world.env, &mut world.out, 32);
+    world.open(reader(limits.spend));
+    let tooling = world.session.expect("the tooling session opened");
+    world.complete(Box::new([read(b"first"), read(b"second")]), llm::Stop::ToolUse, llm::Usage::ZERO);
+    let &[first, second] = world.delegated.as_slice() else { panic!("two reads in one batch") };
+    let Scripted { mut domain, env, mut out, .. } = world;
     answer(&mut domain, &env, &mut out, first);
     assert!(matches!(out.pop(), Some(session::Request::Priced { .. })));
     while domain.pop_fact().is_some() {}
@@ -113,9 +93,8 @@ fn start(
     out: &mut Queue<session::Request>,
     opener: u64,
 ) -> Token {
-    let mut opening = opening(None, env.limits.spend);
-    opening.spec.delegated[0].effect = Effect::Read;
-    session::step(domain, env, session::Event::Open { opener: Token::new(opener), opening: Box::new(opening) }, out);
+    let opening = Box::new(reader(env.limits.spend));
+    session::step(domain, env, session::Event::Open { opener: Token::new(opener), opening }, out);
     let mut completing = None;
     while let Some(request) = out.pop() {
         if let session::Request::Complete { owner, .. } = request {
@@ -123,6 +102,12 @@ fn start(
         }
     }
     completing.expect("one request per opener")
+}
+
+fn reader(spend: u64) -> session::record::Opening {
+    let mut opening = opening(None, spend);
+    opening.spec.delegated[0].effect = Effect::Read;
+    opening
 }
 
 fn read(id: &[u8]) -> llm::Block {

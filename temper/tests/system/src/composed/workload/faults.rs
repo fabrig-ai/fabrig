@@ -324,13 +324,11 @@ impl World {
         }
     }
 
-    pub(in crate::composed) fn workload_bounds(&mut self) {
+    pub(in crate::composed) fn workload_bounds(&mut self, inspection: &Inspection) {
         let Some(f) = &self.workload_faults else { return };
         if f.bounds.is_empty() {
             return;
         }
-        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
-        temper_engine_inspect::inspect(&self.root, &mut inspection);
         let landing_rows = bounds::LANDING_ROWS;
         let settled = f.bounds.contains(&landing_rows)
             && self.workload_goals_ended()
@@ -338,7 +336,7 @@ impl World {
                 table.name == landing_rows.name && table.entries.iter().all(|entry| entry.release == Release::Kept)
             });
         let f = self.workload_faults.as_mut().expect("faulted workload");
-        f.ledger.saturation(&f.bounds, &[&inspection], self.env.now).expect("quiet-point bounds");
+        f.ledger.saturation(&f.bounds, &[inspection], self.env.now).expect("quiet-point bounds");
         if settled {
             // Terminal rows keep their places until another admission. Retire
             // only this observation once those places can all be reclaimed.
