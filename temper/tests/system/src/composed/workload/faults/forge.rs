@@ -3,10 +3,11 @@ use super::{Faults, World, forge_faults as kinds, stale};
 use crate::composed::{engine, people, tasks};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
-use skein_lib::{Duration, Env, Time, Wall};
-use skein_world::faults::{Kind, Struck};
+use skein_lib::{Duration, Env, Time, Token, Wall};
+use skein_world::faults::{Injection, Kind, Struck};
 use std::collections::BTreeMap;
 use temper_blame::{Observed, Reaction};
+use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{open, translate::commit};
 use temper_worker_checkout_world::forge::Move;
 
@@ -24,6 +25,20 @@ pub(super) struct BaseLag {
     before: u64,
     at: Time,
     until: Time,
+}
+
+pub(super) struct CloseCall {
+    call: Token,
+    repository: api::Repository,
+    number: u64,
+    ahead: usize,
+}
+
+pub(super) struct CloseRefusal {
+    number: u64,
+    goal: String,
+    until: Time,
+    entry: Option<Injection>,
 }
 
 #[derive(Default)]
@@ -261,6 +276,131 @@ impl World {
         config
     }
 
+    pub(in crate::composed) fn hold_workload_close(
+        &mut self,
+        call: Token,
+        repository: api::Repository,
+        op: &api::Op,
+    ) -> bool {
+        let api::Op::Write(api::Write::Close { number }) = op else { return false };
+        let Some(f) = &self.workload_faults else { return false };
+        if !(self.close_is_refused(f, *number) || self.close_refusal_due(f, *number)) {
+            return false;
+        }
+        // Leave this close in reply order, but read the exclusion where the
+        // terminal enters the engine: more reads can be admitted after send.
+        let ahead = self.root_events.len();
+        self.workload_faults.as_mut().expect("faulted workload").close_calls.push_back(CloseCall {
+            call,
+            repository,
+            number: *number,
+            ahead,
+        });
+        true
+    }
+
+    pub(in crate::composed) fn workload_close_waiting(&self) -> bool {
+        self.workload_faults.as_ref().is_some_and(|f| !f.close_calls.is_empty())
+    }
+
+    pub(in crate::composed) fn workload_close_reply(&mut self) -> Option<engine::Event> {
+        let f = self.workload_faults.as_mut()?;
+        if f.close_calls.front()?.ahead != 0 {
+            for close in &mut f.close_calls {
+                close.ahead -= 1;
+            }
+            return None;
+        }
+        let CloseCall { call, repository, number, .. } = f.close_calls.pop_front().expect("due close reply");
+        let mut f = self.workload_faults.take().expect("faulted workload");
+        let pull_present = matches!(self.forge.inspect(REMOTE, &raw::Read::Pull { number }), Ok(raw::Answer::Pull(_)));
+        if pull_present {
+            self.begin_close_refusal(&mut f, number);
+        }
+        let refused = pull_present && self.close_is_refused(&f, number);
+        self.workload_faults = Some(f);
+        if refused {
+            fake::refuse_close(self.forge.domain_mut(), REMOTE, number, true);
+        }
+        let op = api::Op::Write(api::Write::Close { number });
+        let reply = self.forge_event(call, repository, &op);
+        if refused {
+            // Refuse only the engine's close, not another user's outside write.
+            fake::refuse_close(self.forge.domain_mut(), REMOTE, number, false);
+        }
+        self.workload_forge_answer(&op);
+        Some(reply)
+    }
+
+    fn close_refusal_due(&self, f: &Faults, number: u64) -> bool {
+        f.due(kinds::CLOSE_REFUSED) && self.pull_goal(number) == f.target(kinds::CLOSE_REFUSED)
+    }
+
+    fn begin_close_refusal(&self, f: &mut Faults, number: u64) {
+        if self.close_refusal_due(f, number) {
+            let goal = f.fire(kinds::CLOSE_REFUSED);
+            // The close is still in the client's table while it handles the
+            // refusal and tries to admit the capability refresh's first read.
+            if let Some(scenario) = f.close_refusal_exclusion
+                && !self.root.forge().inspection_client().has_room()
+            {
+                f.ledger.leave_out(scenario, kinds::CLOSE_REFUSED, self.env.now);
+                f.ledger.ineligible(kinds::CLOSE_REFUSED);
+                eprintln!("close refusal: pull {number} left out by {scenario}");
+                return;
+            }
+            f.close_refusal = Some(CloseRefusal {
+                number,
+                goal,
+                until: self.env.now.saturating_add(Duration::from_secs(2)),
+                entry: None,
+            });
+        }
+    }
+
+    fn close_is_refused(&self, f: &Faults, number: u64) -> bool {
+        f.close_refusal.as_ref().is_some_and(|refusal| refusal.number == number && self.env.now < refusal.until)
+    }
+
+    fn stop_close_refusal(&mut self, f: &mut Faults) {
+        if f.close_refusal.as_ref().is_some_and(|refusal| self.env.now >= refusal.until) {
+            let CloseRefusal { number, until, entry, .. } = f.close_refusal.take().expect("close refusal due to stop");
+            if let Some(entry) = entry {
+                f.ledger.stop(entry, until).expect("close permission restored");
+                f.stopped(until);
+                f.close_permission_restored = Some(number);
+            } else {
+                f.ledger.ineligible(kinds::CLOSE_REFUSED);
+            }
+        }
+    }
+
+    fn release_restored_close(&mut self, f: &mut Faults) {
+        let Some(number) = f.close_permission_restored else { return };
+        let close_protected = b"close item: forge protection refused the write;";
+        let cleanup = self
+            .workload_landings()
+            .find(|row| {
+                row.landing.round.pull == Some(number)
+                    && matches!(row.landing.phase, landing::Phase::Held { why: landing::Hold::Cleanup, .. })
+                    && row.landing.round.cleanup.as_deref().is_some_and(|account| account.starts_with(close_protected))
+            })
+            .map(|row| row.landing.task);
+        let Some(task) = cleanup else { return };
+        let Some(row) = self.root.tasks().task(task) else { return };
+        let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &row.phase else { return };
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { return };
+        if !words.strip_prefix(b"cleanup: ").is_some_and(|account| account.starts_with(close_protected)) {
+            return;
+        }
+        let revision = row.revisions.hold;
+        let target = f.target(kinds::CLOSE_REFUSED).expect("refused close target");
+        let party = self.workload().goal(target).expect("refused close goal").party;
+        eprintln!("close refusal: {party:?} releases task {task} for pull {number} at {:?}", self.env.now);
+        self.workload_enqueue(party, people::Ask::Release { project: 1, task, revision, again: None });
+        f.close_permission_restored = None;
+    }
+
     fn workload_merge_lag(&self, f: &mut Faults, number: u64, how: api::MergeHow) -> bool {
         let kind = kinds::MERGE_LATE;
         let Some(lag) = &f.merge_lag else { return false };
@@ -366,6 +506,17 @@ impl World {
         assert_eq!(self.forge.domain_mut().fell_lost(), 0, "fake forge lost fault records");
         while let Some(fell) = self.forge.domain_mut().pop_fell() {
             let kind = Kind { family: fell.fault.family(), name: fell.fault.name() };
+            if kind == kinds::CLOSE_REFUSED
+                && let Some(refusal) = &mut f.close_refusal
+                && fell.pull == Some(refusal.number)
+            {
+                // Count one interval, including any retries of this close.
+                refusal.entry.get_or_insert_with(|| {
+                    eprintln!("close refusal: pull {} at {:?} until {:?}", refusal.number, fell.at, refusal.until);
+                    f.ledger.inject(kind, fell.at, Struck { request: Some(refusal.goal.clone()), ..Struck::default() })
+                });
+                continue;
+            }
             let until = fell.until.or(match kind {
                 kinds::UNAVAILABLE => f.unavailable_until,
                 kinds::LIMITED => f.limited_until,
@@ -451,6 +602,8 @@ impl World {
                 f.ledger.ineligible(kinds::CLOSED_BY_ANOTHER);
             }
         }
+        self.stop_close_refusal(f);
+        self.release_restored_close(f);
         if let Some(task) = f.stale_release
             && let Some(row) = self.root.tasks().task(task)
             && matches!(row.phase, tasks::Phase::Held { .. })

@@ -7,6 +7,7 @@ use temper_engine_domain_forge_landing::Combine;
 use temper_faults::forge::MERGE_LATE;
 
 pub const A_PATH_DELETED_ON_THE_BASE: Kind = Kind { family: "stale", name: "a path deleted on the base" };
+pub const CLOSE_REFUSED_WHEN: &[&str] = &["the refused close occupies a slot in a full forge client call table"];
 
 pub const BRANCH_HOLDS_CAPACITY: Exclusion = Exclusion::new(
     "a_prepare_is_admitted_when_branch_holds_are_released",
@@ -45,6 +46,14 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             "a change's reds",
             A_PATH_DELETED_ON_THE_BASE,
             &["a resolution under way"],
+        ))?;
+    }
+    if configured.contains(&temper_faults::forge::CLOSE_REFUSED) {
+        sweep.exclude(Exclusion::new(
+            "a_failed_capability_refresh_reads_again",
+            "failure worlds: repaired as a red",
+            temper_faults::forge::CLOSE_REFUSED,
+            CLOSE_REFUSED_WHEN,
         ))?;
     }
     if configured.contains(&temper_faults::people::CANCELS_A_GOAL) {

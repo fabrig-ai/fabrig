@@ -707,7 +707,7 @@ impl World {
                 self.funded = true;
                 self.fund();
             }
-            if let Some(event) = self.root_events.pop_front()
+            if let Some(event) = self.workload_close_reply().or_else(|| self.root_events.pop_front())
                 && let Some(event) = self.current_workload_request(event)
             {
                 self.root_step(event);
@@ -792,6 +792,7 @@ impl World {
     fn engine_quiet(&self) -> bool {
         self.absence.engine_running
             && self.root_events.is_empty()
+            && !self.workload_close_waiting()
             && self.root_out.is_empty()
             && self.store.idle()
             && self.root.quiescent()
@@ -1416,6 +1417,20 @@ impl World {
     }
 
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
+        if self.hold_workload_close(call, repository, op) {
+            return;
+        }
+        let reply = self.forge_event(call, repository, op);
+        self.workload_forge_reply(op, reply);
+        self.workload_forge_answer(op);
+    }
+
+    fn forge_event(
+        &mut self,
+        call: Token,
+        repository: skein_forge::api::Repository,
+        op: &skein_forge::api::Op,
+    ) -> engine::Event {
         assert_eq!(repository.forge, self.forge_binding.number);
         let expected = self.walk.as_ref().map_or(temper_engine_forge_world::REPO.repository, |walk| walk.repository);
         assert!(repository.repository == 0 || repository.repository == expected);
@@ -1465,13 +1480,13 @@ impl World {
             }
             _ => {}
         }
-        self.workload_forge_reply(
-            op,
-            engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
-                skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
-            ))),
-        );
-        self.workload_forge_answer(op);
+        engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered {
+            free: 0,
+            rate: None,
+            call,
+            cost: 1,
+            result,
+        })))
     }
 
     fn lane(&self, channel: Token) -> usize {

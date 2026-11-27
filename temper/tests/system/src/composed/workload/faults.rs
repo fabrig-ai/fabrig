@@ -2,7 +2,7 @@
 use super::World;
 use skein_lib::Time;
 use skein_world::faults::{Counter, FaultLedger, Injection, Kind, Struck};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use temper_engine_domain_world::acts::Watch;
 use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
 use temper_worker_inspect::faults::{DISK_FULL, FETCH_CUT};
@@ -53,6 +53,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     forge_faults::MERGE_LATE,
     // bounds
     // refusing
+    forge_faults::CLOSE_REFUSED,
     // ci
     temper_blame::WRONG_TREE,
     temper_blame::SET_UP,
@@ -95,6 +96,10 @@ pub(in crate::composed) struct Faults {
     merge_lag: Option<forge::MergeLag>,
     log_restore: Option<(u64, u32, Box<[u8]>, Injection)>,
     closed: Option<(u64, Injection, Time)>,
+    close_calls: VecDeque<forge::CloseCall>,
+    close_refusal: Option<forge::CloseRefusal>,
+    close_refusal_exclusion: Option<&'static str>,
+    close_permission_restored: Option<u64>,
     restored: Option<u64>,
     stale_release: Option<u64>,
     settling: Option<String>,
@@ -172,6 +177,10 @@ impl Faults {
             base_lag: None,
             log_restore: None,
             closed: None,
+            close_calls: VecDeque::new(),
+            close_refusal: None,
+            close_refusal_exclusion: None,
+            close_permission_restored: None,
             restored: None,
             stale_release: None,
             settling: None,
@@ -221,6 +230,13 @@ impl World {
         Self::workload_with_faults(seed, kinds)
     }
 
+    /// Keep the shared exclusion; the close injector reads its condition when it would strike.
+    pub fn exclude_workload_close(&mut self, sweep: &skein_world::sweep::Sweep) {
+        self.workload_faults.as_mut().expect("faulted workload").close_refusal_exclusion = sweep
+            .leaves_out(forge_faults::CLOSE_REFUSED, temper_engine_forge_world::open::CLOSE_REFUSED_WHEN)
+            .map(|exclusion| exclusion.scenario);
+    }
+
     #[must_use]
     pub fn workload_ledger(&self) -> &FaultLedger {
         &self.workload_faults.as_ref().expect("faulted workload").ledger
@@ -235,6 +251,8 @@ impl World {
                 && f.fetch_cut.is_none()
                 && (f.park.is_none() || f.parked)
                 && f.closed.is_none()
+                && f.close_calls.is_empty()
+                && f.close_refusal.is_none()
                 && f.provider.is_none()
                 && f.account_strikes.is_empty()
                 && f.settling.is_none()
@@ -415,6 +433,7 @@ impl World {
             || lane.worker.retained_turns() != 0
             || !self.store.idle()
             || !self.root_events.is_empty()
+            || !f.close_calls.is_empty()
             || !lane.worker_events.is_empty()
         {
             return;
@@ -458,6 +477,7 @@ impl World {
         // These replies address the old forge client's tokens, not the
         // reopened client's independently numbered calls.
         f.read_replies.clear();
+        f.close_calls.clear();
         self.stop_engine();
         let injection = f.ledger.inject(kind, self.env.now, Struck { request: Some(goal), ..Struck::default() });
         // The composed settings and all durable rows survive the root, not its queues.

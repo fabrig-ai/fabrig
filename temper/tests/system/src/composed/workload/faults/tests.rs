@@ -578,6 +578,47 @@ fn merge_late_draws_its_own_coin_train_and_moment() {
 }
 
 #[test]
+fn close_refused_draws_its_own_coin_target_and_moment() {
+    use forge_faults::CLOSE_REFUSED;
+
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != CLOSE_REFUSED).collect();
+    let (mut planned, mut skipped) = (false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != CLOSE_REFUSED).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != CLOSE_REFUSED).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}"
+        );
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}");
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}");
+
+        let mut rng = streams.rng(Stream::Faults, "refusing/close_refused");
+        let expected = if rng.below(2) == 0 {
+            skipped = true;
+            None
+        } else {
+            planned = true;
+            let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
+                .expect("goal index");
+            Some((workload.goals[index].name.as_str(), rng.below(16)))
+        };
+        let plan = draw.plans.iter().find(|plan| plan.kind == CLOSE_REFUSED);
+        assert_eq!(plan.map(|plan| (plan.goal.as_str(), plan.after)), expected, "seed {seed}");
+    }
+    assert!(planned && skipped);
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);

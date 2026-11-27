@@ -23,7 +23,7 @@ Each is injected as the kind of 8.2 it names is, or as its other world injects i
 | `forge::LIMITED` | `TIMED_OUT`, a forge call answered rate-limited for a stretch | any goal | none |
 | `forge::BASE_BEHIND` | `HEAD_BEHIND`, the base's view lagging its pushes for a stretch | any goal | none |
 | `forge::MERGE_LATE` | `HEAD_BEHIND`, a merge's record arriving late | the train goal | the forge world's lagging sweep's `a_late_manual_merge_record_finishes_the_landed_batch`, while a squashed member already landed on its base is recorded |
-| `forge::CLOSE_REFUSED` | `CLOSED_BY_ANOTHER`, the engine's close of a pull refused for a stretch | any goal | none |
+| `forge::CLOSE_REFUSED` | `CLOSED_BY_ANOTHER`, the engine's close of a pull refused for a stretch | any goal | `open::exclude`'s `a_failed_capability_refresh_reads_again`, while the refused close occupies a slot in a full forge client call table |
 | `forge::MERGED_BY_ANOTHER` | `CLOSED_BY_ANOTHER`, another user merging a pull | a goal that isn't the train | the forge world's refusing sweep's `a_member_merged_by_another_lands_like_any_landing`, while its change is ready or queued for landing, or a batch member, until its record |
 | `stale::REOPENED` | `CLOSED_BY_ANOTHER`'s outside write, another user reopening a pull the engine closed | any goal | none |
 | `temper_blame::WRONG_TREE` | observed as today, a candidate holding a wrong tree, with no coin (section 1) | a goal with a `red_once` change | none |
