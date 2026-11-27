@@ -56,15 +56,6 @@ LINKED`, as for every link jig's start cannot make
 
 ## Gaps and departures
 
-- **Not yet:** 7: a party's or a run's read reaches the store by the engine's
-  store port, carried by the root [in flight: change 19318].
-- **Not yet:** 7: the engine's loads of ended tasks, read positions and decided
-  proposals and escalations, which the root still makes and paces in its read
-  table [in flight: change 19320].
-- **Not yet:** 7: a transcript's window, which the root still loads and paces
-  in its read table, answering the activation `busy` [in flight: change 19321].
-- **Not yet:** 7: notes' pages, which the root still loads and paces in its read
-  table [in flight: change 19322].
 - **Not yet:** 9: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

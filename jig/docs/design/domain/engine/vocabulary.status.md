@@ -2,14 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-- **Not yet:** 2.1, 2.2, 2.4: the store's port (`In::Store`, `Out::Held`, `Peer::Store` and the
-  `engine::store` enums), and parties' and runs' reads through it [in flight: change 19318].
-- **Not yet:** 2.4: ended tasks, read positions, decided proposals and escalations, and a task's
-  proposal from its history, through the port (`Range::Record`, `Range::Proposal`)
-  [in flight: change 19320].
-- **Not yet:** 2.4: a transcript's window through the port (`Range::Window`, its pages and cut
-  turns) [in flight: change 19321].
-- **Not yet:** 2.4: notes' pages through the port (`Range::Notes`) [in flight: change 19322].
 
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
