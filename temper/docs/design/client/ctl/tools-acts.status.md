@@ -6,6 +6,8 @@
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 
+- **Not yet:** 1: a settings file names no `format`, its decoder holds no moves and prints no notices, and `FIELDS` and the `settings-fields` page hold no formats [in flight: change 21449].
+
 
 - **Not yet:** 1: `project delete PROJECT`: the table's tool is `project remove`, its ask built through `me` by `shapes::remove_project` with the chat template's grace, so a number `me` no longer lists sends nothing and a rerun after the deletion never reaches jig's kept answer [in flight: change 634].
 - **Not yet:** 1: a settings file's landing rule has no `sets`, in
