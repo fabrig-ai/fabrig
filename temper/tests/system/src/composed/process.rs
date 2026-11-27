@@ -39,6 +39,8 @@ pub(crate) struct Process {
     /// A composed workload must not advance a provider beyond its outer clock.
     pub(super) bounded_clock: bool,
     pub(super) wire: bool,
+    pub(super) draw: Option<skein_fake_llm_domain::api::Seeds>,
+    stretch_prefix: Option<usize>,
     previous_provider: Option<Box<Provider>>,
     sent_queries: usize,
     clock_start: Option<Time>,
@@ -173,6 +175,8 @@ impl Process {
             clocked: false,
             bounded_clock: false,
             wire: false,
+            draw: None,
+            stretch_prefix: None,
             previous_provider: None,
             sent_queries: 0,
             clock_start: None,
@@ -260,6 +264,7 @@ impl Process {
         let clocked = self.clocked;
         let bounded_clock = self.bounded_clock;
         let wire = self.wire;
+        let draw = self.draw;
         let previous_provider = if wire { self.agent.take().map(|agent| Box::new(agent.into_backend())) } else { None };
         let tool_payload = self.tool_payload;
         let configure_settings = self.configure_settings;
@@ -270,6 +275,7 @@ impl Process {
         self.clocked = clocked;
         self.bounded_clock = bounded_clock;
         self.wire = wire;
+        self.draw = draw;
         self.previous_provider = previous_provider;
         self.tool_payload = tool_payload;
         self.configure_settings = configure_settings;
@@ -424,7 +430,7 @@ impl Process {
 
     /// smith's start, its directories mounted from the trees the worker
     /// prepared, at the path the spawned process would see them.
-    fn start(&mut self, mut start: agent::Start, window: agent::Window, around: &Around<'_>) {
+    fn start(&mut self, mut start: agent::Start, window: agent::Window, around: &mut Around<'_>) {
         self.check_start(&start, window, around);
         if let Some(starts) = &mut self.starts {
             starts.push((start.logical_run.raw(), start.activation));
@@ -459,6 +465,7 @@ impl Process {
             let restored = transcript.as_ref().expect("a resumed conversation");
             assert_eq!(restored.turns, history.turns, "restored concrete history is the committed prefix");
         }
+        self.plan_stretches(assignment.task, restored, around);
         let mut mounted = Disk::new();
         let workspace = mount(&start.directories, around.disk, &mut mounted);
         self.mounts = mount_paths(&start.directories);
@@ -487,8 +494,11 @@ impl Process {
                 smith_protocol_llm_world::codec::completion_bound(&client, settings.limits.decoded_call_bytes)
                     .expect("native completion room");
         }
+        if self.draw.is_some() {
+            settings.provider.calls_per_answer = super::stretches::CALLS;
+        }
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
-        let mut provider = Provider::new(&settings, &self.script, self.wire, around.playback, &start.grants);
+        let mut provider = Provider::new(&settings, &self.script, self.wire, around.playback, self.draw, &start.grants);
         if let Some(mut previous) = self.previous_provider.take() {
             provider.continue_provider(&mut previous);
         }
@@ -519,6 +529,23 @@ impl Process {
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
         self.agent = Some(agent);
+    }
+
+    fn plan_stretches(&mut self, task: u64, prefix: usize, around: &mut Around<'_>) {
+        let ranges = if self.draw.is_some() {
+            let ranges = super::stretches::plan(&self.script);
+            assert_eq!(ranges.len(), 2, "a workload producer plays two stretches");
+            ranges
+        } else if let Some((producer, range)) = around.playback.and_then(|deck| deck.stretch.as_ref())
+            && *producer == task
+        {
+            std::iter::once(range.clone()).collect()
+        } else {
+            return;
+        };
+        around.observed.stretches.plan(task, ranges);
+        // Smith emits only the new turns; the script counts the committed prefix too.
+        self.stretch_prefix = Some(prefix);
     }
 
     fn check_start(&self, start: &agent::Start, window: agent::Window, around: &Around<'_>) {
@@ -651,9 +678,18 @@ impl Process {
             });
         }
         self.sent_deliveries = agent.delivery_submissions().len();
+        self.send_turns(around);
+    }
+
+    fn send_turns(&mut self, around: &mut Around<'_>) {
+        let agent = self.agent.as_ref().expect("driven agent");
         for (number, read, spent) in &agent.turn_metadata()[self.sent_turns..] {
             let index = usize::try_from(*number - 1).expect("positive turn");
             let record = agent.turns()[index].clone();
+            if let Some(prefix) = self.stretch_prefix {
+                let task = around.assignment.expect("drawn turn's assignment").task;
+                around.observed.stretches.observe(task, prefix + index, &record, around.store);
+            }
             if let Some(producer) = &mut self.producer {
                 let piece = producer.hold(&record, *number);
                 assert_eq!(self.reading.take(), self.owner, "a granted read for the live piece");

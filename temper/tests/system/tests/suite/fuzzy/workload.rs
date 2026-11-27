@@ -1,10 +1,15 @@
 //! Complete composed draws and restart comparisons (workloads.md, 5 and 7).
+use std::collections::BTreeSet;
+
 use skein_world::{
     sweep::{Sweep, cases, gate},
     this_test,
 };
 use temper_faults::restarts;
-use temper_system_world::composed::{CAMPAIGN_KINDS, GATE_KINDS, World};
+use temper_system_world::composed::{
+    CAMPAIGN_KINDS, GATE_KINDS, World,
+    stretches::{Refusal, Target},
+};
 
 #[test]
 fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
@@ -21,6 +26,7 @@ fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
         eprintln!("workload {:?}", world.workload());
         world.run_workload()?;
         world.assert_workload()?;
+        report_stretches("clean", seed, &world);
         let before = world.workload_outcome();
         let points = world.workload_restart_points();
         eprintln!("seed {seed}: restart points (queries, host calls) {points:?}");
@@ -28,6 +34,7 @@ fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
         let mut restarted = World::restarted_workload(seed, points);
         restarted.run_workload()?;
         restarted.assert_workload()?;
+        report_stretches("restarted", seed, &restarted);
         let after = restarted.workload_outcome();
         let left = restarted.workload_restart_left();
         eprintln!("seed {seed}: left {left:?}; fell {:?}", restarted.workload_restart_ledger().fell());
@@ -55,6 +62,7 @@ fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
         sweep.configure(kind);
     }
     temper_engine_forge_world::open::exclude(&mut sweep, kinds)?;
+    let mut refusals = BTreeSet::new();
     cases(this_test!("every_family_falls_in_the_composed_workload"), seeds, |seed| {
         eprintln!("mixed seed {seed}");
         let mut world = World::faulted_workload(seed, kinds);
@@ -65,9 +73,32 @@ fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
         world.run_workload()?;
         world.assert_workload()?;
         world.judge_workload_faults()?;
+        report_stretches("mixed", seed, &world);
+        refusals.extend(world.observed.stretches.refusals().keys().cloned());
         sweep.ran(world.workload_ledger());
         Ok::<(), String>(())
     })
     .map_err(|case| case.to_string())?;
-    sweep.check_fell()
+    sweep.check_fell()?;
+    if gate() {
+        for required in [
+            (Refusal::ReadReference, Target::NeverIssued),
+            (Refusal::MessageReference, Target::NeverIssued),
+            (Refusal::EndedRecipient, Target::EndedPersonDelegate),
+            (Refusal::UnknownMessage, Target::NeverIssued),
+        ] {
+            if !refusals.contains(&required) {
+                return Err(format!("composed sweep did not reach {required:?}"));
+            }
+        }
+        // Producers do not receive question labels. The party reports on a
+        // delegated person task; it does not send the producer an inbox question.
+    }
+    Ok(())
+}
+
+fn report_stretches(side: &str, seed: u64, world: &World) {
+    let audit = &world.observed.stretches;
+    let (rounds, calls) = audit.played();
+    eprintln!("{side} seed {seed}: {rounds} drawn rounds, {calls} settled calls, refusals {:?}", audit.refusals());
 }

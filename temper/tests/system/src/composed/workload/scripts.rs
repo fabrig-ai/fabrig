@@ -76,7 +76,8 @@ pub(super) fn assigned(world: &mut World, assignment: &engine::Assignment) -> Sc
         for change in &goal.changes {
             let failed = format!("Failed test: {} ", change.name);
             if words.contains(&failed) {
-                let mut script = producer(change, 0, true, false);
+                // The separate landing-repair delegate is not the change's producer.
+                let mut script = change_run(change, None, true, false);
                 script.cue = failed.into_bytes().into();
                 return script;
             }
@@ -87,7 +88,7 @@ pub(super) fn assigned(world: &mut World, assignment: &engine::Assignment) -> Sc
                     super::Party::First => 1,
                     super::Party::Second => 2,
                 };
-                return producer(change, person, repair, world.workload_parks(assignment.task));
+                return change_run(change, Some(person), repair, world.workload_parks(assignment.task));
             }
         }
     }
@@ -105,10 +106,13 @@ fn person_task(person: u64, words: &str) -> skein_fake_llm_domain::api::Turn {
     )
 }
 
-fn producer(change: &Change, person: u64, repair: bool, park: bool) -> Script {
+fn change_run(change: &Change, person: Option<u64>, repair: bool, park: bool) -> Script {
     let mut turns = Vec::new();
     if change.asks && !repair {
-        turns.push(person_task(person, &format!("@ask:{}@ Write the specified files? I recommend yes.", change.name)));
+        turns.push(person_task(
+            person.expect("only producers ask"),
+            &format!("@ask:{}@ Write the specified files? I recommend yes.", change.name),
+        ));
     }
     if !repair {
         for file in &change.files {
@@ -118,9 +122,20 @@ fn producer(change: &Change, person: u64, repair: bool, park: bool) -> Script {
     turns.push(turn(b"read", &json!({"path":super::setup::marker(change)})));
     turns.push(turn(b"write", &json!({"path":super::setup::marker(change),"content":if change.red_once && !repair { format!("{}\n", change.name) } else { String::new() }})));
     let fields = json!({"title":change.name,"body":format!("Deliver {}", change.name)});
+    if person.is_some() {
+        turns.push(super::super::stretches::turn());
+    }
     turns.push(turn(b"deliver", &json!({"fields":fields})));
     if park {
-        turns.push(person_task(person, &format!("@park:{}@ Finish the delivered change?", change.name)));
+        turns.push(person_task(
+            person.expect("only producers park"),
+            &format!("@park:{}@ Finish the delivered change?", change.name),
+        ));
+    }
+    if person.is_some() {
+        turns.push(super::super::stretches::turn());
+    }
+    if park {
         turns.push(call(b"wait", b"{}"));
     }
     turns.push(turn(b"finish", &json!({"outcome":{"form":"change","fields":fields}})));
