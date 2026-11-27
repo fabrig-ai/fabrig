@@ -223,7 +223,8 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
             // Six boxed alternative LLMs carry an 80-byte optional speed:
             // 16 each for name and alias slice, 48 for prices. Main's
             // inline LLM isn't charged here, and no speed owns a payload.
-            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_519;
+            // The configured hooks path owns another 13 bytes.
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_532;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
             assert_eq!(receiving, 127_391);
@@ -612,6 +613,8 @@ fn measure_turn(number: u32) {
             let request = out.pop().unwrap();
             if let smith_domain::Request::Lower(smith_domain::Lower::Read { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::ProbeHooks { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::HooksProbed { owner, hooks: None }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Probe { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Probed { owner, executable: false }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {

@@ -679,6 +679,7 @@ impl Component {
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }

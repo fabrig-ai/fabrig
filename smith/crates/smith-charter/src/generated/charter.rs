@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 5;
 pub const LAYOUT: [u8; 32] = [
-    0x21, 0xc5, 0x71, 0x9e, 0xfc, 0x84, 0x8c, 0x30, 0x6e, 0xd8, 0x44, 0xeb, 0x23, 0x85, 0x89, 0xaa, 0x82, 0xc8, 0x6d,
-    0xc6, 0xb5, 0xf3, 0xf6, 0xa6, 0xc1, 0x0f, 0x8c, 0x95, 0xd5, 0x8f, 0x14, 0x56,
+    0xf7, 0x81, 0xf2, 0xbe, 0xc2, 0xb5, 0xc7, 0x1e, 0xbb, 0x28, 0xe0, 0x23, 0x93, 0xa6, 0x6a, 0x59, 0xed, 0xff, 0x16,
+    0x84, 0x56, 0x2b, 0x9c, 0xae, 0x7c, 0xff, 0xf8, 0x3a, 0xd3, 0xf3, 0xca, 0x1f,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -34,6 +34,7 @@ pub struct Limits {
     pub tools_host: u32,
     pub conventions_guide: u32,
     pub conventions_checks: u32,
+    pub conventions_hooks_some: u32,
     pub speed_name: u32,
     pub speed_also: u32,
     pub speed_also_item: u32,
@@ -71,6 +72,7 @@ pub const CEILINGS: Limits = Limits {
     tools_host: 128,
     conventions_guide: 1_024,
     conventions_checks: 1_024,
+    conventions_hooks_some: 1_024,
     speed_name: 32,
     speed_also: 2,
     speed_also_item: 32,
@@ -108,6 +110,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "tools_host",
     "conventions_guide",
     "conventions_checks",
+    "conventions_hooks_some",
     "speed_name",
     "speed_also",
     "speed_also_item",
@@ -148,6 +151,7 @@ impl Limits {
             self.tools_host,
             self.conventions_guide,
             self.conventions_checks,
+            self.conventions_hooks_some,
             self.speed_name,
             self.speed_also,
             self.speed_also_item,
@@ -189,6 +193,7 @@ impl Limits {
             tools_host: self.tools_host.min(most),
             conventions_guide: self.conventions_guide.min(most),
             conventions_checks: self.conventions_checks.min(most),
+            conventions_hooks_some: self.conventions_hooks_some.min(most),
             speed_name: self.speed_name.min(most),
             speed_also: self.speed_also.min(most),
             speed_also_item: self.speed_also_item.min(most),
@@ -228,6 +233,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::TOOLS_HOST,
     paths::CONVENTIONS_GUIDE,
     paths::CONVENTIONS_CHECKS,
+    paths::CONVENTIONS_HOOKS,
     paths::SPEED_NAME,
     paths::SPEED_ALSO,
     paths::SPEED_ALSO,
@@ -309,6 +315,7 @@ pub mod paths {
     pub const TOOLS_TAIL: Path = Path::new("Tools (tail)");
     pub const CONVENTIONS_GUIDE: Path = Path::new("Conventions.guide");
     pub const CONVENTIONS_CHECKS: Path = Path::new("Conventions.checks");
+    pub const CONVENTIONS_HOOKS: Path = Path::new("Conventions.hooks");
     pub const CONVENTIONS_TAIL: Path = Path::new("Conventions (tail)");
     pub const PRICES_INPUT: Path = Path::new("Prices.input");
     pub const PRICES_CACHED: Path = Path::new("Prices.cached");
@@ -1102,6 +1109,7 @@ impl Record for Tools {
 pub struct Conventions {
     pub guide: Box<[u8]>,
     pub checks: Box<[u8]>,
+    pub hooks: Option<Box<[u8]>>,
 }
 
 // Record: Conventions.
@@ -1109,11 +1117,13 @@ impl Conventions {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, conventions_guide) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, conventions_checks) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, conventions_hooks_some) },
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 8;
+    pub const ENCODED_AT_ZERO: u64 = 13;
 }
 
 impl Record for Conventions {
@@ -1140,6 +1150,7 @@ impl Record for Conventions {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Text { limit: limits.conventions_guide.min(CEILINGS.conventions_guide) }, &self.guide, limits, out, paths::CONVENTIONS_GUIDE)?;
         field::write(field::Text { limit: limits.conventions_checks.min(CEILINGS.conventions_checks) }, &self.checks, limits, out, paths::CONVENTIONS_CHECKS)?;
+        field::write(field::Optional { item: field::Text { limit: limits.conventions_hooks_some.min(CEILINGS.conventions_hooks_some) } }, &self.hooks, limits, out, paths::CONVENTIONS_HOOKS)?;
         Ok(())
     }
 
@@ -1147,6 +1158,7 @@ impl Record for Conventions {
         Ok(Self {
             guide: field::read(field::Text { limit: limits.conventions_guide.min(CEILINGS.conventions_guide) }, limits, reader, paths::CONVENTIONS_GUIDE)?,
             checks: field::read(field::Text { limit: limits.conventions_checks.min(CEILINGS.conventions_checks) }, limits, reader, paths::CONVENTIONS_CHECKS)?,
+            hooks: field::read(field::Optional { item: field::Text { limit: limits.conventions_hooks_some.min(CEILINGS.conventions_hooks_some) } }, limits, reader, paths::CONVENTIONS_HOOKS)?,
         })
     }
 }
@@ -1514,7 +1526,7 @@ impl Charter {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 229;
+    pub const ENCODED_AT_ZERO: u64 = 234;
 }
 
 impl Record for Charter {
@@ -1864,6 +1876,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.tools_host,
     CEILINGS.conventions_guide,
     CEILINGS.conventions_checks,
+    CEILINGS.conventions_hooks_some,
     CEILINGS.speed_name,
     CEILINGS.speed_also,
     CEILINGS.speed_also_item,

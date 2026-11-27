@@ -897,7 +897,10 @@ impl World {
                 }
                 self.send(Lane::Conversations, Delivery::Return { call, result, spent });
             }
-            request @ (run::Request::Read { .. } | run::Request::Probe { .. } | run::Request::Abort { .. }) => {
+            request @ (run::Request::Read { .. }
+            | run::Request::Probe { .. }
+            | run::Request::ProbeHooks { .. }
+            | run::Request::Abort { .. }) => {
                 self.io_request(request);
             }
             run::Request::Check { owner, program, results: _, bound, cap, tail } => {
@@ -1114,7 +1117,9 @@ impl World {
             | run::Event::PartKept { run, .. }
             | run::Event::Acknowledge { run, .. }
             | run::Event::Message { run, .. } => Some(*run),
-            run::Event::Read { owner, .. } | run::Event::Probed { owner, .. } => Some(*owner),
+            run::Event::Read { owner, .. }
+            | run::Event::Probed { owner, .. }
+            | run::Event::HooksProbed { owner, .. } => Some(*owner),
             run::Event::JobsCancelled { conversation }
             | run::Event::Started { conversation, .. }
             | run::Event::Turn { conversation, .. }
@@ -1194,6 +1199,7 @@ impl World {
             | run::Event::Withdraw { .. }
             | run::Event::Read { .. }
             | run::Event::Probed { .. }
+            | run::Event::HooksProbed { .. }
             | run::Event::JobsCancelled { .. } => {}
         }
         None
@@ -1429,6 +1435,7 @@ impl World {
                 | run::Event::Ended { .. }
                 | run::Event::Read { .. }
                 | run::Event::Probed { .. }
+                | run::Event::HooksProbed { .. }
                 | run::Event::Delegated { .. }
                 | run::Event::Withdraw { .. }
                 | run::Event::Checked { .. }
@@ -1763,6 +1770,7 @@ impl World {
             | run::Event::Drain { .. }
             | run::Event::Read { .. }
             | run::Event::Probed { .. }
+            | run::Event::HooksProbed { .. }
             | run::Event::Checked { .. }
             | run::Event::Aborted { .. }
             | run::Event::Delivered { .. } => unreachable!("not a conversation's event"),

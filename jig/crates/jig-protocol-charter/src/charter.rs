@@ -154,7 +154,7 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
         instructions: charter.instructions,
         brief: run::Brief { sections: sections.into_boxed() },
         conventions: match charter.conventions {
-            Some(paths) => Some(run::Conventions { guide: paths.guide, checks: paths.checks }),
+            Some(paths) => Some(run::Conventions { guide: paths.guide, checks: paths.checks, hooks: paths.hooks }),
             None => None,
         },
         grants: run::charter::Grants {

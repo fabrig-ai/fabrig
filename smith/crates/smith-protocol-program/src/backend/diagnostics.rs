@@ -55,6 +55,7 @@ impl core::fmt::Debug for Below {
                     | file::Request::CreateNoFollow { .. }
                     | file::Request::OpenRead { .. }
                     | file::Request::OpenReadNoFollow { .. }
+                    | file::Request::OpenSiblingFile { .. }
                     | file::Request::OpenWrite { .. }
                     | file::Request::OpenWriteNoFollow { .. }
                     | file::Request::OpenDirectory { .. }

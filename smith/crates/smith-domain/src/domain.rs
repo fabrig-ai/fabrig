@@ -486,6 +486,7 @@ fn opening(domain: &Domain, fact: &run::facts::Fact) -> Option<crate::Opening> {
             | run::Request::Close { .. }
             | run::Request::Read { .. }
             | run::Request::Probe { .. }
+            | run::Request::ProbeHooks { .. }
             | run::Request::Check { .. }
             | run::Request::Abort { .. }
             | run::Request::Checking { .. }

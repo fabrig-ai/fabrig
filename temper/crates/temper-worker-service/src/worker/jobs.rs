@@ -2,6 +2,7 @@
 //! Each kill keeps the job's cause, including across a pending spawn
 //! (temper/docs/design/domain/worker/jobs.md, "A command is a process").
 mod files;
+mod hooks;
 use super::Worker;
 use alloc::boxed::Box;
 use root::tooling::{Event, Exit, Request};
@@ -14,6 +15,7 @@ use temper_worker_protocol_git::ring::ByteRing;
 pub(super) struct Jobs {
     processes: Map<Token, Process>,
     files: Map<Token, files::File>,
+    checks: Map<Token, hooks::Check>,
 }
 #[derive(Debug)]
 struct Process {
@@ -31,7 +33,11 @@ struct Process {
 }
 impl Jobs {
     pub(super) fn new(slots: u32) -> Self {
-        Self { processes: Map::with_capacity(slots), files: Map::with_capacity(slots) }
+        Self {
+            processes: Map::with_capacity(slots),
+            files: Map::with_capacity(slots),
+            checks: Map::with_capacity(slots),
+        }
     }
     pub(super) fn accepts(&self, owner: Token) -> bool {
         for (token, process) in &self.processes {
@@ -42,10 +48,18 @@ impl Jobs {
         false
     }
     pub(super) fn empty(&self) -> bool {
-        self.processes.is_empty() && self.files.is_empty()
+        self.processes.is_empty() && self.files.is_empty() && self.checks.is_empty()
     }
     pub(super) fn deadline(&self) -> Option<Time> {
         let mut next: Option<Time> = None;
+        for (_, check) in &self.checks {
+            if let Some(at) = check.deadline {
+                next = Some(match next {
+                    Some(next) => next.min(at),
+                    None => at,
+                });
+            }
+        }
         for (_, process) in &self.processes {
             if let Some(at) = process.deadline {
                 next = Some(match next {
@@ -122,31 +136,22 @@ impl Worker {
                     };
                     environment.push(joined(&[&name, b"=", &value])).expect("job environment");
                 }
-                let token = self.job_token();
-                self.jobs
-                    .processes
-                    .insert(
-                        token,
-                        Process::new(owner, deadline, self.env.limits.tooling.tail_bytes, &self.path, &program, &dir),
-                    )
-                    .expect("root bounds jobs");
-                self.io.push(io::Request::Spawn {
-                    owner: token,
-                    spawn: io::kernel::Spawn {
-                        reach: None,
-                        program: joined(&[&self.path, b"/", &program]),
-                        args: arguments.into_boxed(),
-                        env: environment.into_boxed(),
-                        root: self.directory.expect("worker root"),
-                        dir,
-                        pipes: Box::new([
-                            io::kernel::Pipe { child: 1, way: io::kernel::Way::Out, parent: None },
-                            io::kernel::Pipe { child: 2, way: io::kernel::Way::Out, parent: None },
-                        ]),
-                    },
-                });
+                let spawn = io::kernel::Spawn {
+                    reach: None,
+                    program: joined(&[&self.path, b"/", &program]),
+                    args: arguments.into_boxed(),
+                    env: environment.into_boxed(),
+                    root: self.directory.expect("worker root"),
+                    dir,
+                    pipes: Box::new([
+                        io::kernel::Pipe { child: 1, way: io::kernel::Way::Out, parent: None },
+                        io::kernel::Pipe { child: 2, way: io::kernel::Way::Out, parent: None },
+                    ]),
+                };
+                self.job_command(owner, spawn, deadline, &program);
             }
             Request::Kill { .. } => {
+                self.stop_hook(owner, Exit::Signal);
                 let mut found = None;
                 for (token, process) in &self.jobs.processes {
                     if process.owner == owner {
@@ -165,12 +170,88 @@ impl Worker {
             Request::Started { .. } | Request::StartRefused { .. } | Request::Ended { .. } | Request::Gone { .. } => {}
         }
     }
+    fn job_command(&mut self, owner: Token, spawn: io::kernel::Spawn, deadline: Time, program: &[u8]) {
+        if let Some(remainder) = program.strip_prefix(spawn.dir.as_ref())
+            && let Some(command) = remainder.strip_prefix(b"/")
+            && let Some((_, hook)) = root::tooling::hook_path(command)
+        {
+            let op = self.job_token();
+            match hooks::Check::start(op, deadline, spawn, program, hook) {
+                Ok((check, kind)) => {
+                    self.jobs.checks.insert(owner, check).expect("root bounds job checks");
+                    self.submitted.push(io::kernel::Submit { op, kind });
+                }
+                Err(tail) => self.job_not_run(owner, Exit::NotRun, tail),
+            }
+        } else {
+            self.job_spawn(owner, spawn, deadline);
+        }
+    }
+    fn job_spawn(&mut self, owner: Token, spawn: io::kernel::Spawn, deadline: Time) {
+        let token = self.job_token();
+        let process = Process::new(owner, deadline, self.env.limits.tooling.tail_bytes, &self.path, &spawn);
+        self.jobs.processes.insert(token, process).expect("root bounds jobs");
+        self.io.push(io::Request::Spawn { owner: token, spawn });
+    }
+    fn job_not_run(&mut self, owner: Token, exit: Exit, tail: Box<[u8]>) {
+        above(&mut self.events, owner, Event::Exited { owner, exit, tail });
+        above(&mut self.events, owner, Event::Gone { owner });
+    }
+    fn stop_hook(&mut self, owner: Token, exit: Exit) {
+        if let Some(check) = self.jobs.checks.get_mut(&owner)
+            && let Some(target) = check.stop(exit)
+        {
+            let op = self.job_token();
+            self.jobs.checks.get_mut(&owner).expect("owned hook check").cancel = Some(op);
+            self.submitted.push(io::kernel::Submit { op, kind: io::kernel::Op::Cancel { target } });
+        }
+    }
+    fn hook_complete(&mut self, now: Time, answer: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+        let mut owner = None;
+        for (token, check) in &self.jobs.checks {
+            if check.op == answer.op || check.cancel == Some(answer.op) {
+                owner = Some(*token);
+                break;
+            }
+        }
+        let Some(owner) = owner else { return Err(answer) };
+        let check = self.jobs.checks.get_mut(&owner).expect("owned hook check");
+        if check.cancel == Some(answer.op) {
+            check.cancel = None;
+        } else {
+            if is_due(check.deadline, now) {
+                // This operation already completed; only its descriptors need to drain.
+                let _target = check.stop(Exit::Deadline);
+            }
+            if let Some(kind) = check.complete(answer) {
+                let op = self.job_token();
+                self.jobs.checks.get_mut(&owner).expect("owned hook check").op = op;
+                self.submitted.push(io::kernel::Submit { op, kind });
+                return Ok(());
+            }
+        }
+        if check.ended() {
+            match self.jobs.checks.remove(&owner).expect("drained hook check").end() {
+                hooks::End::Run { spawn, deadline } => self.job_spawn(owner, spawn, deadline),
+                hooks::End::Failed { exit, tail } => self.job_not_run(owner, exit, tail),
+            }
+        }
+        Ok(())
+    }
     fn job_file(&mut self, file: files::File, kind: io::kernel::Op) {
         let op = self.job_token();
         self.jobs.files.insert(op, file).expect("root bounds job files");
         self.submitted.push(io::kernel::Submit { op, kind });
     }
-    pub(super) fn job_complete(&mut self, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+    pub(super) fn job_complete(
+        &mut self,
+        now: Time,
+        complete: io::kernel::Complete,
+    ) -> Result<(), io::kernel::Complete> {
+        let complete = match self.hook_complete(now, complete) {
+            Ok(()) => return Ok(()),
+            Err(complete) => complete,
+        };
         let Some(mut file) = self.jobs.files.remove(&complete.op) else {
             return Err(complete);
         };
@@ -196,6 +277,7 @@ impl Worker {
         }
     }
     pub(super) fn jobs_fire(&mut self, now: Time, abort: bool) {
+        self.hooks_fire(now, abort);
         let mut due = List::with_capacity(self.jobs.processes.len());
         for (token, process) in &self.jobs.processes {
             if abort
@@ -217,9 +299,26 @@ impl Worker {
             }
         }
     }
+    fn hooks_fire(&mut self, now: Time, abort: bool) {
+        let mut due = List::with_capacity(self.jobs.checks.len());
+        for (owner, check) in &self.jobs.checks {
+            if abort || is_due(check.deadline, now) {
+                due.push(*owner).expect("hook check count");
+            }
+        }
+        for owner in &due {
+            self.stop_hook(*owner, if abort { Exit::Signal } else { Exit::Deadline });
+        }
+    }
 }
 fn above(events: &mut Queue<root::Event>, owner: Token, event: Event) {
     events.push(root::Event::Job { owner, event });
+}
+fn is_due(deadline: Option<Time>, now: Time) -> bool {
+    match deadline {
+        Some(at) => at <= now,
+        None => false,
+    }
 }
 fn relative(path: &[u8], bound: u32) -> bool {
     if path.is_empty()
@@ -252,7 +351,7 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     writer.finish()
 }
 impl Process {
-    fn new(owner: Token, deadline: Time, tail_bytes: u32, root: &[u8], program: &[u8], dir: &[u8]) -> Self {
+    fn new(owner: Token, deadline: Time, tail_bytes: u32, root: &[u8], spawn: &io::kernel::Spawn) -> Self {
         Self {
             owner,
             deadline: Some(deadline),
@@ -264,7 +363,7 @@ impl Process {
             killed: None,
             aborted: false,
             tail: ByteRing::new(tail_bytes),
-            setup: joined(&[b"spawn command ", root, b"/", program, b" in ", root, b"/", dir]),
+            setup: joined(&[b"spawn command ", &spawn.program, b" in ", root, b"/", &spawn.dir]),
         }
     }
     fn abort(&mut self, io: &mut Queue<io::Request>) {

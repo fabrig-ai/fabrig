@@ -102,6 +102,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::Delivered { owner, delivery } => run::Event::Delivered { owner, delivery },
         Event::Below(Below::Read { owner, read }) => run::Event::Read { owner, read },
         Event::Below(Below::Probed { owner, executable }) => run::Event::Probed { owner, executable },
+        Event::Below(Below::HooksProbed { owner, hooks }) => run::Event::HooksProbed { owner, hooks },
         Event::Below(Below::Checked { owner, ran }) => run::Event::Checked { owner, ran },
         Event::Below(Below::Aborted { owner }) => run::Event::Aborted { owner },
         Event::Below(Below::ReadVersion { owner, place, version }) => {
@@ -934,6 +935,9 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         }
         run::Request::Probe { owner, at, deadline } => {
             return out.push(Request::Lower(Lower::Probe { owner, at, deadline }));
+        }
+        run::Request::ProbeHooks { owner, at, deadline } => {
+            return out.push(Request::Lower(Lower::ProbeHooks { owner, at, deadline }));
         }
         run::Request::Check { owner, program, results, bound, cap, tail } => {
             return out.push(Request::Lower(Lower::Check { owner, program, results, bound, cap, tail }));

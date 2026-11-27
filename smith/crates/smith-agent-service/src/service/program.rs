@@ -816,6 +816,7 @@ fn answer_head(service: &Stages) -> bool {
                 | smith_domain::Lower::CancelIo { .. }
                 | smith_domain::Lower::Read { .. }
                 | smith_domain::Lower::Probe { .. }
+                | smith_domain::Lower::ProbeHooks { .. }
                 | smith_domain::Lower::Check { .. }
                 | smith_domain::Lower::Abort { .. },
             )

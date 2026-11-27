@@ -59,7 +59,11 @@ pub fn config() -> Config {
         }]),
         sub_agents: false,
         budget: run::Budget { turns: 8, spend: 1, time: Duration::from_secs(60) },
-        conventions: Some(run::Conventions { guide: Box::from(&b"GUIDE.md"[..]), checks: Box::from(&b"check"[..]) }),
+        conventions: Some(run::Conventions {
+            guide: Box::from(&b"GUIDE.md"[..]),
+            checks: Box::from(&b"check"[..]),
+            hooks: None,
+        }),
         contract: Contract::Report(outcome::TextSpec { max: 256, fields: Box::new([]) }),
         deliver: None,
         title_field: Box::from(&b"title"[..]),

@@ -532,6 +532,7 @@ impl Host {
             conventions: Some(smith_domain_run::Conventions {
                 guide: b"AGENTS.md".as_slice().into(),
                 checks: b".temper/pre-pr".as_slice().into(),
+                hooks: None,
             }),
             resume: false,
             waiting: Duration::from_secs(30),

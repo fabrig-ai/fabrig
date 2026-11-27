@@ -198,6 +198,7 @@ fn charter(held: u64) -> Charter {
         conventions: Some(smith_domain_run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -250,6 +251,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
         | Request::Say { .. }
         | Request::CancelJobs { .. }
         | Request::Close { .. }
+        | Request::ProbeHooks { .. }
         | Request::Abort { .. }
         | Request::Checking { .. }
         | Request::ChecksEnded { .. }
@@ -600,6 +602,7 @@ fn delivery_memory_step(
             | Request::Answer { .. }
             | Request::Return { .. }
             | Request::Say { .. }
+            | Request::ProbeHooks { .. }
             | Request::Abort { .. }) => panic!("unexpected delivery fixture output {unexpected:?}"),
         }
     }
@@ -745,6 +748,7 @@ fn full_delivery_charter(limits: &Limits) -> Charter {
         conventions: Some(smith_domain_run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -795,6 +799,7 @@ fn host_memory_take(
             | Request::Yield { .. }
             | Request::Return { .. }
             | Request::Say { .. }
+            | Request::ProbeHooks { .. }
             | Request::Abort { .. }
             | Request::Check { .. }
             | Request::Checking { .. }
@@ -910,6 +915,7 @@ fn maximum_selected_read_probe_and_check_paths_attain_the_full_run_ownership_bou
     let selected = smith_domain_run::Conventions {
         guide: vec![b'g'; capacity].into_boxed_slice(),
         checks: vec![b'c'; capacity].into_boxed_slice(),
+        hooks: None,
     };
     fill_selected(&Limits { run_bytes: 16_384, ..LIMITS }, Some(&selected), SELECTED_PATHS_CEILING);
 }

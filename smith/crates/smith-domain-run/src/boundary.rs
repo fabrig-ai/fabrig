@@ -204,6 +204,8 @@ pub enum Event {
         /// Whether IO found an executable within the named root before its deadline.
         executable: bool,
     },
+    /// Terminal for `ProbeHooks`: no hooks directory, or its two checks.
+    HooksProbed { owner: Token, hooks: Option<Hooks> },
     /// A call the conversation's LLM made of the run, which the run answers
     /// with one `Return`. `deadline` is the conversation's own expiry: past
     /// it, pre-submission checks abort and return `TimedOut` once settled.
@@ -358,6 +360,8 @@ pub enum Request {
     /// Find out whether an executable file is at `at`, giving up at
     /// `deadline`.
     Probe { owner: Token, at: Place, deadline: Time },
+    /// Find the delivery hooks in the directory at `at`, giving up at `deadline`.
+    ProbeHooks { owner: Token, at: Place, deadline: Time },
     /// Run the executable at `program`, in its repository's root, as a
     /// contained process, given `bound` of held time within `cap`; keep the last `tail`
     /// bytes of what it writes.
@@ -584,6 +588,43 @@ pub enum AskRefusal {
     Unworkable,
     /// The run has spent past its budget.
     Over,
+}
+
+/// The two checks found in a writable workspace's hooks directory.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Hooks {
+    pub deliver: Hook,
+    pub finish: Hook,
+}
+
+/// What the machine found at one hook's path.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Hook {
+    /// No entry at the path.
+    Missing,
+    /// An executable regular file, or exactly one link to one beside it.
+    Executable,
+    /// The machine found a hook that cannot run.
+    Broken(HookProblem),
+}
+
+/// Why the machine could not use a workspace hook.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum HookProblem {
+    /// The hook or its directory could not be read.
+    Unreadable,
+    /// The hook has no execute bits.
+    NotExecutable,
+    /// The hook is not a regular file.
+    NotFile,
+    /// The hook links somewhere other than directly to an executable beside it.
+    BadLink,
+}
+
+impl Hooks {
+    /// Neither hook could be read.
+    pub const UNREADABLE: Hooks =
+        Hooks { deliver: Hook::Broken(HookProblem::Unreadable), finish: Hook::Broken(HookProblem::Unreadable) };
 }
 
 /// What a check's process did: how it ended, and the tail of what it wrote,

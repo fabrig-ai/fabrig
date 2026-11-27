@@ -263,6 +263,9 @@ fn a_landing_repair_asks_while_the_closer_settles_status() {
     let job = close_job(&mut world);
     let tasks::Party::Task(settlement) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
     let repair = start_repair(&mut world, &branch, landing);
+    // The close's hooks read shares the forge rate window with the landing's
+    // CI read. Let that observation settle before the restart oracle's cut.
+    stall_hold::jump(&mut world, window);
     let (number, up) = ask(&mut world, goal.task, closer, landing, &repair);
     world.goal_answer(&goal, ANSWER_CALL, closer, up, ANSWER);
     let repair = resumed(&mut world, &repair, number);

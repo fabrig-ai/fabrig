@@ -35,6 +35,7 @@ fn coding_charter() -> Box<[u8]> {
         parts.conventions = Some(smith_charter::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".smith-test/check".as_slice().into(),
+            hooks: None,
         });
     })
 }

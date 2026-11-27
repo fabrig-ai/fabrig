@@ -1,8 +1,8 @@
 Budget: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeRule: ceilings encoded=2309 decoded=2816; at_most(3) encoded=38 decoded=81
-Charter: ceilings encoded=29102520 decoded=29702960; at_most(3) encoded=1512 decoded=3218
+Charter: ceilings encoded=29103549 decoded=29703984; at_most(3) encoded=1520 decoded=3221
 Contract: ceilings encoded=2516508 decoded=3101952; at_most(3) encoded=703 decoded=1971
-Conventions: ceilings encoded=2056 decoded=2048; at_most(3) encoded=14 decoded=6
+Conventions: ceilings encoded=3085 decoded=3072; at_most(3) encoded=22 decoded=9
 Effect: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Families: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 Field: ceilings encoded=262216 decoded=262208; at_most(3) encoded=14 decoded=6
@@ -21,4 +21,4 @@ Speed: ceilings encoded=149 decoded=128; at_most(3) encoded=62 decoded=41
 TextRule: ceilings encoded=2312 decoded=2816; at_most(3) encoded=41 decoded=81
 Tools: ceilings encoded=9450514 decoded=9456384; at_most(3) encoded=144 decoded=300
 VerdictRule: ceilings encoded=78424 decoded=96576; at_most(3) encoded=192 decoded=480
-family: ceilings encoded=2156745044 decoded=2156952640; at_most(3) encoded=1512 decoded=3218
+family: ceilings encoded=2156745044 decoded=2156952640; at_most(3) encoded=1520 decoded=3221

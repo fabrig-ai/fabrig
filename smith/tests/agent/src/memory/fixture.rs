@@ -160,6 +160,7 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
         conventions: Some(smith_domain::run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: skein_lib::Duration::from_secs(30),

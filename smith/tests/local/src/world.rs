@@ -1583,6 +1583,7 @@ impl World {
                     self.disk.load(at.root.raw(), &at.path, 4096).is_ok_and(|(text, _)| text.starts_with(b"#!"));
                 self.events.push_back(self.below(Below::Probed { owner, executable }));
             }
+            Lower::ProbeHooks { .. } => unreachable!("local settings do not select a hooks directory"),
             Lower::Check { owner, program, results: _, bound: _, cap: _, tail } => {
                 let passed = self
                     .disk

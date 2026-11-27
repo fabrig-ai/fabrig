@@ -16,7 +16,6 @@ use jig_domain_core::{
     reads::{Answer, Read},
 };
 use jig_domain_people as people;
-use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
@@ -82,11 +81,9 @@ impl Snapshot {
         let mut queries = Vec::new();
         for sign_in in sessions {
             queries.push((sign_in, Read::Frame));
-            for row in rows.values() {
-                if let Record::Core(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = row {
-                    queries.push((sign_in, Read::Task { task: task.number }));
-                    queries.push((sign_in, Read::Result { task: task.number }));
-                }
+            for task in crate::store::task_rows(rows) {
+                queries.push((sign_in, Read::Task { task: task.number }));
+                queries.push((sign_in, Read::Result { task: task.number }));
             }
         }
         Self { rows: BTreeMap::new(), wall, queries, answers: Vec::new() }
@@ -309,9 +306,11 @@ impl Driver {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
             let commit = self.store.applied;
-            if self.events.is_empty() && self.out.is_empty() && self.store.idle()
+            if self.events.is_empty()
+                && self.out.is_empty()
+                && self.store.idle()
                 && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
-                && self.store.rows.values().any(|row| matches!(row, Record::Core(core::Record::Tasks(tasks::Stored::Live(task))) if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. }) && task.phase == tasks::Phase::Active(tasks::Active::Due)))
+                && self.store.has_due_change()
                 && let Some(due) = self.root.next_deadline(&self.env)
                 && due <= self.env.now.saturating_add(skein_lib::Duration::from_secs(1))
             {
@@ -458,29 +457,31 @@ pub fn close_world(
 #[must_use]
 pub fn forge_subjects(rows: &BTreeMap<Key, Record>) -> Vec<(u64, u32, u64)> {
     let mut subjects = std::collections::BTreeSet::new();
+    let mut projects = std::collections::BTreeSet::new();
+    for task in crate::store::task_rows(rows) {
+        subjects.insert((task.project, task.number));
+        projects.insert(task.project);
+    }
+    let mut sessions = Vec::new();
     for row in rows.values() {
-        if let Record::Core(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = row {
-            subjects.insert((task.project, task.number));
-            for ended in [false, true] {
-                subjects.insert((task.project, temper_engine_domain_forge::landings_subject(task.project, ended)));
+        match row {
+            Record::Forge { row } => {
+                if let temper_engine_domain_forge::Stored::Repository(repository) = row.as_ref() {
+                    projects.insert(repository.project);
+                }
             }
-        }
-        if let Record::Forge { row } = row
-            && let temper_engine_domain_forge::Stored::Repository(repository) = row.as_ref()
-        {
-            for ended in [false, true] {
-                subjects.insert((
-                    repository.project,
-                    temper_engine_domain_forge::landings_subject(repository.project, ended),
-                ));
-            }
+            Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) => sessions.push(*number),
+            Record::Core(_) => {}
         }
     }
-    let mut queries = Vec::new();
-    for row in rows.values() {
-        if let Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) = row {
-            queries.extend(subjects.iter().map(|(project, subject)| (*number, *project, *subject)));
+    for project in projects {
+        for ended in [false, true] {
+            subjects.insert((project, temper_engine_domain_forge::landings_subject(project, ended)));
         }
+    }
+    let mut queries = Vec::with_capacity(sessions.len() * subjects.len());
+    for sign_in in sessions {
+        queries.extend(subjects.iter().map(|(project, subject)| (sign_in, *project, *subject)));
     }
     queries
 }
@@ -545,6 +546,7 @@ impl Drop for Driver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jig_domain_tasks as tasks;
 
     #[test]
     fn closing_twice_keeps_the_first_cold_readback() {

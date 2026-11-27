@@ -363,7 +363,10 @@ fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome
     let deliver = charter.grants.deliver.expect("the workspace delivers");
     assert!(deliver.checks_must_pass);
     assert!(charter.grants.tools.modify);
-    assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
+    let conventions = charter.conventions.expect("repository conventions");
+    assert_eq!(conventions.guide.as_ref(), b"AGENTS.md");
+    assert_eq!(conventions.checks.as_ref(), b".temper/pre-pr");
+    assert_eq!(conventions.hooks.as_deref(), Some(b".temper/hooks".as_slice()));
     assert!(charter.outcome.change.is_none());
     assert!(charter.outcome.report.is_some());
 }

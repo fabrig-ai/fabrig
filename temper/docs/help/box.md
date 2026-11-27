@@ -14,8 +14,9 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   `--runner-path` at forge preparation (default
   `/usr/local/bin:/usr/bin:/bin`); restart after edits.
   A shell's PATH alone is insufficient.
-- **Host delivery checks:** `.temper/pre-pr` tools inherit the box's
-  startup `PATH` (its unit's `PATH` in a service). Install there before step 2.
+- **Host delivery checks:** `.temper/hooks/` and `.temper/pre-pr` tools
+  inherit the box's startup `PATH` (its unit's `PATH` in a service).
+  Install there before step 2.
   For fabrig: `cargo`, rustfmt (`cargo fmt` and `rustfmt`), `python3`.
   Kit PATH: `W/bin:/usr/local/bin:/usr/bin:/bin`.
   Unit example:
