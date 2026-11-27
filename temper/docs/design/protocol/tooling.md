@@ -25,7 +25,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **A directory, not a forge.** temper fetches every repository the
   command needs into a directory it gives the command, and pushes what
   the command made. The command holds no credential, reaches no forge,
-  and needs no model.
+  and needs no model. It uses only what its directory holds: a need for
+  more is fixed or relaxed in what it does, never fetched (2).
 - **Files in, files out:** a request file in JSON, the repositories as
   git directories, and a result file in JSON, each bounded.
 - **The exit code says which:** 0, a candidate, a merge settled, or a
@@ -52,8 +53,19 @@ what they write, and how they end. temper runs them as jobs on a worker
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
 - **Its network** is the worker's containment's (`../domain/worker/README.md`,
-  section 8): a command that fetches what the directory lacks does so
-  without temper's credentials.
+  section 8), and a command needs none.
+- **Only what its checkout holds.** A hook uses only what its checkout
+  holds, and a need for more is fixed or relaxed, never fetched (the
+  user, 2026-11-27). A command's checkout is its directory: its
+  repositories' files, history and references, the request and what
+  temper wrote beside them, with the programs on its `PATH` and the build
+  caches the worker gives it. A command that would need anything else,
+  another repository, a reference its checkout lacks or a file from the
+  network, has a bug: it is fixed, or it does less, says so and goes on,
+  as fabrig's close check does without main's counts (fabrig's
+  `tools/pre-pr/design.md`, 4.1). The project's delivery check is bound
+  the same way to the run's checkout (`../domain/agent/charter.md`,
+  section 4; fabrig's `tools/pre-pr/design.md`, 1).
 
 ## 3. The directory
 
@@ -457,8 +469,10 @@ limit of the worker's jobs (`../domain/worker/jobs.md`).
   (`configuration/worker.md`, section 1) and no override (`configuration/limits.md`). The first kind built, `merge`, keeps them the
   profile's constants, so they stay open until a deployment needs
   another.
-- **A command's own network:** whether a worker gives it none, so that
-  a pin bump needs nothing fetched, or the project's.
+- **A command's own network:** a command needs none (2), so a worker
+  could give it none, holding the rule by containment rather than by the
+  command alone. Default: the worker's containment, the rule the
+  command's to keep.
 - **A train's request near its job's spec bound:** a member's `squash`
   may hold up to 4,096 bytes with its TRAILERS (4), so a train of five
   members, each with trailers near that bound, passes the prepare
