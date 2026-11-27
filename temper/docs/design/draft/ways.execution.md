@@ -21,6 +21,8 @@
 | W13, a gathering landing whole, and catch-ups by way: a gathering holding a branch, its tasks landing into it, a closer of its own landing it whole, and jig's gathering waiting for that closer before it concludes; `catch_up`, `after-each-landing` made by temper through the merge hook; the one-landing-milestone entry | 3.2, 3.3, 3.5, 5.2 | W9; [hooks.md](hooks.md)'s merge hook | not started |
 | W14, the pages: New offering the project's ways; How work runs showing them, the floor and the defaults, and the gallery, drawn from the path's derivation; the preview of a charter; today's stock ways and their "Use this" retired | 3.5, 12 | W9; the user's UX pass | after the UX pass |
 
+Draft parts are by ways.md's sections as they were before its split: its sections 3, 6 and 8 are now [ways-recipes.md](ways-recipes.md), [ways-charters.md](ways-charters.md) and [ways-temper-dir.md](ways-temper-dir.md), their subsections numbered from 1, so 3.2 is ways-recipes.md's section 2.
+
 ## 2. Order
 
 - **Without the web or the TUI first** (the user, 2026-11-27): W1 to W9 and W11 to W13 change no page, and run while the user's UX pass goes on. Clients are rebuilt for the wire's new fields, as at any release, and an older client reloads. W10 and W14 come after the pass.

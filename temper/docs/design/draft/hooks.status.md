@@ -16,4 +16,4 @@ None.
 ## Open
 
 - 3.4: the ceiling's default, 3,600 seconds, is a figure of the drafter's, for the user to confirm or change.
-- `ways.md`, 8.4, 10 and 11, still says the first pass's hooks: three of them, `close` run from the landing branch's tip where its refusal holds a landing, a fallback moment by moment, and hooks after `.temper/`'s guarded read. It stays as it is on the user's word (2026-11-27) until its next pass, which takes this draft's.
+- `ways-temper-dir.md`, 4, and `ways.md`, 10 and 11, still says the first pass's hooks: three of them, `close` run from the landing branch's tip where its refusal holds a landing, a fallback moment by moment, and hooks after `.temper/`'s guarded read. It stays as it is on the user's word (2026-11-27) until its next pass, which takes this draft's.
