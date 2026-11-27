@@ -178,12 +178,6 @@ impl World {
         *self.domain.journal_mut() = skein_lib::Journal::uncapped(self.limits.journal.release, header.commits);
     }
 
-    /// Install the connector's fixed hold vocabulary, retained across cold starts.
-    pub fn configure_holds(&mut self, connector: u16, kinds: Box<[tasks::Kind]>) {
-        super::Rc::make_mut(&mut self.hold_kinds).push((connector, kinds.clone()));
-        self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds { connector, kinds })));
-    }
-
     /// Let every previously durable completion through its ordered barrier.
     pub fn release_commits(&mut self) {
         self.try_release_commits().unwrap_or_else(|finding| self.fail(&finding));
@@ -317,10 +311,6 @@ impl World {
         }
         if let Some(setup) = self.startup {
             setup(&mut self.domain);
-        }
-        let env = self.env();
-        for (connector, kinds) in self.hold_kinds.iter() {
-            self.domain.configure_holds(&env, *connector, kinds.clone());
         }
         self.events.clear();
         self.internal_reads.clear();

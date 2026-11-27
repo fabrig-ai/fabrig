@@ -10,14 +10,6 @@ impl World {
         );
     }
     pub fn delegate_on_path(&mut self, resource: u64, path: connector::Path) {
-        self.configure_holds(
-            1,
-            Box::new([tasks::Kind {
-                connector: 1,
-                kind: 1,
-                hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-            }]),
-        );
         self.send(root::Event::Connector {
             number: 1,
             event: connector::Event::Adopt { project: 1, resource: path, role: connector::ResourceRole::Owned },

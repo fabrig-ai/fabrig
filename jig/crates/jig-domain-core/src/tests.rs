@@ -39,10 +39,23 @@ use fixtures::CurrentFixtures;
 use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+fn empty_declarations(config: &Config) -> Box<[Declaration]> {
+    let mut declarations = List::with_capacity(u32::try_from(config.connectors.len()).unwrap());
+    for connector in &config.connectors {
+        declarations.push(Declaration::empty(*connector)).unwrap();
+    }
+    declarations.into_boxed()
+}
+
+pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+    let connectors = empty_declarations(&config);
+    Core::new(config, &connectors, limits)
+}
+
 #[test]
 fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    let mut core = new_core(config(41), &limits).expect("fixture core configuration");
     let pending = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
     let retained = CallKey { position: 1, ..pending };
     let fresh = CallKey { position: 2, ..pending };
@@ -353,7 +366,7 @@ pub(crate) fn restoring_sized_policy(bytes: u64) -> (Core, Limits, ConfiguredPol
         remaining = remaining.checked_sub(count).expect("remaining terminal bytes");
     }
     config.seed_projects = Box::new([]);
-    let mut core = Core::new(config, &limits).expect("restoring core");
+    let mut core = new_core(config, &limits).expect("restoring core");
     let _start = core.start_begin(false, Wall::EPOCH);
     let mut deployment = core.counters.deployment();
     deployment.projects = u64::from(RESTORE_PROJECT);
@@ -598,8 +611,13 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
 }
 
 fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+    let declarations = empty_declarations(&config);
+    seeded_core_with_declarations(config, &declarations, limits)
+}
+
+fn seeded_core_with_declarations(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
     let needs = fleet_needs::configured(&config, limits);
-    let mut core = Core::new(config, limits)?;
+    let mut core = Core::new(config, connectors, limits)?;
     fixtures::restore_needs(&mut core.fleet, limits, needs);
     core.people.start_restore(Wall::EPOCH);
     let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));
@@ -908,6 +926,17 @@ fn documents_clamp_oversized_windows_and_reject_invalid_bounds() {
 }
 
 fn tree_core() -> (Core, Limits) {
+    tree_core_with_resources(Box::new([]))
+}
+
+fn tree_core_with_write_hold() -> (Core, Limits) {
+    tree_core_with_resources(Box::new([tasks::ResourceKind {
+        kind: 1,
+        hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
+    }]))
+}
+
+fn tree_core_with_resources(resources: Box<[tasks::ResourceKind]>) -> (Core, Limits) {
     let (old, mut limits) = core();
     limits.views.watchers = 8;
     limits.views.watchers_per_party = 8;
@@ -925,7 +954,11 @@ fn tree_core() -> (Core, Limits) {
     given.delegation.tasks = 17;
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
-    let mut core = seeded_core(config, &limits).expect("fixture core configuration");
+    let mut connectors = empty_declarations(&config);
+    let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
+    assert_eq!(declaration.connector, 2);
+    declaration.resources = resources;
+    let mut core = seeded_core_with_declarations(config, &connectors, &limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;
     core.people = old.people;
     core.accounts = old.accounts;
@@ -3805,7 +3838,7 @@ fn startup_refuses_too_many_configured_workers() {
     let mut limits = limits();
     let config = config(41);
     limits.fleet.configured_workers = 1;
-    assert_eq!(Core::new(config, &limits).err(), Some(Problem::Workers { limit: 1 }));
+    assert_eq!(new_core(config, &limits).err(), Some(Problem::Workers { limit: 1 }));
 }
 #[test]
 fn startup_refuses_an_oversized_worker_name() {
@@ -3819,7 +3852,7 @@ fn startup_refuses_an_oversized_worker_name() {
         withdrawn: false,
     }]);
     assert_eq!(
-        Core::new(config, &limits).err(),
+        new_core(config, &limits).err(),
         Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
     );
 }
@@ -3829,7 +3862,7 @@ fn startup_accepts_the_configured_worker_count_bound() {
     let config = config(41);
     let mut limits = limits();
     limits.fleet.configured_workers = u32::try_from(config.defaults.workers.len()).expect("fixture worker count");
-    let _core = Core::new(config, &limits).expect("configured membership at its bound");
+    let _core = new_core(config, &limits).expect("configured membership at its bound");
 }
 #[test]
 fn startup_accepts_the_worker_name_byte_bound() {
@@ -3842,7 +3875,7 @@ fn startup_accepts_the_worker_name_byte_bound() {
         digest: Some([7; 32]),
         withdrawn: false,
     }]);
-    let _core = Core::new(config, &limits).expect("configured membership at its bound");
+    let _core = new_core(config, &limits).expect("configured membership at its bound");
 }
 
 fn configured_worker_name(length: u32) -> Box<[u8]> {
@@ -4060,7 +4093,7 @@ fn configured_policies_are_retained_by_the_core() {
             },
         )
         .expect("one configured policy");
-    let core = Core::new(config, &limits).expect("fixture configuration");
+    let core = new_core(config, &limits).expect("fixture configuration");
     let policy = core.current.policy(1).expect("retained configured policy");
     assert_eq!(policy.policy.period_spend, 1000);
     assert_eq!(policy.permissions.as_ref(), &[people::PermissionRole { connector: 1, permission: 1, role: 0 }]);

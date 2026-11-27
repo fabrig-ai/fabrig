@@ -9,7 +9,6 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::Bounds;
 use jig_domain_link::{Hello, Problem};
-use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Decision, Env, Journal, Queue, Token, length::len_u64};
@@ -122,24 +121,9 @@ impl Domain {
         let turn_rng = skein_lib::Rng::new(config.core.seed ^ 0x5455_524E_4255_5359);
         let mut core_config = config.core;
         core_config.hub_turns = limits.host.turns;
-        let mut engine = Engine::new(core_config, &limits.core)?;
+        let declarations = crate::translate::declarations(config.backend, limits);
+        let mut engine = Engine::new(core_config, &declarations, &limits.core)?;
         check_engine_hello(&mut engine.core_mut().fleet, &limits.core.fleet, config.agent_bounds, limits.host.slots);
-        // Connector hold rules are configuration, so a cold root installs
-        // the same translated vocabulary before restoring live task rows.
-        let mut configured = Queue::uncapped();
-        jig_domain_tasks::step(
-            &mut engine.core_mut().tasks,
-            &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core.tasks },
-            jig_domain_tasks::Event::Kinds {
-                connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
-                kinds: crate::translate::hold_kinds(
-                    jig_ops_domain_connectors::number(Connector::Infrastructure),
-                    &limits.infrastructure.vocabulary,
-                ),
-            },
-            &mut configured,
-        );
-        assert!(configured.is_empty(), "configured hold rules decide nothing");
         assert!(
             limits.core.tasks.inbox_messages
                 <= observability::message_capacity(&limits.observability).expect("watch news bound"),

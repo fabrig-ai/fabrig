@@ -5,7 +5,7 @@ use crate::restart::request_load;
 use crate::route::{
     forge_route, host_route, policy_translate, route_core_requests, route_engine_requests, route_into, step_routed,
 };
-use crate::translate::{Config, RootConfig, environment_forge};
+use crate::translate::{Config, RootConfig, environment_forge, forge_declaration};
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -588,29 +588,10 @@ impl Domain {
             tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE },
             tasks::KeptStart { connector: forge_connector, code: forge_route::GOAL_CLOSER_CODE },
         ]);
-        let mut engine = Engine::new(config.core, &core_limits(limits))?;
+        let declarations = [forge_declaration(forge_connector)];
+        let mut engine = Engine::new(config.core, &declarations, &core_limits(limits))?;
         // temper/docs/design/domain/agent/agents.md, 2: the person answers in their inbox.
         engine.core_mut().person_answers();
-        let mut configured = Queue::uncapped();
-        tasks::step(
-            &mut engine.core_mut().tasks,
-            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
-            tasks::Event::Kinds {
-                connector: root_config.forge_connector,
-                kinds: Box::new([tasks::Kind {
-                    connector: root_config.forge_connector,
-                    kind: 1,
-                    hold: match forge::resources::BRANCH_HOLD {
-                        forge::resources::HoldKind::Exclusive { wait } => tasks::HoldKind::Exclusive {
-                            taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses },
-                        },
-                        forge::resources::HoldKind::Shared => unreachable!("private branch kind takes exclusive holds"),
-                    },
-                }]),
-            },
-            &mut configured,
-        );
-        assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
             rehearsal: None,
             host_part: config.host_part,

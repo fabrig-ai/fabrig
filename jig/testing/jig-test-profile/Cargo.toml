@@ -12,6 +12,7 @@ jig-test-domain.workspace = true
 jig-test-connector.workspace = true
 jig-client-test-records.workspace = true
 jig-client-protocol-wire.workspace = true
+jig-domain-contract.workspace = true
 jig-domain-core.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-authority.workspace = true

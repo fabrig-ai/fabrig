@@ -195,7 +195,10 @@ fn writer_slot(world: &World, task: u64, attempt: u64) -> Option<&tasks::WriterS
 
 #[test]
 fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
-    let mut world = World::new(Setup { seed: SEED, owner_sets: SETS, ..Setup::default() });
+    let (mut configuration, _) = jig_core_world::world::fixture(SEED, false);
+    configuration.resource_kinds[0] = jig_test_profile::resource_kinds();
+    let mut world =
+        World::new(Setup { seed: SEED, configuration: Some(configuration), owner_sets: SETS, ..Setup::default() });
     fixtures::configure_resources(&mut world);
     let parent = (world.task(), world.attempt());
     let spec = fixtures::resource_member(&world, 1, b"writer with a crossed proof");

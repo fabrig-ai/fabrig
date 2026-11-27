@@ -951,3 +951,37 @@ mod room_checks;
 mod see;
 
 mod worker_pause;
+
+#[test]
+fn forge_declaration_offers_every_write_and_makes_merges_wait() {
+    use jig_domain_contract::{
+        effects::{EffectForm, Recovery},
+        resources::{ResourceKind, Rule, Taken},
+    };
+    use temper_engine_domain_forge as forge;
+    let declaration = crate::translate::forge_declaration(7);
+    assert_eq!(declaration.connector, 7);
+    assert_eq!(
+        declaration.resources.as_ref(),
+        &[ResourceKind { kind: 1, hold: Rule::Exclusive { taken: Taken::Waits } }]
+    );
+    assert_eq!(declaration.effects.len(), 16);
+    for (number, effect) in (2..=17).zip(&declaration.effects) {
+        let (form, recovery) = forge::effect_shape(number).unwrap();
+        let form = match form {
+            forge::EffectForm::Creation => EffectForm::Creation,
+            forge::EffectForm::Transition => EffectForm::Transition,
+            forge::EffectForm::Set => EffectForm::Set,
+        };
+        let recovery = match recovery {
+            forge::Recovery::Keyed => Recovery::Keyed,
+            forge::Recovery::Conditional => Recovery::Conditional,
+            forge::Recovery::Idempotent => Recovery::Idempotent,
+            forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
+        };
+        assert_eq!(
+            (effect.kind, effect.form, effect.recovery, effect.waits_for_dependencies),
+            (number, form, recovery, number == 4)
+        );
+    }
+}

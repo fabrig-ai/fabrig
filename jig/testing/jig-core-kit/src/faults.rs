@@ -121,6 +121,7 @@ pub fn plan_fixture_with_document_rows(seed: u64, rows: u32) -> (jig_test_domain
 #[must_use]
 pub fn plan_fixture(seed: u64) -> (jig_test_domain::Config, jig_test_domain::Limits) {
     let (mut configuration, mut limits) = crate::world::fixture(seed, false);
+    configuration.resource_kinds[0] = jig_test_profile::resource_kinds();
     limits.core.tasks.tasks = 5;
     limits.core.tasks.project_tasks = 5;
     limits.core.tasks.tree_tasks = 5;

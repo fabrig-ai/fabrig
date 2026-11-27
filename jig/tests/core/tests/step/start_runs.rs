@@ -78,7 +78,7 @@ fn stale_worker_listings_cancel_only_after_either_start_opens() {
                 withdrawn: false,
             },
         ]);
-        let mut core = core::Core::new(configured, &limits).expect("configured core");
+        let mut core = jig_test_profile::new_core(configured, &limits).expect("configured core");
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         {
             start_to_open(&mut core, &env);

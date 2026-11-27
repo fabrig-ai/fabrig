@@ -1,4 +1,5 @@
 //! Visibility decisions, projections and kept rows (jig/docs/design/domain/people/public-reading.md, 2).
+use crate::tests::new_core;
 use crate::tests::*;
 
 fn environment(limits: &Limits) -> Env<Limits> {
@@ -216,7 +217,7 @@ fn project_zero_an_unknown_project_and_a_deleting_one_are_refused_alike() {
 
 fn restoring() -> (Core, Limits) {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).unwrap();
+    let mut core = new_core(config(41), &limits).unwrap();
     let _action = core.start_begin(false, Wall::EPOCH);
     core.counters.deployment.projects = 1;
     assert_eq!(

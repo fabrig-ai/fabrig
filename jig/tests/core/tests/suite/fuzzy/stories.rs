@@ -41,14 +41,6 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
         let mut rng = Rng::new(seed);
         let (config, limits) = plan_fixture(seed);
         let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
-        world.configure_holds(
-            1,
-            Box::new([tasks::Kind {
-                connector: 1,
-                kind: 2,
-                hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits },
-            }]),
-        );
         world.send(root::Event::Connector {
             number: 1,
             event: connector::Event::Adopt {

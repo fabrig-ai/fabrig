@@ -270,7 +270,7 @@ fn a_task_query_lists_a_live_task_past_the_bound() {
     use skein_lib::{Env, Queue, Time};
     let profile = jig_protocol_config_fixtures::small();
     let (mut world, records) = small_chain(FIFTH, false, false, false);
-    let mut core = core::Core::new(jig_test_profile::config(SEED).core, &profile.core).expect("core");
+    let mut core = jig_test_profile::new_core(jig_test_profile::config(SEED).core, &profile.core).expect("core");
     core.projects.push(PROJECT).expect("open fixture project");
     assert!(matches!(core.start_begin(false, Wall::EPOCH), core::start::Action::Step(core::start::Phase::LoadCore)));
     let mut out = Queue::uncapped();

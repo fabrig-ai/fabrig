@@ -170,7 +170,7 @@ pub struct Frozen {
     ended_topics: Vec<(u64, u64, u16)>,
     deadlines: BTreeMap<u64, (Wall, Time)>,
     kept_starts: Box<[tasks::KeptStart]>,
-    kinds: Vec<tasks::Kind>,
+    kinds: Vec<(u16, tasks::ResourceKind)>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
     person_stall_route: [Option<tasks::PersonAddress>; 2],
     restoring: bool,
@@ -242,7 +242,7 @@ pub struct World {
     restoring: bool,
     deadlines: BTreeMap<u64, (Wall, Time)>,
     kept_starts: Box<[tasks::KeptStart]>,
-    kinds: Vec<tasks::Kind>,
+    kinds: Vec<(u16, tasks::ResourceKind)>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
 }
 
@@ -355,8 +355,8 @@ impl World {
     }
 
     /// Install connector hold rules, replayed before live rows on restart.
-    pub fn configure_holds(&mut self, connector: u16, kinds: Vec<tasks::Kind>) {
-        self.kinds.extend_from_slice(&kinds);
+    pub fn configure_holds(&mut self, connector: u16, kinds: Vec<tasks::ResourceKind>) {
+        self.kinds.extend(kinds.iter().map(|kind| (connector, *kind)));
         self.send(Event::Kinds { connector, kinds: kinds.into_boxed_slice() });
     }
 
@@ -1538,8 +1538,8 @@ impl World {
         self.domain = domain(&self.env.limits, self.seed);
         self.domain.set_kept_starts(self.kept_starts.clone());
         let kinds = self.kinds.clone();
-        for configured in kinds {
-            self.send(Event::Kinds { connector: configured.connector, kinds: Box::new([configured]) });
+        for (connector, kind) in kinds {
+            self.send(Event::Kinds { connector, kinds: Box::new([kind]) });
         }
         for (name, hold) in self.reports.clone() {
             self.send(Event::Resource { name, hold });

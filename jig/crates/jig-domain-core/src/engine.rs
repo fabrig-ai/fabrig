@@ -4,6 +4,7 @@
 pub use jig_domain_core_vocabulary::engine::*;
 
 use crate::{Config, Core, Held, Limits, Request, Timer};
+use jig_domain_contract::Declaration;
 use jig_domain_link::Problem;
 use skein_lib::{Env, Queue, Time, Wall};
 
@@ -20,9 +21,9 @@ impl Engine {
     }
 
     /// # Errors
-    /// A configured worker count or name exceeds the priced membership bounds.
-    pub fn new(config: Config, limits: &Limits) -> Result<Engine, Problem> {
-        let core = Core::new(config, limits)?;
+    /// Worker membership exceeds its bounds or the connector declarations do not hold.
+    pub fn new(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Engine, Problem> {
+        let core = Core::new(config, connectors, limits)?;
         Ok(Self { core })
     }
 

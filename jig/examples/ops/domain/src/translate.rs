@@ -2,8 +2,14 @@
 //! replace resource paths, effect kinds and tool declarations (domain/root.md, 6).
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract::{
+    Declaration,
+    effects::{self, EffectKind},
+    resources::{ResourceKind, Rule, Taken},
+};
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
+use jig_ops_domain_connectors::{Connector, number};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{List, Wall};
@@ -272,16 +278,67 @@ pub(crate) fn holdings(number: u16, values: Option<Box<[infrastructure::Holding]
     }
     Some(holdings.into_boxed())
 }
-pub(crate) fn hold_kinds(number: u16, vocabulary: &infrastructure::Vocabulary) -> Box<[tasks::Kind]> {
+pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Limits) -> [Declaration; 2] {
+    let infrastructure = &limits.infrastructure.vocabulary;
+    let restart = match backend {
+        infrastructure::Backend::OperationIds => effects::Recovery::Keyed,
+        infrastructure::Backend::NoOperationIds => effects::Recovery::Unrecoverable,
+    };
+    [
+        Declaration {
+            connector: number(Connector::Observability),
+            resources: Box::new([]),
+            effects: Box::new([EffectKind {
+                kind: limits.observability.vocabulary.silence_effect,
+                form: effects::EffectForm::Set,
+                recovery: effects::Recovery::Keyed,
+                waits_for_dependencies: false,
+            }]),
+        },
+        Declaration {
+            connector: number(Connector::Infrastructure),
+            resources: hold_kinds(infrastructure),
+            effects: Box::new([
+                infrastructure_effect(infrastructure.restart_effect, effects::EffectForm::Transition, restart),
+                infrastructure_effect(
+                    infrastructure.scale_effect,
+                    effects::EffectForm::Set,
+                    effects::Recovery::Conditional,
+                ),
+                infrastructure_effect(
+                    infrastructure.rollback_effect,
+                    effects::EffectForm::Transition,
+                    effects::Recovery::Conditional,
+                ),
+                infrastructure_effect(
+                    infrastructure.create_environment_effect,
+                    effects::EffectForm::Creation,
+                    effects::Recovery::Keyed,
+                ),
+                infrastructure_effect(
+                    infrastructure.tear_down_effect,
+                    effects::EffectForm::Transition,
+                    effects::Recovery::Conditional,
+                ),
+            ]),
+        },
+    ]
+}
+
+const fn infrastructure_effect(kind: u16, form: effects::EffectForm, recovery: effects::Recovery) -> EffectKind {
+    EffectKind { kind, form, recovery, waits_for_dependencies: true }
+}
+
+fn hold_kinds(vocabulary: &infrastructure::Vocabulary) -> Box<[ResourceKind]> {
     let values = infrastructure::hold_kinds(vocabulary);
     let mut kinds = List::with_capacity(u32::try_from(values.len()).expect("hold kinds"));
     for value in values {
         let hold = match value.hold {
-            infrastructure::Hold::None => tasks::HoldKind::Shared,
-            infrastructure::Hold::ExclusiveWait => tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-            infrastructure::Hold::PooledWait => tasks::HoldKind::Pooled { taken: tasks::Taken::Waits },
+            infrastructure::Hold::None => Rule::Shared,
+            infrastructure::Hold::ExclusiveWait => Rule::Exclusive { taken: Taken::Waits },
+            infrastructure::Hold::PooledWait => Rule::Pooled { taken: Taken::Waits },
         };
-        kinds.push(tasks::Kind { connector: number, kind: value.kind, hold }).expect("one kind per value");
+        kinds.push(ResourceKind { kind: value.kind, hold }).expect("one kind per value");
     }
     kinds.into_boxed()
 }

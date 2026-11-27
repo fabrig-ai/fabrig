@@ -14,8 +14,9 @@ const SEED: u64 = 41;
 const WATCHER: Token = Token::new(900);
 
 fn twins(config: &Config, limits: &Limits) -> (Core, Engine) {
-    let core = Core::new(config.clone(), limits).expect("fixture core configuration");
-    let engine = Engine::new(config.clone(), limits).expect("fixture engine configuration");
+    let declarations = super::empty_declarations(config);
+    let core = Core::new(config.clone(), &declarations, limits).expect("fixture core configuration");
+    let engine = Engine::new(config.clone(), &declarations, limits).expect("fixture engine configuration");
     (core, engine)
 }
 
@@ -24,7 +25,9 @@ fn environment() -> Env<Limits> {
 }
 
 fn fresh_engine(limits: &Limits) -> Engine {
-    Engine::new(config(SEED), limits).expect("fixture engine configuration")
+    let config = config(SEED);
+    let declarations = super::empty_declarations(&config);
+    Engine::new(config, &declarations, limits).expect("fixture engine configuration")
 }
 
 fn started_twins() -> (Core, Engine, Env<Limits>) {
@@ -151,9 +154,10 @@ fn construction_preserves_the_core_membership_refusal() {
     // One place fewer than the fixture's configured worker count.
     let limit = u32::try_from(config.defaults.workers.len() - 1).expect("fixture worker count");
     over.fleet.configured_workers = limit;
-    let problem = Core::new(config.clone(), &over).expect_err("worker membership over its bound");
+    let declarations = super::empty_declarations(&config);
+    let problem = Core::new(config.clone(), &declarations, &over).expect_err("worker membership over its bound");
     assert_eq!(problem, Problem::Workers { limit });
-    assert_eq!(Engine::new(config, &over).expect_err("same worker membership refusal"), problem);
+    assert_eq!(Engine::new(config, &declarations, &over).expect_err("same worker membership refusal"), problem);
 }
 
 #[test]
@@ -492,4 +496,41 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
     notes_terminal(&mut engine, &env, retry, notes_records(Box::new([]), false));
     assert!(!engine.core().notes.busy());
     assert!(engine.core().loads.room(&env.limits));
+}
+
+#[test]
+fn declarations_are_checked_in_construction_order() {
+    use jig_domain_contract::{
+        Declaration,
+        effects::{EffectForm, EffectKind, Recovery},
+        resources::{ResourceKind, Rule},
+    };
+    let config = config(SEED);
+    let mut limits = limits();
+    limits.tasks.hold_kinds = 2;
+    let [first, second, unknown] = [1, 2, 3].map(Declaration::empty);
+    let resource = ResourceKind { kind: 4, hold: Rule::Shared };
+    let other = ResourceKind { kind: 5, hold: Rule::Shared };
+    let effect =
+        EffectKind { kind: 4, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false };
+    let duplicate_resource = Declaration { resources: Box::new([resource, resource]), ..first.clone() };
+    let duplicate_effect = Declaration { effects: Box::new([effect, effect]), ..first.clone() };
+    let paired = Declaration { resources: Box::new([resource]), effects: Box::new([effect]), ..first.clone() };
+    let full = Declaration { resources: Box::new([resource, other]), ..second.clone() };
+    let refusals: [(Box<[Declaration]>, Problem); 7] = [
+        (Box::new([first.clone()]), Problem::Undeclared { connector: 2 }),
+        (Box::new([first.clone(), first.clone(), second.clone()]), Problem::Declared { connector: 1 }),
+        (Box::new([first, second.clone(), unknown]), Problem::Declared { connector: 3 }),
+        (Box::new([duplicate_resource, second.clone()]), Problem::ResourceKind { connector: 1, kind: 4 }),
+        (Box::new([duplicate_effect.clone(), second.clone()]), Problem::EffectKind { connector: 1, kind: 4 }),
+        (Box::new([duplicate_effect]), Problem::EffectKind { connector: 1, kind: 4 }),
+        (Box::new([paired.clone(), full]), Problem::HoldKinds { limit: 2 }),
+    ];
+    for (declarations, problem) in refusals {
+        assert_eq!(Engine::new(config.clone(), &declarations, &limits).unwrap_err(), problem, "{declarations:?}");
+    }
+
+    let declarations = [Declaration { resources: Box::new([resource]), ..second }, paired];
+    let engine = Engine::new(config, &declarations, &limits).expect("kind namespaces are separate and fit exactly");
+    assert_eq!(engine.core().declarations.as_ref(), declarations.as_slice(), "kept in declaration order");
 }

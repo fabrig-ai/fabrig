@@ -1,4 +1,5 @@
 //! Clock projection and ordered timer selection (jig/docs/design/domain/engine/vocabulary.md, 1.1).
+use crate::tests::new_core;
 use crate::tests::{fixtures::TASK_ALARM_AT, *};
 use jig_domain_link::{Form, Scheme};
 
@@ -41,7 +42,7 @@ fn next_deadline_is_the_earliest_child_alarm() {
 #[test]
 fn saved_wall_expiry_counts_only_after_people_are_ready() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    let mut core = new_core(config(41), &limits).expect("fixture core configuration");
     let now = Time::from_nanos(7);
     let expiry = Wall::from_nanos(100);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
@@ -87,7 +88,7 @@ fn decision_header_numbers_writing_or_dirty_decisions_once() {
         [(false, false, None), (false, true, Some(1)), (true, false, Some(1)), (true, true, Some(1))]
     {
         let limits = limits();
-        let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+        let mut core = new_core(config(41), &limits).expect("fixture core configuration");
         if !dirty {
             core.counters = Counters::new(core.counters.deployment());
         }
@@ -111,7 +112,7 @@ fn decision_header_numbers_writing_or_dirty_decisions_once() {
 #[test]
 fn a_dirty_header_is_taken_once_and_never_before_the_load() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    let mut core = new_core(config(41), &limits).expect("fixture core configuration");
     let Some(Record::Core(CoreRecord::Deployment(header))) = core.decision_header(false) else {
         unreachable!("a fresh deployment supplies its header");
     };

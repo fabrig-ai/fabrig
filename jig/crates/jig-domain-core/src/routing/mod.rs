@@ -325,27 +325,29 @@ impl Core {
 /// Route one child event and each sibling continuation within one core decision.
 pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> {
     core.start_input();
-    if core.start_failure().is_some() {
-        return Queue::uncapped();
-    }
-    if let Some(phase) = core.start_phase() {
-        #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances need phase validation")]
-        match &event {
-            Event::Account(accounts::Event::Want) => return want_accounts(core, env),
-            Event::Account(accounts::Event::Restore { .. })
-            | Event::People(people::Event::Restore { .. })
-            | Event::Tasks(tasks::Event::Restore { .. }) => {
-                assert!(core.start_loading(), "rows load before Link and outside a seed commit");
-            }
-            Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
-            Event::EffectConnector(
-                crate::effects::connector::Event::Resource { name, .. }
-                | crate::effects::connector::Event::Adopted { name, .. },
-            ) => {
+    let phase = core.start_phase();
+    #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances and kind installation need validation")]
+    match &event {
+        Event::Tasks(tasks::Event::Kinds { .. }) => unreachable!("connector kinds are declared at construction"),
+        _ if core.start_failure().is_some() => return Queue::uncapped(),
+        Event::Account(accounts::Event::Want) if phase.is_some() => return want_accounts(core, env),
+        Event::Account(accounts::Event::Restore { .. })
+        | Event::People(people::Event::Restore { .. })
+        | Event::Tasks(tasks::Event::Restore { .. })
+            if phase.is_some() =>
+        {
+            assert!(core.start_loading(), "rows load before Link and outside a seed commit");
+        }
+        Event::SettingsCommit { .. } if phase.is_some() => unreachable!("the start commits settings itself"),
+        Event::EffectConnector(
+            crate::effects::connector::Event::Resource { name, .. }
+            | crate::effects::connector::Event::Adopted { name, .. },
+        ) => {
+            if let Some(phase) = phase {
                 assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
             }
-            _ => {}
         }
+        _ => {}
     }
     decide(core, env, Work::Event(event))
 }

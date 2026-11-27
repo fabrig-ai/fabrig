@@ -1,6 +1,7 @@
 //! Job admission (jig/docs/design/domain/engine/executors.md, 5).
 use crate::documents::{JobWhy, TaskRunWait, TaskWaitRefused, run_wait};
 use crate::runs::delegation::job_member;
+use crate::tests::new_core;
 use crate::tests::*;
 use jig_domain_fleet::JobShort;
 use jig_domain_link::{Form, JobBound, JobKind, PauseState};
@@ -99,7 +100,7 @@ fn configured_job_bounds_fit_at_the_tasks_childs_limits() {
     let limits = limits();
     let mut config = config(7);
     config.jobs = Box::new([JobBound { spec: limits.tasks.spec_bytes, result: limits.tasks.result_bytes, ..bound() }]);
-    let core = Core::new(config, &limits).expect("job bounds fit the tasks child");
+    let core = new_core(config, &limits).expect("job bounds fit the tasks child");
     assert_eq!(
         core.jobs.as_ref(),
         &[JobBound { spec: limits.tasks.spec_bytes, result: limits.tasks.result_bytes, ..bound() }]

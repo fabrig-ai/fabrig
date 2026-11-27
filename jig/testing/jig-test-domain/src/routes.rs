@@ -1081,6 +1081,32 @@ fn name(path: connector::Path) -> authority::Name {
     authority::Name { segments: segments.into_boxed() }
 }
 
+pub(crate) fn declaration(
+    connector: u16,
+    config: &connector::Config,
+    resources: &[tasks::ResourceKind],
+) -> jig_domain_contract::Declaration {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    let mut effects = List::with_capacity(u32::try_from(config.kinds.len()).expect("configured effect kinds"));
+    for kind in &config.kinds {
+        let form = match kind.form {
+            connector::Form::Creation => EffectForm::Creation,
+            connector::Form::Transition => EffectForm::Transition,
+            connector::Form::Set => EffectForm::Set,
+        };
+        let recovery = match kind.recovery {
+            connector::Recovery::Keyed => Recovery::Keyed,
+            connector::Recovery::Conditional => Recovery::Conditional,
+            connector::Recovery::Idempotent => Recovery::Idempotent,
+            connector::Recovery::Unrecoverable => Recovery::Unrecoverable,
+        };
+        effects
+            .push(EffectKind { kind: kind.kind, form, recovery, waits_for_dependencies: kind.waits_for_dependencies })
+            .expect("one declaration per configured effect kind");
+    }
+    jig_domain_contract::Declaration { connector, resources: Box::from(resources), effects: effects.into_boxed() }
+}
+
 fn describe(
     number: u16,
     description: connector::Description,

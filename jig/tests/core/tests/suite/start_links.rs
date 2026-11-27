@@ -28,8 +28,11 @@ impl Harness {
     }
 
     fn stored_with(world: &World, config: core::Config, env: Env<core::Limits>) -> Self {
-        let mut h =
-            Self { core: core::Core::new(config, &env.limits).expect("configured core"), env, out: Queue::uncapped() };
+        let mut h = Self {
+            core: jig_test_profile::new_core(config, &env.limits).expect("configured core"),
+            env,
+            out: Queue::uncapped(),
+        };
         phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);
         for range in core::RestoreRange::LIVE {
             for (key, record) in &world.store.rows {

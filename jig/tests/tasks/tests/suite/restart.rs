@@ -6,9 +6,9 @@ const BEFORE_CLAIM_ACCOUNT: u32 = 71;
 const DURABLE_CLAIM_ACCOUNT: u32 = 72;
 
 fn writer_with_hold(writer: u64, holder: u64) -> (World, jig_domain_tasks::Name) {
-    use jig_domain_tasks::{Funder, HoldKind, Holding, Kind, Name, Taken};
+    use jig_domain_tasks::{Funder, HoldKind, Holding, Name, ResourceKind, Taken};
     let mut w = World::new(51, LIMITS);
-    w.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    w.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     let resource = Name { connector: 1, path: Box::new([b"held".as_slice().into()]) };
     let held = Holding::Write { resource: resource.clone(), kind: 1 };
     let mut parent = task(1, &[]);

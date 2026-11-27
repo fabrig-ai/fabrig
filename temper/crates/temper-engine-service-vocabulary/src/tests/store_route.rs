@@ -961,7 +961,11 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     assert_eq!(turns.len(), 1, "one rendering per stored turn");
     let settings = fixtures::engine();
     let config = jig_protocol_config::core(&settings.jig, [7; 16], 7);
-    let mut jig = core::engine::Engine::new(config, &settings.jig.limits.core).unwrap();
+    let mut declarations = skein_lib::List::with_capacity(u32::try_from(config.connectors.len()).unwrap());
+    for connector in &config.connectors {
+        declarations.push(jig_domain_contract::Declaration::empty(*connector)).unwrap();
+    }
+    let mut jig = core::engine::Engine::new(config, declarations.as_slice(), &settings.jig.limits.core).unwrap();
     jig.core_mut().begin_transcript(7, 1, None);
     jig.core_mut().transcripts.get_mut(&7).unwrap().window = Some((1, 1));
     for (turn, text) in turns {

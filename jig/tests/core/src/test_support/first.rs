@@ -21,7 +21,7 @@ pub fn open(core: &mut core::Core, env: &Env<core::Limits>, out: &mut Queue<core
 
 #[must_use]
 pub fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core {
-    let mut core = core::Core::new(config, &env.limits).expect("configured core");
+    let mut core = jig_test_profile::new_core(config, &env.limits).expect("configured core");
     let mut out = Queue::uncapped();
     let action = core.start_begin(false, env.wall);
     open(&mut core, env, &mut out, action);

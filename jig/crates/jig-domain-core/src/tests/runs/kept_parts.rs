@@ -1,4 +1,5 @@
 //! Parts stay opaque until a committed turn makes them moot (executors.md, 2).
+use crate::tests::new_core;
 use crate::tests::*;
 
 fn part(attempt: u64, number: u32, turn: u32, thread: u32, call: u32, body: &[u8]) -> PartRecord {
@@ -94,7 +95,7 @@ fn committing_a_turn_retires_earlier_attempts_and_its_prefix_but_not_later_parts
 fn resume_parts_share_window_room_and_keep_whole_calls_in_call_order() {
     let mut limits = limits();
     limits.call_records = 8;
-    let mut core = Core::new(config(41), &limits).unwrap();
+    let mut core = new_core(config(41), &limits).unwrap();
     let rows = [
         part(1, 1, 2, 0, 0, b"main"),
         part(1, 2, 2, 1, 5, b"ab"),
@@ -129,7 +130,7 @@ fn resume_parts_share_window_room_and_keep_whole_calls_in_call_order() {
 #[test]
 fn restored_parts_have_a_room_apart_from_calls_and_name_the_part_on_overflow() {
     let limits = limits();
-    let mut core = Core::new(config(42), &limits).unwrap();
+    let mut core = new_core(config(42), &limits).unwrap();
     let _begin = core.start_begin(false, Wall::EPOCH);
     let call = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
     assert!(core.restore_call(call, CallPart::Controlled));

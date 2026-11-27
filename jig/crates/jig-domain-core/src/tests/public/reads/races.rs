@@ -1,5 +1,6 @@
 //! Revocation decisions finish independently of readers (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
+use crate::tests::new_core;
 
 #[derive(Clone, Copy, Debug)]
 enum Change {
@@ -108,7 +109,7 @@ fn moved_out_while_under_way_ends_unknown() {
 #[test]
 fn a_read_of_a_project_not_yet_built_is_busy() {
     let (_, limits) = fixture();
-    let mut core = Core::new(crate::tests::config(41), &limits).unwrap();
+    let mut core = new_core(crate::tests::config(41), &limits).unwrap();
     let _action = core.start_begin(false, Wall::EPOCH);
     core.counters.deployment.projects = 1;
     assert_eq!(
