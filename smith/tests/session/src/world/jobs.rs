@@ -1,7 +1,7 @@
 //! Yielded commands and their pending replies on the world's clock.
 //! Contracts: smith/docs/design/domain/session.md, 10; smith/docs/design/domain/tools.md, 5.
 
-use super::{Decoded, Delivery, Done, Duration, Key, Returned, Stats, Time, Token, World, agent, io, tools};
+use super::{Block, Decoded, Delivery, Done, Duration, Key, Returned, Stats, Time, Token, World, agent, io, tools};
 use agent::llm::{NotRun, Problem};
 use std::collections::BTreeSet;
 use tools::{Call, Effect, Outcome};
@@ -29,6 +29,7 @@ enum Process {
 /// A held command keeps its original spawn token and at most one pending act.
 pub(super) struct Job {
     pub(super) session: Token,
+    number: JobNumber,
     process: Process,
     reply: Option<Reply>,
     event: Option<Key>,
@@ -72,16 +73,123 @@ impl Job {
     }
 }
 
+/// What the world knew of a job when the provider named it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JobClass {
+    /// This session's command is still running.
+    Live,
+    /// This session's command ended, but its end has not been read.
+    Held,
+    /// This session's command ended and its cell has been freed.
+    Consumed,
+    /// The number is at or below this session's restored high-water mark.
+    BeforeOpening,
+    /// Another session issued the number, but this session did not.
+    Foreign,
+    /// No session issued the number.
+    Unissued,
+    /// The translator refused the call before it named a job.
+    Unknown,
+}
+
+impl JobClass {
+    /// The design's name for the class.
+    #[must_use]
+    pub const fn word(self) -> &'static [u8] {
+        match self {
+            Self::Live => b"live",
+            Self::Held => b"held",
+            Self::Consumed => b"consumed",
+            Self::BeforeOpening => b"before_opening",
+            Self::Foreign => b"foreign",
+            Self::Unissued => b"unissued",
+            Self::Unknown => b"unknown",
+        }
+    }
+}
+
+/// A provider job mention paired with its result in the recorded turn.
+#[derive(Debug, PartialEq, Eq)]
+pub struct JobCall {
+    /// The provider completion's turn sequence.
+    pub sequence: u32,
+    /// Zero-based position in the provider completion.
+    pub position: usize,
+    pub class: JobClass,
+    pub job: Option<JobNumber>,
+    /// None when the call has no result in this turn, such as a yielded tail.
+    pub answer: Option<Returned>,
+}
+
+/// Check only numbers this kit cannot issue, regardless of earlier calls in the batch.
+///
+/// # Errors
+/// Returns a finding if the tools answered a stale job call other than as unknown.
+pub fn check_job_call(call: &JobCall) -> Result<(), String> {
+    // A yielded or suppressed call was not answered by the tools.
+    if matches!(call.class, JobClass::Consumed | JobClass::BeforeOpening)
+        && !matches!(call.answer, None | Some(Returned::NotRun { .. }))
+        && !matches!((&call.job, &call.answer),
+            (Some(job), Some(Returned::Invalid { problem: Problem::UnknownJob { job: named } })) if job.0 == *named)
+    {
+        return Err(format!(
+            "turn {} block {}: {:?} job {:?} must be answered as unknown, got {:?}",
+            call.sequence, call.position, call.class, call.job, call.answer
+        ));
+    }
+    Ok(())
+}
+
 impl World {
+    pub(super) fn drawn_jobs(&self, opener: u64, content: &[Block]) -> Vec<JobCall> {
+        content
+            .iter()
+            .enumerate()
+            .filter_map(|(position, block)| {
+                let Block::ToolCall(call) = block else { return None };
+                if call.name.as_ref() != b"job" {
+                    return None;
+                }
+                let (job, class) = match &call.call {
+                    Decoded::Owned { call: Call::Job { job, .. } } => (Some(*job), self.job_class(opener, *job)),
+                    Decoded::Invalid { .. } => (None, JobClass::Unknown),
+                    _ => return None,
+                };
+                Some(JobCall { sequence: 0, position, class, job, answer: None })
+            })
+            .collect()
+    }
+
+    fn job_class(&self, opener: u64, number: JobNumber) -> JobClass {
+        let session = &self.sessions[&opener];
+        if number.0 <= session.opening_job {
+            return JobClass::BeforeOpening;
+        }
+        if number.0 <= session.issued_job {
+            return match self.jobs.values().find(|job| Some(job.session) == session.session && job.number == number) {
+                Some(Job { process: Process::Running(_), .. }) => JobClass::Live,
+                Some(Job { process: Process::Ended { .. }, .. }) => JobClass::Held,
+                None => JobClass::Consumed,
+            };
+        }
+        if self.sessions.values().any(|other| number.0 > other.opening_job && number.0 <= other.issued_job) {
+            JobClass::Foreign
+        } else {
+            JobClass::Unissued
+        }
+    }
+
     pub(super) fn hold_job(&mut self, owner: Token, session: Token, command: Command) -> Done {
         let held = self.jobs.values().filter(|job| job.session == session).count() + 1;
         assert!(held <= self.settings.agent.tools.jobs as usize, "the tools admit only their job cells");
         let session_seen = self.sessions.get_mut(&self.openers[&session]).expect("the job belongs to a live session");
         session_seen.held_peak = session_seen.held_peak.max(held);
+        session_seen.issued_job += 1;
+        let number = JobNumber(session_seen.issued_job);
         if command.ends > command.deadline {
             self.stats.op_timeouts += 1;
         }
-        self.keep_job(owner, Job { session, process: Process::Running(command), event: None, reply: None });
+        self.keep_job(owner, Job { session, number, process: Process::Running(command), event: None, reply: None });
         Done::Held { head: Box::default(), tail: Box::default(), dropped: 0 }
     }
 

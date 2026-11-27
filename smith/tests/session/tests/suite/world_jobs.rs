@@ -2,11 +2,16 @@
 
 use skein_fake_llm_domain::api::{Line, Script, Turn};
 use skein_lib::{Duration, Time};
-use smith_domain_session::llm::{Block, NotRun, Problem, Returned};
-use smith_domain_tools::{Exit, Grants, JobEnd, JobNumber, Outcome};
+use smith_domain_session::{
+    llm::{Block, Endpoint, NotRun, Problem, Returned},
+    record,
+};
+use smith_domain_tools::{BytesClamp, Exit, Grants, JobEnd, JobNumber, Outcome, TimeoutClamp};
 use smith_session_world::fixture::{calls, says};
 use smith_session_world::recorded::{Scripted, opening};
-use smith_session_world::{Settings, Span, World, bytes, spec, tickets::Tickets, translate};
+use smith_session_world::{
+    JobCall, JobClass, Settings, Span, World, bytes, check_job_call, spec, tickets::Tickets, translate,
+};
 
 const SEED: u64 = 1;
 const ITERATIONS: u32 = 10_000;
@@ -14,7 +19,13 @@ const PROVIDER_LATENCY: Duration = Duration::from_millis(20);
 const TOOL_MS: u64 = 500;
 const TURN_TOKENS: u64 = 48;
 const FIRST_JOB: JobNumber = JobNumber(1);
+const SECOND_JOB: u32 = 2;
+const THIRD_JOB: u32 = 3;
 const NEVER_STARTED_JOB: u32 = 7;
+const SYSTEM_CUE: &[u8] = b"You are a coding agent.";
+const OTHER_CUE: &[u8] = b"You are the other coding agent.";
+const JOB_TASK: &[u8] = b"exercise jobs";
+const FIRST_BLOCK: usize = 0;
 const FIRST_CALL: u16 = 1;
 const JOB_CELLS: usize = 4;
 const JOB_OUTPUT: &[u8] = b"ls: done\n";
@@ -30,18 +41,30 @@ fn launching() -> Line {
     call(b"shell", br#"{"command":"ls","yield_seconds":0}"#)
 }
 
-fn polling() -> Turn {
-    calls(Box::new([call(b"job", br#"{"job":1}"#)]), TURN_TOKENS)
+fn polling(number: u32) -> Turn {
+    let input = format!(r#"{{"job":{number}}}"#);
+    calls(Box::new([call(b"job", input.as_bytes())]), TURN_TOKENS)
 }
 
-fn run_story(mut turns: Vec<Turn>) -> (World, u64) {
+fn done() -> Turn {
+    says(Box::new([Line::Text { text: bytes(b"done") }]), TURN_TOKENS)
+}
+
+fn script(cue: &[u8], turns: Vec<Turn>) -> Script {
+    Script { cue: bytes(cue), turns: turns.into() }
+}
+
+fn story_world(scripts: Box<[Script]>) -> World {
     let mut settings = Settings::calm(SEED);
     (settings.provider.latency_min, settings.provider.latency_max) = (PROVIDER_LATENCY, PROVIDER_LATENCY);
     settings.tool = Span::millis(TOOL_MS, TOOL_MS);
-    turns.push(says(Box::new([Line::Text { text: bytes(b"done") }]), TURN_TOKENS));
-    let script = Script { cue: bytes(b"You are a coding agent."), turns: turns.into() };
-    let mut world = World::with_scripts(settings, Box::new([script]));
-    let opener = world.submit(Time::ZERO, spec(b"exercise jobs"));
+    World::with_scripts(settings, scripts)
+}
+
+fn run_story(mut turns: Vec<Turn>) -> (World, u64) {
+    turns.push(done());
+    let mut world = story_world(Box::new([script(SYSTEM_CUE, turns)]));
+    let opener = world.submit(Time::ZERO, spec(JOB_TASK));
     world.run(ITERATIONS);
     (world, opener)
 }
@@ -90,14 +113,172 @@ fn the_provider_sees_job_only_with_the_shell_grant() {
 
 #[test]
 fn a_yielded_shell_is_read_to_its_exit() {
-    let (world, opener) = run_story(vec![calls(Box::new([launching()]), TURN_TOKENS), polling()]);
+    let (world, opener) = run_story(vec![calls(Box::new([launching()]), TURN_TOKENS), polling(FIRST_JOB.0)]);
     assert!(matches!(
         results(&world, opener).as_slice(),
         [Returned::Owned { outcome: Outcome::Running { job: FIRST_JOB, .. } }, Returned::Owned {
             outcome: Outcome::Job { job: FIRST_JOB, end: JobEnd::Ended(Exit::Code { code: 0 }), head, tail, dropped: 0, .. }
         }] if head.as_ref() == JOB_OUTPUT && tail.is_empty()
     ));
+    assert!(matches!(
+        world.session(opener).job_calls.as_slice(),
+        [JobCall {
+            class: JobClass::Live,
+            job: Some(FIRST_JOB),
+            answer: Some(Returned::Owned {
+                outcome: Outcome::Job { job: FIRST_JOB, end: JobEnd::Ended(Exit::Code { code: 0 }), .. }
+            }),
+            ..
+        }]
+    ));
     assert_eq!(world.told().jobs_ended, 0, "the read reported the only job end");
+}
+
+#[test]
+fn an_unread_end_is_held_at_the_poll() {
+    let launch_then_read = calls(Box::new([launching(), call(b"read", READ_README)]), TURN_TOKENS);
+    let (world, opener) = run_story(vec![launch_then_read, polling(FIRST_JOB.0)]);
+    let polls = &world.session(opener).job_calls;
+    assert!(
+        matches!(
+            polls.as_slice(),
+            [JobCall {
+                class: JobClass::Held,
+                job: Some(FIRST_JOB),
+                answer: Some(Returned::Owned {
+                    outcome: Outcome::Job { job: FIRST_JOB, end: JobEnd::Ended(Exit::Code { code: 0 }), .. }
+                }),
+                ..
+            }]
+        ),
+        "{polls:?}"
+    );
+}
+
+#[test]
+fn another_poll_of_the_read_end_is_consumed() {
+    let launch = calls(Box::new([launching()]), TURN_TOKENS);
+    let (world, opener) = run_story(vec![launch, polling(FIRST_JOB.0), polling(FIRST_JOB.0)]);
+    let polls = &world.session(opener).job_calls;
+    assert!(
+        matches!(polls.as_slice(), [_, JobCall {
+        class: JobClass::Consumed, job: Some(FIRST_JOB), answer: Some(Returned::Invalid {
+            problem: Problem::UnknownJob { job }
+        }), ..
+    }] if *job == FIRST_JOB.0),
+        "{polls:?}"
+    );
+}
+
+#[test]
+fn a_poll_of_a_never_issued_number_is_unissued() {
+    let (world, opener) = run_story(vec![polling(SECOND_JOB)]);
+    let polls = &world.session(opener).job_calls;
+    assert!(
+        matches!(
+            polls.as_slice(),
+            [JobCall {
+                class: JobClass::Unissued,
+                job: Some(JobNumber(SECOND_JOB)),
+                answer: Some(Returned::Invalid { problem: Problem::UnknownJob { job: SECOND_JOB } }),
+                ..
+            }]
+        ),
+        "{polls:?}"
+    );
+}
+
+#[test]
+fn a_job_number_issued_by_another_session_is_foreign() {
+    let launch = calls(Box::new([launching()]), TURN_TOKENS);
+    let mut world = story_world(Box::new([
+        script(SYSTEM_CUE, vec![launch, done()]),
+        script(OTHER_CUE, vec![polling(FIRST_JOB.0), done()]),
+    ]));
+    world.submit(Time::ZERO, spec(JOB_TASK));
+    world.run(ITERATIONS);
+    let other = world.submit(world.now(), smith_domain_session::Spec { system: bytes(OTHER_CUE), ..spec(JOB_TASK) });
+    world.run(ITERATIONS);
+    let polls = &world.session(other).job_calls;
+    assert!(
+        matches!(polls.as_slice(), [JobCall {
+        class: JobClass::Foreign, job: Some(FIRST_JOB), answer: Some(Returned::Invalid {
+            problem: Problem::UnknownJob { job }
+        }), ..
+    }] if *job == FIRST_JOB.0),
+        "{polls:?}"
+    );
+}
+
+#[test]
+fn a_job_restored_from_the_transcript_is_before_opening() {
+    // The prior kit issues jobs 1 through 3. The fake resumes its script after the two recorded answers.
+    let launches = calls((0..THIRD_JOB).map(|_| launching()).collect(), TURN_TOKENS);
+    let mut world = story_world(Box::new([script(SYSTEM_CUE, vec![launches, done(), polling(SECOND_JOB), done()])]));
+    let old = world.submit(Time::ZERO, spec(JOB_TASK));
+    world.run(ITERATIONS);
+    let transcript = record::Transcript {
+        version: record::VERSION,
+        endpoint: Some(Endpoint(0)),
+        dialect: 2,
+        turns: world.session(old).records.clone().into(),
+    };
+    let resumed = world.submit_restored(world.now(), spec(JOB_TASK), transcript);
+    world.run(ITERATIONS);
+    let polls = &world.session(resumed).job_calls;
+    assert!(
+        matches!(
+            polls.as_slice(),
+            [JobCall {
+                class: JobClass::BeforeOpening,
+                job: Some(JobNumber(SECOND_JOB)),
+                answer: Some(Returned::Invalid { problem: Problem::UnknownJob { job: SECOND_JOB } }),
+                ..
+            }]
+        ),
+        "{polls:?}"
+    );
+}
+
+#[test]
+fn a_translator_refusal_cannot_name_a_job() {
+    let (world, opener) = run_story(vec![polling(0)]);
+    assert_eq!(
+        world.session(opener).job_calls,
+        [JobCall {
+            sequence: 1,
+            position: FIRST_BLOCK,
+            class: JobClass::Unknown,
+            job: None,
+            answer: Some(Returned::Invalid { problem: Problem::BadValue { field: bytes(b"job") } }),
+        }]
+    );
+}
+
+#[test]
+fn the_referee_rejects_an_owned_answer_for_consumed_jobs() {
+    let call = JobCall {
+        sequence: 3,
+        position: FIRST_BLOCK,
+        class: JobClass::Consumed,
+        job: Some(FIRST_JOB),
+        answer: Some(Returned::Owned {
+            outcome: Outcome::Job {
+                job: FIRST_JOB,
+                end: JobEnd::Running,
+                head: Box::default(),
+                tail: Box::default(),
+                dropped: 0,
+                output: BytesClamp::Within,
+                wait: TimeoutClamp::Within,
+            },
+        }),
+    };
+    let finding = check_job_call(&call).expect_err("a consumed job can no longer answer");
+    assert!(
+        finding.starts_with("turn 3 block 0: Consumed job Some(JobNumber(1)) must be answered as unknown"),
+        "{finding}"
+    );
 }
 
 #[test]
@@ -110,7 +291,7 @@ fn held_commands_do_not_occupy_the_batch_for_other_tools() {
         ]),
         TURN_TOKENS,
     );
-    let (world, opener) = run_story(vec![calls(Box::new([launching()]), TURN_TOKENS), change, polling()]);
+    let (world, opener) = run_story(vec![calls(Box::new([launching()]), TURN_TOKENS), change, polling(FIRST_JOB.0)]);
     let answers = results(&world, opener);
     assert!(
         matches!(

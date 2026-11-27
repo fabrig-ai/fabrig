@@ -18,6 +18,7 @@ mod jobs;
 mod llm;
 mod window_referee;
 
+pub use jobs::{JobCall, JobClass, check_job_call};
 pub use window_referee::{check_prompt_bound, check_prompt_boundary, check_prompt_extends};
 
 /// What the fake opener says when it nudges a session on.
@@ -404,7 +405,7 @@ pub struct Session {
     /// Exact accepted completion usage, independently matched against each emitted Turn.
     accepted: Vec<Usage>,
     /// Provider payload awaiting the corresponding Used acceptance.
-    received: Option<(Box<[Block]>, agent::llm::Stop, bool)>,
+    received: Option<Received>,
     /// Original accepted provider payloads before historical call conversion.
     accepted_content: Vec<Box<[Block]>>,
     /// Provider stop determines whether calls executed or remained a yielded tail.
@@ -415,8 +416,16 @@ pub struct Session {
     accepted_late: Vec<bool>,
     /// Delegated terminal values, indexed by their immutable origin.
     delegated_results: BTreeMap<(u32, u32), Returned>,
+    /// Restored transcript's final sequence and job number, or zero for a fresh session.
+    opening_sequence: u32,
+    opening_job: u32,
+    /// Highest job number the machine has yielded to this kit.
+    issued_job: u32,
     /// Highest job number seen in this session's recorded shell answers.
     highest_job: u32,
+    accepted_job_calls: Vec<Vec<JobCall>>,
+    /// Classified job calls, in the order of their recorded turns.
+    pub job_calls: Vec<JobCall>,
     held_peak: usize,
     /// Job ends reported by an answer or a terminal fact, never both.
     job_ends: BTreeSet<u32>,
@@ -436,6 +445,15 @@ pub struct Session {
     closed: bool,
     /// Finishes it has called.
     finishes: u32,
+}
+
+/// Provider evidence taken at arrival, before the completion can start any calls.
+#[derive(Debug)]
+struct Received {
+    content: Box<[Block]>,
+    stop: agent::llm::Stop,
+    late: bool,
+    job_calls: Vec<JobCall>,
 }
 
 /// Provider lifecycle evidence; ordinary IO/withdraw race bookkeeping
@@ -462,7 +480,7 @@ enum Delivery {
     /// The opener opens a session.
     Open {
         opener: u64,
-        spec: agent::Spec,
+        opening: Box<agent::record::Opening>,
     },
     /// The opener continues a yielded session.
     Continue {
@@ -703,7 +721,16 @@ impl World {
 
     /// Has the opener open a session for `spec` at `at`. Returns the opener's
     /// name for it.
-    pub fn submit(&mut self, at: Time, mut spec: agent::Spec) -> u64 {
+    pub fn submit(&mut self, at: Time, spec: agent::Spec) -> u64 {
+        self.submit_open(at, spec, None)
+    }
+
+    /// Has the opener resume a settled transcript in a new session's kit.
+    pub fn submit_restored(&mut self, at: Time, spec: agent::Spec, transcript: agent::record::Transcript) -> u64 {
+        self.submit_open(at, spec, Some(transcript))
+    }
+
+    fn submit_open(&mut self, at: Time, mut spec: agent::Spec, transcript: Option<agent::record::Transcript>) -> u64 {
         let opener = self.wire.name();
         if self.rng.chance(self.settings.serve) {
             let mut served = Vec::new();
@@ -713,7 +740,18 @@ impl World {
             }
             spec.delegated = served.into();
         }
-        self.schedule(at, Delivery::Open { opener, spec });
+        let opening = Box::new(agent::record::Opening {
+            window_llm: None,
+            spec,
+            dialect: 2,
+            prices: agent::record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
+            budget: 1,
+            transcript,
+            answered: Box::default(),
+            cut: None,
+            withheld: Some(b"wait".as_slice().into()),
+        });
+        self.schedule(at, Delivery::Open { opener, opening });
         opener
     }
 
@@ -775,9 +813,11 @@ impl World {
             }
             if let agent::Event::Completed { owner, completion } = &event {
                 let opener = self.openers[owner];
+                let job_calls = self.drawn_jobs(opener, &completion.content);
                 let session = self.sessions.get_mut(&opener).expect("a provider terminal names its opener");
                 let late = session.provider_closing.close_seen || session.provider_closing.cancel_seen;
-                session.received = Some((completion.content.clone(), completion.stop, late));
+                session.received =
+                    Some(Received { content: completion.content.clone(), stop: completion.stop, late, job_calls });
             }
             let ended = ended_run(&event);
             agent::step(&mut self.agent, &self.agent_stage.env, event, &mut self.agent_stage.out);
@@ -1008,7 +1048,9 @@ impl World {
         session.turns += 1;
         session.usage = add_usage(session.usage, usage);
         session.accepted.push(usage);
-        let (content, stop, late) = session.received.take().expect("usage accepts a provider payload");
+        let Received { content, stop, late, job_calls } =
+            session.received.take().expect("usage accepts a provider payload");
+        session.accepted_job_calls.push(job_calls);
         session.accepted_content.push(content);
         session.accepted_stop.push(stop);
         session.accepted_late.push(late);
@@ -1020,16 +1062,25 @@ impl World {
     }
 
     /// Check every concrete handoff against accepted usage and its historical representation.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one ordered walk pairs provider evidence with recorded calls and results"
+    )]
     fn recorded(&mut self, opener: u64, turn: agent::record::Turn) {
         let session = self.sessions.get_mut(&opener).expect("a Turn names its opener");
         assert!(session.ended.is_none(), "concrete history precedes terminal handoff");
         assert_eq!((turn.version, turn.endpoint, turn.dialect), (agent::record::VERSION, Some(Endpoint(0)), 2));
         let index = session.records.len();
-        assert_eq!(turn.sequence, u32::try_from(index + 1).expect("bounded sequence"));
+        assert_eq!(turn.sequence, session.opening_sequence + u32::try_from(index + 1).expect("bounded sequence"));
         assert_eq!(turn.usage, session.accepted[index], "each Turn records its accepted provider usage");
         assert_eq!(turn.spent, 0, "zero-price exact bill");
+        let mut job_calls = std::mem::take(&mut session.accepted_job_calls[index]);
+        for job_call in &mut job_calls {
+            job_call.sequence = turn.sequence;
+        }
         if matches!(turn.kind, agent::record::Kind::Window(_)) {
             window_referee::recorded_window(session, &turn, index);
+            session.job_calls.extend(job_calls);
             session.records.push(turn);
             return;
         }
@@ -1042,6 +1093,7 @@ impl World {
         assert_resumed_tail(session, index, &turn.messages[..assistant_index]);
         let original = &session.accepted_content[index];
         let mut shape = jobs::RefusalShape::default();
+        let mut job_calls = job_calls.into_iter().peekable();
         assert_eq!(assistant.content.len(), original.len(), "every provider block retains its position");
         for (position, (block, original)) in assistant.content.iter().zip(original.iter()).enumerate() {
             match original {
@@ -1058,6 +1110,15 @@ impl World {
                         "concrete calls preserve exact provider bytes and shed only live authority"
                     );
                     let result = recorded_result(&turn.messages[assistant_index + 1..], id);
+                    if job_calls.peek().is_some_and(|job_call| job_call.position == position) {
+                        let mut job_call = job_calls.next().expect("the recorded position is present");
+                        job_call.answer = result.cloned();
+                        if let Err(finding) = check_job_call(&job_call) {
+                            self.finding = Some(format!("session {opener}: {finding}"));
+                            return;
+                        }
+                        session.job_calls.push(job_call);
+                    }
                     if session.accepted_stop[index] != agent::llm::Stop::ToolUse {
                         if session.accepted_late[index] {
                             assert_eq!(
@@ -1153,7 +1214,7 @@ impl World {
         assert!(session.ended.is_none(), "a session ends once");
         match ended.end {
             agent::End::TranscriptRefused { .. } | agent::End::PriceOverflow | agent::End::UsageOverflow => {
-                unreachable!("bounded scheduled peers neither restore nor overflow; zero prices cannot spend the unit")
+                unreachable!("scripted restorations are valid; bounded usage and zero prices cannot overflow")
             }
             agent::End::Busy | agent::End::Invalid => {
                 assert!(session.session.is_none(), "a session refused at the entrance never opened");
@@ -1166,9 +1227,10 @@ impl World {
                 assert!(self.idle(name), "a session ends once nothing it asked for is in flight");
                 assert!(self.jobs.values().all(|job| job.session != name), "a session ends only after its jobs");
                 assert!(
-                    session.job_ends.iter().copied().eq(1..=session.highest_job),
+                    session.job_ends.iter().copied().eq((session.opening_job..session.highest_job).map(|job| job + 1)),
                     "each announced job ended before its session ends"
                 );
+                assert_eq!(session.issued_job, session.highest_job, "the shell announced each job its machine yielded");
             }
         }
         if ended.end == agent::End::Closed {
@@ -1192,9 +1254,7 @@ impl World {
     fn spent(&self, session: &Session, dimension: agent::Dimension) -> bool {
         let (budget, usage) = (&session.budget, &session.usage);
         match dimension {
-            agent::Dimension::Unit => {
-                unreachable!("bounded scheduled peers neither restore nor overflow; zero prices cannot spend the unit")
-            }
+            agent::Dimension::Unit => unreachable!("zero prices cannot spend the unit"),
             agent::Dimension::Turns => session.turns >= budget.turns,
             agent::Dimension::Input => usage.input_tokens.unwrap_or(0) >= budget.input,
             agent::Dimension::Output => usage.output_tokens.unwrap_or(0) >= budget.output,
@@ -1467,7 +1527,7 @@ impl World {
     fn deliver(&mut self) {
         while let Some(delivery) = self.wire.next(self.now) {
             match delivery {
-                Delivery::Open { opener, spec } => self.open(opener, spec),
+                Delivery::Open { opener, opening } => self.open(opener, opening),
                 Delivery::Continue { opener, content } => {
                     let session = self.sessions.get_mut(&opener).expect("the opener continues what it opened");
                     assert!(session.waiting, "the opener continues a session only while it is yielded");
@@ -1581,10 +1641,16 @@ impl World {
     }
 
     /// The opener opens a session, deciding how it will treat it.
-    fn open(&mut self, opener: u64, spec: agent::Spec) {
+    fn open(&mut self, opener: u64, mut opening: Box<agent::record::Opening>) {
+        let spec = &mut opening.spec;
         let Count { min, max } = self.settings.nudges;
         let nudges = u32::try_from(self.rng.between(min.into(), max.into())).expect("drawn between two u32s");
         let abandon = self.rng.chance(self.settings.abandon);
+        let (opening_sequence, opening_job) = opening
+            .transcript
+            .as_ref()
+            .and_then(|transcript| transcript.turns.last())
+            .map_or((0, 0), |turn| (turn.sequence, turn.jobs));
         let session = Session {
             previous_prompt: None,
             counting: crate::provider::Counting::new(self.settings.seed ^ opener),
@@ -1609,7 +1675,12 @@ impl World {
             provider_closing: ProviderClosing::default(),
             accepted_late: Vec::new(),
             delegated_results: BTreeMap::new(),
-            highest_job: 0,
+            opening_sequence,
+            opening_job,
+            issued_job: opening_job,
+            highest_job: opening_job,
+            accepted_job_calls: Vec::new(),
+            job_calls: Vec::new(),
             held_peak: 0,
             job_ends: BTreeSet::new(),
             records: Vec::new(),
@@ -1626,24 +1697,10 @@ impl World {
         // A repository of its own, which io names as its root.
         let root = fixture::seed(&mut self.checkout, format!("s{opener}").as_bytes());
         self.roots.insert(root, opener);
-        let mut spec = spec;
         for repo in &mut spec.authority.repos {
             repo.root = io::token(root);
         }
-        self.agent_stage.push(agent::Event::Open {
-            opener: Token::new(opener),
-            opening: Box::new(agent::record::Opening {
-                window_llm: None,
-                spec,
-                dialect: 2,
-                prices: agent::record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
-                budget: 1,
-                transcript: None,
-                answered: Box::default(),
-                cut: None,
-                withheld: Some(b"wait".as_slice().into()),
-            }),
-        });
+        self.agent_stage.push(agent::Event::Open { opener: Token::new(opener), opening });
     }
 
     /// Ends the agent's call `call` if it is still in flight, withdrawing its
