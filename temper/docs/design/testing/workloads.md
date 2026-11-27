@@ -629,21 +629,25 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   delegates and those it was introduced to), and the world wires no
   introduction for it.
 - **Drawn stretches** (`../draft/misbehaving-agents.md`, 5.2): each
-  producer plays a stretch of the workload's round count before it
-  delivers and another before it parks or finishes (skein's
-  `testing/fakes/drawn-agent.md`, 5), of `read_task`, `message` and
-  `mark_read` alone, through either provider: the typed one and
-  `temper-fake` (`../protocol/setup/playground.md`, 9) each take the menu
-  and the round count. The menu's slots name the tasks its creation
-  replies and reads show, its inbox labels' questions paired with
-  their askers, a foreign one by its weight, and the messages it sent.
-  Words and questions go only to the tasks it delegated, so no
-  scripted agent wakes out of its script. The goals' expectations
-  stay; a stretch adds that each drawn call is answered once, and
-  counts each refusal its draws reach: a task it holds no reference
-  to, an answered question, an ended recipient. Its sweep counts the
-  shapes its cases reached in the shapes' shared vocabulary
-  (`../draft/misbehaving-agents.md`, 8), beside its sample's size.
+  producer plays a stretch before it delivers and another before it
+  parks or finishes (skein's `testing/fakes/drawn-agent.md`, 5), with
+  two rounds per stretch and one call per round. Draws use only
+  `read_task`, `message` and `mark_read`, through either provider: the
+  typed one and `temper-fake` (`../protocol/setup/playground.md`, 9)
+  each take the menu and the round count. The menu's slots name the
+  tasks its creation replies and reads show, its inbox labels'
+  questions paired with their askers, a foreign one by its weight,
+  and the messages it sent. The goals' expectations stay; a stretch
+  adds that each drawn call is answered once, and counts each refusal
+  its draws reach: a read or message naming a task the producer holds
+  no reference to, a `mark_read` naming a message it never sent, or a
+  message to an ended recipient. A stretch can't reach an answered
+  question: the scripted parties report on person tasks, no
+  task-question label reaches a producer, and drawn words and questions
+  go only to the producer's own delegates, never to a scripted agent.
+  Its sweep counts the shapes its cases reached in the shapes' shared
+  vocabulary (`../draft/misbehaving-agents.md`, 8), beside its sample's
+  size.
 - **Its streams:** the workload from `Workload`; the acts from `Parties`;
   the world's scheduling from `Scheduling`, part `system`; each injector
   from its `Faults` part.
