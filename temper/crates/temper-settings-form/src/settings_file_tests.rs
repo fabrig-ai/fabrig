@@ -156,6 +156,60 @@ const PROJECT_WORDS: &[u8] = br#"{"kind":"project-words","project":7}"#;
 const LINE: &[u8] = br#""llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#;
 const WORDS: &[u8] = br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#;
 #[test]
+fn charter_owners_keep_names_and_numbers_in_the_settings_form() {
+    use temper_client_protocol_wire::v1 as w;
+    use w::Record;
+    for (json, expected) in [
+        (
+            br#""triager""#.as_slice(),
+            w::AreaOwner::CharterNamed(w::AreaCharterNamed { name: b"triager".as_slice().into() }),
+        ),
+        (b"14".as_slice(), w::AreaOwner::Charter(w::AreaCharter { number: 14 })),
+    ] {
+        for (kind, setting, value) in [
+            (
+                14,
+                br#"{"kind":"project-areas","project":3}"#.as_slice(),
+                joined(&[br#"{"areas":[{"name":"tests","words":"C tests","owner":{"charter":"#, json, b"}}]}"]),
+            ),
+            (
+                15,
+                br#"{"kind":"project-triager","project":3}"#.as_slice(),
+                joined(&[br#"{"owner":{"charter":"#, json, b"}}"]),
+            ),
+        ] {
+            let items =
+                file::decode(&kind_file(setting, &value), &Limits::standard()).expect("owner in a settings file");
+            let item = items.get(0).expect("one item");
+            assert_eq!(item.setting, c::Setting::Application { kind, scope: 3, number: 1 });
+            let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("owner bytes") };
+            let mut reader = skein_lib::Reader::new(bytes);
+            if kind == 14 {
+                let areas = w::ProjectAreas::decode(&w::CEILINGS, &mut reader).unwrap();
+                assert_eq!(areas.areas.get(0).unwrap().owner, expected);
+            } else {
+                let triager = w::ProjectTriager::decode(&w::CEILINGS, &mut reader).unwrap();
+                assert_eq!(triager.owner, expected);
+            }
+            assert!(reader.is_empty());
+            let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
+                setting: item.setting,
+                revision: 1,
+                value: Some(set.value.clone()),
+                application: None,
+                proposed: None,
+            }));
+            assert_eq!(
+                shown(&document),
+                joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, &value, b"}"])
+            );
+        }
+    }
+}
+
+#[test]
 fn temper_kinds_round_trip_from_file_to_shown_json() {
     for (setting, json, expected) in [
         (DEPLOYMENT_RULE, LANDING, c::Setting::Application { kind: 1, scope: 0, number: 1 }),

@@ -146,6 +146,7 @@ pub struct Field {
 #[derive(Debug)]
 pub enum Value {
     Integer(Width),
+    CharterOwner,
     Nanoseconds,
     Time,
     Boolean,
@@ -453,6 +454,7 @@ pub fn resolve(path: &[u8]) -> Option<&'static Field> {
             shape = match member.value {
                 Value::Shape(s) => Some(s),
                 Value::Integer(_)
+                | Value::CharterOwner
                 | Value::Nanoseconds
                 | Value::Time
                 | Value::Boolean

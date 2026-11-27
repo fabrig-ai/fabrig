@@ -948,7 +948,7 @@ fn bulk_task_drops_cross_the_journal_without_replacing_record_erases() {
     );
 }
 
-mod room_checks;
+pub(crate) mod room_checks;
 
 mod see;
 

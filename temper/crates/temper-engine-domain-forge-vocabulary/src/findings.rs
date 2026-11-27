@@ -322,12 +322,12 @@ pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
 pub fn owner(
     area: Option<&[u8]>,
     areas: &ProjectAreas,
-    triager: Option<AreaOwner>,
-    stands: &[(AreaOwner, Holder)],
+    triager: Option<&AreaOwner>,
+    stands: &[(&AreaOwner, Holder)],
 ) -> Holder {
     for row in &areas.areas {
         if area == Some(row.name.as_ref())
-            && let Some(holder) = standing(row.owner, stands)
+            && let Some(holder) = standing(&row.owner, stands)
         {
             return holder;
         }
@@ -340,9 +340,9 @@ pub fn owner(
     Holder::Role(0)
 }
 #[must_use]
-pub fn standing(owner: AreaOwner, stands: &[(AreaOwner, Holder)]) -> Option<Holder> {
+pub fn standing(owner: &AreaOwner, stands: &[(&AreaOwner, Holder)]) -> Option<Holder> {
     if let AreaOwner::Role(role) = owner {
-        return Some(Holder::Role(role));
+        return Some(Holder::Role(*role));
     }
     for (candidate, holder) in stands {
         if *candidate == owner {

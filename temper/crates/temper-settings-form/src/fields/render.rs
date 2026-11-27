@@ -175,6 +175,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             Width::U32 => b"u32",
             Width::U64 => b"u64",
         }),
+        Value::CharterOwner => out.put(b"u32|t[32]"),
         Value::Nanoseconds => out.put(b"ns"),
         Value::Time => out.put(b"ns since 1970 UTC"),
         Value::Boolean => out.put(b"bool"),

@@ -1,9 +1,9 @@
 //! Temper's settings file values and codec records
 //! (temper/docs/design/client/ctl/tools-acts.md, 1; temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 use crate::file::{Decoder, Error, Fields, error, field, optional};
-use crate::view as c;
+use crate::{Text, view as c};
 use alloc::boxed::Box;
-use skein_json::writer::Encoder;
+use skein_json::{Kind, writer::Encoder};
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 use temper_client_protocol_wire::v1::Record;
@@ -895,6 +895,11 @@ fn area_owner(d: &Decoder<'_>, at: u32) -> Result<w::AreaOwner, Error> {
         ));
     }
     if let Some(at) = optional(&fields, b"charter") {
+        if d.kind(at)? == Kind::String {
+            let value = w::AreaCharterNamed { name: d.string(at)?.into() };
+            value.encode(&d.kinds).or(Err(error(b"owner", b"wire value bound")))?;
+            return Ok(w::AreaOwner::CharterNamed(value));
+        }
         return Ok(w::AreaOwner::Charter(
             {
                 let value =
@@ -911,14 +916,77 @@ fn area_owner(d: &Decoder<'_>, at: u32) -> Result<w::AreaOwner, Error> {
 }
 
 fn render_owner(value: &w::AreaOwner, out: &mut Encoder) {
+    out.object_start();
     let (kind, number) = match value {
         w::AreaOwner::Task(n) => (b"task".as_slice(), n.number),
         w::AreaOwner::Party(n) => (b"party".as_slice(), n.number),
         w::AreaOwner::Role(n) => (b"role".as_slice(), u64::from(n.number)),
         w::AreaOwner::Charter(n) => (b"charter".as_slice(), u64::from(n.number)),
+        w::AreaOwner::CharterNamed(charter) => {
+            out.key(b"charter");
+            out.string(&charter.name);
+            out.object_end();
+            return;
+        }
     };
-    out.object_start();
     out.key(kind);
     out.unsigned(number);
     out.object_end();
+}
+
+// Numeric-only settings use inline JSON. With a named owner, show owner
+// references in words, as in the findings list.
+pub(super) fn named_owners_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
+    let mut reader = Reader::new(bytes);
+    if kind == 14 {
+        let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
+        if !reader.is_empty() {
+            return false;
+        }
+        let mut named = false;
+        for area in &value.areas {
+            if let w::AreaOwner::CharterNamed(_) = area.owner {
+                named = true;
+                break;
+            }
+        }
+        if !named {
+            return false;
+        }
+        for (at, area) in value.areas.iter().enumerate() {
+            if at != 0 {
+                out.put(b"\n");
+            }
+            out.put(&area.name);
+            out.put(b": ");
+            owner_text(&area.owner, out);
+            out.put(b"\n  ");
+            out.put(&area.words);
+        }
+    } else if kind == 15 {
+        let Ok(value) = w::ProjectTriager::decode(&w::CEILINGS, &mut reader) else { return false };
+        let w::AreaOwner::CharterNamed(_) = &value.owner else { return false };
+        if !reader.is_empty() {
+            return false;
+        }
+        owner_text(&value.owner, out);
+    } else {
+        return false;
+    }
+    true
+}
+fn owner_text(owner: &w::AreaOwner, out: &mut Text) {
+    let (kind, number) = match owner {
+        w::AreaOwner::Task(n) => (b"task ".as_slice(), n.number),
+        w::AreaOwner::Party(n) => (b"party ".as_slice(), n.number),
+        w::AreaOwner::Role(n) => (b"role ".as_slice(), u64::from(n.number)),
+        w::AreaOwner::Charter(n) => (b"charter ".as_slice(), u64::from(n.number)),
+        w::AreaOwner::CharterNamed(charter) => {
+            out.put(b"charter ");
+            out.put(&charter.name);
+            return;
+        }
+    };
+    out.put(kind);
+    out.number(number);
 }

@@ -70,7 +70,11 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
     let mut areas = List::with_capacity(16);
     for _ in 0_u32..16 {
         areas
-            .push(settings::Area { name: word(32), words: word(480), owner: settings::AreaOwner::Task(u64::MAX) })
+            .push(settings::Area {
+                name: word(32),
+                words: word(480),
+                owner: settings::AreaOwner::CharterNamed(word(jig_domain_people::settings::NAME_BYTES)),
+            })
             .expect("bounded areas");
     }
     let mut overrides = List::with_capacity(jig_domain_core::settings::OVERRIDES);
@@ -218,7 +222,7 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             scope: KindScope::Project,
             connector,
             value_bytes: size(&settings::Value::ProjectTriager(settings::ProjectTriager {
-                owner: settings::AreaOwner::Task(u64::MAX),
+                owner: settings::AreaOwner::CharterNamed(word(jig_domain_people::settings::NAME_BYTES)),
             })),
             per_scope: 1,
             charters: 0,

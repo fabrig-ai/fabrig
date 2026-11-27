@@ -294,6 +294,7 @@ pub fn area_owner_to_record(value: &temper_engine_domain_forge::settings::AreaOw
         temper_engine_domain_forge::settings::AreaOwner::Party(held) => temper_client_protocol_wire::v1::AreaOwner::Party(temper_client_protocol_wire::v1::AreaParty { number: *held }),
         temper_engine_domain_forge::settings::AreaOwner::Role(held) => temper_client_protocol_wire::v1::AreaOwner::Role(temper_client_protocol_wire::v1::AreaRole { number: *held }),
         temper_engine_domain_forge::settings::AreaOwner::Charter(held) => temper_client_protocol_wire::v1::AreaOwner::Charter(temper_client_protocol_wire::v1::AreaCharter { number: *held }),
+        temper_engine_domain_forge::settings::AreaOwner::CharterNamed(held) => temper_client_protocol_wire::v1::AreaOwner::CharterNamed(temper_client_protocol_wire::v1::AreaCharterNamed { name: held.clone() }),
     }
 }
 
@@ -314,6 +315,10 @@ pub fn area_owner_to_domain(record: temper_client_protocol_wire::v1::AreaOwner) 
         }),
         temper_client_protocol_wire::v1::AreaOwner::Charter(held) => temper_engine_domain_forge::settings::AreaOwner::Charter({
             let temper_client_protocol_wire::v1::AreaCharter { number: held } = held;
+            held
+        }),
+        temper_client_protocol_wire::v1::AreaOwner::CharterNamed(held) => temper_engine_domain_forge::settings::AreaOwner::CharterNamed({
+            let temper_client_protocol_wire::v1::AreaCharterNamed { name: held } = held;
             held
         }),
     }

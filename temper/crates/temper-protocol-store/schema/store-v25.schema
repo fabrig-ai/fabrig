@@ -639,7 +639,8 @@ record AreaRole { number: u32 }
 
 record AreaCharter { number: u32 }
 
-enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter }
+record AreaCharterNamed { name: text 32 }
+enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter, charter_named: AreaCharterNamed }
 
 record Area { name: text 32 words: text 480 owner: AreaOwner }
 

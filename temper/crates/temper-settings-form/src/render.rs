@@ -212,9 +212,9 @@ fn named_value_text(
     limits: &Limits,
     out: &mut Text,
 ) {
-    if let c::Setting::Application { kind: 22, .. } = setting
+    if let c::Setting::Application { kind: kind @ (14 | 15 | 22), .. } = setting
         && let c::SettingValue::Application(bytes) = value
-        && application_value_text(22, bytes, out)
+        && application_value_text(kind, bytes, out)
     {
         out.put(b"\n");
         return;
@@ -1045,8 +1045,11 @@ pub fn setting_detail(detail: &c::SettingDetail, out: &mut Text) {
 pub fn application_value(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     crate::kinds::render(kind, bytes, out)
 }
-/// Render classes and limit overrides in words; other application kinds use inline JSON.
+/// Render classes, limit overrides and named owners in words; other application values use inline JSON.
 pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
+    if kind == 14 || kind == 15 {
+        return crate::kinds::named_owners_text(kind, bytes, out);
+    }
     if kind == 22 {
         let Some(values) = crate::kinds::limits::decoded(bytes) else { return false };
         for (at, value) in values.iter().enumerate() {

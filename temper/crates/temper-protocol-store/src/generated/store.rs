@@ -10317,6 +10317,7 @@ pub fn area_owner_to_record(value: &temper_engine_domain_forge_vocabulary::setti
         temper_engine_domain_forge_vocabulary::settings::AreaOwner::Party(held) => crate::v25::AreaOwner::Party(crate::v25::AreaParty { number: *held }),
         temper_engine_domain_forge_vocabulary::settings::AreaOwner::Role(held) => crate::v25::AreaOwner::Role(crate::v25::AreaRole { number: *held }),
         temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(held) => crate::v25::AreaOwner::Charter(crate::v25::AreaCharter { number: *held }),
+        temper_engine_domain_forge_vocabulary::settings::AreaOwner::CharterNamed(held) => crate::v25::AreaOwner::CharterNamed(crate::v25::AreaCharterNamed { name: held.clone() }),
     }
 }
 
@@ -10337,6 +10338,10 @@ pub fn area_owner_to_domain(record: crate::v25::AreaOwner) -> temper_engine_doma
         }),
         crate::v25::AreaOwner::Charter(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter({
             let crate::v25::AreaCharter { number: held } = held;
+            held
+        }),
+        crate::v25::AreaOwner::CharterNamed(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::CharterNamed({
+            let crate::v25::AreaCharterNamed { name: held } = held;
             held
         }),
     }

@@ -141,6 +141,7 @@ fn reaches(value: &Value, seen: &[bool; SHAPES.len()]) -> bool {
             false
         }
         Value::Integer(_)
+        | Value::CharterOwner
         | Value::Nanoseconds
         | Value::Time
         | Value::Boolean
@@ -455,7 +456,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                 }
             }
             Action::Value(value) => match value {
-                Value::Integer(_) | Value::Nanoseconds | Value::Time => out.unsigned(1),
+                Value::Integer(_) | Value::CharterOwner | Value::Nanoseconds | Value::Time => out.unsigned(1),
                 Value::Boolean => out.boolean(false),
                 Value::Text(_) => out.string(b"x"),
                 Value::Hex(_) => out.string(b"00"),

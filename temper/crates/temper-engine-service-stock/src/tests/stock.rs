@@ -1851,7 +1851,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 14,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 8),
+                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 4 + 32),
                 per_scope: 1,
                 charters: 0
             },
@@ -1859,7 +1859,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 15,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 9,
+                value_bytes: 1 + 4 + 32,
                 per_scope: 1,
                 charters: 0
             },

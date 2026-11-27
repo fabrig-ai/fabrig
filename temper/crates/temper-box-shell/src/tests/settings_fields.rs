@@ -168,6 +168,14 @@ fn scalar(value: &Json, field: &Field, limits: &Limits, pending: &mut Vec<(Shape
             };
             assert!(number <= max, "integer fits {width:?}");
         }
+        Value::CharterOwner => {
+            if let Some(name) = value.as_str() {
+                assert!(jig_domain_people::is_name(name.as_bytes()), "charter name fits");
+            } else {
+                let number = value.as_u64().expect("unsigned charter number or name");
+                assert!((1..=u64::from(jig_domain_people::NUMBERS)).contains(&number));
+            }
+        }
         Value::Nanoseconds | Value::Time => {
             value.as_u64().expect("nanoseconds");
         }

@@ -130,7 +130,7 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
                 scope: project,
                 number: 1,
                 edit: Edit::Set(Value::ProjectTriager(
-                    temper_engine_domain_forge_vocabulary::settings::ProjectTriager { owner: *owner },
+                    temper_engine_domain_forge_vocabulary::settings::ProjectTriager { owner: owner.clone() },
                 )),
             })
             .expect("one triager item");

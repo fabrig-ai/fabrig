@@ -632,7 +632,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 let mut held = skein_lib::len_u64(value.areas.len())
                     .checked_mul(u64::try_from(size_of::<settings::Area>()).ok()?)?;
                 for area in &value.areas {
-                    held = held.checked_add(bytes(&area.name))?.checked_add(bytes(&area.words))?;
+                    held = held
+                        .checked_add(bytes(&area.name))?
+                        .checked_add(bytes(&area.words))?
+                        .checked_add(skein_lib::len_u64(area.owner.owned_bytes()))?;
                 }
                 Some(held)
             }
@@ -659,6 +662,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectWords(words), .. }) => {
                 bytes(&words.headline).checked_add(bytes(&words.lede))
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectTriager(value), .. }) => {
+                Some(skein_lib::len_u64(value.owner.owned_bytes()))
+            }
             settings::Edit::Set(settings::SizedValue {
                 value:
                     settings::Value::Dependency(_)
@@ -666,7 +672,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
                     | settings::Value::Welcome(_)
-                    | settings::Value::ProjectTriager(_)
                     | settings::Value::Goal(_),
                 ..
             })

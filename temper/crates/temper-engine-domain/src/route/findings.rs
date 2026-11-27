@@ -50,36 +50,42 @@ fn live(row: &tasks::TaskRecord, project: u32) -> bool {
     }
 }
 #[must_use]
-pub fn stands(domain: &Domain, project: u32, owner: AreaOwner) -> Option<Holder> {
+pub fn stands(domain: &Domain, project: u32, owner: &AreaOwner) -> Option<Holder> {
     match owner {
         AreaOwner::Task(number) => {
-            let row = domain.engine.core().tasks.task(number)?;
-            if live(row, project) { Some(Holder::Task(number)) } else { None }
+            let row = domain.engine.core().tasks.task(*number)?;
+            if live(row, project) { Some(Holder::Task(*number)) } else { None }
         }
         AreaOwner::Party(number) => {
-            if domain.engine.core().people.role(number, project).is_some() {
-                Some(Holder::Party(number))
+            if domain.engine.core().people.role(*number, project).is_some() {
+                Some(Holder::Party(*number))
             } else {
                 None
             }
         }
-        AreaOwner::Role(number) => Some(Holder::Role(number)),
-        AreaOwner::Charter(charter) => {
-            let mut lowest = None;
-            for view in domain.engine.core().tasks.view_tasks() {
-                let Some(row) = domain.engine.core().tasks.task(view.number) else { continue };
-                if row.label == 3 && row.executor == (tasks::Executor::Agent { charter }) && live(row, project) {
-                    lowest = Some(match lowest {
-                        Some(n) => row.number.min(n),
-                        None => row.number,
-                    });
-                }
-            }
-            match lowest {
-                Some(number) => Some(Holder::Task(number)),
-                None => None,
-            }
+        AreaOwner::Role(number) => Some(Holder::Role(*number)),
+        AreaOwner::Charter(charter) => standing_charter(domain, project, *charter),
+        AreaOwner::CharterNamed(name) => {
+            let charter = domain.engine.core().charter_named(name)?;
+            standing_charter(domain, project, charter)
         }
+    }
+}
+fn standing_charter(domain: &Domain, project: u32, charter: u32) -> Option<Holder> {
+    let mut lowest = None;
+    let tasks = &domain.engine.core().tasks;
+    for view in tasks.view_tasks() {
+        let Some(row) = tasks.task(view.number) else { continue };
+        if row.label == 3 && row.executor == (tasks::Executor::Agent { charter }) && live(row, project) {
+            lowest = Some(match lowest {
+                Some(n) => row.number.min(n),
+                None => row.number,
+            });
+        }
+    }
+    match lowest {
+        Some(number) => Some(Holder::Task(number)),
+        None => None,
     }
 }
 #[must_use]
@@ -88,8 +94,8 @@ pub fn holder(domain: &Domain, project: u32, area: Option<&[u8]>) -> Holder {
     let triager = domain.forge.project_triager(project);
     let mut standing = List::with_capacity(17);
     for area in &areas.areas {
-        if let Some(holder) = stands(domain, project, area.owner) {
-            standing.push((area.owner, holder)).expect("sixteen areas");
+        if let Some(holder) = stands(domain, project, &area.owner) {
+            standing.push((&area.owner, holder)).expect("sixteen areas");
         }
     }
     if let Some(owner) = triager
@@ -109,7 +115,7 @@ pub(super) fn follow_area(domain: &Domain, project: u32, follow: u32) -> Option<
         forge::settings::FollowOwner::Person(party) => Holder::Party(party),
     };
     for area in domain.forge.project_areas(project).areas {
-        if stands(domain, project, area.owner) == Some(owner) {
+        if stands(domain, project, &area.owner) == Some(owner) {
             return Some(area.name);
         }
     }
@@ -131,7 +137,7 @@ fn permitted(domain: &Domain, project: u32, number: u32, by: Filer) -> Result<()
     let held = holder(domain, project, row.area.as_deref());
     let allowed = match by {
         Filer::Task(number) => {
-            held == Holder::Task(number) && stands(domain, project, AreaOwner::Task(number)).is_some()
+            held == Holder::Task(number) && stands(domain, project, &AreaOwner::Task(number)).is_some()
         }
         Filer::Party(party) => {
             domain.engine.core().people.role(party, project) == Some(super::people::Role::Owner)
@@ -450,7 +456,7 @@ pub fn document(domain: &Domain, project: u32, party: u64, filter: forge::Findin
     for area in areas.areas {
         listed
             .push(forge::AreaRow {
-                holder: stands(domain, project, area.owner),
+                holder: stands(domain, project, &area.owner),
                 name: area.name,
                 words: area.words,
                 owner: area.owner,
@@ -461,7 +467,7 @@ pub fn document(domain: &Domain, project: u32, party: u64, filter: forge::Findin
         project,
         rows: rows.into_boxed(),
         areas: listed.into_boxed(),
-        triager: domain.forge.project_triager(project),
+        triager: domain.forge.project_triager(project).cloned(),
         holder: holder(domain, project, None),
         cut,
     }

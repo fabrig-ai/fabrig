@@ -574,7 +574,8 @@ enum FollowVerdict { passed, failing: FollowFailing, many }
 record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
 record FollowView { number: u32 setting: Follow source: bytes 2048 source_branch: bytes 4096 target: bytes 2048 target_branch: bytes 4096 task: option u64 stopped: option bytes 8192 lag: u32 entries: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
 versioned record FollowsPanel { project: u32 follows: list 256 FollowView dependencies: list 256 DependencyView }
-enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter }
+record AreaCharterNamed { name: text 32 }
+enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter, charter_named: AreaCharterNamed }
 record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 record ProjectTriager { owner: AreaOwner }

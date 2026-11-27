@@ -3208,6 +3208,34 @@ fn settings_show_template_resources_apply_again_unchanged() {
     );
 }
 #[test]
+fn settings_show_project_areas_prints_the_named_charter_without_resolving_it() {
+    let setting = c::Setting::Application { kind: 14, scope: 7, number: 1 };
+    let value = br#"{"areas":[{"name":"tests","words":"C tests","owner":{"charter":"triager"}}]}"#;
+    let mut input = br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":"#.to_vec();
+    input.extend_from_slice(value);
+    input.extend_from_slice(b"}]}");
+    let items = settings_file::decode(&input, &fixtures::limits()).expect("area settings fixture");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &items.get(0).unwrap().edit
+    else {
+        panic!("area settings bytes")
+    };
+    for json in [false, true] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit_prepared(fixtures::call(&["settings", "show", "project-areas", "7"]), json, None);
+        root.serve(call, forge_inventory(setting, c::ApplicationFollows::Changed { revision: 5 }));
+        root.serve_readout(call, forge_setting_page(Some(bytes.clone())));
+        let answer = root.answer(call).expect("joined setting");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        if json {
+            assert!(text.contains(core::str::from_utf8(value).unwrap()), "{text}");
+        } else {
+            assert!(text.contains("tests: charter triager\n  C tests\n"), "{text}");
+        }
+    }
+}
+
+#[test]
 fn settings_show_template_resources_are_readable_when_present() {
     for resources in [list([]), list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 2, symbol: 3 }])] {
         let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };

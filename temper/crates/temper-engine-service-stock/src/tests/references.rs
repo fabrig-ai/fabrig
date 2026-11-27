@@ -140,11 +140,11 @@ fn producers() -> Vec<(String, u32)> {
         for role in &way.roles {
             references.push((format!("way {:?} standing role", way.name), role.charter));
         }
-        if let Some(owner) = way.triager {
+        if let Some(owner) = &way.triager {
             let temper_engine_domain_forge::settings::AreaOwner::Charter(number) = owner else {
                 panic!("{}: stock way {:?} kind 15 is not a charter", PRODUCER.words(), way.name);
             };
-            references.push((format!("way {:?} kind 15", way.name), number));
+            references.push((format!("way {:?} kind 15", way.name), *number));
         }
     }
     references
