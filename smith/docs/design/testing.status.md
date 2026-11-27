@@ -3,9 +3,6 @@
 2026-11-27. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
-  - 6: smith's inspection adapter, `smith-inspect`: its waits, its
-    tables, its room check and its host calls, and the session world's
-    calls of them at its quiet point. [in flight: change 21564]
   - 6: the agent, run and host worlds' calls of the shared checks.
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
