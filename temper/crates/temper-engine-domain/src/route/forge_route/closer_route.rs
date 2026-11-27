@@ -116,20 +116,7 @@ pub(crate) fn start_closer_step(
     let dependencies = domain.engine.core().tasks.task(task).expect("due closer").dependencies.len();
     let at = goal_report::At { step: procedure_step, dependencies };
     let Some(observation) = goal_report::observed(domain, env, task, at) else { return };
-    let hooks = match domain.forge.closer_close_checked(task, procedure_step, dependencies) {
-        Some(Ok(hooks)) => Some(hooks),
-        Some(Err(_)) => {
-            submit(domain, env, row, ProcedureStep::new(StepEnd::Wait), None);
-            return;
-        }
-        None => None,
-    };
-    let close_job = match hooks {
-        None => None,
-        Some(forge::Hooks::Legacy) => Some(domain.forge.close_job(context.project).is_some()),
-        Some(forge::Hooks::Directory { close, .. }) => Some(close),
-    };
-    let facts = facts(domain, &row, branch.as_deref(), base_holds, close_job, observation);
+    let facts = facts(domain, &row, branch.as_deref(), base_holds, observation);
     let stepped = c::step(&row.closer, &facts);
     let mut replacement = None;
     let (decision, wait) = match stepped.decision {
@@ -161,18 +148,6 @@ pub(crate) fn start_closer_step(
             }));
             return;
         }
-        c::Decision::CheckClose => {
-            row.closer = stepped.closer;
-            domain.work.push(Work::Forge(forge::Event::Closer { row }));
-            domain.work.push(Work::Forge(forge::Event::ReadCloserClose {
-                task,
-                step: procedure_step,
-                dependencies,
-                repository: repository.provider,
-                branch: branch.expect("only a held goal branch asks for its close command"),
-            }));
-            return;
-        }
         c::Decision::SkipClose { change } => {
             let mut decision = ProcedureStep::new(StepEnd::Wait);
             decision.cancels = Box::new([supersede(env, change, &row.closer, &facts.landed)]);
@@ -186,7 +161,6 @@ pub(crate) fn start_closer_step(
                 c::Decision::ReadReport
                 | c::Decision::HoldReport
                 | c::Decision::Check
-                | c::Decision::CheckClose
                 | c::Decision::SkipClose { .. }
                 | c::Decision::Wake { .. }
                 | c::Decision::Wait
@@ -200,17 +174,7 @@ pub(crate) fn start_closer_step(
                 return;
             }
             let branch = branch.expect("only a held goal branch makes a step");
-            let step = match kind {
-                c::Step::Land => ClosingStep::Land,
-                c::Step::Close => ClosingStep::Close {
-                    hook: if let Some(forge::Hooks::Directory { close: true, .. }) = hooks {
-                        Some(forge::CLOSE_HOOK)
-                    } else {
-                        None
-                    },
-                },
-            };
-            let draft = delegate(domain, env, &row, &repository, &branch, &goal_words, step);
+            let draft = delegate(domain, env, &row, &repository, &branch, &goal_words, kind);
             let mut next = stepped.closer;
             if supersedes.is_some() {
                 // Keep the old attempt until cancellation and replacement are admitted together.
@@ -324,7 +288,6 @@ fn facts(
     row: &forge::CloserRow,
     branch: Option<&[u8]>,
     base_holds: Option<bool>,
-    close_job: Option<bool>,
     report: c::ReportRead,
 ) -> c::Facts {
     let mut landed = List::uncapped();
@@ -349,7 +312,7 @@ fn facts(
     c::Facts {
         report,
         goal_branch: branch.is_some(),
-        close_job,
+        close_job: if domain.config.close_kind.is_some() { c::CloseJob::Declared } else { c::CloseJob::Undeclared },
         pending,
         landed: landed.into_boxed(),
         base_holds,
@@ -769,11 +732,6 @@ fn change_tasks(given: u32, room: u32, bound: u8, ended: u32) -> u32 {
     given.min(share).max(1)
 }
 
-enum ClosingStep {
-    Close { hook: Option<&'static [u8]> },
-    Land,
-}
-
 fn delegate(
     domain: &Domain,
     env: &Env<Limits>,
@@ -781,7 +739,7 @@ fn delegate(
     repository: &forge::Repository,
     branch: &[u8],
     goal_words: &[u8],
-    step: ClosingStep,
+    step: c::Step,
 ) -> Result<super::super::Delegate, Short> {
     let context = domain.engine.core().tasks.delegation(row.task).ok_or(Short::Terms)?;
     let goal = domain.engine.core().tasks.delegation(row.goal).ok_or(Short::Terms)?;
@@ -801,16 +759,14 @@ fn delegate(
     let spend = available.checked_div(2).expect("nonzero divisor");
     let minimum = domain.engine.core().authority.rules().minimum_run_spend;
     let (kind, words, base, own) = match step {
-        ClosingStep::Close { .. } => {
+        c::Step::Close => {
             let mut words = List::uncapped();
             append(&mut words, b"Settle goal ");
             append(&mut words, &super::decimal(row.goal));
             append(&mut words, b"'s status.");
             (c::Step::Close, words.into_boxed(), branch.into(), None)
         }
-        ClosingStep::Land => {
-            (c::Step::Land, landing_words(goal_words), repository.landing.clone(), Some(branch.into()))
-        }
+        c::Step::Land => (c::Step::Land, landing_words(goal_words), repository.landing.clone(), Some(branch.into())),
     };
     let mut change = crate::ChangeCall::words(words, None);
     change.questions = Some(crate::ChangeQuestions::Up);
@@ -831,7 +787,7 @@ fn delegate(
         kinds.push(tasks::AuthorityExecutor::Job(forge::CLOSE_KIND)).expect("uncapped executor list");
     }
     delegate.authority.delegation.kinds = kinds.into_boxed();
-    if let ClosingStep::Close { hook } = step {
+    if step == c::Step::Close {
         let mut expanded = List::uncapped();
         for parameter in delegate.spec.parameters {
             expanded.push(parameter).expect("uncapped parameter list");
@@ -839,11 +795,6 @@ fn delegate(
         expanded
             .push(tasks::Parameter::Bytes { name: 17, value: close_request(domain, row, branch) })
             .expect("uncapped parameter list");
-        if let Some(hook) = hook {
-            expanded
-                .push(tasks::Parameter::Bytes { name: 20, value: Box::from(hook) })
-                .expect("uncapped parameter list");
-        }
         delegate.spec.parameters = expanded.into_boxed();
     }
     Ok(delegate)

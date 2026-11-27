@@ -369,7 +369,9 @@ fn closer_of(world: &mut World, goal: u64) -> u64 {
 fn finish_close(world: &mut World, close: u64, branch: &[u8], job: &host::JobAssignment) {
     use temper_protocol_worker_wire::v1;
     let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(spec.command.as_ref(), b"repo/.temper/close");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/close");
+    assert!(spec.find && spec.refusal);
+    assert_eq!(spec.fallback.as_ref(), b"repo/.temper/close");
     assert_eq!(Some(spec.request.as_ref()), row(world, close).close.as_deref());
     for _ in 0..STEPS {
         if world.pending.is_empty() {

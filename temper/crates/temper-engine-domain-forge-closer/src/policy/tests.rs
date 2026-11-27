@@ -4,7 +4,7 @@ fn facts() -> Facts {
     Facts {
         report: ReportRead::Read(ReportFields::empty()),
         goal_branch: true,
-        close_job: Some(true),
+        close_job: CloseJob::Declared,
         pending: false,
         landed: Box::new([9, 12]),
         base_holds: Some(false),
@@ -166,7 +166,7 @@ fn a_released_report_check_can_read_but_not_hold_again() {
     let released = step(&held.closer, &f);
     assert_eq!(released.decision, Decision::Make(Step::Close));
     f.released = false;
-    f.close_job = Some(false);
+    f.close_job = CloseJob::Undeclared;
     f.report = ReportRead::Unread;
     let read = step(&released.closer, &f);
     assert_eq!(read.decision, Decision::ReadReport);
@@ -178,16 +178,16 @@ fn a_released_report_check_can_read_but_not_hold_again() {
 }
 
 #[test]
-fn close_first_where_the_project_names_a_close_job() {
+fn close_first_where_the_engine_declares_the_kind() {
     assert_eq!(step(&Closer::new(), &facts()).decision, Decision::Make(Step::Close));
 }
 
 #[test]
-fn no_close_step_without_a_close_job_or_a_goal_branch() {
+fn a_close_step_requires_a_declared_kind_and_a_goal_branch() {
     let mut f = facts();
-    f.close_job = Some(false);
+    f.close_job = CloseJob::Undeclared;
     assert_eq!(step(&Closer::new(), &f).decision, Decision::Make(Step::Land));
-    f.close_job = Some(true);
+    f.close_job = CloseJob::Declared;
     f.goal_branch = false;
     assert_eq!(step(&Closer::new(), &f).decision, Decision::Report);
 }
@@ -387,20 +387,18 @@ fn an_idle_close_reopens_or_wakes_after_work_ends() {
 }
 
 #[test]
-fn an_idle_close_keeps_running_when_checking_or_skipping_its_replacement() {
+fn an_idle_close_keeps_running_until_its_undeclared_replacement_is_skipped() {
     const CLOSE: u64 = 20;
     const PREVIOUS_LANDINGS: [u64; 1] = [9]; // The first of the two changes in facts().
     let mut c = Closer::new();
     c.closed = Some(Box::new(PREVIOUS_LANDINGS));
     c.running = Some(Running { step: Step::Close, change: CLOSE });
-    for (close_job, expected) in [(None, Decision::CheckClose), (Some(false), Decision::SkipClose { change: CLOSE })] {
-        let mut f = facts();
-        f.child = Child::Idle { held: true };
-        f.close_job = close_job;
-        let s = step(&c, &f);
-        assert_eq!(s.decision, expected);
-        assert_eq!(s.closer.running, c.running, "close job {close_job:?}");
-    }
+    let mut f = facts();
+    f.child = Child::Idle { held: true };
+    f.close_job = CloseJob::Undeclared;
+    let s = step(&c, &f);
+    assert_eq!(s.decision, Decision::SkipClose { change: CLOSE });
+    assert_eq!(s.closer.running, c.running);
 }
 
 #[test]

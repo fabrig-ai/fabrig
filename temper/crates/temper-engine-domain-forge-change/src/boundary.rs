@@ -541,7 +541,8 @@ pub struct Facts {
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
-    pub merge_job: MergeJob,
+    /// Whether the declared merge kind is within the change's delegation authority.
+    pub merge_job: bool,
     /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
     /// `None` when it has none.
     pub delegate: Option<Delegate>,
@@ -691,25 +692,6 @@ pub enum Effect {
     Merge { head: Commit, base: Commit },
 }
 
-/// The optional merge job's command lookup at the head it would merge into
-/// (temper/docs/design/protocol/hooks.md, 4.2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum MergeJob {
-    Disabled,
-    Discover,
-    Checked { head: Commit, available: bool },
-}
-
-impl MergeJob {
-    pub(crate) fn available(self, at: Commit) -> Option<bool> {
-        match self {
-            Self::Disabled => Some(false),
-            Self::Checked { head, available } if head == at => Some(available),
-            Self::Discover | Self::Checked { .. } => None,
-        }
-    }
-}
-
 /// What the top does with the procedure's one decision.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
@@ -719,8 +701,6 @@ pub enum Decision {
     None,
     /// Wait for a fact or deadline to change.
     Wait { until: Option<Wall> },
-    /// Read the merge command before deciding whether to delegate it.
-    ReadMerge { head: Commit },
     /// Create one bounded delegate.
     Delegate(Delegate),
     /// Commit one effect to the top's outbox.

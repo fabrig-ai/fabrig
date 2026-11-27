@@ -1912,6 +1912,56 @@ fn unknown_catch_up_retries_at_backoff_even_with_pending_dependencies() {
 }
 
 #[test]
+fn a_catch_up_without_a_merge_job_holds_on_the_reason() {
+    use temper_engine_domain_forge_change as change;
+    for (spec_bound, authorized, words) in [
+        (None, true, b"change's merge: job kind 3 is not declared.".as_slice()),
+        (Some(4096), false, b"change's merge: its authority does not delegate to the merge job."),
+        (Some(32), true, b"change's merge: the job cannot be described within its spec bound."),
+    ] {
+        let clock = fixtures::gather_clock();
+        let mut d = delegate_waiting(change::State::Producing { requested: false }, change::Delegate::Produce);
+        if let Some(bound) = spec_bound {
+            d.merge_kind(bound, 512);
+        }
+        let row = d.changes.get_mut(&fixtures::CHANGE).expect("change");
+        row.catch_up = Some(fixtures::HEAD);
+        row.change.last_head = None;
+        row.delegate = None;
+        row.delegate_status = change::Status::Unknown;
+        let mut input = waiting_step(false, false);
+        let Event::StepChange { merge_job, .. } = &mut input else { panic!("change step") };
+        *merge_job = authorized;
+        step(&mut d, &clock, input, &mut Queue::uncapped());
+        fixtures::answer_next_at(&mut d, &clock, Err(skein_forge::api::Error::Missing));
+        fixtures::answer_next_at(&mut d, &clock, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
+        let finished = fixtures::answer_next_at(
+            &mut d,
+            &clock,
+            Ok(skein_forge::api::Answer::Commits {
+                commits: Box::new([skein_forge::api::CommitMessage {
+                    id: fixtures::HEAD,
+                    parents: Box::new([]),
+                    message: Box::new([]),
+                }]),
+                more: false,
+            }),
+        );
+        assert!(
+            finished.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: change::Decision::Hold(change::Cause::Failed),
+                entry: None,
+                evidence: None,
+                close_at: None,
+            }),
+            "{finished:?}"
+        );
+        assert_eq!(d.change(fixtures::CHANGE).expect("change").producer_failure.as_deref(), Some(words));
+    }
+}
+
+#[test]
 fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
     use change::{Cause, State};
     use temper_engine_domain_forge_change as change;

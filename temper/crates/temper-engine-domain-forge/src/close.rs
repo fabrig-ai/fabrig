@@ -120,6 +120,7 @@ fn result(raw: &[u8], at: Option<change::CloseAt>, pushed: bool) -> Option<Verdi
         }
         return refusal(&document, refused, at.branch);
     }
+    // A found-hook job that answers none still reports settlement: an empty `settled` array.
     strings(&document, document.member(0, b"settled")?)?;
     Some(Verdict::Settled)
 }
@@ -296,20 +297,29 @@ mod tests {
     const REFUSAL: &[u8] = br#"{"refused":{"head":"1111111111111111111111111111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222","base":null,"counts":null,"failures":["test A::rules rule_00"]}}"#;
 
     #[test]
-    fn a_judged_close_distinguishes_a_refusal_from_a_broken_result() {
+    fn a_judged_close_distinguishes_settlement_refusal_and_failure() {
         use crate::tests::fixtures;
         let mut row = fixtures::opening_row();
         row.change.state = change::State::Producing { requested: true };
         row.delegate = Some((9, change::Delegate::Close));
-        for (result, cause) in
-            [(REFUSAL, change::Cause::CloseRefused), (b"not a verdict".as_slice(), change::Cause::Failed)]
-        {
+        for (result, expected) in [
+            (REFUSAL, Some(change::Cause::CloseRefused)),
+            (b"not a verdict".as_slice(), Some(change::Cause::Failed)),
+            (br#"{"settled":[]}"#.as_slice(), None),
+            (br#"{"settled":[],"hook":"none"}"#.as_slice(), None),
+        ] {
             row.delegate_status = change::Status::Passed;
             row.report = Box::from(result);
             row.close_at = Some(AT);
             judged(&mut row, false);
-            assert_eq!(row.delegate_status, change::Status::Failed);
-            assert_eq!(row.close_at.unwrap().failed_cause(), cause);
+            if let Some(cause) = expected {
+                assert_eq!(row.delegate_status, change::Status::Failed);
+                assert_eq!(row.close_at.unwrap().failed_cause(), cause);
+            } else {
+                assert_eq!(row.delegate_status, change::Status::Passed);
+                assert!(row.close_at.unwrap().refused.is_none());
+                assert_eq!(row.report.as_ref(), result);
+            }
         }
     }
 

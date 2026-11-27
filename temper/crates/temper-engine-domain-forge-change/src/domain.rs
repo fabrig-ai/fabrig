@@ -1234,18 +1234,18 @@ fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, 
             change.state = State::NoChange { words: contained_words(b"commit ", commit) };
             Stepped { took: None, change, decision: Decision::NoChange }
         }
-        Status::Failed => match facts.merge_job.available(facts.base_tip) {
-            None => Stepped { took: None, change, decision: Decision::ReadMerge { head: facts.base_tip } },
-            Some(false) => hold(change, Cause::Failed, now),
-            Some(true) => {
+        Status::Failed => {
+            if facts.merge_job {
                 change.state = State::Producing { requested: true };
                 Stepped {
                     took: None,
                     change,
                     decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }),
                 }
+            } else {
+                hold(change, Cause::Failed, now)
             }
-        },
+        }
         Status::Unknown | Status::Pending => waiting(change, facts, now, limits),
     }
 }
@@ -2001,11 +2001,8 @@ fn conflict_due(
     if standing.delegate_live || change.resolutions >= limits.resolutions {
         return resolving_due(change, base, facts, standing, now, limits);
     }
-    let Some(available) = facts.merge_job.available(from) else {
-        return Stepped { took: None, change, decision: Decision::ReadMerge { head: from } };
-    };
     let mut stepped = resolving_due(change, base, facts, standing, now, limits);
-    if available {
+    if facts.merge_job {
         stepped.decision = Decision::Delegate(Delegate::Merge { base, from: Some(from) });
     }
     stepped

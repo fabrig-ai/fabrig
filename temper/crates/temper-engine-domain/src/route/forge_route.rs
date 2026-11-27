@@ -77,7 +77,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused, r
 
 mod close;
 pub(crate) mod delegate_record;
-mod merge;
 
 #[cfg(test)]
 mod tests;
@@ -3038,6 +3037,7 @@ fn change_delegate(
     env: &Env<Limits>,
     task: u64,
     kind: forge_change::Delegate,
+    catch_up_head: Option<skein_forge::api::Commit>,
 ) -> Option<super::Delegate> {
     let row = domain.forge.change(task)?;
     let context = domain.engine.core().tasks.delegation(task)?;
@@ -3059,12 +3059,13 @@ fn change_delegate(
     if let forge_change::Delegate::Merge { base, from } = kind {
         let bound = domain.config.merge_kind?;
         let repository = domain.forge.repository(row.repository)?;
-        let (head, command) = domain.forge.merge_command(task, from)?;
+        let head = from.or(catch_up_head)?;
+        let fallback = domain.forge.merge_job(repository.project);
         return Some(super::Delegate {
             executor: tasks::Executor::Job { kind: forge::MERGE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
-                    bytes: merge::spec(&repository.name, command, &head, &base, bound.spec)?,
+                    bytes: forge::jobs::merge(&repository.name, fallback, &head, &base, bound.spec)?,
                     deadline: bound.deadline,
                 })),
                 asks: false,
@@ -3088,13 +3089,12 @@ fn change_delegate(
     if kind == forge_change::Delegate::Close {
         let bound = domain.config.close_kind?;
         let repository = domain.forge.repository(row.repository)?;
-        let task = domain.engine.core().tasks.task(task)?;
-        let command = close::command(domain, repository.project, close::hook(&task.spec.parameters))?;
+        let fallback = domain.forge.close_job(repository.project);
         return Some(super::Delegate {
             executor: tasks::Executor::Job { kind: forge::CLOSE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
-                    bytes: close::spec(&repository.name, command, row.close.as_deref()?, bound.spec)?,
+                    bytes: forge::jobs::close(&repository.name, fallback, row.close.as_deref()?, bound.spec)?,
                     deadline: bound.deadline,
                 })),
                 asks: false,
@@ -4038,9 +4038,10 @@ fn delegate_change_step(
     step: u64,
     connector: u16,
     code: u32,
-    offer: &(forge_change::Delegate, Option<forge_change::CloseAt>),
+    offer: &(forge_change::Delegate, Option<forge_change::CloseAt>, Option<skein_forge::api::Commit>),
 ) {
-    let (kind, _) = *offer;
+    let (kind, close_at, catch_up_head) = *offer;
+    let kept = (kind, close_at);
     if relay::continuing_asker(domain, task, kind) {
         let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
@@ -4051,7 +4052,7 @@ fn delegate_change_step(
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
         return;
     }
-    let Some(delegate) = change_delegate(domain, env, task, kind) else {
+    let Some(delegate) = change_delegate(domain, env, task, kind, catch_up_head) else {
         domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
         let held = holds::decision(
             domain,
@@ -4070,13 +4071,13 @@ fn delegate_change_step(
         return;
     };
     if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
-        pending.delegate = Some(*offer);
+        pending.delegate = Some(kept);
     } else {
         domain
             .forge_delegating
             .insert(
                 (task, step),
-                ChangeStep { delegate: Some(*offer), relayed: None, refusal: None, released: false, passing: None },
+                ChangeStep { delegate: Some(kept), relayed: None, refusal: None, released: false, passing: None },
             )
             .expect("one forge procedure delegate");
     }
@@ -4235,7 +4236,7 @@ fn change_decision_from_read(
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
-        forge_change::Decision::RepairEnded { .. } | forge_change::Decision::ReadMerge { .. } => {
+        forge_change::Decision::RepairEnded { .. } => {
             unreachable!("the forge top consumes internal step progress")
         }
         forge_change::Decision::Ready => {
@@ -4256,7 +4257,8 @@ fn change_decision_from_read(
         forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            delegate_change_step(domain, env, task, step, connector, code, &(kind, close_at));
+            let catch_up_head = if let Some(read) = evidence { Some(read.base_tip) } else { None };
+            delegate_change_step(domain, env, task, step, connector, code, &(kind, close_at, catch_up_head));
             return;
         }
     };
@@ -5147,7 +5149,6 @@ pub(crate) fn outputs(
                 | forge_change::Decision::CancelRepair { .. }
                 | forge_change::Decision::CancelMovedDelegate { .. }
                 | forge_change::Decision::RepairEnded { .. }
-                | forge_change::Decision::ReadMerge { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::NoChange

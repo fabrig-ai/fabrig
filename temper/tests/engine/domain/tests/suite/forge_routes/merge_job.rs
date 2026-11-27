@@ -83,7 +83,10 @@ pub(crate) fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::
 }
 
 pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
-    use temper_protocol_worker_wire::v1::{self, Record};
+    check_job_with_fallback(world, task, job, head, base, true);
+}
+
+fn check_job_with_fallback(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64, fallback: bool) {
     assert_eq!(job.kind, JobKind(forge_top::MERGE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
     let workspace = job.workspace.as_ref().expect("job workspace");
@@ -100,9 +103,7 @@ pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, hea
     assert_eq!(row.requester, tasks::Party::Task(task));
     assert_eq!(row.executor, tasks::Executor::Job { kind: 3 });
     assert!(row.spec.words.is_empty() && row.spec.parameters.is_empty() && row.spec.inputs.is_empty());
-    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
-    assert_eq!(spec.command.as_ref(), b"repo/.temper/merge");
-    assert!(!spec.refusal);
+    let spec = find_spec(job, fallback);
     let expected = format!(
         "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
         core::str::from_utf8(&forge_top::commit_text(&translate::commit(head))).expect("head text"),
@@ -110,6 +111,25 @@ pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, hea
     );
     assert_eq!(spec.request.as_ref(), expected.as_bytes());
     assert_eq!(change_row(world, task).change.resolutions, 1);
+}
+
+pub(super) fn find_spec(job: &host::JobAssignment, fallback: bool) -> temper_protocol_worker_wire::v1::JobSpec {
+    use temper_protocol_worker_wire::v1::{self, Record};
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/merge");
+    assert!(spec.find);
+    assert_eq!(spec.fallback.as_ref(), if fallback { b"repo/.temper/merge".as_slice() } else { b"" });
+    assert!(!spec.refusal);
+    spec
+}
+
+pub(super) fn assert_no_hook_reads(world: &World) {
+    let reads = world.forge_reads.as_ref().expect("recorded forge reads");
+    assert!(
+        !reads.iter().any(|(_, read)| matches!(read, skein_forge::api::Read::File { path, .. }
+        if path.starts_with(b".temper/hooks"))),
+        "asked for the hooks: {reads:?}"
+    );
 }
 
 pub(crate) fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
@@ -349,70 +369,58 @@ fn an_update_conflict_goes_to_the_merge_job_before_a_resolution() {
 
 // temper/docs/design/protocol/hooks.md, 4.2.
 #[test]
-fn an_update_conflict_waits_for_its_head_then_runs_the_merge_hook() {
-    use skein_forge::api::{Answer, Entry, EntryKind, Error, Read};
-    use temper_protocol_worker_wire::v1::{self, Record};
-    let (mut world, task, head, base) = pushed_change_in(world(true, true, true), true, b"main");
-    let head_commit = translate::commit(head);
-    let path = b".temper/hooks".as_slice();
-    let read =
-        Read::File { head: head_commit, path: path.into(), max_bytes: world.env.limits.forge.client.answer_bytes };
-    world.scripted_forge_reads.push((read.clone(), Err(Error::Refused)));
-    world.scripted_forge_attempts = Some(Vec::new());
-    passed_ci(&mut world, head);
-    passed_ci(&mut world, base);
-    let deadline = world.env.now.saturating_add(Duration::from_secs(30));
-    while world.env.now <= deadline && world.scripted_forge_attempts.as_ref().unwrap().is_empty() {
-        world.tick();
+fn an_update_conflict_makes_a_find_merge_job_without_a_hook_read() {
+    for fallback in [false, true] {
+        let mut world = world(true, true, true);
+        if fallback {
+            world = world.with_merge_job(COMMAND);
+        }
+        world.forge_reads = Some(Vec::new());
+        let (mut world, task, head, base) = pushed_change_in(world, true, b"main");
+        passed_ci(&mut world, head);
+        passed_ci(&mut world, base);
+        let job = next_job(&mut world, task, false);
+        check_job_with_fallback(&world, task, &job, head, base, fallback);
+        assert_no_hook_reads(&world);
+        assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
+        world.close();
     }
-    world.advance_ticks(2);
-    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 1);
-    assert_eq!(world.jobs.len(), 0);
-    assert_eq!(world.assigned.len(), 2, "no resolution during a failed read");
-    assert_eq!(change_row(&world, task).change.resolutions, 0);
-    world.scripted_forge_reads[0].1 = Ok(Answer::Directory {
-        head: head_commit,
-        path: path.into(),
-        entries: Box::new([Entry { name: b"merge".as_slice().into(), kind: EntryKind::File }]),
-        truncated: false,
-    });
-    let job = next_job(&mut world, task, false);
-    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
-    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/merge");
-    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 2);
-    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
-    world.close();
 }
 
 #[test]
-fn an_unmergeable_pull_uses_its_heads_hooks_instead_of_the_setting() {
-    use skein_forge::api::{Answer, Entry, EntryKind, Read};
-    let (mut world, task, head, _) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
-    let head = translate::commit(head);
-    let path = b".temper/hooks".as_slice();
-    let read = Read::File { head, path: path.into(), max_bytes: world.env.limits.forge.client.answer_bytes };
-    world.scripted_forge_reads.push((
-        read.clone(),
-        Ok(Answer::Directory {
-            head,
-            path: path.into(),
-            entries: Box::new([Entry { name: b"close".as_slice().into(), kind: EntryKind::File }]),
-            truncated: false,
-        }),
-    ));
-    world.scripted_forge_attempts = Some(Vec::new());
-    let resolution = next_resolution(&mut world, task);
-    assert_eq!(live_task(&world, resolution.task).requester, tasks::Party::Task(task));
-    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 1);
-    assert_eq!(world.jobs.len(), 0);
-    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })));
-    world.close();
+fn an_unmergeable_pull_makes_a_find_merge_job_without_a_hook_read() {
+    const NONE: &[u8] = br#"{"settled":[],"hook":"none"}"#;
+    for fallback in [false, true] {
+        let mut world = world(false, true, true);
+        if fallback {
+            world = world.with_merge_job(COMMAND);
+        }
+        world.forge_reads = Some(Vec::new());
+        let (mut world, task, head, base) = pushed_change_in(world, true, GOAL);
+        let job = next_job(&mut world, task, false);
+        check_job_with_fallback(&world, task, &job, head, base, fallback);
+        assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })));
+        // The worker found no command and pushed nothing. Its result is the resolver's account.
+        finish_job(&mut world, &job, NONE);
+        let resolution = next_resolution(&mut world, task);
+        let row = live_task(&world, resolution.task);
+        assert_eq!(row.requester, tasks::Party::Task(task));
+        assert_preserving_resolution(&row.spec.words);
+        assert!(contains(&row.spec.words, NONE));
+        assert_eq!(change_row(&world, task).change.resolutions, 1, "one conflict, not two");
+        let finished = super::goal_landing::ended(&world, job.run.raw()).expect("merge job ended");
+        assert!(matches!(finished.phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+        assert_eq!(finished.tries, tasks::Tries::NONE);
+        assert!(world.jobs.is_empty(), "none does not retry the merge job");
+        assert_no_hook_reads(&world);
+        world.close();
+    }
 }
 
-/// temper/docs/design/domain/forge/change/repairs.md: a conflict without a project command goes straight to a resolution.
+/// temper/docs/design/domain/forge/change/repairs.md: a conflict with no declared merge kind goes straight to a resolution.
 #[test]
 fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
-    let (mut world, task, head, base) = pushed_change_in(world(false, true, true), true, GOAL);
+    let (mut world, task, head, base) = pushed_change_in(world(false, false, true), true, GOAL);
     let resolution = next_resolution(&mut world, task);
     assert_eq!(world.jobs.len(), 0);
     assert_preserving_resolution(&live_task(&world, resolution.task).spec.words);
@@ -425,7 +433,7 @@ fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
 #[test]
 fn a_resolution_that_fails_for_good_holds_and_notifies_its_requester() {
     const REASON: &[u8] = b"resolution failed: the conflicting requirements cannot both hold";
-    let (mut world, task, _, _) = pushed_change_in(world(false, true, true), true, GOAL);
+    let (mut world, task, _, _) = pushed_change_in(world(false, false, true), true, GOAL);
     let resolution = next_resolution(&mut world, task);
     let tasks::Party::Task(requester) = live_task(&world, task).requester else { panic!("change requester") };
     let requester = world.assigned.iter().find(|run| run.task == requester).expect("requester assignment").clone();
@@ -475,7 +483,7 @@ pub(crate) fn next_resolution(world: &mut World, task: u64) -> engine::Assignmen
     panic!("resolution was not assigned: {:?}", change_row(world, task));
 }
 
-/// temper/docs/design/domain/forge/change/repairs.md: command, declared kind, spec room and authority all gate merge jobs.
+/// temper/docs/design/domain/forge/change/repairs.md: the declared kind, its spec bound and the change's authority gate merge jobs.
 #[test]
 fn a_merge_job_needs_its_declared_kind_authority_and_spec_room() {
     for (kind, authority, command) in [(false, true, COMMAND), (true, false, COMMAND), (true, true, &[b'x'; 4096][..])]

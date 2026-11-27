@@ -6857,6 +6857,7 @@ dependencies = [
  "temper-engine-domain-ways",
  "temper-protocol-reaches",
  "temper-protocol-store",
+ "temper-protocol-worker-wire",
 ]
 
 [[package]]
