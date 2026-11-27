@@ -890,9 +890,10 @@ gate each does the work it did before:
   `check_fell` is skein's, and writes the reach outside the gate. A
   case's own checks, its referee, its replay's comparison and its
   invariants, run in every mode.
-- **Its counts:** each case one `seed` check, as `each_seed` and
-  `Sweep::ran` counted each seed, so its binary's counts stay
-  (sweeps.md, 4.2).
+- **Its counts:** each case one `seed` check (sweeps.md, 4.2). A sweep
+  that counted its seeds through `each_seed` or `Sweep::ran` counts the
+  same, and one whose loop was its own, counting nothing, gains its
+  cases' count: its binary loses none.
 - **Fixed scenarios keep their seeds** and take no case: the forge
   world's `people_act_on_the_landing_train`,
   `answers_past_bounds_leave_repairs_their_evidence` and

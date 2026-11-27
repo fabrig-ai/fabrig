@@ -1,6 +1,6 @@
 # workloads: status
 
-2026-11-24. Where the tree's code lags or departs from [workloads.md](workloads.md).
+2026-11-27. Where the tree's code lags or departs from [workloads.md](workloads.md).
 
 - **Not yet:**
   2.3, 2.4, 2.5, 3: `temper_faults::people`, `parks` and `bounds`, the
@@ -23,3 +23,5 @@
   8.2: the composed sweep's worker, people, parks and bounds kinds.
   [in flight: change 15011]
   7: the comparison in the composed world. [in flight: change 15012]
+  8.5: the engine domain world's opening and follows sweeps taking their
+  cases from the seam. [in flight: change 19837]
