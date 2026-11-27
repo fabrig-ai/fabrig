@@ -101,7 +101,7 @@ pub struct Never {
     pub why: &'static str,
 }
 
-const JIG_KINDS: [Kind; 8] = [
+const WAKE_KINDS: [Kind; 8] = [
     jig::ANSWERED_WHILE_PARKED,
     jig::ANSWERED_TO_ITS_SUCCESSOR,
     jig::PARKS_ON_NOTHING,
@@ -132,8 +132,8 @@ pub const NEVER: [Never; 27] = {
     while cut < cuts.len() {
         let (smith, why) = cuts[cut];
         let mut wake = 0;
-        while wake < JIG_KINDS.len() {
-            pairs[next] = Never { smith, jig: JIG_KINDS[wake], why };
+        while wake < WAKE_KINDS.len() {
+            pairs[next] = Never { smith, jig: WAKE_KINDS[wake], why };
             next += 1;
             wake += 1;
         }

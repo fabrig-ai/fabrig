@@ -6,7 +6,7 @@ use skein_lib::Duration;
 
 use super::*;
 
-const JIG_COLUMNS: [(Kind, Column); 7] = [
+const WAKE_COLUMNS: [(Kind, Column); 7] = [
     (jig::ANSWERED_WHILE_PARKED, Column::Resumes),
     (jig::ANSWERED_TO_ITS_SUCCESSOR, Column::Resumes),
     (jig::PARKS_ON_NOTHING, Column::Resumes),
@@ -25,7 +25,7 @@ fn the_matrix_partitions_all_pairs_of_park_kinds() {
     assert_eq!(NEVER.len(), NEVER_COUNT);
     for smith in smith::KINDS {
         let needs_only_a_park = [smith::WITHHELD_WAIT, smith::JOB_RUNNING, smith::HOST_CALL_ANSWERED].contains(&smith);
-        for jig in JIG_COLUMNS.map(|(kind, _)| kind).into_iter().chain([jig::PARKS_WITH_A_QUESTION_OPEN]) {
+        for jig in WAKE_COLUMNS.map(|(kind, _)| kind).into_iter().chain([jig::PARKS_WITH_A_QUESTION_OPEN]) {
             let can_pair = needs_only_a_park && jig != jig::PARKS_WITH_A_QUESTION_OPEN;
             let cells = CELLS.iter().filter(|cell| cell.smith == smith && cell.jig == jig).count();
             let never = NEVER.iter().filter(|pair| pair.smith == smith && pair.jig == jig).count();
@@ -47,7 +47,7 @@ fn cell_names_join_the_halves_without_duplicates() {
 
 #[test]
 fn cell_columns_follow_the_jig_outcome() {
-    for (jig, column) in JIG_COLUMNS {
+    for (jig, column) in WAKE_COLUMNS {
         for cell in CELLS.iter().filter(|cell| cell.jig == jig) {
             assert_eq!(cell.column, column, "{}", cell.kind.name);
         }
@@ -77,8 +77,8 @@ fn lookup_explains_why_a_pair_cannot_occur() {
 }
 
 const PARK: Park = Park { task: 1, attempt: 1, number: 1 };
-const SMITH_HALF: Kind = smith::JOB_RUNNING;
-const JIG_HALF: Kind = jig::PARKS_ON_NOTHING;
+const PARK_HALF: Kind = smith::JOB_RUNNING;
+const WAKE_HALF: Kind = jig::PARKS_ON_NOTHING;
 
 struct Observations {
     pairing: Pairing,
@@ -105,8 +105,8 @@ fn opposite_halves_do_not_pair_across_park_keys() {
     ];
     for other in other_keys {
         let mut observed = Observations::new();
-        observed.fell(PARK, SMITH_HALF, Time::ZERO).expect("smith half accepted");
-        observed.fell(other, JIG_HALF, Time::ZERO).expect("jig half accepted");
+        observed.fell(PARK, PARK_HALF, Time::ZERO).expect("smith half accepted");
+        observed.fell(other, WAKE_HALF, Time::ZERO).expect("jig half accepted");
         assert!(observed.ledger.entries().is_empty(), "{PARK:?} cannot pair with {other:?}");
     }
 }
@@ -115,8 +115,8 @@ fn opposite_halves_do_not_pair_across_park_keys() {
 fn one_park_injects_its_cell_once_in_either_order() {
     let paired_at = Time::ZERO.checked_add(Duration::from_secs(1)).expect("test time fits");
     let expected =
-        Cell { smith: SMITH_HALF, jig: JIG_HALF, kind: JOB_RUNNING_PARKS_ON_NOTHING, column: Column::Resumes };
-    for (first, second) in [(SMITH_HALF, JIG_HALF), (JIG_HALF, SMITH_HALF)] {
+        Cell { smith: PARK_HALF, jig: WAKE_HALF, kind: JOB_RUNNING_PARKS_ON_NOTHING, column: Column::Resumes };
+    for (first, second) in [(PARK_HALF, WAKE_HALF), (WAKE_HALF, PARK_HALF)] {
         let mut observed = Observations::new();
         let first_report = observed.fell(PARK, first, Time::ZERO).expect("first half accepted");
         let repeated_first = observed.fell(PARK, first, Time::ZERO).expect("first half accepted again");
@@ -144,14 +144,14 @@ fn impossible_pair_findings_name_the_park_and_halves() {
     let mut observed = Observations::new();
     let cut = smith::CUT_TURN;
     observed.fell(PARK, cut, Time::ZERO).expect("cut half accepted");
-    let finding = observed.fell(PARK, JIG_HALF, Time::ZERO).expect_err("a cut cannot pair with a park");
-    assert_finding(&finding, &[cut, JIG_HALF], "leaving no cut turn");
+    let finding = observed.fell(PARK, WAKE_HALF, Time::ZERO).expect_err("a cut cannot pair with a park");
+    assert_finding(&finding, &[cut, WAKE_HALF], "leaving no cut turn");
     assert!(observed.ledger.entries().is_empty());
 }
 
 #[test]
 fn conflicting_half_findings_name_the_park_and_kinds() {
-    for (first, different) in [(SMITH_HALF, smith::WITHHELD_WAIT), (JIG_HALF, jig::STUCK_IN_A_CIRCLE)] {
+    for (first, different) in [(PARK_HALF, smith::WITHHELD_WAIT), (WAKE_HALF, jig::STUCK_IN_A_CIRCLE)] {
         let mut observed = Observations::new();
         observed.fell(PARK, first, Time::ZERO).expect("first half accepted");
         let finding = observed.fell(PARK, different, Time::ZERO).expect_err("different kind for the same half");
