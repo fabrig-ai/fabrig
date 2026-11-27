@@ -1,19 +1,30 @@
 use jig_people_world::fixtures::{OWNER, PERSON, PROJECT};
 use jig_people_world::{ENDINGS, Settings, World};
 use skein_lib::length::len_u64;
-use std::collections::BTreeSet;
+use skein_world::{
+    sweep::{Case, cases, gate},
+    this_test,
+};
+use std::{collections::BTreeSet, convert::Infallible};
 
 #[test]
-fn random_people_settle_and_reach_every_ending() {
+fn random_people_settle_and_reach_every_ending() -> Result<(), Case<Infallible>> {
+    let check_endings = gate();
     let mut endings = BTreeSet::new();
-    for seed in 0..256 {
+    cases(this_test!("random_people_settle_and_reach_every_ending"), 0..256, |seed| {
         let mut world = World::new(Settings::random(seed));
         world.run();
-        endings.extend(world.stats().endings.iter().copied());
+        if check_endings {
+            endings.extend(world.stats().endings.iter().copied());
+        }
+        Ok(())
+    })?;
+    if check_endings {
+        for ending in ENDINGS {
+            assert!(endings.contains(ending), "{ending}: {endings:?}");
+        }
     }
-    for ending in ENDINGS {
-        assert!(endings.contains(ending), "{ending}: {endings:?}");
-    }
+    Ok(())
 }
 
 #[test]
@@ -21,11 +32,11 @@ fn random_people_settle_and_reach_every_ending() {
     clippy::too_many_lines,
     reason = "one seeded census compares selected volatile rebuilding with ordinary projections"
 )]
-fn selected_projections_and_stored_diagnostics_replay_by_seed() {
+fn selected_projections_and_stored_diagnostics_replay_by_seed() -> Result<(), Case<Infallible>> {
     use jig_domain_people::{self as p, RestoreProjection as P};
     use jig_people_world::{LIMITS, identity};
     use skein_lib::{Env, Queue, Rng, Time, Wall};
-    for seed in 0..256 {
+    cases(this_test!("selected_projections_and_stored_diagnostics_replay_by_seed"), 0..256, |seed| {
         let mut rng = Rng::new(seed);
         let limits = p::Limits { inbox_entries: u32::try_from(rng.below(5)).expect("prefix below five"), ..LIMITS };
         let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
@@ -146,7 +157,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
 
         let mut diagnostic = p::Domain::new(&limits, Box::new([]), 1, Box::new([]));
         diagnostic.start_restore(env.wall);
-        let key = p::RequestKey { person: PERSON, key: [u8::try_from(seed).expect("256 seeds"); 16] };
+        let key = p::RequestKey { person: PERSON, key: [seed.to_le_bytes()[0]; 16] };
         let extra = rng.below(2);
         let held = u64::from(limits.words) + extra;
         p::step(
@@ -179,5 +190,6 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
             assert_eq!(diagnostic.restore_failure(), expected, "seed {seed}");
         }
         assert!(out.is_empty());
-    }
+        Ok(())
+    })
 }
