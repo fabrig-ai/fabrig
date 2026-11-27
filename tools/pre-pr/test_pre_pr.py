@@ -34,6 +34,17 @@ def setUpModule():
     unittest.addModuleCleanup(guard.stop)
 
 
+def deny_result_replace(result):
+    replace = os.replace
+
+    def denied(source, path):
+        if path == result:
+            raise PermissionError('result directory is not writable')
+        replace(source, path)
+
+    return mock.patch.object(os, 'replace', side_effect=denied)
+
+
 class Packages(unittest.TestCase):
     def setUp(self):
         self.root = Path('/workspace')
@@ -666,19 +677,23 @@ class Delivery(unittest.TestCase):
                     self.assertNotIn('smith-check: not judged', err.getvalue())
                 self.assertEqual(result.read_bytes(), settlement)
 
+    def test_outdated_opt_in_does_not_enable_typed_refusal(self):
+        result = self.root / 'result.json'
+        settlement = b'{"settled":[]}\n'
+        env = {'TEMPER_JOB': str(self.root), 'TEMPER_CLOSE_OUTDATED': '3'}
+        red = PRE.failure('format', 'diff')
+        for scope in ('delivery', 'child', 'goal', 'close'):
+            with self.subTest(scope=scope), redirect_stderr(io.StringIO()):
+                result.write_bytes(settlement)
+                self.assertEqual(PRE.finish('tree', 'base', [red], self.root, env, scope, (), ['head']), 1)
+                self.assertEqual(result.read_bytes(), settlement)
+
     def test_a_refusal_the_checker_cannot_write_exits_two(self):
         result = self.root / 'result.json'
         settlement = b'{"settled":[]}\n'
         result.write_bytes(settlement)
-        replace = os.replace
-
-        def denied(source, path):
-            if path == result:
-                raise PermissionError('result directory is not writable')
-            replace(source, path)
-
         for job_set in (False, True):
-            with self.subTest(job_set=job_set), mock.patch.object(os, 'replace', side_effect=denied), \
+            with self.subTest(job_set=job_set), deny_result_replace(result), \
                  redirect_stderr(io.StringIO()) as err:
                 env = {'TEMPER_CLOSE_REFUSAL': '3'}
                 if job_set:
@@ -1004,32 +1019,49 @@ class Changes(unittest.TestCase):
         self.git('add', 'unstaged.md')
         return self.git('rev-parse', 'HEAD'), self.git('write-tree')
 
-    def assert_close_breaks_before_checks(self, why):
+    SETTLEMENT = b'{"settled":["unstaged.md"]}\n'
+
+    def close_job(self):
         job = self.root.parent / 'job'
         job.mkdir()
-        result = job / 'result.json'
-        settlement = b'{"settled":["unstaged.md"]}\n'
-        result.write_bytes(settlement)
-        env = {**self.env, 'TEMPER_JOB': str(job)}
-        env.pop('TEMPER_CLOSE_REFUSAL', None)
-        for opt_in, status in (({}, 1), ({'TEMPER_CLOSE_REFUSAL': '3'}, 2)):
-            with self.subTest(opt_in=opt_in), mock.patch.object(Path, 'cwd', return_value=self.root), \
-                 mock.patch.dict(os.environ, {**env, **opt_in}, clear=True), \
-                 mock.patch.object(PRE, 'workspace_checks') as checks, mock.patch.object(PRE, 'run') as run, \
-                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
-                self.assertEqual(PRE.main(['--close']), status)
-                checks.assert_not_called()
-                run.assert_not_called()
-                self.assertTrue(err.getvalue().startswith('smith-check: not judged\npre-pr: broke: '), err.getvalue())
-                self.assertIn(why, err.getvalue())
-                self.assertEqual(result.read_bytes(), settlement)
-                receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
-                self.assertEqual(receipt['verdict'], 'broke')
-                self.assertEqual(receipt['counts']['new'], 0)
-                self.assertEqual(receipt['counts']['broke'], 1)
-                entry, = receipt['failures']
-                self.assertEqual(entry['class'], 'broke')
-                self.assertIn(why, entry['detail'])
+        return job / 'result.json'
+
+    def close_without_checks(self, **variables):
+        env = {k: v for k, v in self.env.items() if k not in
+               ('TEMPER_JOB', 'TEMPER_CLOSE_REFUSAL', 'TEMPER_CLOSE_OUTDATED')}
+        with mock.patch.object(Path, 'cwd', return_value=self.root), \
+             mock.patch.dict(os.environ, {**env, **variables}, clear=True), \
+             mock.patch.object(PRE, 'workspace_checks') as checks, mock.patch.object(PRE, 'run') as run, \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
+            status = PRE.main(['--close'])
+            checks.assert_not_called()
+            run.assert_not_called()
+        receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
+        return status, err.getvalue(), receipt
+
+    def assert_broken_close_receipt(self, receipt, why):
+        self.assertEqual(receipt['form'], 'goal-close-pre-pr 1')
+        self.assertEqual(receipt['verdict'], 'broke')
+        self.assertEqual(receipt['counts'], {'new': 0, 'flake': 0, 'inherited': 0, 'broke': 1})
+        entry, = receipt['failures']
+        self.assertEqual(entry['class'], 'broke')
+        self.assertIn(why, entry['detail'])
+
+    def assert_close_breaks_before_checks(self, why, *, outdated=(None,)):
+        result = self.close_job()
+        result.write_bytes(self.SETTLEMENT)
+        for value in outdated:
+            for opt_in, status in (({}, 1), ({'TEMPER_CLOSE_REFUSAL': '3'}, 2)):
+                with self.subTest(outdated=value, opt_in=opt_in):
+                    env = {**opt_in, 'TEMPER_JOB': str(result.parent)}
+                    if value is not None:
+                        env['TEMPER_CLOSE_OUTDATED'] = value
+                    actual, err, receipt = self.close_without_checks(**env)
+                    self.assertEqual(actual, status)
+                    self.assertTrue(err.startswith('smith-check: not judged\npre-pr: broke: '), err)
+                    self.assertIn(why, err)
+                    self.assertEqual(result.read_bytes(), self.SETTLEMENT)
+                    self.assert_broken_close_receipt(receipt, why)
 
     def test_close_breaks_when_public_counts_fetch_fails_even_with_origin_main(self):
         self.close_checkout()
@@ -1042,21 +1074,88 @@ class Changes(unittest.TestCase):
 
         with mock.patch.object(PRE, 'PUBLIC_SOURCE', 'fixture'), \
              mock.patch.object(subprocess, 'run', side_effect=fail_fetch) as commands:
-            self.assert_close_breaks_before_checks('public fetch failed')
+            self.assert_close_breaks_before_checks('public fetch failed', outdated=(None, '3'))
         fetches = [call for call in commands.call_args_list if call.args[0][:2] == ['git', 'fetch']]
-        self.assertEqual(len(fetches), 2)  # One for each close attempt, including the retry.
+        self.assertEqual(len(fetches), 4)  # One for each close attempt, with each combination of opt-ins.
 
     def test_close_breaks_when_published_counts_are_marked_unavailable(self):
         self.close_checkout()
-        self.publish([self.main], unavailable='the ledger has not been published yet')
-        self.assert_close_breaks_before_checks('the ledger has not been published yet')
+        self.publish([self.main], unavailable='the ledger has not been published yet', outdated='window')
+        self.assert_close_breaks_before_checks('the ledger has not been published yet', outdated=(None, '3'))
 
-    def test_close_breaks_when_head_is_outside_the_published_window(self):
+    def test_invalid_window_does_not_write_an_outdated_finding(self):
         self.close_checkout()
+        self.publish(['not a commit'])
+        self.assert_close_breaks_before_checks('invalid published commit window', outdated=('3',))
+
+    def test_missing_source_commit_does_not_write_an_outdated_finding(self):
+        self.close_checkout()
+        self.publish([self.main])
+        self.git('symbolic-ref', 'HEAD', 'refs/heads/unborn')
+        self.assert_close_breaks_before_checks('source checkout has no commit', outdated=('3',))
+
+    def close_outside_published_window(self):
+        head, tree = self.close_checkout()
         later = self.git('commit-tree', 'HEAD^{tree}', '-p', self.main, '-m', 'main moved on')
         self.git('update-ref', 'refs/remotes/origin/main', later)
         self.publish([later])
-        self.assert_close_breaks_before_checks('update from main and close again')
+        return head, tree
+
+    def shallow_close(self):
+        head, tree = self.close_checkout()
+        (self.root / '.git/shallow').write_text(head + '\n')
+        self.publish([self.main])
+        return head, tree
+
+    def test_close_breaks_when_head_is_outside_the_published_window(self):
+        self.close_outside_published_window()
+        self.assert_close_breaks_before_checks('update from main and close again', outdated=(None, '', '1'))
+
+    def test_shallow_close_breaks_without_the_exact_outdated_opt_in(self):
+        self.shallow_close()
+        self.assert_close_breaks_before_checks('source ancestry is incomplete', outdated=(None, '', '1'))
+
+    def assert_outdated_close(self, head, tree, why, detail):
+        result = self.close_job()
+        expected = f'{{"outdated":{{"head":"{head}","why":"{why}"}}}}\n'.encode('ascii')
+        for refusal in ({}, {'TEMPER_CLOSE_REFUSAL': '3'}):
+            with self.subTest(refusal=refusal):
+                result.write_bytes(self.SETTLEMENT)
+                status, err, receipt = self.close_without_checks(TEMPER_JOB=str(result.parent),
+                                                                 TEMPER_CLOSE_OUTDATED='3', **refusal)
+                self.assertEqual(status, 3)
+                self.assertEqual(err, f'smith-check: not judged\npre-pr: broke: {detail}\n')
+                self.assertEqual(result.read_bytes(), expected)
+                self.assert_broken_close_receipt(receipt, detail)
+                self.assertEqual((receipt['goal_head'], receipt['tree'], receipt['base']), (head, tree, None))
+
+    def test_outdated_close_names_head_outside_the_published_window(self):
+        head, tree = self.close_outside_published_window()
+        self.assert_outdated_close(head, tree, 'window', "no base: the goal is older than main's last twenty "
+                                   'landings; update from main and close again')
+
+    def test_outdated_close_names_head_with_incomplete_ancestry(self):
+        head, tree = self.shallow_close()
+        self.assert_outdated_close(head, tree, 'ancestry', "no base: main's published counts unavailable: "
+                                   'source ancestry is incomplete; update from main and close again')
+
+    def test_unwritable_outdated_finding_preserves_settlement(self):
+        self.close_outside_published_window()
+        result = self.close_job()
+        result.write_bytes(self.SETTLEMENT)
+        with deny_result_replace(result):
+            status, err, _ = self.close_without_checks(TEMPER_JOB=str(result.parent), TEMPER_CLOSE_OUTDATED='3')
+        self.assertEqual(status, 2)
+        self.assertTrue(err.endswith(
+            'pre-pr: broke: cannot write close outdated finding: result directory is not writable\n'), err)
+        self.assertEqual(result.read_bytes(), self.SETTLEMENT)
+        self.assertEqual(list(result.parent.iterdir()), [result])
+
+    def test_outdated_finding_without_job_exits_two(self):
+        self.close_outside_published_window()
+        status, err, _ = self.close_without_checks(TEMPER_CLOSE_OUTDATED='3')
+        self.assertEqual(status, 2)
+        self.assertTrue(err.endswith('pre-pr: broke: cannot write close outdated finding: TEMPER_JOB is missing\n'), err)
 
     def test_typed_close_binds_the_refusal_to_the_checked_tree_and_local_counts(self):
         head, tree = self.close_checkout()
