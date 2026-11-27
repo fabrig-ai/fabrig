@@ -6318,6 +6318,7 @@ pub(crate) fn defer_merge(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
             .expect("staged effect position");
     }
     row.entries = entries.into_boxed();
+    outbox::outcome(d, task, entry, skein_forge_client::Outcome::Withdrawn, out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
     save(d, env, row, out);
@@ -6335,6 +6336,7 @@ pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out
     if !matches_entry(d, task, entry) {
         return;
     }
+    outbox::outcome(d, task, entry, skein_forge_client::Outcome::Withdrawn, out);
     outcome(d, env, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), None, out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });

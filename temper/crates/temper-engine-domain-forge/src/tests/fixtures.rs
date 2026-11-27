@@ -506,6 +506,16 @@ pub fn workflows_absent(d: &mut Domain) {
     }
 }
 
+/// A veto or deferral gives back the unsent entry's room in every branch record.
+pub fn assert_write_withdrawn(d: &Domain, task: u64, entry: u64) {
+    let sender = Sender::Entry { task, entry };
+    for (_, record) in &d.writes {
+        for write in &record.entries {
+            assert_ne!(write.sender, sender, "an unsent withdrawal frees its branch write record");
+        }
+    }
+}
+
 /// A job's first failed step, including the runner's set-up and completion.
 pub fn failed_run(attempt: skein_forge::api::JobAttempt, step: Option<u32>) -> skein_forge::api::Run {
     use skein_forge::api::{Conclusion, Run, RunJob, RunState, Step};

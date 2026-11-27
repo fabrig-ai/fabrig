@@ -9528,6 +9528,7 @@ fn veto_change(
     if yielded && let Some(tasks) = crate::views::changes_mark(d, repository) {
         emit(out, Request::Marked { tasks: Box::from(tasks) });
     }
+    writes::outbox::outcome(d, task, entry, skein_forge_client::Outcome::Withdrawn, out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }

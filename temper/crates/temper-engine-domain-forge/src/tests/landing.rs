@@ -870,8 +870,11 @@ fn landing_merge_evidence(single: bool) {
         );
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
-        let requests =
+        let mut requests =
             fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        if !single {
+            requests = answer_open_round(&mut d);
+        }
         assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
         outputs(&mut d, Event::Withdraw { entry: 92 });
         let mut evidence = None;
@@ -903,6 +906,7 @@ fn landing_merge_evidence(single: bool) {
         let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
         assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
         assert!(d.describe_landing_effect(61, 91).is_none());
+        fixtures::assert_write_withdrawn(&d, 61, 91);
         assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&(policy::Status::Failed, true)));
         outputs(&mut d, Event::Committed { entry: 91 });
         for request in ready(&mut d) {
@@ -1011,6 +1015,22 @@ fn turn_reviews_at(d: &mut Domain, entry: u64, main: skein_forge::api::Commit) -
     fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
+fn open_round_pull(base: skein_forge::api::Commit) -> skein_forge::api::Pull {
+    skein_forge::api::Pull {
+        number: 2,
+        head: b"temper/1/l61".as_slice().into(),
+        base_commit: Some(base),
+        ..fixtures::open_pull()
+    }
+}
+
+fn answer_open_round(d: &mut Domain) -> Box<[Request]> {
+    use skein_forge::api::{Answer, Op, Read};
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, Op::Read(Read::Pull { number: 2, ci: false }));
+    fixtures::answer(d, call, Ok(Answer::Pull(open_round_pull(fixtures::BASE))))
+}
+
 #[test]
 fn a_startup_landing_read_without_a_number_does_not_hold_another_write() {
     use skein_forge::api::{Answer, Op, Read};
@@ -1041,12 +1061,14 @@ fn a_merge_waiting_on_authority_retries_without_spending_a_send() {
     let end = start + u64::from(env().limits.client.write_attempts) + 1;
     for entry in start..end {
         turn_reviews_at(&mut d, entry, fixtures::BASE);
+        answer_open_round(&mut d);
         d.decide_landing(&env(), 61, true, &mut Queue::uncapped());
         assert!(d.describe_landing_effect(61, entry).is_some(), "the merge is staged afresh");
         assert_eq!(d.landing(61).unwrap().landing.round.merges, 1);
         let deferred = outputs(&mut d, Event::DeferLandingMerge { task: 61, entry });
         assert!(deferred.contains(&Request::Erase { key: Key::Entry(entry) }));
         assert!(d.describe_landing_effect(61, entry).is_none());
+        fixtures::assert_write_withdrawn(&d, 61, entry);
         assert!(d.landing(61).unwrap().entries.is_empty());
         assert_eq!(d.landing(61).unwrap().landing.round.merges, 0, "waiting spends no send");
         assert!(matches!(d.landing(61).unwrap().landing.phase, policy::Phase::Turn { .. }));
@@ -1163,6 +1185,7 @@ fn a_restored_turn_keeps_a_poll_after_its_startup_read() {
         Answer::Commit(fixtures::BASE),
         Answer::Pull(fixtures::open_pull()),
         Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+        Answer::Pull(open_round_pull(fixtures::BASE)),
     ] {
         requests = fixtures::answer_next(&mut d, Ok(answer));
     }
@@ -1212,7 +1235,7 @@ fn the_turn_reads_paths_only_for_a_branch_rule_naming_sets() {
         if let Some(branch) = branch {
             turn_rule(&mut d, branch, sets, false);
         }
-        let mut requests = turn_reviews(&mut d);
+        let requests = turn_reviews(&mut d);
         if compare {
             for request in &requests {
                 if let Request::LandingDecision { .. } = request {
@@ -1221,7 +1244,7 @@ fn the_turn_reads_paths_only_for_a_branch_rule_naming_sets() {
             }
             let (call, op) = fixtures::next_call(&mut d);
             assert_eq!(op, Op::Read(Read::Compare { before: fixtures::BASE, after: fixtures::HEAD }));
-            requests = fixtures::answer(
+            fixtures::answer(
                 &mut d,
                 call,
                 Ok(Answer::Compare {
@@ -1234,6 +1257,7 @@ fn the_turn_reads_paths_only_for_a_branch_rule_naming_sets() {
                 }),
             );
         }
+        let requests = answer_open_round(&mut d);
         let evidence = merge_evidence(&requests);
         assert_eq!(evidence.first().expect("single member").facts.touched.whole, compare);
         assert!(ready(&mut d).is_empty(), "no further reads before authorizing the merge");
@@ -1287,7 +1311,8 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
         } else {
             Ok(Answer::Compare { before, after, ahead: 1, behind: 0, changed, files: Box::new([path.into()]) })
         };
-        let requests = fixtures::answer(&mut d, call, answer);
+        fixtures::answer(&mut d, call, answer);
+        let requests = answer_open_round(&mut d);
         let evidence = merge_evidence(&requests);
         assert_eq!(evidence.first().expect("single member").change, fixtures::CHANGE);
         assert_eq!(evidence.first().expect("single member").facts.head, Some(fixtures::HEAD));
@@ -1828,6 +1853,15 @@ fn a_turn_merges_landed_owner_survives_rebuild() {
 
     assert_eq!(restarted.landed.get(&fixtures::HEAD), Some(&fixtures::CHANGE));
 }
+fn admit_member_push(d: &mut Domain, head: skein_forge::api::Commit) {
+    let row = d.change(fixtures::CHANGE).expect("member change");
+    let name = domain::writes::branch(&env().limits, row.repository, &row.branch).expect("member branch");
+    d.heads.insert(name.clone(), BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }).unwrap();
+    let sender = Sender::Attempt { task: fixtures::CHANGE, attempt: 1 };
+    d.admit_push(&env(), &name, Some(fixtures::HEAD), head, sender, &mut Queue::uncapped())
+        .expect("the worker's push is admitted before the moved head is read");
+}
+
 fn step_departed_change(d: &mut Domain, head: [u8; 32], cancelled: bool) -> Box<[Request]> {
     use skein_forge::api::{Answer, Op, Read};
     let mut event = fixtures::change_step();
@@ -1855,6 +1889,10 @@ fn step_departed_change(d: &mut Domain, head: [u8; 32], cancelled: bool) -> Box<
             Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
             Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(Read::Compare { before, after }) => {
+                assert_eq!((before, after), (fixtures::HEAD, head), "comparison of the admitted push");
+                Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) }
+            }
             Op::Read(_) | Op::Write(_) => panic!("unexpected departed change read {op:?}"),
         };
         requests = fixtures::answer(d, call, Ok(answer));
@@ -1927,9 +1965,6 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
                 eager: false,
             }]);
         }
-        if why == (policy::Leave::HeadMoved { head: NEW }) {
-            row.change.last_head = Some(NEW);
-        }
         if why == (policy::Leave::Refused { gate: 9 }) {
             row.verdicts =
                 Box::new([c::GateReport { revision: 0, number: 9, head: fixtures::HEAD, status: c::Status::Failed }]);
@@ -1977,7 +2012,12 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
         assert_eq!(d.landing_of(row.task), None, "{why:?}");
         assert_eq!(row.change.ready_since, Some(since));
         assert!(d.landing(61).unwrap().previous_asks.is_empty(), "no slot written");
-        let head = if let policy::Leave::HeadMoved { head } = why { head } else { fixtures::HEAD };
+        let head = if let policy::Leave::HeadMoved { head } = why {
+            admit_member_push(&mut d, head);
+            head
+        } else {
+            fixtures::HEAD
+        };
         drop(step_departed_change(&mut d, head, why == policy::Leave::Cancelled));
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.change.state, departed_state(why, since));
@@ -4008,8 +4048,9 @@ fn unknown_merge_outcomes_read_the_open_pull_ask_again_and_land() {
         Outcome::Failed(Error::InvalidAnswer),
     ] {
         let mut d = turn_fixture();
+        turn_reviews(&mut d);
         assert!(has_landing_decision(
-            &turn_reviews(&mut d),
+            &answer_open_round(&mut d),
             policy::Decision::Merge { member: 0, candidate: fixtures::HEAD }
         ));
         assert_eq!(d.landing(61).expect("turn").landing.round.merges, 1);
@@ -4024,18 +4065,16 @@ fn unknown_merge_outcomes_read_the_open_pull_ask_again_and_land() {
         }
         assert!(settled, "the policy owns {outcome:?}");
         assert!(!d.entries.contains_key(&91), "a merge held uncertain is retired, not kept for a person");
+        if outcome == Outcome::Held {
+            // The unsettled pull and train records each look for the merge.
+            // The open pull settles neither, so the turn still reads it itself.
+            answer_open_round(&mut d);
+            answer_open_round(&mut d);
+        }
         turn_reviews_at(&mut d, 92, fixtures::BASE);
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Pull { number: 2, ci: false }));
-        let requests = fixtures::answer(
-            &mut d,
-            call,
-            Ok(Answer::Pull(skein_forge::api::Pull {
-                number: 2,
-                head: b"temper/1/l61".as_slice().into(),
-                ..fixtures::open_pull()
-            })),
-        );
+        let requests = fixtures::answer(&mut d, call, Ok(Answer::Pull(open_round_pull(fixtures::BASE))));
         assert!(
             has_landing_decision(&requests, policy::Decision::Merge { member: 0, candidate: fixtures::HEAD }),
             "{requests:?}"

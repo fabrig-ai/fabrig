@@ -464,12 +464,17 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             let entry = p.entry;
             decide_step(d, &env(), p, &mut out);
             veto_change(d, &env(), OWNER, entry, prior, matches!(how, Leave::Veto), &mut out);
+            fixtures::assert_write_withdrawn(d, OWNER, entry);
             if matches!(how, Leave::ReviewVeto) {
                 step(d, &env(), Event::ReviewRequested { task: OWNER, head: HEAD }, &mut out);
             }
             return out;
         }
-        Leave::PolicyHold => d.changes.get_mut(&OWNER).unwrap().drift = Some(change::Hold::BranchMoved),
+        Leave::PolicyHold => {
+            p.branch = Some([5; 32]);
+            let verdict = change_reads::branch(d, &env(), &p, &mut out);
+            assert!(change_reads::keep(d, &env(), &mut p, verdict, &mut out));
+        }
         Leave::CiCancelsGates => {
             p.ci = change::Status::Failed;
             d.changes.get_mut(&OWNER).unwrap().delegate =
