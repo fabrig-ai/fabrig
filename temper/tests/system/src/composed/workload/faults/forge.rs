@@ -126,6 +126,24 @@ impl World {
         {
             config.lost = 1000;
         }
+        // The fake reports LOST in preference to SET_UP. Leave set-up due
+        // for the next matching dispatch if the lost-job fault is still armed.
+        if config.lost == 0
+            && let Some(plan) = f.plans.iter().find(|p| p.kind == temper_blame::SET_UP)
+        {
+            if plan.fired {
+                if !f.ledger.entries().iter().any(|entry| entry.kind == temper_blame::SET_UP) {
+                    // The dispatch's job takes the fault when it completes.
+                    config.setup_faults = 1000;
+                }
+            } else if f.due(temper_blame::SET_UP)
+                && let api::Op::Write(api::Write::Dispatch { branch, .. }) = op
+                && self.branch_goal(branch) == Some(plan.goal.as_str())
+            {
+                f.fire(temper_blame::SET_UP);
+                config.setup_faults = 1000;
+            }
+        }
         if f.due(stale::MOVED_BASE)
             && let api::Op::Write(api::Write::Merge { number, .. }) = op
             && self.pull_goal(*number) == f.target(stale::MOVED_BASE)
@@ -240,6 +258,13 @@ impl World {
         assert_eq!(self.forge.domain_mut().fell_lost(), 0, "fake forge lost fault records");
         while let Some(fell) = self.forge.domain_mut().pop_fell() {
             let kind = Kind { family: fell.fault.family(), name: fell.fault.name() };
+            if kind == temper_blame::SET_UP {
+                assert_eq!(
+                    fell.commit.and_then(|commit| self.candidate_goal(commit)),
+                    f.target(kind),
+                    "ci/set_up must strike its planned goal"
+                );
+            }
             let entry = f.ledger.inject(
                 kind,
                 fell.at,
@@ -372,7 +397,8 @@ impl World {
                 })
                 .filter(|run| {
                     f.ledger.entries().iter().any(|fault| {
-                        fault.kind == temper_blame::LOST && fault.struck.gate_run == Some(run.id.to_string())
+                        matches!(fault.kind, temper_blame::LOST | temper_blame::SET_UP)
+                            && fault.struck.gate_run == Some(run.id.to_string())
                     })
                 })
                 .max_by_key(|run| run.id),

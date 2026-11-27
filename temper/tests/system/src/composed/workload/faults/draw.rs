@@ -20,6 +20,8 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     // busy
     (forge_faults::UNAVAILABLE, |_| true),
     (forge_faults::LIMITED, |_| true),
+    // ci
+    (temper_blame::SET_UP, |_| true),
     // restarts
     (restarts::ENGINE_RESTART_MID_TURN, |_| true),
 ];

@@ -245,6 +245,43 @@ fn busy_catalogue_kinds_draw_their_own_coins_targets_and_moments() {
 }
 
 #[test]
+fn set_up_draws_its_own_coin_goal_and_moment() {
+    use temper_blame::SET_UP;
+    assert!(CAMPAIGN_KINDS.contains(&SET_UP));
+    assert!(!GATE_KINDS.contains(&SET_UP));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without_setup: Vec<_> = kinds.iter().copied().filter(|kind| *kind != SET_UP).collect();
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let without = FaultDraw::new(seed, &without_setup);
+        assert_eq!(
+            draw.planned().into_iter().filter(|(kind, _)| *kind != SET_UP).collect::<Vec<_>>(),
+            without.planned(),
+            "seed {seed}"
+        );
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != SET_UP).collect::<Vec<_>>(),
+            without.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}"
+        );
+        assert_eq!(draw.acts(), without.acts(), "seed {seed}");
+        assert_eq!(draw.ineligible(), without.ineligible(), "seed {seed}");
+
+        let mut rng = streams.rng(Stream::Faults, "ci/set_up");
+        let expected = (rng.below(2) != 0).then(|| {
+            let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
+                .expect("goal index");
+            (workload.goals[index].name.as_str(), rng.below(16))
+        });
+        let planned: Vec<_> =
+            draw.plans.iter().filter(|plan| plan.kind == SET_UP).map(|plan| (plan.goal.as_str(), plan.after)).collect();
+        assert_eq!(planned, expected.as_slice(), "seed {seed}: ci/set_up coin, goal and moment");
+    }
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);

@@ -1,7 +1,7 @@
 //! Mixed finite faults over the composed draw (temper/docs/design/testing/workloads.md, 8.2).
 use super::World;
 use skein_lib::Time;
-use skein_world::faults::{FaultLedger, Injection, Kind, Struck};
+use skein_world::faults::{Counter, FaultLedger, Injection, Kind, Struck};
 use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_world::acts::Watch;
 use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
@@ -52,6 +52,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // refusing
     // ci
     temper_blame::WRONG_TREE,
+    temper_blame::SET_UP,
     // stale
     // provider
     // worker
@@ -261,6 +262,14 @@ impl World {
         if !findings.is_empty() {
             return Err(findings.join("\n"));
         }
+        let mut setup_faults = f.ledger.entries().iter().filter(|entry| entry.kind == temper_blame::SET_UP);
+        if let Some(entry) = setup_faults.next()
+            && (setup_faults.next().is_some()
+                || entry.count(Counter::GateRetries) != 1
+                || entry.count(Counter::Repairs) != 0)
+        {
+            return Err(format!("seed {}: ci/set_up must fall once and be retried without repair", f.seed));
+        }
         if let Some(entry) = f.ledger.entries().iter().find(|entry| entry.until.is_none()) {
             return Err(format!("{:?} has no last moment", entry.kind));
         }
@@ -272,9 +281,9 @@ impl World {
                 entry.from,
                 entry.until,
                 entry.struck,
-                entry.count(skein_world::faults::Counter::GateRetries),
-                entry.count(skein_world::faults::Counter::Repairs),
-                entry.count(skein_world::faults::Counter::TaskTries)
+                entry.count(Counter::GateRetries),
+                entry.count(Counter::Repairs),
+                entry.count(Counter::TaskTries)
             );
         }
         Ok(())
