@@ -11,7 +11,6 @@
 
 - **Not yet:** 1: `landing times` [in flight: change 2671].
 
-- **Not yet:** 1: `settings upgrade FILE`, absent from the table [in flight: change 21449].
 
 
 - **Not yet:** 1: `project show` of a deleted project prints `unknown` or `gone`, never `project 3 was deleted` [in flight: change 634].

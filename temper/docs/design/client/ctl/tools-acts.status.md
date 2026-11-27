@@ -6,7 +6,6 @@
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 
-- **Not yet:** 1: a settings file names no `format`, its decoder holds no moves and prints no notices, and `FIELDS` and the `settings-fields` page hold no formats [in flight: change 21449].
 - **Not yet:** 1: the engine host's read of a settings file returns no
   notices: a successful read carries its typed call alone
   (`temper-engine-smith`'s settings read). Format 1 has no moves, so no
