@@ -5672,6 +5672,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-domain-accounts",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
@@ -7312,6 +7313,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-link",
