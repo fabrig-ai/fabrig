@@ -1,6 +1,8 @@
 # stock: status
 
-2026-11-16. Where the tree's code lags or departs from [stock.md](stock.md).
+2026-11-27. Where the tree's code lags or departs from [stock.md](stock.md).
+
+- **Not yet:** charter 2: its words have it `deliver`, then `finish`, and report the branch and commit `deliver` named, and the producer's scope words ask it to report the branch and head it produced (`temper-engine-domain-forge-vocabulary`'s `change_words.rs`, `PRODUCE_SCOPE`), where it runs the formatters and `finish`es, which checks and pushes, its report naming no head [in flight: change 20288].
 
 
 
