@@ -18,3 +18,5 @@ the test connector no longer reports one as a default of size 0
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
   horizon, which is not built (`../protocol/store/growth.md`, 1.1).
   13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
+  2: the values the capabilities' asks and answers carry, still defined
+  in the children and the core's vocabulary [in flight: change 21634].
