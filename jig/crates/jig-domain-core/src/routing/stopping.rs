@@ -160,8 +160,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         }
         Event::People(event) => people_gate(event),
         Event::Watch { watcher, .. } | Event::WatchRun { watcher, .. } => Err(watch(watcher)),
-        Event::NamedAnswer { to, key, .. } => Err(continued_call(core, to, key)),
-        Event::NamedAction { to, .. } | Event::Delegate { to, .. } | Event::SettledCall { to, .. } => Err(call(to)),
+        Event::NamedAnswer { to, key, .. } | Event::Delegate { to, key, .. } => Err(continued_call(core, to, key)),
+        Event::NamedAction { to, .. } | Event::SettledCall { to, .. } => Err(call(to)),
         Event::Fleet(fleet::Event::Hello { worker: 0, channel, .. }) => {
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
         }

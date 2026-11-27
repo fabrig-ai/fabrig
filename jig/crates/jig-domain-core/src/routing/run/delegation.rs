@@ -44,7 +44,18 @@ pub(crate) fn delegate(
     batch: Box<[Delegate]>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let Some(to) = admit_named_call(core, &mut out, to, key) else { return out };
+    let to = if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+        // A connector that loaded words for this batch passes the same place to the engine.
+        if !core.current_proof(key.task, key.attempt) {
+            core.release_pending_call(key);
+            return out;
+        }
+        core.handoff_call(key, PendingCall::Application, PendingCall::Routed);
+        to
+    } else {
+        let Some(to) = admit_named_call(core, &mut out, to, key) else { return out };
+        to
+    };
     if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
         call_decision(core, &mut out, to, key, part);
         return out;
