@@ -959,6 +959,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "skein-http",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
