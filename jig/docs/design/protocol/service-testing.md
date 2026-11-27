@@ -21,6 +21,37 @@ Each within jig's suites' budgets.
   a shutdown. Its referee is the conformance world's, seen through bytes:
   nothing a party, a host or a system saw depended on a commit that was
   lost; and a drained shutdown ends with nothing waiting for a commit.
+- **Drawn turns in the protocol world's chat**
+  (`temper/docs/design/draft/misbehaving-agents.md`, 5.2): its answered
+  chat keeps its story, one person's chat answered by the in-process
+  worker and the answer seen, and plays a model's own turns inside it,
+  in stretches (skein's `testing/fakes/drawn-agent.md`, 5).
+  - **Its script:** the agent delegates one task to the person, then
+    plays a stretch, cancels that task, plays a stretch, and finishes.
+    A stretch is a bounded number of rounds, the world's round count,
+    of `message` and `subscribe` alone, so drawn turns never deliver,
+    finish, cancel or amend. The chat's role holds the delegate,
+    message, control and subscribe families in this story alone, so
+    the world's other stories keep their requests and their cuts.
+  - **Its menu:** bodies of both tools' fields, each in the words,
+    question and answer forms, naming a task by a slot over creation
+    replies (`Delegated tasks: T at`) and an answer's question by one
+    over `Sent message N`, each with a never-issued value. The fake
+    draws by request from the parts of the world's seed (skein's
+    `testing/sweeps.md`, 2: `agent/model`, and `llm` of the faults
+    and the scheduling).
+  - **What a stretch adds to the story's checks:** each drawn call
+    answered once, in the conversation the fake last saw, and none of
+    another tool; and each refusal its draws can reach counted, at
+    least once at the story's seed: a task never issued (`Refused;
+    missing reference`, and the subscription's refusal), and the
+    cancelled task as an ended recipient. The world classifies each
+    drawn target as live, ended or never issued, beside its answer.
+  - **What it can't reach,** and why: an answered question, since no
+    party here asks the chat a question; and `read_task`, which the
+    reference service doesn't declare (`service.md`, section 7).
+    temper's composed workload draws its producer's `read_task`
+    (temper's `testing/workloads.md`, 5).
 - **End to end** (skein/docs/foundation/testing-strategy.md, 2.9): the reference binary,
   `jig-test`, started on a scratch directory with skein's fake LLM peer
   as a process of its own on loopback (skein's `testing/fakes/llm.md`) as its
