@@ -319,7 +319,13 @@ impl RefusalShape {
                 tools::effect(call)
             }
             Decoded::Delegated { effect, .. } => *effect,
-            _ => return,
+            Decoded::Invalid { .. } => {
+                if matches!(result, Returned::Invalid { .. }) {
+                    self.entrance.get_or_insert(self.position);
+                }
+                return;
+            }
+            Decoded::Builtin { .. } | Decoded::Historical => return,
         };
         match (effect, result) {
             (Effect::Write, Returned::NotRun { why: NotRun::AfterFailedWrite { call } }) => {

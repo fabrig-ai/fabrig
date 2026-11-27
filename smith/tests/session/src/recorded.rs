@@ -320,7 +320,7 @@ impl Scripted {
                 }
                 if let Some(shapes) = &mut self.shapes {
                     // This scripted record has no job classifications.
-                    shapes.reached.recorded(&turn, shapes.tools.drain(..), |_| None);
+                    shapes.reached.recorded(&turn, shapes.tools.drain(..), |_| [None; 3]);
                 }
                 self.turns.push(turn);
             }

@@ -84,13 +84,17 @@ fn results(world: &World, opener: u64) -> Vec<&Returned> {
 
 #[test]
 fn the_provider_sees_job_only_with_the_shell_grant() {
-    let all: &[&[u8]] = &[b"read", b"list", b"search", b"write", b"edit", b"shell", b"job"];
+    let all: &[&[u8]] = &[b"read", b"list", b"search", b"write", b"edit", b"remove", b"shell", b"job"];
     let shell_only: &[&[u8]] = &[b"shell", b"job"];
-    let without_shell: &[&[u8]] = &[b"read", b"list", b"search", b"write", b"edit"];
+    let without_shell: &[&[u8]] = &[b"read", b"list", b"search", b"write", b"edit", b"remove"];
+    let inspect: &[&[u8]] = &[b"read", b"list", b"search"];
+    let modify: &[&[u8]] = &[b"write", b"edit", b"remove"];
     for (grants, names, shell_schema) in [
         (Grants { inspect: true, modify: true, shell: true }, all, true),
         (Grants { inspect: false, modify: false, shell: true }, shell_only, true),
         (Grants { inspect: true, modify: true, shell: false }, without_shell, false),
+        (Grants { inspect: true, modify: false, shell: false }, inspect, false),
+        (Grants { inspect: false, modify: true, shell: false }, modify, false),
     ] {
         let mut scripted = Scripted::new(SEED);
         let mut opening = opening(None, scripted.env.limits.spend);
@@ -328,7 +332,7 @@ fn an_unknown_job_suppresses_the_write_but_not_the_read() {
     assert_eq!((stats.refused_write_read, stats.unknown_jobs, stats.ops), (1, 1, 1));
     let reached = world.reached();
     assert!(reached.contains(
-        "job:unknown_job:job=unissued,write:not_run_after_failure,read:ok end=unknown begin=unknown wake=unknown"
+        "job:unknown_job:job=unissued,write:not_run_after_failure:path=unissued,read:ok:path=live end=unknown begin=unknown wake=unknown"
     ));
     assert!(reached.answered(Answer::UnknownJob));
 }
@@ -360,12 +364,11 @@ fn drawn_job_slots_name_shown_and_unissued_jobs_and_replay() {
     use skein_fake_llm_domain::api::Source;
     use smith_session_world::provider::UNISSUED_JOB;
 
-    // The model polls the never-issued number, then a job whose end is held.
-    const DRAWN_POLLS_SEED: u64 = 1;
+    const SHOWN_LIVE_AND_UNISSUED_POLLS: u64 = 3;
     const DRAWN_ROUNDS: u32 = 10;
     const CAPTURE_ANSWERS: u32 = 16;
     const CAPTURE_BYTES: u32 = 16_384;
-    let mut settings = Settings::calm(DRAWN_POLLS_SEED);
+    let mut settings = Settings::calm(SHOWN_LIVE_AND_UNISSUED_POLLS);
     settings.provider.tool_rounds = DRAWN_ROUNDS;
     settings.provider.capture_answers = CAPTURE_ANSWERS;
     settings.provider.capture_bytes = CAPTURE_BYTES;
@@ -386,29 +389,45 @@ fn drawn_job_slots_name_shown_and_unissued_jobs_and_replay() {
         .iter()
         .flat_map(|drawn| {
             drawn.slots.iter().filter(|slot| {
-                matches!(&drawn.answer.lines[usize::try_from(slot.call).expect("call position")],
+                slot.slot == 0
+                    && matches!(&drawn.answer.lines[usize::try_from(slot.call).expect("call position")],
                     Line::Call { name, .. } if name.as_ref() == b"job")
             })
         })
         .collect();
-    let named: Vec<_> = session.job_calls.iter().filter(|call| call.job.is_some()).collect();
-    assert_eq!(polls.len(), named.len(), "each named job call had a slot draw");
-    for (draw, mention) in polls.into_iter().zip(named) {
+    let mut shown = None;
+    let mut unissued = false;
+    for draw in polls {
+        let mention = session
+            .job_calls
+            .iter()
+            .find(|call| {
+                let turn = session.records.iter().find(|turn| turn.sequence == call.sequence).expect("the call's turn");
+                turn.messages
+                    .iter()
+                    .find(|message| message.role == smith_domain_session::llm::Role::Assistant)
+                    .and_then(|message| message.content[call.position].tool_call())
+                    .is_some_and(|block| block.id == draw.id)
+            })
+            .expect("the recorded call of each captured job draw");
         let number = mention.job.expect("a named job");
         assert_eq!(&*draw.value, number.0.to_string().as_bytes());
         assert_eq!(&*draw.class, mention.class.word().as_bytes());
-        assert_eq!(draw.source, if number.0 == UNISSUED_JOB { Source::Unissued } else { Source::Conversation },);
+        match draw.source {
+            Source::Unissued => {
+                assert_eq!((number, mention.class), (JobNumber(UNISSUED_JOB), Class::Unissued));
+                assert_eq!(
+                    mention.answer,
+                    Some(Returned::Invalid { problem: Problem::UnknownJob { job: UNISSUED_JOB } })
+                );
+                unissued = true;
+            }
+            Source::Conversation if matches!(mention.class, Class::Live | Class::Held) => shown = Some(mention),
+            Source::Conversation => {}
+        }
     }
-    assert!(session.job_calls.iter().any(|call| {
-        call.class == Class::Unissued
-            && call.job == Some(JobNumber(UNISSUED_JOB))
-            && matches!(call.answer, Some(Returned::Invalid { problem: Problem::UnknownJob { job: UNISSUED_JOB } }))
-    }));
-    let read = session
-        .job_calls
-        .iter()
-        .find(|call| matches!(call.class, Class::Live | Class::Held))
-        .expect("a draw named the session's own job");
+    assert!(unissued, "a draw named the never-issued job");
+    let read = shown.expect("a draw named the session's own job");
     assert!(
         session.records.iter().take_while(|turn| turn.sequence < read.sequence).any(|turn| {
             turn.messages.iter().flat_map(|message| &message.content).any(|block| {

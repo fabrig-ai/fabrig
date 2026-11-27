@@ -111,6 +111,15 @@ pub fn noisy(seed: u64) -> Settings {
     settings.agent.tools.jobs = pick(1, u64::from(calm.agent.tools.jobs));
     if job_heavy(seed) {
         settings.provider.calls_per_answer = 1;
+    } else {
+        // An entrance refusal can suppress a later write in a multi-call
+        // answer. Keep the short, otherwise uninteresting one-call worlds
+        // weighted toward refusals without adding tool rounds.
+        if settings.provider.calls_per_answer == 3 && parallel_tools >= 3 {
+            settings.provider.calls_per_answer = parallel_tools + 1;
+        }
+        // Keep a low-refusal tail for multi-turn reads, lists, and searches.
+        settings.provider.malformed += if settings.provider.malformed < 35 { 200 } else { 780 };
     }
     settings
 }
@@ -147,8 +156,12 @@ pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
         }
         // Answers short enough that some are cut, a tool call included.
         let max_tokens = u32::try_from(rng.between(4, 64)).expect("a small number");
-        let mut opening =
-            Spec { progress: settings.progress, budget, output: max_tokens, ..spec(b"make the tests pass") };
+        let mut opening = Spec {
+            progress: settings.progress,
+            budget,
+            output: max_tokens,
+            ..spec(if job_heavy { b"Run jobs for `README.md`." } else { b"Work on `src/lib.rs` and `README.md`." })
+        };
         if job_heavy {
             opening.authority.grants = tools::Grants { inspect: false, modify: false, shell: true };
         }

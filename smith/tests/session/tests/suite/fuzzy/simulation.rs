@@ -7,13 +7,46 @@ use smith_session_world::bytes;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use skein_fake_llm_domain::api::{Line, Source};
 use smith_domain_session::End;
 use smith_domain_session::llm::Failure;
-use smith_session_world::provider::UNISSUED_JOB;
+use smith_session_world::provider::SLOT_NAMES;
 use smith_session_world::shapes::{Answer, Class, Reference, Sample, answer};
 use smith_session_world::{Ended, World, noisy, submit_noisily};
 
 const ITERATIONS: u32 = 100_000;
+// On the original 1,000 seeds, the old menu escaped twice after a tools
+// refusal and twice after a translator refusal.
+const ORIGINAL_ESCAPED: u32 = 4;
+
+const BODY_REFUSALS: [Answer; 18] = [
+    Answer::Outside,
+    Answer::TooLong,
+    Answer::Protected,
+    Answer::NulByte,
+    Answer::Malformed,
+    Answer::NotFound,
+    Answer::NotFile,
+    Answer::NotDirectory,
+    Answer::NotEmpty,
+    Answer::EditNoMatch,
+    Answer::EditAmbiguous,
+    Answer::EditUnchanged,
+    Answer::ExitNonzero,
+    Answer::UnknownTool,
+    Answer::UnknownJob,
+    Answer::NotRead,
+    Answer::TimedOut,
+    Answer::JobsFull,
+];
+
+const WORKSPACE_CLASSES: [(Reference, Class); 5] = [
+    (Reference::Path, Class::Live),
+    (Reference::Path, Class::Foreign),
+    (Reference::Path, Class::Unissued),
+    (Reference::Offset, Class::Live),
+    (Reference::Offset, Class::Unissued),
+];
 
 const JOB_CLASSES: [Class; 7] =
     [Class::Live, Class::Held, Class::Consumed, Class::BeforeOpening, Class::Foreign, Class::Unissued, Class::Unknown];
@@ -39,18 +72,23 @@ fn random_worlds_settle_with_every_session_ended() {
     let mut races = [0; 4];
     let mut served = [0; 6];
     let (mut refused_write_read, mut unknown_jobs, mut full_jobs) = (0, 0, 0);
-    let (mut shown_draws, mut unissued_draws) = (0, 0);
+    let mut job_draws = [0; 2];
+    let mut slot_cases = [[0; 2]; SLOT_NAMES.len()];
     let mut held_peaks = [0; 5];
     let mut drawn_job_bounds = [0; 4];
     let mut job_calls: BTreeMap<_, BTreeMap<_, u32>> =
         JOB_CLASSES.into_iter().map(|class| (class.word(), BTreeMap::new())).collect();
     for seed in 0..1000 {
-        let settings = noisy(seed);
+        let mut settings = noisy(seed);
+        settings.provider.capture_answers = 16;
+        settings.provider.capture_bytes = 32_768;
         let bound = usize::try_from(settings.agent.tools.jobs).expect("the drawn bound is at most four");
         drawn_job_bounds[bound - 1] += 1;
         let mut world = World::new(settings);
+        world.omit_trace();
         submit_noisily(&mut world, &settings, seed);
         world.run(ITERATIONS);
+        count_slots(&world, &mut slot_cases, &mut job_draws);
         sample.ran(&world.reached()).expect("the case holds only shapes in form");
         stale += world.stats().stale;
         parallel = parallel.max(world.stats().most_parallel);
@@ -86,13 +124,6 @@ fn random_worlds_settle_with_every_session_ended() {
         for (_, session) in world.sessions() {
             concrete_turns += session.records.len();
             for call in &session.job_calls {
-                if let Some(job) = call.job {
-                    if job.0 == UNISSUED_JOB {
-                        unissued_draws += 1;
-                    } else {
-                        shown_draws += 1;
-                    }
-                }
                 *job_calls
                     .get_mut(call.class.word())
                     .expect("all job classes are counted")
@@ -120,13 +151,24 @@ fn random_worlds_settle_with_every_session_ended() {
         }
     }
     sample.write();
+    println!("used slot cases (conversation, unissued): {slot_cases:?}");
     println!(
         "canonical scheduled hits: concrete_turns={concrete_turns}, stale={stale}, invalid={invalid}, not_run={not_run}, parallel={parallel}, most_runs={most_runs}, op_timeouts={op_timeouts}, delegated={served:?}, races={races:?}, ends={ends:?}, stops={stops:?}, refused_write_read={refused_write_read}, unknown_jobs={unknown_jobs}, full_jobs={full_jobs}, held_peaks={held_peaks:?}, drawn_job_bounds={drawn_job_bounds:?}"
     );
     for (class, answers) in &job_calls {
         println!("job {class}: {answers:?}");
     }
-    println!("job slot draws: conversation={shown_draws}, unissued={unissued_draws}; failures={failures:?}");
+    let [shown_draws, unissued_draws] = job_draws;
+    println!("job calls with slot draws: conversation={shown_draws}, unissued={unissued_draws}; failures={failures:?}");
+    for (slot, [shown, unissued]) in SLOT_NAMES.iter().zip(slot_cases) {
+        assert!(shown > 0 && unissued > 0, "slot {slot:?}: {shown} shown, {unissued} unissued cases");
+    }
+    for answer in BODY_REFUSALS {
+        assert!(sample.answered(answer) > 0, "the unchanged gate seeds reach {}", answer.word());
+    }
+    for (reference, class) in WORKSPACE_CLASSES {
+        assert!(sample.classed(reference, class) > 0, "the unchanged gate seeds reach {reference:?}={class:?}");
+    }
     assert_eq!(ends, EXPECTED_ENDS.into_iter().map(String::from).collect());
     assert!(concrete_turns > 0, "accepted provider completions emitted concrete checked Turns");
     assert!(shown_draws > 0, "some job calls drew a number from the conversation");
@@ -153,7 +195,10 @@ fn random_worlds_settle_with_every_session_ended() {
         assert!(failures.contains(failure), "some session failed as {failure}: {failures:?}");
     }
     assert!(op_timeouts > 0, "some operations of the tools ran out of time");
-    assert!(refused_write_read > 0, "an entrance refusal suppressed a write but not a later read");
+    assert!(
+        refused_write_read > ORIGINAL_ESCAPED,
+        "the new weights must improve on {ORIGINAL_ESCAPED} escapes: {refused_write_read}"
+    );
     assert!(
         unknown_jobs > 0 && sample.answered(Answer::UnknownJob) > 0,
         "some job calls named a job the session did not hold"
@@ -166,6 +211,29 @@ fn random_worlds_settle_with_every_session_ended() {
         invalid > 0 && not_run > 0,
         "some calls were malformed, and some were cut short and not run: {invalid} {not_run}"
     );
+}
+
+fn count_slots(world: &World, total: &mut [[u32; 2]; SLOT_NAMES.len()], job_draws: &mut [u32; 2]) {
+    let mut case = [[false; 2]; SLOT_NAMES.len()];
+    for answer in world.capture().answers {
+        for draw in answer.slots {
+            let slot = usize::try_from(draw.slot).expect("bounded slot");
+            let source = usize::from(draw.source == Source::Unissued);
+            case[slot][source] = true;
+            if SLOT_NAMES[slot] == b"job"
+                && !draw.class.is_empty()
+                && matches!(&answer.answer.lines[usize::try_from(draw.call).expect("captured position")],
+                    Line::Call { name, .. } if name.as_ref() == b"job")
+            {
+                job_draws[source] += 1;
+            }
+        }
+    }
+    for (counts, seen) in total.iter_mut().zip(case) {
+        for (count, reached) in counts.iter_mut().zip(seen) {
+            *count += u32::from(reached);
+        }
+    }
 }
 
 #[test]

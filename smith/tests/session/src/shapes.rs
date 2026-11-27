@@ -1,7 +1,6 @@
 //! The `smith/1` completion vocabulary and its per-case reach (smith/docs/design/shapes.md,
 //! 2–5). A shape retains only allowlisted words, not provider or workspace data.
 
-use std::fmt::Write as _;
 use std::io::Write as _;
 
 use skein_world::sweep::Shapes;
@@ -161,17 +160,19 @@ words! {
 words! {
     /// What the world knows of a reference when the model names it.
     Class, CLASSES;
-    /// A job of this kit is running.
+    /// A live job, a present path, or an extant line.
     Live => "live",
+    /// A path that the workspace once held.
+    Stale => "stale",
     /// A job of this kit ended, and its cell remains held.
     Held => "held",
     /// A job's end has been read and its cell is free.
     Consumed => "consumed",
     /// A restored job number is from before this opening.
     BeforeOpening => "before_opening",
-    /// Another session's kit issued the job number, but this one did not.
+    /// The path is outside the workspace, or another kit issued the job.
     Foreign => "foreign",
-    /// No session issued the job number.
+    /// No session issued the job, or the path or line never existed.
     Unissued => "unissued",
     /// The call did not name a reference the world could classify.
     Unknown => "unknown",
@@ -274,20 +275,32 @@ impl Reached {
 
     /// Adds one completion, with its calls in order, or none for text alone.
     pub fn completion(&mut self, calls: &[Call]) {
-        let mut shape = String::new();
-        if calls.is_empty() {
-            shape.push_str("text");
-        }
-        for (index, call) in calls.iter().enumerate() {
-            if index != 0 {
+        self.completion_refs(calls.iter().map(|call| (call.tool, call.answer, call.references.iter().copied())));
+    }
+
+    fn completion_refs(
+        &mut self,
+        calls: impl IntoIterator<Item = (Tool, Answer, impl IntoIterator<Item = (Reference, Class)>)>,
+    ) {
+        let mut shape = String::with_capacity(64);
+        for (tool, answer, references) in calls {
+            if !shape.is_empty() {
                 shape.push(',');
             }
-            write!(shape, "{}:{}", call.tool.word(), call.answer.word()).expect("writing a String cannot fail");
-            self.answers[call.answer as usize] = true;
-            for &(reference, class) in &call.references {
-                write!(shape, ":{}={}", reference.word(), class.word()).expect("writing a String cannot fail");
+            shape.push_str(tool.word());
+            shape.push(':');
+            shape.push_str(answer.word());
+            self.answers[answer as usize] = true;
+            for (reference, class) in references {
+                shape.push(':');
+                shape.push_str(reference.word());
+                shape.push('=');
+                shape.push_str(class.word());
                 self.classes[reference as usize][class as usize] = true;
             }
+        }
+        if shape.is_empty() {
+            shape.push_str("text");
         }
         shape.push_str(" end=unknown begin=unknown wake=unknown");
         self.shapes.push(shape);
@@ -315,26 +328,23 @@ impl Reached {
         &mut self,
         turn: &record::Turn,
         tools: impl IntoIterator<Item = (usize, Tool)>,
-        mut job_class: impl FnMut(usize) -> Option<Class>,
+        mut references: impl FnMut(usize) -> [Option<Class>; 3],
     ) {
         let assistant = turn.messages.iter().position(|message| message.role == llm::Role::Assistant);
-        let calls = tools
-            .into_iter()
-            .map(|(position, tool)| {
-                // A compaction records only the new window, not the model's calls or results.
-                let returned = assistant.and_then(|index| {
-                    let call =
-                        turn.messages[index].content[position].tool_call().expect("the recorded call's position");
-                    recorded_result(&turn.messages[index + 1..], &call.id)
-                });
-                Call {
-                    tool,
-                    answer: answer(returned),
-                    references: job_class(position).map_or_else(Vec::new, |class| vec![(Reference::Job, class)]),
-                }
-            })
-            .collect::<Vec<_>>();
-        self.completion(&calls);
+        let calls = tools.into_iter().map(|(position, tool)| {
+            // A compaction records only the new window, not the model's calls or results.
+            let returned = assistant.and_then(|index| {
+                let call = turn.messages[index].content[position].tool_call().expect("the recorded call's position");
+                recorded_result(&turn.messages[index + 1..], &call.id)
+            });
+            let references = REFERENCES
+                .iter()
+                .copied()
+                .zip(references(position))
+                .filter_map(|(reference, class)| Some((reference, class?)));
+            (tool, answer(returned), references)
+        });
+        self.completion_refs(calls);
     }
 }
 

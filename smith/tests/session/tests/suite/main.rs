@@ -22,3 +22,4 @@ mod fuzzy {
     mod recorded;
     mod simulation;
 }
+mod world_paths;
