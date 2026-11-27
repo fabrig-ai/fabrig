@@ -6,13 +6,13 @@ Draft, 2026-11-27, part of [ways.md](ways.md): each entry of the gallery ([ways-
 
 ### 1.1 Pair
 
-You and one agent in a writable chat; "Land this" hands its edits over, and CI lands them. No review: you're there. Needs Pair's own draft, for the writable copy, the handover of its edits and the `pair` charter, and is held back from the gallery until that draft's goals land (`ways.execution.md`, W9).
+You and one agent in its own copy, saved as it goes; when it delivers checked work, "Land this" opens its change, by code. No review: you're there, and the agent can open a sub-agent for a review in place when you ask. Needs [pair.md](pair.md)'s goal, released by W9 once it lands; its model choice is W6's. It adds no gate: a floor's review still holds.
 
 ```toml
 # .temper/ways/pair.toml
 format = 1
 headline = "You and one agent, in its own copy"
-line = "You work with one agent in its own copy; when it's right, you say Land this."
+line = "You work with one agent in its own copy, saved as it goes; when it delivers, you say Land this."
 start = "pair"
 
 [tasks.pair]
@@ -20,7 +20,7 @@ executor = { agent = "pair", model = "claude-opus-5-5", effort = "high" }
 contract = "report"
 conversation = true
 holds = ["copy"]
-delegates = { land = { at_most = 20 } }
+offers = "land"
 
 [tasks.land]
 executor = "change"
