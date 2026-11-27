@@ -137,7 +137,12 @@ fn assign(world: &mut World, head: u64, base: u64, program: &[u8]) -> Result<(),
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: program.into(), request: b"request".as_slice().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: program.into(),
+            request: b"request".as_slice().into(),
+            refusal: false,
+            outdated: false,
+        }),
     })?;
     Ok(())
 }

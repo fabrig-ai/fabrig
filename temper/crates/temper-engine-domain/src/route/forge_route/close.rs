@@ -12,7 +12,7 @@ pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32
     path.put(repository).ok()?;
     path.put(b"/").ok()?;
     path.put(command).ok()?;
-    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request), refusal: true };
+    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request), refusal: true, outdated: true };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }

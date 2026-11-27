@@ -42,7 +42,12 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                 grants: Box::new([]),
             },
             items: Ok(items),
-            spec: Ok(wire::JobSpec { command: b"app/check".as_slice().into(), request: Box::new([]), refusal: false }),
+            spec: Ok(wire::JobSpec {
+                command: b"app/check".as_slice().into(),
+                request: Box::new([]),
+                refusal: false,
+                outdated: false,
+            }),
         },
     };
     let mut pending = Queue::uncapped();

@@ -47,8 +47,9 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
   directory, `TEMPER_CLOSE_REFUSAL=3` for a close whose job asks for a
-  typed refusal (4.2), and nothing else: no credential, no token, no
-  variable of the worker's.
+  typed refusal and `TEMPER_CLOSE_OUTDATED=3` for one whose job asks for
+  its outdated finding (4.2), and nothing else: no credential, no token,
+  no variable of the worker's.
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
@@ -411,7 +412,8 @@ keeps of a goal's work in its own files.
   does: it settles, then runs pre-PR's close check over the staged tree
   (`tools/pre-pr/design.md`, 4.1). The check's verdict is the close's:
   passed, refused by the goal's own failures, or not judged, the check
-  having broken (`../draft/whose-red.md`, 3.1).
+  having broken (`../draft/whose-red.md`, 3.1), or having found the goal
+  outdated for main's published counts.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
@@ -431,6 +433,18 @@ keeps of a goal's work in its own files.
   `merge`'s are (4.1, *Bounded whole*). Nothing is committed or pushed.
   The job finishes, spending no try, and the close change holds at once
   on the refusal (`../domain/forge/change/repairs-releases.md`, 1).
+- **`result.json`, exit 3, outdated,** only where the command's
+  environment holds `TEMPER_CLOSE_OUTDATED=3`: the goal's branch could
+  not be judged against main's published counts,
+  `{"outdated":{"head":H,"why":W}}`. H is the commit the job's checkout
+  was at; W `window`, the branch holding none of the commits the counts
+  cover, or `ancestry`, its checkout's ancestry too incomplete to tell.
+  It is compact JSON, members in that order, ending in a newline, and
+  replaces the settlement's result; nothing is committed or pushed. The
+  job finishes, spending no try, and the close change ends with no
+  change, for its closer to catch the goal up from main
+  (`../domain/forge/change/repairs-releases.md`, 1). A close that sees
+  `TEMPER_CLOSE_REFUSAL=3` alone writes no finding: it breaks, as below.
 - **Any other exit,** a signal, the job's deadline, or a result missing
   or past its bound: the command's failure, the check broke, its stderr's
   last `tooling_log_bytes` kept. The job fails in the run's own class and
@@ -444,12 +458,17 @@ keeps of a goal's work in its own files.
   that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). A command that doesn't
   see it exits as before, so a refusal never reaches a build that would
   read a finished close with nothing pushed as one with nothing to
-  settle.
+  settle. The outdated finding is asked for the same way, in the spec's
+  `outdated`, which the worker turns into `TEMPER_CLOSE_OUTDATED=3`;
+  but a worker whose layout lacks that field keeps the spec without it
+  (`wires.md`, 8), so its close runs with the command not told, and
+  breaks as before.
 - **Checked against its attempt.** The engine takes a finished close as a
   refusal only when its job asked for one, its result is `refused`, its
   `head` is the commit that job's checkout started at, and nothing was
-  pushed; as settlement it takes only `settled`. Any other finished
-  result is the command's failure. The engine knows the commit, not the
+  pushed; as an outdated finding, only on the same terms with the result
+  `outdated`, its `why` one of the two; as settlement it takes only
+  `settled`. Any other finished result is the command's failure. The engine knows the commit, not the
   tree settlement makes of it; the close is deterministic by contract,
   so the commit and the job's fixed request give the tree.
 - **Deterministic by contract,** as `merge`: the same tree and request

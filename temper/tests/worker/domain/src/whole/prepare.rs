@@ -179,7 +179,12 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: Box::new([]),
+            request: request.clone().into_bytes().into(),
+            refusal: false,
+            outdated: false,
+        }),
     };
     world.event(assignment())?;
     if matches!(case, Case::Replay | Case::ReplaySquash) {
@@ -425,7 +430,12 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: Box::new([]),
+            request: request.clone().into_bytes().into(),
+            refusal: false,
+            outdated: false,
+        }),
     };
     world.event(assignment())?;
     if matches!(case, Case::ReplayStackMerge | Case::ReplayStackSquash) {
