@@ -7,6 +7,7 @@ use temper_engine_domain_forge_change as change;
 const CHANNEL: Token = Token::new(7);
 const COMMAND: &[u8] = b".temper/merge";
 const RESULT: &[u8] = b"{\"settled\":[\"file\"],\"left\":[]}";
+pub(super) const NONE: &[u8] = br#"{"settled":[],"hook":"none"}"#;
 const GOAL: &[u8] = b"temper/goal";
 const STEPS: u32 = 200;
 const DEFAULT_CEILING: u32 = 3_600;
@@ -402,7 +403,6 @@ fn an_update_conflict_makes_a_find_merge_job_without_a_hook_read() {
 
 #[test]
 fn an_unmergeable_pull_makes_a_find_merge_job_without_a_hook_read() {
-    const NONE: &[u8] = br#"{"settled":[],"hook":"none"}"#;
     for fallback in [false, true] {
         let mut world = world(false, true, true);
         if fallback {
