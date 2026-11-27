@@ -34,10 +34,13 @@
   the directory, or no check.
 - **Told in the prompt:** each writable directory's line names its
   checks, ``with checks (`.temper/pre-pr`)`` for one, and for hooks each
-  found with the tool that runs it, ``with checks
-  (`.temper/hooks/deliver` at `deliver`, `.temper/hooks/finish` at
-  `finish`)``, a moment with none left out and a broken hook named as
-  found.
+  found by its name, which is the tool that runs it, then the
+  directory, ``with checks (hooks `deliver` and `finish` in
+  `.temper/hooks`)``, or ``(hook `deliver` in `.temper/hooks`)`` for one,
+  a moment with none left out and a broken hook named as found. The
+  line is kept this short because it counts in the largest charter's
+  fixed host part, whose room the stock brief's bound leaves
+  (`temper/crates/temper-service/src/tests/stock_brief.rs`).
 - **Checked is delivered,** but for a save, which runs no check (1.5).
   The checks run as contained processes with
   deadlines, and the delivery that follows is made, under the lease over
