@@ -93,9 +93,9 @@ fn reservation(view: &View<'_>, holder: RoomReservation, task: u64, ended: bool)
 }
 
 /// Compare the inspected write holders with the number the forge room charges.
-pub fn check_room_census(writes: &Table, taken: u32, into: &mut Inspection) {
+pub fn check_room_census(writes: &Table, taken: usize, into: &mut Inspection) {
     let census = writes.entries.len();
-    if census == skein_lib::usize_of(taken) {
+    if census == taken {
         return;
     }
     let mut what = format!("census {census}, taken {taken}");

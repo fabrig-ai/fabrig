@@ -98,8 +98,9 @@ impl State {
 impl Domain {
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
-    pub fn inspection_room_taken(&self) -> u32 {
-        crate::room::taken(self)
+    pub fn inspection_room_taken(&self) -> usize {
+        usize::try_from(crate::room::taken(self))
+            .expect("the number of resident outbox entries and reservations fits usize")
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
