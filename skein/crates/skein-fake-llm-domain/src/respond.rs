@@ -675,7 +675,7 @@ fn scripted(
     for line in &turn.lines {
         match line {
             Line::Take { .. } | Line::Cut { .. } | Line::Served { .. } => {
-                count = count.checked_sub(1).expect("a control line emits no part")
+                count = count.checked_sub(1).expect("a control line emits no part");
             }
             Line::Text { .. } | Line::Call { .. } | Line::Opaque { .. } | Line::Pieces { .. } | Line::Fail { .. } => {}
         }
