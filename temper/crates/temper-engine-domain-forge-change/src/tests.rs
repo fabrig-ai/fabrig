@@ -1570,9 +1570,20 @@ fn a_held_change_on_its_requesters_branch_takes_the_head_at_release() {
 #[test]
 fn a_requesters_branch_move_during_landing_keeps_the_merge_head() {
     let c = change(State::Landing { head: HEAD });
-    let next = decide(&c, &moved_branch(true), &heard());
+    // The forge domain reports the change's outstanding merge entry as Pending.
+    let merge_in_flight = Heard { effect: EffectResult::Pending, ..heard() };
+    let next = decide(&c, &moved_branch(true), &merge_in_flight);
     assert_eq!(next.change, c);
     assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+}
+
+#[test]
+fn an_explained_landing_head_move_without_a_pending_merge_is_rechecked() {
+    let c = change(State::Landing { head: HEAD });
+    let next = decide(&c, &moved_branch(true), &heard());
+    assert_eq!(next.change.state, State::Checking { head: NEW });
+    assert_eq!(next.change.last_head, Some(NEW));
+    assert_eq!(next.decision, Decision::None);
 }
 
 #[test]
