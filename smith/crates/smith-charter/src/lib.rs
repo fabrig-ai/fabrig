@@ -24,7 +24,7 @@ pub use generated::v5;
 
 pub use v5::{
     Budget, CEILINGS, ChangeRule, Charter, Contract, Conventions, Effect, Families, Field, FieldRule, Form, HostTool,
-    Item, ItemKind, Llm, Mode, Prices, Record, Reserve, RunResult, Section, TextRule, Tools, VerdictRule,
+    Item, ItemKind, Llm, Mode, Prices, Record, Reserve, RunResult, Section, Speed, TextRule, Tools, VerdictRule,
 };
 
 impl Charter {

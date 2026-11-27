@@ -32,7 +32,7 @@ fn opened_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = channel();
     let limits = crate::tests::process_limits();
     let mut entries = List::with_capacity(limits.channel.kinds);
-    for kind in &component.schema.version(VERSION).expect("channel version").kinds {
+    for kind in &component.schema.kinds {
         if kind.direction == Direction::FromInitiator {
             entries.push(Term { kind: kind.kind, largest: kind.largest }).expect("receiving terms");
         }

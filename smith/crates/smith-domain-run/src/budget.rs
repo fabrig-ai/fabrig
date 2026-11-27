@@ -385,14 +385,18 @@ pub fn admit(
 }
 
 /// Main's full input window at the highest input rate and output at its rate,
-/// rounded up once.
+/// using its selected speed's prices when set and rounding up once.
 /// Contract: smith/docs/design/domain/budget.md.
 #[must_use]
 pub fn most_costly(main: &Llm) -> Option<u64> {
-    let input = u128::from(main.window).checked_mul(u128::from(main.prices.reserved_input()))?;
-    let output = u128::from(main.output).checked_mul(u128::from(main.prices.output))?;
+    let prices = match &main.speed {
+        Some(speed) => speed.prices,
+        None => main.prices,
+    };
+    let input = u128::from(main.window).checked_mul(u128::from(prices.reserved_input()))?;
+    let output = u128::from(main.output).checked_mul(u128::from(prices.output))?;
     let sum = input.checked_add(output)?;
-    let unit = u128::from(main.prices.unit);
+    let unit = u128::from(prices.unit);
     let rounded = sum.checked_div(unit)?.checked_add(u128::from(sum.checked_rem(unit)? != 0))?;
     u64::try_from(rounded).ok()
 }

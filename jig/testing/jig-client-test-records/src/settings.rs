@@ -57,6 +57,8 @@ fn model() -> SettingModel {
         price_unit: 1000,
         efforts,
         effort: Some(text(b"high")),
+        speeds: List::with_capacity(0),
+        speed: None,
     }
 }
 #[must_use]

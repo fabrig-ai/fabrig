@@ -96,8 +96,7 @@ pub fn items(
         return Err(temper_worker_domain::wire::ItemsRefusal::Version(hub::Mismatch {
             wire: Box::from(temper_protocol_worker_wire::wire::FAMILY.as_bytes()),
             version,
-            lowest: temper_protocol_worker_wire::wire::VERSION,
-            highest: temper_protocol_worker_wire::wire::VERSION,
+            worker_version: temper_protocol_worker_wire::wire::VERSION,
         }));
     }
     let mut reader = Reader::new(bytes);

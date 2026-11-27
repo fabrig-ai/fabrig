@@ -6,7 +6,7 @@ use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as domain, reads};
 use jig_domain_tasks as tasks;
 use jig_test_layouts::{self as fixture, frames, layouts};
-use skein_codec::schema::Schema;
+use skein_codec::schema::{self, Schema};
 use skein_fake_machine::Item;
 use skein_lib::{Token, Wall, length::len_u64};
 
@@ -24,11 +24,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
                 name: "fixture-frame",
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(crate::Frames {
-                    root: frames::BODY_ROOT,
-                    texts: &[layouts::FRAME_BODY_KEPT, layouts::FRAME_BODY],
-                    number: 0,
-                }),
+                frames: Some(crate::Frames { root: frames::BODY_ROOT, number: 0 }),
             }],
         },
         OwnerSet {
@@ -43,11 +39,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
                 name: "fixture-turn",
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(crate::Frames {
-                    root: frames::TURN_ROOT,
-                    texts: &[layouts::FRAME_TURN_KEPT, layouts::FRAME_TURN],
-                    number: 0,
-                }),
+                frames: Some(crate::Frames { root: frames::TURN_ROOT, number: 0 }),
             }],
         },
     ],
@@ -105,15 +97,47 @@ fn put(record: &domain::Record) -> skein_kv::Op {
     }
 }
 fn scene(bytes: &[u8], sets: OwnerSets) -> (Disk, Store) {
-    scene_with_schemas(bytes, sets, &[])
+    scene_with_schemas(bytes, sets, layouts::FRAME_TURN_KEPT, &[])
 }
-fn scene_with_schemas(bytes: &[u8], sets: OwnerSets, prepared: &'static [Schema]) -> (Disk, Store) {
+fn scene_with_schemas(bytes: &[u8], sets: OwnerSets, old_turn: &str, prepared: &'static [Schema]) -> (Disk, Store) {
     let disk = Disk::new(&[Item::directory(b"0000000000000000"), Item::file(PATH, bytes)]);
-    let mut store = fixtures::over(fixtures::stores());
+    let mut writer = fixtures::over(fixtures::stores());
+    writer.owner_sets(sets);
+    open_scene(&disk, &mut writer);
+    fixtures::committed(&mut writer, Box::new([fixtures::header(1)]));
+    let mut maps = writer.into_stores();
+    let mut ops = [fixtures::header_put(fixtures::DEPLOYMENT, 2)].to_vec();
+    for family in sets.sets.iter().flat_map(|set| set.families) {
+        let frame = family.frames.expect("fixture frames family");
+        let old = if family.name == "fixture-frame" { layouts::FRAME_BODY_KEPT } else { old_turn };
+        ops.extend(fixtures::frame_layout(family.name, frame.root, frame.number, old));
+    }
+    ops.extend([
+        skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT).expect("places"),
+            value: codec::component::Transcript { length: len_u64(bytes.len()), window: 0 }.encode().expect("places"),
+        },
+        skein_kv::Op::Put {
+            key: keys::encode_own(
+                &keys::Own::Attempt { task: frames::TASK, attempt: frames::ATTEMPT },
+                fixtures::KEY_LIMIT,
+            )
+            .expect("attempt"),
+            value: codec::component::Attempt { first: 0 }.encode().expect("attempt"),
+        },
+        put(&owner_record()),
+        put(&activity()),
+    ]);
+    fixtures::plant(&mut maps, &ops);
+    let mut store = fixtures::over(maps);
     store.owner_sets(sets);
     store.prepared_schemas(prepared);
+    open_scene(&disk, &mut store);
+    (disk, store)
+}
+fn open_scene(disk: &Disk, store: &mut Store) {
     let opened = fixtures::run(
-        &mut store,
+        store,
         Request::Open {
             purpose: crate::Purpose::Serve,
             owner: Token::new(1),
@@ -121,31 +145,7 @@ fn scene_with_schemas(bytes: &[u8], sets: OwnerSets, prepared: &'static [Schema]
             installation: fixtures::INSTALLATION,
         },
     );
-    let [Event::Opened { .. }, Event::Census { .. }] = &*opened else { panic!("opened: {opened:?}") };
-    fixtures::committed(&mut store, Box::new([fixtures::header(1)]));
-    fixtures::plant(
-        &mut store.stores,
-        &[
-            skein_kv::Op::Put {
-                key: keys::encode_own(&keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT)
-                    .expect("places"),
-                value: codec::component::Transcript { length: len_u64(bytes.len()), window: 0 }
-                    .encode()
-                    .expect("places"),
-            },
-            skein_kv::Op::Put {
-                key: keys::encode_own(
-                    &keys::Own::Attempt { task: frames::TASK, attempt: frames::ATTEMPT },
-                    fixtures::KEY_LIMIT,
-                )
-                .expect("attempt"),
-                value: codec::component::Attempt { first: 0 }.encode().expect("attempt"),
-            },
-            put(&owner_record()),
-            put(&activity()),
-        ],
-    );
-    (disk, store)
+    let [Event::Opened { pending: false, .. }, Event::Census { .. }] = &*opened else { panic!("opened: {opened:?}") };
 }
 fn request(kind: u8, budget: u64) -> Request {
     let read = match kind {
@@ -188,9 +188,18 @@ fn payload(events: &[Event]) -> &[u8] {
         _ => panic!("read result {events:?}"),
     }
 }
+fn older_smith_text() -> &'static str {
+    Box::leak(
+        smith_transcript::SCHEMA
+            .replacen("family smith-transcript 8", "family smith-transcript 7", 1)
+            .replacen(", interrupted: Interrupted", "", 1)
+            .into_boxed_str(),
+    )
+}
+
 #[test]
 fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
-    let text = smith_transcript::SEED[0];
+    let text = older_smith_text();
     let old = skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept v7"))
         .into_iter()
         .find(|value| value.name == "record_turn_smallest.bin")
@@ -216,14 +225,10 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
     );
     let mut disk = Disk::new(&[]);
     let mut store = disk.store();
-    let old_family = KeptFamily {
-        current: text,
-        frames: Some(crate::Frames { root: smith_transcript::ROOT, number: 0, texts: Box::leak(Box::new([text])) }),
-        ..crate::owners::SMITH_SET.families[0]
-    };
+    let old_family = KeptFamily { current: text, ..crate::owners::SMITH_SET.families[0] };
     let old_set = OwnerSet { families: Box::leak(Box::new([old_family])), ..crate::owners::SMITH_SET };
     // Register this value type alone within the fixture's small commit edge.
-    let mut core = *crate::patch_set::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").unwrap();
+    let mut core = *crate::owner_set::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").unwrap();
     core.keys = &[crate::Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" }];
     core.types = &[crate::ValueType {
         number: 8,
@@ -234,15 +239,15 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
     core.frames = None;
     // Only this variant's layout is needed; verify the small text against the
     // binary's layout instead of raising the fixture's first-commit budget.
-    let actual = skein_codec::schema::parse(core.current.as_bytes()).unwrap();
+    let actual = schema::parse(core.current.as_bytes()).unwrap();
     core.current = "family jig-store-core 6\nrecord PartKey { task: u64 attempt: u64 number: u32 }\nenum PartKind { answer, result, window }\nrecord PartRecord { key: PartKey turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 holds smith-transcript Turn }\nenum Value { call, deployment, projection, run_proof, turn, terminal, proposal_decision, escalation_decision, part: PartRecord }\nversioned record Row { value: Value }\n";
-    let small = skein_codec::schema::parse(core.current.as_bytes()).unwrap();
-    let smith = skein_codec::schema::parse(crate::owners::SMITH_SET.families[0].current.as_bytes()).unwrap();
+    let small = schema::parse(core.current.as_bytes()).unwrap();
+    let smith = schema::parse(crate::owners::SMITH_SET.families[0].current.as_bytes()).unwrap();
     assert_eq!(
         actual.layout(actual.root(b"Row", Some(b"part")).unwrap(), &[&smith]).unwrap().digest(),
         small.layout(small.root(b"Row", Some(b"part")).unwrap(), &[&smith]).unwrap().digest()
     );
-    let jig = OwnerSet { jobs: &[], families: Box::leak(Box::new([core])), ..crate::patch_set::JIG_STORE_SET };
+    let jig = OwnerSet { jobs: &[], families: Box::leak(Box::new([core])), ..crate::owner_set::JIG_STORE_SET };
     store.owner_sets(OwnerSets { sets: Box::leak(Box::new([jig, old_set])) });
     let opened = disk.open(&mut store);
     let Some(Event::Opened { .. }) = opened.first() else { panic!("part writer open: {opened:?}") };
@@ -264,26 +269,30 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
     expected[1] = 8;
     assert_eq!(loaded.body.as_ref(), expected.as_slice());
     assert_eq!((loaded.key, loaded.turn, loaded.thread, loaded.call, loaded.kind), (part.key, 4, 0, 5, part.kind));
-    assert_eq!(fixtures::get_kv(&mut store, &key).unwrap(), before, "patching never rewrites the kept part");
+    assert_eq!(
+        fixtures::get_kv(&mut store, &key).unwrap(),
+        before,
+        "converting the layout never rewrites the kept part"
+    );
 }
 
 #[test]
 fn the_real_smith_set_converts_kept_version_seven_on_read() {
     const REAL: OwnerSets = OwnerSets { sets: &[crate::owners::SMITH_SET] };
-    let text = smith_transcript::SEED[0];
+    let text = older_smith_text();
     let old = skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept v7"))
         .into_iter()
         .find(|value| value.name == "record_turn_smallest.bin")
         .expect("turn")
         .bytes;
     let bytes = frames::frame(6, &old);
-    let (mut disk, mut store) = scene(&bytes, REAL);
+    let (mut disk, mut store) = scene_with_schemas(&bytes, REAL, text, &[]);
     let events = disk.request(&mut store, request(1, BUDGET));
-    let patched = payload(&events);
+    let converted = payload(&events);
     let mut expected = old;
     expected[1] = 8;
-    assert_eq!(patched, expected);
-    assert_eq!(&*disk.bytes(PATH), &*bytes, "patching a read never writes the frame");
+    assert_eq!(converted, expected);
+    assert_eq!(&*disk.bytes(PATH), &*bytes, "converting a frame at read never writes it");
 }
 
 #[test]
@@ -470,7 +479,7 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
             OwnerSet {
                 families: &[KeptFamily {
                     current: OTHER,
-                    frames: Some(crate::Frames { texts: &[OTHER], number: 0, root: "TurnRecord" }),
+                    frames: Some(crate::Frames { number: 0, root: "TurnRecord" }),
                     name: "other-frame",
                     ..SETS.sets[0].families[0]
                 }],
@@ -595,13 +604,14 @@ fn carries_turn(row: &reads::Row) -> bool {
 #[test]
 fn cold_and_prepared_registry_plans_read_the_same_kept_frames() {
     const OTHER: &str = "family fixture-turn 1\nversioned record Other { said: text 64 replay: bytes 64 }\n";
-    let schemas = SETS.prepare();
-    let mut altered = schemas.to_vec();
-    let old = altered.iter_mut().find(|schema| schema.text() == layouts::FRAME_TURN_KEPT.as_bytes()).unwrap();
-    *old = skein_codec::schema::parse(OTHER.as_bytes()).unwrap();
+    let mut schemas = SETS.prepare().into_vec();
+    schemas.push(schema::parse(layouts::FRAME_TURN_KEPT.as_bytes()).unwrap());
+    let mut altered = SETS.prepare().into_vec();
+    altered.push(schema::parse(OTHER.as_bytes()).unwrap());
     for prepared in [&[][..], &schemas, &altered] {
         let raw = frames::frame(5, &turn(1, REPLAY));
-        let (mut disk, mut store) = scene_with_schemas(&raw, SETS, Box::leak(prepared.to_vec().into_boxed_slice()));
+        let (mut disk, mut store) =
+            scene_with_schemas(&raw, SETS, layouts::FRAME_TURN_KEPT, Box::leak(prepared.to_vec().into_boxed_slice()));
         let events = disk.request(&mut store, request(1, BUDGET));
         assert_eq!(payload(&events), expected(1).as_ref());
         assert_eq!(disk.bytes(PATH), raw);
@@ -632,14 +642,6 @@ fn the_converted_frame_must_fit_the_store_page_not_just_the_stored_frame() {
 fn a_window_cuts_from_the_head_only_when_both_ids_keep() {
     use super::fixtures::disk::Seen;
     const KEEP: &str = "family fixture-turn 1\nversioned record Turn { said: text 64 tokens: u32 = 0 }\n";
-    const SMITH: OwnerSet = OwnerSet {
-        families: &[KeptFamily {
-            frames: Some(crate::Frames { root: "Turn", number: 0, texts: &[KEEP, layouts::FRAME_TURN] }),
-            ..SETS.sets[1].families[0]
-        }],
-        ..SETS.sets[1]
-    };
-    const KEEPING: OwnerSets = OwnerSets { sets: &[SETS.sets[0], SMITH] };
     let said = [b'a'; 64];
     let mut current = 2_u16.to_be_bytes().to_vec();
     current.extend_from_slice(&64_u32.to_be_bytes());
@@ -651,13 +653,13 @@ fn a_window_cuts_from_the_head_only_when_both_ids_keep() {
     older.truncate(70);
     older.extend_from_slice(&64_u32.to_be_bytes());
     older.extend_from_slice(&said);
-    for (sets, body, bytes, whole) in [
-        (KEEPING, 6, current.as_slice(), false),
-        (KEEPING, 6, keeping.as_slice(), false),
-        (SETS, 6, older.as_slice(), true),
-        (SETS, 5, current.as_slice(), true),
+    for (old, body, bytes, whole) in [
+        (KEEP, 6, current.as_slice(), false),
+        (KEEP, 6, keeping.as_slice(), false),
+        (layouts::FRAME_TURN_KEPT, 6, older.as_slice(), true),
+        (layouts::FRAME_TURN_KEPT, 5, current.as_slice(), true),
     ] {
-        let (mut disk, mut store) = scene(&frames::frame(body, bytes), sets);
+        let (mut disk, mut store) = scene_with_schemas(&frames::frame(body, bytes), SETS, old, &[]);
         let events = disk.request(&mut store, request(0, 8));
         let [Event::Turns { cut: Some(74), .. }] = events.as_ref() else { panic!("window at head: {events:?}") };
         assert_eq!(

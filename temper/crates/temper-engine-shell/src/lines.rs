@@ -299,7 +299,7 @@ fn commit_why(number: u64, why: CommitStop) -> String {
             "the store's own check refused it: more writes than the root's bound".into()
         }
         CommitStop::Store(CommitFailure::Check(CommitCheck::Switching)) => {
-            "the store's own check refused it: a patch switch is pending".into()
+            "the store's own check refused it: an upgrade's switch is pending".into()
         }
         CommitStop::Store(CommitFailure::Check(CommitCheck::Encoding)) => {
             "the store's own check refused it: a key, record or frame past its codec's limits".into()

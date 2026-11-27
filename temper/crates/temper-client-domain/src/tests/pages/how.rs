@@ -99,14 +99,7 @@ fn fixture(
 ) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me_watch = f::start(&mut root, List::with_capacity(0));
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out = up(
         &mut root,
         Up::Watched {

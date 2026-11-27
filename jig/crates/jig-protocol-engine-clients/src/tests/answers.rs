@@ -284,35 +284,47 @@ fn a_sparse_ending_past_its_piece_bound_is_refused() {
     );
 }
 
-const UNSERVED_VERSION: u32 = 43;
 const REFUSED_WATCH: u64 = 71;
+
+fn unserved_versions() -> [(w::Owner, u32); 4] {
+    let family = w::Owner::Family(w::Family { number: 9 });
+    // A version of another owner is not a match, even when this engine serves it.
+    [(w::Owner::Jig, 43), (w::Owner::Jig, 2), (family.clone(), 1), (family, w::VERSION)]
+}
+
 #[test]
-fn a_keyed_request_outside_its_owners_range_is_answered_not_served() {
-    let mut exchange = Exchange::new();
-    let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, UNSERVED_VERSION, Box::new([255]))));
-    exchange.authenticate();
-    assert_eq!(exchange.answer(owner), w::KeyedAnswer::NotServed(f::not_served(w::Owner::Jig)));
-    assert!(exchange.out.is_empty());
+fn a_keyed_request_of_another_version_is_answered_not_served() {
+    for (owner, version) in unserved_versions() {
+        let mut exchange = Exchange::new();
+        let call = exchange.send(crate::Message::Request(f::keyed(owner.clone(), version, Box::new([255]))));
+        exchange.authenticate();
+        assert_eq!(exchange.answer(call), w::KeyedAnswer::NotServed(f::not_served(owner)));
+        assert!(exchange.out.is_empty());
+    }
 }
 #[test]
-fn a_read_outside_its_owners_range_names_the_served_ranges() {
-    let mut exchange = Exchange::new();
-    let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, UNSERVED_VERSION, Box::new([255]))));
-    exchange.authenticate();
-    assert_eq!(exchange.read_answer(owner), w::ReadAnswer::NotServed(f::not_served(w::Owner::Jig)));
-    assert!(exchange.out.is_empty());
+fn a_read_of_another_version_names_the_served_ranges() {
+    for (owner, version) in unserved_versions() {
+        let mut exchange = Exchange::new();
+        let call = exchange.send(crate::Message::Read(f::owned_read(owner.clone(), version, Box::new([255]))));
+        exchange.authenticate();
+        assert_eq!(exchange.read_answer(call), w::ReadAnswer::NotServed(f::not_served(owner)));
+        assert!(exchange.out.is_empty());
+    }
 }
 #[test]
-fn an_opening_outside_its_owners_range_is_answered_not_served() {
-    let mut exchange = Exchange::new();
-    let stream = exchange.open_stream();
-    let subject = w::Owned { owner: w::Owner::Jig, version: UNSERVED_VERSION, record: Box::new([255]) };
-    let owner = exchange.open_record(stream, REFUSED_WATCH, subject);
-    assert_eq!(
-        w::OpenAnswer::decode(&f::wire(), &mut Reader::new(exchange.response(owner).1)),
-        Ok(w::OpenAnswer::NotServed(f::not_served(w::Owner::Jig)))
-    );
-    assert!(exchange.out.is_empty());
+fn an_opening_of_another_version_is_answered_not_served() {
+    for (owner, version) in unserved_versions() {
+        let mut exchange = Exchange::new();
+        let stream = exchange.open_stream();
+        let subject = w::Owned { owner: owner.clone(), version, record: Box::new([255]) };
+        let call = exchange.open_record(stream, REFUSED_WATCH, subject);
+        assert_eq!(
+            w::OpenAnswer::decode(&f::wire(), &mut Reader::new(exchange.response(call).1)),
+            Ok(w::OpenAnswer::NotServed(f::not_served(owner)))
+        );
+        assert!(exchange.out.is_empty());
+    }
 }
 
 fn account_sign_in_done(value: w::DocumentOutcome) -> w::Final {

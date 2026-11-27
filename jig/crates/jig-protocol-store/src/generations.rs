@@ -326,7 +326,7 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
 }
 
 /// The copy keeps its roots and files on the transcripts driver, away from kv's
-/// handles. A rehearsal's patch can keep deployment, scratch and transcript roots
+/// handles. An upgrade rehearsal can keep deployment, scratch and transcript roots
 /// beside three directory pairs and two copy files (`COPY_HANDLES`).
 #[derive(Debug)]
 enum CopyStep {
@@ -370,9 +370,9 @@ struct CopyParent {
     last: bool,
 }
 /// Generation `from`'s maps linked and copied (protocol/store/opening.md 2, step 2).
-/// A patch links the snapshot and all but the newest log segment, found over every
+/// An upgrade links the snapshot and all but the newest log segment, found over every
 /// page first, and every task log in logs/shard. A Whole rehearsal copies everything;
-/// an Openings rehearsal links as a patch does, but skips store/logs.
+/// an Openings rehearsal links as an upgrade does, but skips store/logs.
 /// Refused links fall back to copies. Two suspended directory pages bound the
 /// depth-first logs walk, with each destination synced before returning to its parent.
 /// Directories are made 0o700, secrets opened private, copied files created

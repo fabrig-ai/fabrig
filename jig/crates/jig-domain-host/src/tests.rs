@@ -1346,4 +1346,10 @@ fn a_part_is_acknowledged_retained_and_relayed_to_its_attempt() {
     assert_eq!(h.domain.kept_answers(), 0);
 }
 
+#[test]
+fn a_mismatch_reason_names_the_wire_and_both_versions() {
+    let mismatch = crate::Mismatch { wire: b"smith-charter".as_slice().into(), version: 12, worker_version: 5 };
+    assert_eq!(mismatch.reason().as_ref(), b"version mismatch: smith-charter 12, the worker reads 5");
+}
+
 mod parts;

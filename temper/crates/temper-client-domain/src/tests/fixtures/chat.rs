@@ -43,7 +43,7 @@ pub fn opened() -> Fixture {
     for event in [
         Event::StartUnlinked { kept: List::with_capacity(0) },
         Event::SignIn { with: jig_client::With::Transport },
-        Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        Event::Up { up: jig_client::Up::Served { served: true } },
     ] {
         client.step_unlinked(Time::ZERO, Wall::EPOCH, event, &mut emitted);
     }

@@ -2636,7 +2636,7 @@ fn a_version_refusal_pauses_without_closing_the_window_or_counting_a_try() {
     let before = core.tasks.task(OPEN_TASK).unwrap().tries;
     core.proofs.get_mut(&OPEN_TASK).unwrap().window =
         Some(CurrentWindow { attempt: OPEN_ATTEMPT, turn: 1, closed: false });
-    let reason: Box<[u8]> = b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into();
+    let reason: Box<[u8]> = b"version mismatch: smith-charter 5, the worker reads 4".as_slice().into();
     let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
     let Event::AnswerPayload { end, .. } = &mut answer else { panic!("answer fixture") };
     *end = tasks::End::RefusedWithReason { reason: reason.clone() };

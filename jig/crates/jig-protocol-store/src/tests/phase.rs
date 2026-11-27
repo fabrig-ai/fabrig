@@ -13,7 +13,7 @@ use super::fixtures::{
 };
 use super::owners::{REGISTERED as BASE, label, shelf};
 use crate::directory::{OWNER, Opening};
-use crate::upgrade::phase::Patching;
+use crate::upgrade::phase::Upgrading;
 use crate::{Arrived, Event, Get, Io, OpenRefusal, Phase, Request, Root, Row, Store, Write};
 use skein_fake_machine::{How, Is, Item, Machine, Opened};
 use skein_io::{
@@ -186,14 +186,14 @@ enum Stage {
 }
 fn stage(store: &Store) -> Stage {
     match &store.directory.opening {
-        Opening::Patching(phase) => match **phase {
-            Patching::Closing { .. } => Stage::Closing,
-            Patching::Dropping(_) => Stage::Dropping,
-            Patching::Copying(_) => Stage::Copying,
-            Patching::Mapping { .. } | Patching::Recovering { .. } => Stage::Opening,
-            Patching::Jobs(_) => Stage::Jobs,
-            Patching::Sealing { .. } => Stage::Sealing,
-            Patching::Checking(_) => Stage::Checking,
+        Opening::Upgrading(phase) => match **phase {
+            Upgrading::Closing { .. } => Stage::Closing,
+            Upgrading::Dropping(_) => Stage::Dropping,
+            Upgrading::Copying(_) => Stage::Copying,
+            Upgrading::Mapping { .. } | Upgrading::Recovering { .. } => Stage::Opening,
+            Upgrading::Jobs(_) => Stage::Jobs,
+            Upgrading::Sealing { .. } => Stage::Sealing,
+            Upgrading::Checking(_) => Stage::Checking,
         },
         Opening::Pending(pending) => match pending.stage {
             crate::upgrade::switch::Stage::Manifest { .. } => Stage::Manifest,
@@ -313,7 +313,7 @@ impl Harness {
             wall: skein_lib::Wall::EPOCH,
         }
     }
-    fn store(&self, patch: bool) -> Store {
+    fn store(&self, upgrade: bool) -> Store {
         let mut limits = fixtures::store_limits();
         limits.store.chunk = CHUNK;
         limits.store.value =
@@ -328,7 +328,7 @@ impl Harness {
             self.seeded,
         );
         store.owner_sets(upgrade_sets(0));
-        if patch {
+        if upgrade {
             store.owner_sets(upgrade_sets(1));
         }
         store

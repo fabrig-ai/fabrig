@@ -411,7 +411,7 @@ fn one_forge_identity_table_refuses_a_second_forge() {
 }
 
 #[test]
-fn items_of_another_version_name_the_wire_and_worker_range() {
+fn items_of_another_version_name_the_wire_and_worker_version() {
     let assignment = fixtures::worker_assignment();
     let current = payload::wire::VERSION;
     let version = current.checked_add(1).unwrap();
@@ -421,8 +421,7 @@ fn items_of_another_version_name_the_wire_and_worker_range() {
         Err(wire::ItemsRefusal::Version(host::Mismatch {
             wire: b"temper-worker-wire".as_slice().into(),
             version,
-            lowest: current,
-            highest: current,
+            worker_version: current,
         }))
     );
 }
@@ -450,8 +449,7 @@ fn charter_versions_are_not_malformed_charters() {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-charter".as_slice().into(),
                 version,
-                lowest: current,
-                highest: current,
+                worker_version: current,
             })
         } else {
             host::Undecoded::Charter
@@ -484,8 +482,7 @@ fn resumed_turn_versions_are_not_malformed_transcripts() {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-transcript".as_slice().into(),
                 version,
-                lowest: current,
-                highest: current,
+                worker_version: current,
             })
         } else {
             host::Undecoded::Transcript

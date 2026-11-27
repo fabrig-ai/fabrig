@@ -59,7 +59,9 @@ fn row_parts(value: &skein_lib::List<w::RowPart>) -> Result<skein_lib::List<c::R
                     bytes: skein_lib::bytes::copy_of(&value.record),
                 })
             }
-            w::RowPart::NotServed(why) => c::RowPart::NotServed(not_served(why)),
+            w::RowPart::NotServed(why) => {
+                c::RowPart::NotServed(c::NotServed { owner: client::owner_to_domain(why.owner.clone()) })
+            }
             w::RowPart::Unknown => c::RowPart::Unknown,
             w::RowPart::Failed(why) => c::RowPart::Failed(client::part_failure_to_domain(why.why.clone())),
         };
@@ -89,8 +91,4 @@ pub(crate) fn check_rows(
         }
     }
     Ok(())
-}
-
-fn not_served(value: &w::NotServed) -> c::NotServed {
-    client::not_served_to_domain(value.clone())
 }

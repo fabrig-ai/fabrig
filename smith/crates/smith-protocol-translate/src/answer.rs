@@ -49,7 +49,7 @@ pub fn answer_record(
 
 /// Translate a refused charter into the channel refusal vocabulary.
 pub fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<channel::InvalidStart, Error> {
-    let value = mapped::invalid_start_to_record(&invalid);
+    let value = crate::channel_hand::invalid_start_to_record(&invalid);
     check_invalid_start(&value, limits)?;
     Ok(value)
 }

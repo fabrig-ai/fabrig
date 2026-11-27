@@ -173,12 +173,11 @@ impl Bytes {
         settings.served = jig_client_kit::test::list([
             clients::Served {
                 family: None,
-                first: jig_client_protocol_wire::VERSION,
-                last: jig_client_protocol_wire::VERSION,
+                version: jig_client_protocol_wire::VERSION,
                 layout: jig_client_protocol_wire::LAYOUT,
             },
-            clients::Served { family: Some(1), first: 1, last: 1, layout: jig_ops_client_protocol_wire::LAYOUT },
-            clients::Served { family: Some(2), first: 1, last: 1, layout: jig_ops_client_protocol_wire::LAYOUT },
+            clients::Served { family: Some(1), version: 1, layout: jig_ops_client_protocol_wire::LAYOUT },
+            clients::Served { family: Some(2), version: 1, layout: jig_ops_client_protocol_wire::LAYOUT },
         ]);
         let mut limits = fixtures::engine_limits();
         limits.families = 3;

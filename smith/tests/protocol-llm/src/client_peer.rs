@@ -57,6 +57,7 @@ pub struct ClientPeer {
     /// At most one terminal plus Reusable/Close/Closed, without diagnostic bodies.
     pub observed: Vec<Observed>,
     context: Option<Context>,
+    provider: skein_llm::Provider,
 }
 
 impl core::fmt::Debug for ClientPeer {
@@ -65,6 +66,7 @@ impl core::fmt::Debug for ClientPeer {
             .debug_struct("ClientPeer")
             .field("waiting", &self.peer.machine.waiting())
             .field("observed", &self.observed)
+            .field("provider", &self.provider)
             .field("live_context", &self.context.is_some())
             .finish()
     }
@@ -89,6 +91,7 @@ impl ClientPeer {
         let endpoint_name = prompt.endpoint;
         let endpoint = configuration.endpoint.clone();
         let peer_endpoint = endpoint.clone();
+        let provider = endpoint.provider;
         let credential = match configuration.credential.scheme {
             skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
             skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
@@ -110,7 +113,7 @@ impl ClientPeer {
                 ..skein_fake_llm_protocol::documents::Options::DEFAULT
             },
         );
-        Ok(Self { peer, context: Some(context), observed: Vec::new() })
+        Ok(Self { peer, context: Some(context), provider, observed: Vec::new() })
     }
 
     /// Caller starts the admitted observed Client once under its installed clocks.
@@ -158,7 +161,7 @@ impl ClientPeer {
                     self.observed.push(Observed::Completed(owner));
                     let context = self.context.take().expect("one observed Client terminal owns the context");
                     returned.push(
-                        codec::completion(context, completion)
+                        codec::completion(context, self.provider, completion)
                             .expect("observed admitted Client completion and production decoder fit receiving"),
                     );
                 }

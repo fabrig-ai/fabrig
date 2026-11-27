@@ -62,7 +62,7 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
 }
 
 pub(crate) fn checked_channel(limits: &Limits, schema: &Schema) -> Option<skein_channel::Limits> {
-    if schema.range() != Some((wire::VERSION, wire::VERSION))
+    if schema.version != wire::VERSION
         || limits.room < 270
         || limits.handshake == Duration::ZERO
         || limits.hello == Duration::ZERO

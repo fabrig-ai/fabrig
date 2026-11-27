@@ -1,22 +1,22 @@
 //! A pending owner job upgrades a copy, not its source (protocol/store/jobs.md, 1–3).
 use jig_protocol_store::{Event, Owner, Request, Write, codec::component::Manifest};
 use jig_store_world::{
-    patches::{self, BASE, Records, SETS},
     root,
+    upgrade_fixtures::{self, BASE, Records, SETS},
 };
 
 #[test]
 fn pending_job_upgrades_once_at_equal_levels() {
     let records = Records::story();
     let mut world = records.committed(901, BASE);
-    let before = patches::source(&mut world);
+    let before = upgrade_fixtures::source(&mut world);
     world.owner_sets(SETS);
     let last = world.open().expect("pending job opens copy");
     assert!(world.pending, "the pending job requires an upgrade even at equal levels");
     assert_eq!(world.active(), b"1\n");
-    assert_eq!(world.ran(), [(Owner::Application, patches::JOB.name.into(), 3, 2)]);
+    assert_eq!(world.ran(), [(Owner::Application, upgrade_fixtures::JOB.name.into(), 3, 2)]);
     records.check_public(&mut world, &"pending job");
-    patches::kept(&before, &patches::source(&mut world), &"pending job");
+    upgrade_fixtures::kept(&before, &upgrade_fixtures::source(&mut world), &"pending job");
     world.switch().expect("root activates copy");
     let contents = world.contents();
     let bytes = contents.get(b"generations/2/manifest".as_slice()).and_then(Option::as_deref).expect("manifest");
@@ -51,7 +51,7 @@ fn a_pending_decider_job_repairs_a_live_row_once_without_moving_levels() {
         sets: &[jig_protocol_store::SKEIN_SET, jig_protocol_store::SMITH_SET, jig_protocol_accounts::JIG_SET],
     };
     let mut world = World::unopened(907);
-    world.owner_sets(patches::current(BEFORE));
+    world.owner_sets(upgrade_fixtures::current(BEFORE));
     assert_eq!(world.open(), Some(0));
     let core::Record::Tasks(Stored::Live(mut parent)) = root::live_task(1) else { panic!("parent") };
     let core::Record::Tasks(Stored::Live(mut held)) = root::live_task(3) else { panic!("held") };
@@ -73,7 +73,7 @@ fn a_pending_decider_job_repairs_a_live_row_once_without_moving_levels() {
         Some(1)
     );
     world.crash(908);
-    world.owner_sets(patches::current(NOW));
+    world.owner_sets(upgrade_fixtures::current(NOW));
     let last = world.open().expect("decider job opens copy");
     assert!(world.pending);
     assert_eq!(world.ran().len(), 1);
@@ -106,14 +106,14 @@ fn private_check_refuses_the_copy_before_switch() {
 
     for linked in [false, true] {
         let mut world = records.committed(SEED, BASE);
-        let before = patches::source(&mut world);
+        let before = upgrade_fixtures::source(&mut world);
         world.owner_sets(SETS);
         world.trace_writes();
         let mut events = world.begin_open();
         loop {
             let [Event::Job { owner, of, job, page }] = events.as_slice() else { panic!("fixture page: {events:?}") };
             let request =
-                Request::Job { owner: *owner, answer: Ok(patches::job(*of, job, page).expect("fixture job")) };
+                Request::Job { owner: *owner, answer: Ok(upgrade_fixtures::job(*of, job, page).expect("fixture job")) };
             if page.end {
                 world.enqueue(request);
                 break;
@@ -142,6 +142,6 @@ fn private_check_refuses_the_copy_before_switch() {
         );
         assert_eq!(world.active(), b"1\n");
         assert!(!world.paths().iter().any(|path| path == b"generations/2/manifest"));
-        patches::kept(&before, &patches::source(&mut world), &"privacy refusal");
+        upgrade_fixtures::kept(&before, &upgrade_fixtures::source(&mut world), &"privacy refusal");
     }
 }

@@ -143,6 +143,29 @@ impl Workers {
     fn pull(&mut self, events: &mut Queue<root::Event>) {
         for _ in 0..self.host.pending() {
             match self.host.output() {
+                Some(kit::host::Output::Convert) => {
+                    let answer = match self.host.converting() {
+                        Some(waiting) => {
+                            assert!(
+                                jig_protocol_worker_wire::owns(waiting.wire),
+                                "the test service declares no application converters"
+                            );
+                            let mut out = skein_lib::Buffer::with_capacity(waiting.bound);
+                            match jig_protocol_worker_wire::convert(
+                                waiting.mode,
+                                &waiting.from,
+                                &waiting.to,
+                                waiting.value,
+                                &mut out,
+                            ) {
+                                Ok(()) => Ok(out.to_boxed()),
+                                Err(refusal) => Err(refusal),
+                            }
+                        }
+                        None => Ok(Box::<[u8]>::default()),
+                    };
+                    self.host.converted(self.host.now(), answer);
+                }
                 Some(kit::host::Output::Hello { channel, worker, hello }) => {
                     events.push(root::Event::Link { channel, link: root::link::Event::Hello { worker, hello } });
                 }

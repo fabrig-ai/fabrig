@@ -72,6 +72,39 @@ pub fn plant(stores: &mut Stores, ops: &[skein_kv::Op]) {
     assert!(above.is_empty());
 }
 
+/// Rows a store already holds for a frame layout; its held turn moves by a separate row.
+pub fn frame_layout(family: &str, root: &str, number: u16, text: &str) -> [skein_kv::Op; 2] {
+    use crate::registry_v1 as wire;
+    use skein_codec::Record as _;
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("fixture schema");
+    assert_eq!(schema.spelled(schema.family()), family.as_bytes());
+    let layout = schema.layout(schema.root(root.as_bytes(), None).expect("fixture root"), &[]).unwrap().digest();
+    let mut digest = skein_lib::sha256::Sha256::new();
+    digest.update(text.as_bytes());
+    let digest = digest.finish();
+    let row = wire::Layout {
+        root: root.as_bytes().into(),
+        variant: None,
+        layout,
+        text: digest,
+        held: List::with_capacity(0),
+    };
+    [
+        skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Text(digest), KEY_LIMIT).unwrap(),
+            value: wire::Text { text: text.as_bytes().into() }.encode(&wire::CEILINGS).unwrap(),
+        },
+        skein_kv::Op::Put {
+            key: keys::encode_own(
+                &keys::Own::Layout { family: family.into(), number, id: schema.version() },
+                KEY_LIMIT,
+            )
+            .unwrap(),
+            value: row.encode(&wire::CEILINGS).unwrap(),
+        },
+    ]
+}
+
 pub fn format_put(deployment: [u8; 16]) -> skein_kv::Op {
     skein_kv::Op::Put {
         key: keys::encode_own(&keys::Own::Format, KEY_LIMIT).expect("format key fits"),

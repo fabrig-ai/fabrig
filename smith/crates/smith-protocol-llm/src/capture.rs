@@ -135,6 +135,7 @@ mod tests {
                 ]),
             }]),
             reasoning_effort: None,
+            speed: None,
             affinity: None,
             max_output_tokens: Some(10),
         };
@@ -178,6 +179,7 @@ mod tests {
             .into_boxed_slice(),
             stop: skein_llm::Stop::MaxTokens,
             usage: skein_llm::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+            served: None,
         };
         let observed = completion(&input, &skein_llm_kit::limits()).expect("valid deterministic fixture");
         assert_eq!(
@@ -214,6 +216,7 @@ mod tests {
             }]
             .into(),
             reasoning_effort: None,
+            speed: None,
             affinity: None,
             max_output_tokens: None,
         };

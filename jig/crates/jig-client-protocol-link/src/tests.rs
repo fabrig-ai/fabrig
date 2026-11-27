@@ -20,15 +20,6 @@ mod reads;
 
 mod stream;
 
-#[test]
-fn the_link_serves_the_wire_s_version_alone() {
-    assert!(serves(c::VersionRange {
-        first: jig_client_protocol_wire::VERSION,
-        last: jig_client_protocol_wire::VERSION
-    }));
-    assert!(!serves(c::VersionRange { first: 22, last: 22 }));
-}
-
 const TOO_MANY_OWNERS: [jig_client_domain::Spoken; 16] = {
     let mut owners = [jig_client_domain::Spoken { family: 0, version: 1, layout: [1; 32] }; 16];
     let mut index = 0;

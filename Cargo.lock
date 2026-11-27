@@ -2574,6 +2574,10 @@ dependencies = [
 [[package]]
 name = "jig-test-layouts"
 version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-test-profile"
@@ -2730,13 +2734,17 @@ dependencies = [
 name = "jig-worker-link-world"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "jig-test-layouts",
  "jig-test-service",
  "skein-channel",
  "skein-codec",
@@ -7506,6 +7514,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-service",
+ "temper-engine-smith",
  "temper-fake",
  "temper-fetch-shell",
  "temper-fixtures",

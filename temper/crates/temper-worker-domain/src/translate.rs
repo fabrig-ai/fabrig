@@ -379,7 +379,7 @@ pub(crate) fn grant(value: jig_domain_link::Grant) -> Option<agent::Grant> {
 
 /// Preserve agent start policy separately from its diagnostic bytes.
 #[must_use]
-pub const fn start_cause(why: agent::RunInvalid) -> host::StartCause {
+pub const fn start_cause(why: &agent::RunInvalid) -> host::StartCause {
     match why {
         agent::RunInvalid::Grants => host::StartCause::Grants,
         agent::RunInvalid::HostPart { .. }
@@ -396,6 +396,7 @@ pub const fn start_cause(why: agent::RunInvalid) -> host::StartCause {
         | agent::RunInvalid::Budget(_)
         | agent::RunInvalid::Price(_)
         | agent::RunInvalid::Llm
+        | agent::RunInvalid::ProgramSpeed { .. }
         | agent::RunInvalid::Effort
         | agent::RunInvalid::Conversation
         | agent::RunInvalid::Endpoint => host::StartCause::Other,

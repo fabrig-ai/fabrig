@@ -30,7 +30,7 @@ enum StartCause = d::StartCause
 record InvalidStart
 enum Invalid = d::Invalid
 record InvalidValue by hand
-record Mismatch = d::Mismatch
+record Mismatch by hand
 enum Refusal by hand
 record RefusalValue by hand
 record Work by hand

@@ -3,7 +3,7 @@
 use std::convert::Infallible;
 
 use skein_channel::{
-    Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Role, Schema, Version, decode_control, parse_header,
+    Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Role, Schema, decode_control, parse_header,
 };
 use skein_lib::{List, Queue, Rng, stream};
 use skein_world::{
@@ -14,9 +14,7 @@ use skein_world::{
 fn schema() -> Schema {
     let mut kinds = List::with_capacity(1);
     kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 64 }).expect("kind");
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: 1, kinds }).expect("version");
-    Schema { magic: *b"fuzz", versions }
+    Schema { magic: *b"fuzz", version: 1, kinds }
 }
 
 fn limits() -> Limits {

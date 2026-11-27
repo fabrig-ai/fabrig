@@ -98,6 +98,7 @@ fn remove_and_offset_read_decode_like_the_session_on_both_paths() {
             affinity: llm::Affinity { key: [0; 16], thread: 0 },
             model: Box::from(b"fake-1".as_slice()),
             effort: None,
+            speed: None,
             system: Box::from(b"@decode".as_slice()),
             tools: grants,
             namespace: tools::Namespace::One,
