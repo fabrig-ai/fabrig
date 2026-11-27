@@ -61,6 +61,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
         session::Event::Completed {
             owner: session_owner.unwrap(),
             completion: session::llm::Completion {
+                served: llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::new([]),
                 content,
                 stop: llm::Stop::ToolUse,
@@ -148,6 +149,7 @@ fn resolved(prompt: session::llm::Prompt) -> (llm::Prompt, Vec<usize>) {
             affinity: prompt.affinity,
             model: prompt.model,
             effort: prompt.effort,
+            speed: None,
             system: prompt.system,
             tools: prompt.tools,
             namespace: prompt.namespace,
@@ -323,6 +325,7 @@ fn opening(line: u64, budget: session::Budget) -> session::record::Opening {
         spec,
         dialect: 1,
         prices: session::record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
+        speed: None,
         budget: 100,
         transcript: None,
         answered: Box::new([]),

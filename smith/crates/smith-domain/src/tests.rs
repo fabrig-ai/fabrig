@@ -71,6 +71,7 @@ fn decoded_batch_reserves_refusal_cells_before_any_payload() {
     };
     let mut peer = crate::peer::Peer::new(Token::new(17), 1, Some(0), 0, offered, &LIMITS.session);
     let completion = Completion {
+        served: crate::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         content: Box::new([
             Said::ToolCall {
@@ -345,13 +346,20 @@ impl Harness {
 
     /// The session `owner`'s LLM answers with `content`, stopping for tools.
     fn answer(&mut self, owner: Token, content: Box<[Said]>) -> Box<[Request]> {
-        let completion = Completion { reasoning_dropped: Box::default(), content, stop: Stop::ToolUse, usage: USAGE };
+        let completion = Completion {
+            served: crate::llm::ServedSpeed::Unreported,
+            reasoning_dropped: Box::default(),
+            content,
+            stop: Stop::ToolUse,
+            usage: USAGE,
+        };
         self.step(Event::Below(crate::Below::Completed { owner, completion }))
     }
 
     /// The session `owner`'s LLM ends its turn saying `text`.
     fn says(&mut self, owner: Token, text: &[u8]) -> Box<[Request]> {
         let completion = Completion {
+            served: crate::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::new([Said::Text { text: bytes(text), replay: None }]),
             stop: Stop::EndTurn,
@@ -413,6 +421,7 @@ fn charter() -> Charter {
         budget: BUDGET,
         llm: Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(1),
@@ -1177,6 +1186,7 @@ fn the_asks_of_an_answer_that_yields_are_forgotten() {
     let mut h = Harness::new();
     let (_, main, _) = h.admit(7, charter());
     let completion = Completion {
+        served: crate::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         content: Box::new([served(b"f1", verdict(b"approve"))]),
         stop: Stop::MaxTokens,
@@ -1908,6 +1918,7 @@ fn a_provider_charge_above_its_reserved_maximum_fails_without_recording_it() {
     };
     let (_, main, _) = harness.admit(1, selected);
     let completion = Completion {
+        served: crate::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([Said::Text { text: bytes(b"overbound"), replay: None }]),
         stop: Stop::EndTurn,
@@ -2174,6 +2185,7 @@ fn missing_provider_usage_settles_the_root_reservation_and_keeps_the_raw_fact() 
                 .step(Event::Below(crate::Below::Completed {
                     owner: main,
                     completion: Completion {
+                        served: crate::llm::ServedSpeed::Unreported,
                         reasoning_dropped: Box::default(),
                         content: Box::new([served(b"finish", verdict(b"approve"))]),
                         stop: Stop::ToolUse,

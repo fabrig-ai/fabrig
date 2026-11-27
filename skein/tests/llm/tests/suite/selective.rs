@@ -37,6 +37,7 @@ fn a_synthetic_echo_heavy_completion_decodes_under_tiny_retained_limits() {
         }]),
         effort: None,
         prompt_cache_key: None,
+        service_tier: None,
         choice: skein_llm::ToolChoice::Auto,
     };
     // Synthetic: replaces the recorded completion's instructions/tools/attribution echoes.
@@ -48,7 +49,7 @@ fn a_synthetic_echo_heavy_completion_decodes_under_tiny_retained_limits() {
         reasoning: Some(0),
     };
     let golden = openai::encode_peer_event(
-        &openai::Event::Completed { stop: openai::Stop::EndTurn, usage },
+        &openai::Event::Completed { stop: openai::Stop::EndTurn, usage, served: None },
         Some(&request),
         openai::Echo { instructions: true, tools: true, attribution_bytes: u32::try_from(ECHO_BYTES).unwrap() },
         &encoding,
@@ -174,4 +175,40 @@ fn a_long_messages_argument_delta_counts_the_whole_scanned_fragment() {
         "{:?}",
         world.seen
     );
+}
+
+#[test]
+fn responses_served_tier_is_optional_on_both_terminal_kinds() {
+    use skein_llm::Stop;
+    const LONG: &str = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
+    assert_eq!(LONG.len(), 40);
+    for (tier, stop, served) in [
+        (Some("ultrafast"), Stop::EndTurn, Some(b"ultrafast".as_slice())),
+        (Some("priority"), Stop::MaxTokens, Some(b"priority".as_slice())),
+        (None, Stop::EndTurn, None),
+        (Some(LONG), Stop::EndTurn, None),
+        (Some("Fast"), Stop::EndTurn, None),
+    ] {
+        let terminal = match stop {
+            Stop::MaxTokens => {
+                r#"{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"output_tokens":9}}}"#
+            }
+            _ => r#"{"type":"response.completed","response":{"status":"completed","usage":{"output_tokens":9}}}"#,
+        };
+        let terminal = match tier {
+            Some(tier) => terminal.replace(r#""response":{"#, &format!(r#""response":{{"service_tier":"{tier}","#)),
+            None => terminal.to_owned(),
+        };
+        let mut input = call(1);
+        input.prompt.speed = Some(b"fast".as_slice().into());
+        let wire = response(200, "Content-Type: text/event-stream\r\n", &events(&[&terminal]), true);
+        let mut world = World::new(input, tiny(), wire, 4);
+        world.fragmentation(7, 1);
+        world.request(client::Request::Start);
+        world.run();
+        world.assert_once();
+        assert!(world.seen.iter().any(|event| matches!(event, client::Event::Completed { completion, .. }
+            if completion.stop == stop && completion.usage.output == Some(9) && completion.served.as_deref() == served)),
+            "{tier:?}/{stop:?}: {:?}", world.seen);
+    }
 }

@@ -38,6 +38,7 @@ pub fn opening(words: &str, mode: run::Mode) -> run::Opening {
         reserve: charter::Reserve { turns: 0, time: Duration::ZERO },
         llm: charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: None,
             endpoint: charter::Endpoint(1),

@@ -45,8 +45,12 @@ pub struct HostPart {
     pub allowance: u64,
     /// Rendered mechanics; owned and encoded frame with the main name and effort empty.
     pub fixed: Cost,
-    /// One alternative model beyond its name and effort payloads.
+    /// One alternative model beyond its name and effort payloads, without a speed.
     pub model: Cost,
+    /// Adding a speed with prices, before its name and any aliases.
+    pub speed: Cost,
+    /// One alias beyond its text payload.
+    pub speed_alias: Cost,
     /// Non-asking declarations offered whatever the charter's families.
     pub always: Cost,
     /// `ToolFamilies::JIG`'s bit order, delegate first, ask last.
@@ -116,6 +120,8 @@ impl HostPart {
         allowance: 0,
         fixed: Cost::ZERO,
         model: Cost::ZERO,
+        speed: Cost::ZERO,
+        speed_alias: Cost::ZERO,
         always: Cost::ZERO,
         families: [Cost::ZERO; 12],
         asking: Cost::ZERO,
@@ -217,6 +223,17 @@ impl HostPart {
             bytes = bytes.saturating_add(skein_lib::len_u64(model.name.len()));
             if let Some(effort) = &model.effort {
                 bytes = bytes.saturating_add(skein_lib::len_u64(effort.len()));
+            }
+            if let Some(speed) = model.run_speed() {
+                cost = cost.plus(self.speed);
+                bytes = bytes.saturating_add(skein_lib::len_u64(speed.name.len()));
+                for name in &speed.also {
+                    cost = cost.plus(self.speed_alias);
+                    bytes = bytes.saturating_add(skein_lib::len_u64(name.len()));
+                }
+            } else if let Some(name) = model.standard_speed_override() {
+                cost = cost.plus(self.speed);
+                bytes = bytes.saturating_add(skein_lib::len_u64(name.len()));
             }
         }
         for _ in &policy.alternatives {

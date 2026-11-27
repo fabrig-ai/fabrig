@@ -52,13 +52,25 @@ pub struct UsagePatch {
     pub cache_read: Option<u64>,
     pub cache_write: Option<u64>,
 }
+
+/// A cumulative report of the speed that served a Messages request.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum SpeedPatch {
+    /// No new report; retain the speed from earlier usage.
+    Omitted,
+    /// A new report that cannot be used as a speed name.
+    Unusable,
+    /// The provider reported this speed name.
+    Reported(Box<[u8]>),
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
-    Started { usage: Usage },
+    Started { usage: Usage, served: Option<Box<[u8]>> },
     Added { index: u32, block: BlockStart },
     Delta { index: u32, delta: Delta },
     Done { index: u32 },
-    MessageDelta { stop: Option<Stop>, usage: UsagePatch },
+    MessageDelta { stop: Option<Stop>, usage: UsagePatch, speed: SpeedPatch },
     Completed,
     Failed { error: ProviderError },
     Progress,
@@ -96,6 +108,7 @@ pub struct StreamDecoder {
     over: bool,
     stop: Option<Stop>,
     usage: Usage,
+    served: Option<Box<[u8]>>,
     received_bytes: u64,
     part_bytes: u64,
     detail_bytes: u32,
@@ -114,7 +127,8 @@ impl StreamDecoder {
             ending: false,
             over: false,
             stop: None,
-            usage: Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+            usage: Usage::NONE,
+            served: None,
             received_bytes: 0,
             part_bytes: 0,
             detail_bytes: limits.detail_bytes,
@@ -180,12 +194,13 @@ impl StreamDecoder {
         out: &mut Queue<Output>,
     ) -> Result<(), DecodeError> {
         match event {
-            Event::Started { usage } => {
+            Event::Started { usage, served } => {
                 if self.started {
                     return Err(DecodeError::Malformed);
                 }
                 self.started = true;
                 self.usage = usage;
+                self.served = served;
                 self.usage.reasoning = None;
             }
             Event::Added { index, block } => self.add(index, block, limits, out)?,
@@ -206,7 +221,7 @@ impl StreamDecoder {
                 self.delta(index, delta, long, out)?;
             }
             Event::Done { index } => self.done(index, limits, out)?,
-            Event::MessageDelta { stop, usage } => {
+            Event::MessageDelta { stop, usage, speed } => {
                 if !self.started {
                     return Err(DecodeError::Malformed);
                 }
@@ -242,6 +257,11 @@ impl StreamDecoder {
                     self.stop = Some(stop);
                 }
                 merge_usage(&mut self.usage, usage);
+                match speed {
+                    SpeedPatch::Omitted => {}
+                    SpeedPatch::Unusable => self.served = None,
+                    SpeedPatch::Reported(name) => self.served = Some(name),
+                }
             }
             Event::Completed => {
                 if !self.started || self.active.is_some() {
@@ -249,7 +269,7 @@ impl StreamDecoder {
                 }
                 let stop = self.stop.ok_or(DecodeError::Malformed)?;
                 self.over = true;
-                out.push(Output::Completed { stop, usage: self.usage });
+                out.push(Output::Completed { stop, usage: self.usage, served: self.served.take() });
             }
             Event::Failed { error } => {
                 let failure = classify(crate::Provider::Anthropic, 0, Some(&error), RateLimit::NONE, wall);
@@ -626,10 +646,15 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
             if !json::array(field(message, b"content")?, 0)?.is_empty() {
                 return Err(DecodeError::Malformed);
             }
-            let patch = read_usage(json::reported_field(message, b"usage"));
+            let report = json::reported_field(message, b"usage");
+            let patch = read_usage(report);
             let mut usage = Usage::NONE;
             merge_usage(&mut usage, patch);
-            Ok(Event::Started { usage })
+            let served = match read_speed(report) {
+                SpeedPatch::Omitted | SpeedPatch::Unusable => None,
+                SpeedPatch::Reported(name) => Some(name),
+            };
+            Ok(Event::Started { usage, served })
         }
         b"content_block_start" => {
             let block = field(tokens, b"content_block")?;
@@ -692,7 +717,8 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
                     _ => return Err(DecodeError::WrongType),
                 }
             };
-            Ok(Event::MessageDelta { stop, usage: read_usage(json::reported_field(tokens, b"usage")) })
+            let report = json::reported_field(tokens, b"usage");
+            Ok(Event::MessageDelta { stop, usage: read_usage(report), speed: read_speed(report) })
         }
         b"message_stop" => Ok(Event::Completed),
         b"error" => Ok(Event::Failed { error: decode_error(value, limits)? }),
@@ -716,6 +742,14 @@ pub(super) fn validate_opaque(tokens: (&Document, json::Span)) -> Result<(), Dec
 }
 pub fn decode_error(value: &Json, limits: &Limits) -> Result<ProviderError, DecodeError> {
     crate::wire::decode_error(value, limits)
+}
+fn read_speed(usage: Option<(&Document, json::Span)>) -> SpeedPatch {
+    let Some(usage) = usage else { return SpeedPatch::Omitted };
+    let Some(value) = json::reported_field(usage, b"speed") else { return SpeedPatch::Omitted };
+    match crate::speed::reported(value) {
+        Some(name) => SpeedPatch::Reported(name),
+        None => SpeedPatch::Unusable,
+    }
 }
 fn read_usage(tokens: Option<(&Document, json::Span)>) -> UsagePatch {
     let Some(tokens) = tokens else {

@@ -300,6 +300,7 @@ fn declarations(
         affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
         model: opened.llm.model,
         effort: opened.llm.effort,
+        speed: None,
         system: opened.system,
         tools: smith_domain::tools::Grants {
             inspect: opened.tools.inspect,

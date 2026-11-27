@@ -152,6 +152,9 @@ impl Config {
         if !self.contains(llm.endpoint) {
             return Err(Invalid::Endpoint);
         }
+        if let Some(program) = self.program(llm.endpoint) {
+            llm.check_program_speed(&program.name)?;
+        }
         for endpoint in &self.limits {
             if llm.endpoint == endpoint.endpoint {
                 if llm.window == 0 || llm.output == 0 || llm.window > endpoint.window || llm.output > endpoint.output {

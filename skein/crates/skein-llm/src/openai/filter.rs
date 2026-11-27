@@ -17,6 +17,7 @@ pub(crate) const EVENT: Filter = Filter {
             b"response",
             Keep::Into(&[
                 field(b"status", Keep::Text(STRINGS)),
+                field(b"service_tier", Keep::Text(STRINGS)),
                 field(
                     b"usage",
                     Keep::Into(&[
