@@ -5,6 +5,7 @@
 
 - **Present:** 11.9, the build and both profile listings share target selection for package and workspace runs.
 - **Not yet:** 7.3, 11.7: on macOS, which has no `/proc`, `cpu.py`'s `session_processes` cannot list a stopped command's session, so stopping one (a wall hard limit, an interrupt, a failed listing) raises `FileNotFoundError` in place of settling it. A run that ends by itself never reaches it, and the macOS workflow's parts set no wall hard limit, so nothing on their path reaches it before their tests run.
+- **Not yet:** the opening's Campaigns: the campaign still replays each finding's first case at the last campaign's commit, in a worktree of it, where it marks each finding the last campaign also had (`tools/tiers/campaign.md`, 4.2). [in flight: change 21769]
 
 The gate tables' form and figures, the summary by layer, the ledger, the
 held budget and the moves are `tools/tiers/budgets.md`'s; its status has
