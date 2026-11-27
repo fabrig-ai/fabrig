@@ -819,6 +819,84 @@ fn a_missing_commit_file_refuses_by_name_and_removes_the_recipe() {
     assert_eq!(world.walks().len(), 0);
 }
 
+fn settings_input(lines: &[&str]) -> RecipeInput {
+    let mut lines: Vec<_> = lines.iter().map(|line| (*line).to_owned()).collect();
+    lines.push(r#"web see "Ready""#.into());
+    RecipeInput { after: "fresh".into(), lines, readme: "A settings recipe.".into(), scripts: None }
+}
+
+#[test]
+fn a_settings_proposal_copies_only_paths_before_the_first_flag() {
+    let mut world = PlaceWorld::new();
+    let files = world.home.directory.join("passes/1/files");
+    let expected = world.place.paths.directory.join("expected-files");
+    for root in [&files, &expected] {
+        world.tree.directory(&root.join("nested"), DirectoryMode::Parents).expect("nested files");
+        for (path, bytes) in [
+            ("landing.json", br#"{"landing":true}"#.as_slice()),
+            ("nested/b.json", b"{}"),
+            ("Please review", b"review note"),
+        ] {
+            write(&mut world.tree, root.join(path), bytes).expect("settings file");
+        }
+    }
+    for path in ["5", "k1"] {
+        write(&mut world.tree, files.join(path), b"not a settings input").expect("flag value file");
+    }
+    let input = settings_input(&[
+        r#"ctl settings propose "landing.json" - "nested/b.json" --against 5 --key k1"#,
+        r#"ctl "settings" "propose" landing.json "Please review" "--against" 5"#,
+    ]);
+    let code = world.place.recipe("added", &input, &[], &mut Vec::new()).expect("copied before hash and walk");
+    assert_eq!(code, 0);
+    assert_eq!(world.walks().len(), 1);
+}
+
+#[test]
+fn ctl_without_settings_paths_writes_no_files_directory() {
+    for lines in [["ctl settings apply -"].as_slice(), &["ctl settings show", "ctl task list"]] {
+        let mut world = PlaceWorld::new();
+        let input = settings_input(lines);
+        assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("no files to copy"), 0);
+        assert!(!world.tree.exists(world.place.setups.join("added/files")));
+    }
+}
+
+#[test]
+fn a_missing_settings_file_refuses_by_name_and_removes_the_recipe() {
+    let mut world = PlaceWorld::new();
+    let files = world.home.directory.join("passes/1/files");
+    world.tree.directory(&files, DirectoryMode::Parents).expect("pass files");
+    write(&mut world.tree, files.join("present.json"), b"{}").expect("first file");
+    let input = settings_input(&["ctl settings apply present.json missing.json"]);
+    let why = world.place.recipe("added", &input, &[], &mut Vec::new()).expect_err("missing file");
+    assert!(why.to_string().contains("missing.json"), "{why}");
+    assert!(!world.tree.exists(world.place.setups.join("added")), "no partially written recipe");
+    assert_eq!(world.walks(), [] as [String; 0]);
+}
+
+#[test]
+fn invalid_settings_paths_refuse_and_remove_the_recipe() {
+    for path in ["../escape", "/escape", "dir//escape"] {
+        let mut world = PlaceWorld::new();
+        let input = settings_input(&[&format!("ctl settings apply \"{path}\"")]);
+        let why = world.place.recipe("added", &input, &[], &mut Vec::new()).expect_err("invalid path");
+        assert_eq!(why.to_string(), format!("recipe files: invalid path {path}"));
+        assert!(!world.tree.exists(world.place.setups.join("added")));
+    }
+}
+
+#[test]
+fn malformed_settings_lines_are_left_to_recipe_hash() {
+    let mut world = PlaceWorld::new();
+    write(&mut world.tree, world.place.paths.directory.join("refuse-added"), "added:2: unclosed quote")
+        .expect("hash refusal");
+    let input = settings_input(&[r#"ctl settings apply not-copied.json --flag "unclosed"#]);
+    let why = world.place.recipe("added", &input, &[], &mut Vec::new()).expect_err("hash refused");
+    assert!(why.to_string().contains("added:2: unclosed quote"), "{why}");
+    assert!(!world.tree.exists(world.place.setups.join("added")));
+}
+
 #[test]
 fn a_recipe_without_commits_writes_no_files_directory() {
     let mut world = PlaceWorld::new();

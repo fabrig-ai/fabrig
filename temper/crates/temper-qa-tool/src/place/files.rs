@@ -1,6 +1,8 @@
-//! A recipe keeps its commit files (qa/places.md, 6; client/drive.md, 3.1 and 3.5).
-//! Only the fields needed to copy files are read here; the place's drive tool
-//! validates the whole recipe. Its grammar uses the journeys' quoting rules.
+//! A recipe keeps the files named by forge commit, forge push, deployment patch,
+//! ctl settings apply and ctl settings propose (temper/docs/design/testing/qa/places.md, 6;
+//! temper/docs/design/client/drive.md, 3.4 and 3.5).
+//! Read fields to find the files to copy, using the journeys' quoting rules;
+//! the place's drive tool validates the whole recipe.
 use crate::faces::{DirectoryMode, FilesFace, PathKind};
 use crate::{Refusal, refused};
 use std::{ffi::OsString, os::unix::ffi::OsStringExt, path::Path};
@@ -12,6 +14,14 @@ pub(super) fn copy(
     files: &mut impl FilesFace,
 ) -> Result<(), Refusal> {
     for line in lines {
+        if let Some(tail) = line.strip_prefix("ctl ") {
+            if let Some(paths) = settings_paths(tail) {
+                for path in paths {
+                    copy_path(path, source, destination, files)?;
+                }
+            }
+            continue;
+        }
         let (tail, skip) = if let Some(tail) = line.strip_prefix("forge commit forgejo ") {
             (tail, 2)
         } else if let Some(tail) = line.strip_prefix("forge push forgejo ") {
@@ -26,25 +36,53 @@ pub(super) fn copy(
             fields.next().map_err(field_refusal)?;
         }
         while !fields.rest.is_empty() {
-            let bytes = fields.next().map_err(field_refusal)?;
-            if !(1..=256).contains(&bytes.len())
-                || bytes.contains(&0)
-                || bytes.split(|byte| *byte == b'/').any(|part| part.is_empty() || part == b"." || part == b"..")
-            {
-                return Err(refused(format!("recipe files: invalid path {}", String::from_utf8_lossy(&bytes))));
-            }
-            let path = OsString::from_vec(bytes);
-            let from = source.join(&path);
-            let to = destination.join(&path);
-            let metadata = super::io(&from, files.facts(&from, false))?;
-            if metadata.kind != PathKind::File {
-                return Err(refused(format!("{}: not a regular file", from.display())));
-            }
-            let parent = to.parent().expect("recipe file's parent");
-            super::io(parent, files.directory(parent, DirectoryMode::Parents))?;
-            super::io(&from, files.copy(&from, &to))?;
+            let path = fields.next().map_err(field_refusal)?;
+            copy_path(path, source, destination, files)?;
         }
     }
+    Ok(())
+}
+
+// Read through the flags too, so a malformed settings line is left to recipe hash.
+fn settings_paths(tail: &str) -> Option<Vec<Vec<u8>>> {
+    let mut fields = Fields { rest: tail.as_bytes() };
+    if fields.next().ok()? != b"settings" || !matches!(fields.next().ok()?.as_slice(), b"apply" | b"propose") {
+        return None;
+    }
+    let mut paths = Vec::new();
+    let mut before_flag = true;
+    while !fields.rest.is_empty() {
+        let field = fields.next().ok()?;
+        if field == b"-" {
+            continue;
+        }
+        if field.starts_with(b"-") {
+            before_flag = false;
+        }
+        if before_flag {
+            paths.push(field);
+        }
+    }
+    Some(paths)
+}
+
+fn copy_path(bytes: Vec<u8>, source: &Path, destination: &Path, files: &mut impl FilesFace) -> Result<(), Refusal> {
+    if !(1..=256).contains(&bytes.len())
+        || bytes.contains(&0)
+        || bytes.split(|byte| *byte == b'/').any(|part| part.is_empty() || part == b"." || part == b"..")
+    {
+        return Err(refused(format!("recipe files: invalid path {}", String::from_utf8_lossy(&bytes))));
+    }
+    let path = OsString::from_vec(bytes);
+    let from = source.join(&path);
+    let to = destination.join(&path);
+    let metadata = super::io(&from, files.facts(&from, false))?;
+    if metadata.kind != PathKind::File {
+        return Err(refused(format!("{}: not a regular file", from.display())));
+    }
+    let parent = to.parent().expect("recipe file's parent");
+    super::io(parent, files.directory(parent, DirectoryMode::Parents))?;
+    super::io(&from, files.copy(&from, &to))?;
     Ok(())
 }
 
