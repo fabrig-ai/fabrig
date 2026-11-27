@@ -11,9 +11,3 @@
   - 7: the chat store's layout cases run over a real directory in
     `smith-local-protocol::suite`, not on the fake disk.
     [in flight: change 13947]
-  - 6.3: the session world's loop of 1000 seeds takes no case from
-    skein's seam, its checks over the loop run in every mode, its
-    referee refuses a write that creates a fixture file its session
-    removed, and `campaign-smith` doesn't list
-    `smith-session-world::suite` (`tools/tiers/layers.md`, 9.3).
-    [in flight: change 20858]
