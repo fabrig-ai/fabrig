@@ -485,11 +485,12 @@ TrialAnswered: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 TrialClass: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 TrialEnded: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 TrialFailed: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
-TrialRow: ceilings encoded=1053 decoded=1024; at_most(3) encoded=32 decoded=3
-TrialState: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
+TrialLimited: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
+TrialRow: ceilings encoded=1058 decoded=1024; at_most(3) encoded=37 decoded=3
+TrialState: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 TrialStep: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 TrialWhy: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
-Trials: ceilings encoded=67398 decoded=69120; at_most(3) encoded=102 decoded=177
+Trials: ceilings encoded=67718 decoded=69632; at_most(3) encoded=117 decoded=201
 TryAccount: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 UnderPrefix: ceilings encoded=3084 decoded=3072; at_most(3) encoded=21 decoded=9
 UnmappedReview: ceilings encoded=41 decoded=0; at_most(3) encoded=41 decoded=0

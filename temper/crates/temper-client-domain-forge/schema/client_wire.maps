@@ -15,6 +15,7 @@ record TrialEnded
 enum TrialWhy = f::trials::Why
 record TrialAnswered
 record TrialFailed
+record TrialLimited { reset via s::wall }
 enum TrialState = f::trials::State
 record TrialRow by hand
 enum Kind = g::Kind { github = GitHub }
