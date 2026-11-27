@@ -82,7 +82,7 @@ fn a_playground_page_replaces_the_last_answer_or_clears_it() {
     for (row, page, present) in [
         ("playground", page(), true),
         ("none", Readout::Family { family: wire::FORGE, record: None }, false),
-        ("not served", Readout::NotServed { family: Some(wire::FORGE), served: None }, false),
+        ("not served", Readout::NotServed { family: Some(wire::FORGE) }, false),
         ("limit", Readout::Limit, false),
         ("undecodable", Readout::Family { family: wire::FORGE, record: Some(Box::new([255])) }, false),
         ("another version", Readout::Family { family: wire::FORGE, record: Some(another_version) }, false),
@@ -284,7 +284,7 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
 fn the_first_playground_read_answer_counts_even_when_it_has_no_record() {
     for page in [
         Readout::Family { family: wire::FORGE, record: None },
-        Readout::NotServed { family: Some(wire::FORGE), served: None },
+        Readout::NotServed { family: Some(wire::FORGE) },
         Readout::Limit,
         Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
     ] {

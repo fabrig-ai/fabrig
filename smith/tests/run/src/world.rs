@@ -1585,7 +1585,7 @@ impl World {
     /// opened.
     fn fact(&mut self, fact: &run::facts::Fact) {
         use run::facts::FactKind as Fact;
-        self.facts_seen.push(*fact);
+        self.facts_seen.push(fact.clone());
         let fact = &fact.kind;
         let (Fact::Admitted { run, .. }
         | Fact::MessageRead { run, .. }

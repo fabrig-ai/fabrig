@@ -104,6 +104,10 @@ fn write_request(out: &mut writer::Encoder, prompt: &Prompt, limits: &openai::Li
         out.key(b"prompt_cache_key");
         out.string(&crate::affinity::uuid(&affinity.key));
     }
+    if let Some(speed) = &prompt.speed {
+        out.key(b"service_tier");
+        out.string(speed);
+    }
     out.key(b"text");
     out.object_start();
     out.key(b"verbosity");
@@ -295,6 +299,7 @@ pub(crate) fn request(prompt: &Prompt, provider: Provider, limits: &openai::Limi
         tools: tools.into_boxed(),
         input: input.into_boxed(),
         effort: prompt.reasoning_effort.clone(),
+        service_tier: prompt.speed.clone(),
         prompt_cache_key: match prompt.affinity {
             Some(affinity) => Some(bytes::copy_of(&crate::affinity::uuid(&affinity.key))),
             None => None,
@@ -319,6 +324,7 @@ fn validate(prompt: &Prompt, provider: Provider, limits: &openai::Limits) -> Res
         return Err(Error::limit(crate::Cap::HistoryItems, limits.history_items));
     }
     validate_choice(&prompt.choice, &prompt.tools)?;
+    crate::speed::admit(prompt.speed.as_deref())?;
     let mut budget: u64 = 0;
     match &prompt.choice {
         crate::ToolChoice::Auto | crate::ToolChoice::None => {}
@@ -857,6 +863,7 @@ mod tests {
             tools: Box::new([]),
             messages: Box::new([Message { role, content: Box::new([block]) }]),
             reasoning_effort: None,
+            speed: None,
             affinity: None,
             choice: crate::ToolChoice::Auto,
             max_output_tokens: None,

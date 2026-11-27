@@ -172,6 +172,7 @@ fn the_same_typed_result_renders_after_a_saved_turn_is_replayed() {
     assert!(live_text.ends_with(b"[next line 6] [window clamped: 99 bytes to 32 bytes]"));
     let history = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         choice: smith_domain::llm::ToolChoice::Auto,
         namespace: smith_domain::tools::Namespace::One,
@@ -205,6 +206,7 @@ fn the_same_typed_result_renders_after_a_saved_turn_is_replayed() {
 fn written_text_and_mechanical_feedback_keep_their_error_flags() {
     let history = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         choice: smith_domain::llm::ToolChoice::Auto,
         namespace: smith_domain::tools::Namespace::One,
@@ -257,6 +259,7 @@ fn oversized_write_and_edit_replay_the_same_concrete_piecewise_advice() {
     for name in [b"write".as_slice(), b"edit"] {
         let history = llm::Prompt {
             effort: None,
+            speed: None,
             purpose: llm::Purpose::Ordinary { guard: None },
             choice: smith_domain::llm::ToolChoice::Auto,
             namespace: tools::Namespace::One,
@@ -351,6 +354,7 @@ fn owed_results_prompt(purpose: llm::Purpose) -> llm::Prompt {
     ]);
     llm::Prompt {
         effort: None,
+        speed: None,
         purpose,
         choice: match purpose {
             llm::Purpose::Ordinary { .. } => llm::ToolChoice::Only(Box::new([llm::Served::Finish])),
@@ -454,6 +458,7 @@ fn render_not_run(why: llm::NotRun, calls: usize) -> Box<[u8]> {
     }
     let history = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         choice: llm::ToolChoice::Auto,
         namespace: tools::Namespace::One,

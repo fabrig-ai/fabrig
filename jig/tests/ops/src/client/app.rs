@@ -544,7 +544,7 @@ mod tests {
     #[test]
     fn link_receipts_keep_version_refusals_and_ended_sessions() {
         let cases = [
-            (jig_client::Up::Served { served: false, versions: None }, "[OutOfDate]"),
+            (jig_client::Up::Served { served: false }, "[OutOfDate]"),
             (
                 jig_client::Up::WatchEnded {
                     watch: skein_lib::Token::new(7),

@@ -233,7 +233,7 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     failure,
                 }));
             }
-            // This shell never hands patch sets; routing answers Site with NoSite.
+            // This shell never hands owner sets; routing answers Site with NoSite.
             other @ (protocol::Event::Checkpointed { .. }
             | protocol::Event::CheckpointRefused { .. }
             | protocol::Event::Restored { .. }

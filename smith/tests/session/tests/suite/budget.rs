@@ -190,7 +190,7 @@ fn missing_input_or_output_charges_the_full_reservation_and_preserves_raw_report
             cache_write_tokens: None,
             reasoning_tokens: None,
         };
-        assert_eq!(session::preview_completion(&world.domain, owner, raw), Ok(13));
+        assert_eq!(session::preview_completion(&world.domain, owner, raw, &llm::ServedSpeed::Unreported), Ok(13));
         world.complete(text(), llm::Stop::EndTurn, raw);
         assert_eq!(world.used, [raw]);
         assert_eq!(world.spend, [13]);

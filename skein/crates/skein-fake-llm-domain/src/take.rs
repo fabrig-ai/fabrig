@@ -30,6 +30,7 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                                 | Line::Fail { .. }
                                 | Line::Drawn { .. }
                                 | Line::Cut { .. }
+                                | Line::Served { .. }
                                 | Line::Opaque { .. } => {}
                             }
                         }
@@ -40,6 +41,7 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                     | Line::Fail { .. }
                     | Line::Drawn { .. }
                     | Line::Cut { .. }
+                    | Line::Served { .. }
                     | Line::Opaque { .. } => {}
                 }
             }
@@ -186,9 +188,12 @@ pub(crate) fn measure(turn: &Turn, query: &Query) -> Result<u64, Failure> {
             }
             Line::Text { text } => (text, false),
             Line::Call { arguments, .. } => (arguments, true),
-            Line::Pieces { .. } | Line::Fail { .. } | Line::Drawn { .. } | Line::Cut { .. } | Line::Opaque { .. } => {
-                continue;
-            }
+            Line::Pieces { .. }
+            | Line::Fail { .. }
+            | Line::Drawn { .. }
+            | Line::Cut { .. }
+            | Line::Served { .. }
+            | Line::Opaque { .. } => continue,
         };
         let expanded = walk(source, earlier, query, arguments, None)?;
         total = total.checked_sub(len_u64(source.len())).ok_or(Error::ContextTooLong)?;
@@ -288,6 +293,7 @@ fn walk(
                 Line::Text { .. }
                 | Line::Call { .. }
                 | Line::Pieces { .. }
+                | Line::Served { .. }
                 | Line::Opaque { .. }
                 | Line::Fail { .. }
                 | Line::Drawn { .. }

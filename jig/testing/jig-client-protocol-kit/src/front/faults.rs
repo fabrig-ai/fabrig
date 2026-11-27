@@ -58,14 +58,12 @@ impl Protocol {
             settings.served = jig_client_kit::test::list([
                 jig_protocol_engine_clients::Served {
                     family: None,
-                    first: u32::MAX,
-                    last: u32::MAX,
+                    version: u32::MAX,
                     layout: jig_client_protocol_wire::LAYOUT,
                 },
                 jig_protocol_engine_clients::Served {
                     family: Some(1),
-                    first: 2,
-                    last: 2,
+                    version: 2,
                     layout: jig_client_test_protocol_wire::LAYOUT,
                 },
             ]);

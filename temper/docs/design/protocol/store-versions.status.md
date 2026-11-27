@@ -1,6 +1,6 @@
 # store-versions: status
 
-2026-11-22. Where the tree's code lags or departs from [store-versions.md](store-versions.md).
+2026-11-27. Where the tree's code lags or departs from [store-versions.md](store-versions.md).
 
 - **Not yet:** 1: `ShownTest`: a tier row's many names are `FailingTest`s,
   widened to 4,096 bytes in the test-id jobs' wide text, and up to

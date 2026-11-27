@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 pub use wire::{CheckpointFile, Count};
 
-/// Each owner's applied patch level (protocol/store/records.md 3).
+/// Each owner's level (protocol/store/records.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Levels {
     pub skein: Option<u32>,

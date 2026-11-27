@@ -369,7 +369,11 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
         wire::Ending::Refused(record) => {
             let refusal = match record.value {
                 wire::Refusal::Busy => host::Refusal::Busy,
-                wire::Refusal::Version(record) => host::Refusal::Version(mapped::mismatch_to_domain(record)),
+                wire::Refusal::Version(record) => host::Refusal::Version(host::Mismatch {
+                    wire: record.wire,
+                    version: record.version,
+                    worker_version: record.highest,
+                }),
                 wire::Refusal::Invalid(record) => host::Refusal::Invalid(mapped::invalid_to_domain(record.value)),
             };
             host::Ending::Refused(refusal)

@@ -68,6 +68,8 @@ fn model() -> c::SettingModel {
         price_unit: 1000,
         efforts: list([words("high")]),
         effort: Some(words("high")),
+        speeds: list([]),
+        speed: None,
     }
 }
 fn stock_model(number: u32, model: c::SettingModel) -> c::SettingValue {
@@ -905,6 +907,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Model(c::SettingNumber { number: 4 }),
+                    c::SettingFault::Shape,
+                ),
+            },
+            "out of shape; item 0; model 4: shape",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -1065,7 +1077,7 @@ fn settings_reads_keep_their_neighbours_not_served_and_role_statuses() {
         vec!["revision", "list"],
     ] {
         for (page, status) in [
-            (jig_client::Readout::NotServed { family: None, served: None }, 1),
+            (jig_client::Readout::NotServed { family: None }, 1),
             (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
         ] {
             let (mut root, call) = fixtures::read_call(&argv);
@@ -1570,7 +1582,7 @@ fn proposal_reads_use_one_exact_read_and_keep_not_served_and_role_statuses() {
     );
     assert_eq!(root.watches.len(), 0);
     for (page, status) in [
-        (jig_client::Readout::NotServed { family: None, served: None }, 1),
+        (jig_client::Readout::NotServed { family: None }, 1),
         (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
     ] {
         let (mut root, call) = fixtures::read_call(&["proposal", "show", "p73/7"]);
@@ -2529,7 +2541,7 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
         }
         for page in [
             jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
-            jig_client::Readout::NotServed { family: Some(1), served: None },
+            jig_client::Readout::NotServed { family: Some(1) },
             jig_client::Readout::Family { family: 1, record: Some(Box::new([0])) },
         ] {
             let mut root = fixtures::signed_in(fixtures::PARTY);
@@ -3821,6 +3833,70 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let bytes = jig::render::settings_text(&inventory, None, &crate::limits::tools());
     let text = core::str::from_utf8(&bytes).unwrap();
     assert!(text.contains("model 4") && text.contains("GPT-6.1 Terra"), "{text}");
+}
+
+#[test]
+fn ctl_shows_applies_and_proposes_a_models_speeds() {
+    let setting = c::Setting::Model(c::SettingNumber { number: 4 });
+    let mut model = model();
+    model.speeds = list([
+        c::SettingSpeed {
+            name: words("fast"),
+            also: list([words("priority")]),
+            input_price: 4000,
+            cached_price: 200,
+            cache_write_price: Some(5000),
+            output_price: 20_000,
+        },
+        c::SettingSpeed {
+            name: words("ultrafast"),
+            also: list([]),
+            input_price: 12_000,
+            cached_price: 600,
+            cache_write_price: Some(15_000),
+            output_price: 60_000,
+        },
+    ]);
+    model.speed = Some(words("ultrafast"));
+    let value = c::SettingValue::Model(Box::new(c::CatalogueEntry {
+        number: 4,
+        model,
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: c::ModelSource::Stock,
+        estimated: false,
+    }));
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "model", "4", "--json"]);
+    newest_for_setting(&mut root, call);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 5,
+            value: Some(value.clone()),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 0);
+    let file = file_from_setting(&answer.stdout);
+    let expected = [c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }];
+    let (root, call) = changed(&file, false);
+    let c::Ask::ChangeSettings(change) = fixtures::act_ask(&root, call) else { panic!("settings change") };
+    assert_eq!(change.items.as_slice(), &expected);
+    let (root, call) = proposed(&file, false);
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = fixtures::act_ask(&root, call) else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items.as_slice(), &expected);
 }
 
 #[path = "settings_overlays.rs"]

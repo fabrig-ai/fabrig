@@ -200,7 +200,7 @@ fn a_refused_forges_watch_is_kept_until_the_next_sign_in() {
     assert!(watch(up(&mut root, Up::Watched { watch: me, event: f::frame(f::PARTY) })).is_none());
     event(&mut root, Event::SignedOut);
     let mut out = event(&mut root, Event::Client { event: client::Event::SignIn { with: client::With::Transport } });
-    let mut served = up(&mut root, Up::Served { served: true, versions: None });
+    let mut served = up(&mut root, Up::Served { served: true });
     while let Some(request) = served.pop() {
         out.push(request);
     }

@@ -67,6 +67,7 @@ fn model_change_compaction() -> Scripted {
         Some(record::Llm {
             model: bytes(b"model"),
             effort: None,
+            speed: None,
             window: MODEL_WINDOW,
             output: 128,
             prices: recorded::PRICES,

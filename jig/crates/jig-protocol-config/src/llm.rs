@@ -44,6 +44,7 @@ impl Llm {
     }
 }
 pub(crate) mod providers;
+mod speeds;
 pub use jig_domain_core_vocabulary::settings::{
     ENDPOINTS, Endpoint, EndpointAddress, Header, PROVIDERS, ProviderSetting, Transport,
 };
@@ -329,6 +330,7 @@ fn model(
             Err(what) => problems.push(path.member(b"effort"), what),
         }
     }
+    let speeds = speeds::read(&mut object, document, path, problems);
     let mut prices = None;
     if let Some(at) = object.required(document, b"prices", path, problems) {
         prices = price(document, at, &path.member(b"prices"), problems);
@@ -380,6 +382,7 @@ fn model(
     model.output = output?;
     model.efforts = efforts?;
     model.effort = effort;
+    speeds?.apply(&mut model, path, problems);
     Some(ParsedModel { model, description, shown, picker })
 }
 /// The efforts a model takes, by name in order, none when absent (protocol/configuration-engine.md, 1).
@@ -418,46 +421,48 @@ fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Probl
 }
 fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Model> {
     let mut object = check::object(document, at, path, problems, "prices")?;
-    let input_price = check::integer(&mut object, document, b"input", path, problems);
-    let cached_price = check::integer(&mut object, document, b"cached", path, problems);
-    let output_price = check::integer(&mut object, document, b"output", path, problems);
+    let rates = rates(&mut object, document, path, problems);
     let price_unit = check::count(&mut object, document, b"unit", path, problems);
-    let mut cache_write_price = None;
-    if let Some(at) = object.member(document, b"cache_write") {
-        match read::integer(document, at, u64::MAX) {
-            Ok(value) => cache_write_price = Some(value),
-            Err(what) => problems.push(path.member(b"cache_write"), what),
-        }
-    }
-    for (member, zero) in [
-        (b"input".as_slice(), input_price == Some(0)),
-        (b"cached".as_slice(), cached_price == Some(0)),
-        (b"output".as_slice(), output_price == Some(0)),
-        (b"unit".as_slice(), price_unit == Some(0)),
-        (b"cache_write".as_slice(), cache_write_price == Some(0)),
-    ] {
-        if zero {
-            problems.push(path.member(member), What::Bound);
-        }
+    if price_unit == Some(0) {
+        problems.push(path.member(b"unit"), What::Bound);
     }
     object.finish(document, path, problems);
+    let rates = rates?;
     Some(Model {
-        provider: 0,
-        name: Box::default(),
-        dialect: 0,
-        endpoint: 0,
-        program: None,
-        window: 0,
-        cache_life_ms: 0,
-        output: 0,
-        input_price: input_price?,
-        cached_price: cached_price?,
-        cache_write_price,
-        output_price: output_price?,
+        input_price: rates.input,
+        cached_price: rates.cached,
+        cache_write_price: rates.cache_write,
+        output_price: rates.output,
         price_unit: price_unit?,
-        efforts: Box::default(),
-        effort: None,
+        ..Model::hole()
     })
+}
+
+struct Rates {
+    input: u64,
+    cached: u64,
+    cache_write: Option<u64>,
+    output: u64,
+}
+
+fn rates(object: &mut read::Object, document: &Document, path: &Path, problems: &mut Problems) -> Option<Rates> {
+    let input = check::integer(object, document, b"input", path, problems);
+    let cached = check::integer(object, document, b"cached", path, problems);
+    let output = check::integer(object, document, b"output", path, problems);
+    let cache_write = check::optional_integer(object, document, b"cache_write", path, problems);
+    let mut zero = false;
+    for (member, value) in
+        [(b"input".as_slice(), input), (b"cached", cached), (b"output", output), (b"cache_write", cache_write)]
+    {
+        if value == Some(0) {
+            problems.push(path.member(member), What::Bound);
+            zero = true;
+        }
+    }
+    if zero {
+        return None;
+    }
+    Some(Rates { input: input?, cached: cached?, cache_write, output: output? })
 }
 
 // LLM and OAuth dial socket addresses, with host resolution at startup.

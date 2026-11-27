@@ -159,8 +159,9 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   the next start makes a new, empty store. The new store has no tasks,
   sign-ins, accounts or keys, and every client signs in again."
 - `OlderBuild { why: Behind }`: "`<deployment>` holds a store from an
-  older build, at patch levels behind this build's, and this start has
-  changed nothing in it. This build keeps no patch: start build
+  older build, at levels behind this build's, and this start has
+  changed nothing in it. This build keeps none of the jobs that bring it
+  there: start build
   `<bridge>` on it and let it open, which brings it to this
   build's levels, then start this build."
 - `OlderBuild { why: Floor }` (`records.md`, 3): "`<deployment>` holds a
@@ -175,8 +176,8 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
 `<bridge>` is `FLOOR_BRIDGE` (`records.md`, 3) in every refusal of a store
 older than the build, and only there.
 
-- `Ahead`: "`<deployment>` holds a store from a later build, at patch levels
-  past this build's, and this start has changed nothing in it. No patch runs
+- `Ahead`: "`<deployment>` holds a store from a later build, at levels
+  past this build's, and this start has changed nothing in it. No job runs
   backwards: start the later build again, or restore `<deployment>` from a
   backup this build made."
 - `Set`: "This build's owner sets do not check, and this start has
@@ -184,14 +185,14 @@ older than the build, and only there.
   before it again."
 - `Check { why: Load }`: "The check before the switch found a record the
   restart could not load within the deployment's limits in the copy of the
-  store this start patched in `<deployment>`, and the generation it patched
-  from stays active, unchanged. Every start of this build checks a fresh copy
+  store this start upgraded in `<deployment>`, and the generation it
+  upgraded from stays active, unchanged. Every start of this build checks a fresh copy
   the same way: start the build before it again, which opens that generation
   as it was."
 - `Check { why: Private }`: "The check before the switch found a file in the
-  secrets' store of the copy this start patched in `<deployment>` that is not
-  private to the service's user, and the generation it patched from stays
-  active, unchanged. A start makes its copy's files private, so another
+  secrets' store of the copy this start upgraded in `<deployment>` that is
+  not private to the service's user, and the generation it upgraded from
+  stays active, unchanged. A start makes its copy's files private, so another
   process or user changed one: make sure nothing else writes in
   `<deployment>`, and start again."
 - `Layout`: "`<deployment>` holds values at a layout this build cannot
@@ -209,6 +210,13 @@ older than the build, and only there.
   started, then start this build." The shell names the family, the
   value type, the layout's id, how many of its values this build
   cannot keep, and the first one's declaration, part and why, after it.
+- `Layout { why: Unread }` (`layouts.md`, 5.6): "`<deployment>` holds
+  values at an older layout that this build cannot read, and this
+  start has changed nothing in it. Start the build before it again, or
+  a later build whose written job converts that layout." The shell
+  names the family, the value type, the layout's id, how many of its
+  values this build cannot read, and the first one's declaration, part
+  and why, after it.
 - `Job`: "A job this build runs at open refused a record while this
   start upgraded the store in `<deployment>`, and the generation it
   upgraded from stays active, unchanged. Every start of this build
@@ -232,8 +240,8 @@ pub enum OpenRefusal {
     Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned }, // layouts.md, 5.3; the family as its row's key names it, which may be one the binary lacks
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
-pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired, Unkept(Unkept) } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2); a later layout's values its Keep plan refuses (layouts.md, 5.6)
-pub struct Unkept { pub refused: u64, pub why: skein_codec::layout::Refused, pub declaration: Box<str>, pub part: Box<str> } // how many it refused; the first refusal, by the later text's names
+pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired, Unkept(Refusals), Unread(Refusals) } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2); a later layout's values its Keep plan refuses, an older layout's values its Read plan refuses (layouts.md, 5.6)
+pub struct Refusals { pub refused: u64, pub why: skein_codec::layout::Refused, pub declaration: Box<str>, pub part: Box<str> } // how many it refused; the first refusal, by the stored text's names
 pub enum Older { Layout(Family), Directory, Unleveled, Floor, Behind, Unregistered }
 pub enum Generations { Busy, Unreadable, Unnamed, Checkpoints, Unmatched, Unfinished, Missing { generation: u64 } }
 pub enum Check { Load { key }, Private { name } }
@@ -249,8 +257,8 @@ name `FLOOR_BRIDGE`, the build that brings such a store to this one
 (temper's `draft/archive/store-floor.md`, section 3); `Check` names what
 failed: a row that does not load, by its key; a secrets' file
 that is not private, by its name. A job's write too large for a commit
-alone is the job's refusal (`jobs.md`, 3). There is no eager map patch
-whose output needs a separate size check.
+alone is the job's refusal (`jobs.md`, 3). There is no eager map
+conversion whose output needs a separate size check.
 
 ## 2. Upgrading a copy
 

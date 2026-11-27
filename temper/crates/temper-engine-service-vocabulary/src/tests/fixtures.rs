@@ -98,6 +98,8 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
             price_unit: 1000,
             effort: None,
             efforts: Box::default(),
+            speeds: Box::default(),
+            speed: None,
         },
         shown: None,
         description: None,

@@ -136,6 +136,7 @@ impl Channel {
                     | engine::Request::Refused { .. }
                     | engine::Request::Unsent { .. }
                     | engine::Request::Unread { .. }
+                    | engine::Request::Convert
                     | engine::Request::TurnAway { .. }
                     | engine::Request::Close { .. }
                     | engine::Request::Abort { .. }

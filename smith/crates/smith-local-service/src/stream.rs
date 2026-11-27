@@ -11,7 +11,7 @@ use smith_protocol_events::{Answered, sinks::Capture};
 pub fn answered(answer: &host::Answer, capture: Capture) -> Answered {
     let (status, failure, result) = match &answer.result {
         host::RunResult::Parked => (Status::Parked, None, None),
-        host::RunResult::Refused { refusal } => (Status::Refused, Some(refused(*refusal)), None),
+        host::RunResult::Refused { refusal } => (Status::Refused, Some(refused(refusal)), None),
         host::RunResult::Failed { failure } => (Status::Failed, Some(failed(failure.clone())), None),
         host::RunResult::Accepted { outcome } => {
             (Status::Accepted, None, Some(smith_protocol_events::accepted(outcome.value(), capture)))
@@ -103,14 +103,14 @@ fn failure(class: AnswerClass, which: Option<&[u8]>) -> AnswerFailure {
     }
 }
 
-fn refused(refusal: host::Refusal) -> AnswerFailure {
+fn refused(refusal: &host::Refusal) -> AnswerFailure {
     match refusal {
         host::Refusal::Busy => failure(AnswerClass::Busy, None),
         host::Refusal::Invalid(invalid) => failure(AnswerClass::Invalid, Some(invalid_name(invalid))),
     }
 }
 
-fn invalid_name(invalid: host::RunInvalid) -> &'static [u8] {
+fn invalid_name(invalid: &host::RunInvalid) -> &'static [u8] {
     match invalid {
         host::RunInvalid::HostPart { .. } => b"host_part",
         host::RunInvalid::Room { .. } => b"room",
@@ -137,7 +137,7 @@ fn invalid_name(invalid: host::RunInvalid) -> &'static [u8] {
             | host::BudgetRefusal::Completion { .. } => b"budget",
         },
         host::RunInvalid::Price(_) => b"price",
-        host::RunInvalid::Llm => b"llm",
+        host::RunInvalid::Llm | host::RunInvalid::ProgramSpeed { .. } => b"llm",
         host::RunInvalid::Effort => b"effort",
         host::RunInvalid::Conversation => b"conversation",
     }

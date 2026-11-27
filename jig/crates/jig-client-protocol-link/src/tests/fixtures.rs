@@ -7,7 +7,8 @@ use skein_lib::{Duration, RequestKey, Writer};
 pub const ATTEMPT: Token = Token::new(17);
 pub const KEY: RequestKey = [9; 16];
 pub const SERVICE_CREDENTIAL: [u8; 40] = [7; 40];
-const OWNER: jig_client_domain::Spoken = jig_client_domain::Spoken { family: 19, version: 23, layout: [1; 32] };
+pub(super) const OWNER: jig_client_domain::Spoken =
+    jig_client_domain::Spoken { family: 19, version: 23, layout: [1; 32] };
 const CLIENT: jig_client_domain::Limits = jig_client_domain::Limits {
     owners: &[OWNER],
     watches: 4,

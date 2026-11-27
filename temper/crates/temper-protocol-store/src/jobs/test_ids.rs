@@ -5,7 +5,7 @@ use alloc::{boxed::Box, string::String};
 use jig_protocol_store::{JobAnswer, JobPage, JobRefusal, JobWrite};
 use skein_codec::Record;
 use skein_codec::{
-    layout::{Misconverted, Plan, Workspace},
+    layout::{Misconverted, Mode, Plan, Refusal, Side, Workspace},
     schema::{self, DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx},
     value::{Node, Value},
 };
@@ -59,8 +59,11 @@ pub(super) fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         }
         return Ok(JobAnswer { writes: Box::new([]), through: None, counts: counts.into_boxed() });
     };
-    let wide = parse(wide_text(TEXT)?.as_bytes())?;
+    if page.rows.is_empty() {
+        return Ok(JobAnswer { writes: Box::new([]), through: None, counts: counts.into_boxed() });
+    }
     let old = parse(&layout.text)?;
+    let new = parse(TEXT.as_bytes())?;
     let mut held = List::uncapped();
     for text in &layout.held {
         held.push(parse(text)?).expect("uncapped held texts");
@@ -74,28 +77,27 @@ pub(super) fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         None => None,
     };
     let old_root = old.root(layout.root.as_bytes(), old_variant).ok_or(refusal(None, "unreadable stored root"))?;
-    let root = wide.root(b"Row", Some(variant)).expect("binary value type");
-    let Ok(plan) = Plan::derive(&old, old_root, held_refs.as_slice(), &wide, root, &[]) else {
-        return Err(refusal(None, "stored layout has no plan to the wide text"));
-    };
-    let mut work = Workspace::new();
-    if !work.fit(&plan) {
-        return Err(refusal(None, "test id plan exceeds its workspace"));
-    }
+    let from = Side { text: &old, root: old_root, held: held_refs.as_slice() };
+    let to = Side { text: &new, root: new.root(b"Row", Some(variant)).expect("binary value type"), held: &[] };
+    let mut tally = None;
+    let mut out = Buffer::with_capacity(0);
+    let bound = u32::try_from(page.room.bytes).unwrap_or(u32::MAX);
     let mut writes = List::uncapped();
     let mut bytes = 0_u64;
     let mut through = None;
     for row in &page.rows {
-        let judged = match convert(&plan, &mut work, &wide, root.decl, &row.value) {
-            Ok(value) => value,
-            Err(why) => return Err(refusal(Some(row.key.clone()), why)),
+        let value = row.at_version(old.version())?;
+        let converted = match convert_row(layout.mode, &from, &to, &value, &mut out, bound) {
+            Ok(converted) => converted,
+            Err(error) => return Err(JobRefusal { key: Some(row.key.clone()), why: error.why }),
         };
-        let write = JobWrite::Put { key: row.key.clone(), value: judged.bytes };
+        let write = JobWrite::Put { key: row.key.clone(), value: out.to_boxed() };
         let cost = bytes.checked_add(write.bytes());
-        let fits = match (cost, writes.len().checked_add(1)) {
-            (Some(cost), Some(count)) => cost <= page.room.bytes && count <= page.room.writes,
-            (None, _) | (_, None) => false,
-        };
+        let fits = converted
+            && match (cost, writes.len().checked_add(1)) {
+                (Some(cost), Some(count)) => cost <= page.room.bytes && count <= page.room.writes,
+                (None, _) | (_, None) => false,
+            };
         if !fits {
             if through.is_none() {
                 return Err(refusal(Some(row.key.clone()), "row exceeds the test id job edge"));
@@ -104,12 +106,165 @@ pub(super) fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         }
         bytes = cost.expect("checked cost");
         writes.push(write).expect("uncapped writes");
-        for (total, amount) in counts.iter_mut().zip(judged.counts) {
-            *total = total.saturating_add(amount);
+        if width != 0 {
+            // Counts belong to the job, not the converter's output. Analyze
+            // accepted rows in the same wide form, reusing one plan for the page.
+            if tally.is_none() {
+                tally = Some(match Wide::new(layout.mode, &from, &to, variant) {
+                    Ok(wide) => wide,
+                    Err(error) => return Err(JobRefusal { key: Some(row.key.clone()), why: error.why }),
+                });
+            }
+            let amounts = match tally.as_mut().expect("counted job has a plan").counts(&value, out.as_slice()) {
+                Ok(amounts) => amounts,
+                Err(why) => return Err(refusal(Some(row.key.clone()), why)),
+            };
+            for (total, amount) in counts.iter_mut().zip(amounts) {
+                *total = total.saturating_add(amount);
+            }
         }
         through = Some(row.key.clone());
     }
     Ok(JobAnswer { writes: writes.into_boxed(), through: None, counts: counts.into_boxed() })
+}
+
+const OUTPUT_ROOM: &str = "narrowed test id value exceeds output capacity";
+
+fn convert_row(
+    mode: Mode,
+    from: &Side<'_>,
+    to: &Side<'_>,
+    value: &[u8],
+    out: &mut Buffer,
+    bound: u32,
+) -> Result<bool, Refusal> {
+    let initial = u32::try_from(value.len()).unwrap_or(bound).max(1024).min(bound);
+    if out.capacity() < initial {
+        *out = Buffer::with_capacity(initial);
+    }
+    for _ in 0..=u32::BITS {
+        match convert(mode, from, to, value, out) {
+            Ok(()) => return Ok(true),
+            Err(error) if error.why.as_ref() == OUTPUT_ROOM => {
+                if out.capacity() == bound {
+                    return Ok(false);
+                }
+                *out = Buffer::with_capacity(out.capacity().saturating_mul(2).min(bound));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(false)
+}
+
+/// Narrow old test ids for a landing, receipt, tier or verification at the binary's layout.
+pub fn convert(mode: Mode, from: &Side<'_>, to: &Side<'_>, value: &[u8], out: &mut Buffer) -> Result<(), Refusal> {
+    out.clear();
+    let family = to.text.spelled(to.text.family());
+    let decl = to.text.spelled(to.text.declaration(to.root.decl).name);
+    let variant = match to.root.variant {
+        Some(variant) => to.text.spelled(to.text.variant(variant).name),
+        None => b"".as_slice(),
+    };
+    match (family, decl, variant) {
+        (b"temper-store", b"Row", b"landing" | b"receipt" | b"tier" | b"verification") => {}
+        _ => return Err(pass_refusal(from, "unsupported target value type")),
+    }
+    if to.text.text() != TEXT.as_bytes() || from.text.spelled(from.text.family()) != family {
+        return Err(pass_refusal(from, "unsupported layout pair"));
+    }
+    if u32::try_from(value.len()).is_err() {
+        return Err(pass_refusal(from, "test id value exceeds u32"));
+    }
+    if Reader::new(value).u16() != Some(from.text.version()) {
+        return Err(pass_refusal(from, "missing or wrong source version"));
+    }
+    let mut wide = Wide::new(mode, from, to, variant)?;
+    let bytes = match wide.planned(value) {
+        Ok(bytes) => bytes,
+        Err(why) => return Err(pass_refusal(from, why)),
+    };
+    let (decoded, node) = match wide.read(bytes) {
+        Ok(read) => read,
+        Err(why) => return Err(pass_refusal(from, why)),
+    };
+    let edits = match changes(&wide.schema, &decoded, node, wide.root) {
+        Ok(changes) => changes.edits,
+        Err(failure) => return Err(failure.refusal(from)),
+    };
+    let bytes = narrowed(&decoded, edits);
+    let Ok(row) = v25::Row::decode(&v25::CEILINGS, &mut Reader::new(&bytes)) else {
+        return Err(pass_refusal(from, "narrowed value does not decode at the binary's ceilings"));
+    };
+    let bytes = row.encode(&v25::CEILINGS).expect("measured row");
+    match out.put(&bytes) {
+        Ok(()) => Ok(()),
+        Err(_) => Err(pass_refusal(from, OUTPUT_ROOM)),
+    }
+}
+
+#[expect(clippy::disallowed_methods, reason = "the parsed schema's declaration names are ASCII")]
+fn pass_refusal(from: &Side<'_>, why: &str) -> Refusal {
+    let decl = from.text.spelled(from.text.declaration(from.root.decl).name);
+    let decl = core::str::from_utf8(decl).expect("schema declaration name");
+    Refusal { declaration: Box::from(decl), part: Box::from(""), why: Box::from(why) }
+}
+
+struct Wide {
+    schema: Schema,
+    plan: Plan,
+    root: DeclIx,
+    work: Workspace,
+}
+impl Wide {
+    fn new(mode: Mode, from: &Side<'_>, to: &Side<'_>, variant: &[u8]) -> Result<Self, Refusal> {
+        let wide = match wide_text(TEXT) {
+            Ok(wide) => wide,
+            Err(error) => return Err(pass_refusal(from, &error.why)),
+        };
+        let Ok(schema) = schema::parse(wide.as_bytes()) else {
+            return Err(pass_refusal(from, "unreadable test id schema text"));
+        };
+        let root = schema.root(b"Row", Some(variant)).expect("wide value type");
+        let destination = Side { text: &schema, root, held: to.held };
+        let Ok(plan) = plan(mode, from, &destination) else {
+            return Err(pass_refusal(from, "stored layout has no plan to the wide text"));
+        };
+        let mut work = Workspace::new();
+        if !work.fit(&plan) {
+            return Err(pass_refusal(from, "test id plan exceeds its workspace"));
+        }
+        Ok(Self { schema, plan, root: root.decl, work })
+    }
+
+    fn planned(&mut self, value: &[u8]) -> Result<Box<[u8]>, &'static str> {
+        planned(&self.plan, &mut self.work, value)
+    }
+
+    fn read(&self, bytes: Box<[u8]>) -> Result<(Value, Node), &'static str> {
+        let mut decoded = Value::with_room(u32::MAX);
+        let Ok(node) = decoded.decode(&self.schema, self.root, bytes) else { return Err("unreadable wide value") };
+        Ok((decoded, node))
+    }
+
+    fn counts(&mut self, value: &[u8], converted: &[u8]) -> Result<[u64; 3], &'static str> {
+        let bytes = self.planned(value)?;
+        if bytes.as_ref() == converted {
+            return Ok([0; 3]);
+        }
+        let (decoded, node) = self.read(bytes)?;
+        match changes(&self.schema, &decoded, node, self.root) {
+            Ok(changes) => Ok(changes.counts),
+            Err(failure) => Err(failure.why),
+        }
+    }
+}
+
+fn plan(mode: Mode, from: &Side<'_>, to: &Side<'_>) -> Result<Plan, skein_codec::layout::Underived> {
+    match mode {
+        Mode::Read => Plan::derive(from.text, from.root, from.held, to.text, to.root, to.held),
+        Mode::Keep => Plan::between(mode, from.text, from.root, from.held, to.text, to.root, to.held),
+    }
 }
 
 fn planned(plan: &Plan, work: &mut Workspace, bytes: &[u8]) -> Result<Box<[u8]>, &'static str> {
@@ -141,9 +296,24 @@ fn planned(plan: &Plan, work: &mut Workspace, bytes: &[u8]) -> Result<Box<[u8]>,
     Err("test id conversion exceeds u32")
 }
 
-struct Converted {
-    bytes: Box<[u8]>,
+struct Changes {
+    edits: List<Edit>,
     counts: [u64; 3],
+}
+struct RuleRefusal {
+    declaration: &'static str,
+    part: &'static str,
+    why: &'static str,
+}
+impl RuleRefusal {
+    fn refusal(self, from: &Side<'_>) -> Refusal {
+        // Use the source's declaration and part if present, otherwise name its root.
+        if from.text.find(self.declaration.as_bytes()).is_some() {
+            Refusal { declaration: Box::from(self.declaration), part: Box::from(self.part), why: Box::from(self.why) }
+        } else {
+            pass_refusal(from, self.why)
+        }
+    }
 }
 #[derive(Debug)]
 struct Edit {
@@ -155,24 +325,8 @@ struct Edit {
     clippy::too_many_lines,
     reason = "the written rule judges id spans, in-flight work and posted indices together"
 )]
-fn convert(
-    plan: &Plan,
-    work: &mut Workspace,
-    schema: &Schema,
-    root: DeclIx,
-    stored: &[u8],
-) -> Result<Converted, &'static str> {
-    // The registry head is not the schema's versioned head.
-    let tail = stored.get(2..).ok_or("short test id row")?;
-    let mut writer = Writer::new(stored.len());
-    writer.put(&schema.version().to_be_bytes()).expect("row head");
-    writer.put(tail).expect("row tail");
-    let bytes = planned(plan, work, &writer.finish())?;
-    let mut value = Value::with_room(u32::MAX);
-    let Ok(node) = value.decode(schema, root, bytes) else {
-        return Err("unreadable wide value");
-    };
-    let nodes = named_nodes(schema, &value, node, root);
+fn changes(schema: &Schema, value: &Value, node: Node, root: DeclIx) -> Result<Changes, RuleRefusal> {
+    let nodes = named_nodes(schema, value, node, root);
     let mut long = Map::uncapped();
     for &(node, decl) in &nodes {
         let name = schema.spelled(schema.declaration(decl).name);
@@ -182,7 +336,7 @@ fn convert(
             _ => None,
         };
         if let Some(field) = field {
-            let id = field_node(schema, &value, node, decl, field);
+            let id = field_node(schema, value, node, decl, field);
             if value.content(id).expect("id content").len() > skein_lib::usize_of(crate::test_id_ceiling()) {
                 assert!(
                     long.insert(value.span(node).expect("named span").start, ()).expect("uncapped long ids").is_none(),
@@ -198,25 +352,33 @@ fn convert(
     for &(node, decl) in &nodes {
         let name = schema.spelled(schema.declaration(decl).name);
         if name == b"TierRecord" && !long.is_empty() {
-            let run = field_node(schema, &value, node, decl, b"run");
+            let run = field_node(schema, value, node, decl, b"run");
             if value.some(run).expect("run option").is_some() {
-                return Err("a tier run in flight holds a failing test's id past 1,024 bytes");
+                return Err(RuleRefusal {
+                    declaration: "TierRecord",
+                    part: "run",
+                    why: "a tier run in flight holds a failing test's id past 1,024 bytes",
+                });
             }
-            let failing = field_node(schema, &value, node, decl, b"failing");
-            record_many = contains_long(&value, failing, &long);
-            flake_list = Some(field_node(schema, &value, node, decl, b"flakes"));
+            let failing = field_node(schema, value, node, decl, b"failing");
+            record_many = contains_long(value, failing, &long);
+            flake_list = Some(field_node(schema, value, node, decl, b"flakes"));
         }
-        if name == b"LandingSelection" && contains_long(&value, node, &long) {
-            return Err("a landing's search by test holds a failing test's id past 1,024 bytes");
+        if name == b"LandingSelection" && contains_long(value, node, &long) {
+            return Err(RuleRefusal {
+                declaration: "LandingSelection",
+                part: "",
+                why: "a landing's search by test holds a failing test's id past 1,024 bytes",
+            });
         }
-        if name == b"Failures" && contains_long(&value, node, &long) {
+        if name == b"Failures" && contains_long(value, node, &long) {
             edits
                 .push(Edit { span: value.span(node).expect("failures span"), bytes: Box::new([1]) })
                 .expect("uncapped edits");
             let count = counts.first_mut().expect("many count");
             *count = count.saturating_add(1);
         }
-        if name == b"TierFlake" && contains_long(&value, node, &long) {
+        if name == b"TierFlake" && contains_long(value, node, &long) {
             edits
                 .push(Edit { span: value.span(node).expect("flake span"), bytes: Box::new([]) })
                 .expect("uncapped edits");
@@ -258,14 +420,22 @@ fn convert(
         if counts.get(2) != Some(&0) {
             for &(node, decl) in &nodes {
                 if schema.spelled(schema.declaration(decl).name) == b"TierPosting" {
-                    let entry = field_node(schema, &value, node, decl, b"entry");
+                    let entry = field_node(schema, value, node, decl, b"entry");
                     if value.some(entry).expect("entry option").is_some() {
-                        return Err("a tier posting in flight would change for a failing test's id past 1,024 bytes");
+                        return Err(RuleRefusal {
+                            declaration: "TierPosting",
+                            part: "entry",
+                            why: "a tier posting in flight would change for a failing test's id past 1,024 bytes",
+                        });
                     }
                 }
             }
         }
     }
+    Ok(Changes { edits, counts })
+}
+
+fn narrowed(value: &Value, edits: List<Edit>) -> Box<[u8]> {
     let mut ordered = Map::uncapped();
     for edit in edits.into_boxed() {
         assert!(ordered.insert(edit.span.start, edit).expect("uncapped edits").is_none(), "distinct rule spans");
@@ -285,12 +455,7 @@ fn convert(
         start = skein_lib::usize_of(edit.span.end);
     }
     writer.put(value.bytes().get(start..).expect("remaining bytes")).expect("narrowing value");
-    let bytes = writer.finish();
-    let Ok(row) = v25::Row::decode(&v25::CEILINGS, &mut Reader::new(&bytes)) else {
-        return Err("narrowed value does not decode at the binary's ceilings");
-    };
-    let bytes = row.encode(&v25::CEILINGS).expect("measured row");
-    Ok(Converted { bytes, counts })
+    writer.finish()
 }
 
 fn parse(text: &[u8]) -> Result<Schema, JobRefusal> {

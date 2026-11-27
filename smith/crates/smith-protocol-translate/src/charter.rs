@@ -143,6 +143,10 @@ fn llm(source: &run::charter::Llm, endpoints: &Endpoints) -> Result<wire::Llm, E
         window: source.window,
         output: source.output,
         prices: mapped::prices_to_record(&source.prices),
+        speed: match &source.speed {
+            Some(speed) => Some(mapped::speed_to_record(speed).or(Err(Error::Capacity))?),
+            None => None,
+        },
     })
 }
 
@@ -186,6 +190,31 @@ mod tests {
         }
         assert_eq!(crate::decode_charter(&[0, 3], &wire::CEILINGS, &endpoints), Err(run::Invalid::CharterVersion));
     }
+    #[test]
+    fn optional_main_and_child_speeds_cross_the_charter_boundary() {
+        let mut endpoints = List::with_capacity(1);
+        endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
+        let endpoints = Endpoints::new(endpoints);
+        let source = charter_fixture();
+        let mut charter = crate::decode_charter(&source, &wire::CEILINGS, &endpoints).expect("charter without speed");
+        assert_eq!(charter.llm.speed, None);
+        let mut child = charter.llm.clone();
+        child.model = b"child".as_slice().into();
+        child.speed = Some(run::charter::Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([b"priority".as_slice().into()]),
+            prices: run::Prices { input: 3, cached: 2, cache_write: Some(4), output: 9, unit: 100 },
+        });
+        charter.llm.speed = Some(run::charter::Speed {
+            name: b"ultrafast".as_slice().into(),
+            also: Box::default(),
+            prices: run::Prices { input: 7, cached: 5, cache_write: None, output: 11, unit: 1000 },
+        });
+        charter.models = Box::new([child]);
+        let encoded = encode_charter(&charter, &wire::CEILINGS, &endpoints).expect("bounded charter");
+        assert_eq!(crate::decode_charter(&encoded, &wire::CEILINGS, &endpoints), Ok(charter));
+    }
+
     fn charter_fixture() -> Box<[u8]> {
         let values = skein_codegen::values(smith_charter::SCHEMA);
         for value in values.fixed.clone() {

@@ -138,6 +138,7 @@ impl Model {
     pub fn local(&self, endpoint: u32, dialect: u32, account: Option<u32>) -> charter::Llm {
         charter::Llm {
             effort: None,
+            speed: None,
             prices: self.prices,
             dialect,
             account,

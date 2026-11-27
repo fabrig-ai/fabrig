@@ -140,14 +140,7 @@ fn two_projects() -> c::Me {
 fn project_domain(second: Option<c::PartyKind>) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let watch = f::start(&mut root, List::with_capacity(0));
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out = deliver(&mut root, watch, c::Delivery::Me(Box::new(two_projects())));
     for request in &out {
         if let Request::Unlinked {

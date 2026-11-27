@@ -286,6 +286,8 @@ pub struct Prompt {
     pub model: Box<[u8]>,
     /// Reasoning effort requested by this activation, absent for the provider default.
     pub effort: Option<Box<[u8]>>,
+    /// Provider speed asked for, or none for the provider default.
+    pub speed: Option<Box<[u8]>>,
     /// System instructions supplied by the opener, retained within the enclosing byte cap.
     pub system: Box<[u8]>,
     /// The families of tools the LLM may call, whose schemas the protocol
@@ -323,6 +325,9 @@ impl Prompt {
         if let Some(effort) = &self.effort {
             bytes = bytes.checked_add(skein_lib::len_u64(effort.len()))?;
         }
+        if let Some(speed) = &self.speed {
+            bytes = bytes.checked_add(skein_lib::len_u64(speed.len()))?;
+        }
         match &self.choice {
             ToolChoice::Auto | ToolChoice::None => {}
             ToolChoice::Only(tickets) => {
@@ -349,6 +354,17 @@ pub struct CompletionName {
     pub retry: u32,
 }
 
+/// Serving speed reported by the protocol for one completion, used only for pricing.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ServedSpeed {
+    /// The provider reported its own standard speed.
+    Standard,
+    /// The provider reported another speed, bounded at the protocol to 32 bytes.
+    Named(Box<[u8]>),
+    /// The provider did not report a usable name.
+    Unreported,
+}
+
 /// The next assistant message.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Completion {
@@ -359,6 +375,7 @@ pub struct Completion {
     pub content: Box<[Block]>,
     pub stop: Stop,
     pub usage: Usage,
+    pub served: ServedSpeed,
 }
 
 /// A native LLM path cap, sent by the protocol in a terminal failure.
