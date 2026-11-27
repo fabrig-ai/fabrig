@@ -37,7 +37,7 @@ fn disk(mut items: Vec<Item>) -> Disk {
 }
 
 fn configuration(text: &[u8]) -> Result<Read, String> {
-    let temper_config_shell::Read { file, document, keys } = temper_config_shell::read_with(
+    temper_config_shell::read_with(
         Shape::Standalone,
         || Err(io::ErrorKind::NotFound.into()),
         |max| {
@@ -49,8 +49,8 @@ fn configuration(text: &[u8]) -> Result<Read, String> {
         },
         || Ok(Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false }),
     )
-    .map_err(|why| why.to_string())?;
-    Ok(Read { file, document, keys })
+    .map(Read::from)
+    .map_err(|why| why.to_string())
 }
 
 fn run_login(disk: &Disk, text: &[u8], name: &str) -> (String, Vec<Call>) {

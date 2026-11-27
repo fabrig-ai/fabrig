@@ -178,9 +178,7 @@ mod tests {
             assert_eq!(directories.config.as_ref(), b"/fixture");
             assert_eq!(shape, Shape::Standalone);
             let facts = Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
-            temper_config_shell::parse(b"limits = {}\n", shape, &facts)
-                .map(|temper_config_shell::Read { file, document, keys }| Read { file, document, keys })
-                .map_err(|why| why.to_string())
+            temper_config_shell::parse(b"limits = {}\n", shape, &facts).map(Read::from).map_err(|why| why.to_string())
         };
         for (words, prefix) in [(&["serve"][..], "temper serve"), (&[][..], "temper-box")] {
             let arguments = words

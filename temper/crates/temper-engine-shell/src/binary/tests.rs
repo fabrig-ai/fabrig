@@ -1,5 +1,6 @@
 use super::{Capture, ENGINE, Reached, Reply, run, serve_command};
-use temper_config_shell::{FILE, Shape};
+use std::path::Path;
+use temper_config_shell::{FILE, FORMER, File, Shape};
 
 const VERSION: &str = "0.0.0";
 const COMMIT: &str = "0123456789ab";
@@ -78,6 +79,62 @@ pub(crate) fn refusal(words: &[&str]) -> (u8, String) {
     run(&captured(words), VERSION, COMMIT).expect_err("command refused")
 }
 
+fn config_capture(root: &Path, words: &[&str]) -> Capture {
+    let mut words = words.to_vec();
+    words.extend(["--config", "config", "--data", "data", "--cache", "cache"]);
+    Capture { working: Ok(root.into()), ..captured(&words) }
+}
+
+const CONFIG_SOURCE: &[u8] =
+    b"# mine\nlisten = '127.0.0.1:7100'\nworkers = '127.0.0.1:7200'\nowner = 'ada@localhost'\n";
+
+#[test]
+fn config_upgrade_prints_render_without_writing() {
+    let scratch = skein_scratch::Scratch::new("engine-config-upgrade");
+    let config = scratch.path().join("config");
+    std::fs::create_dir(&config).expect("config directory");
+    let path = config.join(FILE);
+    std::fs::write(&path, CONFIG_SOURCE).expect("input file");
+    let file = File {
+        listen: Some("127.0.0.1:7100".parse().expect("listen address")),
+        workers: Some("127.0.0.1:7200".parse().expect("workers address")),
+        owner: Some("ada@localhost".into()),
+        ..File::default()
+    };
+
+    let capture = config_capture(scratch.path(), &["config", "upgrade"]);
+    let expected = temper_config_shell::render(&file, Shape::EngineAlone);
+    assert_eq!(run(&capture, VERSION, COMMIT), Ok(Reply::Print(String::from_utf8_lossy(&expected).into_owned())));
+    assert_eq!(std::fs::read(&path).expect("original file"), CONFIG_SOURCE);
+    assert_eq!(std::fs::read_dir(&config).expect("config entries").count(), 1, "only the original file remains");
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("root entries").count(), 1, "only config exists");
+}
+
+#[test]
+fn config_upgrade_refusals_match_the_checkpoint_read() {
+    let cases: &[&[(&str, &[u8])]] = &[
+        &[(FILE, CONFIG_SOURCE), (FORMER, b"not read")],
+        &[],
+        &[(FILE, b"workers = '127.0.0.1:7200'\nalpha = 1\nbeta = 2\n")],
+    ];
+    for files in cases {
+        let scratch = skein_scratch::Scratch::new("engine-config-upgrade-refusal");
+        let config = scratch.path().join("config");
+        std::fs::create_dir(&config).expect("config directory");
+        for (name, source) in *files {
+            std::fs::write(config.join(name), source).expect("input file");
+        }
+        let checkpoint = config_capture(scratch.path(), &["checkpoint"]);
+        let (code, refusal) = run(&checkpoint, VERSION, COMMIT).expect_err("checkpoint refuses unreadable config");
+        let upgrade = config_capture(scratch.path(), &["config", "upgrade"]);
+        assert_eq!(code, 1, "{refusal}");
+        assert_eq!(
+            run(&upgrade, VERSION, COMMIT),
+            Err((1, refusal.replace("temper-engine checkpoint:", "temper-engine config upgrade:")))
+        );
+    }
+}
+
 #[test]
 fn toml_engine_refuses_a_box_file_without_workers() {
     let capture = captured(&["serve", "--config", "/fixture"]);
@@ -107,7 +164,6 @@ fn toml_engine_refuses_a_box_file_without_workers() {
 
 #[test]
 fn engine_commands_refuse_the_former_file_by_name() {
-    use temper_config_shell::{FILE, FORMER};
     let scratch = skein_scratch::Scratch::new("engine-former-file");
     let arguments = [
         b"--config".as_slice(),

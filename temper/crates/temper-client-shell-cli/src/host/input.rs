@@ -146,7 +146,9 @@ impl OneShot {
                         return;
                     }
                     self.class = arguments::class(&call);
-                    self.directory.start(self.class);
+                    if !super::settings_input::settings(&call) {
+                        self.directory.start(self.class);
+                    }
                     self.call = Some(Parsed::Call { call, json });
                     self.prepare_start();
                 }
@@ -278,7 +280,7 @@ impl OneShot {
                 let input = self.input.as_mut().expect("reading input");
                 if input.len() + bytes.len() > limit {
                     if let Some(Parsed::Call { call, .. }) = &self.call
-                        && matches!(call.tool, jig::rows::CHANGE_SETTINGS_AT | jig::rows::PROPOSE_SETTINGS_AT)
+                        && super::settings_input::settings(call)
                     {
                         self.fail(format!("settings file: file bytes: bound {}", self.input_limit()).as_bytes());
                     } else {
@@ -501,6 +503,38 @@ mod settings_input_tests {
             assert_eq!(loaded(&frame), ITEMS);
         }
     }
+    #[test]
+    fn settings_upgrade_loads_a_file_or_stdin_without_opening_directory() {
+        const FILE: &[u8] = br#"{"format":1,"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["../missing","/missing"]}}]}"#;
+        for path in ["-", "/settings/link-file"] {
+            let mut frame = Frame::read(&["settings", "upgrade", path]);
+            frame.absent = true;
+            frame.link = FILE;
+            frame.input = FILE;
+            frame.drain();
+            assert_eq!(frame.host.status, Some(0));
+            assert_eq!(frame.stderr(), b"");
+            assert_eq!(frame.stdout(), b"{\"items\":[{\"setting\":{\"kind\":\"charter\",\"number\":5},\"overlay\":{\"charters\":[\"../missing\",\"/missing\"]}}]}\n");
+            assert_eq!(frame.opened(b"link-file"), path != "-");
+            assert!(!frame.opened(b"directory"));
+            assert!(!frame.opened(b"missing"));
+            assert_eq!(frame.requests(), 0);
+        }
+    }
+
+    #[test]
+    fn settings_upgrade_prints_the_decoder_refusal() {
+        let mut frame = Frame::read(&["settings", "upgrade", "-"]);
+        frame.absent = true;
+        frame.input = br#"{"items":[{"setting":{"kind":"nope"}}],"format":2}"#;
+        frame.drain();
+        assert_eq!(frame.host.status, Some(1));
+        assert_eq!(frame.stderr(), b"temper ctl: settings file: format 2; this temper ctl reads format 1: upgrade it, or write the file at format 1\n");
+        assert_eq!(frame.stdout(), b"");
+        assert!(!frame.opened(b"directory"));
+        assert_eq!(frame.requests(), 0);
+    }
+
     #[test]
     fn settings_acts_name_their_file_byte_bound_for_files_and_stdin() {
         static OVERSIZED: [u8; 1_048_577] = [b' '; 1_048_577];

@@ -277,6 +277,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],
     &["settings", "propose", "FILE", "--against", "5", "--key", "proposal-5"],
+    &["settings", "upgrade", "FILE"],
     &["proposal", "show", "p73/7"],
     &["forge", "accept", "3", "1"],
     &["revision", "advance", "7", "--key", "move-7"],

@@ -102,6 +102,8 @@ class Packages(unittest.TestCase):
         self.assertEqual(flag, '-E')
         self.assertIn('default() & not (package(=fabrig-boundary)', expression)
         self.assertIn('test(=client_versions_are_frozen)', expression)
+        self.assertIn('test(=released_format_fixtures_are_frozen)', expression)
+        self.assertNotIn('changing_one_byte_of_a_released_fixture_is_refused', expression)
         self.assertNotIn('a_field_added_at_the_same_version_passes', expression)
         self.assertNotIn('generated_patch_modules_are_current', expression)
         self.assertEqual(PLAN.workspace_filter(['leaf']), [])

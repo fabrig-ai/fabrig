@@ -76,6 +76,67 @@ fn overlay_directories_assemble_in_order() {
     );
 }
 #[test]
+fn format_one_overlays_assemble_like_unversioned_overlays() {
+    let plain = [
+        ("common.md", "Common text.\n"),
+        ("goal.md", "Goal text.\n"),
+        ("designer.md", "Designer text.\n"),
+        ("coordinator.md", "## part, on: first\nCoordinator text.\n"),
+        ("implementer.md", "Implementer text.\n"),
+    ];
+    for charter in [2, 5] {
+        let bytes = file(charter, r#"{"charters":["set"]}"#);
+        let (root, call) = submit(vec![input("settings.json", &bytes, vec![directory("set", &plain)])]);
+        let expected = &change(&root, call).items;
+        for line in ["format = 1", "format=1"] {
+            let texts: Vec<_> = plain.iter().map(|(name, body)| (*name, format!("+++\n{line}\n+++\n{body}"))).collect();
+            let versioned: Vec<_> = texts.iter().map(|(name, text)| (*name, text.as_str())).collect();
+            let (root, call) = submit(vec![input("settings.json", &bytes, vec![directory("set", &versioned)])]);
+            assert_eq!(&change(&root, call).items, expected);
+        }
+    }
+}
+#[test]
+fn overlay_formats_refuse_without_sending() {
+    let bytes = file(2, r#"{"charters":["set"]}"#);
+    for (text, expected) in [
+        (
+            "+++\nformat = 2\n+++\nGoal text.\n",
+            "format 2; this temper ctl reads format 1: upgrade it, or write the file at format 1",
+        ),
+        ("+++\nformat = 1\nbase = \"x\"\n+++\n", "front matter holds format = N alone"),
+        ("+++\nformat = 1\n", "front matter holds format = N alone"),
+        ("+++\nformat = 0\n+++\n", "format: a whole number from 1"),
+        ("+++\nformat = x\n+++\n", "format: a whole number from 1"),
+    ] {
+        // Charter 2 doesn't take goal.md, but still refuses its format.
+        let directory = directory("set", &[("goal.md", text)]);
+        let (mut root, call) = submit(vec![input("settings.json", &bytes, vec![directory])]);
+        assert!(root.sends.is_empty());
+        let answer = root.answer(call).expect("refused before sending");
+        let stderr = core::str::from_utf8(&answer.stderr).expect("words");
+        assert_eq!(answer.status, 1);
+        assert_eq!(stderr.trim_end(), format!("settings file item 1: overlay.charters[0]: goal.md: {expected}"));
+    }
+}
+#[test]
+fn coordinator_refusals_count_front_matter_lines() {
+    let bytes = file(5, r#"{"charters":["set"]}"#);
+    for (body, expected) in [
+        ("\nbefore\n## part, on: first\ntext", "coordinator.md:5: text before first section"),
+        ("## part, on: first\ntext\n## part, on: \ntext", "coordinator.md:6: empty reason"),
+    ] {
+        let text = format!("+++\nformat = 1\n+++\n{body}");
+        let directory = directory("set", &[("coordinator.md", &text)]);
+        let (mut root, call) = submit(vec![input("settings.json", &bytes, vec![directory])]);
+        assert!(root.sends.is_empty());
+        let answer = root.answer(call).expect("refused before sending");
+        let stderr = core::str::from_utf8(&answer.stderr).expect("words");
+        assert_eq!(answer.status, 1);
+        assert_eq!(stderr.trim_end(), format!("settings file item 1: overlay.charters[0]: \"set\": {expected}"));
+    }
+}
+#[test]
 fn overlay_inputs_refuse_bad_sets_and_shapes_without_sending() {
     for (files, expected) in [
         (vec![("notes.md", "notes")], "notes.md: unknown Markdown file"),
@@ -280,4 +341,92 @@ fn apply_files_repeat_in_argv_round_trip_and_take_stdin_once() {
     ] {
         assert!(fixtures::parse(&argv).is_err(), "{argv:?}");
     }
+}
+
+#[test]
+fn a_newer_settings_file_names_its_format_and_is_never_sent() {
+    let good = br#"{"items":[{"setting":{"kind":"charter","number":5},"edit":"reset"}]}"#;
+    let newer = br#"{"items":[{"setting":{"kind":"nope"}}],"format":2}"#;
+    let (root, number) = submit(vec![input("a.json", good, vec![]), input("b.json", newer, vec![])]);
+    let printed = root.answers.get(&number).expect("local refusal");
+    assert_eq!(printed.status, 1);
+    assert_eq!(
+        printed.stderr.as_ref(),
+        b"settings file b.json: format 2; this temper ctl reads format 1: upgrade it, or write the file at format 1\n"
+    );
+    assert!(root.sends.is_empty());
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let mut call = fixtures::call(&["settings", "propose", "b.json", "--against", "5", "--key", "proposal"]);
+    call.values[0] = Some(Values::One(input("b.json", newer, vec![])));
+    let number = root.submit_prepared(call, false, None);
+    let printed = root.answers.get(&number).expect("local refusal");
+    assert_eq!(printed.status, 1);
+    assert_eq!(
+        printed.stderr.as_ref(),
+        b"settings file: format 2; this temper ctl reads format 1: upgrade it, or write the file at format 1\n"
+    );
+    assert!(root.sends.is_empty());
+}
+
+#[test]
+fn frozen_settings_upgrade_without_loading_charters_and_assemble_for_apply() {
+    let fixtures = [
+        include_bytes!("../../../../../docs/examples/formats/settings/1/sets.json").as_slice(),
+        include_bytes!("../../../../../docs/examples/formats/settings/1/edits-and-overlays.json").as_slice(),
+    ];
+    let limits = crate::limits::form();
+    let tool_limits = fixtures::limits_root();
+    let mut root = crate::root::Root::new(&tool_limits, 813).expect("offline client");
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits: tool_limits };
+    let mut out = skein_lib::Queue::uncapped();
+    let mut directory_overlays = 0_u32;
+    for bytes in fixtures {
+        let read = settings_form::file::read(bytes, &limits).expect("frozen settings fixture");
+        assert_eq!(read.format, 1);
+        assert!(read.notices.is_empty());
+        let mut call = fixtures::call(&["settings", "upgrade", "fixture.json"]);
+        call.values[0] = Some(Values::One(Value::Text(bytes.into())));
+        crate::root::step(
+            &mut root,
+            &env,
+            crate::root::Event::Call { number: 1, call, json: false, value: None },
+            &mut out,
+        );
+        let Some(crate::root::Request::Printed { number: 1, printed }) = out.pop() else { panic!("offline result") };
+        assert_eq!(printed.status, 0);
+        assert!(printed.stderr.is_empty());
+        assert!(out.is_empty(), "upgrade sends nothing");
+        let size = u32::try_from(printed.stdout.len()).expect("fixture size");
+        let doc = skein_json::parse(
+            &printed.stdout,
+            &skein_json::tokenizer::Limits { depth: 32, string: size, number: 20, chunk: size, length: size },
+            &skein_json::document::Limits { tokens: size, text: size },
+        )
+        .expect("printed file JSON");
+        assert!(doc.member(0, b"format").is_none(), "format 1 stays implicit");
+        let reread = settings_form::file::read(&printed.stdout, &limits).expect("read upgraded fixture");
+        assert_eq!(reread.items, read.items);
+        let dirs = settings_form::overlay::directories(&reread.items);
+        for dir in &dirs {
+            assert_eq!(dir.path.as_ref(), b"../../charters/1");
+            directory_overlays += 1;
+        }
+    }
+    assert_eq!(directory_overlays, 1);
+    let sets = directory(
+        "../../charters/1",
+        &[
+            ("common.md", include_str!("../../../../../docs/examples/formats/charters/1/common.md")),
+            ("goal.md", include_str!("../../../../../docs/examples/formats/charters/1/goal.md")),
+            ("designer.md", include_str!("../../../../../docs/examples/formats/charters/1/designer.md")),
+            ("coordinator.md", include_str!("../../../../../docs/examples/formats/charters/1/coordinator.md")),
+            ("implementer.md", include_str!("../../../../../docs/examples/formats/charters/1/implementer.md")),
+        ],
+    );
+    let (root, number) = submit(vec![input("edits-and-overlays.json", fixtures[1], vec![sets])]);
+    let applied = change(&root, number);
+    assert_eq!(
+        overlay(applied.items.get(3).expect("directory overlay")).instructions.bytes(),
+        b"Read the task before acting.\n\nMake one change and check it."
+    );
 }

@@ -37,6 +37,15 @@ Refused unchanged if the configuration directory holds a current or former confi
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`, `--record`
 - **Notes:** Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.
 
+### `temper-box config upgrade`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`
+- print temper.toml at the newest format
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Prints the configuration on stdout and any notices on stderr. Writes no files and starts nothing.
+
 ### `temper-box program-login`
 
 - **Set:** public
