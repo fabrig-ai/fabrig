@@ -1951,7 +1951,7 @@ fn a_refused_terminal_reads_back_with_its_reason() {
 #[test]
 fn a_stored_version_refusal_keeps_its_range_words() {
     let limits = call_limits();
-    // EndRecord v13, refused_with_reason, then 56 bytes of legacy reason text.
+    // EndRecord v13, refused_with_reason, then 56 bytes of reason text with a version range.
     let bytes = b"\0\x0d\x08\0\0\0\x38version mismatch: smith-charter 5, the worker reads 4..4";
     assert_eq!(
         crate::codec::tasks::carried::read_end(bytes, &limits.tasks),
