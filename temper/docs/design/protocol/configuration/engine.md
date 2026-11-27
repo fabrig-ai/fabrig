@@ -157,13 +157,17 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   repository the merge job merges, none when absent: the project's merge
   command (`../tooling.md`, 4.1), and with it the merge job before each
   resolution of its changes and catch-ups into its goals' branches
-  (`../../domain/forge/change/repairs.md` and `../../domain/forge/updates.md`, 1). A path past its bounds
+  (`../../domain/forge/change/repairs.md` and `../../domain/forge/updates.md`, 1),
+  in a repository whose head holds no `.temper/hooks/`; one that holds
+  it runs its `merge` hook and ignores the setting (`../hooks.md`, 5). A path past its bounds
   refuses the start at its member.
 - **The close job's command,** beside `merge_job`, by either way:
   `close_job`, a relative path of at most 4,096 bytes, without `..`, in
   each repository a goal's branch of the project is in, none when
   absent: the project's close command (`../tooling.md`, 4.2), and with it
-  the close step of each goal's closer (`../../domain/forge/branches.md`, 2). It
+  the close step of each goal's closer (`../../domain/forge/branches.md`, 2),
+  where the goal's branch's tip holds no `.temper/hooks/`, as `merge_job`
+  (`../hooks.md`, 5). It
   is read as `merge_job` is, its errors named at
   `application.landing.projects[i].close_job`; a path past its bounds
   refuses the start at its member.
