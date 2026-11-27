@@ -696,6 +696,14 @@ impl<B: Backend> World<B> {
             .collect()
     }
 
+    /// The caller's host reply held by the schedule until the next delivery.
+    #[must_use]
+    pub fn queued_host_reply(&self) -> Option<run::CallName> {
+        let call = self.host_history.submissions().last()?;
+        self.host_pending.get(&(call.relay.owner.raw(), call.relay.attempt))?.as_ref()?;
+        Some(call.name)
+    }
+
     /// Queues the caller's terminal for a pending host relay. Withdrawal keeps
     /// this right alive; the scheduled terminal settles it in the next drive.
     /// # Errors

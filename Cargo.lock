@@ -8555,6 +8555,7 @@ dependencies = [
  "smith-domain-session",
  "smith-faults",
  "smith-host-domain",
+ "smith-inspect",
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",

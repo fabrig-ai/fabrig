@@ -56,6 +56,7 @@ pub(crate) struct Process {
     pub(super) park_cell_job: bool,
     mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
+    attempt: Option<(u64, u64)>,
     up: VecDeque<agent::Up>,
     reading: Option<Token>,
     waiting: Option<Token>,
@@ -191,6 +192,7 @@ impl Process {
             park_cell_job: false,
             mounts: Vec::new(),
             agent: None,
+            attempt: None,
             up: VecDeque::new(),
             reading: None,
             waiting: None,
@@ -307,6 +309,16 @@ impl Process {
             return None;
         }
         Some(start.saturating_add(Duration::from_nanos(agent.now().as_nanos())))
+    }
+
+    /// The world of the activation started in this process, with its fleet numbers.
+    pub(super) fn activation(&self) -> Option<(&Agent, u64, u64)> {
+        let (task, attempt) = self.attempt?;
+        Some((self.agent.as_ref()?, task, attempt))
+    }
+
+    pub(super) fn channel_up(&self) -> &VecDeque<agent::Up> {
+        &self.up
     }
 
     /// The live or last activation's smith world.
@@ -531,6 +543,7 @@ impl Process {
         }
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
+        self.attempt = Some((assignment.task, assignment.attempt));
         self.agent = Some(agent);
     }
 
