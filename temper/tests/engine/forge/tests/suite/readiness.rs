@@ -167,7 +167,7 @@ fn a_queued_head_move_closes_both_intervals_and_the_next_ready_is_new() {
     world.restart();
     world.push_file(BRANCH, b"new", b"new head");
     world.status(BRANCH, raw::Check::Passed);
-    assert_eq!(step(&mut world, CHANGE, 101), c::Decision::Hold(c::Hold::BranchMoved));
+    assert_eq!(step(&mut world, CHANGE, 101), c::Decision::Hold(c::Cause::BranchMoved));
     let events = history(&world, CHANGE);
     let unready = events
         .iter()

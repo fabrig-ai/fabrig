@@ -168,6 +168,12 @@ pub enum Ask {
         revision: Revision,
         again: Option<bool>,
     },
+    /// Release a procedure's hold and ask it to measure afresh.
+    Measure {
+        project: u32,
+        task: u64,
+        revision: Revision,
+    },
     /// Lift a placed hold, optionally releasing its tasks.
     Lift {
         hold: u64,

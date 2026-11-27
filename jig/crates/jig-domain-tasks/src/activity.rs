@@ -114,6 +114,7 @@ pub enum Why {
         message: u64,
     },
     Released,
+    Measured,
     Retry {
         tries: crate::Tries,
     },

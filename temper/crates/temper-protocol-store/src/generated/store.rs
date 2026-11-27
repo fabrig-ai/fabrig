@@ -1944,50 +1944,6 @@ pub fn authority_lack_to_domain(record: crate::v25::AuthorityLack) -> temper_eng
 }
 
 #[must_use]
-pub fn change_hold_to_record(value: &temper_engine_domain_forge_change::Hold) -> crate::v25::ChangeHold {
-    match value {
-        temper_engine_domain_forge_change::Hold::Stalled => crate::v25::ChangeHold::Stalled,
-        temper_engine_domain_forge_change::Hold::Repairs => crate::v25::ChangeHold::Repairs,
-        temper_engine_domain_forge_change::Hold::Resolutions => crate::v25::ChangeHold::Resolutions,
-        temper_engine_domain_forge_change::Hold::Updates => crate::v25::ChangeHold::Updates,
-        temper_engine_domain_forge_change::Hold::BranchMoved => crate::v25::ChangeHold::BranchMoved,
-        temper_engine_domain_forge_change::Hold::BranchMissing => crate::v25::ChangeHold::BranchMissing,
-        temper_engine_domain_forge_change::Hold::PullClosed => crate::v25::ChangeHold::PullClosed,
-        temper_engine_domain_forge_change::Hold::Retargeted => crate::v25::ChangeHold::Retargeted,
-        temper_engine_domain_forge_change::Hold::Failed => crate::v25::ChangeHold::Failed,
-        temper_engine_domain_forge_change::Hold::Rejected => crate::v25::ChangeHold::Rejected,
-        temper_engine_domain_forge_change::Hold::Authority(held) => crate::v25::ChangeHold::Authority(crate::records::by_hand::authority_hold_to_record(held)),
-        temper_engine_domain_forge_change::Hold::Questions => crate::v25::ChangeHold::Questions,
-        temper_engine_domain_forge_change::Hold::Flake => crate::v25::ChangeHold::Flake,
-        temper_engine_domain_forge_change::Hold::NoTest => crate::v25::ChangeHold::NoTest,
-        temper_engine_domain_forge_change::Hold::Runner => crate::v25::ChangeHold::Runner,
-        temper_engine_domain_forge_change::Hold::RedStands => crate::v25::ChangeHold::RedStands,
-    }
-}
-
-#[must_use]
-pub fn change_hold_to_domain(record: crate::v25::ChangeHold) -> temper_engine_domain_forge_change::Hold {
-    match record {
-        crate::v25::ChangeHold::Stalled => temper_engine_domain_forge_change::Hold::Stalled,
-        crate::v25::ChangeHold::Repairs => temper_engine_domain_forge_change::Hold::Repairs,
-        crate::v25::ChangeHold::Resolutions => temper_engine_domain_forge_change::Hold::Resolutions,
-        crate::v25::ChangeHold::Updates => temper_engine_domain_forge_change::Hold::Updates,
-        crate::v25::ChangeHold::BranchMoved => temper_engine_domain_forge_change::Hold::BranchMoved,
-        crate::v25::ChangeHold::BranchMissing => temper_engine_domain_forge_change::Hold::BranchMissing,
-        crate::v25::ChangeHold::PullClosed => temper_engine_domain_forge_change::Hold::PullClosed,
-        crate::v25::ChangeHold::Retargeted => temper_engine_domain_forge_change::Hold::Retargeted,
-        crate::v25::ChangeHold::Failed => temper_engine_domain_forge_change::Hold::Failed,
-        crate::v25::ChangeHold::Rejected => temper_engine_domain_forge_change::Hold::Rejected,
-        crate::v25::ChangeHold::Authority(held) => temper_engine_domain_forge_change::Hold::Authority(crate::records::by_hand::authority_hold_to_domain(held)),
-        crate::v25::ChangeHold::Questions => temper_engine_domain_forge_change::Hold::Questions,
-        crate::v25::ChangeHold::Flake => temper_engine_domain_forge_change::Hold::Flake,
-        crate::v25::ChangeHold::NoTest => temper_engine_domain_forge_change::Hold::NoTest,
-        crate::v25::ChangeHold::Runner => temper_engine_domain_forge_change::Hold::Runner,
-        crate::v25::ChangeHold::RedStands => temper_engine_domain_forge_change::Hold::RedStands,
-    }
-}
-
-#[must_use]
 pub fn effect_result_to_record(value: &temper_engine_domain_forge_change::EffectResult) -> crate::v25::EffectResult {
     match value {
         temper_engine_domain_forge_change::EffectResult::None => crate::v25::EffectResult::None,
@@ -9413,19 +9369,21 @@ pub fn history_last_to_domain(record: crate::v25::HistoryLast) -> temper_engine_
 
 #[must_use]
 pub fn task_release_to_record(value: &temper_engine_domain_forge_vocabulary::TaskRelease) -> crate::v25::TaskRelease {
-    let temper_engine_domain_forge_vocabulary::TaskRelease { revision: field_000000, at: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::TaskRelease { revision: field_000000, at: field_000001, measure: field_000002 } = value;
     crate::v25::TaskRelease {
         revision: *field_000000,
-        at: skein_codec::convert::wall_to_record(field_000001)
+        at: skein_codec::convert::wall_to_record(field_000001),
+        measured: *field_000002
     }
 }
 
 #[must_use]
 pub fn task_release_to_domain(record: crate::v25::TaskRelease) -> temper_engine_domain_forge_vocabulary::TaskRelease {
-    let crate::v25::TaskRelease { revision: field_000000, at: field_000001 } = record;
+    let crate::v25::TaskRelease { revision: field_000000, at: field_000001, measured: field_000002 } = record;
     temper_engine_domain_forge_vocabulary::TaskRelease {
         revision: field_000000,
-        at: skein_codec::convert::wall_to_domain(field_000001)
+        at: skein_codec::convert::wall_to_domain(field_000001),
+        measure: field_000002
     }
 }
 
@@ -9956,7 +9914,7 @@ pub fn runner_ci_to_domain(record: crate::v25::RunnerCi) -> temper_engine_domain
 
 #[must_use]
 pub fn ci_recheck_to_record(value: &temper_engine_domain_forge_vocabulary::CiRecheck) -> crate::v25::CiRecheck {
-    let temper_engine_domain_forge_vocabulary::CiRecheck { job: field_000000, taken: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::CiRecheck { job: field_000000, taken: field_000001, semantic: field_000002 } = value;
     crate::v25::CiRecheck {
         job: job_attempt_to_record(field_000000),
         taken: match field_000001 {
@@ -9965,13 +9923,14 @@ pub fn ci_recheck_to_record(value: &temper_engine_domain_forge_vocabulary::CiRec
                 Some(converted)
             }
             None => None,
-        }
+        },
+        semantic: *field_000002
     }
 }
 
 #[must_use]
 pub fn ci_recheck_to_domain(record: crate::v25::CiRecheck) -> temper_engine_domain_forge_vocabulary::CiRecheck {
-    let crate::v25::CiRecheck { job: field_000000, taken: field_000001 } = record;
+    let crate::v25::CiRecheck { job: field_000000, taken: field_000001, semantic: field_000002 } = record;
     temper_engine_domain_forge_vocabulary::CiRecheck {
         job: job_attempt_to_domain(field_000000),
         taken: match field_000001 {
@@ -9980,7 +9939,8 @@ pub fn ci_recheck_to_domain(record: crate::v25::CiRecheck) -> temper_engine_doma
                 Some(converted)
             }
             None => None,
-        }
+        },
+        semantic: field_000002
     }
 }
 

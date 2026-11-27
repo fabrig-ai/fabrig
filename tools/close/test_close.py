@@ -12,6 +12,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 STATUS = 'tree/docs/design/a.status.md'
+OPENING = b'# x: status\n\n2026-11-20. Where the code lags.\n'
+BUILT = b'- **Not yet:** 3: built [in flight: change 9].\n'
 SEEDS = range(64)
 
 
@@ -91,6 +93,94 @@ class Close(unittest.TestCase):
         self.assert_success(self.run_close({12: False}))
         self.assertEqual(self.read(), before + b'  \r\n')
         self.assertEqual(self.staged(), [STATUS])
+
+    def test_tagged_entries_outside_docs_settle(self):
+        paths = ['outside.status.md', 'tools/x/design.status.md']
+        stays = b'- **Not yet:** 4: stays.\n'
+        gap = b'- **Not yet:** 5: gap'
+        for path in paths:
+            self.write(path, BUILT + stays + gap + b' [in flight: change 12].\n')
+        self.commit()
+        self.assert_success(self.run_close({9: True, 12: False}))
+        for path in paths:
+            self.assertEqual(self.read(path), stays + gap + b'.\n', path)
+        self.assertEqual(self.staged(), paths)
+        self.assertEqual(self.result(), {'settled': paths})
+
+    def test_a_file_whose_last_entry_settles_reads_no_gap(self):
+        multiline = b'\n \t\n' + OPENING + b'This is still the dated paragraph.  \n'
+        nested = (b'- **Not yet:**\n'
+                  b'  - 3: built [in flight: change 9].\n'
+                  b'  - 4: built too [in flight: change 10].\n')
+        cases = (
+            (STATUS, OPENING, BUILT, b'\n'),
+            ('docs/windows.status.md', OPENING, BUILT + b'\n \t\n', b'\r\n'),
+            ('tools/x/nested.status.md', multiline, nested, b'\n'),
+        )
+        for path, opening, entries, newline in cases:
+            self.write(path, (opening + b'\n' + entries).replace(b'\n', newline))
+        self.commit()
+        self.assert_success(self.run_close({9: True, 10: True}))
+        for path, opening, _, newline in cases:
+            with self.subTest(path=path):
+                self.assertEqual(self.read(path), opening.replace(b'\n', newline)
+                                 + newline + b'No gap.' + newline)
+        paths = sorted(path for path, _, _, _ in cases)
+        self.assertEqual(self.staged(), paths)
+        self.assertEqual(self.result(), {'settled': paths})
+        self.commit()
+        self.assert_success(self.run_close({9: True, 10: True}))
+        self.assertEqual(self.staged(), [])
+        self.assertEqual(self.result(), {'settled': []})
+
+    def test_text_left_after_the_opening_is_preserved(self):
+        remnants = {
+            'docs/untagged.status.md': b'- **Not yet:** 4: stays.\n',
+            'tools/x/departs.status.md': b'- **Departs:** 5: stays.\n',
+            'tools/x/prose.status.md': b'Prose after the opening.\n',
+        }
+        foreign = ['docs/foreign.status.md', 'foreign.status.md']
+        foreign_text = OPENING + b'\n- **Not yet:** 6: other [in flight: change 40].\n'
+        for path, remnant in remnants.items():
+            self.write(path, OPENING + b'\n' + BUILT + remnant)
+        for path in foreign:
+            self.write(path, foreign_text)
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        for path, remnant in remnants.items():
+            self.assertEqual(self.read(path), OPENING + b'\n' + remnant, path)
+        for path in foreign:
+            self.assertEqual(self.read(path), foreign_text, path)
+        self.assertEqual(self.staged(), sorted(remnants))
+        self.assertEqual(self.result(), {'settled': sorted(remnants), 'kept': [
+            f'{path}:5: [in flight: change 40]' for path in foreign]})
+
+    def test_an_existing_no_gap_is_kept(self):
+        before = OPENING + b'\n \t\nNo gap.\n\n\n'
+        path = 'tools/x/done.status.md'
+        self.write(path, before + BUILT)
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        self.assertEqual(self.read(path), before)
+        self.assertEqual(self.staged(), [path])
+        self.assertEqual(self.result(), {'settled': [path]})
+
+    def test_missing_openings_and_unsettled_files_gain_nothing(self):
+        without_opening = {
+            'no-heading.status.md': b'Not a heading.\n\n2026-11-20. Where the code lags.\n\n',
+            'tools/x/no-date.status.md': b'# x: status\n\nWhere the code lags.\n\n',
+        }
+        for path, before in without_opening.items():
+            self.write(path, before + BUILT)
+        blank = OPENING + b'\n \t\n'
+        self.write(STATUS, blank)
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        for path, before in without_opening.items():
+            self.assertEqual(self.read(path), before, path)
+        self.assertEqual(self.read(), blank)
+        self.assertEqual(self.staged(), sorted(without_opening))
+        self.assertEqual(self.result(), {'settled': sorted(without_opening)})
 
     def test_a_wrapped_tag_settles_as_a_one_line_one(self):
         wraps = (
@@ -245,11 +335,14 @@ class Close(unittest.TestCase):
         for path, data in contents.items():
             self.write(path, data)
         self.commit()
-        self.write('docs/untracked.status.md', b'- **Not yet:** 1: untracked [in flight: change 40]')
+        untracked = 'docs/untracked.status.md'
+        self.write(untracked, BUILT)
         self.assert_success(self.run_close({9: True}))
         self.assertEqual({path: self.read(path) for path in contents}, contents)
+        self.assertEqual(self.read(untracked), BUILT)
         self.assertEqual(self.staged(), [])
-        self.assertEqual(self.result(), {'settled': []})
+        self.assertEqual(self.result(), {'settled': [], 'kept': [
+            'outside.status.md:1: [in flight: change 40]']})
 
     def test_nothing_to_settle_is_success_with_nothing_staged(self):
         self.write(STATUS, b'# Status\n\n- **Not yet:** 1: stays.\n')
@@ -380,6 +473,8 @@ class Close(unittest.TestCase):
 
     def test_random_status_files_settle_by_their_changes_ends(self):
         started = time.monotonic()
+        paths = ('docs/random-0.status.md', 'docs/random-1.status.md', 'random-2.status.md',
+                 'tools/x/random-3.status.md', 'tools/x/random-4.status.md')
         for seed in SEEDS:
             print(f'close seed {seed}', flush=True)
             rng = random.Random(seed)
@@ -387,12 +482,17 @@ class Close(unittest.TestCase):
                     if seed % 2 == 0 or rng.randrange(4)}
             originals, expected = {}, {}
             kept = []
-            for number in range(4):
-                path = f'docs/random-{number}.status.md'
+            landed = [task for task, did_land in ends.items() if did_land]
+            for number, path in enumerate(paths):
                 original, model = [], []
                 newline = rng.choice((b'\n', b'\r\n'))
+                all_tagged = number == len(paths) - 1
+                prefix = b''
+                if all_tagged or (seed + number) % 2:
+                    prefix = OPENING.replace(b'\n', newline) + newline
                 for entry in range(24):
-                    kind = rng.choice(('prose', 'untagged', 'tagged', 'departs'))
+                    kind = ('tagged' if all_tagged else
+                            rng.choice(('prose', 'untagged', 'tagged', 'departs')))
                     if kind == 'prose':
                         chunk = f'Prose {rng.getrandbits(32)}.'.encode() + newline + newline
                         original.append(chunk)
@@ -403,7 +503,7 @@ class Close(unittest.TestCase):
                     lines += [f'  continuation {rng.getrandbits(32)}'.encode()
                               for _ in range(rng.randrange(4))]
                     bare = newline.join(lines)
-                    task = rng.randint(1, 20)
+                    task = rng.choice(landed) if all_tagged and landed else rng.randint(1, 20)
                     punctuation = bytes(rng.choice(b'.,;:!?') for _ in range(rng.randrange(1, 5))) \
                         if rng.randrange(2) else b''
                     spaces = rng.choice((b'', b' ', b'  ', b'\t'))
@@ -420,7 +520,8 @@ class Close(unittest.TestCase):
                     if kind != 'tagged':
                         model.append(original[-1])
                     elif task not in ends:
-                        line = (sum(chunk.count(b'\n') for chunk in original[:-1])
+                        line = (prefix.count(b'\n')
+                                + sum(chunk.count(b'\n') for chunk in original[:-1])
                                 + len(lines) + tag[0].count(b'\n'))
                         kept.append(f'{path}:{line}: [in flight: change {task}]')
                         model.append(original[-1])
@@ -428,8 +529,11 @@ class Close(unittest.TestCase):
                         model.append(newline)
                     else:
                         model.append(bare + punctuation + spaces + suffix)
-                originals[path] = b''.join(original)
-                expected[path] = b''.join(model)
+                body, settled_body = b''.join(original), b''.join(model)
+                originals[path] = prefix + body
+                expected[path] = prefix + settled_body
+                if prefix and body != settled_body and not settled_body.strip():
+                    expected[path] = prefix + b'No gap.' + newline
                 self.write(path, originals[path])
             self.commit()
             result = self.run_close(ends)

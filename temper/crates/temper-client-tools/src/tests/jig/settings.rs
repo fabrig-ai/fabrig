@@ -72,6 +72,18 @@ fn model() -> c::SettingModel {
         speed: None,
     }
 }
+fn stock_model(number: u32, model: c::SettingModel) -> c::SettingValue {
+    c::SettingValue::Model(Box::new(c::CatalogueEntry {
+        number,
+        model,
+        shown: Some(words("GPT-6.1 Terra")),
+        description: None,
+        picker: false,
+        withdrawn: false,
+        source: c::ModelSource::Stock,
+        estimated: false,
+    }))
+}
 fn documents() -> List<c::CharterDocument> {
     list([
         c::CharterDocument {
@@ -615,23 +627,23 @@ fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
         );
     }
 }
+fn setting_read(setting: c::Setting, value: c::SettingValue) -> c::ReadValue {
+    c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting,
+        revision: 5,
+        value: Some(value),
+        application: None,
+        proposed: None,
+    }))
+}
 fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
     let mut root = fixtures::signed_in(fixtures::PARTY);
     let mut call = fixtures::call(&["settings", "show", "rules"]);
     call.tool = rows::SETTING_AT;
     let number = root.submit_prepared(call, true, None);
     newest_for_setting(&mut root, number);
-    root.serve(
-        number,
-        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None,
-            setting,
-            revision: 5,
-            value: Some(value),
-            application: None,
-            proposed: None,
-        }))),
-    );
+    root.serve(number, c::ReadResult::Value(setting_read(setting, value)));
     root.answer(number).expect("setting answered").stdout.to_vec()
 }
 fn file_from_setting(bytes: &[u8]) -> Vec<u8> {
@@ -1072,6 +1084,20 @@ fn settings_reads_keep_their_neighbours_not_served_and_role_statuses() {
             root.serve_readout(call, page);
             assert_eq!(root.answer(call).expect("terminal read").status, status);
         }
+    }
+}
+
+#[test]
+fn model_show_json_matches_the_settings_renderer_byte_for_byte() {
+    const MODEL: u32 = 9;
+    let setting = c::Setting::Model(c::SettingNumber { number: MODEL });
+    let limits = crate::limits::tools();
+    for model in [model(), c::SettingModel { program: None, ..model() }] {
+        let reading = setting_read(setting, stock_model(MODEL, model));
+        let expected = jig::render::settings_json(&reading, &limits);
+        let answer = read(&["settings", "show", "model", "9", "--json"], reading);
+        // ctl writes these JSON bytes as-is, without adding a line end.
+        assert_eq!((answer.status, answer.stdout), (0, expected));
     }
 }
 
@@ -3772,32 +3798,13 @@ fn settings_effort_names_use_the_terminal_name_cut() {
 #[test]
 fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let setting = c::Setting::Model(c::SettingNumber { number: 4 });
-    let value = c::SettingValue::Model(Box::new(c::CatalogueEntry {
-        number: 4,
-        model: model(),
-        shown: Some(words("GPT-6.1 Terra")),
-        description: None,
-        picker: false,
-        withdrawn: false,
-        source: c::ModelSource::Stock,
-        estimated: false,
-    }));
+    let value = stock_model(4, model());
     let (mut root, call) = fixtures::read_call(&["settings", "show", "model", "4", "--revision", "5"]);
     assert_eq!(
         root.reads.get(&call).unwrap().1,
         c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
     );
-    root.serve(
-        call,
-        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None,
-            setting,
-            revision: 5,
-            value: Some(value.clone()),
-            application: None,
-            proposed: None,
-        }))),
-    );
+    root.serve(call, c::ReadResult::Value(setting_read(setting, value.clone())));
     let answer = root.answer(call).unwrap();
     let text = core::str::from_utf8(&answer.stdout).unwrap();
     assert!(text.starts_with("model 4, revision 5\n"), "{text}");

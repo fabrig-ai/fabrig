@@ -396,7 +396,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
     world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
@@ -404,7 +404,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(!world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
 }
 
@@ -580,6 +580,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -956,6 +958,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         change::Decision::Failed => panic!("unexpected source failure"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
+                        change::Decision::ReplayJudgement(replay) => hold_reason = Some(replay.cause()),
                         change::Decision::Finish { .. } => finished = true,
                         change::Decision::None
                         | change::Decision::CancelProducer

@@ -199,6 +199,11 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   completes `Cancelled`, naming who cancelled it, so a world reaches a
   run cancelled by someone other than its dispatcher; a completed run
   is not cancelled.
+- **A missing upload:** `scenario::omit_report_once(domain, repository,
+  run)` leaves one in-flight dispatch's report unuploaded if it
+  completes failed, without changing its verdict or job steps. Its
+  next attempt and other runs upload as configured. The scenario
+  setting is not kept in an image.
 - **A job's state** (`../../forge/job-state.md`, section 5): a job names
   the runner labels it asks for and the jobs it needs, and the world the
   labels its runners serve, all by default. A job asking for a label no
@@ -243,6 +248,10 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   became ready, and runs its span from taking one; it holds its runner
   until it completes, is lost or is cancelled. Commit statuses' CI is
   outside it. An image keeps none: a restored waiting job is runnable.
+- **A silent workflow:** `scenario::set_workflow_silent(domain, repository,
+  file, silent)` sets the workflow's `silent` chance per mille. Jobs that
+  have already started keep their scheduling decision; a world can set the
+  chance for a dispatch and clear it for the next one.
 - **Lagging views** (temper's `draft/failure-worlds.md`, 4.1):
   `scenario::lag(domain, Lag { chance, min, max })`, `chance` per
   mille, none by default. When a write moves a branch, each open pull

@@ -1074,6 +1074,7 @@ pub struct FollowCheck {
 pub struct TaskRelease {
     pub revision: u64,
     pub at: skein_lib::Wall,
+    pub measure: bool,
 }
 
 /// A pushed branch selected once (temper/docs/design/domain/forge/change/opened.md, 3.1 and 4).
@@ -1154,7 +1155,7 @@ pub struct ChangeRow {
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
     pub gate_remarks: Box<[GateRemark]>,
-    pub drift: Option<change::Hold>,
+    pub drift: Option<change::Cause>,
     /// A deployment-owned repair of a landing branch, exempt from that branch's broken CI.
     pub base_repair: bool,
     /// The base repair started while this ordinary change owned the queue.
@@ -1213,6 +1214,7 @@ pub struct Regate {
 pub struct CiRecheck {
     pub job: skein_forge::api::JobAttempt,
     pub taken: Option<u32>,
+    pub semantic: bool,
 }
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1282,7 +1284,7 @@ pub struct ChangeHot {
     pub delegate_words: Option<crate::ResultText>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
-    pub drift: Option<change::Hold>,
+    pub drift: Option<change::Cause>,
     pub queue_repair: Option<u64>,
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
@@ -3480,11 +3482,20 @@ pub enum Request {
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
     },
-    /// A close job offer or the replay of its failure, with the tips just read.
+    /// A close job offer with the tips just read.
     CloseDecision {
         task: u64,
         at: change::CloseAt,
-        replay: bool,
+    },
+    /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
+    ReplayJudgement {
+        task: u64,
+        replay: change::Replay,
+        prior_rejection: Box<[u8]>,
+    },
+    /// The relay already held the task; the change's row keeps the refusal evidence.
+    RelayRefusal {
+        task: u64,
     },
     /// Task-specific news with a connector classification.
     News {

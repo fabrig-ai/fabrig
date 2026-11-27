@@ -126,6 +126,36 @@ fn a_faulted_run_uploads_no_report() {
     }
 }
 #[test]
+fn only_the_named_failed_run_misses_its_report_once() {
+    let mut h = configured_report(calm(), ReportFormat::Junit, &[b"a"], None);
+    let usual = run_report(&mut h, None);
+    assert!(usual.is_ok(), "a normal failure uploads its report");
+
+    h.ok(ENGINE, dispatch());
+    let other = workflow_runs(&h)[0].id;
+    h.ok(ENGINE, dispatch());
+    let run = workflow_runs(&h)[0].id;
+    crate::omit_report_once(&mut h.domain, REPOSITORY, run).expect("a running dispatch");
+    h.settle();
+    assert_eq!(workflow_runs(&h)[0].conclusion, Some(crate::api::Conclusion::Failure));
+    assert_eq!(h.inspect(&Read::Artifacts { run }), Ok(Answer::Artifacts(Box::new([]))));
+    assert_eq!(h.inspect(&Read::Artifact { run: other, name: copy_of(REPORT) }), usual);
+    assert_eq!(run_report(&mut h, None), usual);
+
+    let jobs = run_jobs(&h, run);
+    let mut workflow_failed = false;
+    for step in &jobs[0].steps {
+        if step.number == crate::api::WORKFLOW_STEP {
+            workflow_failed = step.status == crate::api::StepStatus::Failure;
+        }
+    }
+    assert!(workflow_failed);
+    h.ok(ENGINE, write(Write::Rerun { job: jobs[0].id }));
+    h.settle();
+    assert_eq!(h.inspect(&Read::Artifact { run, name: copy_of(REPORT) }), usual);
+}
+
+#[test]
 fn a_passing_run_reports_no_failed_ids() {
     let mut h = configured_report(calm(), ReportFormat::Junit, &[], None);
     assert_eq!(

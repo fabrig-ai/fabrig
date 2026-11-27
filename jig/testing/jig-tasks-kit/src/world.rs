@@ -641,6 +641,7 @@ impl World {
             | Event::Cancel { .. }
             | Event::Fail { .. }
             | Event::Release { .. }
+            | Event::Measure { .. }
             | Event::Propose { .. }
             | Event::ProposePerson { .. }
             | Event::WithdrawPersonProposal { .. }
@@ -759,6 +760,7 @@ impl World {
             | Event::Cancel { .. }
             | Event::Fail { .. }
             | Event::Release { .. }
+            | Event::Measure { .. }
             | Event::MoveToNewest { .. }
             | Event::Move { .. }
             | Event::Compound { .. }

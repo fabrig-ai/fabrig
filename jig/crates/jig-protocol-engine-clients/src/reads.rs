@@ -71,7 +71,7 @@ impl Component {
                     return;
                 };
                 let Some(window) = crate::served::window(&body.window) else {
-                    self.response(exchange, crate::Reply::NotARecord);
+                    self.respond(exchange, routes::read_none(core::reads::Why::Unknown));
                     return;
                 };
                 let scope = crate::served::scope(&body.scope);

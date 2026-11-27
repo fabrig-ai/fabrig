@@ -141,6 +141,10 @@ impl View {
     pub fn tree(&self) -> &Tree {
         self.render.tree()
     }
+    #[cfg(test)]
+    pub(crate) const fn rows(&self) -> &List<Row> {
+        &self.rows
+    }
 }
 fn text(b: &mut Builder, role: Role, bytes: &[u8], style: Option<Style>) {
     b.open(role);
@@ -840,20 +844,6 @@ fn has_needs(root: &Domain) -> bool {
         Some(inbox) => !root.pages().needs().needs(inbox, root.forge().approvals()).is_empty(),
         None => false,
     }
-}
-/// A chat's number among the displayed left-off rows (client/tui/pages/launchpad.md).
-#[must_use]
-pub fn chat_number(view: &View, number: u32) -> Option<u64> {
-    let mut seen = 0_u32;
-    for row in &view.rows {
-        if let Row::Chat { task } = row {
-            seen = seen.saturating_add(1);
-            if seen == number {
-                return Some(*task);
-            }
-        }
-    }
-    None
 }
 /// The whole web address of the displayed focus (client/tui/pages/README.md).
 #[must_use]

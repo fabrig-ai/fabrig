@@ -9,7 +9,10 @@ use crate::faults::{FaultLedger, Kind};
 use crate::test_env::{Mode, mode};
 
 pub(crate) mod cases;
+mod shapes;
+
 pub use cases::{Case, Test, cases, gate, input};
+pub use shapes::{SHAPES_KEPT, Shapes};
 
 /// Judge each seed in a range, then record the completed sweep.
 pub fn each_seed<F: FnMut(u64)>(seeds: core::ops::Range<u64>, mut check: F) {
@@ -56,6 +59,7 @@ pub struct Sweep {
     fell: BTreeMap<Kind, u64>,
     seeds: u64,
     left_out: BTreeMap<&'static str, u64>,
+    ineligible: BTreeMap<Kind, u64>,
 }
 
 impl Sweep {
@@ -68,6 +72,7 @@ impl Sweep {
             fell: BTreeMap::new(),
             seeds: 0,
             left_out: BTreeMap::new(),
+            ineligible: BTreeMap::new(),
         }
     }
 
@@ -115,7 +120,8 @@ impl Sweep {
         })
     }
 
-    /// Folds one seed's ledger: one more case for each kind that fell, and what its exclusions left out.
+    /// Folds one seed's ledger: the kinds that fell, the kinds without an eligible target,
+    /// and what its exclusions left out.
     /// Counts a `seed` check only outside a `cases` check, which counts its own case.
     pub fn ran(&mut self, ledger: &FaultLedger) {
         self.ran_in(ledger, |n| skein_checks::count("seed", n));
@@ -131,13 +137,17 @@ impl Sweep {
             let count = self.left_out.entry(scenario).or_default();
             *count = count.checked_add(1).expect("a sweep's left-out draw count fits u64");
         }
+        for &kind in ledger.ineligible_kinds() {
+            let count = self.ineligible.entry(kind).or_default();
+            *count = count.checked_add(1).expect("a fault's ineligible case count fits u64");
+        }
         if !cases::in_case() {
             count(1);
         }
     }
 
     /// At the gate, each configured fault fell in at least one seed folded.
-    /// Outside it, passes and writes how many cases each configured fault fell in.
+    /// Outside it, passes and writes reach, followed by any ineligible case counts.
     pub fn check_fell(&self) -> Result<(), String> {
         self.check_fell_in(mode(), cases::stderr)
     }
@@ -155,6 +165,14 @@ impl Sweep {
                 ));
             }
         }
+        if !mode.gate() {
+            for kind in &self.configured {
+                let count = self.ineligible(*kind);
+                if count > 0 {
+                    report(format_args!("fuzzy reach: {} ineligible/{}/{} {count}", self.name, kind.family, kind.name));
+                }
+            }
+        }
         if findings.is_empty() { Ok(()) } else { Err(findings.join("\n")) }
     }
 
@@ -162,5 +180,11 @@ impl Sweep {
     #[must_use]
     pub fn left_out(&self, scenario: &str) -> u64 {
         self.left_out.get(scenario).copied().unwrap_or(0)
+    }
+
+    /// How many of the cases folded had no eligible target for `fault`.
+    #[must_use]
+    pub fn ineligible(&self, fault: Kind) -> u64 {
+        self.ineligible.get(&fault).copied().unwrap_or(0)
     }
 }

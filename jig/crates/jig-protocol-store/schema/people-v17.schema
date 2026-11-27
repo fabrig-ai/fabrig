@@ -148,6 +148,7 @@ record AskWithdraw { project: u32 proposal: u64 }
 record AskStop { project: u32 task: u64 reason: bytes 8192 = 0x }
 record AskCancel { project: u32 task: u64 reason: bytes 8192 grace: option u64 }
 record AskRelease { project: u32 task: u64 revision: u64 again: option bool }
+record AskMeasure { project: u32 task: u64 revision: u64 }
 record AskTakePerson { project: u32 task: u64 }
 record AskHandBackPerson { project: u32 task: u64 }
 record AskAnswerPerson { project: u32 task: u64 revision: u64 result: PersonResult }
@@ -218,7 +219,7 @@ record OutcomeWorkerPauseAsked { worker: u32 }
 record RefusalUnlinked { worker: u32 }
 
 record ServiceParty { party: u64 }
-enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject, restore: AskRestore, set_visibility: AskSetVisibility, talk: AskSay, leave: AskStop, conclude: AskConclude, delegate: AskDelegate, pause_worker: AskPauseWorker, reissue_service: ServiceParty }
+enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject, restore: AskRestore, set_visibility: AskSetVisibility, talk: AskSay, leave: AskStop, conclude: AskConclude, delegate: AskDelegate, pause_worker: AskPauseWorker, reissue_service: ServiceParty, measure: AskMeasure }
 record StoredPerson { number: u64 identity: Identity }
 record StoredReadResults { party: u64 through: u64 }
 record StoredReadConversation { party: u64 task: u64 through: u64 }

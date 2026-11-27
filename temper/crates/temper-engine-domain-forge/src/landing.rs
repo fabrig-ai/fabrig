@@ -6014,6 +6014,18 @@ impl Domain {
         let (key, _, receipt) = self.repair_receipt(change, why)?;
         Some(crate::Regate { receipt: key.clone(), run: receipt.run.id, taken: None })
     }
+    pub(super) fn release_regate(&self, row: &crate::ChangeRow, why: change::Repair) -> Option<crate::Regate> {
+        if let Some(prior) = &row.regate {
+            let run = prior.taken.unwrap_or(prior.run);
+            let receipt = self.receipt(&prior.receipt)?;
+            if receipt.passed || receipt.run.id != run {
+                return None;
+            }
+            return Some(crate::Regate { receipt: prior.receipt.clone(), run, taken: None });
+        }
+        self.landing_regate(row.task, why)
+    }
+
     pub(super) fn regate_failure(&self, row: &crate::ChangeRow, ask: &change::Handed) -> Option<&Receipt> {
         let regate = row.regate.as_ref()?;
         let taken = regate.taken?;

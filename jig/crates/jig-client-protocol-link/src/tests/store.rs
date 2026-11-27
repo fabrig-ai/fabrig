@@ -1,10 +1,11 @@
 use super::*;
+use skein_lib::RequestRecord;
 fn restored(record: Record) -> fixtures::Harness {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.start_store(fixtures::one_store_read(record));
     harness
 }
-fn pending_write(record: Saved) -> fixtures::Harness {
+fn pending_write(record: RequestRecord<jig_client_domain::Held>) -> fixtures::Harness {
     let mut harness = fixtures::Harness::new(&fixtures::limits());
     harness.save(record);
     harness.send_kept(fixtures::ATTEMPT);
@@ -132,8 +133,8 @@ fn an_unwritable_record_retires_only_its_key_and_preserves_the_pending_write() {
     harness.written();
     assert_eq!(harness.out.len(), 0, "nothing leaves twice");
 }
-fn family_record() -> Saved {
-    skein_lib::RequestRecord {
+fn family_record() -> RequestRecord<jig_client_domain::Held> {
+    RequestRecord {
         key: fixtures::KEY,
         scope: u64::MAX,
         first_sent: None,

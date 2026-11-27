@@ -201,6 +201,16 @@ Offered where the run's charter names the control family and its authority holds
 - `target`: integer >=1; required. The delegate's number.
 - `reason`: text; required. Why it is cancelled.
 
+## measure
+
+Lift a procedure hold for one fresh check. No placed or uncertain holds.
+
+A write.
+Offered where the run's charter names the control family and its authority holds it.
+
+- `target`: integer >=1; required. Held delegate number.
+- `revision`: integer >=0; required. Last-read hold revision.
+
 ## release
 
 Release a held delegate, naming its hold revision. One a party's hold holds is theirs to release: propose it.

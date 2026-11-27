@@ -133,7 +133,7 @@ pub struct Panel {
     pub source: Option<PanelSource>,
     pub pull: Option<u64>,
     pub step: PanelStep,
-    pub hold: Option<change::Hold>,
+    pub hold: Option<change::Cause>,
     pub wait: Option<PanelWait>,
     pub runs: Option<u64>,
     pub ci: change::Status,

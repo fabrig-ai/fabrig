@@ -1,10 +1,11 @@
 //! List patterns match whole names and drops win (jig/docs/design/protocol/configuration-engine.md, 1).
 use crate::settings::catalogue::{CatalogueModel, ModelSource, NEW_FOR, from_list, kept, matches, shape};
-use crate::settings::{Edit, Item, Setting, Value};
+use crate::settings::{self, Edit, Item, Setting, Value};
 use core::slice::from_ref;
 use jig_domain_accounts::ProviderList;
+use jig_domain_authority::Models;
 use jig_domain_link::ListedModel;
-use skein_lib::{Duration, Wall};
+use skein_lib::{Duration, List, Wall};
 
 #[test]
 fn catalogue_patterns_match_whole_names_with_backtracking() {
@@ -111,6 +112,90 @@ fn catalogue_model(number: u32, name: &[u8], source: ModelSource) -> CatalogueMo
     }
 }
 
+// Seven stock settings and every deployment setting from 39 through 64 leave a gap at 8–38.
+const STOCK_MODELS: u32 = 7;
+const FIRST_ADDED_MODEL: u32 = 39;
+const FIRST_HOLE_BIT: u64 = 1 << STOCK_MODELS;
+const LAST_HOLE_BIT: u64 = 1 << (FIRST_ADDED_MODEL - 2);
+const FIRST_ADDED_BIT: u64 = 1 << (FIRST_ADDED_MODEL - 1);
+const ADDED_POLICY: Setting = Setting::Policy(settings::NUMBERS);
+
+#[expect(clippy::disallowed_macros, reason = "numbered names for distinct models in a unit-test fixture")]
+pub(super) fn sparse_catalogue() -> Box<[CatalogueModel]> {
+    let mut models = List::with_capacity(settings::NUMBERS);
+    let first = crate::tests::scripted_model();
+    models.push(catalogue_model(1, &first.name, ModelSource::Stock)).expect("stock model");
+    for (numbers, source) in
+        [(2..=STOCK_MODELS, ModelSource::Stock), (FIRST_ADDED_MODEL..=settings::NUMBERS, ModelSource::Person)]
+    {
+        for number in numbers {
+            models
+                .push(catalogue_model(number, format!("model-{number}").as_bytes(), source))
+                .expect("one setting per model");
+        }
+    }
+    models.into_boxed()
+}
+
+fn check_model_authorities(
+    rules_models: Models,
+    ceiling_models: Models,
+    role_models: Models,
+) -> Result<(), settings::Failure> {
+    // At most one edit per model setting, plus the rules and policy edits.
+    const ITEMS: u32 = settings::NUMBERS + 2;
+    let crate::Config { mut defaults, settings: facts, connectors, seed_projects, .. } = crate::tests::config(41);
+    let mut stock = List::with_capacity(STOCK_MODELS);
+    let mut items = List::with_capacity(ITEMS);
+    for model in sparse_catalogue() {
+        if model.number <= STOCK_MODELS {
+            stock.push(model).expect("stock model");
+        } else {
+            items
+                .push(Item { setting: Setting::Model(model.number), edit: Edit::Set(Value::Model(Box::new(model))) })
+                .expect("added model");
+        }
+    }
+    defaults.models = stock.into_boxed();
+    let mut rules = defaults.rules.clone();
+    rules.ceiling.models = rules_models;
+    let mut policy = seed_projects.first().expect("fixture project").policy.clone();
+    policy.permissions = Box::default();
+    policy.policy.ceiling.models = ceiling_models;
+    policy.policy.roles.first_mut().expect("owner role").authority.models = role_models;
+    items.push(Item { setting: Setting::Rules, edit: Edit::Set(Value::Rules(Box::new(rules))) }).expect("rules edit");
+    items.push(Item { setting: ADDED_POLICY, edit: Edit::Set(Value::Policy(Box::new(policy))) }).expect("policy edit");
+    let limits = crate::tests::limits();
+    let current = settings::Current::new(defaults, &limits, &[]);
+    settings::check_change(&current, items.as_slice(), &facts, &connectors, &limits)
+}
+
+#[test]
+fn authorities_naming_a_catalogue_hole_are_reference_faults() {
+    for bit in [FIRST_HOLE_BIT, LAST_HOLE_BIT] {
+        let hole = Models::Named(bit);
+        let all = Models::All;
+        for (name, rules, ceiling, role, setting) in [
+            ("rules ceiling", hole, all, all, Setting::Rules),
+            ("policy ceiling", all, hole, all, ADDED_POLICY),
+            ("role authority", all, all, hole, ADDED_POLICY),
+        ] {
+            assert_eq!(
+                check_model_authorities(rules, ceiling, role),
+                Err(settings::Failure { setting, fault: settings::Fault::Reference, detail: None }),
+                "{name}: {bit:#x}"
+            );
+        }
+    }
+}
+
+#[test]
+fn authorities_can_name_models_after_a_catalogue_hole() {
+    for models in [Models::Named(FIRST_ADDED_BIT), Models::Named(LAST), Models::All] {
+        assert_eq!(check_model_authorities(models, models, models), Ok(()), "{models:?}");
+    }
+}
+
 fn fresh_model(number: u32, name: &[u8]) -> CatalogueModel {
     let mut model = catalogue_model(number, name, ModelSource::List);
     model.shown = None;
@@ -128,7 +213,7 @@ fn listed(name: &[u8]) -> ListedModel {
 
 fn assert_list_case(case: &ListCase, list: &ProviderList, settings: &crate::Settings) {
     let change = from_list(case.provider, list, &case.rows, case.others, READ_AT, &case.models, &settings.endpoints);
-    let mut expected = skein_lib::List::with_capacity(jig_domain_tasks::MODELS);
+    let mut expected = List::with_capacity(jig_domain_tasks::MODELS);
     for model in &case.expected {
         expected
             .push(Item {

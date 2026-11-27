@@ -39,6 +39,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::HandBack { .. }
         | Ask::Decide { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
@@ -240,6 +241,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
         | Ask::HandBack { .. }
         | Ask::Decide { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
@@ -301,6 +303,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             | Ask::HandBack { .. }
             | Ask::Decide { .. }
             | Ask::Lift { .. }
+            | Ask::Measure { .. }
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }
@@ -368,6 +371,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         | Ask::HandBack { .. }
         | Ask::Decide { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }

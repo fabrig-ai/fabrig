@@ -11,24 +11,7 @@ use smith_domain::{llm as agent, run, tools};
 
 #[must_use]
 pub fn query(prompt: agent::Prompt) -> provider::Query {
-    let mut tools = Vec::new();
-    let mut names = Vec::new();
-    if prompt.tools.inspect {
-        names.extend([b"read".as_slice(), b"list", b"search"]);
-    }
-    if prompt.tools.modify {
-        names.extend([b"write".as_slice(), b"edit"]);
-    }
-    if prompt.tools.shell {
-        names.extend([b"shell".as_slice(), b"job"]);
-    }
-    for name in names {
-        tools.push(provider::ToolSpec {
-            name: name.into(),
-            description: b"Scripted domain tool.".as_slice().into(),
-            parameters: b"{}".as_slice().into(),
-        });
-    }
+    let mut tools = smith_session_world::translate::offer(prompt.tools).into_vec();
     for served in prompt.served {
         let specification = match served {
             agent::Served::Host(tool) => {
@@ -277,20 +260,16 @@ pub fn decode(
             },
         };
     }
-    let (session_name, granted): (&[u8], bool) = match name {
-        b"read" => (b"read", grants.inspect),
-        b"list" => (b"list", grants.inspect),
-        b"search" => (b"search", grants.inspect),
-        b"write" => (b"write", grants.modify),
-        b"edit" => (b"edit", grants.modify),
-        b"shell" => (b"shell", grants.shell),
-        b"job" => (b"job", grants.shell),
+    let granted = match name {
+        b"read" | b"list" | b"search" => grants.inspect,
+        b"write" | b"edit" | b"remove" => grants.modify,
+        b"shell" | b"job" => grants.shell,
         _ => return invalid(),
     };
     if !granted {
         return invalid();
     }
-    match smith_session_world::translate::decode(session_name, arguments) {
+    match smith_session_world::translate::decode(name, arguments) {
         smith_domain::session::llm::Decoded::Owned { call } => agent::Decoded::Owned { call },
         smith_domain::session::llm::Decoded::Invalid { problem, .. } => agent::Decoded::Invalid { problem },
         smith_domain::session::llm::Decoded::Builtin { .. } | smith_domain::session::llm::Decoded::Delegated { .. } => {

@@ -147,7 +147,7 @@ fn running_past_the_stall_after_a_runner_wait_passes_the_turn() {
     poll_checking_for(&mut world, 80);
     assert!(matches!(
         &world.change(51).change.state,
-        change::State::Held { was, why: change::Hold::Stalled } if **was == change::State::Checking { head }
+        change::State::Held { was, hold: change::Hold { cause: change::Cause::Stalled, .. } } if **was == change::State::Checking { head }
     ));
     let clock = world.change(51).change.clock.expect("stalled execution clock");
     assert_eq!(clock.seen, change::Execution::Running);
