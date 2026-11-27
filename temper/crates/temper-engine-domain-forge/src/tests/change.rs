@@ -2591,7 +2591,9 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
             change::State::Held { was: Box::new(was), hold: change::Hold::new(change::Cause::Failed, env().wall) }
         );
         outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
-        decide_update_again(&mut d, preparing, 1);
+        // Failed is not an Updates hold, so releasing it keeps the first attempt's count.
+        assert_eq!(d.change(fixtures::CHANGE).expect("released update").change.updates, 1);
+        decide_update_again(&mut d, preparing, 2);
     }
 }
 

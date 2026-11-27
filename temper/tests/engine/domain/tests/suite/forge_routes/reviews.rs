@@ -1463,24 +1463,27 @@ fn release_held(world: &mut World, task: u64, judgement: bool) {
 }
 
 fn held_producer() -> (World, u64, engine::Assignment, Box<[u8]>) {
-    use temper_engine_domain_forge_change::{Cause, State};
+    use temper_engine_domain_forge_change::{Cause, Hold, State};
+    const FAILURE: &[u8] = b"cannot finish the files";
     let (mut world, _, producer, branch) = change_world(false, 1000, None);
     let task = requester(&world, producer.task);
-    finish_review(
-        &mut world,
-        &producer,
-        tasks::TaskResult::Failure { reason: b"cannot finish the files".as_slice().into() },
-    );
+    finish_review(&mut world, &producer, tasks::TaskResult::Failure { reason: FAILURE.into() });
     wait_held(&mut world, task);
+    let live = live_task(&world, task);
     assert_eq!(
         change_row(&world, task).change.state,
         State::Held {
             was: Box::new(State::Producing { requested: true }),
-            hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, skein_lib::Wall::EPOCH)
+            hold: Hold {
+                cause: Cause::Failed,
+                since: live.held_since.expect("task's hold decision time"),
+                words: FAILURE.into(),
+                judged: None,
+            }
         }
     );
     assert_eq!(change_row(&world, task).change.last_head, None);
-    assert_eq!(live_task(&world, task).made, 2, "change itself and first producer");
+    assert_eq!(live.made, 2, "change itself and first producer");
     (world, task, producer, branch)
 }
 
