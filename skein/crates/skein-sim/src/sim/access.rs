@@ -75,6 +75,7 @@ impl Sim {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::ReadLink { .. }
             | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }

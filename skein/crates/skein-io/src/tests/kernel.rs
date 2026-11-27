@@ -8,8 +8,8 @@ use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use skein_lib::{Queue, Token};
 
 use crate::kernel::{
-    Addr, Complete, Done, Entry, Error, Family, Fd, Kind, LONGEST_NAME, Op, OpenHow, Routes, Shape, Stat, Submit,
-    is_name,
+    Addr, Complete, Done, Entry, Error, Family, Fd, Kind, LINK_BYTES, LONGEST_NAME, Op, OpenHow, Routes, Shape, Stat,
+    Submit, is_name,
 };
 
 const FD: Fd = Fd::new(3);
@@ -38,7 +38,7 @@ fn complete(kind: Op, result: Result<Done, Error>) -> Complete {
 
 /// One of every operation, valid. A new operation makes the match in
 /// `documented` fail to build until it is added there, and here.
-fn every_op() -> [Op; 30] {
+fn every_op() -> [Op; 31] {
     [
         Op::Socket { family: Family::Ipv4 },
         Op::Bind { fd: FD, addr: v4() },
@@ -51,6 +51,7 @@ fn every_op() -> [Op; 30] {
         Op::Close { fd: FD },
         Op::Open { root: FD, path: name(b"a/b"), how: OpenHow::Read },
         Op::Read { fd: FD, buf: bytes(4), at: 9 },
+        read_link(b"link", LINK_BYTES),
         Op::Write { fd: FD, bytes: bytes(4), from: 1, at: 9 },
         Op::Append { fd: FD, bytes: bytes(4), from: 1 },
         Op::Truncate { fd: FD, length: 4 },
@@ -92,6 +93,7 @@ fn documented(op: &Op) -> Done {
         Op::Recv { .. }
         | Op::Send { .. }
         | Op::Read { .. }
+        | Op::ReadLink { .. }
         | Op::Write { .. }
         | Op::Append { .. }
         | Op::PipeRead { .. }
@@ -171,6 +173,7 @@ fn the_shapes_are_as_the_table_on_op_says() {
         close,
         open,
         read,
+        read_link,
         write,
         append,
         truncate,
@@ -202,7 +205,7 @@ fn the_shapes_are_as_the_table_on_op_says() {
     assert_eq!(usage.shape(), Shape::Usage);
     assert_eq!(child_signal.shape(), Shape::Nothing);
     assert_eq!(group_signal.shape(), Shape::Nothing);
-    for op in [recv, send, read, write, append, list] {
+    for op in [recv, send, read, read_link, write, append, list] {
         assert_eq!(op.shape(), Shape::Count);
     }
     for op in [
@@ -264,6 +267,27 @@ fn a_send_has_something_left_to_send_from_its_offset() {
     assert!(!Op::Send { fd: FD, bytes: bytes(3), from: 3 }.is_valid());
 }
 
+fn read_link(entry: &[u8], room: usize) -> Op {
+    Op::ReadLink { dir: FD, name: name(entry), buf: skein_lib::bytes::zeroed(room) }
+}
+
+/// skein/docs/design/runtime/kernel-files.md, 2: no path and no truncated link target.
+#[test]
+fn a_link_read_requires_room_for_a_whole_target() {
+    const LAST: usize = LINK_BYTES - 1;
+    for (entry, room, valid) in [
+        (b"name".as_slice(), LINK_BYTES, true),
+        (b"name".as_slice(), LAST, false),
+        (b"sub/name".as_slice(), LINK_BYTES, false),
+    ] {
+        assert_eq!(read_link(entry, room).is_valid(), valid);
+    }
+    for (count, valid) in [(LAST, true), (LINK_BYTES, false), (0, false)] {
+        let answer = complete(read_link(b"name", LINK_BYTES), Ok(Done::Count(u32::try_from(count).unwrap())));
+        assert_eq!(answer.is_valid(), valid, "count {count}");
+    }
+}
+
 #[test]
 fn a_recv_count_is_at_most_its_buffer_and_zero_is_the_end() {
     for (n, valid) in [(0, true), (1, true), (4, true), (5, false)] {
@@ -323,6 +347,9 @@ fn a_descriptor_is_its_raw_number() {
 /// out again.
 fn named(op: &Op) -> &'static [Error] {
     match op {
+        Op::ReadLink { .. } => {
+            &[Error::NotFound, Error::NotADirectory, Error::Permission, Error::NotALink, Error::NameTooLong]
+        }
         Op::HardLink { .. } => &[
             Error::NotFound,
             Error::Exists,
@@ -433,6 +460,7 @@ fn cancellable(op: &Op) -> bool {
         Op::Truncate { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
@@ -464,7 +492,7 @@ fn cancellable(op: &Op) -> bool {
     }
 }
 
-const FILES_ERRORS: [Error; 13] = [
+const FILES_ERRORS: [Error; 14] = [
     Error::Busy,
     Error::NotFound,
     Error::Exists,
@@ -478,6 +506,7 @@ const FILES_ERRORS: [Error; 13] = [
     Error::NameTooLong,
     Error::Escape,
     Error::NotAFile,
+    Error::NotALink,
 ];
 
 #[test]

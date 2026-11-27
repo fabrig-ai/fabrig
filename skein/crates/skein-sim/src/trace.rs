@@ -135,6 +135,11 @@ pub enum Summary {
         to: Text,
         no_replace: bool,
     },
+    ReadLink {
+        dir: Fd,
+        name: Text,
+        room: usize,
+    },
     Remove {
         dir: Fd,
         name: Text,
@@ -250,6 +255,7 @@ impl Summary {
             Op::HardLink { from_dir, from, to_dir, to } => {
                 Summary::HardLink { from_dir: *from_dir, from: Text::of(from), to_dir: *to_dir, to: Text::of(to) }
             }
+            Op::ReadLink { dir, name, buf } => Summary::ReadLink { dir: *dir, name: Text::of(name), room: buf.len() },
             Op::Remove { dir, name, directory } => {
                 Summary::Remove { dir: *dir, name: Text::of(name), directory: *directory }
             }
@@ -302,6 +308,7 @@ impl Summary {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::ReadLink { .. }
             | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
@@ -341,6 +348,7 @@ impl Summary {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::ReadLink { .. }
             | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
@@ -387,6 +395,7 @@ impl Summary {
             | Summary::Sync { fd }
             | Summary::Lock { fd }
             | Summary::Stat { fd }
+            | Summary::ReadLink { dir: fd, .. }
             | Summary::Remove { dir: fd, .. }
             | Summary::MakeDirectory { dir: fd, .. }
             | Summary::List { fd, .. }

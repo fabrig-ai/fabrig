@@ -44,6 +44,7 @@ pub(super) fn window(result: Result<Done, kernel::Error>) -> crate::Window {
             | kernel::Error::NameTooLong
             | kernel::Error::Escape
             | kernel::Error::Busy
+            | kernel::Error::NotALink
             | kernel::Error::NotAFile,
         ) => unreachable!("Window fails only Other (runtime/kernel.md, section 6.3)"),
     }
@@ -93,6 +94,7 @@ pub(crate) fn unsubmitted(result: Result<Done, kernel::Error>) -> bool {
             | kernel::Error::NameTooLong
             | kernel::Error::Escape
             | kernel::Error::Busy
+            | kernel::Error::NotALink
             | kernel::Error::NotAFile,
         ) => unreachable!("a cancel fails only too late or unsubmitted (runtime/kernel.md, 5)"),
     }

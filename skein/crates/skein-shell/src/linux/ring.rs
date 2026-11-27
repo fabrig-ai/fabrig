@@ -635,6 +635,10 @@ fn prepare(
             let len = u32::try_from(buf.len()).expect("a valid Read buffer's length is a count");
             opcode::Read::new(types::Fd(fd.raw()), buf.as_mut_ptr(), len).offset(*at).build()
         }
+        Op::ReadLink { dir, name, buf } => {
+            let read = crate::posix::links::read_target(dir.raw(), name, buf);
+            return Prepared::Done(read.map(Done::Count).map_err(|errno| error(kind, errno, false)));
+        }
         Op::Write { fd, bytes, from, at } => {
             let from = usize_of(*from);
             let left = bytes.get(from..).expect("a valid Write has bytes left from its offset");
@@ -789,7 +793,13 @@ fn decode(flight: &mut Flight, res: i32, cancelled: bool) -> Result<Done, Error>
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::Cancel { .. } => Ok(Done::Nothing),
-        Op::Lock { .. } | Op::Window { .. } | Op::Usage | Op::List { .. } | Op::Spawn { .. } | Op::Signal { .. } => {
+        Op::ReadLink { .. }
+        | Op::Lock { .. }
+        | Op::Window { .. }
+        | Op::Usage
+        | Op::List { .. }
+        | Op::Spawn { .. }
+        | Op::Signal { .. } => {
             unreachable!("a synchronous operation completes at its submit")
         }
     }

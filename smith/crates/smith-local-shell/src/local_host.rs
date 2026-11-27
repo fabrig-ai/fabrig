@@ -733,6 +733,7 @@ impl Local {
             | kernel::Op::Truncate { .. }
             | kernel::Op::Sync { .. }
             | kernel::Op::Stat { .. }
+            | kernel::Op::ReadLink { .. }
             | kernel::Op::HardLink { .. }
             | kernel::Op::Rename { .. }
             | kernel::Op::Remove { .. }

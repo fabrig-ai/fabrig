@@ -132,6 +132,9 @@
 //!   written from `bytes[from..]` to the file at `at`: at least one, and no
 //!   more than were left. io continues a short one from `from + n` at
 //!   `at + n`. Writing past the end leaves zeros in the gap.
+//! - **`ReadLink` reads a symbolic link's target, not what it names.** It takes one name in an
+//!   open directory and a buffer of at least [`LINK_BYTES`] bytes, and returns the complete
+//!   target in `buf[..n]`. It is synchronous in both shells (`readlinkat`).
 //! - **`Truncate` sets a file's length:** bytes past it are gone; an extension
 //!   reads as zeros. The cut becomes durable once the file is synced.
 //! - **`Append` writes at the descriptor's position**, selecting the current
@@ -220,6 +223,7 @@
 //! | the socket operations, and `Close` | any, but `TooLate` and the files' errors below |
 //! | `Open` | `NotFound`, `Exists`, `NotADirectory`, `IsADirectory`, `Permission`, `NoSpace`, `ReadOnly`, `TooManyLinks`, `NameTooLong`, `Escape`, `NotAFile`, `TooManyOpenFiles` |
 //! | `Read` | `IsADirectory` |
+//! | `ReadLink` | `NotFound`, `NotADirectory`, `Permission`, `NameTooLong`, `NotALink` |
 //! | `Write`, `Append` | `NoSpace`, `ReadOnly` |
 //! | `Truncate` | `Permission`, `NoSpace`, `ReadOnly` |
 //! | `Sync` | `NoSpace` |
@@ -240,7 +244,7 @@
 //! - a record that is not [`Op::is_valid`];
 //! - a token already in flight;
 //! - a `Cancel` whose target is a `Cancel`, a `Truncate`, a `Stat`, a `Rename`, a `HardLink`, a
-//!   `Remove`, a `MakeDirectory`, a `List`, a `Lock`, a `Spawn`, a `Signal`, a `Usage` or a `Window`;
+//!   `ReadLink`, a `Remove`, a `MakeDirectory`, a `List`, a `Lock`, a `Spawn`, a `Signal`, a `Usage` or a `Window`;
 //! - a `Wait` beside another on its pidfd, or a reap before a reported exit;
 //! - any operation on a pidfd after its reap, except its `Close`;
 //! - an operation on files ([`Op::is_file`]) on a socket's descriptor, or
@@ -363,6 +367,7 @@ pub struct Complete {
 /// | `Send` | `Done::Count`, bytes sent from `from`, at least 1 |
 /// | `Open` | `Done::Fd`, the file or directory opened |
 /// | `Read` | `Done::Count`, bytes read into `buf[..n]`, 0 at the end of the file |
+/// | `ReadLink` | `Done::Count`, the link target in `buf[..n]`, never truncated |
 /// | `Write`, `Append` | `Done::Count`, bytes written from `from`, at least 1 |
 /// | `Sync`, `Rename`, `HardLink`, `Remove`, `MakeDirectory` | `Done::Nothing` |
 /// | `Stat` | `Done::Stat`, the kind and size of what is open |
@@ -435,6 +440,13 @@ pub enum Op {
         fd: Fd,
         buf: Box<[u8]>,
         at: u64,
+    },
+    /// Reads the target of a link named in `dir`, without following it.
+    /// `name` passes [`is_name`]; `buf` holds at least [`LINK_BYTES`] bytes.
+    ReadLink {
+        dir: Fd,
+        name: Box<[u8]>,
+        buf: Box<[u8]>,
     },
     /// Some of `bytes[from..]`, which is never empty, written at offset `at`.
     Write {
@@ -867,6 +879,9 @@ pub struct Stat {
 /// The permission bits a mode may hold: an `OpenHow::Create`'s, a `Stat`'s.
 pub const PERMISSIONS: u32 = 0o777;
 
+/// Room for a complete symbolic link target (runtime/kernel-files.md, 2).
+pub const LINK_BYTES: usize = 4096;
+
 /// One entry a `List` handed back: its kind, and where its name lies in the
 /// `List`'s `names`, after the names of the entries before it.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -1113,6 +1128,8 @@ pub enum Error {
     /// or, for a socket or a device with no driver, the kernel refuses
     /// (`ENXIO`).
     NotAFile,
+    /// `ReadLink`: the name exists but is not a symbolic link (`EINVAL`).
+    NotALink,
     /// Any operation: the record was one the kernel refuses, such as `Listen`
     /// on a connected socket, or a `Rename` of a directory beneath itself
     /// (`EINVAL`, `EAFNOSUPPORT`), or the filesystem rejected a no-replace
@@ -1131,6 +1148,7 @@ pub enum Error {
 enum Files {
     Open,
     Read,
+    ReadLink,
     Write,
     Truncate,
     Sync,
@@ -1199,6 +1217,7 @@ impl Op {
     /// [`is_name`]; a `List` with room for an entry, `names` of at least
     /// [`LONGEST_NAME`] bytes, and both no longer than a count can say.
     /// A `HardLink` also bounds both names to [`LONGEST_NAME`] bytes.
+    /// `ReadLink` takes an [`is_name`] and room for [`LINK_BYTES`] bytes.
     /// A `Truncate` length fits `i64::MAX`; every other operation is valid as it stands.
     #[must_use]
     pub fn is_valid(&self) -> bool {
@@ -1226,6 +1245,9 @@ impl Op {
             }
             Op::Truncate { length, .. } => i64::try_from(*length).is_ok(),
             Op::Read { buf, at, .. } => reads(buf, *at),
+            Op::ReadLink { name, buf, .. } => {
+                is_name(name) && buf.len() >= LINK_BYTES && u32::try_from(buf.len()).is_ok()
+            }
             Op::Write { bytes, from, at, .. } => writes(bytes, *from, *at),
             Op::Rename { from, to, .. } => is_name(from) && is_name(to),
             Op::HardLink { from, to, .. } => {
@@ -1275,6 +1297,7 @@ impl Op {
             Op::Recv { .. }
             | Op::Send { .. }
             | Op::Read { .. }
+            | Op::ReadLink { .. }
             | Op::Write { .. }
             | Op::Append { .. }
             | Op::List { .. }
@@ -1308,6 +1331,7 @@ impl Op {
         match self {
             Op::Open { .. } => Some(Files::Open),
             Op::Read { .. } => Some(Files::Read),
+            Op::ReadLink { .. } => Some(Files::ReadLink),
             Op::Write { .. } | Op::Append { .. } => Some(Files::Write),
             Op::Truncate { .. } => Some(Files::Truncate),
             Op::Sync { .. } => Some(Files::Sync),
@@ -1503,7 +1527,8 @@ fn fails_a_cancel(error: Error) -> bool {
         | Error::NameTooLong
         | Error::Escape
         | Error::Busy
-        | Error::NotAFile => false,
+        | Error::NotAFile
+        | Error::NotALink => false,
     }
 }
 
@@ -1535,6 +1560,7 @@ fn fails_a_cancel_only(error: Error) -> bool {
         | Error::Escape
         | Error::Busy
         | Error::NotAFile
+        | Error::NotALink
         | Error::InvalidArgument
         | Error::Reach(_)
         | Error::Other(_) => false,
@@ -1556,7 +1582,8 @@ fn names_a_file(error: Error) -> bool {
         | Error::NameTooLong
         | Error::Escape
         | Error::Busy
-        | Error::NotAFile => true,
+        | Error::NotAFile
+        | Error::NotALink => true,
         Error::Refused
         | Error::Reset
         | Error::BrokenPipe
@@ -1582,10 +1609,12 @@ fn fails_on_files(op: Files, error: Error) -> bool {
         Error::NoBufferSpace | Error::InvalidArgument | Error::Reach(_) | Error::Other(_) => true,
         Error::Busy => op == Files::Lock,
         Error::TooManyOpenFiles | Error::Escape | Error::NotAFile => op == Files::Open,
+        Error::NotALink => op == Files::ReadLink,
         Error::NotFound | Error::NameTooLong => among(
             op,
             &[
                 Files::Open,
+                Files::ReadLink,
                 Files::Rename,
                 Files::RenameNoReplace,
                 Files::HardLink,
@@ -1596,7 +1625,15 @@ fn fails_on_files(op: Files, error: Error) -> bool {
         ),
         Error::NotADirectory => among(
             op,
-            &[Files::Open, Files::Rename, Files::RenameNoReplace, Files::Remove, Files::MakeDirectory, Files::List],
+            &[
+                Files::Open,
+                Files::ReadLink,
+                Files::Rename,
+                Files::RenameNoReplace,
+                Files::Remove,
+                Files::MakeDirectory,
+                Files::List,
+            ],
         ),
         Error::Exists => among(op, &[Files::Open, Files::MakeDirectory, Files::RenameNoReplace, Files::HardLink]),
         Error::IsADirectory => {
@@ -1608,6 +1645,7 @@ fn fails_on_files(op: Files, error: Error) -> bool {
             &[
                 Files::Truncate,
                 Files::Open,
+                Files::ReadLink,
                 Files::Rename,
                 Files::RenameNoReplace,
                 Files::HardLink,
@@ -1717,6 +1755,7 @@ fn fits(op: &Op, done: &Done) -> bool {
             | Op::Close { .. }
             | Op::Open { .. }
             | Op::Read { .. }
+            | Op::ReadLink { .. }
             | Op::Write { .. }
             | Op::Append { .. }
             | Op::Truncate { .. }
@@ -1768,6 +1807,7 @@ fn binds(op: &Op, bound: &Addr) -> bool {
         | Op::Close { .. }
         | Op::Open { .. }
         | Op::Read { .. }
+        | Op::ReadLink { .. }
         | Op::Write { .. }
         | Op::Append { .. }
         | Op::Truncate { .. }
@@ -1796,6 +1836,7 @@ fn binds(op: &Op, bound: &Addr) -> bool {
 fn counts(op: &Op, n: usize) -> bool {
     match op {
         Op::Recv { buf, .. } | Op::Read { buf, .. } | Op::PipeRead { buf, .. } => n <= buf.len(),
+        Op::ReadLink { buf, .. } => n > 0 && n < buf.len(),
         Op::Send { bytes, from, .. }
         | Op::Write { bytes, from, .. }
         | Op::Append { bytes, from, .. }
@@ -1883,6 +1924,7 @@ fn only_other(error: Error) -> bool {
         | Error::Escape
         | Error::Busy
         | Error::NotAFile
+        | Error::NotALink
         | Error::InvalidArgument => false,
     }
 }

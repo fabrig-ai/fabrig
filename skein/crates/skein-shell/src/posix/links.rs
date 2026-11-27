@@ -88,24 +88,25 @@ fn stat_at(dir: i32, path: &[u8]) -> Option<Entry> {
 }
 
 fn read_link(dir: i32, path: &[u8]) -> Option<Box<[u8]>> {
-    let path = CString::new(path).ok()?;
     let mut target =
         skein_lib::bytes::zeroed(skein_lib::usize_of(u32::try_from(libc::PATH_MAX).expect("positive path limit")));
-    let length = retry(|| {
-        // SAFETY: path is terminated; target is exclusive for the supplied length.
-        let length = unsafe { libc::readlinkat(dir, path.as_ptr(), target.as_mut_ptr().cast(), target.len()) };
-        if length < 0 {
-            Err(last_errno())
-        } else {
-            Ok(skein_lib::usize_of(u32::try_from(length).expect("readlinkat fills at most PATH_MAX bytes")))
-        }
-    })
-    .ok()?;
-    // A full buffer might be truncated; leave that link for the open to refuse.
-    if length == target.len() {
-        return None;
-    }
+    let length = skein_lib::usize_of(read_target(dir, path, &mut target).ok()?);
     Some(target.get(..length).expect("readlinkat stays within its buffer").into())
+}
+
+/// Reads one link without following the last component; refuses a possibly cut target.
+/// A kernel `ReadLink` passes a bare name, so it follows no parents either.
+pub(crate) fn read_target(dir: i32, name: &[u8], buf: &mut [u8]) -> Result<u32, i32> {
+    let name = CString::new(name).map_err(|_| libc::EINVAL)?;
+    retry(|| {
+        // SAFETY: name is terminated; buf is exclusive for the supplied length.
+        let length = unsafe { libc::readlinkat(dir, name.as_ptr(), buf.as_mut_ptr().cast(), buf.len()) };
+        if length < 0 {
+            return Err(last_errno());
+        }
+        let count = u32::try_from(length).expect("readlinkat fills at most the supplied room");
+        if count == 0 || skein_lib::usize_of(count) == buf.len() { Err(libc::EOVERFLOW) } else { Ok(count) }
+    })
 }
 
 #[cfg(test)]
