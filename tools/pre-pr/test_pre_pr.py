@@ -426,6 +426,7 @@ class Delivery(unittest.TestCase):
         for args in ([], ['--child'], ['--goal'], ['--close']):
             for failed in (False, True):
                 with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
+                    stack.enter_context(mock.patch.dict(os.environ, {'TEMPER_CLOSE_REFUSAL': ''}))
                     out = stack.enter_context(redirect_stdout(io.StringIO()))
                     stack.enter_context(redirect_stderr(io.StringIO()))
                     stack.enter_context(mock.patch.object(Path, 'cwd', return_value=self.root))
