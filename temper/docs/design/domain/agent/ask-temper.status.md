@@ -1,6 +1,8 @@
 # ask-temper: status
 
-2026-11-18. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
+2026-11-27. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
+
+- **Not yet:** 2, *A new item's number*: `ask.txt` asks for no name for a new template, charter or policy [in flight: change 21940].
 
 
 - **Not yet:** *Its instructions*: `ask.txt`'s *Showing* opens with the

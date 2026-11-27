@@ -1,6 +1,8 @@
 # tools: status
 
-2026-11-21. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-27. Where the tree's code lags or departs from [tools.md](tools.md).
+
+- **Not yet:** 1, *Templates, charters and policies by name or number*: names in `--template`, `--charter` and `settings show`, and printed beside numbers [in flight: change 21940].
 
 
 - **Not yet:** 1: the table's amount type; 3: `project fund`'s AMOUNT and answer in ctl's amount [in flight: change 7671].
