@@ -422,6 +422,7 @@ pub enum SettingFault {
     Linked,
     Accounts,
     Range,
+    Name,
     Judged,
     Shape,
     Count,

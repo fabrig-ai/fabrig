@@ -32,6 +32,7 @@ fn model() -> core::Model {
 }
 pub(super) fn charter() -> core::Charter {
     core::Charter {
+        name: None,
         parts: Box::new([
             core::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(b"first part".as_slice()) },
             core::CharterPart {
@@ -104,6 +105,7 @@ fn rules() -> a::Rules {
 }
 fn policy() -> core::ConfiguredPolicy {
     core::ConfiguredPolicy {
+        name: None,
         policy: a::Policy {
             escalation_role: Some(0),
             ceiling: authority(),
@@ -130,6 +132,7 @@ fn policy() -> core::ConfiguredPolicy {
 }
 fn template() -> core::Template {
     core::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
         shown: Box::from(b"template".as_slice()),

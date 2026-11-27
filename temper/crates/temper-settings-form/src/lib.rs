@@ -183,8 +183,10 @@ pub fn refusal(why: &Refusal, out: &mut Text) {
             out.put(b"out of shape; item ");
             out.number(u64::from(*at));
             out.put(b"; ");
-            render::setting_text(*setting, out);
-            out.put(b": ");
+            if *fault != view::SettingFault::Name {
+                render::setting_text(*setting, out);
+                out.put(b": ");
+            }
             render::setting_fault(*setting, *fault, out);
             if let Some(detail) = detail {
                 render::setting_detail(detail, out);

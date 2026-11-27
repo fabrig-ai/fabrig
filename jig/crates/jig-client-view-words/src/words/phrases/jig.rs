@@ -26,6 +26,10 @@ pub enum JigPhrase {
     SettingApplication,
     SettingFaultJudged,
     SettingFaultShape,
+    SettingNamePolicy,
+    SettingNameTemplate,
+    SettingNameCharter,
+    SettingNameStock,
     SettingFaultCount,
     SettingFaultReference,
     SettingFaultRules,
@@ -1116,6 +1120,10 @@ impl JigPhrase {
             Self::SettingApplication => 7925,
             Self::SettingFaultJudged => 7926,
             Self::SettingFaultShape => 7910,
+            Self::SettingNamePolicy => 7953,
+            Self::SettingNameTemplate => 7952,
+            Self::SettingNameCharter => 7951,
+            Self::SettingNameStock => 7950,
             Self::SettingFaultCount => 7911,
             Self::SettingFaultReference => 7912,
             Self::SettingFaultRules => 7913,
@@ -1815,6 +1823,10 @@ impl JigPhrase {
             | Self::SettingRules
             | Self::SettingLimits
             | Self::SettingFaultShape
+            | Self::SettingNamePolicy
+            | Self::SettingNameTemplate
+            | Self::SettingNameCharter
+            | Self::SettingNameStock
             | Self::SettingFaultCount
             | Self::SettingFaultReference
             | Self::SettingFaultRules
@@ -2486,7 +2498,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 669] = [
+pub const ALL: [JigPhrase; 673] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2507,6 +2519,10 @@ pub const ALL: [JigPhrase; 669] = [
     JigPhrase::SettingApplication,
     JigPhrase::SettingFaultJudged,
     JigPhrase::SettingFaultShape,
+    JigPhrase::SettingNamePolicy,
+    JigPhrase::SettingNameTemplate,
+    JigPhrase::SettingNameCharter,
+    JigPhrase::SettingNameStock,
     JigPhrase::SettingFaultCount,
     JigPhrase::SettingFaultReference,
     JigPhrase::SettingFaultRules,

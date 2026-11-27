@@ -522,6 +522,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
     assert_eq!(
         *template,
         jig_domain_core::Template {
+            name: Some(b"milestone".as_slice().into()),
             number: 8,
             shown: b"milestone".as_slice().into(),
             executor: TemplateExecutor::Chosen,
@@ -2471,4 +2472,45 @@ fn with_scripted(mut llm: config::Llm) -> config::Llm {
     llm.providers = providers.into_boxed_slice();
     llm.endpoints = endpoints.into_boxed_slice();
     llm
+}
+
+#[test]
+fn stock_setting_names_and_template_display_words_are_distinct() {
+    let defaults = crate::stock::checked_with(Box::new([fixtures::small_model()]), 10_660).unwrap();
+    let charters = [
+        (1, b"chat".as_slice()),
+        (2, b"implementer"),
+        (4, b"reviewer"),
+        (5, b"goal"),
+        (9, b"status"),
+        (10, b"trial"),
+        (11, b"ask-temper"),
+        (12, b"drafter"),
+        (13, b"standing-role"),
+        (14, b"triager"),
+        (15, b"prover"),
+        (16, b"porter"),
+    ];
+    assert_eq!(defaults.charters.len(), charters.len());
+    for (number, name) in charters {
+        let charter = defaults.charters.iter().find(|v| v.number == number).unwrap();
+        assert_eq!(charter.name.as_deref(), Some(name), "charter {number}");
+    }
+    let templates = [
+        (1, b"chat".as_slice(), b"chat".as_slice()),
+        (2, b"goal", b"goal"),
+        (4, b"draft-goal", b"goal for a draft"),
+        (5, b"ask-temper", b"ask"),
+        (6, b"design-session", b"design session"),
+        (7, b"standing-role", b"standing role"),
+        (8, b"milestone", b"milestone"),
+    ];
+    assert_eq!(defaults.templates.len(), templates.len());
+    for (number, name, shown) in templates {
+        let template = defaults.templates.iter().find(|v| v.number == number).unwrap();
+        assert_eq!(template.name.as_deref(), Some(name), "template {number}");
+        assert_eq!(template.shown.as_ref(), shown, "template {number}");
+    }
+    assert_eq!(defaults.policies.len(), 1);
+    assert_eq!(defaults.policies.get(&1).unwrap().name.as_deref(), Some(b"stock".as_slice()));
 }

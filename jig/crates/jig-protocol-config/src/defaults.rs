@@ -21,6 +21,7 @@ pub fn pass(engine: &mut Engine, defaults: jig_domain_core_vocabulary::settings:
     for (number, policy) in &defaults.policies {
         policies
             .push(Policy {
+                name: policy.name.clone(),
                 number: *number,
                 policy: policy.policy.clone(),
                 roles: policy.permissions.clone(),

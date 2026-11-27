@@ -102,6 +102,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("charters.0", "parts", br#"[{"on":["first","question"],"instructions":"part.md"}]"#),
     ("charters.0", "models", br#"["small"]"#),
     ("charters.0", "rest", b"true"),
+    ("charters.0", "name", br#""chat""#),
     ("", "acts", br#"[{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}]"#),
     ("limits", "overrides", b"{}"),
     ("llm.endpoints.0", "transport", br#""tls""#),
@@ -179,7 +180,7 @@ fn expanded_engine() -> Document {
     let policy =
         Document::from_tokens(&policy, &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes })
             .unwrap();
-    // A configured policy has no project name.
+    // A configured policy takes a setting name, not the seed project's name.
     let mut all = tokens(&policy);
     let name = policy.member(1, b"name").unwrap();
     all.drain(
@@ -190,8 +191,12 @@ fn expanded_engine() -> Document {
     let start = base.member(0, b"policies").unwrap();
     base_tokens
         .splice(usize::try_from(start).unwrap()..usize::try_from(read::after(&base, start).unwrap()).unwrap(), all);
-    Document::from_tokens(&base_tokens, &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes })
-        .unwrap()
+    let base = Document::from_tokens(
+        &base_tokens,
+        &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes },
+    )
+    .unwrap();
+    put(&base, "policies.0", "name", br#""stock""#)
 }
 
 struct Example {

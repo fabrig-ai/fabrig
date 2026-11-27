@@ -17,6 +17,7 @@ fn fixture() -> (Core, Limits) {
         charters: 0,
     }]);
     configured.defaults.templates = Box::new([Template {
+        name: None,
         number: 2,
         shown: b"work".as_slice().into(),
         resources: Box::default(),

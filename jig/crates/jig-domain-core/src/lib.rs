@@ -211,6 +211,7 @@ pub struct Core {
     pub current: settings::Current,
     pub(crate) held: settings::Held,
     pub(crate) hub_turns: u32,
+    settings_unnamed: Box<[settings::Setting]>,
     pub(crate) settings_restore: settings::restart::Restore,
     pub(crate) restore_failure: Option<start::Failure>,
     /// Names seeded or restored with the project policies (domain/model.md, 6.1).
@@ -526,6 +527,7 @@ impl Core {
             current,
             held: settings::Held::new(limits),
             hub_turns: config.hub_turns,
+            settings_unnamed: Box::new([]),
             settings_restore: settings::restart::Restore::new(limits),
             restore_failure: None,
             authority,

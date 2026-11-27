@@ -166,6 +166,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
     use jig_domain_core::{documents as d, reads, settings as s};
     use jig_domain_tasks as t;
     let template = jig_domain_core::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
         shown: b"chat".as_slice().into(),

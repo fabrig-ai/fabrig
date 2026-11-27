@@ -129,3 +129,42 @@ fn store(disk: &fixtures::disk::Disk) -> crate::Store {
     store.owner_sets(crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] });
     store
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test derives the plan from a fixture of the previous schema")]
+fn stored_setting_names_default_to_none_at_the_previous_layout_and_round_trip_now() {
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    use skein_codec::schema;
+    use skein_lib::Buffer;
+
+    let current = schema::parse(include_str!("../../schema/settings-v3.schema").as_bytes()).unwrap();
+    let old = schema::parse(include_str!("fixtures/settings-before-names-v3.schema").as_bytes()).unwrap();
+    let current_root = current.root(b"Changed", None).unwrap();
+    let old_root = old.root(b"Changed", None).unwrap();
+    let write_old = Plan::between(Mode::Read, &current, current_root, &[], &old, old_root, &[]).unwrap();
+    let read_old = Plan::between(Mode::Keep, &old, old_root, &[], &current, current_root, &[]).unwrap();
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.authority.executors = 3;
+    let limits = &codec::settings::limits(&domain).unwrap();
+    let catalogue = [super::settings::catalogue_name(b"model"), super::settings::catalogue_name(b"other")];
+    let mut workspace = Workspace::new();
+    for (setting, mut value) in [
+        (s::Setting::Charter(1), s::Value::Charter(Box::new(super::settings::charter()))),
+        (s::Setting::Template(1), s::Value::Template(Box::new(super::settings::template()))),
+        (s::Setting::Policy(1), s::Value::Policy(Box::new(super::settings::policy()))),
+    ] {
+        let unnamed = s::Record::Changed { setting, changed: s::Changed { value: Some(value.clone()), revision: 10 } };
+        value.set_name(Some(b"my-setting"));
+        let named = s::Record::Changed { setting, changed: s::Changed { value: Some(value), revision: 10 } };
+        let current_bytes = codec::settings::encode(&named, limits, &catalogue).unwrap();
+        assert_eq!(codec::settings::decode(&named.key(), &current_bytes, limits, &catalogue), Ok(named.clone()));
+        let mut old_bytes = Buffer::with_capacity(8192);
+        let unnamed_bytes = codec::settings::encode(&unnamed, limits, &catalogue).unwrap();
+        assert!(workspace.fit(&write_old));
+        write_old.convert(&unnamed_bytes, &mut old_bytes, &mut workspace).unwrap();
+        let mut converted = Buffer::with_capacity(8192);
+        assert!(workspace.fit(&read_old));
+        read_old.convert(old_bytes.as_slice(), &mut converted, &mut workspace).unwrap();
+        assert_eq!(codec::settings::decode(&named.key(), converted.as_slice(), limits, &catalogue), Ok(unnamed));
+    }
+}

@@ -67,6 +67,7 @@ fn a_policy_change_overriding_a_template_twice_is_refused_as_a_repeated_identity
 
 fn template() -> Template {
     Template {
+        name: None,
         resources: Box::new([people::Symbol { connector: 1, symbol: 7 }]),
         number: PROJECT,
         shown: Box::from(&b"work"[..]),

@@ -211,3 +211,20 @@ fn the_document_supplies_all_four_defaults_exactly() {
         assert_eq!(value.templates, policy.templates);
     }
 }
+
+#[test]
+fn a_policy_reads_its_name_or_refuses_the_name_member() {
+    let named = fixtures::with(
+        &configured(),
+        br#""policies": [{"number": 1"#,
+        br#""policies": [{"number": 1, "name": "stock""#,
+    );
+    let engine = fixtures::engine(&named).expect("named policy");
+    assert_eq!(engine.policies[0].name.as_deref(), Some(b"stock".as_slice()));
+    assert_eq!(
+        crate::core(&engine, [0; 16], 1).defaults.policies.get(&1).unwrap().name.as_deref(),
+        Some(b"stock".as_slice())
+    );
+    let malformed = fixtures::with(&named, br#""name": "stock""#, br#""name": "Stock""#);
+    refuses(&malformed, path(0).member(b"name"), What::Form);
+}

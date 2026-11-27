@@ -102,11 +102,23 @@ fn malformed_template_resources_are_refused_at_the_item() {
 
 #[test]
 fn a_template_reads_shown_or_the_earlier_name() {
-    let modern = fixtures::with(fixtures::ENGINE_SMALL, br#""name": "goal""#, br#""shown": "goal""#);
-    for document in [modern.as_ref(), fixtures::ENGINE_SMALL] {
-        let engine = fixtures::engine(document).expect("template display text");
-        assert_eq!(engine.templates[1].shown.as_ref(), b"goal");
-    }
+    let modern =
+        fixtures::with(fixtures::ENGINE_SMALL, br#""name": "goal""#, br#""shown": "goal", "name": "lean-goal""#);
+    let named = fixtures::engine(&modern).expect("named template");
+    assert_eq!(named.templates[1].shown.as_ref(), b"goal");
+    assert_eq!(named.templates[1].name.as_deref(), Some(b"lean-goal".as_slice()));
+    let legacy = fixtures::engine(fixtures::ENGINE_SMALL).expect("legacy template");
+    assert_eq!(legacy.templates[1].shown.as_ref(), b"goal");
+    assert_eq!(legacy.templates[1].name, None);
+    let malformed = fixtures::with(&modern, b"lean-goal", b"Lean-goal");
+    let problems = fixtures::engine(&malformed).expect_err("malformed template name");
+    assert_eq!(
+        problems.problems.as_slice(),
+        &[crate::Problem {
+            path: fixtures::path(&[b"templates"]).child(Segment::Index(1)).member(b"name"),
+            what: What::Form,
+        }]
+    );
 }
 
 #[test]
@@ -116,6 +128,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
         engine.templates.as_ref(),
         &[
             jig_domain_core_vocabulary::Template {
+                name: None,
                 resources: Box::new([]),
                 number: CHAT,
                 shown: Box::from(b"chat".as_slice()),
@@ -136,6 +149,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
                 llm: None,
             },
             jig_domain_core_vocabulary::Template {
+                name: None,
                 resources: Box::new([]),
                 number: GOAL,
                 shown: Box::from(b"goal".as_slice()),

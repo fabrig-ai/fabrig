@@ -917,6 +917,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 0; model 4: shape",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Template(c::SettingNumber { number: 2 }),
+                    c::SettingFault::Name,
+                ),
+            },
+            "out of shape; item 0; template 2 keeps the stock's name",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {

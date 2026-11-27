@@ -184,6 +184,7 @@ pub fn project_document() -> d::Project {
 
 pub fn template() -> jig_domain_core_vocabulary::Template {
     jig_domain_core_vocabulary::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
         shown: b"task".as_slice().into(),

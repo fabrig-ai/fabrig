@@ -560,6 +560,10 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
 }
 /// Word a fault with the setting's kind and number (jig/docs/design/domain/engine/settings.md, 1).
 pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text) {
+    if fault == c::SettingFault::Name {
+        setting_name_fault(setting, out);
+        return;
+    }
     if fault != c::SettingFault::Range {
         out.put(fault_word(fault));
         return;
@@ -591,6 +595,29 @@ pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text
     out.put(b" to ");
     out.number(u64::from(c::NUMBERS));
 }
+fn setting_name_fault(setting: c::Setting, out: &mut Text) {
+    setting_text(setting, out);
+    let (number, kind): (u32, &[u8]) = match setting {
+        c::Setting::Charter(n) => (n.number, b"charter"),
+        c::Setting::Template(n) => (n.number, b"template"),
+        c::Setting::Policy(n) => (n.number, b"policy"),
+        c::Setting::Model(_)
+        | c::Setting::Worker(_)
+        | c::Setting::Provider(_)
+        | c::Setting::Application { .. }
+        | c::Setting::ProjectPolicy { .. }
+        | c::Setting::Rules
+        | c::Setting::Limits => (0, b"item"),
+    };
+    if number <= c::STOCK_NUMBERS {
+        out.put(b" keeps the stock's name");
+    } else {
+        out.put(b"'s name is taken, by a stock ");
+        out.put(kind);
+        out.put(b" or another of your own");
+    }
+}
+
 #[must_use]
 pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
     match fault {
@@ -605,6 +632,7 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Linked => b"linked: stop it first",
         c::SettingFault::Accounts => b"provider still has accounts: remove its accounts first",
         c::SettingFault::Range => b"range",
+        c::SettingFault::Name => b"name",
     }
 }
 
@@ -1168,5 +1196,25 @@ pub fn limits_text(values: &[(c::Setting, c::SettingValue)], out: &mut Text) {
         out.put(b" [");
         out.put(kind);
         out.put(b"]\n");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_name_fault_words_the_setting_and_its_range() {
+        for (number, expected) in [
+            (2, "template 2 keeps the stock's name"),
+            (33, "template 33's name is taken, by a stock template or another of your own"),
+        ] {
+            let setting = c::Setting::Template(c::SettingNumber { number });
+            let mut measured = Text::measure();
+            setting_fault(setting, c::SettingFault::Name, &mut measured);
+            let mut line = Text::writing_exact(measured);
+            setting_fault(setting, c::SettingFault::Name, &mut line);
+            assert_eq!(line.finish().as_ref(), expected.as_bytes());
+        }
     }
 }

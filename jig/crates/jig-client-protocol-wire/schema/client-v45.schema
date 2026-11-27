@@ -1088,7 +1088,7 @@ record ChangeSettings { against: u32 items: bytes 1114240 running: Running }
 record OutcomeSettingsChanged { revision: u32 }
 record RefusalStale { newest: u32 }
 record RefusalFull { revision: u32 tasks: list 32 u64 more: u32 }
-enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged, linked, accounts, range }
+enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged, linked, accounts, range, name }
 enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector, stored_policy }
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }

@@ -71,6 +71,7 @@ fn roster_fixture(service: bool) -> (Domain, Env<crate::Limits>) {
 
 fn goal_template() -> core::Template {
     core::Template {
+        name: None,
         number: 4,
         shown: b"goal".as_slice().into(),
         executor: TemplateExecutor::Charter(COORDINATOR),

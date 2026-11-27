@@ -182,6 +182,7 @@ fn account_lists_narrow_the_offer_and_readiness_by_model_source() {
 
 fn template(number: u32, executor: people::TemplateExecutor, llm: Option<tasks::LlmChoice>) -> Template {
     Template {
+        name: None,
         number,
         executor,
         llm,

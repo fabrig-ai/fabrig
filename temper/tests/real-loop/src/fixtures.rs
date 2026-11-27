@@ -591,6 +591,7 @@ fn defaults_for(values: &serde_json::Value, engine: &jig_protocol_config::Engine
                 .insert(
                     u32::try_from(index + 1).expect("policy number"),
                     jig_domain_core::ConfiguredPolicy {
+                        name: None,
                         policy: seed.policy.clone(),
                         permissions: seed.roles.clone(),
                         templates: seed.templates.clone(),

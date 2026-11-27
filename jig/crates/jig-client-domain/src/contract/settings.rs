@@ -243,6 +243,7 @@ pub enum SettingFault {
     Linked,
     Accounts,
     Range,
+    Name,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {

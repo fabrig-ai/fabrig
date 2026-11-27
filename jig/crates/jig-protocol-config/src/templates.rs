@@ -110,7 +110,12 @@ fn template(
 ) -> Option<Template> {
     let mut object = check::object(document, at, path, problems, "template")?;
     let number = check::count(&mut object, document, b"number", path, problems);
-    let shown = shown(document, &mut object, path, limits.core.documents.text_bytes, problems);
+    let (member, text, name) = if let Some(at) = object.member(document, b"shown") {
+        (b"shown".as_slice(), Some(at), check::setting_name(&mut object, document, path, problems))
+    } else {
+        (b"name".as_slice(), object.member(document, b"name"), None)
+    };
+    let shown = shown(document, path, limits.core.documents.text_bytes, member, text, problems);
     let executor = match object.required(document, b"executor", path, problems) {
         Some(at) => executor(document, at, &path.member(b"executor"), problems),
         None => None,
@@ -171,6 +176,7 @@ fn template(
         }
     };
     let template = Template {
+        name,
         resources: resources?,
         number: number?,
         shown: shown?,
@@ -204,16 +210,13 @@ fn template(
 }
 fn shown(
     document: &Document,
-    object: &mut read::Object,
     path: &Path,
     max: u32,
+    member: &[u8],
+    at: Option<u32>,
     problems: &mut Problems,
 ) -> Option<Box<[u8]>> {
-    let (member, at) = if let Some(at) = object.member(document, b"shown") {
-        (b"shown".as_slice(), at)
-    } else if let Some(at) = object.member(document, b"name") {
-        (b"name".as_slice(), at)
-    } else {
+    let Some(at) = at else {
         problems.push(path.member(b"shown"), What::Missing);
         return None;
     };

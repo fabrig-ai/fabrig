@@ -123,6 +123,7 @@ fn limits() -> settings_v3::Limits {
 }
 fn row(fields: Box<[tasks::FieldRule]>) -> domain::Record {
     let template = core::Template {
+        name: None,
         number: 1,
         shown: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Chosen,

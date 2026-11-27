@@ -501,27 +501,36 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
             );
         }
     }
-    for (setting, client_setting, expected) in [
+    for (setting, client_setting, fault, expected) in [
         (
             s::Setting::Template(9),
             c::Setting::Template(c::SettingNumber { number: 9 }),
+            jig_domain_people::SettingFault::Range,
             "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
         ),
         (
             s::Setting::Charter(70),
             c::Setting::Charter(c::SettingNumber { number: 70 }),
+            jig_domain_people::SettingFault::Range,
             "out of shape; item 0; charter 70: is past the charters' numbers: the stock's take 1 to 32, your own 33 to 64",
         ),
+        (
+            s::Setting::Template(33),
+            c::Setting::Template(c::SettingNumber { number: 33 }),
+            jig_domain_people::SettingFault::Name,
+            "out of shape; item 0; template 33's name is taken, by a stock template or another of your own",
+        ),
     ] {
-        let core = R::NotWellFormed {
-            at: 0,
-            why: Malformed::Settings { setting, fault: jig_domain_people::SettingFault::Range, detail: None },
-        };
+        let core = R::NotWellFormed { at: 0, why: Malformed::Settings { setting, fault, detail: None } };
         let client = c::Refusal::Malformed {
             at: 0,
             why: c::Malformed::Settings(c::MalformedSettings {
                 setting: client_setting,
-                fault: c::SettingFault::Range,
+                fault: if fault == jig_domain_people::SettingFault::Name {
+                    c::SettingFault::Name
+                } else {
+                    c::SettingFault::Range
+                },
                 detail: None,
             }),
         };
@@ -710,6 +719,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
     for (grant_count, kind_count) in [(14, 11), (16, 18)] {
         let ceiling = settings_ceiling(grant_count, kind_count);
         let policy = jig_domain_core::ConfiguredPolicy {
+            name: None,
             policy: authority::Policy {
                 escalation_role: Some(0),
                 ceiling: ceiling.clone(),

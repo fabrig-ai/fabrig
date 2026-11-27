@@ -841,6 +841,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
         c::SettingFault::Linked => n::SettingFault::Linked,
         c::SettingFault::Accounts => n::SettingFault::Accounts,
         c::SettingFault::Range => n::SettingFault::Range,
+        c::SettingFault::Name => n::SettingFault::Name,
         c::SettingFault::Owner => n::SettingFault::Owner,
     }
 }

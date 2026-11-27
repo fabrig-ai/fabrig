@@ -6,6 +6,7 @@ use skein_lib::Duration;
 /// The application's numbered defaults for one shape of work (protocol/configuration-templates.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Template {
+    pub name: Option<Box<[u8]>>,
     pub number: u32,
     pub shown: Box<[u8]>,
     pub executor: TemplateExecutor,

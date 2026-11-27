@@ -6817,6 +6817,7 @@ pub fn setting_fault_to_domain(record: jig_client_protocol_wire::v44::SettingFau
         jig_client_protocol_wire::v44::SettingFault::Linked => jig_client_domain::contract::SettingFault::Linked,
         jig_client_protocol_wire::v44::SettingFault::Accounts => jig_client_domain::contract::SettingFault::Accounts,
         jig_client_protocol_wire::v44::SettingFault::Range => jig_client_domain::contract::SettingFault::Range,
+        jig_client_protocol_wire::v44::SettingFault::Name => jig_client_domain::contract::SettingFault::Name,
     }
 }
 

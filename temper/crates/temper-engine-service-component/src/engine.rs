@@ -341,8 +341,10 @@ impl Engine {
         if !self.settings_warned && self.domain.ready() && self.notes.room() != 0 {
             let kept = self.domain.settings_kept();
             self.settings_warned = true;
-            if !kept.is_empty() {
-                self.notes.push(crate::Note::StartupWarning { line: crate::core_wait::settings_kept(&kept) });
+            let unnamed = self.domain.settings_unnamed();
+            if !kept.is_empty() || !unnamed.is_empty() {
+                self.notes
+                    .push(crate::Note::StartupWarning { line: crate::core_wait::settings_warning(&kept, unnamed) });
             }
         }
         self.drain_worker_notes();

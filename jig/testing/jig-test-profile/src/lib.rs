@@ -380,6 +380,7 @@ pub fn config(seed: u64) -> root::Config {
                 number: 1,
                 name: Box::from("Project 1"),
                 policy: core::ConfiguredPolicy {
+                    name: None,
                     policy,
                     permissions: Box::new([
                         people::PermissionRole { connector: 1, permission: 3, role: 1 },
@@ -439,6 +440,7 @@ pub fn config(seed: u64) -> root::Config {
                 ]),
                 models: Box::default(),
                 charters: Box::new([core::Charter {
+                    name: None,
                     parts: Box::new([]),
                     rest: false,
                     wake: jig_domain_tasks::WakePolicy::DEFAULT,

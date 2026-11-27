@@ -160,6 +160,7 @@ pub fn templates_ending(chat: jig_domain_tasks::EndedBy) -> Box<[jig_domain_core
     use jig_domain_tasks::{Contract, Flags, Retention};
     Box::new([
         jig_domain_core::Template {
+            name: None,
             resources: Box::new([]),
             number: 1,
             shown: Box::from(&b"chat"[..]),
@@ -175,6 +176,7 @@ pub fn templates_ending(chat: jig_domain_tasks::EndedBy) -> Box<[jig_domain_core
             llm: None,
         },
         jig_domain_core::Template {
+            name: None,
             resources: Box::new([]),
             number: 2,
             shown: Box::from(&b"goal"[..]),

@@ -233,6 +233,7 @@ pub fn wire_setting_fault(value: &c::SettingFault) -> w::SettingFault {
         c::SettingFault::Linked => w::SettingFault::Linked,
         c::SettingFault::Accounts => w::SettingFault::Accounts,
         c::SettingFault::Range => w::SettingFault::Range,
+        c::SettingFault::Name => w::SettingFault::Name,
     }
 }
 pub fn wire_setting_follows(value: &c::SettingFollows) -> w::SettingFollows {

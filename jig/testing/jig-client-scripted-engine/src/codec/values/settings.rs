@@ -337,6 +337,7 @@ pub(in crate::codec) fn wire_setting_fault(value: &c::SettingFault) -> w::Settin
         c::SettingFault::Linked => w::SettingFault::Linked,
         c::SettingFault::Accounts => w::SettingFault::Accounts,
         c::SettingFault::Range => w::SettingFault::Range,
+        c::SettingFault::Name => w::SettingFault::Name,
         c::SettingFault::Owner => w::SettingFault::Owner,
     }
 }

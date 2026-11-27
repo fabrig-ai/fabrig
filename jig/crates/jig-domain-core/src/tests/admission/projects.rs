@@ -21,6 +21,7 @@ fn project_core() -> (Core, Limits) {
         .insert(
             POLICY,
             ConfiguredPolicy {
+                name: None,
                 policy: seed.policy.clone(),
                 permissions: Box::new([]),
                 templates: seed.templates.clone(),

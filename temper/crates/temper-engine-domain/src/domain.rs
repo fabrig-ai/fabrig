@@ -767,6 +767,11 @@ impl Domain {
         self.engine.core().settings_kept()
     }
 
+    #[must_use]
+    pub fn settings_unnamed(&self) -> &[jig_domain_core::settings::Setting] {
+        self.engine.core().settings_unnamed()
+    }
+
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root-restart.md, 1.1).
     #[must_use]
     pub fn ready(&self) -> bool {

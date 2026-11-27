@@ -229,6 +229,7 @@ impl Core {
             limits,
             project,
             &crate::ConfiguredPolicy {
+                name: None,
                 policy: policy.clone(),
                 permissions: permissions.clone(),
                 templates: templates.clone(),
@@ -242,6 +243,7 @@ impl Core {
     /// The current project policy, whole, independently of revisioned settings (domain/engine/settings.md, 2).
     pub(crate) fn configured_policy(&self, project: u32) -> Option<crate::ConfiguredPolicy> {
         Some(crate::ConfiguredPolicy {
+            name: None,
             policy: self.authority.policy(project)?.clone(),
             permissions: self.permission_roles.get(&project).cloned().unwrap_or_default(),
             templates: self.template_overrides.get(&project).cloned().unwrap_or_default(),

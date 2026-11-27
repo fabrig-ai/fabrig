@@ -29,6 +29,7 @@ pub struct CharterPart {
 /// (protocol/configuration-engine.md, 1; domain/engine/settings.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
+    pub name: Option<Box<[u8]>>,
     pub rest: bool,
     pub number: u32,
     pub policy: RunPolicy,

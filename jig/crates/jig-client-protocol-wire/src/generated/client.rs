@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x30, 0x3f, 0x04, 0x4e, 0x18, 0x6a, 0x7c, 0xd3, 0xe3, 0x6b, 0x0d, 0x27, 0xf3, 0xa1, 0x38, 0x2d, 0xf9, 0x06, 0x20,
-    0xeb, 0x4f, 0x27, 0x2f, 0xcb, 0xdb, 0x62, 0xa1, 0x5d, 0xdb, 0x3e, 0x4f, 0xc2,
+    0x55, 0xfa, 0xe8, 0x77, 0x9b, 0x61, 0x53, 0x21, 0xc0, 0x30, 0x52, 0xad, 0x1b, 0xed, 0xec, 0xf4, 0xb9, 0x9b, 0x31,
+    0x87, 0xc9, 0x37, 0x3c, 0x31, 0x2d, 0x37, 0xa2, 0xbe, 0xea, 0x77, 0x69, 0x60,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -68842,6 +68842,7 @@ pub enum SettingFault {
     Linked,
     Accounts,
     Range,
+    Name,
 }
 
 // Record: SettingFault.
@@ -68858,7 +68859,8 @@ impl SettingFault {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -68899,6 +68901,7 @@ impl Record for SettingFault {
             Self::Linked => field::put(out, &[8], paths::SETTING_FAULT_TAG),
             Self::Accounts => field::put(out, &[9], paths::SETTING_FAULT_TAG),
             Self::Range => field::put(out, &[10], paths::SETTING_FAULT_TAG),
+            Self::Name => field::put(out, &[11], paths::SETTING_FAULT_TAG),
         }
     }
 
@@ -68916,7 +68919,8 @@ impl Record for SettingFault {
             8 => Ok(Self::Linked),
             9 => Ok(Self::Accounts),
             10 => Ok(Self::Range),
-            11..=u8::MAX => Err(Problem { path: paths::SETTING_FAULT_TAG, reason: skein_codec::Reason::Tag }),
+            11 => Ok(Self::Name),
+            12..=u8::MAX => Err(Problem { path: paths::SETTING_FAULT_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

@@ -230,6 +230,7 @@ pub fn first_run_projects(config: &mut engine::Config, limits: &mut engine::Limi
     limits.journal.writes = FIRST_RUN_WRITES;
     let seed = &config.core.seed_projects[0].policy;
     let policy = jig_domain_core::ConfiguredPolicy {
+        name: None,
         policy: seed.policy.clone(),
         // The seed's permission probes name unoffered roles; a new project's
         // owner needs no such bindings. Settings check all policy references.
