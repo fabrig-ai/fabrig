@@ -340,6 +340,7 @@ pub(crate) fn refused(
         | w::Ask::Take(_)
         | w::Ask::HandBack(_)
         | w::Ask::Decide(_)
+        | w::Ask::Measure(_)
         | w::Ask::Release(_)
         | w::Ask::Lift(_)
         | w::Ask::Stop(_)

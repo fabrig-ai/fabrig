@@ -94,22 +94,23 @@ impl Core {
         admission: &tasks::CompoundAdmission<'_>,
     ) -> Result<u64, people::Refusal> {
         let super::compound::PartyTask { person, project, role, task } = party;
-        let (kind, reason_len) = match control {
-            Control::Stop => (authority::RequestKind::Cancel, 0),
+        let (kind, reason_len, check_placed) = match control {
+            Control::Stop => (authority::RequestKind::Cancel, 0, false),
             Control::Cancel { reason_len, grace } => {
                 if let Some(span) = grace
                     && span > limits.grace
                 {
                     return Err(people::Refusal::Limit { which: people::LimitKind::Grace });
                 }
-                (authority::RequestKind::Cancel, reason_len)
+                (authority::RequestKind::Cancel, reason_len, false)
             }
-            Control::Release { .. } => (authority::RequestKind::Release, 0),
+            Control::Release { .. } => (authority::RequestKind::Release, 0, true),
+            Control::Measure => (authority::RequestKind::Release, 0, false),
         };
         let Some(context) = admission.task(task) else { return Err(people::Refusal::Unknown) };
         match control {
             Control::Release { again } => crate::settings::revisions::release_run(&context, again)?,
-            Control::Stop | Control::Cancel { .. } => {}
+            Control::Stop | Control::Cancel { .. } | Control::Measure => {}
         }
         let Some(holding) = role else { return Err(people::Refusal::Role { held: None }) };
         let any_task = match holding {
@@ -146,9 +147,7 @@ impl Core {
         if checked.answer != authority::Answer::Allow {
             return Err(self.request_refusal(&ask, checked.answer, &mut findings));
         }
-        if kind == authority::RequestKind::Release
-            && let Some(hold) = self.tasks.placed_on(task)
-        {
+        if check_placed && let Some(hold) = self.tasks.placed_on(task) {
             self.party_hold_admit(person, hold)?;
         }
         if reason_len > skein_lib::length::usize_of(limits.result_bytes) {

@@ -154,7 +154,7 @@ impl Operation {
                     },
                 ),
                 c::Ask::Lift { .. } => (b"lift", None),
-                c::Ask::Release { task, .. } => (b"release", Some(*task)),
+                c::Ask::Release { task, .. } | c::Ask::Measure { task, .. } => (b"release", Some(*task)),
                 c::Ask::Stop { task, .. } => (b"stop", Some(*task)),
                 c::Ask::Conclude { task, .. } => (b"whole", Some(*task)),
                 c::Ask::Cancel { task, .. } => (b"cancel", Some(*task)),
@@ -1493,6 +1493,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::HandBack { .. }
             | c::Ask::Decide { .. }
             | c::Ask::Lift { .. }
+            | c::Ask::Measure { .. }
             | c::Ask::Release { .. }
             | c::Ask::Amend { .. }
             | c::Ask::Stop { .. }

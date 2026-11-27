@@ -343,7 +343,7 @@ enum MessageKind by hand
 record Word by hand
 record RunWhyMessage
 record RunWhyRetry
-enum RunWhy = t::Why
+enum RunWhy by hand
 enum InvalidReason by hand
 enum SuspendWhy = t::SuspendWhy
 enum RunEnd by hand
