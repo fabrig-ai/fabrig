@@ -24,6 +24,35 @@ models and a charter name.
   zero window, output or price unit. An unknown provider or endpoint is a
   reference fault. Nonzero window and output values no agent's bounds
   hold make a run wait, as a charter's does (`fleet.md`).
+- **A model's speeds.** A model may declare the faster speeds its
+  provider serves it at, as it declares its efforts, and name one of
+  them its default speed (`speed`), which a run of it takes where
+  nothing chooses another (`executors.md`, 1). One that declares none
+  runs at its provider's standard speed alone. Each speed has its name,
+  as the provider takes it and sends it (`fast`, `ultrafast`); its
+  prices, the four of the model's (input, cached input, output, and
+  cache writes where priced apart), in the model's price unit; and at
+  most two other names (`also`) the provider may report it served
+  under, as OpenAI reports Fast as `priority`. The model's own prices
+  stay its standard speed's. Out of shape, beside the above:
+  - a name, a speed's or an `also`, empty, past 32 bytes, or holding a
+    byte but a lower-case letter, a digit, `-` or `_`; a name held twice
+    in the model, across its speeds and their `also` names; `standard`
+    or `default`, the names the dialects give their standard speed;
+  - a fifth speed, or a third `also`;
+  - a default speed the model doesn't declare;
+  - a speed's price of zero, or below the model's own, a cache write
+    compared as each is priced (its own rate, else its input rate),
+    since a faster speed never costs less;
+  - on the Anthropic dialect or Claude Code's program, a speed but
+    `fast`; on another program's route, any speed, since that program
+    chooses its own.
+
+  A model's speeds count in its bound and in a charter's size with its
+  other members, their names and prices (`settings.md`, 8). An owner's
+  add by name and a provider's list give no speeds and no default speed
+  (below; 2), whatever the model they take their figures from declares:
+  an owner gives them by a set.
 - **A model stays for the tasks that hold it.** A *removed* item keeps the
   setting, *withdrawn*: out of the offer (`views.md`, 1) and of every charter's
   resolution, with its number and name. A *reset* returns one with a
@@ -41,11 +70,14 @@ models and a charter name.
   resolution with no model is a *reference* fault. What a run reads, what
   the fleet needs and what the tasks child checks a choice against is the
   resolution; a setting's value, a read and a proposal keep the charter as
-  set, so that a new model needs no charter's change.
+  set, so that a new model needs no charter's change. Each record holds
+  the model's speeds and default speed with its other members.
 - **A change of a resolution is a change of its charter.** A decision or
   a release whose models change a charter's resolution makes that charter's
   next version at its revision, and holds the old one (3 and 8),
   though no item names the charter and its stored value stays. A change of
+  a model's speeds or its default speed is one, for each charter whose
+  resolution includes the model, and for no other. A change of
   a model's `picker` alone changes no resolution, and so no version.
 - **What the charter left out:** a model past a charter's bounds stays
   in the catalogue and off that charter. `me` says how many, for a
@@ -62,7 +94,7 @@ models and a charter name.
   since only a first run shows whether the provider serves it. It takes the
   highest free number and the provider's dearest stock model's endpoint,
   window, output and prices, marked estimated, so that a budget stops
-  early rather than late, with no efforts and on the picker. A name the
+  early rather than late, with no efforts, no speeds and on the picker. A name the
   catalogue holds is out of shape, unless withdrawn, which it brings back.
   A provider with no stock model takes its `endpoint` and the catalogue's
   dearest stock model's figures.
