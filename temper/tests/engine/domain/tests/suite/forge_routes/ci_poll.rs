@@ -70,9 +70,8 @@ fn pending_change() -> (World, Box<[u8]>, u64) {
         StoryLimits { stall: Some(Duration::from_secs(30 * 60)), ..StoryLimits::default() },
     );
     let (mut world, _, producer, branch) = change_world_in(configured, Change::default());
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"first", 1)
-        .expect("producer pushed");
+    let head = world.worker_commit(1, b"file", b"first");
+    world.run_push(&producer, &branch, head, 1);
     status(&mut world, head, raw::Check::Pending);
     finish(&mut world, &producer);
     (world, branch, head)
@@ -113,8 +112,8 @@ fn both_heads_ci_failures_wake_their_change_without_hints() {
     let allowance = world.env.limits.forge.client.poll_max.saturating_add(Duration::from_secs(5));
     let deadline = world.env.now.saturating_add(allowance);
     let repair = repair_by(&mut world, deadline);
-    let second = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"second", 1)
-        .expect("repair pushed");
+    let second = world.worker_commit(head, b"file", b"second");
+    world.run_push(&repair, &branch, second, 1);
     assert_ne!(head, second);
     status(&mut world, second, raw::Check::Pending);
     finish(&mut world, &repair);
@@ -174,8 +173,8 @@ fn fail_during_gather(world: &mut World, head: u64) -> engine::Assignment {
 fn ci_progress_during_a_gather_is_not_lost_when_that_gather_waits() {
     let (mut world, branch, head) = pending_change();
     let repair = fail_during_gather(&mut world, head);
-    let second = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"second", 1)
-        .expect("repair pushed");
+    let second = world.worker_commit(head, b"file", b"second");
+    world.run_push(&repair, &branch, second, 1);
     status(&mut world, second, raw::Check::Pending);
     finish(&mut world, &repair);
     fail_during_gather(&mut world, second);

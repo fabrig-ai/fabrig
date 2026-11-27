@@ -1,5 +1,6 @@
 //! Shared startup diagnostics (protocol/services.md, 4.2).
 use alloc::boxed::Box;
+use jig_domain_contract::StartProblem;
 use jig_domain_link::Problem;
 use jig_protocol_config::{self as config, Path};
 use skein_lib::{Decimal, Writer};
@@ -75,18 +76,20 @@ pub fn admission(
         put(writer, length, measuring, b"'s reserve_time (temper help settings) or lower the timeout");
     }
 }
-/// Translate the kit's configured membership refusal into its startup path.
+/// Translate the engine's construction refusal into its startup path.
 #[must_use]
-pub fn membership(problem: Problem) -> (Path, config::What) {
+pub fn membership(problem: StartProblem) -> (Path, config::What) {
     let engine = Path::root().member(b"engine");
     let limits = engine.member(b"limits").member(b"overrides");
     match problem {
-        Problem::Workers { .. } => (limits.member(b"fleet.configured_workers"), config::What::Bound),
-        Problem::WorkerName { .. } => (limits.member(b"fleet.worker_name_bytes"), config::What::Bound),
-        Problem::Declared { .. } | Problem::ResourceKind { .. } | Problem::EffectKind { .. } => {
+        StartProblem::Membership(problem) => match problem {
+            Problem::Workers { .. } => (limits.member(b"fleet.configured_workers"), config::What::Bound),
+            Problem::WorkerName { .. } => (limits.member(b"fleet.worker_name_bytes"), config::What::Bound),
+        },
+        StartProblem::Declared { .. } | StartProblem::ResourceKind { .. } | StartProblem::EffectKind { .. } => {
             (engine.member(b"connectors"), config::What::Duplicate)
         }
-        Problem::Undeclared { .. } => (engine.member(b"connectors"), config::What::Missing),
-        Problem::HoldKinds { .. } => (limits.member(b"tasks.hold_kinds"), config::What::Bound),
+        StartProblem::Undeclared { .. } => (engine.member(b"connectors"), config::What::Missing),
+        StartProblem::HoldKinds { .. } => (limits.member(b"tasks.hold_kinds"), config::What::Bound),
     }
 }

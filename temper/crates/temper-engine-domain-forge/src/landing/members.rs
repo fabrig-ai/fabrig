@@ -1,4 +1,4 @@
-//! The live membership index and the change's ask queue (temper/docs/design/domain/landing-members.md, 2.1 and 3).
+//! The live membership index and the change's ask queue (temper/docs/design/domain/landing-members.md, 2 and 3).
 use super::{State, commit_hex, concat, matches_terminal, policy};
 use crate::{ChangeRow, Domain, LandingRow, RecordKind, Request, RestoreFit, RestoreSet};
 use alloc::boxed::Box;
@@ -27,7 +27,7 @@ pub(super) fn holds(row: &LandingRow, change: u64) -> bool {
     false
 }
 
-fn still_holds(row: Option<&LandingRow>, change: u64) -> bool {
+fn holds_in(row: Option<&LandingRow>, change: u64) -> bool {
     if let Some(row) = row { holds(row, change) } else { false }
 }
 
@@ -91,28 +91,31 @@ impl State {
         Ok(())
     }
 
-    /// Replace a row and its projection together.
-    pub(crate) fn remember(&mut self, row: LandingRow) -> Result<Option<LandingRow>, RestoreFit> {
+    /// Replace a row and its projection together. Only a new row can add members.
+    pub(crate) fn remember(&mut self, row: LandingRow) -> Option<LandingRow> {
         let task = row.landing.task;
         let prior = self.rows.insert(task, row).expect("landing row was admitted");
-        if let Some(old) = &prior {
-            if same_members(old, self.rows.get(&task).expect("inserted landing")) {
-                return Ok(prior);
-            }
-            self.departed(old);
-        }
         let row = self.rows.get(&task).expect("inserted landing");
-        if matches_terminal(&row.landing.phase) {
-            self.claims.remove(&task);
-        } else {
-            for member in &row.landing.members {
-                let change = member.change;
-                if member.left.is_none() && self.memberships.get(&change).copied().unwrap_or(u64::MAX) >= task {
-                    record(&mut self.memberships, change, task)?;
+        if let Some(old) = &prior {
+            if same_members(old, row) {
+                return prior;
+            }
+            if matches_terminal(&row.landing.phase) {
+                self.claims.remove(&task);
+            } else {
+                for member in &row.landing.members {
+                    assert!(
+                        member.left.is_some() || holds(old, member.change),
+                        "sealed landing {task} cannot add change {} after admission",
+                        member.change,
+                    );
                 }
             }
+            self.departed(old);
+        } else if !matches_terminal(&row.landing.phase) {
+            joined(&mut self.memberships, row, self.limits.landing_members);
         }
-        Ok(prior)
+        prior
     }
 
     pub(crate) fn erase(&mut self, task: u64) -> Option<LandingRow> {
@@ -124,28 +127,88 @@ impl State {
     }
 
     fn departed(&mut self, prior: &LandingRow) {
+        if matches_terminal(&prior.landing.phase) {
+            return;
+        }
         let task = prior.landing.task;
-        let row = self.rows.get(&task);
         for member in &prior.landing.members {
             let change = member.change;
-            if self.memberships.get(&change) != Some(&task) || still_holds(row, change) {
+            let row = self.rows.get(&task);
+            if member.left.is_some() || holds_in(row, change) {
                 continue;
             }
+            let owner = self.memberships.get(&change).copied();
+            if let Some(older) = owner
+                && older < task
+                && holds_in(self.rows.get(&older), change)
+            {
+                // Admission never makes this overlap: only restored rows may share a member.
+                continue;
+            }
+            assert_eq!(
+                owner,
+                Some(task),
+                "change {change} departing landing {task} (leave: {:?}, None at landing end) must have its entry",
+                departure(row, change),
+            );
             // A conflicting restored claim may outlive its older owner.
-            let mut oldest = None;
+            let mut next = None;
             for (other, saved) in &self.rows {
                 if holds(saved, change) {
-                    oldest = Some(*other);
+                    next = Some(*other);
                     break;
                 }
             }
-            if let Some(other) = oldest {
-                self.memberships.insert(change, other).expect("replaces the older claim");
+            if let Some(other) = next {
+                let replaced = self.memberships.insert(change, other);
+                let replaced = replaced.ok().flatten();
+                assert_eq!(
+                    replaced,
+                    Some(task),
+                    "change {change} departing landing {task} (leave: {:?}, None at landing end) passes its own entry to restored landing {other}",
+                    departure(self.rows.get(&task), change),
+                );
             } else {
-                self.memberships.remove(&change);
+                let removed = self.memberships.remove(&change);
+                assert_eq!(
+                    removed,
+                    Some(task),
+                    "change {change} departing landing {task} (leave: {:?}, None at landing end) removes its own entry",
+                    departure(self.rows.get(&task), change),
+                );
             }
         }
     }
+}
+
+fn joined(memberships: &mut Map<u64, u64>, row: &LandingRow, limit: u32) {
+    let task = row.landing.task;
+    for (position, member) in row.landing.members.iter().enumerate() {
+        let change = member.change;
+        assert!(
+            position < skein_lib::usize_of(limit),
+            "change {change} joining landing {task} must fit its {limit} member slots",
+        );
+        assert!(member.left.is_none(), "change {change} joining landing {task} has not already left it");
+        let owner = memberships.get(&change);
+        assert!(
+            owner.is_none(),
+            "change {change} joining landing {task} must be new to the row and in no live landing; held by {owner:?}",
+        );
+        let inserted = memberships.insert(change, task);
+        assert!(inserted.is_ok(), "change {change} joining landing {task} has an admitted membership slot");
+    }
+}
+
+fn departure(row: Option<&LandingRow>, change: u64) -> Option<policy::Leave> {
+    let row = row?;
+    for member in &row.landing.members {
+        if member.change == change {
+            return member.left;
+        }
+    }
+    // A single landing elides cancelled members from its row.
+    Some(policy::Leave::Cancelled)
 }
 
 fn record(memberships: &mut Map<u64, u64>, change: u64, task: u64) -> Result<(), RestoreFit> {

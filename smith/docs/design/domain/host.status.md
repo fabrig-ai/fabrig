@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-24. Where smith's code lags or departs from [host.md](host.md).
+2026-11-27. Where smith's code lags or departs from [host.md](host.md).
 
 
 Section 4 has no known gap in retaining a panic's closing line and
@@ -26,4 +26,10 @@ remains a tail.
     with no request waiting it aborts ("one terminal per account
     request"), and with another account's waiting it is counted as that
     one's answer.
-
+- **Design departs:** 4, from goal 16297's request of 2026-11-24, decided
+  by its design: the request ends an agent whose host "stays silent past
+  its bound", and section 4 counts silence only while the agent waits on
+  its host, so a host that owes nothing is never silent. Over pipes a host
+  sends no keepalive (protocol/channel.md, section 7): a healthy host
+  keeping a run waiting for its next message would read as gone, and host
+  pings would change the channel's wire.

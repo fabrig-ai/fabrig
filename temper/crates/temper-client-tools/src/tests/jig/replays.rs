@@ -147,6 +147,8 @@ fn replay_answer(root: &mut f::Harness, number: u32, call: &call::Call) {
     if call.tool == rows::ROLE_TALK_AT {
         let refusal = if call.form == 0 { c::Refusal::NotOffered } else { c::Refusal::NotWaiting };
         root.answered(number, c::Answer::Refused { refusal, at: None });
+    } else if call.tool == rows::MEASURE_AT {
+        root.done(number, c::Outcome::Document(c::DocumentOutcome::Released { task: f::TASK }));
     } else {
         root.done(number, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     }
@@ -170,6 +172,10 @@ fn task_stop_replays_after_end() {
 #[test]
 fn task_release_replays_after_end() {
     replay(f::ACT_CALLS[5]);
+}
+#[test]
+fn task_measure_replays_its_release_answer_after_end() {
+    replay(f::MEASURE_CALL);
 }
 #[test]
 fn task_decide_replays_its_retained_escalation() {

@@ -60,7 +60,6 @@ pub struct World {
     durable: Map<Key, Stored>,
     entries: Map<u64, Entry>,
     held: Map<u64, Entry>,
-    writers: Vec<Resource>,
     pending: Map<u64, Pending>,
     deliveries: VecDeque<Delivery>,
     decisions: Vec<Decision>,
@@ -120,7 +119,6 @@ impl World {
             durable: Map::with_capacity(LIMITS.resources + LIMITS.repositories),
             entries: Map::with_capacity(LIMITS.entries),
             held: Map::with_capacity(LIMITS.entries),
-            writers: Vec::new(),
             pending: Map::with_capacity(LIMITS.calls),
             deliveries: VecDeque::new(),
             decisions: Vec::new(),
@@ -326,15 +324,6 @@ impl World {
                 self.decisions.push(Decision::Make(Box::new(entry.clone())));
             }
             Event::Read { repository, .. } => assert_eq!(*repository, REPO),
-            Event::Writer { resource, taken } => {
-                if *taken {
-                    if !self.writers.contains(resource) {
-                        self.writers.push(resource.clone());
-                    }
-                } else {
-                    self.writers.retain(|claimed| claimed != resource);
-                }
-            }
             Event::Hint { .. } => self.hints += 1,
             Event::Keep { .. }
             | Event::Pushed { .. }
@@ -494,9 +483,6 @@ impl World {
             self.event(Event::Restore { record });
         }
         self.event(Event::Restored { clock: RecoveryClock::Monotonic });
-        for resource in self.writers.clone() {
-            self.event(Event::Writer { resource, taken: true });
-        }
         let entries: Vec<_> = self.entries.iter().map(|(_, entry)| entry.clone()).collect();
         for entry in entries {
             assert!(!self.held.contains_key(&entry.number));
@@ -831,7 +817,7 @@ impl World {
                 Request::Read { owner, result } => {
                     assert!(self.read_results.insert(*owner, result.clone()).expect("owner read capacity").is_none());
                 }
-                Request::ReadAfreshDone | Request::Drift { .. } | Request::Settled { .. } | Request::OutboxDone => {}
+                Request::ReadAfreshDone | Request::Moved { .. } | Request::Settled { .. } | Request::OutboxDone => {}
             }
             decision.push(request);
         }

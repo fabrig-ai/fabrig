@@ -195,7 +195,7 @@ mod verification;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{
-    DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, StartLink, fire, resume, step, tag, untag, writer,
+    DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, StartLink, TaskHold, fire, resume, step, tag, untag, writer,
 };
 pub use gates::{GateCandidate, GateLast, GatePattern, Requires, Touched, covers, covers_branch, touched};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};

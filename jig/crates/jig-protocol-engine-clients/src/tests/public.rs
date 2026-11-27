@@ -125,7 +125,7 @@ fn an_unknown_kind_a_wrong_id_count_and_an_unserved_layout_reach_no_engine() {
         let exchange = step.send(request);
         assert_eq!(step.reply(exchange), PublicReply::Unknown);
     }
-    for layout in [None, Some([0; 32])] {
+    for layout in [[0; 32], [0xff; 32]] {
         let exchange = step.send(PublicRead { layout, ..read(2, &[1]) });
         let PublicReply::NotServed { record } = step.reply(exchange) else {
             panic!("not served");
@@ -274,7 +274,7 @@ fn an_application_document_crosses_in_jigs_envelope() {
     let mut step = Step::new();
     let exchange = step.send(PublicRead {
         owner: 10,
-        layout: Some(APP_LAYOUT),
+        layout: APP_LAYOUT,
         kind: 1,
         ids: Box::new([names().project(PROJECT), names().task(TASK)]),
     });

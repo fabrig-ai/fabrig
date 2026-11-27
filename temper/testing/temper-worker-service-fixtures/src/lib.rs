@@ -133,6 +133,7 @@ pub fn one_repository() -> wire::Workspace {
     wire::Workspace {
         rerun: None,
         repositories: Box::new([wire::Repository {
+            admit: false,
             save: None,
             git: None,
             tag: (1_u64 << 32) | 3,

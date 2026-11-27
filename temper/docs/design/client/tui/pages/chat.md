@@ -215,11 +215,18 @@ Illustrative (the request's 03, with the look request
   chat's page reads as it opens: earlier pages are not read as the head
   nears, since skein's screen reports no log edge yet (its section 10),
   and there is no "Latest ↓" (`../../README.md`, section 5).
-- **The foot:** the running line, the box, "Reply", and the quiet line,
+- **The foot:** the running line, the box, "Reply, or ← to leave.", and the quiet line,
   "paused · a message resumes it" on a chat the person paused. On a
-  chat that has ended the box takes commands alone, and words that are
+  chat that has ended the box takes commands alone, its placeholder
+  "/new starts another chat, or ← to leave.", and words that are
   no command note "This chat is closed. /new starts another.", the
   root's note (`../../pages/chat/terminal.md`, 1, *The box*).
+- **Leaving and stopping** (the user's word of 2026-11-27): Left at the
+  box's start goes to the launchpad as `/new` does, the box's words
+  kept with the chat for when the person comes back; Esc, with no list
+  standing, stops the agent's turn at once, as `/pause` does, where
+  `/pause` is offered, and leaves nothing (`README.md`, section 1, *←
+  at its start*, *Esc* and *Its words kept*).
 - **Closing** (the user's request `tui-18`, 2026-11-15: "when entering
   /close we should go back to the dashboard"): "Close" taken on
   `/close`'s list (`README.md`, section 2, *A command's list*) sends the
@@ -235,7 +242,7 @@ Illustrative (the request's 03, with the look request
   - *Answered otherwise,* refused or lost, the chat stays, as it does
     today, and the state keeps it no longer.
   - *Left first:* another screen gone to before the answer, by `/new`,
-    `/chats` or a list's choice, clears it, and the answer then moves
+    Left at the box's start, `/chats` or a list's choice, clears it, and the answer then moves
     nothing and gives no notice.
   - *Not closing:* "Keep it open" stays on the chat. A chat closed
     otherwise, by someone else or from the browser while the TUI shows

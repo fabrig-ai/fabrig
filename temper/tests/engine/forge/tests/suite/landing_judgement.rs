@@ -63,6 +63,7 @@ fn ask_gate(world: &mut World, prefix: api::Commit, entry: u64) {
         task: CHANGE,
         child: 71,
         kind: change::Delegate::Gate { number: GATE, head: prefix },
+        close_at: None,
     });
 }
 fn verdict(world: &mut World, passed: bool) {

@@ -212,12 +212,14 @@ fn a_decided_settings_proposal_keeps_its_reason_and_projects() {
             charters: 0,
         }]);
         let mut work = Queue::uncapped();
+        let key = CallKey { task: 1, attempt: 7, completion: 1, position: 1 };
+        assert!(core.reserve_call(key, CallHolder::Routed));
         let output = dispatch::propose_run(
             &mut core,
             &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             &mut work,
             ReplyTo::new(Token::new(91)),
-            CallKey { task: 1, attempt: 7, completion: 1, position: 1 },
+            key,
             s::Proposed {
                 against: 1,
                 reason: REASON.into(),

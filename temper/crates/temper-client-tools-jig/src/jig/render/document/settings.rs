@@ -125,7 +125,7 @@ pub(super) fn providers_encode(reading: &crate::jig::runner::reads::Reading, out
 pub(super) fn edit_word(edit: &c::RevisionItemEdit) -> &'static [u8] {
     settings_form::render::edit_word(&a::form_revision_item_edit(edit))
 }
-pub(super) fn encode(value: &c::ReadValue, out: &mut Encoder) {
+pub(in crate::jig::render) fn encode(value: &c::ReadValue, out: &mut Encoder) {
     settings_form::render::encode(&a::form_read_value(value), out);
 }
 

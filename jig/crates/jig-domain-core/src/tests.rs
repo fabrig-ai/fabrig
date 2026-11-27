@@ -36,7 +36,7 @@ use crate::{
     *,
 };
 use fixtures::CurrentFixtures;
-use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
+use jig_domain_link::{Form, Hello, Hosting, Phase, Problem, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 fn empty_declarations(config: &Config) -> Box<[Declaration]> {
@@ -47,35 +47,177 @@ fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     declarations.into_boxed()
 }
 
-pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let connectors = empty_declarations(&config);
     Core::new(config, &connectors, limits)
 }
 
+const ROOM_CALL: CallKey = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
+const ROOM_NEXT: CallKey = CallKey { completion: 2, ..ROOM_CALL };
+const ROOM_FRESH: CallKey = CallKey { completion: 3, ..ROOM_CALL };
+const ROOM_REPLY: Token = Token::new(85);
+
+fn claimed_call_room() -> (Core, Limits) {
+    let (mut core, limits) = core();
+    assert_eq!(limits.call_records, 2);
+    make_task(&mut core, &limits, ROOM_CALL.task);
+    let mut row = core.tasks.task(ROOM_CALL.task).expect("live call owner").clone();
+    row.attempt = ROOM_CALL.attempt;
+    row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: ROOM_CALL.attempt });
+    fixtures::restore(&mut core, &limits, Box::new([row]));
+    core.proofs
+        .insert(ROOM_CALL.task, RunProof::claimed(ROOM_CALL.task, ROOM_CALL.attempt, 1, None, fleet::HostKind::Worker))
+        .expect("current call proof");
+    (core, limits)
+}
+
+fn assert_retained(core: &Core, key: CallKey, expected: CallPart) {
+    let Some(CallReplay::Core(part)) = core.replay_call(key) else { panic!("retained call {key:?}") };
+    assert_eq!(part, expected);
+}
+
+#[test]
+fn call_pending_reads_only_the_pending_place() {
+    let (mut core, _) = claimed_call_room();
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_pending(ROOM_CALL));
+    assert!(!core.call_pending(ROOM_NEXT), "an unknown name has no pending place");
+
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+    assert!(!core.call_pending(ROOM_CALL), "a retained answer is no longer pending");
+}
+
 #[test]
 fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
-    let limits = limits();
-    let mut core = new_core(config(41), &limits).expect("fixture core configuration");
-    let pending = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
-    let retained = CallKey { position: 1, ..pending };
-    let fresh = CallKey { position: 2, ..pending };
-    assert_eq!(limits.call_records, 2);
-    assert!(core.call_room(pending));
-    assert!(core.call_room(fresh));
-
-    core.pending_calls.insert(pending, true).expect("first call fits");
-    assert!(!core.call_room(pending));
-    assert!(core.call_room(retained));
-    core.call_parts.insert(retained, CallPart::Controlled).expect("second call fits");
-    assert!(!core.call_room(pending));
-    assert!(core.call_room(retained));
-    assert!(!core.call_room(fresh));
+    let (mut core, limits) = claimed_call_room();
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_room(ROOM_NEXT), "there is spare room, but not for a duplicate");
+    assert!(!core.reserve_connector_call(ROOM_CALL));
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert!(!core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_room(ROOM_NEXT));
+    assert!(core.reserve_connector_call(ROOM_NEXT));
     assert_eq!(core.pending_calls.len(), 1);
     assert_eq!(core.call_parts.len(), 1);
+    assert!(!core.call_room(ROOM_NEXT));
+    assert!(!core.call_room(ROOM_FRESH));
+    assert!(core.call_room(ROOM_CALL));
+    for key in [ROOM_NEXT, ROOM_FRESH, ROOM_CALL] {
+        assert!(!core.reserve_connector_call(key), "no second place for {key:?}");
+    }
 
-    assert_eq!(core.pending_calls.remove(&pending), Some(true));
-    assert!(core.call_room(fresh));
-    assert!(core.call_room(retained));
+    let action = |key| Event::NamedAction {
+        to: ReplyTo::new(ROOM_REPLY),
+        key,
+        action: NamedAction::Introduce { left: 2, right: 3 },
+    };
+    for key in [ROOM_NEXT, ROOM_FRESH] {
+        let out = watch_outputs(&mut core, &limits, action(key));
+        let [Request::Now(now)] = out.as_ref() else { panic!("busy with no writes for {key:?}: {out:?}") };
+        let Now::CallBusy { to } = now.as_ref() else { panic!("named call {key:?} is busy") };
+        assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
+    }
+    let out = watch_outputs(&mut core, &limits, action(ROOM_CALL));
+    let [Request::Held(held)] = out.as_ref() else { panic!("replay with no writes: {out:?}") };
+    let Held::CallAnswer { to, key, part } = held.as_ref() else { panic!("retained call answer") };
+    assert_eq!((*key, part), (ROOM_CALL, &CallPart::Controlled));
+    assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
+    assert_eq!(core.pending_calls.len(), 1);
+    assert_eq!(core.call_parts.len(), 1);
+}
+
+#[test]
+fn a_decision_keeps_its_place_until_the_turn_retires_it() {
+    let (mut core, limits) = claimed_call_room();
+    // Use a second answer in the following completion, which this turn must not retire.
+    assert!(core.decide_named_call(ROOM_NEXT, CallPart::Controlled));
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Introduced));
+    assert!(!core.pending_calls.contains_key(&ROOM_CALL));
+    assert_retained(&core, ROOM_CALL, CallPart::Introduced);
+    assert!(!core.reserve_connector_call(ROOM_FRESH), "moving a place doesn't free it");
+
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::AcceptedTurn {
+            task: ROOM_CALL.task,
+            attempt: ROOM_CALL.attempt,
+            turn: ROOM_NEXT.completion,
+            accepted: tasks::Accepted::New,
+            cumulative: 0,
+            read: None,
+            transcript: b"turn carrying the call answer".as_slice().into(),
+            opens_window: false,
+        },
+    );
+    let mut erased = List::with_capacity(limits.call_records);
+    for row in &out {
+        if let Request::Write(Write::Erase(Key::Core(CoreKey::Call(key)))) = row {
+            erased.push(*key).expect("at most the bounded calls retire");
+        }
+    }
+    assert_eq!(erased.as_slice(), [ROOM_CALL], "retirement erases only the carried call");
+    assert!(core.replay_call(ROOM_CALL).is_none());
+    assert_retained(&core, ROOM_NEXT, CallPart::Controlled);
+    assert!(core.reserve_connector_call(ROOM_FRESH));
+    assert!(!core.call_room(ROOM_CALL), "the other retained call still takes its place");
+}
+
+#[test]
+fn a_busy_effect_description_gives_back_only_its_own_place() {
+    let (mut core, limits) = claimed_call_room();
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    let owner = core.effect_owner();
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::EffectStart {
+            owner,
+            connector: 1,
+            origin: EffectOrigin::Call { to: ReplyTo::new(ROOM_REPLY), key: ROOM_NEXT, deadline: Wall::EPOCH },
+        },
+    );
+    let [Request::Ask { ask: Ask::Effect(connector::Ask::Describe { owner: asked }), .. }] = out.as_ref() else {
+        panic!("the admitted call asks for a description: {out:?}")
+    };
+    assert_eq!(*asked, owner);
+    assert!(!core.reserve_connector_call(ROOM_FRESH));
+
+    let busy = || Event::EffectConnector(connector::Event::DescribeBusy { owner });
+    let out = watch_outputs(&mut core, &limits, busy());
+    let [Request::Ask { ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }), .. }, Request::Now(now)] =
+        out.as_ref()
+    else {
+        panic!("busy, without a call row: {out:?}")
+    };
+    assert_eq!(*dropped, owner);
+    let Now::EffectAnswer { to, key, part } = now.as_ref() else { panic!("retryable effect answer") };
+    assert_eq!((*key, part), (ROOM_NEXT, &CallPart::Unavailable));
+    assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
+    assert!(core.replay_call(ROOM_NEXT).is_none());
+    assert!(core.reserve_connector_call(ROOM_FRESH));
+    assert!(watch_outputs(&mut core, &limits, busy()).is_empty(), "the late description owns nothing");
+    assert!(!core.call_room(ROOM_NEXT));
+    assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+}
+
+#[test]
+fn a_stale_named_decision_returns_the_place_without_retaining_an_answer() {
+    let (mut core, _) = claimed_call_room();
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert!(core.reserve_connector_call(ROOM_NEXT));
+    assert!(!core.call_room(ROOM_FRESH));
+    core.proofs.get_mut(&ROOM_NEXT.task).expect("fenced old proof").attempt = 2;
+
+    for _ in 0_u8..2 {
+        assert!(!core.decide_named_call(ROOM_NEXT, CallPart::Introduced));
+        assert!(core.replay_call(ROOM_NEXT).is_none());
+        assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+        assert!(core.call_room(ROOM_FRESH));
+    }
+    assert!(core.reserve_connector_call(CallKey { attempt: 2, ..ROOM_FRESH }));
 }
 
 pub(crate) fn limits() -> Limits {
@@ -233,7 +375,7 @@ pub(crate) fn limits() -> Limits {
         run_bytes: 512,
         policy_bytes: 8192,
         escalation_reason_bytes: 128,
-        load_slots: 2,
+        load_slots: STORE_WORK_SLOTS,
         load_bytes: 65_536,
         call_records: 2,
         call_answer_bytes: 256,
@@ -610,12 +752,16 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
     core.template_overrides = Map::with_capacity(limits.authority.projects);
 }
 
-fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let declarations = empty_declarations(&config);
     seeded_core_with_declarations(config, &declarations, limits)
 }
 
-fn seeded_core_with_declarations(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core_with_declarations(
+    config: Config,
+    connectors: &[Declaration],
+    limits: &Limits,
+) -> Result<Core, StartProblem> {
     let needs = fleet_needs::configured(&config, limits);
     let mut core = Core::new(config, connectors, limits)?;
     fixtures::restore_needs(&mut core.fleet, limits, needs);
@@ -3226,12 +3372,78 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
     );
 }
 
+// Two window loads and two ordinary reads; the core also holds two erasure read slots.
+const STORE_WORK_SLOTS: u32 = 2;
+const STORE_LOAD_CAPACITY: u64 = 6;
+const STORE_READ_CHARGES: u32 = 4;
+const STORE_SIGN_IN: u64 = 10;
+const STORED_TASK: u64 = 100;
+const WINDOWED_TASKS: [u64; 2] = [102, 103];
+const STORE_WINDOW: (u64, u32) = (1, 1);
+const PREPARING_FOR_RESULT: u64 = 1;
+
+fn stored_task_read(core: &mut Core, limits: &Limits) -> Held {
+    read_start(core, limits, STORE_SIGN_IN, crate::reads::Read::Task { task: STORED_TASK })
+}
+
+fn full_load_lanes() -> (Core, Env<Limits>, Token) {
+    use crate::routing::task::erase::{Select, scan};
+
+    let (mut core, limits) = watch_core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let windows = WINDOWED_TASKS.map(|task| fixture_window(&mut core, task, STORE_WINDOW));
+    let Held::Store(engine_store::Out::Load { load: read, .. }) = stored_task_read(&mut core, &limits) else {
+        panic!("one retained read")
+    };
+    let Held::Store(_) = stored_task_read(&mut core, &limits) else { panic!("second retained read") };
+    let _answer = loaded_answer(&mut core, &limits, read, engine_store::Answer::Failed(engine_store::Failure::Gone));
+
+    let project = core.tasks.task(PREPARING_FOR_RESULT).unwrap().project;
+    let mut out = Queue::uncapped();
+    scan(&mut core, &env, &mut out, Select::Project(project));
+    let Some(Request::Held(held)) = out.pop() else { panic!("erasure's first page") };
+    let Held::Store(engine_store::Out::Load { load: erasure, .. }) = *held else { panic!("held erasure page") };
+    let out = watch_store_outputs(&mut core, &limits, point_answer(erasure, None, true));
+    let [Request::Held(held)] = out.as_ref() else { panic!("erasure's replacement page") };
+    let Held::Store(_) = held.as_ref() else { panic!("held erasure retry") };
+    let [first, _] = windows;
+    (core, env, first)
+}
+
+#[test]
+fn the_store_load_capacity_adds_both_lanes() {
+    let (core, _) = core();
+    assert_eq!(core.loads.capacity(), STORE_LOAD_CAPACITY);
+}
+
+#[test]
+fn a_full_read_lane_counts_terminals_until_reclaim() {
+    let (mut core, env, _) = full_load_lanes();
+    assert_eq!(core.loads.reads(), STORE_READ_CHARGES);
+    let Held::Read { answer, .. } = stored_task_read(&mut core, &env.limits) else { panic!("read refused") };
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
+}
+
+#[test]
+fn an_ended_result_waits_while_both_lanes_are_full() {
+    let (mut core, env, window) = full_load_lanes();
+    let context = core.tasks.run_context(PREPARING_FOR_RESULT).unwrap();
+    core.contexts.insert(PREPARING_FOR_RESULT, context).unwrap();
+    let mut work = Queue::uncapped();
+    let _out = crate::routing::run::results::begin(&mut core, &mut work, PREPARING_FOR_RESULT, Box::new([STORED_TASK]));
+    let mut out = Queue::uncapped();
+    loads::resume_waiting(&mut core, &env.limits, &mut out);
+    assert!(out.is_empty(), "no store request while both work slots are held");
+    let out = watch_store_outputs(&mut core, &env.limits, point_answer(window, None, true));
+    let _load = runs::result_reads::requested(&out, STORED_TASK);
+}
+
 #[test]
 fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     let (mut core, mut limits) = watch_core();
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
-    core.loads = loads::Loads::new(1, core.flight_tasks_capacity);
+    core.loads = loads::Loads::new(1, 1, core.flight_tasks_capacity);
     fixture_window(&mut core, 102, (1, 1));
     assert!(!core.loads.room(&limits), "the full work lane does not take the read's room");
     let Held::Store(engine_store::Out::Load { load, .. }) =
@@ -3844,7 +4056,7 @@ fn startup_refuses_too_many_configured_workers() {
     let mut limits = limits();
     let config = config(41);
     limits.fleet.configured_workers = 1;
-    assert_eq!(new_core(config, &limits).err(), Some(Problem::Workers { limit: 1 }));
+    assert_eq!(new_core(config, &limits).err(), Some(StartProblem::Membership(Problem::Workers { limit: 1 })));
 }
 #[test]
 fn startup_refuses_an_oversized_worker_name() {
@@ -3859,7 +4071,7 @@ fn startup_refuses_an_oversized_worker_name() {
     }]);
     assert_eq!(
         new_core(config, &limits).err(),
-        Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
+        Some(StartProblem::Membership(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes }))
     );
 }
 

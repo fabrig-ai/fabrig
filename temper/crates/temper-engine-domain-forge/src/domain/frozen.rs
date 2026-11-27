@@ -128,10 +128,11 @@ fn client_drift_of_a_frozen_watch_is_ignored_but_a_goals_own_is_not() {
             repository,
             what: skein_forge_client::What::Branch(b"temper/51".as_slice().into()),
         };
-        d.client_out.push(skein_forge_client::Request::Drift {
+        d.client_out.push(skein_forge_client::Request::Moved {
             resource: resource.clone(),
             expected: fixtures::HEAD,
             observed: Some(fixtures::BASE),
+            actor: None,
         });
         // The goal owns this watch, so its own branch still drifts.
         let mut out = Queue::uncapped();
@@ -145,10 +146,11 @@ fn client_drift_of_a_frozen_watch_is_ignored_but_a_goals_own_is_not() {
         d.names.remove(&GOAL);
         d.names.insert(fixtures::CHANGE, Box::new([name()])).unwrap();
         d.holds.get_mut(&name()).unwrap().drift = None;
-        d.client_out.push(skein_forge_client::Request::Drift {
+        d.client_out.push(skein_forge_client::Request::Moved {
             resource: resource.clone(),
             expected: fixtures::HEAD,
             observed: None,
+            actor: None,
         });
         let mut out = Queue::uncapped();
         drain(&mut d, &env(), &mut out);
@@ -156,7 +158,12 @@ fn client_drift_of_a_frozen_watch_is_ignored_but_a_goals_own_is_not() {
         let hold = d.holds.get_mut(&name()).unwrap();
         hold.task = fixtures::CHANGE;
         hold.drift = None;
-        d.client_out.push(skein_forge_client::Request::Drift { resource, expected: fixtures::HEAD, observed: None });
+        d.client_out.push(skein_forge_client::Request::Moved {
+            resource,
+            expected: fixtures::HEAD,
+            observed: None,
+            actor: None,
+        });
         let mut out = Queue::uncapped();
         drain(&mut d, &env(), &mut out);
         assert!(out.is_empty());

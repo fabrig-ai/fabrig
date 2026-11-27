@@ -7,7 +7,7 @@ use crate::{CallKey, Core, Limits, Now, Request};
 use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::reads::run_task::*;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Id, Queue, ReplyTo};
+use skein_lib::{Env, Queue, ReplyTo, Token};
 
 fn related(core: &Core, caller: u64, row: &tasks::TaskRecord) -> bool {
     let Some(owner) = core.tasks.task(caller) else { return false };
@@ -207,18 +207,13 @@ fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Rea
         tasks: None,
         parts: None,
     };
-    let load = core.loads.insert_read(pending).expect("read room checked").token();
+    let load = core.loads.insert_read(pending).expect("read room checked");
     let mut out = Queue::uncapped();
     out.push(crate::loads::read(load, range));
     out
 }
 
-pub(super) fn loaded(
-    core: &mut Core,
-    env: &Env<Limits>,
-    name: Id<crate::loads::Flight>,
-    result: engine_store::Answer,
-) -> Queue<Request> {
+pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Token, result: engine_store::Answer) -> Queue<Request> {
     let pending = core.loads.read_mut(name).expect("pending task read");
     let Destination::RunTask { to, key, read } = core::mem::replace(&mut pending.destination, Destination::Done) else {
         unreachable!("task read")
@@ -641,12 +636,12 @@ mod tests {
         (core, limits, row)
     }
 
-    fn retained_load(core: &mut Core, env: &Env<Limits>, task: u64, from: u64) -> Id<crate::loads::Flight> {
+    fn retained_load(core: &mut Core, env: &Env<Limits>, task: u64, from: u64) -> Token {
         let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
         let mut out = run(
             core,
             env,
-            ReplyTo::new(skein_lib::Token::new(90)),
+            ReplyTo::new(Token::new(90)),
             key,
             Read { joined: false, task, field: TaskTextField::Result, from, room: env.limits.documents.text_bytes },
         );
@@ -657,7 +652,7 @@ mod tests {
         };
         assert_eq!(range.scope, Scope::Task { task }, "load includes requester evidence");
         assert!(out.pop().is_none(), "loading decides nothing");
-        Id::from_token(load)
+        load
     }
 
     fn retained_reply(
@@ -682,12 +677,12 @@ mod tests {
         *answer
     }
 
-    fn specification_load(core: &mut Core, env: &Env<Limits>, task: u64) -> Id<crate::loads::Flight> {
+    fn specification_load(core: &mut Core, env: &Env<Limits>, task: u64) -> Token {
         let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
         let mut out = run(
             core,
             env,
-            ReplyTo::new(skein_lib::Token::new(90)),
+            ReplyTo::new(Token::new(90)),
             key,
             Read {
                 joined: false,
@@ -704,14 +699,10 @@ mod tests {
         };
         assert_eq!(range.scope, Scope::TaskText { task, field: TaskTextField::Specification, from: 0 });
         assert!(out.pop().is_none());
-        Id::from_token(load)
+        load
     }
 
-    fn joined_specification_load(
-        core: &mut Core,
-        env: &Env<Limits>,
-        row: &super::super::Row,
-    ) -> Id<crate::loads::Flight> {
+    fn joined_specification_load(core: &mut Core, env: &Env<Limits>, row: &super::super::Row) -> Token {
         let load = specification_load(core, env, PRODUCER);
         let text = crate::tests::stored_row(row.value.clone(), None);
         let mut out = loaded(
@@ -727,7 +718,7 @@ mod tests {
         };
         assert_eq!(range.scope, Scope::Task { task: PRODUCER });
         assert!(out.pop().is_none());
-        Id::from_token(load)
+        load
     }
 
     fn read_answer(mut out: Queue<Request>) -> Result<TaskRead, tasks::Refusal> {
@@ -749,7 +740,7 @@ mod tests {
             let out = run(
                 &mut core,
                 &env,
-                ReplyTo::new(skein_lib::Token::new(90)),
+                ReplyTo::new(Token::new(90)),
                 CallKey { task: GOAL, attempt: 9, completion: 1, position: 0 },
                 Read { joined: false, task: PRODUCER, field, from: 0, room: limits.call_answer_bytes },
             );
@@ -1002,7 +993,7 @@ mod tests {
                 reads_project: false,
                 maker: None,
                 places: Box::new([]),
-                reply_to: ReplyTo::new(skein_lib::Token::new(number)),
+                reply_to: ReplyTo::new(Token::new(number)),
                 creator: tasks::Party::Task(requester),
                 batch: Box::new([new]),
             },
@@ -1015,7 +1006,7 @@ mod tests {
     }
 
     fn finish_report(core: &mut Core, limits: &Limits, task: u64, result: tasks::TaskResult) -> Box<tasks::TaskRecord> {
-        let to = || ReplyTo::new(skein_lib::Token::new(task));
+        let to = || ReplyTo::new(Token::new(task));
         for event in [
             tasks::Event::Prepare { reply_to: to(), task },
             tasks::Event::Claim {

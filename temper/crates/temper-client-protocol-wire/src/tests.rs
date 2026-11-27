@@ -1902,6 +1902,8 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
         v1::TrialState::Answered(v1::TrialAnswered { seconds: u32::MAX }),
         v1::TrialState::Failed(v1::TrialFailed { why: v1::TrialWhy::Refused }),
         v1::TrialState::Failed(v1::TrialFailed { why: v1::TrialWhy::Waited }),
+        v1::TrialState::Limited(v1::TrialLimited { reset: Some(u64::MAX) }),
+        v1::TrialState::Limited(v1::TrialLimited { reset: None }),
     ] {
         states.push(state).unwrap();
     }
@@ -1920,6 +1922,13 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
             .unwrap();
     }
     for state in &states {
+        let tag = match state {
+            v1::TrialState::Running => 0,
+            v1::TrialState::Answered(_) => 1,
+            v1::TrialState::Failed(_) => 2,
+            v1::TrialState::Limited(_) => 3,
+        };
+        assert_eq!(state.encode(&limits).unwrap().first(), Some(&tag));
         for step in [v1::TrialStep::Starts, v1::TrialStep::Answers] {
             for (task, took) in [(None, None), (Some(u64::MAX), Some(u32::MAX))] {
                 let row = v1::TrialRow {

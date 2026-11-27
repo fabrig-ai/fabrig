@@ -59,6 +59,7 @@ impl Fixture {
                 rerun: None,
                 key: key.into(),
                 repositories: Box::new([Repository {
+                    admit: false,
                     name: b"app".as_slice().into(),
                     remote: remote.into(),
                     git: None,

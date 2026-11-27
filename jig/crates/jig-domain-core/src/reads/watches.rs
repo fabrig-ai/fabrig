@@ -31,14 +31,14 @@ pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) ->
         return crate::routing::view::routes::retained_made(core, env, watcher, Err(views::End::Gone));
     };
     let mut out = Queue::uncapped();
-    out.push(crate::loads::read(load.token(), range));
+    out.push(crate::loads::read(load, range));
     out
 }
 
 pub(super) fn watch_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    load: Id<crate::loads::Flight>,
+    load: Token,
     watcher: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {

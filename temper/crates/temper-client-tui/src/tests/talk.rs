@@ -70,9 +70,9 @@ fn the_talk_head_conversation_and_quiet_line_follow_its_facts() {
         assert_eq!(
             placeholder,
             if conversation {
-                "Reply, or Esc to leave. Porter writes its Now when you go."
+                "Reply, or ← to leave. Porter writes its Now when you go."
             } else {
-                "Talk to Porter, or Esc to go back."
+                "Talk to Porter, or ← to go back."
             }
         );
         let view = build(&root, &tui);
@@ -92,7 +92,10 @@ fn the_talk_head_conversation_and_quiet_line_follow_its_facts() {
         assert_eq!(f::text(view.tree(), left).as_ref(), "● Live · Hello · Porter".as_bytes());
         assert_eq!(f::text(view.tree(), right).as_ref(), part.talk_session.as_deref().unwrap_or_default());
         assert_eq!(f::find(view.tree(), Role::Text, "● Live".as_bytes()).styles.as_slice(), &[crate::look::LIVE]);
-        assert_eq!(crate::escape(&view), Some(Event::Leave));
+        let field = f::find(view.tree(), Role::TextArea, b"Message");
+        assert_eq!(field.placeholder.as_deref(), Some(placeholder.as_bytes()));
+        assert_eq!(crate::back(&view, field.id, 0), Some(Event::Leave));
+        assert_eq!(crate::escape(&view), None);
         assert_eq!(
             crate::offered(&root, &f::words()).as_ref(),
             &[
@@ -153,7 +156,7 @@ fn talk_lists_roles_in_team_order_with_areas_or_now() {
     let mut tui = Tui::new(f::ADDRESS);
     assert!(crate::offered_own(&root, &tui).windows(3).any(|items| items == [Own::Change, Own::Talk, Own::Ask]));
     let view = build(&root, &tui);
-    assert!(text(&view).contains("/talk     a role, about its area"), "{}", text(&view));
+    f::find(view.tree(), Role::Item, b"/talk     a role, about its area");
     tui.step(Told::TalkList { open: true });
     let list = foot::read(&root, &tui, &f::words(), WALL).list.unwrap();
     assert_eq!(list.head.as_deref(), Some(b"Talk with a role on Hello".as_slice()));

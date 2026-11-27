@@ -244,12 +244,15 @@ fn advance(world: &mut World, task: u64, entry: u64) {
     let decision = changes::change_step_task(world, task, entry, change::Status::Passed, Box::new([]), false, false);
     if let change::Decision::Delegate(kind) = decision {
         let child = 100_000 + entry;
-        world.event(top::Event::Delegated { task, child, kind });
+        world.event(top::Event::Delegated { task, child, kind, close_at: None });
         let branch = format!("temper/c{task}");
         match kind {
             change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {
-                world.push_file(branch.as_bytes(), b"file", b"fixed");
-                world.push_file(branch.as_bytes(), format!("member{}", task - 51).as_bytes(), b"resolved");
+                let branch = branch.as_bytes();
+                let name = changes::branch_name(branch);
+                let attempt = (child, 1);
+                world.push_attempt(&name, attempt, branch, b"file", b"fixed");
+                world.push_attempt(&name, attempt, branch, format!("member{}", task - 51).as_bytes(), b"resolved");
             }
             _ => panic!("train member's delegate: {kind:?}"),
         }

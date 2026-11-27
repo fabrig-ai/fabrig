@@ -1190,7 +1190,7 @@ pub(crate) fn authority_findings(
 
 fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
     Some(match tool {
-        b"decided" | b"amend" | b"cancel" | b"release" => b"control",
+        b"decided" | b"amend" | b"cancel" | b"release" | b"measure" => b"control",
         b"goal" | b"change" | b"delegate" => b"delegate",
         b"message" | b"introduce" => b"message",
         b"decide" | b"withdraw" | b"decide_escalation" => b"decide",

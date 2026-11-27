@@ -1,4 +1,4 @@
-use super::{Entry, Event, List, Map, RecoveryClock, Resource, Time, World, configured};
+use super::{Entry, Event, List, Map, RecoveryClock, Time, World, configured};
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::Duration;
 
@@ -73,13 +73,6 @@ impl World {
             self.event(Event::Restore { record });
         }
         self.event(Event::Restored { clock: RecoveryClock::Monotonic });
-        let mut writers = List::with_capacity(self.writers.len());
-        for resource in &self.writers {
-            writers.push(resource.clone()).expect("writer claim limit");
-        }
-        for resource in writers.into_boxed() {
-            self.event(Event::Writer { resource, taken: true });
-        }
         let mut entries = List::with_capacity(self.entries.len());
         for (_, entry) in &self.entries {
             entries.push(entry.clone()).expect("top outbox limit");
@@ -90,24 +83,6 @@ impl World {
         }
         self.event(Event::ReadAfresh);
         self.event(Event::SettleOutbox);
-    }
-
-    /// Record a durable branch claim and tell the client; ends on taken=false.
-    pub fn writer(&mut self, resource: Resource, taken: bool) {
-        if taken {
-            if !self.writers.as_slice().contains(&resource) {
-                self.writers.push(resource.clone()).expect("writer claim limit");
-            }
-        } else {
-            let mut remaining = List::with_capacity(self.env.limits.resources);
-            for claimed in &self.writers {
-                if *claimed != resource {
-                    remaining.push(claimed.clone()).expect("writer claim limit");
-                }
-            }
-            self.writers = remaining;
-        }
-        self.event(Event::Writer { resource, taken });
     }
 
     /// Hand a held entry back on the person's choice, preserving its identity.

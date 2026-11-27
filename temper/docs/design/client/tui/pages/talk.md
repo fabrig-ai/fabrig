@@ -99,13 +99,13 @@ choices under the box):
   - The role's choices win over it while they stand, and it over nothing
     else: a list a command opens stands in its place.
 - **The box,** "Message": its placeholder, while the person's talk is
-  open, "Reply, or Esc to leave. NAME writes its Now when you go."; while
-  none is, "Talk to NAME, or Esc to go back.". Enter sends its words as
+  open, "Reply, or ← to leave. NAME writes its Now when you go."; while
+  none is, "Talk to NAME, or ← to go back.". Enter sends its words as
   the talk's (`../../pages/talk.md`, 1, *Its words are talk*); a refusal,
   such as "talking with PARTY" while another person talks, is drawn under
   the box in the view's words, as a chat's send's.
-- **Leaving:** Esc on the empty box while no list stands, or `/exit` sent
-  whole, goes to the launchpad, `Went(Home { project })`, the talk's
+- **Leaving:** Left at the box's start (`README.md`, section 1, *← at
+  its start*), or `/exit` sent whole, goes to the launchpad, `Went(Home { project })`, the talk's
   project, which leaves the talk (`../../pages/talk.md`, 1, *Leaving the
   page leaves the talk*); with a talk of the person's open, the notice
   (`README.md`, section 1, *The notice*) says "Left NAME after 9 min ·
@@ -114,7 +114,12 @@ choices under the box):
   the quiet line says it, ", COST" left out while unknown; with none open,
   no notice. `/new`, or a chat chosen from `/chats`, leaves the talk too,
   with no notice. `/quit` and Ctrl+C close the TUI, and the talk lapses
-  (`../../pages/talk.md`, 4).
+  (`../../pages/talk.md`, 4). The box's words not sent stay with the
+  talk (`README.md`, section 1, *Its words kept*).
+- **Esc** closes a list, or sets the role's choices or a card aside, as
+  above, and stops nothing: a talk has no stop (`../../pages/talk.md`,
+  1, *Not a chat's*). It leaves no talk (the user's word of
+  2026-11-27).
 - **The quiet line** (`README.md`, section 1, *The quiet line*):
   - *at its left,* "●" and the link's state first, Live included, as on
     every screen (`README.md`, *The link's state*), then " · ", the

@@ -30,6 +30,7 @@ pub mod task;
 pub mod task_wait;
 mod waits;
 pub(crate) mod watches;
+pub use cursor::encode_window;
 pub use objects::document;
 /// Translate a task line without application parts (domain/engine/views.md, 2).
 pub use queries::line as task_line;

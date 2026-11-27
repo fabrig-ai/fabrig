@@ -9,10 +9,10 @@ use crate::translate::{Config, RootConfig, environment_forge, forge_declaration}
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract::StartProblem;
 use jig_domain_core::Core;
 use jig_domain_core::engine::{self, Admit, Engine};
 use jig_domain_fleet as fleet;
-use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -32,6 +32,8 @@ pub enum StartStop {
     ForgeRow(forge::Key),
     /// The forge's restored records do not fit its limits.
     ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
+    /// Converting the branch would drop unsettled entries.
+    BranchWrites(forge::Name, usize),
     /// A restored forge record links to a target the start does not hold.
     ForgeLink { phase: Option<jig_domain_core::start::Phase>, link: forge::MissingLink },
     /// The deployment's namespace binding was refused.
@@ -88,6 +90,7 @@ pub struct Domain {
     pub(crate) start_stop: Option<StartStop>,
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
+    pub(crate) convert_branch_writes: bool,
     pub(crate) rehearsal: Option<bool>,
     pub(crate) startup_fill: Option<u64>,
     pub(crate) startup_census: Option<Box<jig_domain_core::documents::StoreCensus>>,
@@ -101,6 +104,7 @@ pub struct Domain {
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::boundary::JobWorkspace>,
+    pub(crate) push_claims: Map<u64, forge_route::push_admission::Claim>,
     pub(crate) forge: forge::Domain,
     pub(crate) forge_limit_holds: Map<u64, forge_route::limit_holds::Waiting>,
     /// Last saved unavailable phase, without retaining ended tasks (domain/landing-liveness.md, 4).
@@ -429,6 +433,12 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
+    /// This start upgrades a store from before branch write records (domain/forge/writes.md, 7).
+    pub fn convert_branch_writes_at_link(&mut self) {
+        assert!(self.start_wall.is_none(), "branch write conversion set before restart");
+        self.convert_branch_writes = true;
+    }
+
     /// Restore as at a start, ending at the opening (domain/root-restart.md, 1.1).
     pub fn rehearse(&mut self) {
         assert!(self.start_wall.is_none(), "rehearsal set before restart");
@@ -444,9 +454,9 @@ impl Domain {
     /// cross-child limits. Checks bounded authority/bootstrap configuration; issues no request.
     /// Startup pages/account setup begin only on `Event::Restart`.
     /// # Errors
-    /// A configured worker count or name exceeds its priced membership bound.
+    /// The engine refuses its worker membership or connector declarations.
     #[expect(clippy::too_many_lines, reason = "the root allocates every child and bounded handoff table together")]
-    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, Problem> {
+    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, StartProblem> {
         assert!(valid(limits), "root limits are valid");
         assert!(
             config.core.settings.deployment_provider != 0,
@@ -625,6 +635,7 @@ impl Domain {
             start_stop: None,
             opened: false,
             start_pending: false,
+            convert_branch_writes: false,
             startup_fill: None,
             startup_census: None,
             sweep_rows: Queue::uncapped(),
@@ -638,6 +649,7 @@ impl Domain {
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             job_workspaces: Map::with_capacity(limits.tasks.tasks),
+            push_claims: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
             kinds: Box::default(),
@@ -1506,7 +1518,7 @@ fn released_into(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
     /// Configured worker membership exceeds its priced count or name bound.
-    Workers(Problem),
+    Workers(StartProblem),
     /// The charter at this index: its run policy's bytes, `None` past `u64`,
     /// beyond `journal.run_bytes`.
     Run { charter: usize, bytes: Option<u64> },
@@ -1543,7 +1555,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
     if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
-        refused.push(Refused::Workers(problem)).expect("counted refusals");
+        refused.push(Refused::Workers(StartProblem::Membership(problem))).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {
         let bytes = run_policy_bound(&configured.policy, limits);

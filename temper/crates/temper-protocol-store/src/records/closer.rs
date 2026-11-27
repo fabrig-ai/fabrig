@@ -39,6 +39,7 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
     w::Closer {
         report_check: crate::generated::store::closing_report_check_to_record(&row.closer.report_check),
         goal_left: row.closer.goal_left.clone(),
+        goal_asked: row.closer.goal_asked.clone(),
         task: row.task,
         goal: row.goal,
         closed,
@@ -59,6 +60,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
     let w::Closer {
         report_check,
         goal_left,
+        goal_asked,
         task,
         goal,
         closed,
@@ -102,6 +104,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
             selections: decode_selections(selections),
             report_check: crate::generated::store::closing_report_check_to_domain(report_check),
             goal_left,
+            goal_asked,
         },
         making,
         close_changes: close_changes.into_boxed(),

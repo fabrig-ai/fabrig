@@ -10,6 +10,7 @@ pub use temper_engine_domain_forge_vocabulary::restore::*;
 pub enum StartLink {
     Row(Key),
     Fit(RestoreFit),
+    BranchWrites(crate::Name, usize),
     Link(MissingLink),
 }
 
@@ -19,11 +20,14 @@ impl Domain {
         &mut self,
         tasks: &jig_domain_tasks::Domain,
         env: &Env<Limits>,
+        convert_branch_writes: bool,
         out: &mut Queue<Request>,
     ) -> Result<(), StartLink> {
         if let Some(key) = self.unjoined_change() {
             return Err(StartLink::Row(key));
         }
+        let branches =
+            if convert_branch_writes { Some(crate::conversion::branches::prepare(self, &env.limits)?) } else { None };
         self.link_names(tasks, &env.limits);
         self.link_tiers(tasks, &env.limits);
         if let Err(failure) = self.restore_memberships() {
@@ -32,8 +36,11 @@ impl Domain {
         if let Err(failure) = self.convert_previous(out) {
             return Err(StartLink::Fit(failure));
         }
+        if let Some(branches) = branches {
+            crate::conversion::branches::write(self, branches, out);
+        }
         self.link_landings(tasks, env, out);
-        self.link_writers(tasks, env);
+        self.link_writers(tasks, env, out);
         if let Err(failure) = self.fit_restored(&env.limits) {
             return Err(StartLink::Fit(failure));
         }
@@ -45,7 +52,7 @@ impl Domain {
     /// A retired run cannot own a slot. Keep its old durable row until the
     /// post-switch fresh read saves the writerless hold; a crash repeats the read
     /// (jig's domain/tasks/holds.md, 3).
-    fn link_writers(&mut self, tasks: &jig_domain_tasks::Domain, env: &Env<Limits>) {
+    fn link_writers(&mut self, tasks: &jig_domain_tasks::Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         use super::{LostReadState, LostWriterKind, PendingLost};
         let mut retired = skein_lib::List::with_capacity(self.holds.len());
         for (name, hold) in &self.holds {
@@ -57,6 +64,7 @@ impl Domain {
             }
         }
         for (name, task, attempt) in retired.into_boxed() {
+            self.finished(task, attempt, true, out);
             let hold = self.holds.get_mut(&name).expect("selected retired writer");
             let previous = hold.clone();
             hold.writer = None;
@@ -65,7 +73,6 @@ impl Domain {
             self.reconciliation.restore(&Stored::Hold(repaired.clone())).expect("repair removes one reference");
             self.sequence = self.sequence.checked_add(1).expect("restored writer read sequence fits");
             let owner = skein_lib::Token::new(self.sequence | (1_u64 << 62));
-            let baseline = self.branch_head(&name);
             self.lost
                 .insert(
                     owner,
@@ -73,8 +80,6 @@ impl Domain {
                         task,
                         attempt,
                         name,
-                        comparison: None,
-                        baseline,
                         state: LostReadState::Restoring,
                         last_answer: None,
                         kind: LostWriterKind::Retired,
@@ -642,7 +647,8 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::LimitHold(_)
+        Stored::Writes(_)
+        | Stored::LimitHold(_)
         | Stored::HistoryEvent(_)
         | Stored::HistoryChange(_)
         | Stored::HistoryLanding(_)

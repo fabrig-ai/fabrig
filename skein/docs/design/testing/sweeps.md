@@ -7,7 +7,7 @@ Provisional, 2026-11-26. What a world's sweep is made of: the independent stream
 - **The seed's streams** (section 2): the workload, the faults, the parties' actions and the scheduling each draw from their own stream of the seed, and each part of a stream (an injector, a party) from its own part, so that a change to one leaves the others' draws as they were (the draft, 3.5 and 5).
 - **The fault ledger** (section 3): every fault a world or a fake injects, with its kind, its interval and the identities it strikes, and beside each the counters of the draft's 3.3, so that a check can judge blame and tries against the cause.
 - **A sweep** (section 4) names the faults it configures, folds each case's ledger, counting the cases each kind fell in, and fails when a fault it configures never fell in any of the gate's seeds.
-- **Its cases** (4.2 to 4.5) come through one seam, `cases`, which takes the test's identity, its seeds and a check: at the gate it yields the seeds as given, in a campaign fresh ones derived from the campaign's seed, the test and the case's number, and under a replay one seed. A failing case names its test and seed, whether its check returns a finding or panics. A check over the gate's seeds holds only at the gate (`gate()`).
+- **Its cases** (4.2 to 4.5) come through one seam, `cases`, which takes the test's identity, its seeds and a check: at the gate it yields the seeds as given, in a campaign fresh ones derived from the campaign's seed, the test and the case's number, and under a replay one seed. A failing case names its test and seed, whether its check returns a finding or panics. A check over the gate's seeds holds only at the gate (`gate()`). A sweep that plays a fake model counts the shapes its cases reached, in its tree's vocabulary (4.6).
 - **Exclusions** (section 5): an exclusion names its ignored scenario and the work that fixes it, and leaves out one fault in one combination of state the world names; it acts before a fault is injected, never on a finding, and nothing is matched by category. One that names no ignored scenario is refused.
 
 ## 2. The seed's streams
@@ -38,7 +38,7 @@ impl Streams {
 
   Adding the golden ratio to a seed only shifts a SplitMix64 sequence by one draw, so a stream is never seeded by an offset of another's seed: every derived seed passes through `mix`.
 - **Independent by construction:** a stream's draws depend on the seed, the stream and the part alone, never on another stream's draws, so a run with restarts and one without draw the same goals, faults and parties' actions (the draft, 3.5).
-- **Parts:** each injector its own part of `Faults` (`forge`, `llm`, `restarts`), each party its own of `Parties`, so that a fault family added to a sweep, or a restart, leaves the others' draws as they were. A part's name is the world's.
+- **Parts:** each injector its own part of `Faults` (`forge`, `llm`, `restarts`), each party its own of `Parties`, so that a fault family added to a sweep, or a restart, leaves the others' draws as they were. A part's name is the world's. A model the fake LLM plays is a party, `agent/NAME`, whose part draws what its answers say, apart from the fake's failures (`Faults`' `llm`) and its latency and cache routing (`Scheduling`'s `llm`; `fakes/drawn-agent.md`, 3).
 - **Scheduling** is what the simulator and a world's own delivery order draw: a world seeds its simulated world, its latencies and its delivery order from `Scheduling`.
 - **Adoption is each world's,** as its goal moves it: today's worlds keep their seeding, and a world that moves to streams moves its pinned seeds with it.
 
@@ -123,7 +123,7 @@ impl FaultLedger {
 ### 4.1 Its faults
 
 ```rust
-pub struct Sweep { /* name, configured faults, exclusions, the cases each kind fell in, seeds, left out */ }
+pub struct Sweep { /* name, configured faults, exclusions, the cases each kind fell in, seeds, left out, the cases each kind was ineligible in */ }
 
 impl Sweep {
     pub fn new(name: &'static str) -> Sweep;
@@ -140,6 +140,8 @@ impl Sweep {
     pub fn check_fell(&self) -> Result<(), String>;
     /// How many draws an exclusion left out, over the seeds folded.
     pub fn left_out(&self, scenario: &str) -> u64;
+    /// How many of the cases folded had no eligible target for `fault`.
+    pub fn ineligible(&self, fault: Kind) -> u64;
 }
 ```
 
@@ -147,6 +149,7 @@ impl Sweep {
 - **Counted by case:** `ran` adds one to the count of each kind that fell in the case, since `FaultLedger::fell` names each kind once, so a sweep knows how many of its cases each kind fell in, not only that it fell.
 - **Each configured fault fell** (the draft, 4), at the gate: `check_fell` returns `sweep <name>: <family>/<name> never fell in <n> seeds`, one line for each configured kind whose count is nought, in `Kind`'s order. A sweep that configures a fault and never makes it fall fails, as any red. A fault that fell and isn't configured is no finding. Outside the gate's mode `check_fell` passes and writes its reach (4.5).
 - **Left out:** where an exclusion leaves a draw out, the world doesn't inject it and records it in its ledger, `FaultLedger::leave_out(&mut self, scenario: &'static str, kind: Kind, at: Time)`; `ran` sums them by scenario.
+- **Ineligible:** where a case's draw finds no target its world can strike with a configured fault (4.5), the world doesn't inject it and records it in its ledger, `FaultLedger::ineligible(&mut self, kind: Kind)`, and the case goes on. `ran` adds one to the kind's ineligible count, once a case however often its ledger records it, and `ineligible` reads the count. An ineligible kind is no finding: at the gate, one that fell in none of the seeds fails `check_fell` as any kind does, and one that fell in another seed passes.
 
 ### 4.2 Its cases
 
@@ -186,15 +189,20 @@ where
 /// Whether the cases are the gate's seeds: for a check over all of them,
 /// and for a sweep's configuration.
 pub fn gate() -> bool;
+
+/// 4.4's input line, under a replay, for the case the calling thread runs:
+/// a digest of what the case drew.
+pub fn input(digest: [u8; 32]);
 ```
 
 They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 
 - **`Test`** is the case's identity, and the name its lines give it. Its module is `module_path!()`'s, so its first segment is the test's crate (`suite::fuzzy::walking` in a `suite` binary). A helper serving several tests takes its caller's identity, passed in, never its own; a test, or a helper, that runs several sweeps gives each a part.
 - **`seeds`** is a range or a hand-picked list: the gate's seeds, unchanged. Its length is the case count, at the gate and in a campaign.
+- **More cases in a campaign:** a sweep that asks a campaign for more cases than its gate seeds (`temper/docs/design/draft/fuzzy-campaigns.md`, 6) gives `cases` its gate seeds where `gate()` holds, and otherwise a range as long as the count it asks, `0..COUNT`: a campaign reads the seeds' count alone, and a replay none of them (4.3). The count is the sweep's own, named beside its gate seeds.
 - **A check returns its finding,** as jig's core sweeps return theirs, or panics (4.4). A test returns `cases`'s result, or words it in its own failure.
 - **A case's seed is the world's seed.** A world on streams takes it as `Streams::new(seed)`, and one that isn't takes it as it took its loop's seed. A draw made some other way, as a fixture picked by `seed % n`, takes it from the case's seed too, so that a campaign moves every draw.
-- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts.
+- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts. Inside a case, `Sweep::ran` folds its ledger and counts no `seed`, since `cases` counts the case, so a sweep on `Sweep` keeps its counts too; outside one it counts a seed, as before. A test that folds several worlds' ledgers at each seed gives each world a part and its own `cases`, so that each world's case is counted, and replays, alone.
 - **`each_seed` stays** as it is, for the loops that keep fixed seeds, focused tests' among them: it runs its range in every mode, as given, and counts it.
 
 ### 4.3 Its modes
@@ -213,16 +221,51 @@ They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 - **One line a failing case:** the seam writes exactly one `fuzzy case:` line for it, whichever way it failed, and a reader names a case by its TEST and SEED.
 - **Outside the gate's mode,** `cases` writes `fuzzy cases: TEST N` to stderr as it returns, N the cases it ran, a failing one included, so that a campaign tells a sweep that ran from a test that took no case. A case that panics leaves the hook's line in its place.
 - **At the gate too,** a failing case names its seed, as no loop of its own does unless its test prints it.
+- **A case's input, under a replay:** `input(digest)` writes `fuzzy input: TEST seed SEED DIGEST` to stderr, DIGEST the 32 bytes as 64 lower-case hex digits, for the case the calling thread holds (as the hook reads it). It writes it under a replay alone, and nothing at the gate, in a campaign, or outside a case's check, so that a round's thousands of cases write none. A world calls it once its case's draws are made, with a digest of what it drew (`skein_lib::sha256::digest` over its draws' bytes, say), so that a campaign that replays one case at two commits can tell whether both drew the same input (`tools/tiers/campaign.md`, 4.2). A world that doesn't call it leaves its input uncompared.
 - **These lines are the contract** a campaign reads (`temper/docs/design/draft/fuzzy-campaigns.md`, 5.4); the replay command is the campaign's to write, since the campaign knows the binary and the full test name.
 
 ### 4.5 What a case checks
 
 - **A case's own checks** run in every mode: contracts as it goes, invariants once it settles, its referee, its goals' expectations (the strategy's section 6).
-- **A check over the gate's seeds** holds only for those seeds: `check_fell`, an exact count of what was left out, a coverage array filled across the loop. Outside the gate's mode, `check_fell` returns `Ok` and writes `fuzzy reach: SWEEP FAMILY/KIND N` to stderr for each configured kind, in `Kind`'s order, SWEEP the sweep's name and N the cases it fell in, nought included. A test's own checks over its loop run only where `gate()` holds.
-- **Every seed a valid case.** A world takes its cases from `cases` only once any seed draws a case it can run. A draw its world can't run, a configured kind with no eligible target or a hold drawn with no release, is the world's to make valid: drawn again from the case's own stream, or skipped and counted as ineligible in the sweep's reach. It is never failed as the product's.
+- **A check over the gate's seeds** holds only for those seeds: `check_fell`, an exact count of what was left out, a coverage array filled across the loop. Outside the gate's mode, `check_fell` returns `Ok` and writes `fuzzy reach: SWEEP FAMILY/KIND N` to stderr for each configured kind, in `Kind`'s order, SWEEP the sweep's name and N the cases it fell in, nought included. After them it writes `fuzzy reach: SWEEP ineligible/FAMILY/KIND N` for each configured kind ineligible in at least one case (4.1), in `Kind`'s order, N those cases: a reach line, which a campaign sums as any (`tools/tiers/campaign.md`, 3), and never at nought, so that no kind's ineligibility reads as a kind that fell in no case. A test's own checks over its loop run only where `gate()` holds.
+- **Every seed a valid case.** A world takes its cases from `cases` only once any seed draws a case it can run. A draw its world can't run, a configured kind with no eligible target or a hold drawn with no release, is the world's to make valid: drawn again from the case's own stream, or skipped and recorded ineligible (4.1), counted in the sweep's reach. It is never failed as the product's.
 - **A full-width seed:** a case's seed is any `u64`. A world that does arithmetic on its seed wraps it or derives from it, and keeps the draws of the gate's seeds.
 - **A fixed scenario keeps its seed.** A test that asserts what its seed was chosen to show (a pinned seed's named outcome, a golden, a digest) takes no case from the seam, and a campaign runs it as the gate does.
 - **The gate's counts stay:** a sweep that adopts `cases` keeps its binary's checks counts as they were, and its instructions within the growth allowance (`tools/tiers/budgets.md`, 8).
+
+### 4.6 The shapes it reached
+
+A sweep that plays a fake model counts the shapes its cases reached, in a vocabulary its tree names, beside its sample's size, so that a reader of a deployment's runs can name the shapes the worlds missed (`temper/docs/design/draft/misbehaving-agents.md`, 8). The vocabulary's words are its tree's (smith's in `smith/docs/design/shapes.md`); the count and its lines are skein's, so that every tree's sweeps write one form.
+
+```rust
+/// The shapes a sweep's cases reached: each shape with the cases that reached it,
+/// and the cases folded.
+pub struct Shapes { /* sweep, vocabulary, cases, each kept shape's cases, beyond */ }
+
+impl Shapes {
+    /// At most `SHAPES_KEPT` distinct shapes are kept.
+    pub fn new(sweep: &'static str, vocabulary: &'static str) -> Shapes;
+    /// Folds one case: one more case, and one more case for each distinct shape in `case`.
+    /// A text outside a shape's form is refused, folding nothing.
+    pub fn ran(&mut self, case: &[&str]) -> Result<(), String>;
+    /// The cases folded.
+    pub fn cases(&self) -> u64;
+    /// The cases that reached `shape`.
+    pub fn reached(&self, shape: &str) -> u64;
+    /// Writes the lines below to stderr.
+    pub fn write(&self);
+}
+
+pub const SHAPES_KEPT: usize = 4096;
+```
+
+It is `skein_world::sweep`'s.
+
+- **A shape is a text** its world writes from its vocabulary's words, 1 to 1024 bytes of printable ASCII with no line feed; the count reads nothing in it. A text outside that form is the world's bug: `ran` returns `sweep SWEEP: shape not in form: WHY`, WHY saying which rule it broke and never the text, and the sweep fails on it as on any finding.
+- **Counted by case,** as `ran` counts faults (4.1): a shape a case reached twice counts it once.
+- **Bounded:** at most `SHAPES_KEPT` distinct shapes, the first reached kept. A case holding a shape past them counts once in `beyond`, and its kept shapes count as any case's.
+- **Its lines,** written by `write` in every mode, after the sweep's last case: `fuzzy shapes: SWEEP VOCABULARY cases N distinct D beyond B`, then one `fuzzy shape: SWEEP VOCABULARY N SHAPE` for each kept shape, N the cases that reached it, by N from the most, then by SHAPE's bytes. They are the contract a reader of the worlds' samples reads.
+- **The loop is the test's,** as with `Sweep`: it folds each case's shapes with `ran` and calls `write` after the last case, in a loop of its own or in `cases`'s check. A check over the gate's seeds that reads `reached` holds at the gate alone (4.5).
 
 ## 5. Exclusions
 
@@ -260,9 +303,11 @@ Step tests in the crate's own `src/tests/`, with no world:
 
 - **Streams:** one seed's four streams draw four different sequences; a stream's first draws are the same whether or not another stream, or another part of its own, was drawn first; two parts of one stream differ; one seed replays; `seed_of` for seed 0 and each stream's own part is pinned to its value, so the derivation never changes silently.
 - **The ledger:** an entry keeps its kind, interval and identities; `stop` refuses a second stop and a time before the start; `striking` finds a fault in force on a shared identity and not one stopped, or one on another identity; `fallen` finds one stopped too, and not one that falls after its moment; each counter counts on its own; `fell` gives each kind once; `saturation` starts a kind at the first call seeing its table full, keeps one entry while it stays full, starts it for a refused newcomer below capacity too, stops it at the first call seeing it below and refusing none, starts it afresh when it fills again, and leaves a kind whose table no inspection holds, or one of capacity `u64::MAX`, unrecorded.
-- **A sweep:** a sweep whose configured fault never falls in any seed fails `check_fell` at the gate, naming the fault and the seeds; one where it falls in one seed of several passes; `ran` counts each kind's cases, once a case however often it fell in it; outside the gate's mode, `check_fell` passes and writes one reach line for each configured kind, in `Kind`'s order, nought included.
+- **A sweep:** a sweep whose configured fault never falls in any seed fails `check_fell` at the gate, naming the fault and the seeds; one where it falls in one seed of several passes; `ran` counts each kind's cases, once a case however often it fell in it; outside the gate's mode, `check_fell` passes and writes one reach line for each configured kind, in `Kind`'s order, nought included; `ran` counts a kind's ineligible cases, once a case however often its ledger records it; outside the gate's mode, an ineligible line follows the reach lines for each kind ineligible in a case, in `Kind`'s order, and none for a kind ineligible in none; at the gate, no line, and a kind ineligible in one seed that fell in another passes `check_fell`.
 - **Cases,** each mode given to the seam directly, so that no test sets or depends on the process's environment: at the gate, the seeds as given, in order; in a campaign, as many fresh seeds as given, their values pinned for a campaign seed and a test with and without a part, and the same whatever other tests derived before; under a replay, the one seed once, whatever the seeds given; the first finding ends the sweep with its test and seed; `gate()` in each mode; the lines' format; `this_test!`'s identity.
 - **The variables:** read from captured pairs, empty is unset; a value of other than sixteen hex digits (fifteen, seventeen, a `0x` prefix, a byte that isn't a hex digit, bytes that aren't UTF-8) and both set at once are setup errors naming the variable; either case reads.
+- **Shapes:** a shape reached twice in one case counts that case once; `cases` counts the cases folded, a case with no shape among them; past `SHAPES_KEPT` distinct shapes, a case holding a new one counts in `beyond` and its kept shapes still count; the lines' format, their order by count then by bytes, and nought `beyond` written; a text that is empty, longer than 1024 bytes, or holds a line feed or a byte that isn't printable ASCII is refused, folding nothing of its case.
+- **The input line,** each mode given to the seam directly: under a replay, written for the case its thread holds, in its format, its digest's bytes in order; none at the gate, none in a campaign, none outside a case's check.
 - **The hook,** with no panic, since no test catches or expects one (`tools/lints/panics.py`): it writes its line for the case its thread holds and then calls the hook before it, writes none when its thread holds no case, and a case is let go of once its check returns.
 - **The test table:** its names, each `Set::Test`, in order, and its document, byte for byte, rewritten under the rewrite switch.
 - **Exclusions:** an exclusion that names no ignored scenario (empty, or not a function's name) is refused; so are one with no work, one with no conditions, one on a fault not configured, and a duplicate; `leaves_out` answers only while every condition holds; left-out draws are counted by scenario.
@@ -273,5 +318,6 @@ Step tests in the crate's own `src/tests/`, with no world:
 - A sweep's report of its coverage, each check's finding kinds over its seeds (the draft, 12).
 - Moving today's worlds to streams, each with its own goal's sweeps.
 - Moving sweeps to `cases`, world by world (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).
+- Each world's digest of what its case drew, given to `input`, world by world with its adoption or after it.
 - A sweep asking a campaign for more cases than its gate seeds (the same draft, 6), with the first sweep that needs it.
 - A replay naming one part of a test that runs several sweeps: today it runs its seed once in each, so a campaign replays such a test's case as one test and one case only where it has one part.

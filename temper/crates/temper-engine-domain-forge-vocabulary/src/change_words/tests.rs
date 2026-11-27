@@ -1007,6 +1007,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,

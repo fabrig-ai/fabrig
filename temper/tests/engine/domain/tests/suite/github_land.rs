@@ -133,14 +133,20 @@ fn silent_ci_at_shipped_stall_boundary() {
         assert!(world.env.wall.as_nanos() <= latest, "execution hold within one poll");
     }
     assert!(
-        matches!(change_row(&world).change.state, change::State::Held { why: change::Hold::Stalled, .. }),
+        matches!(
+            change_row(&world).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+        ),
         "QA: silent CI must be Held(Stalled) within one poll of 1800 s of observed running: {:?}",
         change_row(&world)
     );
     let held = world.env.wall;
     at(&mut world, Wall::from_nanos(held.as_nanos() + TICK.as_nanos()));
     assert!(
-        matches!(change_row(&world).change.state, change::State::Held { why: change::Hold::Stalled, .. }),
+        matches!(
+            change_row(&world).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+        ),
         "QA: silent CI must remain held just after 1800 s of observed running: {:?}",
         change_row(&world)
     );
@@ -199,7 +205,10 @@ fn stalled_change_notifies_its_requester() {
         world.events
     );
     assert!(
-        matches!(change_row(&world).change.state, change::State::Held { why: change::Hold::Stalled, .. }),
+        matches!(
+            change_row(&world).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+        ),
         "QA: the hold card must carry the stall reason: {:?}",
         change_row(&world)
     );

@@ -72,7 +72,7 @@ impl Harness {
                 | Request::Outcome { .. }
                 | Request::Kept { .. }
                 | Request::Changed { .. }
-                | Request::Drift { .. }
+                | Request::Moved { .. }
                 | Request::ReadAfreshDone
                 | Request::Settled { .. }
                 | Request::OutboxDone,

@@ -29,7 +29,7 @@
 ──────────────────────────────────────────────────────────────────────────── cowsql / Raft to vsr T2 on box ──
 ❯ 1
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- ● Live · cowsql · drafter · Opus 5.5 · xhigh                                     pane: folded · Ctrl-P opens
+ ● Live · cowsql · drafter · Opus 5.5 · xhigh                                     pane: folded · Ctrl-o opens
 --
 abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ..............................................................................................................

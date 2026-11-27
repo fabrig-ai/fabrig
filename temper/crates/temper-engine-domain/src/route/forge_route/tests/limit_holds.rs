@@ -33,9 +33,9 @@ fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>)
     let original = domain.engine.core().tasks.task(source).unwrap().clone();
     let number = SECOND;
     {
-        tasks::step(
-            &mut domain.engine.core_mut().tasks,
-            &env.with(env.limits.tasks),
+        super::task_event(
+            &mut domain,
+            &env,
             tasks::Event::Make {
                 reads_project: false,
                 maker: None,
@@ -62,19 +62,13 @@ fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>)
                     tracked: None,
                 }]),
             },
-            &mut Queue::uncapped(),
         );
         assert!(domain.engine.core().tasks.task(number).is_some());
     }
     let mut repository = adopted(1);
     repository.project = 1;
     domain.forge.restore_begin(env.wall);
-    forge::step(
-        &mut domain.forge,
-        &env.with(env.limits.forge),
-        forge::Event::Restore { record: forge::Stored::Repository(repository) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge(&mut domain, &env, forge::Stored::Repository(repository));
     if read {
         fresh(&mut domain, &env);
     }

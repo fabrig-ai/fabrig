@@ -1,6 +1,6 @@
 # decisions: status
 
-2026-11-26. Where the tree's code lags or departs from [decisions.md](decisions.md).
+2026-11-27. Where the tree's code lags or departs from [decisions.md](decisions.md).
 
 
 - **Not yet:** 1.1: the whole project-deletion commit has no

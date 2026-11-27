@@ -496,7 +496,11 @@ fn body(tree: &skein_ui::Tree) -> List<Box<[u8]>> {
         let start = f::index(tree, region.id);
         let end = start.checked_add(usize::try_from(region.size).unwrap()).unwrap();
         for node in &tree.nodes()[start..end] {
-            if node.role == (Role::Heading { level: 1 }) || node.role == Role::Paragraph || node.role == Role::Alert {
+            if node.role == (Role::Heading { level: 1 })
+                || node.role == Role::Paragraph
+                || node.role == Role::Item
+                || node.role == Role::Alert
+            {
                 let text = f::text(tree, node);
                 if !text.is_empty() {
                     result.push(text).unwrap();
@@ -576,7 +580,7 @@ fn the_launchpad_says_each_state() {
             "design session",
             &session,
             &ordinary,
-            &["Where you left off", "Hello   Away mode, a design session · today 00:00 · waiting on you  /chats 1"][..],
+            &["Where you left off", "Hello   Away mode, a design session · today 00:00 · waiting on you"][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
@@ -586,10 +590,10 @@ fn the_launchpad_says_each_state() {
             &[
                 "This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it.",
                 "Where you left off",
-                "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
+                "Hello   Away mode, a chat · today 00:00 · waiting on you",
                 "Needs you",
                 "? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago",
-                "• Hello   Held task: Held task  n walks them",
+                "• Hello   Held task: Held task  /needs walks them",
             ][..],
             Some(Wall::from_nanos(583 * MINUTE)),
         ),
@@ -623,7 +627,7 @@ fn the_launchpad_says_each_state() {
                 "The last change landed 2 hours ago. Two things need you.",
                 "Needs you",
                 "? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago",
-                "• Hello   Held task: Held task  n walks them",
+                "• Hello   Held task: Held task  /needs walks them",
             ][..],
             Some(Wall::from_nanos(583 * MINUTE)),
         ),
@@ -632,7 +636,7 @@ fn the_launchpad_says_each_state() {
             "notes follow sections",
             &left,
             &noted,
-            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
+            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you"][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
@@ -658,7 +662,7 @@ fn the_launchpad_says_each_state() {
             "left off skips ended and sorts activity",
             &left,
             &ordinary,
-            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
+            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you"][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
@@ -667,8 +671,8 @@ fn the_launchpad_says_each_state() {
             &ordinary,
             &[
                 "Where you left off",
-                "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
-                "Hello   Older, a chat · today 00:00 · waiting on you  /chats 2",
+                "Hello   Away mode, a chat · today 00:00 · waiting on you",
+                "Hello   Older, a chat · today 00:00 · waiting on you",
             ][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
@@ -823,12 +827,18 @@ fn draw_states(failures: &mut List<&'static str>, mut words: crate::words::Words
     // Money, sign-off and proposal cards, and the six-card bound, are drawn from data.
     for (name, count, expected) in [
         ("zero needs", 0_u32, &[][..]),
-        ("question", 1, &["? Hello need 0 n walks them"][..]),
-        ("money", 2, &["? Hello need 0", "$ Hello need 1 n walks them"][..]),
+        ("question", 1, &["? Hello need 0 /needs walks them"][..]),
+        ("money", 2, &["? Hello need 0", "$ Hello need 1 /needs walks them"][..]),
         (
             "six needs",
             SIX_NEEDS,
-            &["? Hello need 0", "$ Hello need 1", "✓ Hello need 2", "• Hello need 3", "• Hello need 4 n walks them"][..],
+            &[
+                "? Hello need 0",
+                "$ Hello need 1",
+                "✓ Hello need 2",
+                "• Hello need 3",
+                "• Hello need 4 /needs walks them",
+            ][..],
         ),
     ] {
         let mut part = launchpad::read(&root, &tui, &words, NOW);
@@ -836,6 +846,7 @@ fn draw_states(failures: &mut List<&'static str>, mut words: crate::words::Words
         for number in 0..count {
             needs
                 .push(launchpad::NeedRow {
+                    object: c::ObjectKey::Task(9),
                     since: None,
                     mark: match number {
                         0 => NeedMark::Question,
@@ -854,7 +865,7 @@ fn draw_states(failures: &mut List<&'static str>, mut words: crate::words::Words
         let mut heads = 0_usize;
         let mut signals = 0_usize;
         for node in view.tree().nodes() {
-            if node.role == Role::Description
+            if node.role == Role::Item
                 && !f::text(view.tree(), node).starts_with(b"/draft")
                 && !f::text(view.tree(), node).starts_with(b"/change")
                 && !f::text(view.tree(), node).starts_with(b"/ask")
@@ -992,6 +1003,7 @@ fn the_launchpads_are_their_goldens() {
         );
         if !empty && !name.starts_with("launchpad-team-") {
             part.needs = Box::new([launchpad::NeedRow {
+                object: c::ObjectKey::Task(9),
                 since: Some(Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Question,
                 project: b"Hello".as_slice().into(),
@@ -1000,24 +1012,28 @@ fn the_launchpads_are_their_goldens() {
             if size.columns == 110 {
                 part.needs = Box::new([
                     launchpad::NeedRow {
+                        object: c::ObjectKey::Task(9),
                         since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Question,
                         project: b"Hello".as_slice().into(),
                         words: b"csv-export: comma or semicolon?".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        object: c::ObjectKey::Task(9),
                         since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Money,
                         project: b"shop".as_slice().into(),
                         words: b"Porter: raise its weekly budget?".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        object: c::ObjectKey::Task(9),
                         since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::SignOff,
                         project: b"Hello".as_slice().into(),
                         words: b"Monthly totals: ready for review".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        object: c::ObjectKey::Task(9),
                         since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Other,
                         project: b"shop".as_slice().into(),
@@ -1072,6 +1088,8 @@ fn rows_keep_their_hint_in_the_room() {
         (80, "Away mode", true, false),
         (80, "A long title with many words that would cross the end of the row and hide its hint", true, true),
         (40, "Away mode", false, true),
+        (56, "Away mode", false, true),
+        (57, "Away mode", true, true),
         (110, "A longer title", true, false),
         (80, "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé", true, true),
     ] {
@@ -1081,6 +1099,7 @@ fn rows_keep_their_hint_in_the_room() {
         let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
         part.left_off.get_mut(0).unwrap().title = title.as_bytes().into();
         part.needs = Box::new([launchpad::NeedRow {
+            object: c::ObjectKey::Task(9),
             since: None,
             mark: NeedMark::Question,
             project: b"shop".as_slice().into(),
@@ -1088,72 +1107,78 @@ fn rows_keep_their_hint_in_the_room() {
         }]);
         let view = draw(part, columns, 1);
         let left = left_off_lines(&view).swap_remove(0).unwrap();
-        assert_eq!(left.ends_with(b"/chats 1"), hint, "{columns} {title}");
+        assert!(skein_lib::bytes::find(&left, b"/chats ").is_none(), "{columns} {title}");
         assert_eq!(core::str::from_utf8(&left).unwrap().contains('…'), cut, "{columns} {title}");
         assert!(core::str::from_utf8(&left).unwrap().chars().count() <= usize::from(columns - 4));
-        if hint {
-            assert_eq!(core::str::from_utf8(&left).unwrap().chars().count(), usize::from(columns - 4));
-        }
-        let need = view.tree().nodes().iter().find(|node| node.role == Role::Description).unwrap();
-        assert_eq!(f::text(view.tree(), need).ends_with(b"n walks them"), hint, "need at {columns}");
+        let need = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::Item && f::text(view.tree(), node).starts_with(b"? "))
+            .unwrap();
+        assert_eq!(f::text(view.tree(), need).ends_with(b"/needs walks them"), hint, "need at {columns}");
         let size = Size { columns, rows: 32 };
         let mut frame = Frame::new(size);
         render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
         let printed = frame.print();
         let printed = core::str::from_utf8(&printed).unwrap();
-        if hint {
-            assert!(printed.lines().any(|line| line.trim_end().ends_with("/chats 1")));
-        }
+        assert_eq!(printed.lines().any(|line| line.trim_end().ends_with("/needs walks them")), hint);
     }
 }
 
 #[test]
-fn a_chat_closed_here_is_skipped_before_the_bound_and_numbers() {
+fn a_chat_closed_here_is_skipped_before_the_bound() {
+    const CLOSED: u64 = 12;
+    const SECOND: u64 = 8;
+    const THIRD: u64 = 9;
+    const FOURTH: u64 = 10;
+    let shown = [SECOND, THIRD, FOURTH];
     let root = home(
         None,
         &[
-            line(12, b"Away mode", 5, false),
-            line(8, b"Second", 3, false),
-            line(9, b"Third", 2, false),
-            line(10, b"Fourth", 1, false),
+            line(CLOSED, b"Away mode", 5, false),
+            line(SECOND, b"Second", 3, false),
+            line(THIRD, b"Third", 2, false),
+            line(FOURTH, b"Fourth", 1, false),
         ],
     );
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Closed { task: 12 });
+    tui.step(Told::Closed { task: CLOSED });
     tui.step(Told::Went);
     let part = launchpad::read(&root, &tui, &f::words(), NOW);
     assert_eq!(part.left_off.len(), 3);
-    for (row, (task, number)) in part.left_off.iter().zip([(8, 1), (9, 2), (10, 3)]) {
+    for (row, task) in part.left_off.iter().zip(shown) {
         assert_eq!(row.task, task);
-        assert_eq!(row.kind, launchpad::LeftKind::Chat { number, session: false });
+        assert_eq!(row.kind, launchpad::LeftKind::Chat { session: false });
     }
     let view = build(&root, &tui);
+    assert_eq!(displayed_chats(&view).as_slice(), shown);
     let lines = left_off_lines(&view);
     assert_eq!(lines.len(), 3);
-    for (line, (title, number)) in
-        lines.iter().zip([(b"Second".as_slice(), b"/chats 1"), (b"Third", b"/chats 2"), (b"Fourth", b"/chats 3")])
-    {
+    for (line, title) in lines.iter().zip([b"Second".as_slice(), b"Third", b"Fourth"]) {
         assert_eq!(f::text(view.tree(), f::find(view.tree(), Role::Text, title)).as_ref(), title);
-        assert!(line.ends_with(number));
+        assert!(skein_lib::bytes::find(line, b"/chats ").is_none());
     }
 }
 
-fn left_off_home() -> Domain {
-    home(
-        None,
-        &[
-            line(OLDER_CHAT, b"Older", 1, false),
-            line(ENDED_CHAT, b"Ended", 5, true),
-            line(8, b"Second", 3, false),
-            line(CHAT, b"Newest", 4, false),
-        ],
-    )
+fn displayed_chats(view: &crate::View) -> List<u64> {
+    let mut chats = List::with_capacity(view.rows().len());
+    for row in view.rows() {
+        if let crate::Row::Chat { task } = row {
+            chats.push(*task).expect("at most one chat per row");
+        }
+    }
+    chats
 }
+
 fn left_off_lines(view: &crate::View) -> List<Box<[u8]>> {
     let mut lines = List::with_capacity(view.tree().len());
     for node in view.tree().nodes() {
         if node.role == Role::Item {
-            lines.push(f::text(view.tree(), node)).unwrap();
+            let line = f::text(view.tree(), node);
+            if line.starts_with(b"Hello   ") || line.starts_with(b"shop   ") {
+                lines.push(line).unwrap();
+            }
         }
     }
     lines
@@ -1187,12 +1212,8 @@ fn the_left_off_chats_are_ordered_and_bounded() {
         let root = home(None, chats);
         let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
         assert_eq!(usize::try_from(part.left_off.len()).unwrap(), expected.len(), "{name} read bound");
-        for (index, (row, (_, at))) in part.left_off.iter().zip(expected).enumerate() {
-            assert_eq!(
-                row.kind,
-                launchpad::LeftKind::Chat { number: u32::try_from(index + 1).unwrap(), session: false },
-                "{name}"
-            );
+        for (row, (_, at)) in part.left_off.iter().zip(expected) {
+            assert_eq!(row.kind, launchpad::LeftKind::Chat { session: false }, "{name}");
             assert_eq!(row.project.as_ref(), b"Hello", "{name}");
             assert_eq!(row.at.as_ref(), at.as_bytes(), "{name}");
         }
@@ -1206,7 +1227,7 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             );
             assert!(line.starts_with(b"Hello   "), "{name}");
         }
-        assert_eq!(f::count(view.tree(), Role::List), 1, "{name}");
+        assert_eq!(f::count(view.tree(), Role::List), 2, "{name}");
         for node in view.tree().nodes() {
             if node.role == Role::List {
                 assert_eq!(node.styles.as_slice(), &[look::LEFT_OFF], "{name}");
@@ -1219,25 +1240,25 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             5,
             &[
                 (7, launchpad::LeftKind::Goal),
-                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
-                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
+                (9, launchpad::LeftKind::Chat { session: false }),
+                (8, launchpad::LeftKind::Chat { session: false }),
             ][..],
         ),
         (
             "goal between chats",
             3,
             &[
-                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
+                (9, launchpad::LeftKind::Chat { session: false }),
                 (7, launchpad::LeftKind::Goal),
-                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
+                (8, launchpad::LeftKind::Chat { session: false }),
             ][..],
         ),
         (
             "goal oldest",
             1,
             &[
-                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
-                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
+                (9, launchpad::LeftKind::Chat { session: false }),
+                (8, launchpad::LeftKind::Chat { session: false }),
                 (7, launchpad::LeftKind::Goal),
             ][..],
         ),
@@ -1245,9 +1266,9 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             "goal fourth",
             0,
             &[
-                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
-                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
-                (11, launchpad::LeftKind::Chat { number: 3, session: false }),
+                (9, launchpad::LeftKind::Chat { session: false }),
+                (8, launchpad::LeftKind::Chat { session: false }),
+                (11, launchpad::LeftKind::Chat { session: false }),
             ][..],
         ),
         (
@@ -1255,8 +1276,8 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             4,
             &[
                 (7, launchpad::LeftKind::Goal),
-                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
-                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
+                (9, launchpad::LeftKind::Chat { session: false }),
+                (8, launchpad::LeftKind::Chat { session: false }),
             ][..],
         ),
     ] {
@@ -1279,109 +1300,134 @@ fn the_left_off_chats_are_ordered_and_bounded() {
         }
     }
 }
+fn list_home() -> Domain {
+    home_team(
+        Some(false),
+        &[line(CHAT, b"Newest", 4, false), line(OLDER_CHAT, b"Older", 3, false)],
+        &[goal(7, 2, PARTY, false)],
+        true,
+        None,
+        Address::Home { project: PROJECT },
+        LEDE.as_bytes(),
+        true,
+        Some(team::Fixture { roles: Some(&[b"Prover"]), areas: true, you: true }),
+    )
+}
+
+fn pick(tui: &mut Tui, row: Option<crate::Row>, in_list: bool) {
+    tui.step(Told::Picked { row, in_list });
+}
+
+#[expect(clippy::manual_map, reason = "step test cases convert optional chat numbers without closures")]
+fn chat_row(selected: Option<u64>) -> Option<crate::Row> {
+    match selected {
+        Some(task) => Some(crate::Row::Chat { task }),
+        None => None,
+    }
+}
+
 #[test]
-fn the_left_off_keys_follow_the_last_tree() {
-    use crate::{Arrow, Event as E};
-    use skein_ui::Act;
-    let root = left_off_home();
+fn the_launchpad_keys_move_by_row_and_section() {
+    use crate::{Arrow, Event as E, Own, Row};
+    let mut root = list_home();
+    let mut tui = Tui::new(f::ADDRESS);
+    let first = Row::Chat { task: CHAT };
+    let second = Row::Chat { task: OLDER_CHAT };
+    let need = Row::Need { object: c::ObjectKey::Question { task: CHAT, message: 1 } };
+    let held = Row::Need { object: c::ObjectKey::Question { task: ENDED_CHAT, message: 1 } };
+    let role = Row::Role { project: PROJECT, task: 40 };
+    let draft = Row::Start { command: Own::Draft };
+    let change = Row::Start { command: Own::Change };
+    let talk = Row::Start { command: Own::Talk };
+    let ask = Row::Start { command: Own::Ask };
+    let mut view = build(&root, &tui);
+    assert_eq!(crate::arrow(&view, Arrow::Up), Some(E::Picked { row: Some(first) }));
+    assert_eq!(crate::arrow(&view, Arrow::Down), None);
+    f::event(
+        &mut root,
+        Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: b"half".as_slice().into() }) },
+    );
+    crate::build(&mut view, &tui, &root, NOW, &mut Queue::uncapped());
+    for (arrow, row) in [
+        (Arrow::Up, Some(first)),
+        (Arrow::Up, Some(first)),
+        (Arrow::Down, Some(second)),
+        (Arrow::Down, Some(Row::Goal { task: 7 })),
+        (Arrow::Down, Some(need)),
+        (Arrow::Down, Some(held)),
+        (Arrow::Down, Some(role)),
+        (Arrow::Down, Some(draft)),
+        (Arrow::Down, Some(change)),
+        (Arrow::Down, Some(talk)),
+        (Arrow::Down, Some(ask)),
+        (Arrow::Down, None),
+    ] {
+        assert_eq!(crate::arrow(&view, arrow), Some(E::Picked { row }));
+        pick(&mut tui, row, row.is_some());
+        assert_eq!(crate::arrow(&view, arrow), Some(E::Picked { row }), "keys wait for a new tree");
+        crate::build(&mut view, &tui, &root, NOW, &mut Queue::uncapped());
+        assert_eq!(view.list_focused(), row.is_some());
+        let field = view.tree().find(view.box_node().unwrap()).unwrap();
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"half");
+    }
+    for (from, arrow, to) in [
+        (first, Arrow::Tab, need),
+        (ask, Arrow::Tab, ask),
+        (role, Arrow::BackTab, need),
+        (second, Arrow::BackTab, first),
+    ] {
+        pick(&mut tui, Some(from), true);
+        crate::build(&mut view, &tui, &root, NOW, &mut Queue::uncapped());
+        assert_eq!(crate::arrow(&view, arrow), Some(E::Picked { row: Some(to) }));
+    }
+    let empty = surface_root(SurfacePage::NoProject);
+    assert_eq!(crate::arrow(&build(&empty, &Tui::new(f::ADDRESS)), Arrow::Up), None);
+}
+
+#[test]
+fn the_launchpad_opens_each_row_as_its_own_object() {
+    use crate::{Arrow, Event as E, Own, Row};
+    use d::pages::Act;
+    let root = list_home();
     let mut tui = Tui::new(f::ADDRESS);
     let mut view = build(&root, &tui);
-    for (arrow, task) in [
-        (Arrow::Down, CHAT),
-        (Arrow::Down, 8),
-        (Arrow::Down, OLDER_CHAT),
-        (Arrow::Down, OLDER_CHAT),
-        (Arrow::Up, 8),
-        (Arrow::Up, CHAT),
-        (Arrow::Up, CHAT),
+    for (row, event) in [
+        (Row::Chat { task: CHAT }, E::Act { act: Act::Go { address: Address::Chat { task: CHAT } } }),
+        (Row::Chat { task: OLDER_CHAT }, E::Act { act: Act::Go { address: Address::Chat { task: OLDER_CHAT } } }),
+        (Row::Goal { task: 7 }, E::Open { address: b"http://127.0.0.1:8367/tasks/7".as_slice().into() }),
+        (
+            Row::Need { object: c::ObjectKey::Question { task: CHAT, message: 1 } },
+            E::WalkFrom { object: c::ObjectKey::Question { task: CHAT, message: 1 } },
+        ),
+        (
+            Row::Need { object: c::ObjectKey::Question { task: ENDED_CHAT, message: 1 } },
+            E::WalkFrom { object: c::ObjectKey::Question { task: ENDED_CHAT, message: 1 } },
+        ),
+        (
+            Row::Role { project: PROJECT, task: 40 },
+            E::Act { act: Act::Go { address: Address::Talk { project: PROJECT, task: 40 } } },
+        ),
+        (Row::Start { command: Own::Draft }, E::Own { command: Own::Draft }),
+        (Row::Start { command: Own::Change }, E::Own { command: Own::Change }),
+        (Row::Start { command: Own::Talk }, E::Own { command: Own::Talk }),
+        (Row::Start { command: Own::Ask }, E::Own { command: Own::Ask }),
     ] {
-        assert_eq!(crate::arrow(&view, arrow), Some(E::LeftOff { task: Some(task) }));
-        tui.step(Told::LeftOff { task: Some(task) });
-        assert_eq!(crate::arrow(&view, arrow), Some(E::LeftOff { task: Some(task) }), "state changes wait for a build");
+        pick(&mut tui, Some(row), true);
         crate::build(&mut view, &tui, &root, NOW, &mut Queue::uncapped());
+        assert_eq!(crate::arrow(&view, Arrow::Open), Some(event), "{row:?}");
+        assert_eq!(crate::escape(&view), Some(E::Picked { row: None }));
     }
-    for (selected, words, list, first, submit, escape) in [
-        (None, "", false, Some(CHAT), E::Send, None),
-        (
-            Some(CHAT),
-            "",
-            false,
-            Some(8),
-            E::Act { act: d::pages::Act::Go { address: Address::Chat { task: CHAT } } },
-            Some(E::LeftOff { task: None }),
-        ),
-        (Some(99), "", false, Some(CHAT), E::Send, None),
-        (Some(CHAT), "words", false, None, E::Send, Some(E::LeftOff { task: None })),
-        (Some(CHAT), "/", false, None, E::Send, Some(E::Dismiss)),
-        (
-            Some(CHAT),
-            "",
-            true,
-            None,
-            E::Act { act: d::pages::Act::Go { address: Address::Chat { task: CHAT } } },
-            Some(E::Dismiss),
-        ),
-    ] {
-        let mut root = left_off_home();
-        f::event(
-            &mut root,
-            Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: words.as_bytes().into() }) },
-        );
-        if list {
-            f::event(
-                &mut root,
-                Event::Act {
-                    action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run {
-                        command: d::pages::terminal::Command::Chats,
-                    })),
-                },
-            );
-        }
-        tui.step(Told::LeftOff { task: selected });
-        let view = build(&root, &tui);
-        match first {
-            Some(task) => assert_eq!(
-                crate::arrow(&view, Arrow::Down),
-                Some(E::LeftOff { task: Some(task) }),
-                "{selected:?} {words} {list}"
-            ),
-            None => {
-                assert_eq!(crate::arrow(&view, Arrow::Down), None, "{selected:?} {words} {list}");
-                assert_eq!(crate::arrow(&view, Arrow::Up), None);
-            }
-        }
-        if selected.is_none() || selected == Some(99) {
-            assert_eq!(crate::arrow(&view, Arrow::Up), Some(E::LeftOff { task: Some(CHAT) }));
-        }
-        let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
-        assert_eq!(crate::event(&view, field.id, Act::Submit), Some(submit), "{selected:?} {words} {list}");
-        assert_eq!(crate::escape(&view), escape, "{selected:?} {words} {list}");
-    }
-    // Reusing a view clears the launchpad's key facts when its next tree has none.
-    let empty = home(None, &[]);
-    crate::build(&mut view, &tui, &empty, NOW, &mut Queue::uncapped());
-    assert_eq!(crate::arrow(&view, Arrow::Down), None);
-    assert_eq!(crate::escape(&view), None);
-    let mut chat = left_off_home();
-    f::event(&mut chat, Event::Went { place: d::Place::Address(Address::Chat { task: CHAT }) });
-    tui.step(Told::LeftOff { task: Some(CHAT) });
-    crate::build(&mut view, &tui, &chat, NOW, &mut Queue::uncapped());
-    assert_eq!(crate::arrow(&view, Arrow::Down), None);
-    assert_eq!(crate::escape(&view), None);
-    tui.step(Told::Went);
-    crate::build(&mut view, &tui, &f::signed_out(), NOW, &mut Queue::uncapped());
-    assert_eq!(crate::arrow(&view, Arrow::Up), None);
-    assert_eq!(crate::escape(&view), None);
 }
+
 #[test]
 fn the_picked_left_off_row_has_its_mark_and_paint() {
     use skein_ui_screen::{Focus, Frame, Rgb, Size, render};
-    let root = left_off_home();
+    let root = home(None, &[line(CHAT, b"Newest", 4, false)]);
     for (selected, background) in
         [(Some(CHAT), Some(Rgb { red: 20, green: 30, blue: 40 })), (Some(CHAT), None), (None, None), (Some(99), None)]
     {
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::LeftOff { task: selected });
+        pick(&mut tui, chat_row(selected), true);
         let view = build(&root, &tui);
         let mut picked = 0_usize;
         for node in view.tree().nodes() {
@@ -1417,44 +1463,54 @@ fn the_picked_left_off_row_has_its_mark_and_paint() {
         }
         assert_eq!(row[0].paint.back, None);
         assert_eq!(row[79].paint.back, None);
-        assert_eq!(row[18].paint.fore, Some(Rgb { red: 0x9a, green: 0x93, blue: 0x88 }));
+        assert_eq!(
+            row[18].paint.fore,
+            Some(if selected == Some(CHAT) {
+                Rgb { red: 0xe0, green: 0x8a, blue: 0x68 }
+            } else {
+                Rgb { red: 0x9a, green: 0x93, blue: 0x88 }
+            })
+        );
+    }
+}
+
+#[test]
+fn a_picked_need_keeps_its_mark_and_dims_the_box() {
+    use skein_ui_screen::{Focus, Frame, Rgb, Size, render};
+    let mut root = list_home();
+    f::event(
+        &mut root,
+        Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: b"half".as_slice().into() }) },
+    );
+    let mut tui = Tui::new(f::ADDRESS);
+    let size = Size { columns: 110, rows: 32 };
+    tui.step(Told::Size { columns: size.columns });
+    pick(&mut tui, Some(crate::Row::Need { object: c::ObjectKey::Question { task: CHAT, message: 1 } }), true);
+    let theme = crate::theme(Scheme::Dark, Some(Rgb { red: 20, green: 30, blue: 40 }));
+    let mut frame = Frame::new(size);
+    for notice in [None, Some(crate::Notice::SigningIn)] {
+        let noticed = notice.is_some();
+        tui.step(Told::Notice { notice });
+        let view = build(&root, &tui);
+        let field = view.tree().find(view.box_node().unwrap()).unwrap();
+        assert!(field.styles.as_slice().contains(&look::HINT));
+        assert_eq!(field.focus, None);
+        render(view.tree(), &theme, size, &mut Focus::default(), &mut frame);
+        assert_eq!(frame.cursor(), None);
+        let printed = frame.print();
+        assert!(skein_lib::bytes::find(&printed, "❯ ?".as_bytes()).is_some());
+        assert!(skein_lib::bytes::find(&printed, b"half").is_some());
+        let hint = "Enter opens · Tab sections · Esc back to the box".as_bytes();
+        assert_eq!(skein_lib::bytes::find(&printed, hint).is_some(), !noticed);
+        assert_eq!(skein_lib::bytes::find(&printed, b"Still signing in").is_some(), noticed);
     }
 }
 
 #[test]
 fn the_launchpad_surface_follows_the_displayed_facts() {
-    use crate::{Event as E, Own};
+    use crate::Own;
     let mut ordinary = Tui::new(f::ADDRESS);
-    for (name, page, words, list, expected) in [
-        ("need", SurfacePage::Home { brief: true, needs: true }, "", false, Some(E::Own { command: Own::Needs })),
-        ("words", SurfacePage::Home { brief: true, needs: true }, "words", false, None),
-        ("list", SurfacePage::Home { brief: true, needs: true }, "", true, None),
-        ("no need", SurfacePage::Home { brief: false, needs: false }, "", false, None),
-        ("chat", SurfacePage::Chat, "", false, None),
-    ] {
-        let mut root = surface_root(page);
-        f::event(
-            &mut root,
-            Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: words.as_bytes().into() }) },
-        );
-        if list {
-            f::event(
-                &mut root,
-                Event::Act {
-                    action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run {
-                        command: d::pages::terminal::Command::Chats,
-                    })),
-                },
-            );
-        }
-        let view = build(&root, &ordinary);
-        assert_eq!(crate::walk_key(&view), expected, "{name}");
-    }
     let root = home(None, &[line(OLDER_CHAT, b"Older", 1, false), line(CHAT, b"Newest", 2, false)]);
-    let view = build(&root, &ordinary);
-    for (number, expected) in [(0, None), (1, Some(CHAT)), (2, Some(OLDER_CHAT)), (3, None)] {
-        assert_eq!(crate::chat_number(&view, number), expected, "chat {number}");
-    }
     for (name, page, selected, expected) in [
         (
             "chat selected",
@@ -1478,24 +1534,12 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
         ("signed out", SurfacePage::SignedOut, None, None),
     ] {
         let root = surface_root(page);
-        ordinary.step(Told::LeftOff { task: selected });
+        pick(&mut ordinary, chat_row(selected), false);
         assert_eq!(crate::focus(&build(&root, &ordinary)), expected, "{name}");
     }
-    // The reader does not read goals yet; a goal is supplied as launchpad data.
-    let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::LeftOff { task: Some(CHAT) });
-    let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
-    part.left_off.get_mut(0).unwrap().kind = launchpad::LeftKind::Goal;
+    let tui = Tui::new(f::ADDRESS);
     let mut view = build(&root, &tui);
-    let foot = foot::read(&root, &tui, &f::words(), NOW);
-    view::signed(&mut view, &view::Signed { body: view::Body::Launchpad(part), foot }, &mut Queue::uncapped());
-    assert_eq!(crate::focus(&view), Some(b"http://127.0.0.1:8367/tasks/9".as_slice()), "goal selected");
-    assert_eq!(crate::chat_number(&view, 1), None, "goals have no chat number");
-    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
-    assert_eq!(
-        crate::event(&view, field.id, skein_ui::Act::Submit),
-        Some(E::Open { address: Box::from(*b"http://127.0.0.1:8367/tasks/9") })
-    );
+    assert_eq!(displayed_chats(&view).as_slice(), [CHAT, OLDER_CHAT]);
     for (name, page, expected) in [
         (
             "brief and need",
@@ -1517,8 +1561,7 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
     // Facts used by the keys and focus are replaced when a view is reused.
     crate::build(&mut view, &tui, &f::signed_out(), NOW, &mut Queue::uncapped());
     assert_eq!(crate::focus(&view), None);
-    assert_eq!(crate::walk_key(&view), None);
-    assert_eq!(crate::chat_number(&view, 2), None);
+    assert!(displayed_chats(&view).is_empty());
 }
 
 #[derive(Clone, Copy)]
@@ -1547,10 +1590,11 @@ fn needs_age_is_a_hint_cut_from_the_end_and_keeps_the_soonest_tick() {
     for (columns, since, expected) in [
         (110, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked 20 min ago"),
         (110, None, "csv-export: comma or semicolon?"),
-        (69, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked…"),
+        (74, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked…"),
     ] {
         let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
         part.needs = Box::new([launchpad::NeedRow {
+            object: c::ObjectKey::Task(9),
             mark: NeedMark::Question,
             project: b"Hello".as_slice().into(),
             words: b"csv-export: comma or semicolon?".as_slice().into(),
@@ -1560,8 +1604,11 @@ fn needs_age_is_a_hint_cut_from_the_end_and_keeps_the_soonest_tick() {
         let mut line = None;
         let mut age_hint = false;
         for node in view.tree().nodes() {
-            if node.role == Role::Description && line.is_none() {
-                line = Some(f::text(view.tree(), node));
+            if node.role == Role::Item && line.is_none() {
+                let text = f::text(view.tree(), node);
+                if text.starts_with(b"? ") {
+                    line = Some(text);
+                }
             }
             if node.styles.as_slice() == [look::HINT]
                 && f::text(view.tree(), node).as_ref() == b" \xc2\xb7 asked 20 min ago"
@@ -1671,20 +1718,22 @@ fn left_off_reads_the_other_projects_chat_and_newest_goal() {
     let part = launchpad::read(&root, &tui, &f::words(), NOW);
     assert_eq!(part.left_off.len(), 3);
     for (row, (task, project, kind)) in part.left_off.iter().zip([
-        (CHAT, b"shop".as_slice(), launchpad::LeftKind::Chat { number: 1, session: false }),
+        (CHAT, b"shop".as_slice(), launchpad::LeftKind::Chat { session: false }),
         (7, b"shop".as_slice(), launchpad::LeftKind::Goal),
-        (OLDER_CHAT, b"Hello".as_slice(), launchpad::LeftKind::Chat { number: 2, session: false }),
+        (OLDER_CHAT, b"Hello".as_slice(), launchpad::LeftKind::Chat { session: false }),
     ]) {
         assert_eq!((row.task, row.project.as_ref(), row.kind), (task, project, kind));
     }
     assert_eq!(part.left_off.get(0).unwrap().at.as_ref(), b"today 08:12");
     let view = build(&root, &tui);
-    assert_eq!(crate::arrow(&view, crate::Arrow::Down), Some(crate::Event::LeftOff { task: Some(CHAT) }));
-    tui.step(Told::LeftOff { task: Some(CHAT) });
-    let view = build(&root, &tui);
-    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
     assert_eq!(
-        crate::event(&view, field.id, skein_ui::Act::Submit),
+        crate::arrow(&view, crate::Arrow::Up),
+        Some(crate::Event::Picked { row: Some(crate::Row::Chat { task: CHAT }) })
+    );
+    pick(&mut tui, Some(crate::Row::Chat { task: CHAT }), true);
+    let view = build(&root, &tui);
+    assert_eq!(
+        crate::arrow(&view, crate::Arrow::Open),
         Some(crate::Event::Act { act: d::pages::Act::Go { address: Address::Chat { task: CHAT } } })
     );
 }
@@ -1700,18 +1749,31 @@ fn needs_and_the_quiet_line_cross_projects_only_on_the_launchpad() {
         assert_eq!(row.project.as_ref(), b"shop");
     }
     assert_eq!(foot::read(&root, &tui, &f::words(), NOW).needs.count, 2);
-    tui.step(Told::Walk { by_key: true });
-    let question = foot::lists::walk(&root, &tui, &f::words()).unwrap();
-    assert_eq!(question.head.as_deref(), Some(b"comma or semicolon?".as_slice()));
-    tui.step(Told::Walked { object: c::ObjectKey::Question { task: CHAT, message: 1 } });
-    let web = foot::lists::walk(&root, &tui, &f::words()).unwrap();
-    assert_eq!(
-        web.items.first().unwrap().event,
-        crate::Event::Walk {
-            object: c::ObjectKey::Escalation(ENDED_CHAT),
-            step: crate::WalkStep::Open { address: b"http://127.0.0.1:8367/needs?project=2".as_slice().into() },
+    let question = c::ObjectKey::Question { task: CHAT, message: 1 };
+    let held = c::ObjectKey::Escalation(ENDED_CHAT);
+    for first in [None, Some(held)] {
+        tui.step(Told::Walk { first });
+        let order = if first == Some(held) { [held, question] } else { [question, held] };
+        for object in order {
+            let prompt = foot::lists::walk(&root, &tui, &f::words()).unwrap();
+            if object == question {
+                assert_eq!(prompt.head.as_deref(), Some(b"comma or semicolon?".as_slice()));
+            } else {
+                assert_eq!(
+                    prompt.items.first().unwrap().event,
+                    crate::Event::Walk {
+                        object: held,
+                        step: crate::WalkStep::Open {
+                            address: b"http://127.0.0.1:8367/needs?project=2".as_slice().into()
+                        },
+                    }
+                );
+            }
+            assert_eq!(prompt.items.last().unwrap().event, crate::Event::Walk { object, step: crate::WalkStep::Next });
+            tui.step(Told::Walked { object });
         }
-    );
+        assert!(foot::lists::walk(&root, &tui, &f::words()).is_none());
+    }
     let chat = home_projects(Some(false), &[], &[], true, None, Address::Chat { task: CHAT }, LEDE.as_bytes(), true);
     assert_eq!(foot::read(&chat, &Tui::new(f::ADDRESS), &f::words(), NOW).needs.count, 1);
 }

@@ -71,7 +71,10 @@ pub(super) fn preparation_detail(
         PrepareStep::Fetch { repository, .. } => (b"fetch", Some(repository)),
         PrepareStep::Default { repository, .. } => (b"fetch default", Some(repository)),
         PrepareStep::Create { repository, .. } => (b"create base", Some(repository)),
-        PrepareStep::Refetch { repository, .. } => (b"refetch base", Some(repository)),
+        PrepareStep::ReadCreate { repository, .. } | PrepareStep::Refetch { repository } => {
+            (b"refetch base", Some(repository))
+        }
+        PrepareStep::AdmitCreate { .. } => unreachable!("an admission is not IO"),
         PrepareStep::CheckOut { repository, .. } => (b"check out", Some(repository)),
         PrepareStep::FetchPush { repository, .. } => (b"fetch push", Some(repository)),
         PrepareStep::FetchLanding { repository, .. } => (b"fetch landing", Some(repository)),

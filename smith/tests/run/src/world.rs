@@ -357,6 +357,7 @@ struct Made {
 /// A conversation's call, as the world tracks it.
 struct Call {
     conversation: Token,
+    deadline: Time,
     wait: bool,
     workspace: bool,
     returned: bool,
@@ -1475,6 +1476,12 @@ impl World {
                     self.partner_out(out);
                 }
                 Delivery::Return { call, result, spent } => {
+                    if result == run::Returned::TimedOut {
+                        assert!(
+                            self.now >= self.calls[&call].deadline,
+                            "a call times out only at or after its deadline"
+                        );
+                    }
                     let mut out = Vec::new();
                     self.partner.returned(self.now, call, &result, spent, &mut out);
                     self.partner_out(out);
@@ -1714,13 +1721,21 @@ impl World {
             | run::Event::Turn { conversation, .. }
             | run::Event::Priced { conversation, .. }
             | run::Event::Used { conversation, .. } => (conversation, false, false),
-            run::Event::Delegated { conversation, call, ask, .. } => {
+            run::Event::Delegated { conversation, call, ask, deadline, .. } => {
+                // Relay admission is bounded by both the caller's and the run's deadline.
+                let deadline = if matches!(ask, run::Ask::Host { .. }) {
+                    let run = self.run_of_conversation[conversation];
+                    (*deadline).min(self.views[&run].deadline)
+                } else {
+                    *deadline
+                };
                 let fresh = self
                     .calls
                     .insert(
                         *call,
                         Call {
                             conversation: *conversation,
+                            deadline,
                             wait: matches!(ask, run::Ask::Wait),
                             workspace: matches!(
                                 ask,

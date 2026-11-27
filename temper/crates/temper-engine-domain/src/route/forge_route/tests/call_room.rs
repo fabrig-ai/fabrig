@@ -309,7 +309,13 @@ fn a_described_call_keeps_its_room_while_a_change_tries_to_open() {
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     call(&mut domain, &env, key, &mut decision);
     let owner = owner(&mut domain);
+    let second = CallKey { position: 1, ..key };
+    assert_ne!(key, second);
+    call(&mut domain, &env, second, &mut decision);
+    assert_eq!(rendered(&mut domain, &env, decision), CallAnswer::Unavailable);
+    assert!(domain.work.is_empty());
     assert_wait(&open(&mut domain, &env));
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let kept = keep(&mut domain, &env, key, owner, &mut decision);
     let mut saved = false;
     for request in &kept {
@@ -375,6 +381,7 @@ fn a_call_ending_without_an_entry_returns_room_and_asks_the_first_waiter() {
         }
         assert!(domain.forge_effects.is_empty());
         assert!(domain.forge.room_asked(CHANGE));
+        assert_eq!(domain.forge.inspection_reservations().as_ref(), &[CHANGE]);
         let mut asked = false;
         while let Some(work) = domain.work.pop() {
             if let Work::Forge(forge::Event::StepChange { task: CHANGE, .. })

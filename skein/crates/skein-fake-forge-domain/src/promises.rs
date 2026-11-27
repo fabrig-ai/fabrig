@@ -284,6 +284,7 @@ impl Judge {
                     | Observation::Closed { .. }
                     | Observation::Reopened { .. }
                     | Observation::Labelled { .. }
+                    | Observation::Retargeted { .. }
                     | Observation::Revised { .. }
                     | Observation::Depends { .. }
                     | Observation::Requested { .. }
@@ -443,6 +444,7 @@ impl Judge {
             | Observation::Closed { .. }
             | Observation::Reopened { .. }
             | Observation::Labelled { .. }
+            | Observation::Retargeted { .. }
             | Observation::Revised { .. }
             | Observation::Depends { .. }
             | Observation::Requested { .. }
@@ -474,6 +476,7 @@ impl Judge {
             | Observation::Closed { repository, .. }
             | Observation::Reopened { repository, .. }
             | Observation::Labelled { repository, .. }
+            | Observation::Retargeted { repository, .. }
             | Observation::Revised { repository, .. }
             | Observation::Depends { repository, .. }
             | Observation::Requested { repository, .. }
@@ -517,6 +520,11 @@ impl Judge {
                     repository.write(profile, *number, Write::Comment, when, &mut self.full);
                 }
                 repository.comment(*id, *by, *by == profile.client, &mut self.full);
+            }
+            Observation::Retargeted { number, by, .. } => {
+                if *by == profile.client {
+                    repository.write(profile, *number, Write::Revise, when, &mut self.full);
+                }
             }
             Observation::Revised { number, by, .. } => {
                 if *by == profile.client {
@@ -635,6 +643,7 @@ impl Judge {
                     | Observation::Deleted { .. }
                     | Observation::Opened { .. }
                     | Observation::Labelled { .. }
+                    | Observation::Retargeted { .. }
                     | Observation::Revised { .. }
                     | Observation::Defined { .. }
                     | Observation::Commented { .. }

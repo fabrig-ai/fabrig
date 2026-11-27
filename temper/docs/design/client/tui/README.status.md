@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-20. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-27. Where the tree's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4: the loopback listener on the run's io [in flight:
   change 10574].
@@ -22,8 +22,8 @@ the binary reads the engine's link file at start whatever the address,
 for `Start.boxed`; `place` words the engine's place; the band is the
 answered background moved by `BAND_STEP`, with the person's words dim
 after an accent "❯" where none answered, and the palette has no `sel`;
-up to three left-off chats take Up, Down, Enter and Esc while the
-launchpad's box is empty, before skein's key reader; `/effort` is offered
+the launchpad's list takes Up from its box and its own keys before
+skein's key reader; `/effort` is offered
 on the launchpad wherever `/model` is; `tui-bullets` draws a Markdown
 bullet "•"; and a chat's title, cut to 20 characters, its number and the
 place lie in the rule above the box, the top line, `tui-chat-top` and
@@ -44,12 +44,11 @@ words into Home's composer; and while `landing` holds the box opens no
 list and Enter keeps its words, sends nothing and gives the notice
 "Still signing in". The notice: `Notice`'s `Unknown`, `SigningIn` and
 `Theme` stand alone in the quiet line's right half (`tui-signal`) over
-the box's state, "playground", "paused", the count and "n to walk", and
+the box's state, "playground", "paused", the count and "/needs", and
 first, at the row's start, where the row is too narrow; the sign-in
 screen draws none; the host keeps its end, `limits::NOTICE` from the
 report that gave it, among `Host::deadline`'s times, and a due at or
-past it lowers it; an unknown command and `/chats N` with no Nth chat
-give it and write no note. `/quit`: `QUIT` and `command_name` name
+past it lowers it; an unknown command gives it and writes no note. `/quit`: `QUIT` and `command_name` name
 `Command::Exit` in the list, completion and `/help`'s note, in front
 too; `/exit` sent whole is the same command, and its beginnings begin
 none. `/theme`: `Own::Theme` wherever the commands are offered, its
@@ -90,16 +89,16 @@ launchpad as drawn and views printed (`../../draft/surfaces.md`, 11.1,
 the TUI's events `Own`, `Open`, `Walk` and `EndWalk`; the header's
 brief sentence, byline and " · /brief", else Home's headline; *Where
 you left off*'s rows, each its project, what it is, when and its state,
-the person's newest goal among them and "/chats N" on a chat's; Needs
+the person's newest goal among them; Needs
 you's rows marked "?", "$", "✓" or "•" by the view's
-`shared::need_prompts`, and "n walks them"; Start's `/change` and
+`shared::need_prompts`, and "/needs walks them"; Start's `/change` and
 `/ask`; the box's "Ask for a change, or ask temper.  / for commands"
-and the quiet line's count with "n to walk"; the walk by `n` or
-`/needs`, a question's choices, "Tell it something else" and "Next", a
+and the quiet line's count with "/needs"; the walk by `/needs` or
+from a need's row, a question's choices, "Tell it something else" and "Next", a
 sign-off's "Review on FORGE ↗" and another kind's "Open it on the
 web", ending in "Nothing else needs you."; the TUI's own commands in
 the list and in `/help`'s note, `/change WORDS` starting the project's
-chat, `/ask WORDS`, `/brief`'s note, `/chats N`, and `/open` handing
+chat, `/ask WORDS`, `/brief`'s note, and `/open` handing
 the opener the page's address alone, else noting it; and a reply's
 `view` blocks printed by `view::printed`, a stop a line after its
 actor's mark, code's stops and a branch's bar four columns in, a way's

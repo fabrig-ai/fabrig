@@ -251,8 +251,7 @@ pub(super) fn prune_makings(d: &mut Domain) {
         }
     }
     for owner in ended.into_boxed() {
-        d.makings.remove(&owner);
-        d.read_line.leave(Waiter::Making(owner));
+        goal_branch::drop_making(d, owner);
     }
 }
 

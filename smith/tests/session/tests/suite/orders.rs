@@ -276,7 +276,7 @@ fn reverse_read_terminals_preserve_write_isolation_and_result_order() {
     const TOKENS: u64 = 48; // Scripted response usage, as in the existing batching scenario.
     const SOURCE: &[u8] = b"src/lib.rs";
     const GUIDE: &[u8] = b"docs/guide.md";
-    const OLD_SOURCE: &[u8] = b"src/lib.rs: pub fn answer() -> u32 { 42 }\n";
+    const OLD_SOURCE: &[u8] = b"src/lib.rs: pub fn answer() -> u32 { 42 }\nsrc/lib.rs: source\n";
     const NEW_SOURCE: &[u8] = b"src/lib.rs: rewritten\n";
     const FIRST_DELAYS: [u64; 3] = [60, 50, 40]; // Reverse the owned reads after the delegated read (1 ms).
     const LAST_DELAYS: [u64; 2] = [60, 40]; // Reverse the two reads after the write.

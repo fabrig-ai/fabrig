@@ -19,7 +19,7 @@
 
 
 ──────────────────────────────────────── Demo / Tell temper on 127.0.0.1:8367 ──
-❯ Tell temper what's off, or Esc to go back.
+❯ Tell temper what's off, or ← to go back.
 ────────────────────────────────────────────────────────────────────────────────
  ● Live · Demo · model · high
 --
@@ -44,7 +44,7 @@
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbaaabbbbbbbbbbbccccccccccccccccccaaa
-ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa....................................
+ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa......................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 .eeeeeeaaaccccaaacccccccccccc...................................................
 --

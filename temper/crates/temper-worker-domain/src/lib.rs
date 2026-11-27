@@ -58,6 +58,7 @@ mod hand_out;
 mod jobs;
 mod limits;
 mod push;
+mod push_admission;
 mod reds;
 mod results;
 mod route;

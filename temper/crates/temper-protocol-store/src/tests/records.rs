@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{records, v25};
 use skein_codec::Record;
+use skein_lib::Wall;
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -12,7 +13,7 @@ fn a_limit_hold_keeps_its_task_revision_figures_time_and_entrance() {
         configured: 8,
         needed: 9,
         revision: 13,
-        at: skein_lib::Wall::from_nanos(42),
+        at: Wall::from_nanos(42),
         order: 3,
         room: 1,
         set: forge::LimitSet::Entries,
@@ -158,23 +159,22 @@ fn a_landing_past_name_bytes_fails_to_decode() {
 }
 
 #[test]
-fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
+fn a_holds_design_writers_round_trip_the_previous_reread_flag() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let writer = forge::DesignWriter { task: 1, attempt: 2, rereading: false };
+    let row = forge::Stored::Hold(forge::Hold {
+        name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([b"g1".as_slice().into()])) },
+        task: 1,
+        writer: None,
+        beside: None,
+        design_writers: Box::new([writer]),
+        drift: None,
+    });
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     for rereading in [false, true] {
-        let row = forge::Stored::Hold(forge::Hold {
-            name: forge::Name {
-                forge: 1,
-                repository: 2,
-                what: forge::What::Branch(Box::new([b"g1".as_slice().into()])),
-            },
-            task: 1,
-            writer: None,
-            beside: None,
-            design_writers: Box::new([forge::DesignWriter { task: 1, attempt: 2, rereading }]),
-            drift: None,
-        });
-        let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+        let old = v25::DesignWriter { task: 1, attempt: 2, rereading };
+        assert_eq!(records::by_hand::design_writer_to_domain(old), forge::DesignWriter { rereading, ..writer });
     }
 }
 
@@ -295,7 +295,7 @@ fn a_base_moved_outcome_round_trips_with_or_without_the_reported_commit() {
     for base in [Some([6; 32]), None] {
         let row = fixtures::named_call(forge::CallPayload::Effect {
             entry: 8,
-            deadline: skein_lib::Wall::from_nanos(123),
+            deadline: Wall::from_nanos(123),
             outcome: Some(skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base })),
         });
         let bytes = records::encode(&row);
@@ -694,9 +694,16 @@ fn a_change_written_without_an_execution_clock_decodes_with_none() {
 
 #[test]
 fn an_ended_changes_hold_round_trips_in_its_state() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    for ended_held in [None, Some(Hold::Repairs), Some(Hold::Resolutions), Some(Hold::Rejected), Some(Hold::Stalled)] {
+    for ended_held in [
+        None,
+        Some(Cause::Repairs),
+        Some(Cause::Resolutions),
+        Some(Cause::Rejected),
+        Some(Cause::Stalled),
+        Some(Cause::CloseRefused),
+    ] {
         let mut row = fixtures::change_row(State::Ended);
         row.change.ended_held = ended_held;
         let row = fixtures::change_hot(row);
@@ -736,12 +743,18 @@ fn a_changes_role_choices_round_trip_with_or_without_models() {
 }
 #[test]
 fn verifying_changes_keep_the_first_observation_at_wall_time_extremes() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for nanos in [0, 123_456_789, u64::MAX] {
-        let since = skein_lib::Wall::from_nanos(nanos);
+        let since = Wall::from_nanos(nanos);
         for state in [State::Landed { merge: [1; 32], since }, State::Red { merge: [2; 32], since }] {
-            for saved in [state.clone(), State::Held { was: Box::new(state), why: Hold::Failed }] {
+            for saved in [
+                state.clone(),
+                State::Held {
+                    was: Box::new(state),
+                    hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, Wall::EPOCH),
+                },
+            ] {
                 let row = fixtures::change_hot(fixtures::change_row(saved));
                 assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
             }
@@ -756,7 +769,7 @@ fn terminal_change_ci_round_trips_with_or_without_an_observation() {
     const MERGE: skein_forge::api::Commit = [1; 32];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for state in [
-        State::Landed { merge: MERGE, since: skein_lib::Wall::from_nanos(17) },
+        State::Landed { merge: MERGE, since: Wall::from_nanos(17) },
         State::Ended,
         State::NoChange { words: b"No widget UI exists".as_slice().into() },
     ] {
@@ -781,7 +794,7 @@ fn a_negative_priority_round_trips_unchanged() {
     for priority in [-1_i32, i32::MIN, 0_i32, i32::MAX] {
         let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Landed {
             merge: [1; 32],
-            since: skein_lib::Wall::from_nanos(17),
+            since: Wall::from_nanos(17),
         });
         row.priority = priority;
         let row = fixtures::change_hot(row);
@@ -789,34 +802,161 @@ fn a_negative_priority_round_trips_unchanged() {
         assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{priority}");
     }
 }
-#[test]
-fn eight_wrapping_holds_keep_their_order_at_the_schema_ceiling() {
-    use temper_engine_domain_forge_change::{Hold, State};
-    let mut state = State::Checking { head: [1; 32] };
-    for why in [
-        Hold::Stalled,
-        Hold::Repairs,
-        Hold::Resolutions,
-        Hold::Updates,
-        Hold::BranchMoved,
-        Hold::BranchMissing,
-        Hold::PullClosed,
-        Hold::Retargeted,
-    ] {
-        state = State::Held { was: Box::new(state), why };
-    }
-    let row = fixtures::change_hot(fixtures::change_row(state));
-    let bytes = records::encode(&row);
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+fn previous_hold_layout(row: v25::Row) -> Box<[u8]> {
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    let current = crate::OWNER_SET.families.first().expect("store family").current;
+    let prior = current
+        .replace(" since: option u64 = none words: option bytes 512 = none judged: option ChangeJudged = none", "")
+        .replace("record ChangeJudged { head: fixed 32 spec: u64 }\n", "")
+        .replace(" measured: bool = false", "")
+        .replace(" semantic: bool = false", "")
+        .replace(", close_refused }", " }");
+    let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    let old = skein_codec::schema::parse(prior.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", None).unwrap();
+    let new_root = new.root(b"Row", None).unwrap();
+    // The previous reader can write fixtures using only its original arms.
+    let down = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    let up = Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&down));
+    let mut earlier = skein_lib::Buffer::with_capacity(131_072);
+    down.convert(&row.encode(&v25::CEILINGS).unwrap(), &mut earlier, &mut work).unwrap();
+    assert!(work.fit(&up));
+    let mut current = skein_lib::Buffer::with_capacity(131_072);
+    up.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    current.as_slice().into()
 }
+
+#[test]
+fn eight_previous_wrapping_holds_read_as_the_outermost() {
+    use temper_engine_domain_forge_change::{Cause, State};
+    let state = State::Checking { head: [1; 32] };
+    let mut row = fixtures::change_row(state.clone());
+    row.change.released = None;
+    let bytes = records::encode(&fixtures::change_hot(row));
+    let mut wire = v25::Row::decode(&v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    let v25::Value::ChangeHot(hot) = &mut wire.value else { panic!("change row") };
+    let mut holds = skein_lib::List::with_capacity(8);
+    for cause in [
+        v25::ChangeHold::Stalled,
+        v25::ChangeHold::Repairs,
+        v25::ChangeHold::Resolutions,
+        v25::ChangeHold::Updates,
+        v25::ChangeHold::BranchMoved,
+        v25::ChangeHold::BranchMissing,
+        v25::ChangeHold::PullClosed,
+        v25::ChangeHold::Retargeted,
+    ] {
+        holds.push(cause).unwrap();
+    }
+    hot.change.state.holds = holds;
+    let since = Wall::from_nanos(hot.change.since);
+    let bytes = previous_hold_layout(wire);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let Ok(forge::Stored::ChangeHot(decoded)) = records::decode(&bytes, &bounds) else { panic!("restored hold") };
+    assert_eq!(
+        decoded.change.state,
+        State::Held { was: Box::new(state), hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, since) }
+    );
+    assert_eq!(decoded.change.released, None);
+}
+
+#[test]
+fn previous_hold_arms_read_without_releasing_the_change() {
+    use temper_engine_domain_forge_change::{AuthorityHold, AuthorityLack, AuthorityRecovery, Cause, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let authority = AuthorityHold {
+        recovery: AuthorityRecovery { task: 4, spec: 8, hold: 3, tasks: 11 },
+        lack: AuthorityLack::Tasks,
+        had: 11,
+        released: true,
+    };
+    let close = temper_engine_domain_forge_change::CloseAt {
+        branch: [1; 32],
+        landing: [2; 32],
+        asked: true,
+        refused: Some(temper_engine_domain_forge_change::CloseRefused { counts: Some([3; 32]) }),
+    };
+    for (arm, cause, at, flake, no_test) in [
+        (v25::ChangeHold::Stalled, Cause::Stalled, None, false, false),
+        (v25::ChangeHold::Repairs, Cause::Repairs, None, false, false),
+        (v25::ChangeHold::Resolutions, Cause::Resolutions, None, false, false),
+        (v25::ChangeHold::Updates, Cause::Updates, None, false, false),
+        (v25::ChangeHold::BranchMoved, Cause::BranchMoved, None, false, false),
+        (v25::ChangeHold::BranchMissing, Cause::BranchMissing, None, false, false),
+        (v25::ChangeHold::PullClosed, Cause::PullClosed, None, false, false),
+        (v25::ChangeHold::Retargeted, Cause::Retargeted, None, false, false),
+        (v25::ChangeHold::Failed, Cause::Failed, None, false, false),
+        (v25::ChangeHold::Failed, Cause::CloseRefused, Some(close), false, false),
+        (v25::ChangeHold::Rejected, Cause::Rejected, None, false, false),
+        (
+            v25::ChangeHold::Authority(v25::AuthorityHold {
+                lack: v25::AuthorityLack::Tasks,
+                had: 11,
+                released: true,
+                task: 4,
+                spec: 8,
+                hold: 3,
+                tasks: 11,
+            }),
+            Cause::Authority(authority),
+            None,
+            false,
+            false,
+        ),
+        (v25::ChangeHold::Questions, Cause::Questions, None, false, false),
+        (v25::ChangeHold::Flake, Cause::RedStands, None, true, false),
+        (v25::ChangeHold::NoTest, Cause::RedStands, None, false, true),
+        (v25::ChangeHold::Runner, Cause::Runner, None, false, false),
+        (v25::ChangeHold::RedStands, Cause::RedStands, None, false, false),
+    ] {
+        let state = State::Producing { requested: true };
+        let mut row = fixtures::change_row(state.clone());
+        row.close_at = at;
+        row.task_release = Some(forge::TaskRelease { revision: 4, at: Wall::EPOCH, measure: true });
+        row.change.released = None;
+        let since = Wall::from_nanos(123);
+        row.change.since = since;
+        let bytes = records::encode(&fixtures::change_hot(row));
+        let mut wire = v25::Row::decode(&v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+        let v25::Value::ChangeHot(hot) = &mut wire.value else { panic!("change row") };
+        hot.change.state.holds = skein_lib::List::with_capacity(1);
+        hot.change.state.holds.push(arm).unwrap();
+        let bytes = previous_hold_layout(wire);
+        let Ok(forge::Stored::ChangeHot(mut decoded)) = records::decode(&bytes, &bounds) else {
+            panic!("restored hold")
+        };
+        assert_eq!(
+            decoded.change.state,
+            State::Held { was: Box::new(state), hold: temper_engine_domain_forge_change::Hold::new(cause, since) }
+        );
+        assert_eq!(decoded.change.released, None);
+        assert_eq!(decoded.task_release, Some(forge::TaskRelease { revision: 4, at: Wall::EPOCH, measure: false }));
+        assert_eq!(decoded.close_at, at);
+        assert_eq!((decoded.delegate_flake, decoded.delegate_no_test), (flake, no_test));
+        let State::Held { hold, .. } = &mut decoded.change.state else { panic!("hold") };
+        hold.since = Wall::from_nanos(789);
+        let mut words = skein_lib::List::with_capacity(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
+        for _ in 0..jig_domain_tasks::HOLD_ACCOUNT_BYTES {
+            words.push(b'x').unwrap();
+        }
+        hold.words = words.into_boxed();
+        let current = forge::Stored::ChangeHot(decoded);
+        let bytes = records::encode(&current);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(current));
+    }
+}
+
 #[test]
 fn a_runner_hold_round_trips_with_its_account() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     use temper_engine_domain_forge_vocabulary::RunnerCi;
     const HEAD: [u8; 32] = [1; 32];
-    let mut row =
-        fixtures::change_row(State::Held { was: Box::new(State::Checking { head: HEAD }), why: Hold::Runner });
+    let mut row = fixtures::change_row(State::Held {
+        was: Box::new(State::Checking { head: HEAD }),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Runner, Wall::EPOCH),
+    });
     row.runner_ci = Some(RunnerCi::Held { words: b"CI's runner failed: set-up failed".as_slice().into() });
     let row = fixtures::change_hot(row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -825,12 +965,16 @@ fn a_runner_hold_round_trips_with_its_account() {
 
 #[test]
 fn red_stands_round_trips_with_its_repair_reason_and_account() {
-    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Hold, Judged, Repair, State};
     let mut row = fixtures::change_row(State::Held {
         was: Box::new(State::Repairing { requested: false, why: Repair::Landing { gate: 0 } }),
-        why: Hold::RedStands,
+        hold: Hold {
+            judged: Some(Judged { head: [3; 32], spec: 123 }),
+            words: b"its red stands".as_slice().into(),
+            ..Hold::new(Cause::RedStands, Wall::EPOCH)
+        },
     });
-    row.producer_failure = Some(b"its red stands".as_slice().into());
+    row.task_release = Some(forge::TaskRelease { revision: 5, at: Wall::EPOCH, measure: true });
     let row = fixtures::change_hot(row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
@@ -933,7 +1077,7 @@ fn every_family_encodes_and_decodes_to_itself() {
             "change",
             fixtures::change_hot(fixtures::change_row(temper_engine_domain_forge_change::State::Landed {
                 merge: [7; 32],
-                since: skein_lib::Wall::from_nanos(17),
+                since: Wall::from_nanos(17),
             })),
         ),
         ("issue", forge::Stored::Issue(fixtures::issue_row())),
@@ -978,7 +1122,7 @@ fn issue_fields_use_their_domain_limits_at_and_past_each_bound() {
 }
 
 fn application(outcome: forge::ApplicationOutcome) -> forge::Stored {
-    forge::Stored::Application { token: u64::MAX, until: skein_lib::Wall::from_nanos(u64::MAX), outcome }
+    forge::Stored::Application { token: u64::MAX, until: Wall::from_nanos(u64::MAX), outcome }
 }
 fn application_refusals() -> Box<[jig_domain_people::Refusal]> {
     use jig_domain_people as p;
@@ -1205,16 +1349,13 @@ fn application_moved_and_ended(rows: &mut skein_lib::List<jig_domain_people::Ref
     ] {
         rows.push(p::Refusal::Moved { now }).expect("bounded application cases");
     }
-    for how in [
-        p::Ending::Done,
-        p::Ending::Failed,
-        p::Ending::Deleted,
-        p::Ending::Decided { by: 7, at: skein_lib::Wall::from_nanos(8) },
-    ] {
+    for how in
+        [p::Ending::Done, p::Ending::Failed, p::Ending::Deleted, p::Ending::Decided { by: 7, at: Wall::from_nanos(8) }]
+    {
         rows.push(p::Refusal::Ended { how }).expect("bounded application cases");
     }
     for by in [p::Party::Person(u64::MAX), p::Party::Task(u64::MAX), p::Party::Deployment { project: u32::MAX }] {
-        rows.push(p::Refusal::Ended { how: p::Ending::Cancelled { by, at: skein_lib::Wall::from_nanos(u64::MAX) } })
+        rows.push(p::Refusal::Ended { how: p::Ending::Cancelled { by, at: Wall::from_nanos(u64::MAX) } })
             .expect("bounded application cases");
     }
 }
@@ -1545,11 +1686,11 @@ fn change_record_words_use_the_task_bound_instead_of_operation_bytes() {
 
 #[test]
 fn an_authority_hold_keeps_its_cause_and_release_across_restart() {
-    use temper_engine_domain_forge_change::{AuthorityHold, AuthorityLack, AuthorityRecovery, Hold, State};
+    use temper_engine_domain_forge_change::{AuthorityHold, AuthorityLack, AuthorityRecovery, Cause, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for lack in [AuthorityLack::Tasks, AuthorityLack::Depth, AuthorityLack::Spend] {
         for released in [false, true] {
-            let why = Hold::Authority(AuthorityHold {
+            let why = Cause::Authority(AuthorityHold {
                 recovery: AuthorityRecovery { task: u64::MAX, spec: u64::MAX, hold: u64::MAX, tasks: u64::MAX },
                 lack,
                 had: u64::MAX,
@@ -1557,7 +1698,7 @@ fn an_authority_hold_keeps_its_cause_and_release_across_restart() {
             });
             let mut row = fixtures::change_row(State::Held {
                 was: Box::new(State::Gating { head: [1; 32], asked: Box::new([]) }),
-                why,
+                hold: temper_engine_domain_forge_change::Hold::new(why, Wall::EPOCH),
             });
             row.change.released = Some(why);
             let row = fixtures::change_hot(row);
@@ -1570,7 +1711,7 @@ fn an_authority_hold_keeps_its_cause_and_release_across_restart() {
 fn a_changes_result_evidence_survives_restart_with_its_cut_counts() {
     let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Landed {
         merge: [1; 32],
-        since: skein_lib::Wall::from_nanos(17),
+        since: Wall::from_nanos(17),
     });
     row.result = forge::ChangeResult {
         head: Some([3; 32]),
@@ -1614,8 +1755,8 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
     use temper_engine_domain_forge_change::{State, Way};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for state in [
-        State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) },
-        State::Preparing { from: [1; 32], main: [3; 32], ready_since: skein_lib::Wall::from_nanos(2) },
+        State::Ready { head: [1; 32], ready_since: Wall::from_nanos(2) },
+        State::Preparing { from: [1; 32], main: [3; 32], ready_since: Wall::from_nanos(2) },
     ] {
         for landing in [None, Some(8)] {
             let mut row = fixtures::change_row(state.clone());
@@ -1634,7 +1775,7 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
 fn a_change_round_trips_its_previous_link_and_ask() {
     use temper_engine_domain_forge_change::{Ask, Below, Landed, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
+    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: Wall::from_nanos(2) });
     row.previous = Some(forge::PreviousLink {
         landing: Some(8),
         ask: Some(Ask::Repair {
@@ -1656,7 +1797,7 @@ fn a_change_round_trips_its_previous_link_and_ask() {
 fn a_change_ask_queue_round_trips_and_defaults_at_the_previous_layout() {
     use temper_engine_domain_forge_change::{Ask, Handed, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
+    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: Wall::from_nanos(2) });
     row.asks = Box::new([
         Handed { number: 2, landing: 8, round: 1, ask: Ask::Resolve { base: [2; 32] } },
         Handed { number: 4, landing: 8, round: 2, ask: Ask::Landed { prefix: [3; 32] } },
@@ -1710,7 +1851,7 @@ fn a_change_stored_before_handed_over_asks_reads_with_none() {
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Ready {
         head: [1; 32],
-        ready_since: skein_lib::Wall::from_nanos(2),
+        ready_since: Wall::from_nanos(2),
     });
     row.previous = Some(forge::PreviousLink {
         landing: None,
@@ -2198,7 +2339,7 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     passed,
                     run: forge::ReceiptRun { id: 7, number: 8, url: Box::from(b"https://forge/run/7".as_slice()) },
                     candidate: [4; 32],
-                    ended: skein_lib::Wall::from_nanos(9),
+                    ended: Wall::from_nanos(9),
                 },
             };
             let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("receipt key");
@@ -2211,9 +2352,11 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
 
 #[test]
 fn a_changes_failed_effect_account_survives_the_store() {
-    use temper_engine_domain_forge_change::{EffectResult, Hold, State};
-    let mut row =
-        fixtures::change_row(State::Held { was: Box::new(State::Opening { requested: true }), why: Hold::Failed });
+    use temper_engine_domain_forge_change::{Cause, EffectResult, State};
+    let mut row = fixtures::change_row(State::Held {
+        was: Box::new(State::Opening { requested: true }),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, Wall::EPOCH),
+    });
     row.effect = EffectResult::Failed;
     row.effect_account = Some(forge::EffectAccount {
         entry: 28,
@@ -2226,9 +2369,11 @@ fn a_changes_failed_effect_account_survives_the_store() {
 
 #[test]
 fn a_changes_producer_failure_survives_the_store_at_the_hold_account_bound() {
-    use temper_engine_domain_forge_change::{Hold, State};
-    let mut row =
-        fixtures::change_row(State::Held { was: Box::new(State::Producing { requested: true }), why: Hold::Failed });
+    use temper_engine_domain_forge_change::{Cause, State};
+    let mut row = fixtures::change_row(State::Held {
+        was: Box::new(State::Producing { requested: true }),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, Wall::EPOCH),
+    });
     let mut words = skein_lib::List::with_capacity(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
     for _ in 0..jig_domain_tasks::HOLD_ACCOUNT_BYTES {
         words.push(b'x').expect("hold account bound");
@@ -2251,7 +2396,7 @@ fn writer_rules(row: &forge::Stored) -> bool {
 
 #[test]
 fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip() {
-    use skein_lib::{Env, Queue, Time, Token, Wall};
+    use skein_lib::{Env, Queue, Time, Token};
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::LIMITS };
     let mut domain = forge::Domain::new(
         &env.limits,
@@ -2489,10 +2634,12 @@ fn questions_open_follows_the_change_bound() {
 
 #[test]
 fn a_changes_questions_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{Blocked, Hold, Open, Questions, Reply, Route, Stands, State, Waiting};
+    use temper_engine_domain_forge_change::{Blocked, Cause, Open, Questions, Reply, Route, Stands, State, Waiting};
     const ASKER: u64 = 7;
-    let mut row =
-        fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
+    let mut row = fixtures::change_row(State::Held {
+        was: Box::new(State::Checking { head: [1; 32] }),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Questions, Wall::EPOCH),
+    });
     let mut open = skein_lib::List::uncapped();
     for (number, stands) in [
         (1, Stands::Taken),
@@ -2502,7 +2649,7 @@ fn a_changes_questions_round_trip_unchanged() {
             Stands::Held {
                 answer: b"Keep the documented behavior".as_slice().into(),
                 question: 51,
-                blocked: Some(Blocked { dependency: Some(28), since: skein_lib::Wall::from_nanos(65) }),
+                blocked: Some(Blocked { dependency: Some(28), since: Wall::from_nanos(65) }),
             },
         ),
         (
@@ -2510,7 +2657,7 @@ fn a_changes_questions_round_trip_unchanged() {
             Stands::Held {
                 answer: b"Use the alternative".as_slice().into(),
                 question: 52,
-                blocked: Some(Blocked { dependency: None, since: skein_lib::Wall::EPOCH }),
+                blocked: Some(Blocked { dependency: None, since: Wall::EPOCH }),
             },
         ),
     ] {
@@ -2769,7 +2916,7 @@ fn repository_makings_and_their_outcomes_round_trip() {
                         },
                         from: from.clone(),
                         into: into.clone(),
-                        asked: skein_lib::Wall::from_nanos(123),
+                        asked: Wall::from_nanos(123),
                         copying,
                         state: state.clone(),
                     });
@@ -2793,7 +2940,7 @@ fn repository_makings_and_their_outcomes_round_trip() {
         outcomes.push(forge::ApplicationOutcome::MakeRefused(refusal)).expect("outcome fixture bound");
     }
     for outcome in outcomes.into_boxed() {
-        let row = forge::Stored::Application { token: 1, until: skein_lib::Wall::from_nanos(456), outcome };
+        let row = forge::Stored::Application { token: 1, until: Wall::from_nanos(456), outcome };
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
@@ -2912,7 +3059,7 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
                 tiers: Box::new([]),
                 commit: [7; 32],
                 branch: vec![b'x'; usize::try_from(branch_bytes).unwrap()].into(),
-                at: skein_lib::Wall::from_nanos(123),
+                at: Wall::from_nanos(123),
                 changes: vec![
                     forge::LoggedChange {
                         fixes: Box::new([]),
@@ -3081,16 +3228,11 @@ fn status_findings_row(brief: Option<[u8; 32]>, running: Option<[u8; 32]>) -> fo
         brief: Some(forge::Brief {
             sentence: b"Findings remain".as_slice().into(),
             lede: Box::new([]),
-            at: skein_lib::Wall::EPOCH,
+            at: Wall::EPOCH,
             landed: 0,
             findings: brief,
         }),
-        running: Some(forge::StatusRunning {
-            task: Some(7),
-            landed: 0,
-            since: skein_lib::Wall::EPOCH,
-            findings: running,
-        }),
+        running: Some(forge::StatusRunning { task: Some(7), landed: 0, since: Wall::EPOCH, findings: running }),
     })
 }
 
@@ -3144,8 +3286,8 @@ fn away_row(present: bool, party: u64, project: u32, at: u64) -> forge::Away {
     forge::Away {
         party,
         project,
-        since: skein_lib::Wall::from_nanos(at),
-        until: present.then_some(skein_lib::Wall::from_nanos(at)),
+        since: Wall::from_nanos(at),
+        until: present.then_some(Wall::from_nanos(at)),
         landed: at,
         off: None,
     }
@@ -3160,7 +3302,7 @@ fn decided_row(count: usize, at: u64) -> forge::Decided {
         number: u32::MAX,
         party: at,
         task: at,
-        at: skein_lib::Wall::from_nanos(at),
+        at: Wall::from_nanos(at),
         question: Box::from([b'q'; forge::DECIDED_QUESTION_BYTES]),
         options: options.into_boxed(),
         took: Some(u8::try_from(count.checked_sub(1).unwrap()).unwrap()),
@@ -3182,7 +3324,7 @@ fn away_and_decided_rows_round_trip_their_options_and_bounds() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for at in [0, 9, u64::MAX] {
         for until in [false, true] {
-            for off in [None, Some(skein_lib::Wall::from_nanos(at))] {
+            for off in [None, Some(Wall::from_nanos(at))] {
                 let away = forge::Stored::Away(forge::Away { off, ..away_row(until, at, u32::MAX, at) });
                 for count in [0, 2, 6] {
                     for overturned in [false, true] {
@@ -3366,6 +3508,7 @@ fn a_closers_report_check_and_its_last_line_round_trip() {
         let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
         row.closer.report_check = check;
         row.closer.goal_left = Some(b"the switch, not yet cut.".as_slice().into());
+        row.closer.goal_asked = Some(b"Asked: causes\nthe cache was cold".as_slice().into());
         let stored = forge::Stored::Closer(row);
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
@@ -3628,7 +3771,7 @@ fn prefix_judgement_and_candidate_failure_snapshots_survive_the_store() {
         prefix: [4; 32],
     };
     for state in [
-        State::Judging { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(7), target, asked: Box::new([9, 12]) },
+        State::Judging { head: [1; 32], ready_since: Wall::from_nanos(7), target, asked: Box::new([9, 12]) },
         State::Repairing { requested: true, why: Repair::LandingAt { gate: 3, candidate: [4; 32], below: None } },
     ] {
         new_family_round_trip(&fixtures::change_hot(fixtures::change_row(state)));
@@ -3647,7 +3790,7 @@ fn prefix_judgement_and_candidate_failure_snapshots_survive_the_store() {
             failures: None,
             passed: false,
             candidate: [4; 32],
-            ended: skein_lib::Wall::from_nanos(5),
+            ended: Wall::from_nanos(5),
             run: forge::ReceiptRun { id: 6, number: 7, url: b"https://forge/run/6".as_slice().into() },
             logs: b"Failed job: test\nFailed step: compile\nEnd of its log:\nbroken source\n".as_slice().into(),
         },
@@ -3856,7 +3999,7 @@ fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
             label: vec![b'l'; label].into_boxed_slice(),
             p256dh: [4; 65],
             auth: [7; 16],
-            at: skein_lib::Wall::from_nanos(u64::MAX),
+            at: Wall::from_nanos(u64::MAX),
         });
         let bytes = records::encode(&row);
         assert_eq!(bytes.get(2), Some(&36), "Device is Value's tag");
@@ -3887,7 +4030,7 @@ fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
             label: label.into_boxed_slice(),
             p256dh: [4; 65],
             auth: [7; 16],
-            at: skein_lib::Wall::EPOCH,
+            at: Wall::EPOCH,
         });
         records::decode(&records::encode(&row), &bounds).unwrap_err();
     }
@@ -3933,7 +4076,7 @@ fn landed_drafts_round_trip_the_smallest_and_full_rows_and_keys() {
             commit: if full { [255; 32] } else { [0; 32] },
             title: if full { Box::from([b't'; 200]) } else { Box::new([]) },
             writer: if full { u64::MAX } else { 0 },
-            at: skein_lib::Wall::from_nanos(if full { u64::MAX } else { 0 }),
+            at: Wall::from_nanos(if full { u64::MAX } else { 0 }),
             chat: full.then_some(u64::MAX),
             goal: full.then_some(u64::MAX),
             ready: full,
@@ -4164,7 +4307,7 @@ fn receipt_reports_round_trip_their_states_and_owned_bytes() {
                 passed: false,
                 run: forge::ReceiptRun { id: 7, number: 8, url: b"run/7".as_slice().into() },
                 candidate: [3; 32],
-                ended: skein_lib::Wall::EPOCH,
+                ended: Wall::EPOCH,
             },
         };
         new_family_round_trip(&row);
@@ -4243,12 +4386,8 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
 fn a_stale_updates_first_refusal_survives_the_store() {
     use temper_engine_domain_forge_change::{EffectResult, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for stale in [None, Some(skein_lib::Wall::from_nanos(17))] {
-        let mut row = fixtures::change_row(State::Preparing {
-            from: [1; 32],
-            main: [2; 32],
-            ready_since: skein_lib::Wall::from_nanos(0),
-        });
+    for stale in [None, Some(Wall::from_nanos(17))] {
+        let mut row = fixtures::change_row(State::Preparing { from: [1; 32], main: [2; 32], ready_since: Wall::EPOCH });
         row.effect = EffectResult::Stale;
         row.change.stale = stale;
         let stored = fixtures::change_hot(row);
@@ -4258,10 +4397,16 @@ fn a_stale_updates_first_refusal_survives_the_store() {
 
 #[test]
 fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
-    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Repair, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let repairing = State::Repairing { requested: true, why: Repair::Landing { gate: 0 } };
-    for state in [repairing.clone(), State::Held { was: Box::new(repairing), why: Hold::Flake }] {
+    for state in [
+        repairing.clone(),
+        State::Held {
+            was: Box::new(repairing),
+            hold: temper_engine_domain_forge_change::Hold::new(Cause::RedStands, Wall::EPOCH),
+        },
+    ] {
         let mut row = fixtures::change_row(state);
         row.delegate_flake = true;
         row.delegate_head = Some([6; 32]);
@@ -4297,7 +4442,7 @@ fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
     use temper_engine_domain_forge_change::State;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for check in [forge::Check::Gate(b"gate".as_slice().into()), forge::Check::Tier(b"tier".as_slice().into())] {
-        let mut row = fixtures::change_row(State::Ready { head: [3; 32], ready_since: skein_lib::Wall::EPOCH });
+        let mut row = fixtures::change_row(State::Ready { head: [3; 32], ready_since: Wall::EPOCH });
         row.regate = Some(forge::Regate {
             receipt: forge::ReceiptKey { project: 5, repository: row.repository, check, key: [7; 32] },
             run: u64::MAX,
@@ -4333,7 +4478,7 @@ fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
     let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
         project: u32::MAX,
         landed: u64::MAX,
-        last_landed: skein_lib::Wall::from_nanos(u64::MAX),
+        last_landed: Wall::from_nanos(u64::MAX),
     });
     let brief = v25::StatusBrief {
         sentence: b"Project's old brief".as_slice().into(),
@@ -4373,10 +4518,16 @@ fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
 
 #[test]
 fn a_no_test_terminal_and_hold_round_trip_in_the_hot_part() {
-    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Repair, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let repairing = State::Repairing { requested: true, why: Repair::Landing { gate: 0 } };
-    for state in [repairing.clone(), State::Held { was: Box::new(repairing), why: Hold::NoTest }] {
+    for state in [
+        repairing.clone(),
+        State::Held {
+            was: Box::new(repairing),
+            hold: temper_engine_domain_forge_change::Hold::new(Cause::RedStands, Wall::EPOCH),
+        },
+    ] {
         let mut row = fixtures::change_row(state);
         row.delegate_no_test = true;
         row.delegate_head = Some([6; 32]);
@@ -4429,6 +4580,46 @@ fn a_change_row_written_before_no_test_defaults_its_verdict_to_false() {
 }
 
 #[test]
+fn the_writes_family_keeps_a_branch_and_its_bounded_ordered_entries() {
+    use forge::writes::{Operation, Sender, WRITES, WriteState, Writes, Written};
+    let name = forge::Name {
+        forge: fixtures::REPO.forge,
+        repository: fixtures::REPO.repository,
+        what: forge::What::Branch(Box::new([b"goals".as_slice().into(), b"one".as_slice().into()])),
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let limit = u64::try_from(WRITES).unwrap();
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(WRITES).unwrap());
+    for order in 1..=limit {
+        entries
+            .push(Written {
+                order,
+                operation: Operation::Update { pull: 19, before: [1; 32], base: [2; 32], after: None },
+                sender: Sender::Entry { task: 4, entry: order },
+                state: WriteState::Uncertain,
+            })
+            .unwrap();
+    }
+    let mut row = Writes {
+        name: name.clone(),
+        entries: entries.into_boxed(),
+        head: Some([2; 32]),
+        next: limit.checked_add(1).unwrap(),
+    };
+    let key = forge::Key::Writes(name);
+    let key_bytes = crate::keys::encode(&key, u32::MAX).unwrap();
+    assert_eq!(key_bytes[0], crate::keys::WRITES);
+    assert_eq!(crate::keys::decode(&key_bytes, &fixtures::LIMITS), Some(key));
+    let stored = forge::Stored::Writes(row.clone());
+    let bytes = records::encode(&stored);
+    assert_eq!(records::row(&key_bytes, &bytes, &bounds), Ok(stored));
+    row.next = limit;
+    let bytes = records::encode(&forge::Stored::Writes(row));
+    assert_eq!(records::row(&key_bytes, &bytes, &bounds), Err(crate::Undecodable::Malformed));
+    assert_eq!(v25::CEILINGS.writes_entries, u32::try_from(WRITES).unwrap());
+}
+
+#[test]
 fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
     use temper_engine_domain_forge_change::State;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
@@ -4436,7 +4627,7 @@ fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
     let job = skein_forge::api::JobAttempt { head, run: 7, job: 41, attempt: 2 };
     for taken in [None, Some(3)] {
         let mut row = fixtures::change_row(State::Checking { head });
-        row.ci_recheck = Some(forge::CiRecheck { job, taken });
+        row.ci_recheck = Some(forge::CiRecheck { job, taken, semantic: taken.is_some() });
         let (cold, hot) = row.clone().split();
         let stored = forge::Stored::ChangeHot(Box::new(hot));
         let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();

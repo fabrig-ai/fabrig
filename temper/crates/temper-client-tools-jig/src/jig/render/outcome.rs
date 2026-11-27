@@ -23,7 +23,7 @@ pub struct Operation {
     /// The funder of a goal start beneath a milestone (client/ctl/milestones.md, 3).
     pub milestone: Option<u64>,
     pub ended_task: Option<c::Phase>,
-    pub asked: Option<Asked>,
+    pub read: Option<ActRead>,
     pub to: Option<c::Recipient>,
     pub party: Option<u64>,
     pub reissued_party: Option<u64>,
@@ -37,7 +37,13 @@ pub struct Operation {
     /// The live worker shorthand's name; the durable request remains a settings change.
     pub worker: Option<Box<[u8]>>,
 }
-/// What a person task's contract asks of an answer past it (client/ctl/areas.md).
+/// Facts read for explaining an engine refusal, not for admitting the request.
+#[derive(Debug)]
+pub enum ActRead {
+    Answer(Asked),
+    Measure(MeasureRecovery),
+}
+/// A person task's contract (client/ctl/areas.md).
 #[derive(Debug)]
 pub enum Asked {
     /// The choice the reason is for; absent for a report's words.
@@ -56,6 +62,12 @@ pub enum Asked {
         choice: u32,
         codes: skein_lib::List<u32>,
     },
+}
+#[derive(Debug)]
+pub enum MeasureRecovery {
+    Lift { hold: u64, revision: u64 },
+    ReadPlaced { hold: u64 },
+    Release { revision: u64, uncertain: bool },
 }
 /// One in-flight source context; its name is bounded by the client's document text limit.
 #[derive(Clone, Debug)]
@@ -154,7 +166,7 @@ impl Operation {
                     },
                 ),
                 c::Ask::Lift { .. } => (b"lift", None),
-                c::Ask::Release { task, .. } => (b"release", Some(*task)),
+                c::Ask::Release { task, .. } | c::Ask::Measure { task, .. } => (b"release", Some(*task)),
                 c::Ask::Stop { task, .. } => (b"stop", Some(*task)),
                 c::Ask::Conclude { task, .. } => (b"whole", Some(*task)),
                 c::Ask::Cancel { task, .. } => (b"cancel", Some(*task)),
@@ -232,7 +244,7 @@ impl Operation {
             task,
             milestone: None,
             ended_task: None,
-            asked: None,
+            read: None,
             to: None,
             party: None,
             reissued_party: reissued_party(ask),
@@ -758,6 +770,14 @@ fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) 
         out.string(&write.finish());
     }
     ended_json(operation, refusal, out);
+    if let Some((task, recovery)) = measure_recovery(operation, refusal) {
+        let mut measure = Text::measure();
+        measure_instead(task, recovery, &mut measure);
+        let mut write = Text::writing_exact(measure);
+        measure_instead(task, recovery, &mut write);
+        out.key(b"next");
+        out.string(&write.finish());
+    }
     if let Some(asked) = asked(operation, refusal) {
         asked_json(operation, asked, out);
     }
@@ -778,12 +798,39 @@ fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) 
         out.string(operation.retry.as_deref().unwrap_or(operation.tool_name()));
     }
 }
-fn asked<'a>(operation: &'a Operation, refusal: &c::Refusal) -> Option<&'a Asked> {
-    if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Contract } } = refusal {
-        operation.asked.as_ref()
-    } else {
-        None
+fn measure_recovery<'a>(operation: &'a Operation, refusal: &c::Refusal) -> Option<(u64, &'a MeasureRecovery)> {
+    if *refusal == c::Refusal::NotOffered
+        && let Some(ActRead::Measure(recovery)) = &operation.read
+    {
+        return Some((operation.task?, recovery));
     }
+    None
+}
+fn measure_instead(task: u64, recovery: &MeasureRecovery, out: &mut Text) {
+    match recovery {
+        MeasureRecovery::Lift { hold, revision } => super::holds::lift_command(*hold, *revision, out),
+        MeasureRecovery::ReadPlaced { hold } => {
+            out.put(b"read the revision of placed hold ");
+            out.number(*hold);
+            out.put(b" with task show ");
+            out.number(task);
+            out.put(b", then use hold lift");
+        }
+        MeasureRecovery::Release { revision, uncertain } => {
+            super::holds::release_command(task, *revision, out);
+            if *uncertain {
+                out.put(b" (add --again only if the effect did not happen and you want to repeat it)");
+            }
+        }
+    }
+}
+fn asked<'a>(operation: &'a Operation, refusal: &c::Refusal) -> Option<&'a Asked> {
+    if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Contract } } = refusal
+        && let Some(ActRead::Answer(asked)) = &operation.read
+    {
+        return Some(asked);
+    }
+    None
 }
 fn asked_json(operation: &Operation, asked: &Asked, out: &mut Encoder) {
     match asked {
@@ -937,6 +984,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::WITHDRAW_AT => &rows::WITHDRAW,
         rows::TASK_DECIDE_AT => &rows::TASK_DECIDE,
         rows::RELEASE_AT => &rows::RELEASE,
+        rows::MEASURE_AT => &rows::MEASURE,
         rows::LIFT_AT => &rows::LIFT,
         rows::STOP_AT => &rows::STOP,
         rows::CANCEL_AT => &rows::CANCEL,
@@ -1209,6 +1257,16 @@ fn refused_text(
         && let Some(task) = operation.task
     {
         asked_text(task, asked, out);
+    }
+    if let Some((task, recovery)) = measure_recovery(operation, refusal) {
+        out.put(b"\nuse instead: ");
+        measure_instead(task, recovery, out);
+    }
+    if let c::Refusal::Moved { now, what: c::Moved::Hold { .. } } = refusal
+        && operation.tool_name() == crate::jig::rows::MEASURE.name
+    {
+        out.put(b"\nrevision now: ");
+        out.number(now.value);
     }
     if let c::Refusal::Moved { what: c::Moved::PlacedHold { revision }, .. } = refusal
         && operation.word == b"lift"
@@ -1493,6 +1551,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::HandBack { .. }
             | c::Ask::Decide { .. }
             | c::Ask::Lift { .. }
+            | c::Ask::Measure { .. }
             | c::Ask::Release { .. }
             | c::Ask::Amend { .. }
             | c::Ask::Stop { .. }

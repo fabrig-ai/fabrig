@@ -261,10 +261,6 @@ pub(crate) fn holdings(number: u16, values: Option<Box<[infrastructure::Holding]
 }
 pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Limits) -> [Declaration; 2] {
     let infrastructure = &limits.infrastructure.vocabulary;
-    let restart = match backend {
-        infrastructure::Backend::OperationIds => effects::Recovery::Keyed,
-        infrastructure::Backend::NoOperationIds => effects::Recovery::Unrecoverable,
-    };
     [
         Declaration {
             connector: number(Connector::Observability),
@@ -279,35 +275,30 @@ pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Lim
         Declaration {
             connector: number(Connector::Infrastructure),
             resources: hold_kinds(infrastructure),
-            effects: Box::new([
-                infrastructure_effect(infrastructure.restart_effect, effects::EffectForm::Transition, restart),
-                infrastructure_effect(
-                    infrastructure.scale_effect,
-                    effects::EffectForm::Set,
-                    effects::Recovery::Conditional,
-                ),
-                infrastructure_effect(
-                    infrastructure.rollback_effect,
-                    effects::EffectForm::Transition,
-                    effects::Recovery::Conditional,
-                ),
-                infrastructure_effect(
-                    infrastructure.create_environment_effect,
-                    effects::EffectForm::Creation,
-                    effects::Recovery::Keyed,
-                ),
-                infrastructure_effect(
-                    infrastructure.tear_down_effect,
-                    effects::EffectForm::Transition,
-                    effects::Recovery::Conditional,
-                ),
-            ]),
+            effects: effect_kinds(infrastructure, backend),
         },
     ]
 }
 
-const fn infrastructure_effect(kind: u16, form: effects::EffectForm, recovery: effects::Recovery) -> EffectKind {
-    EffectKind { kind, form, recovery, waits_for_dependencies: true }
+fn effect_kinds(vocabulary: &infrastructure::Vocabulary, backend: infrastructure::Backend) -> Box<[EffectKind]> {
+    let values = infrastructure::effect_kinds(vocabulary, backend);
+    let mut kinds = List::with_capacity(u32::try_from(values.len()).expect("effect kinds"));
+    for value in values {
+        let form = match value.form {
+            infrastructure::Form::Creation => effects::EffectForm::Creation,
+            infrastructure::Form::Transition => effects::EffectForm::Transition,
+            infrastructure::Form::Set => effects::EffectForm::Set,
+        };
+        let recovery = match value.recovery {
+            infrastructure::Recovery::Keyed => effects::Recovery::Keyed,
+            infrastructure::Recovery::Conditional => effects::Recovery::Conditional,
+            infrastructure::Recovery::Unrecoverable => effects::Recovery::Unrecoverable,
+        };
+        kinds
+            .push(EffectKind { kind: value.kind, form, recovery, waits_for_dependencies: value.waits_for_dependencies })
+            .expect("one kind per value");
+    }
+    kinds.into_boxed()
 }
 
 fn hold_kinds(vocabulary: &infrastructure::Vocabulary) -> Box<[ResourceKind]> {

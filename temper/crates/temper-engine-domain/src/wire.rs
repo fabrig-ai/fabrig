@@ -34,14 +34,26 @@ pub enum Verdict {
 pub enum Ask {
     Reds,
     Results(CheckResults),
+    Admit { tag: u64, branch: Box<[u8]>, expected: Option<[u8; 32]>, commit: [u8; 32] },
     Landed { head: [u8; 32] },
 }
 
-#[derive(PartialEq, Eq, Debug)]
+/// The route of an application ask already fenced by the fleet.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Asking {
+    pub channel: Token,
+    pub run: Token,
+    pub attempt: Token,
+    pub number: u64,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    Admitted,
     Kept,
     Landed,
     Unlanded,
+    Unadmitted { words: Box<[u8]> },
     Reds { reds: Box<[RunRed]> },
 }
 
@@ -64,6 +76,7 @@ pub fn answer(domain: &Domain, task: u64, attempt: u64, ask: Ask) -> Answer {
     match ask {
         Ask::Reds => Answer::Reds { reds: reds_for_run(domain, task, attempt) },
         Ask::Results(_) => Answer::Kept,
+        Ask::Admit { .. } => Answer::Unadmitted { words: b"push admission requires a decision".as_slice().into() },
         Ask::Landed { head } => {
             if landed_for_run(domain, task, attempt, &head) {
                 Answer::Landed

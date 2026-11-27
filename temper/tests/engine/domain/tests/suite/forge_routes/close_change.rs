@@ -242,12 +242,8 @@ fn a_close_job_that_pushed_opens_and_lands_its_change() {
     let task = make_change(&mut world, &goal, &branch, REQUEST, None);
     let job = next_job(&mut world, task);
     let own = change_row(&world, task).branch.clone();
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, b"status", b"settled", 2)
-        .expect("close job pushed");
+    let head = world.worker_commit(tip, b"status", b"settled");
+    world.job_push(CHANNEL, &job, &own, head, 2);
     finish_job(&mut world, &job);
     let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
     for _ in 0..STEPS {
@@ -379,7 +375,10 @@ fn fail_close_until_held(
         }
         world.tick();
     }
-    assert!(matches!(change_row(world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(world, task).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+    ));
     assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }));
     assert!(
         change_row(world, task)
@@ -463,12 +462,8 @@ fn a_fresh_close_jobs_push_opens_and_lands_its_change() {
     let retry = next_job(&mut world, task);
     assert_ne!(retry.run.raw(), child);
     let own = change_row(&world, task).branch.clone();
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, b"status", b"settled", 2)
-        .expect("fresh close pushed");
+    let head = world.worker_commit(tip, b"status", b"settled");
+    world.job_push(CHANNEL, &retry, &own, head, 2);
     finish_job(&mut world, &retry);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::Change { .. })));
     assert!(matches!(change_row(&world, task).change.state, change::State::Landed { .. }));
@@ -554,6 +549,33 @@ fn releasing_a_broken_close_rechecks_unchanged_tips() {
     assert_eq!(change_row(&world, task).close_at, Some(before));
     finish_job(&mut world, &fresh);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
+    world.close();
+}
+
+#[test]
+fn measuring_a_refused_close_runs_one_fresh_job_at_unchanged_tips() {
+    let (mut world, goal, branch, tip) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let landing = translate::commit(branch_tip(&mut world, b"main"));
+    finish_with(&mut world, &first, &check_refusal(translate::commit(tip), landing));
+    super::goal_closer::wait_held(&mut world, task, goal.task);
+    let revision = live_task(&world, task).revisions.hold;
+    let tool = engine::Tool::Measure { target: task, revision };
+    let answer = world.scripted_call(&goal, 95, tool);
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    let fresh = next_job(&mut world, task);
+    assert_ne!(fresh.run.raw(), first.run.raw());
+    let row = change_row(&world, task);
+    let accepted = row.task_release.expect("measurement release was kept");
+    assert_eq!((accepted.revision, accepted.measure), (revision, true));
+    assert_eq!(
+        row.close_at,
+        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None })
+    );
+    finish_job(&mut world, &fresh);
+    assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
+    assert!(world.jobs.is_empty(), "one accepted measurement made one fresh job");
     world.close();
 }
 
@@ -673,6 +695,10 @@ fn an_unrecognized_finished_close_holds_without_another_try() {
             "the close check broke and didn't judge the goal: it finished with {reason}; its release runs it again."
         );
         super::goal_closer::assert_hold_words(&world, task, &expected);
+        assert!(matches!(
+            change_row(&world, task).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+        ));
         assert_eq!(change_row(&world, task).close_at.expect("close attempt").refused, None);
         assert!(world.jobs.is_empty(), "a finished invalid result must not spend another try");
         world.close();
@@ -706,10 +732,9 @@ fn a_failed_close_job_holds_the_change() {
     assert_eq!(reason.as_ref(), b"its change holds on its failure");
     assert!(!matches!(ended.escalation, tasks::Escalation::Waiting { .. }));
     let row = change_row(&world, task);
-    assert_eq!(
-        row.change.state,
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed }
-    );
+    let change::State::Held { was, hold } = &row.change.state else { panic!("close held at producing") };
+    assert_eq!(**was, change::State::Producing { requested: true });
+    assert_eq!(hold.cause, change::Cause::Failed);
     assert_eq!(row.delegate, None);
     assert_eq!(row.delegate_status, change::Status::Failed);
     let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else {

@@ -1,6 +1,6 @@
 //! A release retires failed evidence and takes its fresh branch (change/repairs.md, A release).
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold as Cause, State, Status};
+use temper_engine_domain_forge_change::{Cause, Delegate, State, Status};
 
 const CHILD: u64 = 52;
 const FRESH: [u8; 32] = [8; 32];
@@ -19,14 +19,22 @@ fn failed(kind: Delegate) -> Domain {
     row.delegate_status = Status::Failed;
     row.producer_failure = Some(b"refused at the saved head".as_slice().into());
     row.merge_result = Some(b"old result".as_slice().into());
-    row.change.state =
-        State::Held { was: Box::new(State::Resolving { requested: true, base: fixtures::BASE }), why: Cause::Failed };
+    row.change.state = State::Held {
+        was: Box::new(State::Resolving { requested: true, base: fixtures::BASE }),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, Wall::EPOCH),
+    };
     outputs(&mut d, Event::Change { row });
     d
 }
 
 fn release(d: &mut Domain, revision: u64) -> Box<[Request]> {
-    outputs(d, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(TaskRelease { revision, at: env().wall }) })
+    outputs(
+        d,
+        Event::ReleaseChange {
+            task: fixtures::CHANGE,
+            release: Some(TaskRelease { revision, at: env().wall, measure: false }),
+        },
+    )
 }
 
 #[test]
@@ -34,7 +42,10 @@ fn a_release_at_or_below_the_consumed_revision_changes_nothing() {
     let mut d = failed(Delegate::Resolve { base: fixtures::BASE });
     release(&mut d, 3);
     let mut row = d.change(fixtures::CHANGE).unwrap().clone();
-    row.change.state = State::Held { was: Box::new(row.change.state.clone()), why: Cause::Resolutions };
+    row.change.state = State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Resolutions, Wall::EPOCH),
+    };
     row.change.released = None;
     row.change.resolutions = 2;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row.clone())) });
@@ -50,7 +61,10 @@ fn a_repeated_released_step_cannot_lift_a_later_hold() {
     release(&mut d, 3);
     outputs(&mut d, waiting_step(false, true));
     let mut row = d.change(fixtures::CHANGE).unwrap().clone();
-    row.change.state = State::Held { was: Box::new(row.change.state.clone()), why: Cause::Resolutions };
+    row.change.state = State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Resolutions, Wall::EPOCH),
+    };
     row.change.released = None;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row.clone())) });
     outputs(&mut d, waiting_step(false, true));
@@ -114,7 +128,7 @@ fn a_failed_delegates_terminal_and_words_are_retired_across_restore() {
             assert_eq!(domain.change(fixtures::CHANGE), Some(&released));
             gather(domain, FRESH);
             assert_eq!(domain.change(fixtures::CHANGE).unwrap().change.state, State::Checking { head: FRESH });
-            outputs(domain, Event::Delegated { task: fixtures::CHANGE, child: CHILD + 1, kind });
+            outputs(domain, Event::Delegated { task: fixtures::CHANGE, child: CHILD + 1, kind, close_at: None });
             let replacement = domain.change(fixtures::CHANGE).unwrap();
             assert_eq!(replacement.delegate, Some((CHILD + 1, kind)));
             assert_eq!(replacement.delegate_status, Status::Unknown);
@@ -131,7 +145,10 @@ fn a_refused_replacement_resolution_can_be_released_again() {
     outputs(&mut d, Event::DelegateAdmissionRefused { task: fixtures::CHANGE, kind });
     assert_eq!(
         d.change(fixtures::CHANGE).unwrap().change.state,
-        State::Held { was: Box::new(State::Resolving { requested: false, base: fixtures::BASE }), why: Cause::Failed }
+        State::Held {
+            was: Box::new(State::Resolving { requested: false, base: fixtures::BASE }),
+            hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, env().wall)
+        }
     );
     release(&mut d, 2);
     gather(&mut d, FRESH);

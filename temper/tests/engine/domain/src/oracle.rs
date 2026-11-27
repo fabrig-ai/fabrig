@@ -93,15 +93,32 @@ impl Snapshot {
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
-        for key in self.rows.keys().chain(rows.keys().filter(|key| !self.rows.contains_key(*key))) {
-            let before = self.rows.get(key).and_then(|row| retained(key, row, self.wall));
-            let after = rows.get(key).and_then(|row| retained(key, row, self.wall));
-            if before != after {
-                return Err(format!(
-                    "assertion `left == right` failed: restart oracle row {key:?}, field {}\n  left: {before:?}\n right: {after:?}",
-                    difference(&format!("{before:#?}"), &format!("{after:#?}"))
-                ));
+        // Walk both sorted maps once. Report a difference in the saved keys
+        // before reporting a newly present key, as in the restart oracle.
+        let mut afters = rows.iter().peekable();
+        let mut extra = None;
+        for (key, before) in &self.rows {
+            while let Some((key, row)) = afters.next_if(|(after_key, _)| *after_key < key) {
+                if extra.is_none()
+                    && let Some(row) = retained(key, row, self.wall)
+                {
+                    extra = Some((key, row));
+                }
             }
+            let after = afters.next_if(|(after_key, _)| *after_key == key).map(|(_, row)| row);
+            if after == Some(before) {
+                continue;
+            }
+            let before = retained(key, before, self.wall);
+            let after = after.and_then(|row| retained(key, row, self.wall));
+            if before != after {
+                return Err(row_difference(key, before.as_deref(), after.as_deref()));
+            }
+        }
+        if let Some((key, after)) =
+            extra.or_else(|| afters.find_map(|(key, row)| retained(key, row, self.wall).map(|row| (key, row))))
+        {
+            return Err(row_difference(key, None, Some(after.as_ref())));
         }
         Ok(())
     }
@@ -124,6 +141,13 @@ impl Snapshot {
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
         ))
     }
+}
+
+fn row_difference(key: &Key, before: Option<&Record>, after: Option<&Record>) -> String {
+    format!(
+        "assertion `left == right` failed: restart oracle row {key:?}, field {}\n  left: {before:?}\n right: {after:?}",
+        difference(&format!("{before:#?}"), &format!("{after:#?}"))
+    )
 }
 
 // Only the inventory's rebuilt rows need an owned projection.

@@ -2,3 +2,4 @@
 
 2026-11-21. Where jig's code lags or departs from [crates.md](crates.md).
 
+No gap.

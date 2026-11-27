@@ -19,6 +19,38 @@ pub(super) struct AfterWrite {
 }
 
 impl World {
+    /// Capture all durable transitions of the write records, even where a
+    /// step saves and then erases a record before the world goes quiet.
+    pub fn take_write_records(&mut self) -> Vec<top::Request> {
+        self.write_records.replace(Vec::new()).unwrap_or_default()
+    }
+
+    /// A made write with a lost answer, injected once at the fake, not at admission.
+    pub fn timeout_next_write(&mut self) {
+        assert!(!self.timeout_next_write, "the previous scripted timeout still waits for its write");
+        self.timeout_next_write = true;
+    }
+
+    pub fn reset_now_as(&mut self, branch: &[u8], to: u64, user: u64) {
+        forge::reset_branch(&mut self.forge, &self.forge_env, b"org/repo", branch, to, user).expect("outside reset");
+        self.copy_fell();
+    }
+
+    pub fn retarget_now_as(&mut self, pull: u64, base: &[u8], user: u64) {
+        forge::retarget_pull(&mut self.forge, &self.forge_env, b"org/repo", pull, base, user)
+            .expect("outside retarget");
+    }
+
+    #[must_use]
+    pub fn write_readback_owed(&self, name: &top::Name, order: u64) -> bool {
+        self.top.inspection_write_readback(name, order)
+    }
+
+    #[must_use]
+    pub fn change_behind_bound(&self, task: u64) -> Option<skein_lib::Wall> {
+        self.top.inspection_change_behind(task)
+    }
+
     /// Exclude only a manual record of a squash already present on the base.
     /// A normal fast-forward's late merge and all head/base views remain enabled.
     pub fn exclude_lagging_records(&mut self, lag: forge::Lag, exclusion: &Exclusion) {
@@ -47,12 +79,7 @@ impl World {
         let lagging = self.lagging.as_ref()?;
         let landed_squash = self.stored.iter().any(|(_, record)| {
             let top::Stored::Landing(row) = record else { return false };
-            row.landing.members.iter().any(|member| {
-                member.pull == *number
-                    && member.combined == Some(temper_engine_domain_forge_landing::Combine::Squash)
-                    && member.landed == Some(crate::translate::commit(*commit))
-                    && !member.recorded
-            })
+            crate::open::recording_landed_squash(row, *number, crate::translate::commit(*commit))
         });
         if !landed_squash || lagging.active.get(number).is_some_and(|until| self.env.now < *until) {
             return None;

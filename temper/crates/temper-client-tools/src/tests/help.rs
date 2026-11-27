@@ -647,6 +647,7 @@ fn settings_help_explains_check_reserve_recovery_through_held_revisions() {
     reason = "the help test collapses whitespace to check the person's words"
 )]
 fn task_answer_help_says_a_person_task_may_ask_for_less() {
+    reference_matches(b"task", b"ctl-task");
     let page = temper_docs::find(b"ctl-task").expect("task reference");
     let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(text.contains("a person task may ask for less"));

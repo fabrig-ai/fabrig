@@ -68,7 +68,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::MakingActed { .. }
             | forge::Event::MakingAgain { .. }
             | forge::Event::OrderLanding { .. }
-            | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::TrainRefusal { .. }
             | forge::Event::VetoLanding { .. }
@@ -134,6 +133,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Hold { .. }
             | forge::Event::Claim { .. }
             | forge::Event::Answered { .. }
+            | forge::Event::Finished { .. }
             | forge::Event::Lost { .. }
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
@@ -150,7 +150,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
-            | forge::Event::CloseDelegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::WaitsRefused { .. }
@@ -287,7 +286,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
 
 fn worker_completes(worker: &WorkerInput) -> bool {
     match worker {
-        WorkerInput::CheckResults { .. }
+        WorkerInput::Admit { .. }
+        | WorkerInput::CheckResults { .. }
         | WorkerInput::Asked { .. }
         | WorkerInput::Opened { .. }
         | WorkerInput::DecodedHostCall { .. }

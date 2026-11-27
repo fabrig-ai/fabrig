@@ -495,6 +495,26 @@ them as it does any Forgejo.
   skein's: a document past them is refused at the start, naming the
   turn.
 
+  A turn may also be a stretch, `{"drawn": {"rounds", "tools"}}` as its
+  only line, here and in `--scripts` alone and never in a deployment's
+  document: skein's `Line::Drawn`, `rounds` drawn answers over the
+  tools it names, then the script's next turn (skein's
+  `testing/fakes/drawn-agent.md`, 5), `rounds` 1 to 64 and `tools` 1 to 8
+  distinct names. Its answers draw from the document's `menu`, here
+  alone: `{"arguments", "invalid", "slots", "calls"}`, skein's `Menu`
+  and its calls an answer (the same, 2): `arguments` 1 to 16 JSON
+  objects, each a body; `invalid` 0 to 8 `{"name", "arguments"}`,
+  `name` a tool's name or null for the drawn tool's, `arguments` text
+  sent as it is; `slots` 0 to 8 `{"name", "before",
+  "after", "unissued", "weight", "numeric", "with", "foreign"}`, as
+  skein's slots are, `numeric` `{"low", "high"}` or null and `with` a
+  slot's name or null; and `calls` 1 to 16. A document without a
+  `menu` answers as before, and one with a stretch and no `menu` is
+  refused at the start, naming the turn. The menu draws nothing outside
+  a stretch: a call no script selects still takes "done" or strict's
+  failure, as before. The fake keeps its one seed (`--seed`), so a
+  document without a stretch draws exactly what it drew.
+
   The forge's:
 
   | Member | Type | Bounds |

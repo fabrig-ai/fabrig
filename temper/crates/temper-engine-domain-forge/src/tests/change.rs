@@ -5,6 +5,7 @@ mod empty_repair;
 mod execution;
 mod fence;
 mod flake;
+mod gather_retry;
 mod no_test;
 mod released_resolution;
 pub(super) mod waits;
@@ -103,11 +104,14 @@ fn a_restart_wakes_a_change_with_words_to_pass_or_a_requester_to_tell() {
 
 #[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
-    use temper_engine_domain_forge_change::{Hold, State};
-    for (why, prior) in [(Hold::Repairs, None), (Hold::Resolutions, Some(Hold::Rejected))] {
+    use temper_engine_domain_forge_change::{Cause, State};
+    for (why, prior) in [(Cause::Repairs, None), (Cause::Resolutions, Some(Cause::Rejected))] {
         let mut row = fixtures::opening_row();
         row.pending = None;
-        row.change.state = State::Held { was: Box::new(State::Producing { requested: false }), why };
+        row.change.state = State::Held {
+            was: Box::new(State::Producing { requested: false }),
+            hold: temper_engine_domain_forge_change::Hold::new(why, Wall::EPOCH),
+        };
         row.change.ended_held = prior;
         let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -164,8 +168,8 @@ fn ending_landed_or_no_change_keeps_no_ending_hold() {
 
 #[test]
 fn a_relay_cannot_hold_an_ended_change() {
-    use temper_engine_domain_forge_change::{Hold, Questions, State};
-    for ended_held in [None, Some(Hold::Repairs)] {
+    use temper_engine_domain_forge_change::{Cause, Questions, State};
+    for ended_held in [None, Some(Cause::Repairs)] {
         let mut row = fixtures::opening_row();
         row.change.state = State::Ended;
         row.change.ended_held = ended_held;
@@ -183,6 +187,32 @@ fn a_relay_cannot_hold_an_ended_change() {
         assert_eq!(saved.change.state, State::Ended);
         assert_eq!(saved.change.ended_held, ended_held);
     }
+}
+
+#[test]
+fn a_refused_relay_keeps_the_existing_hold() {
+    use temper_engine_domain_forge_change as change;
+    let mut row = fixtures::opening_row();
+    let was = row.change.state;
+    let hold = change::Hold {
+        cause: change::Cause::BranchMoved,
+        since: Wall::from_nanos(31),
+        words: b"its branch moved".as_slice().into(),
+        judged: None,
+    };
+    let state = change::State::Held { was: Box::new(was), hold };
+    row.change.state = state.clone();
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    outputs(
+        &mut d,
+        Event::RelayRefused {
+            task: fixtures::CHANGE,
+            questions: change::Questions::default(),
+            words: b"relay failed".as_slice().into(),
+        },
+    );
+    assert_eq!(d.change(fixtures::CHANGE).expect("held change").change.state, state);
 }
 
 /// Reverse ancestry is read once per pair, including uncertain answers (keeping-up.md, 3).
@@ -370,7 +400,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     let mut waiting = false;
     for request in &out {
         assert!(
-            !matches!(request, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }),
+            !matches!(request, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. }),
             "{out:?}"
         );
         if let Request::ChangeDecision { decision: c::Decision::Wait { until: Some(deadline) }, .. } = request {
@@ -382,6 +412,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the connection wait and resumed stall share one read session")]
 fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
     use skein_forge::api::{Answer, Ci, Error};
     use temper_engine_domain_forge_change as c;
@@ -437,7 +468,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
         let waits: Box<[(u64, c::Decision)]> = if titled {
             Box::new([
                 (remaining - 1, c::Decision::Wait { until: Some(until) }),
-                (1, c::Decision::Hold(c::Hold::Stalled)),
+                (1, c::Decision::Hold(c::Cause::Stalled)),
             ])
         } else {
             // The first execution reading after the exemption starts its own clock.
@@ -447,7 +478,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
             Box::new([
                 (0, c::Decision::Wait { until: Some(poll) }),
                 (execution.as_nanos() / 1_000_000_000 - 1, c::Decision::Wait { until: Some(due) }),
-                (1, c::Decision::Hold(c::Hold::Stalled)),
+                (1, c::Decision::Hold(c::Cause::Stalled)),
             ])
         };
         for (elapsed, decision) in waits {
@@ -471,7 +502,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
                 let (call, _) = fixtures::next_at(&mut d, &env);
                 out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
             }
-            if !titled && decision == c::Decision::Hold(c::Hold::Stalled) {
+            if !titled && decision == c::Decision::Hold(c::Cause::Stalled) {
                 let (call, read) = fixtures::next_at(&mut d, &env);
                 assert_eq!(read, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: fixtures::HEAD }));
                 out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Checks(Box::new([]))));
@@ -479,7 +510,13 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
             let mut decided = false;
             for request in &out {
                 decided |= *request
-                    == Request::ChangeDecision { task: fixtures::CHANGE, decision, entry: None, evidence: None };
+                    == Request::ChangeDecision {
+                        task: fixtures::CHANGE,
+                        decision,
+                        entry: None,
+                        evidence: None,
+                        close_at: None,
+                    };
             }
             assert!(decided, "{out:?}");
             assert_eq!(d.change(fixtures::CHANGE).expect("change").change.since, since);
@@ -671,7 +708,7 @@ fn a_numbered_missing_pull_holds_instead_of_opening_another() {
         } else {
             change::State::Opening { requested: false }
         };
-        row.change.released = released.then_some(change::Hold::Stalled);
+        row.change.released = released.then_some(change::Cause::Stalled);
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);
@@ -683,12 +720,15 @@ fn a_numbered_missing_pull_holds_instead_of_opening_another() {
         assert!(matches!(op, Op::Read(Read::Pull { number: 7, .. })), "own pull by number: {op:?}");
         let held = fixtures::answer(&mut d, call, Err(Error::Missing));
         assert!(
-            decided(&held, change::Decision::Hold(change::Hold::PullClosed)),
+            decided(&held, change::Decision::Hold(change::Cause::PullClosed)),
             "numbered Missing holds before policy: {held:?}"
         );
         let row = d.change(fixtures::CHANGE).expect("held change");
         assert_eq!(row.pull, Some(7));
-        assert!(matches!(row.change.state, change::State::Held { why: change::Hold::PullClosed, .. }));
+        assert!(matches!(
+            row.change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::PullClosed, .. }, .. }
+        ));
     }
 }
 
@@ -750,6 +790,9 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
                 },
             },
         );
+        if pending {
+            fixtures::send_write(&mut d, FIRST_ENTRY);
+        }
         let mut later = env();
         later.now = later.now.saturating_add(LIMITS.client.hinted);
         let mut out = Queue::uncapped();
@@ -931,6 +974,7 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
             decision: change::Decision::Ready,
             entry: None,
             evidence: None,
+            close_at: None,
         }),
         "the newest wake unkeeps the change: {finished:?}"
     );
@@ -947,6 +991,7 @@ fn a_lower_chain_waiting_without_an_entry_releases_the_later_entry() {
             decision: temper_engine_domain_forge_change::Decision::Wait { until: Some(WAIT_UNTIL) },
             entry: None,
             evidence: None,
+            close_at: None,
         }),
         "lower wait: {waited:?}"
     );
@@ -1011,7 +1056,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
         [
             Request::Save { .. },
             Request::Marked { tasks },
-            Request::ChangeDecision { task, decision, entry, evidence },
+            Request::ChangeDecision { task, decision, entry, evidence, .. },
             Request::Waits { .. },
         ],
     ) = tail
@@ -1043,6 +1088,7 @@ fn an_unwoken_chain_finishes_with_its_single_decision() {
             decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
             entry: None,
             evidence: None,
+            close_at: None,
         }
     );
     assert_eq!(ready(&mut d).as_ref(), &[]);
@@ -1372,6 +1418,7 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
                 decision: change::Decision::Wait { until: Some(until) },
                 entry: None,
                 evidence: None,
+                close_at: None,
             }),
             "watch {watch:?}, compared {compared}: the pull wake replaces complete gathers, with a deadline: {finished:?}"
         );
@@ -1598,7 +1645,7 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
         fixtures::missing_pull(&mut d);
         let finished = fixtures::finish_missing(&mut d);
         let decision = if expired {
-            change::Decision::Hold(change::Hold::Stalled)
+            change::Decision::Hold(change::Cause::Stalled)
         } else {
             change::Decision::Wait { until: Some(WAIT_UNTIL) }
         };
@@ -1608,6 +1655,7 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
                 decision,
                 entry: None,
                 evidence: None,
+                close_at: None,
             }),
             "title wait: {finished:?}"
         );
@@ -1616,7 +1664,7 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
                 d.change(fixtures::CHANGE).expect("change").change.state,
                 change::State::Held {
                     was: Box::new(change::State::Producing { requested: true }),
-                    why: change::Hold::Stalled,
+                    hold: change::Hold::new(change::Cause::Stalled, env().wall),
                 }
             );
         }
@@ -1822,6 +1870,7 @@ fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
             decision: change::Decision::Wait { until: None },
             entry: None,
             evidence: None,
+            close_at: None,
         }),
         "{finished:?}"
     );
@@ -1831,23 +1880,29 @@ fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
 }
 
 #[test]
-fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending() {
+fn unknown_catch_up_retries_at_backoff_even_with_pending_dependencies() {
     use temper_engine_domain_forge_change as change;
+    let clock = fixtures::gather_clock();
+    let mut out = Queue::uncapped();
     let mut d = delegate_waiting(change::State::Producing { requested: false }, change::Delegate::Produce);
     d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = Some(fixtures::HEAD);
     let since = d.change(fixtures::CHANGE).expect("change").change.since;
-    outputs(&mut d, dependency_step());
-    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
-    fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
-    let finished =
-        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }));
-    let retry = Wall::from_nanos(env().wall.as_nanos() + 1_000_000_000);
+    step(&mut d, &clock, dependency_step(), &mut out);
+    fixtures::answer_next_at(&mut d, &clock, Err(skein_forge::api::Error::Missing));
+    fixtures::answer_next_at(&mut d, &clock, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
+    let finished = fixtures::answer_next_at(
+        &mut d,
+        &clock,
+        Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }),
+    );
+    let retry = fixtures::wall_after(&clock, fixtures::GATHER_BACKOFF);
     assert!(
         finished.contains(&Request::ChangeDecision {
             task: fixtures::CHANGE,
             decision: change::Decision::Wait { until: Some(retry) },
             entry: None,
             evidence: None,
+            close_at: None,
         }),
         "{finished:?}"
     );
@@ -1858,21 +1913,50 @@ fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending()
 
 #[test]
 fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
-    use change::{Hold, State};
+    use change::{Cause, State};
     use temper_engine_domain_forge_change as change;
     let unrequested = State::Producing { requested: false };
     let requested = State::Producing { requested: true };
     for (state, refresh, end) in [
         (unrequested.clone(), true, false),
         (requested.clone(), true, false),
-        (State::Held { was: Box::new(unrequested.clone()), why: Hold::Stalled }, true, true),
-        (State::Held { was: Box::new(requested), why: Hold::Stalled }, false, false),
-        (State::Held { was: Box::new(unrequested.clone()), why: Hold::Questions }, false, false),
-        (State::Held { was: Box::new(State::Checking { head: fixtures::HEAD }), why: Hold::Stalled }, false, false),
+        (
+            State::Held {
+                was: Box::new(unrequested.clone()),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, Wall::EPOCH),
+            },
+            true,
+            true,
+        ),
+        (
+            State::Held {
+                was: Box::new(requested),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, Wall::EPOCH),
+            },
+            false,
+            false,
+        ),
+        (
+            State::Held {
+                was: Box::new(unrequested.clone()),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Questions, Wall::EPOCH),
+            },
+            false,
+            false,
+        ),
+        (
+            State::Held {
+                was: Box::new(State::Checking { head: fixtures::HEAD }),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, Wall::EPOCH),
+            },
+            false,
+            false,
+        ),
         (State::Checking { head: fixtures::HEAD }, false, false),
     ] {
         let mut d = delegate_waiting(state.clone(), change::Delegate::Produce);
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.owns_turn = end;
+        d.refresh_task_hold(fixtures::CHANGE, Some(TaskHold::Change { revision: 3 }));
         let before = d.change(fixtures::CHANGE).expect("change").clone();
         let finished = outputs(&mut d, Event::DependenciesMet { task: fixtures::CHANGE });
         let row = d.change(fixtures::CHANGE).expect("change");
@@ -1885,6 +1969,7 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
                 decision: change::Decision::EndHold,
                 entry: None,
                 evidence: None,
+                close_at: None,
             }),
             end
         );
@@ -1900,6 +1985,9 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
         assert_eq!(saved, refresh);
         if !refresh {
             assert_eq!(*row, before);
+        }
+        if end {
+            assert_engine_release_taken(&mut d);
         }
     }
 }
@@ -1921,7 +2009,8 @@ fn a_live_producer_title_wait_rearms_the_stall() {
             task: fixtures::CHANGE,
             decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
         }),
         "{finished:?}"
     );
@@ -1953,7 +2042,8 @@ fn a_delegate_result_starts_the_stall_at_its_end_but_a_gate_does_not() {
         task: fixtures::CHANGE,
         decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
     }));
     fixtures::missing_pull(&mut d);
     fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
@@ -1977,7 +2067,10 @@ fn a_delegate_result_starts_the_stall_at_its_end_but_a_gate_does_not() {
     );
     assert_eq!(
         d.change(fixtures::CHANGE).expect("change").change.state,
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled }
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            hold: change::Hold::new(change::Cause::Stalled, late.wall)
+        }
     );
 }
 
@@ -2009,8 +2102,12 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
         ),
         (change::State::Producing { requested: false }, change::Delegate::Produce, false),
     ] {
-        let held = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Stalled };
+        let held = change::State::Held {
+            was: Box::new(was.clone()),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        };
         let mut d = delegate_waiting(held.clone(), kind);
+        d.refresh_task_hold(fixtures::CHANGE, Some(TaskHold::Change { revision: 3 }));
         let result = producer_terminal(&mut d, false);
         assert_eq!(d.change(fixtures::CHANGE).expect("change").change.state, if ends { was } else { held });
         assert_eq!(
@@ -2018,21 +2115,35 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
                 task: fixtures::CHANGE,
                 decision: change::Decision::EndHold,
                 entry: None,
-                evidence: None
+                evidence: None,
+                close_at: None,
             }),
             ends
         );
         if ends {
+            assert_engine_release_taken(&mut d);
             assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
         }
     }
+}
+
+fn assert_engine_release_taken(d: &mut Domain) {
+    let task = fixtures::CHANGE;
+    let before = d.change(task).expect("released").clone();
+    assert_eq!(before.task_release, Some(TaskRelease { revision: 3, at: env().wall, measure: false }));
+    let repeated = outputs(d, Event::ReleaseChange { task, release: before.task_release.clone() });
+    assert!(repeated.is_empty(), "no reset or read on deployment's release: {repeated:?}");
+    assert_eq!(d.change(task), Some(&before));
 }
 
 #[test]
 fn a_stalled_producers_title_and_result_open_its_pull_without_release() {
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled },
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        },
         change::Delegate::Produce,
     );
     outputs(
@@ -2056,7 +2167,10 @@ fn a_stalled_producers_title_and_result_open_its_pull_without_release() {
 fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled },
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        },
         change::Delegate::Produce,
     );
     let result = producer_terminal(&mut d, true);
@@ -2064,7 +2178,8 @@ fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
         task: fixtures::CHANGE,
         decision: change::Decision::EndHold,
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
     }));
     assert_eq!(
         d.change(fixtures::CHANGE).expect("change").change.state,
@@ -2075,7 +2190,8 @@ fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
         task: fixtures::CHANGE,
         decision: change::Decision::NoChange,
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
     }));
 }
 
@@ -2085,7 +2201,7 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
     for no_change in [false, true] {
         let held = change::State::Held {
             was: Box::new(change::State::Producing { requested: true }),
-            why: change::Hold::Questions,
+            hold: change::Hold::new(change::Cause::Questions, Wall::EPOCH),
         };
         let mut d = delegate_waiting(held.clone(), change::Delegate::Produce);
         outputs(
@@ -2102,7 +2218,8 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
             task: fixtures::CHANGE,
             decision: change::Decision::EndHold,
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
         }));
         let row = d.change(fixtures::CHANGE).expect("change");
         assert_eq!(row.change.state, held);
@@ -2110,6 +2227,14 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
         assert_eq!(row.report.as_ref(), b"Whole report");
         if no_change {
             assert_eq!(row.producer_failure.as_deref(), Some(b"Nothing applies".as_slice()));
+            outputs(&mut d, waiting_step(false, true));
+            fixtures::missing_pull_reads(&mut d);
+            let finished = fixtures::finish_missing(&mut d);
+            assert!(decided(&finished, change::Decision::NoChange), "{finished:?}");
+            assert_eq!(
+                d.change(fixtures::CHANGE).unwrap().change.state,
+                change::State::NoChange { words: b"Nothing applies".as_slice().into() }
+            );
         } else {
             outputs(&mut d, waiting_step(false, true));
             fixtures::missing_pull_reads(&mut d);
@@ -2131,6 +2256,22 @@ fn opens_pull(requests: &[Request]) -> bool {
 
 // A settled update is interpreted by the top (temper/docs/design/domain/forge/updates.md, 1).
 fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
+    let clock = env();
+    updating_entry_with_attempt(
+        preparing,
+        Some(skein_forge_client::Attempt {
+            sent: clock.now,
+            deadline: clock.now,
+            wall: clock.wall,
+            expires: clock.wall,
+        }),
+    )
+}
+
+fn updating_entry_with_attempt(
+    preparing: bool,
+    attempt: Option<skein_forge_client::Attempt>,
+) -> (Domain, skein_forge_client::Entry) {
     use skein_forge::api::{UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::connected_domain();
@@ -2151,12 +2292,7 @@ fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     entry.effect.write =
         Write::Update { number: 1, style: if preparing { UpdateStyle::Rebase } else { UpdateStyle::Merge } };
     entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: fixtures::BASE };
-    entry.attempt = Some(skein_forge_client::Attempt {
-        sent: env().now,
-        deadline: env().now,
-        wall: env().wall,
-        expires: env().wall,
-    });
+    entry.attempt = attempt;
     outputs(&mut d, Event::Change { row });
     outputs(&mut d, Event::Enqueue { entry: entry.clone() });
     (d, entry)
@@ -2271,15 +2407,35 @@ fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
     const NEW: skein_forge::api::Commit = [5; 32];
     const BASE2: skein_forge::api::Commit = [6; 32];
     for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
-        let (mut d, _) = updating_entry(false);
-        settled_change(&mut d, skein_forge_client::Outcome::Failed(error));
+        let (mut d, _) = updating_entry_with_attempt(false, None);
+        let name = run_branch(b"51");
+        outputs(
+            &mut d,
+            Event::Restore { record: Stored::BranchHead(BranchHead { name, commit: fixtures::HEAD, owned: true }) },
+        );
+        // The outbox admitted the update; persist its first send before letting it go.
+        fixtures::send_write(&mut d, fixtures::OPEN);
+        // Apply the let-go outcome after the client's retry policy has finished.
+        let outcome = skein_forge_client::Outcome::Failed(error);
+        domain::writes::outbox::outcome(&mut d, fixtures::CHANGE, fixtures::OPEN, outcome, &mut Queue::uncapped());
+        settled_change(&mut d, outcome);
         let base = Name {
             forge: REPO.forge,
             repository: REPO.repository,
             what: What::Branch(Box::new([b"main".as_slice().into()])),
         };
         d.heads.insert(base.clone(), BranchHead { name: base, commit: BASE2, owned: false }).unwrap();
+        let mut clock = env();
         fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: NEW, after: fixtures::HEAD, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: NEW, after: fixtures::BASE, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+        outputs(&mut d, fixtures::change_step());
         fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(BASE2)));
         let mut pull = fixtures::open_pull();
@@ -2320,6 +2476,7 @@ fn a_let_go_update_is_decided_again() {
                 decision: temper_engine_domain_forge_change::Decision::None,
                 entry: None,
                 evidence: None,
+                close_at: None,
             }));
             decide_update_again(&mut d, preparing, 2);
         }
@@ -2417,12 +2574,13 @@ fn a_release_of_a_failed_update_drops_its_result() {
             row.pending = None;
             row.effect = effect;
             let was = if update_state { row.change.state } else { change::State::Opening { requested: true } };
-            row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::Failed };
+            row.change.state =
+                change::State::Held { was: Box::new(was), hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH) };
             d.changes.insert(row.task, row).expect("existing change slot");
             outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
             assert_eq!(d.change(fixtures::CHANGE).expect("released").effect, expected);
             if expected == change::EffectResult::None {
-                decide_update_again(&mut d, preparing, 1);
+                decide_update_again(&mut d, preparing, 2);
             }
         }
     }
@@ -2458,10 +2616,12 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
         );
         assert_eq!(
             d.change(fixtures::CHANGE).expect("held change").change.state,
-            change::State::Held { was: Box::new(was), why: change::Hold::Failed }
+            change::State::Held { was: Box::new(was), hold: change::Hold::new(change::Cause::Failed, env().wall) }
         );
         outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
-        decide_update_again(&mut d, preparing, 1);
+        // Failed is not an Updates hold, so releasing it keeps the first attempt's count.
+        assert_eq!(d.change(fixtures::CHANGE).expect("released update").change.updates, 1);
+        decide_update_again(&mut d, preparing, 2);
     }
 }
 
@@ -2478,18 +2638,27 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
             task: fixtures::CHANGE,
             child: 90,
             kind: change::Delegate::Resolve { base: fixtures::BASE },
+            close_at: None,
         },
     );
     outputs(
         &mut d,
-        Event::Delegated { task: fixtures::CHANGE, child: 52, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
+        Event::Delegated {
+            task: fixtures::CHANGE,
+            child: 52,
+            kind: change::Delegate::Repair(change::Repair::Gate(1)),
+            close_at: None,
+        },
     );
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("live change");
     row.change.repairs = 1;
     row.change.resolutions = 1;
-    row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+    };
     outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
-    assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 0);
+    assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 1);
     outputs(&mut d, waiting_step(false, true));
     fixtures::missing_pull_reads(&mut d);
     let made = fixtures::finish_missing(&mut d);
@@ -2498,16 +2667,22 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
             task: fixtures::CHANGE,
             decision: change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(1))),
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
         }),
         "{made:?}"
     );
     outputs(
         &mut d,
-        Event::Delegated { task: fixtures::CHANGE, child: 53, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
+        Event::Delegated {
+            task: fixtures::CHANGE,
+            child: 53,
+            kind: change::Delegate::Repair(change::Repair::Gate(1)),
+            close_at: None,
+        },
     );
     let row = d.change(fixtures::CHANGE).expect("second repair");
-    assert_eq!(row.change.repairs, 1);
+    assert_eq!(row.change.repairs, 2);
     assert_eq!(row.repair_tasks.as_ref(), &[52, 53]);
     assert_eq!(row.resolution_tasks.as_ref(), &[90]);
 }
@@ -2606,12 +2781,12 @@ fn head_ci_contexts_are_read_once_per_gather() {
     reason = "one table checks failed-job reads, classification, bounds and the emitted write"
 )]
 fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
-    use change::{Decision, Delegate, Effect, Hold, Repair};
+    use change::{Cause, Decision, Delegate, Effect, Repair};
     use skein_forge::api::{Answer, Check, Ci, CommitMessage, Conclusion, JobAttempt, Op, Read, Status, Write};
     use temper_engine_domain_forge_change as change;
     let again = Decision::Effect(Effect::Rerun { head: fixtures::HEAD });
     let repair = Decision::Delegate(Delegate::Repair(Repair::Ci));
-    let hold = Decision::Hold(Hold::Runner);
+    let hold = Decision::Hold(Cause::Runner);
     for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, expected, account) in [
         ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
         ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
@@ -2806,6 +2981,112 @@ fn a_moved_base_wakes_a_change_from_its_turn() {
     }
 }
 
+fn held_landing(effect: temper_engine_domain_forge_change::EffectResult) -> (Domain, ChangeRow) {
+    use temper_engine_domain_forge_change as change;
+    let mut d = fixtures::adopted_domain();
+    seen_base(&mut d, fixtures::BASE);
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.pending = None;
+    row.effect = effect;
+    if effect == change::EffectResult::Failed {
+        row.effect_account = Some(EffectAccount { entry: fixtures::OPEN, words: b"merge failed".as_slice().into() });
+    }
+    row.change.ready_since = Some(Wall::EPOCH);
+    row.change.state = change::State::Held {
+        was: Box::new(change::State::Landing { head: fixtures::HEAD }),
+        hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+    };
+    (d, row)
+}
+
+fn gather_open_landing(d: &mut Domain) -> Box<[Request]> {
+    use skein_forge::api::{Answer, Op, Read};
+    fixtures::step_change(d);
+    for (branch, commit) in [(b"temper/51".as_slice(), fixtures::HEAD), (b"main".as_slice(), fixtures::BASE)] {
+        let (call, op) = fixtures::next_call(d);
+        assert_eq!(op, Op::Read(Read::Branch { branch: branch.into() }));
+        fixtures::answer(d, call, Ok(Answer::Commit(commit)));
+    }
+    let (call, op) = fixtures::next_call(d);
+    assert!(matches!(op, Op::Read(Read::Pull { number: 1, .. })));
+    fixtures::answer(d, call, Ok(Answer::Pull(fixtures::open_pull())));
+    fixtures::finish_open(d);
+    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+}
+
+#[test]
+fn releasing_a_failed_merge_retires_its_result_before_the_next_turn() {
+    use temper_engine_domain_forge_change as change;
+    let task = fixtures::CHANGE;
+    let (mut d, row) = held_landing(change::EffectResult::Failed);
+    outputs(&mut d, Event::Change { row });
+    outputs(&mut d, Event::ReleaseChange { task, release: None });
+    gather_open_landing(&mut d);
+    let row = d.change(task).expect("released change");
+    assert_eq!(row.effect, change::EffectResult::None);
+    assert!(row.effect_account.is_none());
+    assert_eq!(row.change.state, change::State::Queued { head: fixtures::HEAD, ready_since: Wall::EPOCH });
+    assert!(row.pending.is_none());
+
+    let proposed = gather_open_landing(&mut d);
+    let mut merge = None;
+    for request in &proposed {
+        if let Request::ChangeDecision { decision, entry, .. } = request {
+            assert_eq!(
+                *decision,
+                change::Decision::Effect(change::Effect::Merge { head: fixtures::HEAD, base: fixtures::BASE })
+            );
+            merge = *entry;
+        }
+    }
+    let entry = merge.expect("fresh merge at the checked head");
+    assert_ne!(entry, fixtures::OPEN);
+    assert_eq!(d.change(task).expect("new merge").pending, Some(entry));
+}
+
+fn assert_release_keeps_unsettled_merge(d: &mut Domain, held: ChangeRow) {
+    use temper_engine_domain_forge_change as change;
+    let task = held.task;
+    outputs(d, Event::Change { row: held.clone() });
+    outputs(d, Event::ReleaseChange { task, release: None });
+    let released = d.change(task).expect("released change");
+    assert_eq!(released.change.state, held.change.state, "readback keeps the predecessor at release");
+    assert_eq!(released.change.released, Some(change::Cause::Failed));
+
+    gather_open_landing(d);
+    let waiting = d.change(task).expect("readback change");
+    assert_eq!(waiting.effect, held.effect);
+    assert_eq!(waiting.effect_account, held.effect_account);
+    assert_eq!(waiting.pending, held.pending);
+    assert_eq!(waiting.change.state, held.change.state, "an open pull is not a settled merge");
+    assert_eq!(waiting.change.released, Some(change::Cause::Failed));
+}
+
+#[test]
+fn releasing_a_pending_merge_keeps_its_readback() {
+    use temper_engine_domain_forge_change::EffectResult;
+    let (mut d, mut row) = held_landing(EffectResult::Pending);
+    row.pending = Some(fixtures::OPEN);
+    assert_release_keeps_unsettled_merge(&mut d, row);
+}
+
+#[test]
+fn releasing_an_uncertain_merge_keeps_its_readback() {
+    use crate::writes::{Operation, WriteState};
+    use temper_engine_domain_forge_change::EffectResult;
+    // A lost outcome can outlive the outbox entry as an uncertain write.
+    let (mut d, row) = held_landing(EffectResult::Failed);
+    let name = run_branch(b"51");
+    let operation = Operation::Merge { pull: 1, head: fixtures::HEAD };
+    let sender = Sender::Entry { task: row.task, entry: fixtures::OPEN };
+    let order = d.admit(&name, operation, sender, &mut Queue::uncapped()).expect("merge intent");
+    d.writes.get_mut(&name).expect("write record").entries.last_mut().expect("merge").state = WriteState::Uncertain;
+
+    assert_release_keeps_unsettled_merge(&mut d, row);
+    assert_eq!(d.write_entry(&name, order).expect("retained merge").state, WriteState::Uncertain);
+}
+
 /// Withdrawal retires the client's pending write before its answer can hold the landed change (change/README.md, 2).
 #[test]
 fn a_containment_landing_withdraws_its_pending_merge() {
@@ -2890,7 +3171,10 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::Failed;
-        row.change.state = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Failed };
+        row.change.state = change::State::Held {
+            was: Box::new(was.clone()),
+            hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+        };
         outputs(&mut d, Event::Change { row });
         outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
         let row = d.change(fixtures::CHANGE).expect("released change");
@@ -2973,7 +3257,7 @@ fn a_gather_restarted_by_news_still_spends_its_steps_stall() {
     for request in &out {
         if let Request::ChangeDecision { task, decision, .. } = request
             && *task == fixtures::CHANGE
-            && *decision == change::Decision::Hold(change::Hold::Stalled)
+            && *decision == change::Decision::Hold(change::Cause::Stalled)
         {
             held = true;
         }
@@ -2981,7 +3265,7 @@ fn a_gather_restarted_by_news_still_spends_its_steps_stall() {
     assert!(held, "restarting is not progress: {out:?}");
     assert!(matches!(
         d.change(fixtures::CHANGE).unwrap().change.state,
-        change::State::Held { why: change::Hold::Stalled, .. }
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
     ));
 }
 
@@ -3000,7 +3284,10 @@ fn a_release_supersedes_an_outstanding_gather_and_ignores_its_late_answer() {
     let mut d = restarted_producing();
     let (old, _) = fixtures::next_call(&mut d);
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("producing");
-    row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Stalled };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+    };
     outputs(&mut d, waiting_step(false, true));
     let (fresh, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
@@ -3011,6 +3298,64 @@ fn a_release_supersedes_an_outstanding_gather_and_ignores_its_late_answer() {
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
     let finished = fixtures::finish_missing(&mut d);
     assert!(built_entry(&finished, fixtures::OPEN + 1), "fresh reads decide: {finished:?}");
+}
+
+#[test]
+fn a_release_reads_back_an_uncertain_update_before_adopting_its_head() {
+    use crate::writes::{Operation, WriteState};
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change::{Cause, GateFailure, Hold, State};
+
+    let task = fixtures::CHANGE;
+    let mut d = restarted_producing();
+    let (old, _) = fixtures::next_call(&mut d);
+    let name = run_branch(b"51");
+    let mut writes = Queue::uncapped();
+    let head = fixtures::HEAD;
+    let newer = [41; 32];
+    let sender = Sender::Entry { task, entry: fixtures::OPEN };
+    d.admit(&name, Operation::Create { after: head }, sender, &mut writes).expect("first head");
+    assert!(matches!(
+        d.observe(&name, Some(head), Actor::Unknown, &mut writes),
+        Seen::Current | Seen::Explained { .. }
+    ));
+    let update = Operation::Update { pull: 1, before: head, base: fixtures::BASE, after: None };
+    let order = d.admit(&name, update, sender, &mut writes).expect("update intent");
+    let record = d.writes.get_mut(&name).unwrap();
+    let written = record.entries.last_mut().expect("admitted write");
+    assert_eq!(written.order, order);
+    written.state = WriteState::Uncertain;
+    let row = d.changes.get_mut(&task).unwrap();
+    row.change.state = State::Held {
+        was: Box::new(State::Gating { head, asked: Box::new([1]) }),
+        hold: Hold::new(Cause::BranchMoved, env().wall),
+    };
+    row.change.gate_failures = Box::new([GateFailure { number: 1, count: 2 }]);
+    row.change.repairs = 5;
+    outputs(&mut d, waiting_step(false, true));
+    let (fresh, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    assert_ne!(fresh, old);
+    fixtures::answer(&mut d, old, Ok(Answer::Commit(head)));
+    let out = fixtures::answer(&mut d, fresh, Ok(Answer::Commit(newer)));
+    assert!(!opens_pull(&out));
+    let row = d.change(task).unwrap();
+    assert!(matches!(row.change.state, State::Held { .. }));
+    assert_eq!(row.change.last_head, Some(head));
+    assert_eq!(row.change.gate_failures.as_ref(), &[GateFailure { number: 1, count: 2 }]);
+    assert!(d.inspection_write_readback(&name, order), "the changed head owes ancestry before re-entry");
+
+    for after in [head, fixtures::BASE] {
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: newer, after, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+    }
+    let written = d.write_entry(&name, order).unwrap();
+    assert_eq!(written.state, WriteState::Confirmed);
+    assert_eq!(
+        written.operation,
+        Operation::Update { pull: 1, before: head, base: fixtures::BASE, after: Some(newer) }
+    );
 }
 
 #[test]
@@ -3066,13 +3411,14 @@ fn only_a_live_askers_question_exempts_a_title_wait() {
         fixtures::missing_pull_reads(&mut d);
         let finished = fixtures::finish_missing(&mut d);
         let expected =
-            if live { change::Decision::Wait { until: None } } else { change::Decision::Hold(change::Hold::Stalled) };
+            if live { change::Decision::Wait { until: None } } else { change::Decision::Hold(change::Cause::Stalled) };
         assert!(
             finished.contains(&Request::ChangeDecision {
                 task: fixtures::CHANGE,
                 decision: expected,
                 entry: None,
                 evidence: None,
+                close_at: None,
             }),
             "live={live}: {finished:?}"
         );
@@ -3189,7 +3535,7 @@ fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change as change;
     let mut d = pull_refused_for_capacity();
-    let mut clock = env();
+    let mut clock = fixtures::gather_clock();
     assert!(fixtures::advance(&mut d, &mut clock, Duration::from_millis(999)).is_empty());
     fixtures::advance(&mut d, &mut clock, Duration::from_millis(1));
     let (pull, op) = fixtures::next_at(&mut d, &clock);
@@ -3275,7 +3621,7 @@ fn capacity_retries_spend_the_gathers_original_stall_deadline() {
     assert!(
         matches!(
             d.change(fixtures::CHANGE).expect("stalled change").change.state,
-            change::State::Held { why: change::Hold::Stalled, .. }
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
         ),
         "the original deadline bounds retries: {stalled:?}"
     );
@@ -3313,6 +3659,13 @@ fn a_repair_claiming_during_a_change_read_keeps_its_own_delivery() {
         },
     );
     let pushed = [9; 32];
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }),
+        },
+    );
+    fixtures::admit_push(&mut d, &name, 52, 1, Some(fixtures::HEAD), pushed);
     outputs(&mut d, Event::Answered { task: 52, attempt: 1, pushed: Box::new([(name, pushed, true)]) });
     fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::HEAD)));
     for _ in 0_u32..16 {

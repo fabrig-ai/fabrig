@@ -12,6 +12,8 @@ use temper_engine_domain::{self as root};
 use temper_engine_domain_forge as forge;
 use temper_engine_forge_world::translate;
 
+pub(crate) const REPOSITORY: &[u8] = b"org/repo";
+
 struct Pending {
     root_call: Token,
     generation: u64,
@@ -405,7 +407,7 @@ impl FakeForge {
         fake::step(
             &mut self.domain,
             &env,
-            fake::Event::Call { reply_to: ReplyTo::new(token), user, repository: b"org/repo".as_slice().into(), op },
+            fake::Event::Call { reply_to: ReplyTo::new(token), user, repository: REPOSITORY.into(), op },
             &mut queue,
         );
         let mut answer = None;
@@ -453,6 +455,22 @@ impl FakeForge {
             }),
         );
     }
+    /// Prepare the worker's commit without making it visible on its branch.
+    pub(crate) fn delivery_commit(&mut self, parent: u64, body: &[u8]) -> u64 {
+        let mut files: Vec<_> = self
+            .domain
+            .object(parent)
+            .expect("delivery parent")
+            .tree
+            .iter()
+            .filter(|(path, _)| path.as_ref() != b"file")
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: b"file".as_slice().into(), content: body.into() });
+        fake::commit_tree(&mut self.domain, &self.config, parent, None, files.into_boxed_slice(), b"")
+            .expect("scripted delivery commit")
+    }
+
     pub fn advance(&mut self, clock: Clock, branch: &[u8], body: &[u8]) -> api::Commit {
         let env =
             Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config.clone() };

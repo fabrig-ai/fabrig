@@ -1,5 +1,5 @@
 //! Temper's task and forge stories, judged outside the engine after every cut.
-use crate::{Config, Temper, observations::Store, scenarios, send};
+use crate::{Config, Temper, link, observations::Store, scenarios, send};
 use jig_conformance::{
     Application, Cut, Harness, Outcome,
     referee::{Promise, Violation},
@@ -125,9 +125,10 @@ fn positive_change(world: &mut World, repair: bool) -> Result<(), Violation> {
         })?;
         let child = change_row(&world.store).and_then(|row| row.delegate).expect("repair requested").0;
         wait(world, |world| world.peers.assignments.iter().any(|run| run.task == child))?;
+        let run = world.peers.assignments.iter().rev().find(|run| run.task == child).expect("repair run").clone();
         let branch = change_row(&world.store).expect("change").branch.clone();
         world.systems.failed = false;
-        let repaired = world.systems.advance(world.clock(), &branch, b"repaired head");
+        let repaired = link::push(world, &run, &branch, b"repaired head")?;
         world.drain()?;
         world.systems.external(
             world.clock(),

@@ -85,3 +85,5 @@
 18. **benchmarks/isolation.md:** isolating attempts, logins, and process trees.
 19. **testing.md:** the testing strategy, fakes, scenarios, checks, and layout.
 20. **testing-tiers.md:** the tiers, including simulated worlds, the real loop, and end to end.
+21. **drawn-agent.md:** what the fake model says in smith's worlds: a body for every tool, the slots, the refusals it targets, its weights.
+22. **shapes.md:** the words in which smith's worlds count the shapes their completions reached.

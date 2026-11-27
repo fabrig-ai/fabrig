@@ -32,6 +32,8 @@ use temper_engine_domain_world::walking;
 use temper_engine_forge_world::translate as api;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::Tree;
+#[cfg(test)]
+use temper_protocol_worker_wire::v1::Record as _;
 use temper_worker_checkout_world::forge::Forge;
 use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
@@ -64,9 +66,11 @@ mod process;
 pub mod provider;
 pub mod restarts;
 mod review;
+pub mod stretches;
 mod two_workers;
 mod walk;
 pub mod workload;
+pub use workload::faults::{CAMPAIGN_KINDS, FaultDraw, GATE_KINDS};
 
 pub use agreement::call;
 pub use delegates::survey_delegation;
@@ -105,6 +109,8 @@ fn task_rows(store: &Store) -> impl Iterator<Item = &tasks::TaskRecord> {
 pub struct Observed {
     /// Provider-decoded wire queries, with the task and composed clock.
     pub queries: Vec<(u64, Time, skein_fake_llm_domain::api::Query)>,
+    /// Transcript checks of opted-in drawn rounds, typed or wire.
+    pub stretches: stretches::Audit,
     /// Limit notices Smith emitted after interpreting the provider's response.
     pub limits: Vec<(u32, Option<Duration>)>,
     pub assignments: usize,
@@ -116,6 +122,10 @@ pub struct Observed {
     pub pieces: usize,
     /// Turns the engine told the worker it keeps.
     pub turn_acks: usize,
+    #[cfg(test)]
+    pub push_asks: Vec<(Token, Token, u64, temper_protocol_worker_wire::v1::Admit)>,
+    #[cfg(test)]
+    pub push_answers: Vec<(Token, Token, u64)>,
     pub relays: usize,
     pub replies: usize,
     /// Settled host replies replayed byte for byte after a lost delivery.
@@ -322,6 +332,10 @@ fn configure(mut config: engine::Config) -> engine::Config {
 /// which fit the engine's charter.
 fn worker_limits() -> worker::Limits {
     let mut limits = temper_worker_domain_world::limits();
+    let largest = temper_protocol_worker_wire::largest(&temper_protocol_worker_wire::v1::CEILINGS)
+        .expect("the application layout fits the link");
+    limits.host.application_ask_bytes = largest.ask;
+    limits.host.application_answer_bytes = largest.answer;
     limits.host.slots = 1;
     limits.host.charter_bytes = 65536;
     limits.agent.charter_bytes = 65536;
@@ -560,7 +574,7 @@ impl World {
         script: Script,
         repository: bool,
         config: engine::Config,
-        limits: fn(&mut engine::Limits),
+        limits: impl FnOnce(&mut engine::Limits),
     ) -> Self {
         Self::configured_case(seed, script, repository, config, limits, (repository_forge(seed), link::default_forge()))
     }
@@ -570,7 +584,7 @@ impl World {
         script: Script,
         repository: bool,
         config: engine::Config,
-        limits: fn(&mut engine::Limits),
+        limits: impl FnOnce(&mut engine::Limits),
         (forge, forge_binding): (Forge, temper_engine_service_vocabulary::settings::Forge),
     ) -> Self {
         let (mut config, mut bounds) = configured_parts(config, repository);
@@ -696,7 +710,9 @@ impl World {
                 self.funded = true;
                 self.fund();
             }
-            if let Some(event) = self.root_events.pop_front() {
+            if let Some(event) = self.workload_close_reply().or_else(|| self.root_events.pop_front())
+                && let Some(event) = self.current_workload_request(event)
+            {
                 self.root_step(event);
             }
             let previous = self.store.applied;
@@ -754,7 +770,8 @@ impl World {
         }
         self.account_observe();
         self.workload_tick();
-        self.workload_fault_tick();
+        let result = self.workload_fault_tick();
+        self.keep_finding(result)?;
         for lane in &mut self.lanes {
             lane.worker.reclaim();
         }
@@ -778,6 +795,7 @@ impl World {
     fn engine_quiet(&self) -> bool {
         self.absence.engine_running
             && self.root_events.is_empty()
+            && !self.workload_close_waiting()
             && self.root_out.is_empty()
             && self.store.idle()
             && self.root.quiescent()
@@ -787,6 +805,7 @@ impl World {
     /// Visit retained bounds before a story's jump or the next grid tick.
     fn try_move_to(&mut self, at: Time) -> Result<(), String> {
         assert!(at >= self.env.now, "the story clock moves forward");
+        let at = self.workload_fetch_deadline().map_or(at, |deadline| at.min(deadline));
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
@@ -868,6 +887,7 @@ impl World {
     }
 
     fn worker_tick(&mut self, at: usize) {
+        self.workload_cut_fetch(at);
         let lane = &mut self.lanes[at];
         if let Some(event) = lane.worker_events.pop_front() {
             worker::step(&mut lane.worker, &lane.worker_env, event, &mut lane.worker_out);
@@ -1259,11 +1279,35 @@ impl World {
                     )]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
-                ask @ engine::HostRequest::Ask { .. } => {
-                    return Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(ask)))));
+                engine::HostRequest::Ask { channel, run, attempt, number, bytes } => {
+                    let asking = engine::wire::Asking { channel, run, attempt, number };
+                    if let Some(event) = temper_engine_domain_world::protocol::push_ask(asking, &bytes) {
+                        return Ok(vec![event]);
+                    }
+                    let limits = &temper_protocol_worker_wire::v1::CEILINGS;
+                    let Some(ask) = temper_engine_service_vocabulary::translate::ask(&bytes, limits) else {
+                        panic!("unscripted application ask");
+                    };
+                    let answer = match ask {
+                        engine::wire::Ask::Results(results) => {
+                            self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::CheckResults {
+                                run,
+                                attempt,
+                                results,
+                            }));
+                            engine::wire::Answer::Kept
+                        }
+                        ask => engine::wire::answer(&self.root, run.raw(), attempt.raw(), ask),
+                    };
+                    temper_engine_service_vocabulary::translate::asked(asking, answer, limits)
                 }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
+                engine::HostDelivery::Asked { asking, answer } => temper_engine_service_vocabulary::translate::asked(
+                    asking,
+                    answer,
+                    &temper_protocol_worker_wire::v1::CEILINGS,
+                ),
                 engine::HostDelivery::Render { to, answer, tool, key, read, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
@@ -1376,6 +1420,20 @@ impl World {
     }
 
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
+        if self.hold_workload_close(call, repository, op) {
+            return;
+        }
+        let reply = self.forge_event(call, repository, op);
+        self.workload_forge_reply(op, reply);
+        self.workload_forge_answer(op);
+    }
+
+    fn forge_event(
+        &mut self,
+        call: Token,
+        repository: skein_forge::api::Repository,
+        op: &skein_forge::api::Op,
+    ) -> engine::Event {
         assert_eq!(repository.forge, self.forge_binding.number);
         let expected = self.walk.as_ref().map_or(temper_engine_forge_world::REPO.repository, |walk| walk.repository);
         assert!(repository.repository == 0 || repository.repository == expected);
@@ -1385,7 +1443,8 @@ impl World {
         let located = temper_engine_forge_world::translate::locate_name(op);
         let name = located.as_deref().unwrap_or(&self.repository_name);
         let raw = api::op(op, client);
-        let result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
+        let reopen = self.workload_reopen_point(name, &raw);
+        let mut result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
             Ok(answer) => {
                 let mut answer = api::answer(op, answer, client);
                 if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
@@ -1409,14 +1468,32 @@ impl World {
                 skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
-        self.workload_forge_reply(
-            op,
-            engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
-                skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
-            ))),
-        );
-        let _moves = self.forge.moves();
-        self.workload_forge_answer(op);
+        let moves = self.forge.moves();
+        if let Some((number, before)) = reopen {
+            self.workload_reopen_after_close(number, before);
+        }
+        match &mut result {
+            Ok(skein_forge::api::Answer::Pull(pull)) => self.workload_base_behind_reply(op, pull),
+            Ok(skein_forge::api::Answer::Merged(to))
+                if matches!(
+                    op,
+                    skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                        how: skein_forge::api::MergeHow::Style | skein_forge::api::MergeHow::FastForwardOnly,
+                        ..
+                    })
+                ) =>
+            {
+                self.workload_base_advance(&moves, *to);
+            }
+            _ => {}
+        }
+        engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered {
+            free: 0,
+            rate: None,
+            call,
+            cost: 1,
+            result,
+        })))
     }
 
     fn lane(&self, channel: Token) -> usize {
@@ -1714,8 +1791,11 @@ impl World {
             "answer {run:?}; current assignment {:?}",
             lane.assignment.as_ref().map(|assignment| assignment.task)
         );
-        if let host::Ending::Refused(_) = &answer.ending {
-            assert!(process.prepared(), "refusal precedes a process");
+        if matches!(
+            &answer.ending,
+            host::Ending::Refused(_) | host::Ending::Failed { failure: host::Failure::Unprepared(_), .. }
+        ) {
+            assert!(process.prepared(), "refusal or failed checkout precedes a process");
         } else {
             match (&answer.ending, process.agent().answer()) {
                 (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
@@ -1768,6 +1848,16 @@ impl World {
     }
 
     fn deliver_link(&mut self, at: usize, down: host::LinkDown) {
+        #[cfg(test)]
+        if let host::LinkDown::Asked { run, attempt, number, answer: host::AskAnswer::Bytes(bytes) } = &down
+            && let Ok(temper_protocol_worker_wire::v1::Answer::Admitted) =
+                temper_protocol_worker_wire::v1::Answer::decode(
+                    &temper_protocol_worker_wire::v1::CEILINGS,
+                    &mut skein_lib::Reader::new(bytes),
+                )
+        {
+            self.observed.push_answers.push((*run, *attempt, *number));
+        }
         if matches!(down, host::LinkDown::Relayed { answer: host::Relayed::Answer { .. }, .. })
             && let Some((pending, previous)) = &mut self.replay
         {
@@ -1803,6 +1893,19 @@ impl World {
                 let answer = temper_worker_service::translate::answer(&bytes, &limits);
                 self.lanes[at].worker_events.push_back(worker::Event::RedsAnswer { owner, check, answer });
             }
+            worker::Request::AdmitAsk { client, cookie, ask } => {
+                let bytes = temper_worker_service::translate::ask(ask);
+                self.lanes[at].worker_events.push_back(worker::Event::AdmitAsk { client, cookie, bytes });
+            }
+            worker::Request::AdmitAnswer { client, cookie, bytes } => {
+                let own = temper_service_core::limits::stock();
+                let limits = temper_worker_service::worker_settings::payload_limits(
+                    &temper_worker_service::worker_settings::Limits::shared(own),
+                )
+                .expect("worker payload limits");
+                let answer = temper_worker_service::translate::answer(&bytes, &limits);
+                self.lanes[at].worker_events.push_back(worker::Event::AdmitAnswer { client, cookie, answer });
+            }
             worker::Request::ReadUsage { .. }
             | worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
@@ -1824,6 +1927,16 @@ impl World {
             }
             worker::Request::Link(up) => {
                 self.remember_call(&up);
+                #[cfg(test)]
+                if let host::LinkUp::Ask { run, attempt, number, bytes } = &up
+                    && let Ok(temper_protocol_worker_wire::v1::Ask::Admit(ask)) =
+                        temper_protocol_worker_wire::v1::Ask::decode(
+                            &temper_protocol_worker_wire::v1::CEILINGS,
+                            &mut skein_lib::Reader::new(bytes),
+                        )
+                {
+                    self.observed.push_asks.push((*run, *attempt, *number, ask));
+                }
                 match &up {
                     host::LinkUp::Turn { .. } => self.observed.turns += 1,
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,
@@ -1881,24 +1994,36 @@ impl World {
                 let activity = worker_protocol::activity(&body);
                 self.lanes[at].worker_events.push_back(worker::Event::Activity { owner, activity });
             }
-            worker::Request::Io { owner, op, .. } => {
+            worker::Request::Io { owner, op, deadline } => {
                 self.observed.checkouts += 1;
                 self.forge.at(self.env.now);
                 let op = forge_operation(op, &self.forge_binding.git);
                 self.observe_merge_fetch(&op);
                 self.observe_close_io(&op);
-                let done = self.workload_io(at, owner, op);
-                self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
-                let _moves = self.forge.moves();
+                let pushed = match &op {
+                    worker::checkout::git::Op::Push { commit, .. } => Some(*commit),
+                    _ => None,
+                };
+                let done = self.workload_io(at, owner, op, deadline);
+                let moves = self.forge.moves();
+                if let Some(to) = pushed
+                    && !moves.is_empty()
+                {
+                    let to = temper_worker_checkout_world::translate::fake(to);
+                    self.workload_base_advance(&moves, temper_engine_forge_world::translate::commit(to));
+                }
+                if let Some(done) = done {
+                    self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
+                }
             }
-            // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
+            worker::Request::CancelIo { owner } => self.workload_cancel_fetch(at, owner),
+            // Diagnostics do not affect the story.
             worker::Request::Paused { .. }
             | worker::Request::Git { .. }
             | worker::Request::AgentSignalled { .. }
             | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }
-            | worker::Request::ResultsIgnored { .. }
-            | worker::Request::CancelIo { .. } => {}
+            | worker::Request::ResultsIgnored { .. } => {}
         }
     }
 

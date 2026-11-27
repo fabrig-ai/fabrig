@@ -49,7 +49,7 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
             turn: true,
             batch: Some(1),
             across: true,
-            library_gate_latency: Some(Duration::from_secs(20)),
+            library_gate_latency: Some(Duration::from_secs(30)),
             forge_branches: Some(8),
             ..StoryLimits::default()
         },
@@ -85,12 +85,8 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
     let branch = repository.push.clone().expect("delivery branch");
     assert_eq!(repository.landing.as_deref(), Some(b"main".as_slice()));
     let base = world.fake.branch(REPOSITORY, b"main").expect("main before either landing");
-    assert_eq!(
-        world.external_at(REPOSITORY, 1, raw::Op::Git(raw::Git::Create { branch: saved.clone(), commit: base })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head = fake::advance(&mut world.fake, &world.fake_env, REPOSITORY, &saved, b"second", b"saved edit", 1)
-        .expect("producer saves its edit");
+    let head = world.worker_commit(base, b"second", b"saved edit");
+    world.run_push(&producer, &saved, head, 1);
     let answer = world.protocol.answer(
         Token::new(7),
         producer.task,
@@ -103,10 +99,7 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
     let retry = next_attempt(&mut world, &producer);
     assert_eq!(retry.saved.as_ref(), [tag]);
     assert!(matches!(&retry.workspace.repositories[0].start, engine::ForgeStart::Saved(name) if *name == saved));
-    assert_eq!(
-        world.external_at(REPOSITORY, 1, raw::Op::Git(raw::Git::PushNew { branch: branch.clone(), commit: head })),
-        raw::Answer::PushNew { existing: None }
-    );
+    world.run_push(&retry, &branch, head, 1);
 
     // The push is on the forge; neither the retry's terminal nor its Parts::pushed has reached the engine.
     world.send(protocol::lost(Token::new(7)));

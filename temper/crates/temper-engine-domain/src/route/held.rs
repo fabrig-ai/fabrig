@@ -149,7 +149,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::StopRun { task, attempt } => {
             emit(decision, &env.limits, Delivery::Fleet(core::Core::stop_run(task, attempt)));
         }
-        core::Held::Store(load) => emit(decision, &env.limits, Delivery::EngineStore(load)),
+        core::Held::Store(_) => {
+            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+        }
         core::Held::Read { reply, answer } => super::kinds::revision_answer(domain, env, decision, reply, answer),
         core::Held::Delivery { watcher, document } => {
             emit(decision, &env.limits, Delivery::Document { watcher, document });

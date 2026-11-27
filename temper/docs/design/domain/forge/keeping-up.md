@@ -331,6 +331,24 @@ before. A gather begun again at each refusal would lose its reads to
 every other caller's while the client is full, keeping a train's
 waiting changes due for minutes (`../landing-turn.md`, 2).
 
+**A gather short of a fact reads again at the client's pace**
+(2026-11-27). A change step whose fresh reads end without a fact its
+decision needs reads again after the forge client's `backoff`
+(`forge.client.backoff_ms`, 1 second as shipped; skein's
+`forge/client.md`, 4.2), the same each time, never doubled: a gather
+whose facts its policy may not use yet, a catch-up whose ancestry read
+unknown, a read that failed and may pass when asked again, and an
+unrequested close missing either of its two tips
+(`change/repairs-releases.md`, 1), which reads them again as a pair even
+where the wake it waited on was coalesced into its step. The pace is a
+named figure, not a wait of its own: a read again is a poll and no bound
+(`../../draft/bounded-waits.md`, 4.1), and the change's step wait bounds
+it, by its stall or its reads' own count (`waits.md`, 4, the last row),
+which no read again moves. A refusal for room (above) and the watch
+set's (1) keep their second: they wait for the client's room, not for a
+fact. Turned down: a figure of the forge's own, a second name for the
+client's pace at which a read that gave no answer is asked again.
+
 An agent's fresh read refused `Busy` by the client's local admission
 returns the host's predecision Busy reply, never a rendered forge-read
 error. The root releases that attempt's read correlation and rendering
@@ -448,10 +466,12 @@ for it, never a read of another kind or another party's.
     prepared; unknown, the landing waits as it does for any fact it lacks;
   - **a goal's closer,** whether its base holds the goal branch's tip
     (`branches.md`, 2): `before` the base's tip, `after` the goal's tip;
-  - **a lost writer's reread,** whether the branch moved forward from the
-    head it last knew (`branches.md`, 1): `before` the observed head, `after` the
-    known one; contained, the move is forward; not contained, it is
-    drift; unknown, the reread fails as any failed reread does.
+  - **a write's readback,** whether a branch's head holds a push's
+    commit, or moved forward from the head a previous build's writer
+    knew, and the record's one comparison of two heads of temper's
+    (`writes.md`, 3 and 4): `before` the observed head, `after` the
+    commit; contained, it holds it; not contained, it doesn't; unknown,
+    the readback is asked again as any failed read is.
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge/forgejo-operations.md`, 1; `skein/docs/design/forge/github-operations.md`, 1.4),
