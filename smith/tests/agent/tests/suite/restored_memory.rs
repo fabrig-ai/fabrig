@@ -161,6 +161,7 @@ fn charter(restoring: bool) -> run::Charter {
         budget: LIMITS.run.budget,
         llm: run::charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: run::charter::Endpoint(0),
@@ -366,6 +367,7 @@ fn copy_prompt(prompt: &llm::Prompt) -> llm::Prompt {
         .collect();
     let copied = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: prompt.purpose,
         choice: prompt.choice.clone(),
         namespace: prompt.namespace.clone(),

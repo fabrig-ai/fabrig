@@ -480,6 +480,7 @@ fn model_change(seed: u64) -> Scripted {
     start.window_llm = Some(record::Llm {
         model: bytes(b"model"),
         effort: Some(bytes(b"low")),
+        speed: None,
         window: 65_536,
         output: 128,
         prices: start.prices,

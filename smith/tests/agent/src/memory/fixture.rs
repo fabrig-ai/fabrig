@@ -147,6 +147,7 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
         budget: run::Budget { turns: 12, ..TIGHT.run.budget },
         llm: Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(0),

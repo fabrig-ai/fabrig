@@ -29,6 +29,7 @@ fn model(llm: boundary::Llm) -> run::charter::Llm {
         endpoint: run::charter::Endpoint(model.endpoint),
         model: model.name,
         effort: model.effort,
+        speed: None,
         window: model.window,
         output: model.output,
     }

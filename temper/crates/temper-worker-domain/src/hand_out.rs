@@ -178,7 +178,7 @@ impl Finish {
                 Finish::Failed { failure: translated, model }
             }
             agent::RunResult::Refused { refusal } => Finish::Refused(match refusal {
-                agent::Refusal::Invalid(why) => StartClass::Invalid(crate::translate::start_cause(*why)),
+                agent::Refusal::Invalid(why) => StartClass::Invalid(crate::translate::start_cause(why)),
                 agent::Refusal::Busy => StartClass::Busy,
             }),
         }

@@ -34,6 +34,8 @@ pub struct Prompt {
     pub model: Box<[u8]>,
     /// Reasoning effort supplied by this session’s LLM.
     pub effort: Option<Box<[u8]>>,
+    /// Provider speed asked for, or none for the provider default.
+    pub speed: Option<Box<[u8]>>,
     /// System instructions supplied by the opener, retained within the enclosing byte cap.
     pub system: Box<[u8]>,
     /// The families of tools the LLM may call, whose schemas the protocol

@@ -38,6 +38,7 @@ fn llm(value: run::charter::Llm, names: &[EndpointName]) -> Option<wire::Llm> {
         account: value.account,
         model: value.model,
         effort: value.effort,
+        speed: None,
         window: value.window,
         output: value.output,
         prices: mapped::prices_to_record(&value.prices),

@@ -2314,7 +2314,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
 fn copy_answer(answer: &run::Answer) -> run::Answer {
     use run::outcome::Declared;
     match answer {
-        run::Answer::Refused(refusal) => run::Answer::Refused(*refusal),
+        run::Answer::Refused(refusal) => run::Answer::Refused(refusal.clone()),
         run::Answer::Parked { spent, turns } => run::Answer::Parked { spent: *spent, turns: *turns },
         run::Answer::Failed { failure, spent, turns } => {
             run::Answer::Failed { failure: failure.clone(), spent: *spent, turns: *turns }
@@ -2402,6 +2402,7 @@ fn main_model(endpoint: u32, window: u32) -> run::charter::Llm {
     use run::charter::{Endpoint, Llm};
     Llm {
         effort: None,
+        speed: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         account: Some(0),
         endpoint: Endpoint(endpoint),

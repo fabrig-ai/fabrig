@@ -286,6 +286,8 @@ pub struct Prompt {
     pub model: Box<[u8]>,
     /// Reasoning effort requested by this activation, absent for the provider default.
     pub effort: Option<Box<[u8]>>,
+    /// Provider speed asked for, or none for the provider default.
+    pub speed: Option<Box<[u8]>>,
     /// System instructions supplied by the opener, retained within the enclosing byte cap.
     pub system: Box<[u8]>,
     /// The families of tools the LLM may call, whose schemas the protocol
@@ -322,6 +324,9 @@ impl Prompt {
         bytes = bytes.checked_add(self.namespace.owned_bytes()?)?.checked_add(self.protocol_allowance)?;
         if let Some(effort) = &self.effort {
             bytes = bytes.checked_add(skein_lib::len_u64(effort.len()))?;
+        }
+        if let Some(speed) = &self.speed {
+            bytes = bytes.checked_add(skein_lib::len_u64(speed.len()))?;
         }
         match &self.choice {
             ToolChoice::Auto | ToolChoice::None => {}

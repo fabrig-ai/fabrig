@@ -190,6 +190,14 @@ pub struct Tools {
     pub shell: bool,
 }
 
+/// A provider speed selected for an LLM, with names it may be served under and their rates.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Speed {
+    pub name: Box<[u8]>,
+    pub also: Box<[Box<[u8]>]>,
+    pub prices: crate::Prices,
+}
+
 /// An LLM to talk to.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Llm {
@@ -209,6 +217,20 @@ pub struct Llm {
     pub window: u32,
     /// Output tokens reserved for one completion, thinking included.
     pub output: u32,
+    /// The speed every completion of this LLM asks for; `None` for the provider's default.
+    pub speed: Option<Speed>,
+}
+
+impl Llm {
+    /// Refuse a speed the configured program cannot request, before opening a run.
+    pub fn check_program_speed(&self, program: &[u8]) -> Result<(), Invalid> {
+        if let Some(speed) = &self.speed
+            && !(program == b"claude_code" && speed.name.as_ref() == b"fast")
+        {
+            return Err(Invalid::ProgramSpeed { speed: speed.name.clone(), program: Box::from(program) });
+        }
+        Ok(())
+    }
 }
 
 /// A provider endpoint the agent is configured with: which provider, where,
@@ -261,13 +283,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
         Ok(sections) if sections <= limits.brief_sections => {}
         Ok(_) | Err(_) => return Err(Invalid::TooLarge),
     }
-    match llm.prices.check() {
-        Ok(()) => {}
-        Err(rate) => return Err(Invalid::Price(rate)),
-    }
-    if !valid_llm(llm, limits.effort_bytes) {
-        return Err(Invalid::Llm);
-    }
+    check_llm(llm, limits.effort_bytes)?;
     let checks = if outcome.change.is_some() || grants.deliver.is_some() { Some(limits.check_timeout) } else { None };
     match crate::budget::admit(budget, *reserve, llm, &limits.budget, checks) {
         Ok(()) => {}
@@ -280,13 +296,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
         return Err(Invalid::Llm);
     }
     for model in models {
-        match model.prices.check() {
-            Ok(()) => {}
-            Err(rate) => return Err(Invalid::Price(rate)),
-        }
-        if !valid_llm(model, limits.effort_bytes) {
-            return Err(Invalid::Llm);
-        }
+        check_llm(model, limits.effort_bytes)?;
     }
     if let Some(conventions) = conventions
         && !crate::conventions::valid(conventions)
@@ -433,10 +443,7 @@ fn has_writable(workspace: Option<&crate::Workspace>) -> bool {
 /// The bytes a charter holds beyond its fixed size: each part held in a box
 /// at its fixed size, plus its payload. `None` past a `u64`.
 pub(crate) fn cost(charter: &Charter) -> Option<u64> {
-    let mut cost = len(&charter.instructions)?.checked_add(len(&charter.llm.model)?)?;
-    if let Some(effort) = &charter.llm.effort {
-        cost = cost.checked_add(len(effort)?)?;
-    }
+    let mut cost = len(&charter.instructions)?.checked_add(llm_cost(&charter.llm)?)?;
     let section_bytes = u64::try_from(size_of::<Section>()).ok()?;
     let sections = skein_lib::len_u64(charter.brief.sections.len());
     cost = cost.checked_add(sections.checked_mul(section_bytes)?)?;
@@ -448,11 +455,8 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
         cost = cost.checked_add(len(&conventions.guide)?)?.checked_add(len(&conventions.checks)?)?;
     }
     let llm = u64::try_from(size_of::<Llm>()).ok()?;
-    for Llm { account: _, endpoint: _, model, window: _, output: _, dialect: _, prices: _, effort } in &charter.models {
-        cost = cost.checked_add(llm)?.checked_add(len(model)?)?;
-        if let Some(effort) = effort {
-            cost = cost.checked_add(len(effort)?)?;
-        }
+    for model in &charter.models {
+        cost = cost.checked_add(llm)?.checked_add(llm_cost(model)?)?;
     }
     let host_tool = u64::try_from(size_of::<HostTool>()).ok()?;
     for tool in &charter.grants.host_tools {
@@ -468,17 +472,63 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
     cost.checked_add(outcome::cost(&charter.outcome)?)
 }
 
-/// Whether an LLM declares positive quantities and a positive price unit.
-fn valid_llm(llm: &Llm, effort_bytes: u32) -> bool {
+fn llm_cost(llm: &Llm) -> Option<u64> {
+    let mut bytes = len(&llm.model)?;
+    if let Some(effort) = &llm.effort {
+        bytes = bytes.checked_add(len(effort)?)?;
+    }
+    if let Some(speed) = &llm.speed {
+        bytes = bytes.checked_add(len(&speed.name)?)?;
+        let cell = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
+        for name in &speed.also {
+            bytes = bytes.checked_add(cell)?.checked_add(len(name)?)?;
+        }
+    }
+    Some(bytes)
+}
+
+fn check_llm(llm: &Llm, effort_bytes: u32) -> Result<(), Invalid> {
+    check_prices(llm.prices)?;
+    if let Some(speed) = &llm.speed {
+        check_prices(speed.prices)?;
+        if !speed_name(&speed.name) || speed.also.len() > 2 {
+            return Err(Invalid::Llm);
+        }
+        for name in &speed.also {
+            if !speed_name(name) {
+                return Err(Invalid::Llm);
+            }
+        }
+    }
     if let Some(effort) = &llm.effort
         && effort.len() > usize::try_from(effort_bytes).expect("effort bound fits usize")
     {
+        return Err(Invalid::Llm);
+    }
+    if llm.window == 0 || llm.output == 0 {
+        return Err(Invalid::Llm);
+    }
+    Ok(())
+}
+
+fn check_prices(prices: crate::Prices) -> Result<(), Invalid> {
+    match prices.check() {
+        Ok(()) if prices.unit != 0 => Ok(()),
+        Ok(()) => Err(Invalid::Llm),
+        Err(rate) => Err(Invalid::Price(rate)),
+    }
+}
+
+fn speed_name(name: &[u8]) -> bool {
+    if name.is_empty() || name.len() > 32 {
         return false;
     }
-    if llm.prices.unit == 0 {
-        return false;
+    for &byte in name {
+        if !(byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'_') {
+            return false;
+        }
     }
-    llm.window > 0 && llm.output > 0
+    true
 }
 
 fn repeated_model(models: &[Llm]) -> bool {

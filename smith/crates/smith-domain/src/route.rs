@@ -1226,6 +1226,7 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
     let account = opening.llm.account;
     let dialect = opening.llm.dialect;
     let prices = opening.llm.prices;
+    let speed = translate::speed(opening.llm.speed.as_ref());
     let budget = opening.budget.spend;
     let (mut transcript, answered) = match opening.transcript {
         Some(binding) => {
@@ -1358,6 +1359,7 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         window_llm,
         dialect,
         prices: translate::prices(prices),
+        speed,
         budget,
         transcript,
         answered: Box::default(),
@@ -1503,9 +1505,11 @@ fn resumed_model(
     match last {
         Some(turn) if turn.model != main.model => {
             let mut quantities = &charter.llm;
+            let mut speed = None;
             for candidate in core::iter::once(&charter.llm).chain(charter.models.iter()) {
                 if candidate.endpoint == main.endpoint && candidate.model == turn.model {
                     quantities = candidate;
+                    speed = translate::speed(candidate.speed.as_ref());
                     break;
                 }
             }
@@ -1515,6 +1519,7 @@ fn resumed_model(
                 window: quantities.window,
                 output: quantities.output,
                 prices: translate::prices(quantities.prices),
+                speed,
             })
         }
         Some(_) | None => None,

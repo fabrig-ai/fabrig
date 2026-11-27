@@ -60,6 +60,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
     use run::outcome::{FieldRule, OutcomeSpec, TextSpec};
     let llm = Llm {
         effort: None,
+        speed: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         dialect: 1,
         account: Some(0),

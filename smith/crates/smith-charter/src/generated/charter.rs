@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 5;
 pub const LAYOUT: [u8; 32] = [
-    0xb3, 0x2a, 0x70, 0x57, 0x85, 0x22, 0x4f, 0xbb, 0x1d, 0xd4, 0xa1, 0x1b, 0xe7, 0x1f, 0x25, 0x44, 0x66, 0x49, 0x41,
-    0xb8, 0x03, 0xf9, 0x26, 0x78, 0x43, 0x46, 0x48, 0x51, 0xb6, 0x27, 0x95, 0x5e,
+    0x21, 0xc5, 0x71, 0x9e, 0xfc, 0x84, 0x8c, 0x30, 0x6e, 0xd8, 0x44, 0xeb, 0x23, 0x85, 0x89, 0xaa, 0x82, 0xc8, 0x6d,
+    0xc6, 0xb5, 0xf3, 0xf6, 0xa6, 0xc1, 0x0f, 0x8c, 0x95, 0xd5, 0x8f, 0x14, 0x56,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -34,6 +34,9 @@ pub struct Limits {
     pub tools_host: u32,
     pub conventions_guide: u32,
     pub conventions_checks: u32,
+    pub speed_name: u32,
+    pub speed_also: u32,
+    pub speed_also_item: u32,
     pub llm_endpoint: u32,
     pub llm_model: u32,
     pub llm_effort_some: u32,
@@ -68,6 +71,9 @@ pub const CEILINGS: Limits = Limits {
     tools_host: 128,
     conventions_guide: 1_024,
     conventions_checks: 1_024,
+    speed_name: 32,
+    speed_also: 2,
+    speed_also_item: 32,
     llm_endpoint: 64,
     llm_model: 128,
     llm_effort_some: 32,
@@ -102,6 +108,9 @@ pub const LIMIT_NAMES: &[&str] = &[
     "tools_host",
     "conventions_guide",
     "conventions_checks",
+    "speed_name",
+    "speed_also",
+    "speed_also_item",
     "llm_endpoint",
     "llm_model",
     "llm_effort_some",
@@ -139,6 +148,9 @@ impl Limits {
             self.tools_host,
             self.conventions_guide,
             self.conventions_checks,
+            self.speed_name,
+            self.speed_also,
+            self.speed_also_item,
             self.llm_endpoint,
             self.llm_model,
             self.llm_effort_some,
@@ -177,6 +189,9 @@ impl Limits {
             tools_host: self.tools_host.min(most),
             conventions_guide: self.conventions_guide.min(most),
             conventions_checks: self.conventions_checks.min(most),
+            speed_name: self.speed_name.min(most),
+            speed_also: self.speed_also.min(most),
+            speed_also_item: self.speed_also_item.min(most),
             llm_endpoint: self.llm_endpoint.min(most),
             llm_model: self.llm_model.min(most),
             llm_effort_some: self.llm_effort_some.min(most),
@@ -213,6 +228,9 @@ const LIMIT_PATHS: &[Path] = &[
     paths::TOOLS_HOST,
     paths::CONVENTIONS_GUIDE,
     paths::CONVENTIONS_CHECKS,
+    paths::SPEED_NAME,
+    paths::SPEED_ALSO,
+    paths::SPEED_ALSO,
     paths::LLM_ENDPOINT,
     paths::LLM_MODEL,
     paths::LLM_EFFORT,
@@ -298,6 +316,10 @@ pub mod paths {
     pub const PRICES_OUTPUT: Path = Path::new("Prices.output");
     pub const PRICES_UNIT: Path = Path::new("Prices.unit");
     pub const PRICES_TAIL: Path = Path::new("Prices (tail)");
+    pub const SPEED_NAME: Path = Path::new("Speed.name");
+    pub const SPEED_ALSO: Path = Path::new("Speed.also");
+    pub const SPEED_PRICES: Path = Path::new("Speed.prices");
+    pub const SPEED_TAIL: Path = Path::new("Speed (tail)");
     pub const LLM_ENDPOINT: Path = Path::new("Llm.endpoint");
     pub const LLM_ACCOUNT: Path = Path::new("Llm.account");
     pub const LLM_MODEL: Path = Path::new("Llm.model");
@@ -305,6 +327,7 @@ pub mod paths {
     pub const LLM_WINDOW: Path = Path::new("Llm.window");
     pub const LLM_OUTPUT: Path = Path::new("Llm.output");
     pub const LLM_PRICES: Path = Path::new("Llm.prices");
+    pub const LLM_SPEED: Path = Path::new("Llm.speed");
     pub const LLM_TAIL: Path = Path::new("Llm (tail)");
     pub const RESERVE_TURNS: Path = Path::new("Reserve.turns");
     pub const RESERVE_TIME: Path = Path::new("Reserve.time");
@@ -1195,6 +1218,65 @@ impl Record for Prices {
     }
 }
 
+// Type: Speed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Speed {
+    pub name: Box<[u8]>,
+    pub also: List<Box<[u8]>>,
+    pub prices: Prices,
+}
+
+// Record: Speed.
+impl Speed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, speed_name) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, speed_also_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, speed_also), item: 1, size: size_of::<Box<[u8]>>() },
+        skein_codec::bounds::Node::Named("Prices"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 45;
+}
+
+impl Record for Speed {
+    type Limits = Limits;
+    const TAIL: Path = paths::SPEED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Speed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Speed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.speed_name.min(CEILINGS.speed_name) }, &self.name, limits, out, paths::SPEED_NAME)?;
+        field::write(field::Sequence { limit: limits.speed_also.min(CEILINGS.speed_also), minimum: 4, item: field::Text { limit: limits.speed_also_item.min(CEILINGS.speed_also_item) } }, &self.also, limits, out, paths::SPEED_ALSO)?;
+        field::write(field::Nested, &self.prices, limits, out, paths::SPEED_PRICES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.speed_name.min(CEILINGS.speed_name) }, limits, reader, paths::SPEED_NAME)?,
+            also: field::read(field::Sequence { limit: limits.speed_also.min(CEILINGS.speed_also), minimum: 4, item: field::Text { limit: limits.speed_also_item.min(CEILINGS.speed_also_item) } }, limits, reader, paths::SPEED_ALSO)?,
+            prices: field::read(field::Nested, limits, reader, paths::SPEED_PRICES)?,
+        })
+    }
+}
+
 // Type: Llm.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Llm {
@@ -1205,6 +1287,7 @@ pub struct Llm {
     pub window: u32,
     pub output: u32,
     pub prices: Prices,
+    pub speed: Option<Speed>,
 }
 
 // Record: Llm.
@@ -1219,11 +1302,13 @@ impl Llm {
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Prices"),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 5, 6, 7, 8] },
+        skein_codec::bounds::Node::Named("Speed"),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 5, 6, 7, 8, 10] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 63;
+    pub const ENCODED_AT_ZERO: u64 = 109;
 }
 
 impl Record for Llm {
@@ -1255,6 +1340,7 @@ impl Record for Llm {
         field::write(field::U32, &self.window, limits, out, paths::LLM_WINDOW)?;
         field::write(field::U32, &self.output, limits, out, paths::LLM_OUTPUT)?;
         field::write(field::Nested, &self.prices, limits, out, paths::LLM_PRICES)?;
+        field::write(field::Optional { item: field::Nested }, &self.speed, limits, out, paths::LLM_SPEED)?;
         Ok(())
     }
 
@@ -1267,6 +1353,7 @@ impl Record for Llm {
             window: field::read(field::U32, limits, reader, paths::LLM_WINDOW)?,
             output: field::read(field::U32, limits, reader, paths::LLM_OUTPUT)?,
             prices: field::read(field::Nested, limits, reader, paths::LLM_PRICES)?,
+            speed: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LLM_SPEED)?,
         })
     }
 }
@@ -1427,7 +1514,7 @@ impl Charter {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 183;
+    pub const ENCODED_AT_ZERO: u64 = 229;
 }
 
 impl Record for Charter {
@@ -1460,7 +1547,7 @@ impl Record for Charter {
         field::write(field::Optional { item: field::Nested }, &self.conventions, limits, out, paths::CHARTER_CONVENTIONS)?;
         field::write(field::Nested, &self.budget, limits, out, paths::CHARTER_BUDGET)?;
         field::write(field::Nested, &self.main, limits, out, paths::CHARTER_MAIN)?;
-        field::write(field::Sequence { limit: limits.charter_models.min(CEILINGS.charter_models), minimum: 47, item: field::Nested }, &self.models, limits, out, paths::CHARTER_MODELS)?;
+        field::write(field::Sequence { limit: limits.charter_models.min(CEILINGS.charter_models), minimum: 48, item: field::Nested }, &self.models, limits, out, paths::CHARTER_MODELS)?;
         field::write(field::Span, &self.waiting, limits, out, paths::CHARTER_WAITING)?;
         field::write(field::Boolean, &self.resume, limits, out, paths::CHARTER_RESUME)?;
         field::write(field::Nested, &self.mode, limits, out, paths::CHARTER_MODE)?;
@@ -1478,7 +1565,7 @@ impl Record for Charter {
             conventions: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CHARTER_CONVENTIONS)?,
             budget: field::read(field::Nested, limits, reader, paths::CHARTER_BUDGET)?,
             main: field::read(field::Nested, limits, reader, paths::CHARTER_MAIN)?,
-            models: field::read(field::Sequence { limit: limits.charter_models.min(CEILINGS.charter_models), minimum: 47, item: field::Nested }, limits, reader, paths::CHARTER_MODELS)?,
+            models: field::read(field::Sequence { limit: limits.charter_models.min(CEILINGS.charter_models), minimum: 48, item: field::Nested }, limits, reader, paths::CHARTER_MODELS)?,
             waiting: field::read(field::Span, limits, reader, paths::CHARTER_WAITING)?,
             resume: field::read(field::Boolean, limits, reader, paths::CHARTER_RESUME)?,
             mode: field::read(field::Nested, limits, reader, paths::CHARTER_MODE)?,
@@ -1753,6 +1840,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Reserve", nodes: Reserve::SHAPE },
     skein_codec::bounds::Declaration { name: "RunResult", nodes: RunResult::SHAPE },
     skein_codec::bounds::Declaration { name: "Section", nodes: Section::SHAPE },
+    skein_codec::bounds::Declaration { name: "Speed", nodes: Speed::SHAPE },
     skein_codec::bounds::Declaration { name: "TextRule", nodes: TextRule::SHAPE },
     skein_codec::bounds::Declaration { name: "Tools", nodes: Tools::SHAPE },
     skein_codec::bounds::Declaration { name: "VerdictRule", nodes: VerdictRule::SHAPE },
@@ -1776,6 +1864,9 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.tools_host,
     CEILINGS.conventions_guide,
     CEILINGS.conventions_checks,
+    CEILINGS.speed_name,
+    CEILINGS.speed_also,
+    CEILINGS.speed_also_item,
     CEILINGS.llm_endpoint,
     CEILINGS.llm_model,
     CEILINGS.llm_effort_some,

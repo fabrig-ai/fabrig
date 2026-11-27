@@ -22,7 +22,7 @@ use crate::boundary::{Answer, End, Exit, Refusal, Request, Returned, RunFailure}
 use crate::run::{self, Conversation, Run};
 
 /// An observation stamped with the injected time of its emitting step.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Fact {
     /// Emission time, preserved when parents drain this observation later.
     pub at: Time,
@@ -31,7 +31,7 @@ pub struct Fact {
 
 /// Something that happened in the run `run` (the run's token for it, as
 /// `Admitted` gives it).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FactKind {
     /// Each host message covered by a told main turn.
     MessageRead { run: Token, name: Token, turn: u32 },
@@ -278,7 +278,7 @@ impl RunFailure {
 }
 
 /// How a run answered.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
     /// Settled idle main parked.
     Parked,
@@ -448,7 +448,7 @@ fn result_of(result: &Returned) -> Option<Return> {
 fn answered(answer: &Answer) -> Answered {
     match answer {
         Answer::Parked { .. } => Answered::Parked,
-        Answer::Refused(refusal) => Answered::Refused(*refusal),
+        Answer::Refused(refusal) => Answered::Refused(refusal.clone()),
         Answer::Accepted { .. } => Answered::Accepted,
         Answer::Failed { failure, .. } => Answered::Failed(failure.kind()),
     }

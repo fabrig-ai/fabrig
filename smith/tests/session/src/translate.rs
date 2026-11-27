@@ -56,6 +56,7 @@ pub(crate) fn query_bounded(prompt: agent::Prompt, tickets: &Tickets, maximum: u
         protocol_allowance: _,
         model,
         effort: _,
+        speed: _,
         system,
         tools,
         namespace,

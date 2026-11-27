@@ -412,7 +412,7 @@ pub fn turn(
 #[must_use]
 pub fn copy_answer(answer: &run::Answer) -> run::Answer {
     match answer {
-        run::Answer::Refused(refusal) => run::Answer::Refused(*refusal),
+        run::Answer::Refused(refusal) => run::Answer::Refused(refusal.clone()),
         run::Answer::Parked { spent, turns } => run::Answer::Parked { spent: *spent, turns: *turns },
         run::Answer::Failed { failure, spent, turns } => {
             run::Answer::Failed { failure: failure.clone(), spent: *spent, turns: *turns }

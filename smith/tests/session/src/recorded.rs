@@ -57,6 +57,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
         },
         dialect: 23,
         prices: PRICES,
+        speed: None,
         budget,
         answered: Box::default(),
         cut: None,

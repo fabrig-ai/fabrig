@@ -90,3 +90,29 @@ fn both_modes_round_trip_in_the_version_five_charter() {
         assert_eq!(Charter::decode(&CEILINGS, &mut Reader::new(&encoded)), Ok(charter));
     }
 }
+
+#[test]
+fn charter_round_trips_main_and_child_speeds_whole() {
+    use smith_charter::{Prices, Speed};
+    let smallest = &crate::support::fixed_values::fixed_value("charter", 5, "record_charter_smallest.bin");
+    let mut charter = Charter::decode(&CEILINGS, &mut Reader::new(smallest)).expect("charter without speed");
+    assert_eq!(charter.main.speed, None);
+    let mut child = charter.main.clone();
+    child.model = b"child".as_slice().into();
+    let mut also = skein_lib::List::with_capacity(1);
+    also.push(b"priority".as_slice().into()).expect("one alias");
+    child.speed = Some(Speed {
+        name: b"fast".as_slice().into(),
+        also,
+        prices: Prices { input: 3, cached: 2, cache_write: Some(4), output: 9, unit: 100 },
+    });
+    charter.main.speed = Some(Speed {
+        name: b"ultrafast".as_slice().into(),
+        also: skein_lib::List::with_capacity(0),
+        prices: Prices { input: 7, cached: 5, cache_write: None, output: 11, unit: 1000 },
+    });
+    charter.models = skein_lib::List::with_capacity(1);
+    charter.models.push(child).expect("one sub-agent model");
+    let encoded = charter.encode(&CEILINGS).expect("bounded charter");
+    assert_eq!(Charter::decode(&CEILINGS, &mut Reader::new(&encoded)), Ok(charter));
+}
