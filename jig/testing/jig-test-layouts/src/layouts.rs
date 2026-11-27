@@ -22,6 +22,8 @@ pub const SETTLING_DROPPING: &str = "family fixture-layouts 2\nenum Choice { kep
 pub const BACK_EARLIER: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { n: u16, choice: Choice }\nversioned record Stable { ok: bool }\n";
 pub const BACK_LATER: &str = "family fixture-layouts 2\nenum Choice { kept, added }\nversioned record Growing { n: u16, choice: Choice, extra: u32 = 0, droppable hint: text 64 = \"\" }\nversioned record Stable { ok: bool }\n";
 pub const BACK_NEWEST: &str = "family fixture-layouts 2\nenum Choice { kept, added }\nversioned record Growing { n: u16, choice: Choice, extra: u32 = 0, droppable hint: text 64 = \"\", tail: u8 = 0 }\nversioned record Stable { ok: bool }\n";
+pub const READ_OLDER: &str = "family fixture-layouts 2\nenum Choice { kept, dropped, another }\nversioned record Growing { choice: Choice }\nversioned record Stable { n: u16 }\n";
+pub const READ_BINARY: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { choice: Choice }\nversioned record Stable { n: u8 }\n";
 
 pub const SETTLED: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { n was old: u16, choice: Choice, added: u8 = 7 }\nversioned record Stable { ok: bool }\n";
 
