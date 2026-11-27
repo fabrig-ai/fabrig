@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
+temper-protocol-member-message.workspace = true
 
 [lints]
 workspace = true

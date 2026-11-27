@@ -1,7 +1,7 @@
 //! A round's ordered stack, committed before delivery (temper/docs/design/domain/worker/jobs.md).
 use super::{Holding, Next, PrepareStep, Tips, borrowed, failure, nth, place, tips_mut};
 use crate::{
-    Candidate, CandidateSpec, Combination, Repository, Start,
+    Candidate, CandidateMember, CandidateSpec, Combination, Repository, Start,
     git::{Commit, Done, Into, Op, Want},
 };
 use alloc::boxed::Box;
@@ -12,6 +12,7 @@ pub(super) struct Stack {
     outcomes: List<Combination>,
     parent: Commit,
     conflict: Option<Combination>,
+    squash_with_head_trailers: Option<Box<[u8]>>,
     pending: Option<Combination>,
     existing: Option<Commit>,
 }
@@ -23,6 +24,7 @@ pub(super) fn new(repositories: &[Repository]) -> Option<Stack> {
             outcomes: List::with_capacity(super::count(request.members.len())),
             parent: request.from,
             conflict: None,
+            squash_with_head_trailers: None,
             pending: None,
             existing: None,
         }),
@@ -47,6 +49,12 @@ fn request(holding: &Holding, repository: u32) -> &CandidateSpec {
     let Start::Prepare { request } = &nth(holding, repository).start else { unreachable!("a prepare stack") };
     request
 }
+fn member(holding: &Holding, repository: u32) -> &CandidateMember {
+    request(holding, repository)
+        .members
+        .get(skein_lib::usize_of(stack(holding).outcomes.len()))
+        .expect("current member")
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) enum Step {
@@ -56,6 +64,7 @@ pub(super) enum Step {
     Checkout,
     Merge,
     Brings,
+    Message,
     Commit { squash: bool },
     Existing,
     SameTree,
@@ -89,16 +98,12 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
         }
         Step::Parent | Step::Member => Op::IsAncestor {
             at,
-            ancestor: if step == Step::Parent {
-                stack.parent
-            } else {
-                request.members.get(skein_lib::usize_of(stack.outcomes.len())).expect("current member").head
-            },
+            ancestor: if step == Step::Parent { stack.parent } else { member(holding, repository).head },
             commit: stack.existing.expect("existing prefix"),
         },
         Step::Head | Step::Upstream | Step::Base => {
             let commit = match step {
-                Step::Head => request.members.get(skein_lib::usize_of(stack.outcomes.len())).expect("next member").head,
+                Step::Head => member(holding, repository).head,
                 Step::Upstream => request.upstream.expect("upstream step"),
                 Step::Base => request.base,
                 Step::Existing
@@ -108,6 +113,7 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
                 | Step::Checkout
                 | Step::Merge
                 | Step::Brings
+                | Step::Message
                 | Step::Commit { .. }
                 | Step::Advance
                 | Step::MainCheckout
@@ -131,42 +137,32 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
             identity: spec.identity,
             account: spec.account,
         },
-        Step::Merge | Step::MainMerge | Step::Brings | Step::Commit { .. } => {
-            let member = request.members.get(skein_lib::usize_of(stack.outcomes.len())).expect("current member");
-            match step {
-                Step::Merge | Step::MainMerge => {
-                    Op::Merge { at, theirs: member.head, identity: spec.identity, account: spec.account }
-                }
-                Step::Brings => Op::Brings {
-                    at,
-                    head: member.head,
-                    base: request.base,
-                    upstream: request.upstream.expect("upstream step"),
-                },
-                Step::Commit { squash } => {
-                    let message = if squash { &member.squash_message } else { &member.message };
-                    Op::Commit {
-                        at,
-                        parent: stack.parent,
-                        merging: if squash { None } else { Some(member.head) },
-                        always: true,
-                        title: message.title.clone(),
-                        body: message.body.clone(),
-                        identity: spec.identity,
-                        snapshot: None,
-                    }
-                }
-                Step::Existing
-                | Step::SameTree
-                | Step::Parent
-                | Step::Member
-                | Step::Head
-                | Step::Upstream
-                | Step::Base
-                | Step::Checkout
-                | Step::Advance
-                | Step::MainCheckout
-                | Step::Restore => unreachable!("member step"),
+        Step::Merge | Step::MainMerge => {
+            Op::Merge { at, theirs: member(holding, repository).head, identity: spec.identity, account: spec.account }
+        }
+        Step::Brings => Op::Brings {
+            at,
+            head: member(holding, repository).head,
+            base: request.base,
+            upstream: request.upstream.expect("upstream step"),
+        },
+        Step::Message => Op::Message { at, commit: member(holding, repository).head },
+        Step::Commit { squash } => {
+            let member = member(holding, repository);
+            let title = if squash {
+                stack.squash_with_head_trailers.as_ref().unwrap_or(&member.squash_message)
+            } else {
+                &member.message
+            };
+            Op::Commit {
+                at,
+                parent: stack.parent,
+                merging: if squash { None } else { Some(member.head) },
+                always: true,
+                title: title.clone(),
+                body: Box::new([]),
+                identity: spec.identity,
+                snapshot: None,
             }
         }
     }
@@ -256,6 +252,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             | Step::Checkout
             | Step::Merge
             | Step::Brings
+            | Step::Message
             | Step::Commit { .. }
             | Step::Advance
             | Step::MainCheckout
@@ -299,12 +296,17 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             | Step::Base
             | Step::Merge
             | Step::Brings
+            | Step::Message
             | Step::Commit { .. }
             | Step::MainMerge => unreachable!("checkout terminal"),
         },
         Done::Merged => match step {
             Step::Merge => {
-                next(repository, if squash && upstream.is_some() { Step::Brings } else { Step::Commit { squash } })
+                if squash && upstream.is_some() {
+                    next(repository, Step::Brings)
+                } else {
+                    commit_member(holding, repository, squash)
+                }
             }
             Step::MainMerge => {
                 let conflict = stack_mut(holding).conflict.take().expect("stack conflict");
@@ -320,6 +322,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             | Step::Base
             | Step::Checkout
             | Step::Brings
+            | Step::Message
             | Step::Commit { .. }
             | Step::Advance
             | Step::MainCheckout
@@ -327,18 +330,27 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
         },
         Done::Brings { brings } => {
             assert_eq!(step, Step::Brings, "contribution terminal");
-            next(repository, Step::Commit { squash: !brings })
+            commit_member(holding, repository, !brings)
+        }
+        Done::Message { message } => {
+            assert!(step == Step::Message, "message terminal");
+            if let Some(message) = message {
+                let squash = &member(holding, repository).squash_message;
+                let composed = temper_protocol_member_message::with_head_trailers(squash, &message);
+                stack_mut(holding).squash_with_head_trailers = Some(composed);
+            }
+            next(repository, Step::Commit { squash: true })
         }
         Done::Committed { commit } => {
             let Step::Commit { squash } = step else { unreachable!("commit terminal") };
-            let member =
-                request.members.get(skein_lib::usize_of(stack(holding).outcomes.len())).expect("current member").number;
-            stack_mut(holding).pending = Some(Combination::Combined { member, commit, squash });
+            let member = member(holding, repository).number;
+            let stack = stack_mut(holding);
+            stack.squash_with_head_trailers = None;
+            stack.pending = Some(Combination::Combined { member, commit, squash });
             next(repository, Step::Existing)
         }
         Done::Conflicted { files, cut } => {
-            let member =
-                request.members.get(skein_lib::usize_of(stack(holding).outcomes.len())).expect("current member").number;
+            let member = member(holding, repository).number;
             let stack = stack_mut(holding);
             match step {
                 Step::Merge if stack.parent != base => {
@@ -362,6 +374,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                 | Step::Base
                 | Step::Checkout
                 | Step::Brings
+                | Step::Message
                 | Step::Commit { .. }
                 | Step::Advance
                 | Step::MainCheckout
@@ -373,10 +386,17 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
         | Done::IsAncestor { .. }
-        | Done::Message { .. }
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected => unreachable!("candidate terminal"),
+    }
+}
+
+fn commit_member(holding: &Holding, repository: u32, squash: bool) -> Next {
+    if squash && member(holding, repository).head_trailers {
+        next(repository, Step::Message)
+    } else {
+        next(repository, Step::Commit { squash })
     }
 }
 
@@ -412,8 +432,10 @@ pub(super) fn fits(repository: &Repository, request: &CandidateSpec, limits: &cr
         }
     }
     for member in &request.members {
-        if !super::message_fits(&member.message, limits) || !super::message_fits(&member.squash_message, limits) {
-            return false;
+        for message in [&member.message, &member.squash_message] {
+            if message.is_empty() || skein_lib::len_u64(message.len()) > u64::from(limits.message_bytes) {
+                return false;
+            }
         }
     }
     true

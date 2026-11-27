@@ -8673,6 +8673,7 @@ name = "temper-worker-domain-checkout"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "temper-protocol-member-message",
 ]
 
 [[package]]

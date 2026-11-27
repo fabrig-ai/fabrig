@@ -53,6 +53,7 @@ pub(super) fn preparation_detail(
                 candidate::Step::MainMerge => b"merge onto round base",
                 candidate::Step::Merge => b"merge member",
                 candidate::Step::Brings => b"compare upstream",
+                candidate::Step::Message => b"read member head message",
                 candidate::Step::Commit { .. } => b"commit candidate",
                 candidate::Step::Existing => b"fetch earlier prefix",
                 candidate::Step::SameTree => b"compare earlier prefix tree",
