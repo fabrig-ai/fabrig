@@ -1,4 +1,7 @@
-use crate::inspect::{Entry, Inspection, Moment, Refused, Release, Table, Wait, Wake, check_tables, check_waits};
+use crate::inspect::{
+    Entry, Inspection, Moment, Refused, Related, Relation, Release, Rule, Side, Table, Wait, Wake, check_relations,
+    check_tables, check_waits,
+};
 use skein_lib::Time;
 
 // The finding fixture from inspection.md, 6.
@@ -200,4 +203,96 @@ fn finding_has_seed_nanoseconds_iteration_component_and_object() {
         engine().finding(MOMENT, TASK_TWELVE, "no live wake"),
         "seed 7: at 120000000 ns, iteration 48: engine task 12: no live wake",
     );
+}
+
+const HOST_CALLS: Relation = Relation {
+    name: "a run's host calls",
+    sides: &[OPEN_CALL, CALL_RECORD, REPLAY_ANSWER, RELAY],
+    rules: &[Rule { each: OPEN_CALL, by: &[CALL_RECORD, REPLAY_ANSWER, RELAY] }],
+};
+const OTHER_CALLS: Relation = Relation { name: "a run's dispatches", sides: HOST_CALLS.sides, rules: &[] };
+const OPEN_CALL: Side = Side { component: "smith", holds: "an open call" };
+const CALL_RECORD: Side = Side { component: "jig", holds: "a call record" };
+const REPLAY_ANSWER: Side = Side { component: "jig", holds: "an answer retained for replay" };
+const RELAY: Side = Side { component: "links", holds: "a relay in flight" };
+const WRONG_HOLDS: Side = Side { component: "smith", holds: "a call record" };
+const CALL_KEY: &str = "task 12 attempt 3 completion 2 position 1";
+const OTHER_POSITION: &str = "task 12 attempt 3 completion 2 position 0";
+const ORPHAN: &str = "seed 7: at 120000000 ns, iteration 48: smith a run's host calls task 12 attempt 3 completion 2 position 1: holds an open call, matched by none of jig's a call record, jig's an answer retained for replay, links' a relay in flight";
+
+fn related_inspection(relation: &'static str, side: Side, key: &str) -> Inspection {
+    let mut inspection = Inspection::new(side.component, &[]);
+    inspection.related(Related { relation, key: key.into(), holds: side.holds });
+    inspection
+}
+
+#[test]
+fn open_call_matches_any_named_side_in_another_inspection() {
+    let smith = related_inspection(HOST_CALLS.name, OPEN_CALL, CALL_KEY);
+    for side in [CALL_RECORD, REPLAY_ANSWER, RELAY] {
+        let matched = related_inspection(HOST_CALLS.name, side, CALL_KEY);
+        assert_eq!(check_relations(&[&smith, &matched], &[&HOST_CALLS], MOMENT), Ok(()));
+    }
+}
+
+#[test]
+fn replay_answer_needs_no_match_of_its_own() {
+    let jig = related_inspection(HOST_CALLS.name, REPLAY_ANSWER, CALL_KEY);
+    assert_eq!(check_relations(&[&jig], &[&HOST_CALLS], MOMENT), Ok(()));
+}
+
+#[test]
+fn declared_relation_can_have_no_records() {
+    let jig = related_inspection(OTHER_CALLS.name, CALL_RECORD, CALL_KEY);
+    assert_eq!(check_relations(&[&jig], &[&HOST_CALLS, &OTHER_CALLS], MOMENT), Ok(()));
+}
+
+#[test]
+fn orphan_names_the_holding_side_and_every_missing_side() {
+    let smith = related_inspection(HOST_CALLS.name, OPEN_CALL, CALL_KEY);
+    assert_eq!(check_relations(&[&smith], &[&HOST_CALLS], MOMENT), Err(ORPHAN.into()));
+}
+
+#[test]
+fn matching_requires_the_same_relation_and_key() {
+    let smith = related_inspection(HOST_CALLS.name, OPEN_CALL, CALL_KEY);
+    for (relation, key) in [(HOST_CALLS.name, OTHER_POSITION), (OTHER_CALLS.name, CALL_KEY)] {
+        let jig = related_inspection(relation, CALL_RECORD, key);
+        assert_eq!(check_relations(&[&smith, &jig], &[&HOST_CALLS, &OTHER_CALLS], MOMENT), Err(ORPHAN.into()));
+    }
+}
+
+#[test]
+fn holds_declared_for_another_component_is_an_undeclared_side() {
+    let smith = related_inspection(HOST_CALLS.name, WRONG_HOLDS, CALL_KEY);
+    assert_eq!(
+        check_relations(&[&smith], &[&HOST_CALLS], MOMENT),
+        Err("seed 7: at 120000000 ns, iteration 48: smith a run's host calls task 12 attempt 3 completion 2 position 1: undeclared side: holds a call record".into()),
+    );
+}
+
+#[test]
+fn record_of_a_relation_not_given_is_a_finding() {
+    let smith = related_inspection(OTHER_CALLS.name, OPEN_CALL, CALL_KEY);
+    assert_eq!(
+        check_relations(&[&smith], &[&HOST_CALLS], MOMENT),
+        Err("seed 7: at 120000000 ns, iteration 48: smith a run's dispatches task 12 attempt 3 completion 2 position 1: holds an open call for an undeclared relation".into()),
+    );
+}
+
+#[test]
+fn findings_follow_relation_then_inspection_then_record_order() {
+    let mut first = related_inspection(OTHER_CALLS.name, OPEN_CALL, CALL_KEY);
+    first.related(Related { relation: HOST_CALLS.name, key: CALL_KEY.into(), holds: OPEN_CALL.holds });
+    first.related(Related { relation: HOST_CALLS.name, key: OTHER_POSITION.into(), holds: WRONG_HOLDS.holds });
+    let second = related_inspection(HOST_CALLS.name, WRONG_HOLDS, OTHER_POSITION);
+    let other = Relation { rules: HOST_CALLS.rules, ..OTHER_CALLS };
+    assert_eq!(check_relations(&[&first, &second], &[&HOST_CALLS, &other], MOMENT), Err(ORPHAN.into()));
+}
+
+#[test]
+fn undeclared_relation_findings_follow_declared_relations() {
+    let mut smith = related_inspection(OTHER_CALLS.name, OPEN_CALL, CALL_KEY);
+    smith.related(Related { relation: HOST_CALLS.name, key: CALL_KEY.into(), holds: OPEN_CALL.holds });
+    assert_eq!(check_relations(&[&smith], &[&HOST_CALLS], MOMENT), Err(ORPHAN.into()));
 }

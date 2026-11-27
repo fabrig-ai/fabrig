@@ -1394,6 +1394,7 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-channel",
+ "smith-faults",
 ]
 
 [[package]]
