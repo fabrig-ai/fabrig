@@ -316,8 +316,9 @@ fn checking_settles_until_the_earlier_window_or_clock_bound() {
 
 #[test]
 fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
+    const SPENT_RESOLUTIONS: u32 = 1;
     let mut c = change(State::Resolving { requested: true, base: BASE });
-    c.resolutions = 1;
+    c.resolutions = SPENT_RESOLUTIONS;
     c.owns_turn = true;
     let mut f = facts();
     f.delegate = Some(Delegate::Resolve { base: BASE });
@@ -330,14 +331,14 @@ fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
         assert_eq!(cancelled.decision, Decision::CancelMovedDelegate { head: NEW });
         assert_eq!(cancelled.change.since, at(1));
         assert_eq!(cancelled.change.last_head, Some(HEAD));
-        assert_eq!(cancelled.change.resolutions, 1);
+        assert_eq!(cancelled.change.resolutions, SPENT_RESOLUTIONS);
         assert!(!cancelled.change.owns_turn);
         assert_eq!(decide(&cancelled.change, &f, &live).decision, Decision::Wait { until: None });
         for mergeable in [Status::Passed, Status::Failed] {
             f.mergeable = mergeable;
             let ended = Heard { delegate: Status::Failed, ..heard() };
             let next = decide(&cancelled.change, &f, &ended);
-            assert_resolution_reread(&next, mergeable, 2);
+            assert_resolution_reread(&next, mergeable, SPENT_RESOLUTIONS + 1);
             f.drift = Some(Cause::BranchMoved);
             let first = decide(&c, &f, &live);
             assert_eq!(first.decision, Decision::CancelMovedDelegate { head: NEW });
@@ -352,9 +353,10 @@ fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
             );
             let released = decide(&held.change, &f, &Heard { released: true, ..ended });
             assert_eq!(released.change.state, State::WaitingProducer { base: BASE });
+            assert_eq!(released.change.resolutions, SPENT_RESOLUTIONS);
             f.drift = None;
             let next = decide(&released.change, &f, &ended);
-            assert_resolution_reread(&next, mergeable, 1);
+            assert_resolution_reread(&next, mergeable, SPENT_RESOLUTIONS + 1);
         }
     }
     f.mergeable = Status::Failed;
@@ -2649,6 +2651,12 @@ fn a_green_head_ends_the_runner_hold() {
             change(State::Held { was: Box::new(state.clone()), hold: crate::Hold::new(Cause::Runner, Wall::EPOCH) });
         let next = decide(&c, &facts(), &heard());
         assert_eq!(next.decision, Decision::EndHold, "{state:?}");
-        assert_eq!(next.change.state, state);
+        // Re-enter gating at the same checked head, with its asks cleared.
+        let expected = if let State::Gating { head, .. } = state {
+            State::Gating { head, asked: Box::new([]) }
+        } else {
+            state.clone()
+        };
+        assert_eq!(next.change.state, expected, "{state:?}");
     }
 }
