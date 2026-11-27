@@ -250,7 +250,10 @@ impl Service {
     /// for `down`; an unmatched or closed route returns the owned update as `Err`.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
-    #[expect(clippy::result_large_err, reason = "both routes return the owned update without allocating")]
+    #[cfg_attr(
+        target_pointer_width = "64",
+        expect(clippy::result_large_err, reason = "both routes return the owned update without allocating")
+    )]
     pub fn target(&self, request: domain::Request) -> Result<(Token, domain::Request), domain::Request> {
         let (token, request) = match request {
             domain::Request::Reply { to, result } => {
