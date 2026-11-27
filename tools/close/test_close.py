@@ -30,10 +30,12 @@ class Close(unittest.TestCase):
         self.git('config', 'user.name', 'Close test')
         self.git('config', 'user.email', 'close@example.test')
         self.git('config', 'commit.gpgsign', 'false')
-        for name in ('.temper/close', 'tools/close/close.py'):
+        for name in ('.temper/close', '.temper/hooks/close', 'tools/close/close.py'):
             target = self.repository / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
+        # Exercise settlement through the hook without running the goal checks.
+        self.write('tools/pre-pr/pre_pr.py', b'import sys\nassert sys.argv[1:] == ["--close"]\n')
 
     def git(self, *args):
         return subprocess.run(['git', *args], cwd=self.repository, env=self.env,

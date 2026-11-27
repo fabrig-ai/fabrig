@@ -160,6 +160,7 @@ fn measurement_charter() -> run::Charter {
         conventions: Some(charter::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: Some(b".temper/hooks".as_slice().into()),
         }),
         words: u32::MAX,
         contract: charter::Contract {

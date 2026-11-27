@@ -94,6 +94,7 @@ impl Disk {
                 | Op::Sync { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
+                | Op::ReadLink { .. }
                 | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
@@ -125,6 +126,7 @@ impl Disk {
                     OpenHow::WriteNoFollow => How::WriteNoFollow,
                     OpenHow::CreateNoFollow { mode } => How::CreateNoFollow { mode: mode.unwrap_or(0o600) },
                     other @ (OpenHow::PathNoFollow
+                    | OpenHow::PathSiblingFile
                     | OpenHow::Read
                     | OpenHow::Directory
                     | OpenHow::Create { .. }
@@ -185,6 +187,7 @@ impl Disk {
             | Op::Append { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
+            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Spawn { .. }

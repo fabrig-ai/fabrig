@@ -215,7 +215,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_039;
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_052;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
             assert_eq!(receiving, 127_391);
@@ -604,6 +604,8 @@ fn measure_turn(number: u32) {
             let request = out.pop().unwrap();
             if let smith_domain::Request::Lower(smith_domain::Lower::Read { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::ProbeHooks { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::HooksProbed { owner, hooks: None }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Probe { owner, .. }) = request {
                 events.push(smith_domain::Event::Below(smith_domain::Below::Probed { owner, executable: false }));
             } else if let smith_domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {

@@ -2296,7 +2296,10 @@ fn merge_preparation_transfers_conflict_paths_and_facts_keep_only_counts() {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
         panic!("ready with conflicts")
     };
-    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"src/a"), bytes(b"src/b")]) }]);
+    assert_eq!(
+        &*conflicts,
+        &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"src/a"), bytes(b"src/b")]), cut: false }]
+    );
     let facts = h.facts();
     assert!(
         facts.as_slice().contains(&Fact::Ended { client: Token::new(1), done: crate::Ending::Conflicted { files: 2 } })
@@ -2764,7 +2767,7 @@ fn a_producers_uncontained_base_still_leaves_a_conflicted_two_parent_merge() {
     let Request::Prepared { prepared: Prepared::Ready { conflicts, .. }, .. } = ready else {
         panic!("ready with conflicts")
     };
-    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"code")]) }]);
+    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"code")]), cut: false }]);
     let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
         panic!("two parent commit")
     };

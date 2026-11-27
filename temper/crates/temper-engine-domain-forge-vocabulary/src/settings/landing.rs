@@ -259,7 +259,7 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
     }
     for (field, path) in [(b"merge_job".as_slice(), &v.merge_job), (b"close_job".as_slice(), &v.close_job)] {
         if let Some(path) = path
-            && !job(path)
+            && !job_path(path)
         {
             return Err(refuse(field, b"must be a relative path of 1 to 4096 bytes without NUL or .. segments"));
         }
@@ -280,7 +280,9 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
     }
     Ok(())
 }
-fn job(path: &[u8]) -> bool {
+/// A relative tooling path, within the setting's path bound.
+#[must_use]
+pub fn job_path(path: &[u8]) -> bool {
     if path.is_empty() || path.len() > 4096 || path.first() == Some(&b'/') || path.contains(&0) {
         return false;
     }

@@ -2912,6 +2912,14 @@ pub enum Event {
         branch: Box<[u8]>,
         base: Box<[u8]>,
     },
+    /// Find the close command at the goal branch's tip for this observed tree.
+    ReadCloserClose {
+        task: u64,
+        step: u64,
+        dependencies: usize,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+    },
     /// A change's task ending before its resources finish releasing.
     ChangeEnding {
         task: u64,

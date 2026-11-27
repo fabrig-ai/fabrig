@@ -552,7 +552,7 @@ pub fn resolution_conflict(pushed: bool) {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
         panic!("resolution ready with conflicts: {ready:?}")
     };
-    assert_eq!(&*conflicts, &[Conflicts { repository: 0, files: Box::new([b"code".as_slice().into()]) }]);
+    assert_eq!(&*conflicts, &[Conflicts { repository: 0, files: Box::new([b"code".as_slice().into()]), cut: false }]);
     let at = translate::path(&temper_worker_domain_checkout::git::Place {
         git: None,
         workspace,
@@ -635,7 +635,7 @@ pub fn refuse_past_the_bound() {
     };
     assert_eq!(client, CLIENT);
     let named = [b"code0", b"code1", b"code2", b"code3"].map(|path| path.as_slice().into());
-    assert_eq!(conflicts.as_ref(), &[Conflicts { repository: 0, files: Box::new(named) }]);
+    assert_eq!(conflicts.as_ref(), &[Conflicts { repository: 0, files: Box::new(named), cut: true }]);
 
     let at = translate::path(&temper_worker_domain_checkout::git::Place {
         git: None,

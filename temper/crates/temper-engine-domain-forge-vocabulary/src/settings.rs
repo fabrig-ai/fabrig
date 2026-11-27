@@ -1238,8 +1238,8 @@ pub mod agents;
 pub(crate) mod landing;
 mod repairs;
 pub use landing::{
-    CARRIER, Flakes, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,
-    landing_record,
+    CARRIER, Flakes, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, job_path,
+    landing_from, landing_record,
 };
 pub use repairs::{
     NamedLater, NamedLlm, NamedModel, RepairGoal, RepairGoalSettings, RepairSettings, Repairs, repairs_heap,

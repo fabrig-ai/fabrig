@@ -172,6 +172,9 @@ pub(super) fn refuse_start(service: &mut Stages, request: &domain::Request) -> b
         Request::Lower(Lower::Io { owner, .. }) => Below::Done { owner: *owner, done: domain::tools::Done::Cancelled },
         Request::Lower(Lower::Read { owner, .. }) => Below::Read { owner: *owner, read: super::run::Read::Failed },
         Request::Lower(Lower::Probe { owner, .. }) => Below::Probed { owner: *owner, executable: false },
+        Request::Lower(Lower::ProbeHooks { owner, .. }) => {
+            Below::HooksProbed { owner: *owner, hooks: Some(domain::run::Hooks::UNREADABLE) }
+        }
         Request::Lower(Lower::Check { owner, .. }) => Below::Checked {
             owner: *owner,
             ran: super::run::Ran {

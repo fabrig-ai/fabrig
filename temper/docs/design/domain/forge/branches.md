@@ -243,11 +243,20 @@ comes and lands its branch, and the report carries what the run said
   task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
-  1. **Close,** where the goal holds a goal branch and its project names
-     a `close_job` (`../../protocol/configuration/engine.md`): a change
+  1. **Close,** where the goal holds a goal branch whose tip has a close
+     command: its `.temper/hooks/close`, or, where the tip holds no
+     `.temper/hooks/`, its project's `close_job`
+     (`../../protocol/hooks.md`, 4.2 and 5;
+     `../../protocol/configuration/engine.md`). Once nothing is pending
+     and the goal's landed changes have not been closed, the closer reads
+     `.temper/hooks/` at the goal's branch's tip, its tip read first; a
+     read with no answer leaves the closer waiting, and it reads again,
+     never skipping the step for it. The step is a change
      into the goal's branch whose producer is the close job, kind 4
      (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
      parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
+     and, where the closer found the hook, its bytes parameter 20 the
+     hook's path (`change/README.md`, 1),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
      changes left out; its words `Settle goal G's status.` The change
@@ -255,8 +264,10 @@ comes and lands its branch, and the report carries what the run said
      no agent, and lands as any change into the branch does; nothing
      staged ends it with no change. A refusal of the close's check holds
      it at once, and a check that broke holds it once its job's tries are
-     spent (`change/repairs-releases.md`, 1). Where the project names none, or the
-     goal holds no goal branch, this step is skipped.
+     spent (`change/repairs-releases.md`, 1). Where the tip has no close
+     command, or the goal holds no goal branch, this step is skipped. A
+     close step superseded by more landed changes reads again for its
+     new change.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
      branch into its base, as the goal's `"branch": "mine"` would make

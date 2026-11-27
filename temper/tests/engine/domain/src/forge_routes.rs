@@ -3608,7 +3608,7 @@ impl World {
             && self.immediate.is_empty()
             && self.pending.is_empty()
             && self.store.idle()
-            && self.change_due()
+            && self.store.has_due_change()
         {
             self.root.next_deadline(&self.env).filter(|due| *due <= self.env.now.saturating_add(Duration::from_secs(1)))
         } else {
@@ -3639,16 +3639,6 @@ impl World {
             return false;
         }
         self.tick_at_now(target, resume, retry.is_some()) || lost
-    }
-
-    fn change_due(&self) -> bool {
-        let live = |task| Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
-        self.store.rows.range(live(u64::MIN)..=live(u64::MAX)).any(|(_, row)| {
-            matches!(row,
-                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
-                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
-                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
-        })
     }
 
     /// Move the story's clock through every kept bound, draining its timers at
