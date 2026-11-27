@@ -37,6 +37,17 @@ init`'s document carries none of them (`../setup/init.md`, 6).
 | kind 8 | for every project: Agents review's table (`../../domain/forge/attention.md`, 6): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency`, `departure` and `findings` asking, which Away may decide; no path set |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../../domain/routing.md`, 7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until `settings.md`, 5's second step, which makes it a setting of temper's, the deployment's |
 
+- **The stock's names** (jig's `domain/engine/settings.md`, 1, Names;
+  `../../draft/ways.md`, 9), each reserved to its item: templates 1
+  `chat`, 2 `goal`, 4 `draft-goal`, 5 `ask-temper`, 6 `design-session`,
+  7 `standing-role`, 8 `milestone`; charters 1 `chat`, 2 `implementer`,
+  4 `reviewer`, 5 `goal`, 9 `status`, 10 `trial`, 11 `ask-temper`, 12
+  `drafter`, 13 `standing-role`, 14 `triager`, 15 `prover`, 16
+  `porter`; policy 1 `stock`. A template keeps as its shown name what the
+  table names it (`goal for a draft`, `ask`, `design session`, `standing
+  role`), and templates 1, 2 and 8 theirs, `chat`, `goal` and
+  `milestone`.
+
 ## 2. Stock charters and project settings
 
 - **Kind 9, each stock charter's words,** given to the forge at each start

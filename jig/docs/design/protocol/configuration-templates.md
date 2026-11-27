@@ -18,7 +18,11 @@
   application passes none (`../domain/engine/settings-store.md`, 1), so they
   take 1 to 32 too.
 - **What each carries,** every field required (`configuration.md`, section 9):
-  - a name, for showing;
+  - its name, or none (`../domain/engine/settings.md`, 1, Names), which
+    a person names it by in a client, and its shown name,
+    `shown`, its words for a person. A document or a settings file in
+    the earlier form, a template with no `shown` member, reads its
+    `name` member as its shown name and gives it no name;
   - the executor: an agent under a charter the template names, by its
     number among the charters member's; or *chosen*, a charter or
     procedure the creator's role may create with, the creator's choice;
@@ -70,7 +74,8 @@
 
 | Field | chat (template 1) | goal (template 2) |
 |---|---|---|
-| name | chat | goal |
+| name | `chat` | `goal` |
+| shown name | chat | goal |
 | executor | an agent under a charter the template names: the application's charter for chats | chosen: a charter or procedure the role may create with |
 | contract | a report | a report |
 | authority | the role's, one level shallower in delegation | the role's, one level shallower in delegation |

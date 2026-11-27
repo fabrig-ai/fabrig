@@ -23,7 +23,11 @@
     a limit; their read position over results; each project's merged
     templates (`requests.md`, 6), and for each with one a `resolved_default: LlmChoice`
     beside them (`defaults`, by the template's number), separate from its
-    configured LLM intent. The preview is what a run's check of a task
+    configured LLM intent, each template with its name, where it has
+    one, and its shown name (`../../../domain/engine/settings.md`, 1,
+    Names); the charters the settings offer that have a name, each its
+    number and name, `charters`, so that a client takes a charter's name
+    from any party, as a template's, and sends its number. The preview is what a run's check of a task
     given none and keeping no account would take now
     (`../../../domain/accounts-uses.md`, 1.3): the first model in charter order with
     an account usable now, at its default
@@ -276,7 +280,9 @@
     (`../../../domain/accounts.md`, sections 3 and 5). It holds no value,
     and the words and screens are the application's.
   - *the settings:* the newest revision's number; each setting, by kind,
-    scope and number, with its name where it has one, whether it
+    scope and number, with its name where it has one (a charter's,
+    template's or policy's, `../../../domain/engine/settings.md`, 1,
+    Names) and a template's shown name, whether it
     follows its default or a change, and the revision that last changed
     it, a reset included, which leaves it following its default from
     that revision; each revision held, with who decided it, when, the proposal it

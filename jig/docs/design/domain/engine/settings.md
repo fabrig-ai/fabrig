@@ -81,6 +81,49 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
     warns of the kept items. An application's own
     kinds numbered by a charter or a template bound their numbers in
     their connectors (5), as their owner designs.
+- **Names.** A charter, a template and a policy has a *name* beside its
+  number, or none: 1 to 32 bytes, `NAME_BYTES`, of lowercase ASCII
+  letters, digits and `-`, starting with a letter, so that a name is
+  never a number; `NAME_BYTES` is a constant of `jig-domain-people`'s
+  settings vocabulary beside `NUMBERS`. A template's words for a person are its
+  *shown name* (`../../protocol/configuration-templates.md`, 1), as a
+  model has a name and a shown name (11). The number stays the
+  setting's key: requests, records, tasks and the references among
+  settings keep numbers, and whoever takes a name from a person
+  resolves it to its number from what it is served: `me`'s templates
+  and charters, and the settings' inventory
+  (`../../client/domain/contract/documents.md`, 1).
+  - *A default's name is the default's:* a default may carry one, and
+    the defaults' names are unique within their kind; a start refuses
+    defaults that break it, as it refuses any default out of shape.
+    Within a kind, a name a default carries is reserved to it, whether
+    the settings offer that default or remove it.
+  - *At a default's number* the name is the default's: a change that
+    sets the setting carries that name or none, and none reads as the
+    default's, so a change stored before names reads with it; an
+    overlay keeps its default's. Another name there is refused.
+  - *A deployment's own item* is set with a name or with none. One with
+    none, set without one or stored before names, is reached by its
+    number alone until a change names it. Its name is refused where a
+    default of its kind has it, or another item of its kind the
+    settings offer. A change setting it with another name renames it:
+    records keep numbers, so a rename moves nothing that ran, and a
+    name given up, by a rename or a removal, may be taken by another
+    item of the same kind.
+  - *A newer build's default* may carry a name a stored own item has. The
+    start offers that item with no name and warns of it, as of a kept
+    item, so the name never refuses a start; an owner names it again.
+  - *Judged by the one check* below: a name out of its form is *shape*,
+    and one taken, by a default or by another item of its kind, is its
+    fault *name*, judged as *range* is, at a set, at a proposal's
+    entrance and at its decision, each judging what its items set and
+    nothing they leave alone. A client words *name* from the setting's
+    kind and number alone: "template 33's name is taken, by a stock
+    template or another of your own".
+  - *Where they travel:* the values of the three kinds carry their name,
+    in the store and on the client's wire, a value stored at an earlier
+    layout reading with none; the engine–worker wire carries none,
+    since a run is given its charter's text and fields, never its name.
 - **Checked whole, by one check.** The core checks settings as a start
   has always checked the document (`../../protocol/configuration-engine.md`, section 1, and `../../protocol/configuration-templates.md`, section 1 and `../../protocol/limits.md`
   ): each value in its shape and within its bound
@@ -106,7 +149,9 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   policy above them), *budget* (a charter's below its reserve or short
   of one costliest completion), *grace* (a template's past the tasks
   child's span), *owner* (a policy's owner role unable to be a root's
-  requester), *range* (a charter, template, policy or model numbered
+  requester), *name* (a charter's, template's or policy's name taken, by
+a default or another item of its kind: Names, above), *range* (a
+charter, template, policy or model numbered
   out of its range, above: each client's words, and an application's
   for its agents' tools, say which line it crossed from the setting's
   kind and number alone, naming the kind and both ranges:
