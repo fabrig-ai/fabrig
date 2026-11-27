@@ -4165,6 +4165,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]
