@@ -99,11 +99,16 @@ fn a_branch_first_watched_after_its_push_keeps_the_recorded_head_for_drift() {
             holders: Box::new([]),
         },
     );
+    fixtures::admit_push(&mut d, &name, TASK, 1, None, fixtures::HEAD);
     send(
         &mut d,
         &env,
         Event::Answered { task: TASK, attempt: 1, pushed: Box::new([(name.clone(), fixtures::HEAD, true)]) },
     );
+    send(&mut d, &env, Event::Finished { task: TASK, attempt: 1, lost: false });
+    let (call, op) = fixtures::next_at(&mut d, &env);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/7".as_slice().into() }));
+    fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::HEAD)));
     assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
     let mut out = send(&mut d, &env, Event::Names { task: TASK, resources: Box::new([name]) });
     resume(&mut d, &env, &mut out);
@@ -239,9 +244,13 @@ fn a_change_waiting_on_the_write_record_keeps_its_bound_through_an_outage() {
         d.admit(&name, Operation::Create { after: head }, attempt, &mut writes).expect("first head");
         assert!(matches!(d.observe(&name, Some(head), Actor::Unknown, &mut writes), Seen::Explained { .. }));
         let order = if readback {
-            let operation = Operation::Update { pull: 1, before: head, base: fixtures::BASE, after: None };
-            let sender = Sender::Entry { task, entry: 2 };
-            d.admit(&name, operation, sender, &mut writes).expect("update intent")
+            use skein_forge::api::{UpdateStyle, Write};
+            let mut entry = status(2, task);
+            entry.effect.write = Write::Update { number: 1, style: UpdateStyle::Merge };
+            entry.effect.condition = skein_forge_client::Condition::Update { head, base: fixtures::BASE };
+            send(&mut d, &env, Event::Enqueue { entry });
+            fixtures::send_write(&mut d, 2);
+            d.nearest_write(&name).expect("sent update intent").order
         } else {
             let operation = Operation::Push { before: Some(head), after: newer };
             let order = d.admit(&name, operation, attempt, &mut writes).expect("second head");

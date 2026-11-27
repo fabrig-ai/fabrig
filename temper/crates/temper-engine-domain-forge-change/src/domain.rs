@@ -76,11 +76,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if standing.released {
         next = released(&next, now);
     }
-    if let Some(head) = facts.branch
-        && change.last_head != Some(head)
-    {
-        next.gate_failures = Box::new([]);
-    }
+    clear_old_gate_failures(&mut next, facts);
     if facts.behind.is_none()
         && let Some(why) = next.released.take()
     {
@@ -294,7 +290,17 @@ fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) ->
     Some(Stepped { took: None, change: change.clone(), decision })
 }
 
+fn clear_old_gate_failures(change: &mut Change, facts: &Facts) {
+    if let Some(head) = facts.branch
+        && change.last_head != Some(head)
+    {
+        change.gate_failures = Box::new([]);
+    }
+}
+
 fn verifying(mut change: Change, merge: [u8; 32], since: Wall, facts: &Facts, cancelled: bool, now: Wall) -> Stepped {
+    // Verification still consumes the fresh head; gate failures belong to the old one.
+    clear_old_gate_failures(&mut change, facts);
     let decision = match facts.verification {
         Verification::Unfollowed => Decision::Finish { merge },
         Verification::Verifying | Verification::Red | Verification::Cleared if cancelled => {

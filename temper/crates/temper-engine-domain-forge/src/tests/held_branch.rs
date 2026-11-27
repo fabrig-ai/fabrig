@@ -662,6 +662,7 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
     for goal_branch in [false, true] {
         for confirms in [false, true] {
             let (mut d, resource) = preparing_domain(goal_branch);
+            fixtures::send_write(&mut d, UPDATE);
             let requests = observed_rebase_tip(&mut d, None);
             assert_eq!(d.hold(&resource).unwrap().drift, None);
             let mut live = None;
@@ -685,6 +686,7 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
                     resources: Box::new([resource.clone()]),
                 },
                 Stored::Entry { entry, held: false },
+                Stored::Flight { task: fixtures::CHANGE, entry: UPDATE },
                 Stored::Writes(d.writes.get(&resource).unwrap().clone()),
                 Stored::Client(skein_forge_client::Stored::Live(live)),
                 Stored::Client(skein_forge_client::Stored::Repository(skein_forge_client::RepositoryRecord {
@@ -702,8 +704,8 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
             outputs(&mut restored, Event::CatchUp);
             // Even a cached mismatch is judged again after restoring the record.
             let (mut call, mut op) = fixtures::next_call(&mut restored);
-            if op == Op::Read(Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None, single: false }) {
-                // The restored update's clock can be out beside the keep's read.
+            if op == (Op::Read(Read::Pull { number: 1, ci: false })) {
+                // The restored update's lookup can be out beside the keep's read.
                 (call, op) = fixtures::next_call(&mut restored);
             }
             assert_eq!(
@@ -712,6 +714,9 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
             );
             fixtures::answer(&mut restored, call, Ok(Answer::Commit(fixtures::BASE)));
             assert_eq!(restored.change(fixtures::CHANGE).unwrap().drift, None);
+            let (call, op) = fixtures::next_call(&mut restored);
+            assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: fixtures::HEAD, page: 1 }));
+            fixtures::answer(&mut restored, call, Ok(design_ancestry(false)));
             let outcome = if confirms {
                 skein_forge_client::Outcome::Made {
                     made: skein_forge_client::Made::Updated(fixtures::BASE),

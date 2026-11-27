@@ -5592,7 +5592,13 @@ fn step_read(
             if !change_reads::keep(d, env, &mut pending, judgement, out) {
                 return;
             }
-            if pending.behind.is_some() {
+            let numbered_missing =
+                if let Some(change_reads::Drift { why: change::Hold::PullClosed, .. }) = pending.drift {
+                    pending.pull.is_none()
+                } else {
+                    false
+                };
+            if pending.behind.is_some() || numbered_missing {
                 finish_step(d, env, pending, out);
                 return;
             }

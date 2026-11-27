@@ -267,7 +267,10 @@ fn a_checked_report_is_kept_below_a_later_unchecked_save() {
 fn a_checked_report_of_the_known_head_sets_it_and_wakes_dependents() {
     let mut d = producing();
     let name = claim(&mut d, 1);
+    fixtures::admit_push(&mut d, &name, CHILD, 1, None, fixtures::HEAD);
     outputs(&mut d, Event::Answered { task: CHILD, attempt: 1, pushed: Box::new([(name, fixtures::HEAD, false)]) });
+    outputs(&mut d, Event::Finished { task: CHILD, attempt: 1, lost: false });
+    fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
     assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_checked, None);
     let name = claim(&mut d, 2);
     d.procedure_wakes.remove(&fixtures::CHANGE);

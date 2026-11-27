@@ -750,6 +750,9 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
                 },
             },
         );
+        if pending {
+            fixtures::send_write(&mut d, FIRST_ENTRY);
+        }
         let mut later = env();
         later.now = later.now.saturating_add(LIMITS.client.hinted);
         let mut out = Queue::uncapped();
@@ -2271,15 +2274,36 @@ fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
     const NEW: skein_forge::api::Commit = [5; 32];
     const BASE2: skein_forge::api::Commit = [6; 32];
     for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
-        let (mut d, _) = updating_entry(false);
-        settled_change(&mut d, skein_forge_client::Outcome::Failed(error));
+        let (mut d, entry) = updating_entry(false);
+        let name = run_branch(b"51");
+        outputs(
+            &mut d,
+            Event::Restore { record: Stored::BranchHead(BranchHead { name, commit: fixtures::HEAD, owned: true }) },
+        );
+        // The outbox admitted the update; persist its first send before letting it go.
+        domain::keep_entry(&mut d, skein_forge_client::Entry { attempt: None, ..entry }, None, &mut Queue::uncapped());
+        fixtures::send_write(&mut d, fixtures::OPEN);
+        // Apply the let-go outcome after the client's retry policy has finished.
+        let outcome = skein_forge_client::Outcome::Failed(error);
+        domain::writes::outbox::outcome(&mut d, fixtures::CHANGE, fixtures::OPEN, outcome, &mut Queue::uncapped());
+        settled_change(&mut d, outcome);
         let base = Name {
             forge: REPO.forge,
             repository: REPO.repository,
             what: What::Branch(Box::new([b"main".as_slice().into()])),
         };
         d.heads.insert(base.clone(), BranchHead { name: base, commit: BASE2, owned: false }).unwrap();
+        let mut clock = env();
         fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: NEW, after: fixtures::HEAD, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: NEW, after: fixtures::BASE, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+        outputs(&mut d, fixtures::change_step());
         fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(BASE2)));
         let mut pull = fixtures::open_pull();
@@ -3313,6 +3337,13 @@ fn a_repair_claiming_during_a_change_read_keeps_its_own_delivery() {
         },
     );
     let pushed = [9; 32];
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }),
+        },
+    );
+    fixtures::admit_push(&mut d, &name, 52, 1, Some(fixtures::HEAD), pushed);
     outputs(&mut d, Event::Answered { task: 52, attempt: 1, pushed: Box::new([(name, pushed, true)]) });
     fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::HEAD)));
     for _ in 0_u32..16 {

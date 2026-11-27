@@ -98,6 +98,10 @@ fn checked_repair(
             other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected {other:?}"),
         };
         if terminal {
+            if let Some(advanced) = advanced {
+                let name = run_branch(b"51");
+                fixtures::admit_push(&mut d, &name, REPAIR, 1, Some(fixtures::HEAD), advanced);
+            }
             if flake {
                 verdict_terminal(&mut d, 52, b"test a::t x passed again");
             } else {

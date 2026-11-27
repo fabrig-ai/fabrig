@@ -1916,6 +1916,7 @@ fn an_open_merge_readback_does_not_make_a_later_design_push_drift() {
     let mut d = watched_design_goal();
     let goal = name(GOAL_BRANCH);
     enqueue_goal_merge(&mut d);
+    fixtures::send_write(&mut d, MERGING);
 
     // The keep sees the train tip advance while the pull view is still open.
     let mut out = Queue::uncapped();

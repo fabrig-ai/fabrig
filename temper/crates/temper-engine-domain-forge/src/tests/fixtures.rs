@@ -1,6 +1,33 @@
 //! Shared adoption and change fixtures.
 use super::*;
 
+/// Admit the worker's push before the fake exposes it to the connector.
+pub fn admit_push(
+    d: &mut Domain,
+    name: &Name,
+    task: u64,
+    attempt: u64,
+    before: Option<skein_forge::api::Commit>,
+    after: skein_forge::api::Commit,
+) {
+    d.admit_push(&env(), name, before, after, Sender::Attempt { task, attempt }, &mut Queue::uncapped())
+        .expect("fixture push is admitted");
+}
+
+/// Save the outbox flight of a write whose forge reply the test scripts.
+pub fn send_write(d: &mut Domain, number: u64) {
+    let mut entry = d.entries.get(&number).expect("admitted outbox entry").entry.clone();
+    let clock = env();
+    entry.start = Some(skein_forge_client::Position { at: clock.now, comment: 0, review: 0, review_page: 1 });
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: clock.now,
+        deadline: clock.now.saturating_add(clock.limits.client.poll),
+        wall: clock.wall,
+        expires: Wall::from_nanos(clock.wall.as_nanos().saturating_add(clock.limits.client.poll.as_nanos())),
+    });
+    domain::keep_entry(d, entry, None, &mut Queue::uncapped());
+}
+
 /// Change reads start after routing has reported access.
 pub fn connected_domain() -> Domain {
     let mut d = domain();

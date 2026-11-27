@@ -214,6 +214,17 @@ fn mark(d: &mut Domain, sender: Sender, progress: Progress, out: &mut Queue<Requ
                     complete(&mut entry.operation, made);
                     WriteState::Confirmed
                 }
+                // A retry's precondition failure does not rule out the earlier update.
+                Progress::Outcome(Outcome::Failed(
+                    skein_forge::api::Error::Timeout
+                    | skein_forge::api::Error::Unavailable
+                    | skein_forge::api::Error::Stale
+                    | skein_forge::api::Error::BaseMoved { .. },
+                )) if entry.state != WriteState::Admitted
+                    && let Operation::Update { .. } = entry.operation =>
+                {
+                    WriteState::Uncertain
+                }
                 Progress::Outcome(Outcome::Failed(_)) => WriteState::Refused,
                 Progress::Outcome(Outcome::Withdrawn) if entry.state == WriteState::Admitted => WriteState::Refused,
                 Progress::Outcome(
