@@ -1,0 +1,499 @@
+#!/usr/bin/env -S python3 -I -B
+"""Run fresh-seed rounds and replays after landing (tools/tiers/campaign.md)."""
+
+import argparse
+from collections import deque
+import contextlib
+from datetime import datetime, timezone
+import io
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import selectors
+import shlex
+import signal
+import subprocess
+import sys
+import tomllib
+import unicodedata
+import xml.etree.ElementTree as ET
+
+
+RUN = 'tools/tiers/run'
+CAMPAIGN = 'SKEIN_TEST_FUZZY_CAMPAIGN'
+CASE = 'SKEIN_TEST_FUZZY_CASE'
+SEED = r'[0-9a-fA-F]{16}'
+CASE_LINE = re.compile(rf'fuzzy case: (\S+) seed ({SEED})(?:: (.*))?')
+COUNT_LINE = re.compile(r'fuzzy cases: (\S+) ([0-9]+)')
+REACH_LINE = re.compile(r'fuzzy reach: (\S+) (\S+/\S+) ([0-9]+)')
+PANIC = re.compile(r"thread '.*' panicked at .*")
+REPORT_ERRORS = (OSError, ValueError, KeyError, TypeError, ET.ParseError)
+
+
+def mix(seed):
+    """One SplitMix64 step (skein-lib's Rng; sweeps.md, 2)."""
+    mask = (1 << 64) - 1
+    z = (seed + 0x9e3779b97f4a7c15) & mask
+    z = ((z ^ (z >> 30)) * 0xbf58476d1ce4e5b9) & mask
+    z = ((z ^ (z >> 27)) * 0x94d049bb133111eb) & mask
+    return z ^ (z >> 31)
+
+
+class Step:
+    """Forward output and interruption, keeping just the diagnostic tail."""
+
+    def __init__(self, name, round_number=None, replay=None):
+        self.name, self.round, self.replay = name, round_number, replay
+        self.process = None
+        self.starting = False
+        self.interrupted = None
+        self.forwarded = False
+        self.returncode = None
+        self.lines = deque(maxlen=20)
+        self.partial = b''
+
+    def interrupt(self, signum, _frame):
+        self.interrupted = self.interrupted or signum
+        if self.process is not None:
+            self.forward_interrupt()
+        elif not self.starting:
+            raise KeyboardInterrupt
+
+    def forward_interrupt(self):
+        if self.interrupted is not None and not self.forwarded:
+            self.forwarded = True
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(self.process.pid, self.interrupted)
+
+    def output(self, data):
+        *lines, self.partial = (self.partial + data).split(b'\n')
+        self.lines.extend(lines)
+
+    def run(self, command, env, *, listing=False):
+        stdout = bytearray()
+        self.starting = True
+        try:
+            self.process = subprocess.Popen(
+                command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE if listing else subprocess.STDOUT, start_new_session=True)
+        finally:
+            self.starting = False
+        self.forward_interrupt()
+        try:
+            with self.process as process, selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ)
+                if listing:
+                    selector.register(process.stderr, selectors.EVENT_READ)
+                while selector.get_map():
+                    for key, _ in selector.select():
+                        data = key.fileobj.read1(65536)
+                        if not data:
+                            selector.unregister(key.fileobj)
+                            continue
+                        self.output(data)
+                        if listing and key.fileobj is process.stdout:
+                            stdout.extend(data)
+                        else:
+                            stream = sys.stderr if listing else sys.stdout
+                            stream.buffer.write(data)
+                            stream.flush()
+                self.returncode = process.wait()
+        finally:
+            self.process = None
+        if self.interrupted is not None:
+            if listing:
+                print(stdout.decode(errors='replace'), end='', flush=True)
+            raise KeyboardInterrupt
+        return stdout.decode(errors='replace')
+
+    def ended(self, name=None):
+        lines = [*self.lines, *([self.partial] if self.partial else [])][-20:]
+        return dict(step=name or self.name, round=self.round, replay=self.replay,
+                    returncode=self.returncode,
+                    output=b'\n'.join(lines).decode(errors='replace'))
+
+
+def listing(step, runner, pair, packages, env):
+    env = dict(env, NEXTEST_DOUBLE_SPAWN='0')
+    runner['wait_for_disk'](env)
+    command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'list',
+               *runner['package_arguments'](packages), '--profile', pair, '--message-format', 'json']
+    print(f'tiers: list {pair} packages: {shlex.join(command)}', flush=True)
+    output = step.run(command, env, listing=True)
+    if step.returncode == 0:
+        offset = 0
+        for line in output.splitlines(keepends=True):
+            if line.startswith('{'):
+                try:
+                    value, end = json.JSONDecoder().raw_decode(output, offset)
+                except ValueError:
+                    pass
+                else:
+                    if isinstance(value, dict) and 'rust-suites' in value:
+                        print(output[:offset] + output[end:].lstrip('\n'), end='', flush=True)
+                        tests = runner['selected_tests'](value)
+                        return [dict(binary=binary, test=test)
+                                for binary, test in sorted({(b, t) for _, b, t in tests})]
+            offset += len(line)
+    print(output, end='', flush=True)
+    if step.returncode == 0:
+        raise ValueError('missing nextest JSON listing')
+    return None
+
+
+def replay_filter(binary, test):
+    # Exact match strings escape nextest's delimiters separately from shell quoting.
+    def escape(name):
+        return re.sub(r'([\\(),])', r'\\\1', name)
+
+    return f'binary_id(={escape(binary)}) & test(={escape(test)})'
+
+
+def panic_message(lines):
+    for i, line in enumerate(lines[:-1]):
+        if PANIC.fullmatch(line):
+            return lines[i + 1] or None
+    return None
+
+
+def read_test(element, key, outcome):
+    lines = [line for tag in ('system-out', 'system-err')
+             for line in (element.findtext(tag) or '').split('\n')]
+    counts, cases, reach = {}, {}, {}
+    for i, line in enumerate(lines):
+        if match := COUNT_LINE.fullmatch(line):
+            identity, n = match.groups()
+            counts[identity] = counts.get(identity, 0) + int(n)
+        elif match := REACH_LINE.fullmatch(line):
+            sweep, kind, n = match.groups()
+            reach[sweep, kind] = reach.get((sweep, kind), 0) + int(n)
+        elif outcome == 'failed' and (match := CASE_LINE.fullmatch(line)):
+            identity, seed, finding = match.groups()
+            case = cases.setdefault((identity, seed.lower()), (i, None))
+            if finding and not case[1]:
+                cases[identity, seed.lower()] = case[0], finding
+
+    test = dict(key, outcome=outcome, time_s=float(element.get('time', '0')),
+                cases=(sum(counts.values()) + sum(identity not in counts for identity, _ in cases)
+                       if counts or cases else None))
+    return test, [(dict(key, identity=identity, seed=seed,
+                        first_line=finding or panic_message(lines[i + 1:]) or 'no message'), lines[i:])
+                  for (identity, seed), (i, finding) in cases.items()], reach, panic_message(lines)
+
+
+def reach_rows(totals):
+    return [dict(sweep=sweep, kind=kind, cases=n) for (sweep, kind), n in sorted(totals.items())]
+
+
+def add_reach(totals, rows):
+    for row in rows:
+        key = row['sweep'], row['kind']
+        totals[key] = totals.get(key, 0) + row['cases']
+
+
+def read_run(directory, code, cpu, limits, pair, selection=()):
+    starved, unfinished = False, set()
+    layers, warnings = [], []
+    try:
+        result = cpu['summary'](directory, limits, pair=pair)
+    except REPORT_ERRORS as error:
+        warnings.append(f'CPU summary refused: {error}')
+        # A refused CPU record doesn't discard JUnit or independent evidence of a wall cut.
+        with contextlib.suppress(OSError, ValueError, AttributeError):
+            starved = json.loads((directory / 'run.json').read_text()).get('starved') is True
+        starved = starved or cpu['timed_out'](directory)
+    else:
+        starved = result['suite']['starved_run'] or bool(result['suite']['starved'])
+        unfinished = {(item['binary_id'], item['test_name']) for item in result['unobserved']}
+        unfinished.update((item['binary_id'], item['test_name'])
+                          for item in result['tests'] if item['starved'])
+        layers, warnings = result['layers'], result['warnings']
+
+    report = directory / 'junit.xml'
+    if not report.exists() and not starved:
+        return None, []
+    tests, cases, failures, reach = [], [], [], {}
+    if report.exists():
+        for suite in ET.parse(report).getroot().findall('testsuite'):
+            if suite.attrib['name'].startswith('@setup-script:'):
+                continue
+            for element in suite.findall('testcase'):
+                binary, name = element.attrib['classname'], element.attrib['name']
+                key = dict(binary=binary, test=name)
+                failure = element.find('failure')
+                error = element.find('error')
+                problem = failure if failure is not None else error
+                timed_out = problem is not None and 'timeout' in problem.get('type', '').lower()
+                if (binary, name) in unfinished or timed_out or element.find('skipped') is not None:
+                    outcome = 'unfinished'
+                else:
+                    outcome = 'passed' if problem is None else 'failed'
+                starved = starved or timed_out
+                test, found, counts, panic = read_test(element, key, outcome)
+                tests.append(test)
+                cases.extend(found)
+                for kind, n in counts.items():
+                    reach[kind] = reach.get(kind, 0) + n
+                if outcome == 'failed' and not found:
+                    message = (failure.get('message', '') if failure is not None else '').split('\n', 1)[0]
+                    failures.append(dict(key, first_line=panic or message or 'no message'))
+    finished = {(test['binary'], test['test']) for test in tests if test['outcome'] != 'unfinished'}
+    return dict(directory=directory.name, returncode=code, starved=starved, tests=tests,
+                cases=[case for case, _ in cases], failures=failures, reach=reach_rows(reach),
+                unfinished=[test for test in selection if (test['binary'], test['test']) not in finished],
+                layers=layers, warnings=warnings), [lines for _, lines in cases]
+
+
+def replay_verdict(case, report, code):
+    if code == 4:
+        return 'unreplayed', 'no test selected (exit 4)', None
+    tests = report['tests']
+    if not tests and report['starved']:
+        return 'unreplayed', 'cut short by the wall', None
+    if len(tests) != 1:
+        return 'unreplayed', f'{len(tests)} tests reported, expected one', None
+    test = tests[0]
+    if (test['binary'], test['test']) != (case['binary'], case['test']):
+        return 'unreplayed', 'another test ran', None
+    if test['outcome'] == 'unfinished':
+        return 'unreplayed', 'test unfinished', None
+    if report['failures']:
+        return 'unreplayed', 'failure outside a case', None
+    if test['cases'] != 1:
+        return 'unreplayed', f"{test['cases'] or 0} cases ran, expected one", None
+    if test['outcome'] == 'passed':
+        return 'passed', None, None
+    found = report['cases']
+    if len(found) == 1 and (found[0]['identity'], found[0]['seed']) == (case['identity'], case['seed']):
+        return 'failed', None, found[0]['first_line']
+    return 'unreplayed', 'another case failed', None
+
+
+def finding_body(data, first_round, finding, output):
+    seeds = ', '.join(f"{item['seed']} (round {item['round']})" for item in finding['seeds'])
+    lines = [f"Commit: {data['commit']}", f"Campaign seed: {data['seed'] or 'drawn'}",
+             f"Round {first_round['round']} seed: {first_round['seed']}", f'Case seeds: {seeds}',
+             f"Replay: {finding['command']}", '', *output]
+    body, remaining = [], 4096
+    for line in lines:
+        remaining -= len(line.encode('utf-8')) + 1
+        if remaining < 0:
+            break
+        body.append(line + '\n')
+    return ''.join(body)
+
+
+def add_finding(data, groups, round_report, case, output):
+    signature = re.sub(r'[0-9]+', 'N', case['first_line'])
+    key = case['binary'], case['test'], signature
+    if key not in groups:
+        title = f"{case['identity']} fails on a fresh seed: {case['first_line']}"
+        title = ''.join(' ' if unicodedata.category(c) == 'Cc' else c for c in title)
+        title = title.encode('utf-8')[:200].decode('utf-8', errors='ignore')
+        finding = {field: case[field] for field in ('binary', 'test', 'identity', 'first_line', 'command')}
+        finding.update(signature=signature, round=round_report['round'], count=0, seeds=[], title=title)
+        groups[key] = finding, round_report, output
+        data['findings'].append(finding)
+    finding, first_round, first_output = groups[key]
+    finding['count'] += 1
+    if len(finding['seeds']) < 8:
+        finding['seeds'].append(dict(seed=case['seed'], round=round_report['round']))
+    finding['body'] = finding_body(data, first_round, finding, first_output)
+
+
+def text_summary(data):
+    def name(test):
+        return f"{test['binary']} {test['test']}"
+
+    def reach_lines(rows):
+        return [f"  {row['sweep']} {row['kind']}: {row['cases']}" for row in rows]
+
+    def case_lines(case):
+        replay = case['replay']
+        outcome = replay['verdict'] or 'pending'
+        detail = replay['why'] or replay['first_line']
+        return [f"  {name(case)}: {case['identity']} seed {case['seed']}: {case['first_line']}",
+                f"    replay {replay['directory'] or '-'}: {outcome}" + (f': {detail}' if detail else ''),
+                f"    {case['command']}"]
+
+    lines = [f"{data['pair']} at {data['commit']}", f"Campaign seed: {data['seed'] or 'drawn'}",
+             f"Rounds: {len(data['rounds'])} of {data['rounds_asked']}"]
+    for report in data['rounds']:
+        lines.extend(['', f"Round {report['round']} seed {report['seed']} ({report['directory']}), "
+                           f"exit {report['returncode']}" + (', starved' if report['starved'] else '')])
+        for test in report['tests']:
+            cases = f"{test['cases']} cases" if test['cases'] is not None else 'took no case'
+            lines.append(f"  {name(test)}: {test['outcome']}, {cases} ({test['time_s']:g} s)")
+        for case in report['cases']:
+            lines.extend(case_lines(case))
+        for failure in report['failures']:
+            lines.append(f"  Failure outside a case: {name(failure)}: {failure['first_line']}")
+        lines.extend(['  Reach:', *reach_lines(report['reach'])])
+        lines.extend(f'  Unfinished: {name(test)}' for test in report['unfinished'])
+        for row in report['layers']:
+            lines.append(f"  CPU {row['tree']} {row['layer']}: {row['cpu_s']:.6f} s"
+                         f" (ceiling {row['ceiling_s'] if row['ceiling_s'] is not None else 'unset'})")
+        lines.extend(f'  Warning: {warning}' for warning in report['warnings'])
+    lines.extend(['', 'Findings:'])
+    for finding in data['findings']:
+        lines.extend([finding['title'], finding['body'].rstrip('\n')])
+    for key, label in (('nonreplaying', 'Cases that did not replay'), ('unreplayed', 'Unreplayed cases')):
+        lines.extend(['', f'{label}:'])
+        for case in data[key]:
+            lines.extend([f"  From round-{case['round']}:", *case_lines(case)])
+    lines.extend(['', 'Total reach:', *reach_lines(data['reach']), 'Kinds that fell in no case:'])
+    lines.extend(f"  {row['sweep']} {row['kind']}" for row in data['never_fell'])
+    if ended := data['ended']:
+        lines.extend(['', f"Ended at {ended['step']} (round {ended['round']}, replay {ended['replay']}, "
+                          f"exit {ended['returncode']})", ended['output']])
+    return '\n'.join(lines) + '\n'
+
+
+def save(directory, data):
+    for name, content in (('campaign.json', json.dumps(data, indent=2, ensure_ascii=False) + '\n'),
+                          ('summary.txt', text_summary(data))):
+        temporary = directory / (name + '.tmp')
+        temporary.write_text(content, encoding='utf-8')
+        temporary.replace(directory / name)
+
+
+def campaign(directory, data, runner, cpu, limits, packages, env):
+    groups, totals = {}, {}
+    failed = False
+    tree, pair = data['tree'], data['pair']
+    step = Step('listing')
+
+    def interrupt(signum, frame):
+        step.interrupt(signum, frame)
+
+    def end(reason=None):
+        data['ended'] = step.ended(reason)
+        save(directory, data)
+        print(f"campaign: ended at {data['ended']['step']}: {data['ended']['output']}", file=sys.stderr)
+        return 2
+
+    try:
+        for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            signal.signal(sig, interrupt)
+        selection = listing(step, runner, pair, packages, env)
+        if selection is None:
+            return end()
+        data['selection'] = selection
+        save(directory, data)
+        for r in range(1, data['rounds_asked'] + 1):
+            step = Step('round', r)
+            seed = (mix(mix(int(data['seed'], 16)) ^ r) if data['seed'] is not None
+                    else int.from_bytes(os.urandom(8), 'big'))
+            seed = f'{seed:016x}'
+            print(f"campaign: round {r} of {data['rounds_asked']} seed {seed}", flush=True)
+            out = directory / f'round-{r}'
+            round_env = dict(env, **{CAMPAIGN: seed})
+            round_env.pop(CASE, None)
+            step.run([RUN, '--cpu', str(out), tree, 'campaign'], round_env)
+            report, outputs = read_run(out, step.returncode, cpu, limits, pair, selection)
+            if report is None:
+                return end()
+            report.update(round=r, seed=seed)
+            expressions = []
+            for case in report['cases']:
+                expression = replay_filter(case['binary'], case['test'])
+                expressions.append(expression)
+                case['command'] = (f'{CASE}={case["seed"]} '
+                                   + shlex.join([RUN, tree, 'campaign', '--', '-E', expression]))
+                case['replay'] = dict(directory=None, verdict=None, why=None, first_line=None)
+            failed |= bool(report['cases'] or report['failures'])
+            data['rounds'].append(report)
+            add_reach(totals, report['reach'])
+            data['reach'] = reach_rows(totals)
+            data['never_fell'] = [dict(sweep=sweep, kind=kind) for (sweep, kind), n in sorted(totals.items()) if n == 0]
+            save(directory, data)
+            for k, (case, output, expression) in enumerate(zip(report['cases'], outputs, expressions), 1):
+                step = Step('replay', r, k)
+                out = directory / f'round-{r}-replay-{k}'
+                case['replay']['directory'] = out.name
+                replay_env = dict(env, **{CASE: case['seed']})
+                replay_env.pop(CAMPAIGN, None)
+                step.run([RUN, '--cpu', str(out), tree, 'campaign', '--', '-E', expression], replay_env)
+                replay, _ = read_run(out, step.returncode, cpu, limits, pair)
+                if replay is None and step.returncode != 4:
+                    return end()
+                verdict, why, first_line = replay_verdict(case, replay, step.returncode)
+                case['replay'].update(verdict=verdict, why=why, first_line=first_line)
+                if verdict == 'failed':
+                    add_finding(data, groups, report, case, output)
+                else:
+                    data['nonreplaying' if verdict == 'passed' else 'unreplayed'].append(dict(case, round=r))
+                save(directory, data)
+        return int(failed)
+    except KeyboardInterrupt:
+        return end('interrupted')
+    except REPORT_ERRORS + (subprocess.SubprocessError,) as error:
+        step.output(f'\n{error}\n'.encode('utf-8', errors='replace'))
+        return end()
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('tree', choices=('skein', 'smith', 'jig', 'temper', 'hearth'))
+    parser.add_argument('--rounds', default=1, type=int, metavar='N')
+    parser.add_argument('--seed')
+    parser.add_argument('--out', type=Path, metavar='DIR')
+    args = parser.parse_args()
+    if args.rounds <= 0:
+        parser.error('--rounds must be a positive integer')
+    if args.seed is not None and not re.fullmatch(SEED, args.seed):
+        parser.error('--seed must be sixteen hex digits with no prefix')
+
+    def interrupt(_signum, _frame):
+        raise KeyboardInterrupt
+
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, interrupt)
+    runner = runpy.run_path(str(Path(__file__).with_name('run')))
+    cpu = runpy.run_path(str(Path(__file__).with_name('cpu.py')))
+    env = dict(os.environ)
+    pair = f'campaign-{args.tree}'
+    try:
+        with Path('.config/nextest.toml').open('rb') as source:
+            if pair not in tomllib.load(source).get('profile', {}):
+                parser.error(f'no campaign pair for {args.tree} (tools/tiers/layers.md, 9.3)')
+        directory = args.out
+        if directory is not None and directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
+            parser.error('--out must be an empty directory or a new path')
+
+        def git(*arguments):
+            return subprocess.run(['git', *arguments], env=env, stdin=subprocess.DEVNULL,
+                                  check=True, stdout=subprocess.PIPE, text=True).stdout
+
+        if git('--no-optional-locks', 'status', '--porcelain=v1', '--untracked-files=no', '--ignore-submodules=none'):
+            parser.error('tracked files differ from the checkout commit')
+        commit = git('rev-parse', 'HEAD').strip()
+        with Path('tools/tiers/packages.toml').open('rb') as source:
+            packages = tomllib.load(source)[pair]
+        limits = cpu['budgets']('tools/tiers/budgets.toml')
+        if directory is None:
+            with contextlib.redirect_stdout(io.StringIO()):
+                target = runner['target_directory'](env)
+            stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+            directory = target / 'tiers-campaign' / args.tree / f'{stamp}-{os.getpid()}'
+            directory.mkdir(parents=True)
+        else:
+            directory.mkdir(parents=True, exist_ok=True)
+        print(directory, flush=True)
+        data = dict(tree=args.tree, pair=pair, commit=commit, seed=args.seed.lower() if args.seed else None,
+                    rounds_asked=args.rounds, selection=[], rounds=[], findings=[], nonreplaying=[],
+                    unreplayed=[], reach=[], never_fell=[], ended=None)
+        return campaign(directory, data, runner, cpu, limits, packages, env)
+    except REPORT_ERRORS + (subprocess.SubprocessError, runner['FailedStep']) as error:
+        print(f'campaign: {error}', file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print('campaign: interrupted', file=sys.stderr)
+        return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -8,6 +8,8 @@ use std::process::Command;
 use fabrig_boundary::Target;
 
 const TREES: [&str; 5] = ["skein", "smith", "jig", "temper", "hearth"];
+const NON_REPLAYING_LAYERS: [&str; 2] = ["real-loop", "end-to-end"];
+type Binaries = BTreeMap<String, (Option<String>, bool)>;
 
 fn binary_id(package: &str, target: &Target) -> Result<(String, bool), String> {
     if target
@@ -26,7 +28,7 @@ fn binary_id(package: &str, target: &Target) -> Result<(String, bool), String> {
     Err(format!("{package} {}: unknown test target kind {:?}", target.name, target.kinds))
 }
 
-fn binaries(metadata: &str) -> Result<BTreeMap<String, (Option<String>, bool)>, String> {
+fn binaries(metadata: &str) -> Result<Binaries, String> {
     let value: serde_json::Value = serde_json::from_str(metadata).map_err(|why| format!("metadata: {why}"))?;
     let root = value["workspace_root"].as_str().ok_or("metadata: no workspace_root string")?;
     let root = Path::new(root);
@@ -74,6 +76,10 @@ fn another_tiers(id: &str) -> bool {
         || ["live", "live_github"].contains(&name)
 }
 
+fn package_of(id: &str) -> &str {
+    id.split_once("::").map_or(id, |(package, _)| package)
+}
+
 fn real_packages(name: &str, lines: &BTreeSet<&str>, packages: &toml::Table, findings: &mut Vec<String>) {
     let Some(listed) = packages.get(name).and_then(toml::Value::as_array) else {
         findings.push(format!("tools/tiers/packages.toml: no {name} list"));
@@ -82,7 +88,7 @@ fn real_packages(name: &str, lines: &BTreeSet<&str>, packages: &toml::Table, fin
     let listed: BTreeSet<&str> = listed.iter().filter_map(toml::Value::as_str).collect();
     let mut built = BTreeSet::new();
     for id in lines.iter().filter(|id| !another_tiers(id)) {
-        let package = id.split_once("::").map_or(*id, |(package, _)| package);
+        let package = package_of(id);
         built.insert(package);
         if !listed.contains(package) {
             findings.push(format!("tools/tiers/packages.toml: {name} lacks {package}, which builds {id}"));
@@ -116,11 +122,25 @@ fn binary_lists(packages: &toml::Table, findings: &mut Vec<String>) {
     }
 }
 
-fn real_profiles(table: &toml::Table, config: &str, packages: &str, findings: &mut Vec<String>) -> Result<(), String> {
-    let config: toml::Table = toml::from_str(config).map_err(|why| format!("nextest configuration: {why}"))?;
-    let packages: toml::Table = toml::from_str(packages).map_err(|why| format!("package map: {why}"))?;
-    binary_lists(&packages, findings);
-    let profiles = config.get("profile").and_then(toml::Value::as_table);
+fn named_binary_ids(profile: &toml::Value) -> BTreeSet<&str> {
+    profile
+        .get("default-filter")
+        .and_then(toml::Value::as_str)
+        .unwrap_or_default()
+        .split("binary_id(")
+        .skip(1)
+        .filter_map(|part| part.split_once(')'))
+        .filter_map(|(id, _)| id.trim().strip_prefix('=').map(str::trim))
+        .filter(|id| !id.is_empty())
+        .collect()
+}
+
+fn real_profiles(
+    table: &toml::Table,
+    profiles: Option<&toml::Table>,
+    packages: &toml::Table,
+    findings: &mut Vec<String>,
+) {
     let mut trees: BTreeSet<&str> = TREES.into_iter().collect();
     if let Some(profiles) = profiles {
         trees.extend(profiles.keys().filter_map(|name| name.strip_prefix("real-")));
@@ -131,7 +151,7 @@ fn real_profiles(table: &toml::Table, config: &str, packages: &str, findings: &m
             .and_then(toml::Value::as_table)
             .into_iter()
             .flat_map(|lines| lines.iter())
-            .filter(|(_, layer)| layer.as_str().is_some_and(|layer| ["real-loop", "end-to-end"].contains(&layer)))
+            .filter(|(_, layer)| layer.as_str().is_some_and(|layer| NON_REPLAYING_LAYERS.contains(&layer)))
             .map(|(id, _)| id.as_str())
             .collect();
         let name = format!("real-{tree}");
@@ -146,22 +166,76 @@ fn real_profiles(table: &toml::Table, config: &str, packages: &str, findings: &m
             findings.push(format!("{tree}: missing [profile.{name}]"));
             continue;
         };
-        let filter = profile.get("default-filter").and_then(toml::Value::as_str).unwrap_or_default();
-        let named: BTreeSet<&str> = filter
-            .split("binary_id(")
-            .skip(1)
-            .filter_map(|part| part.split_once(')'))
-            .filter_map(|(id, _)| id.trim().strip_prefix('=').map(str::trim))
-            .collect();
+        let named = named_binary_ids(profile);
         for id in expected.difference(&named) {
             findings.push(format!("{tree}: [profile.{name}] missing binary_id(={id})"));
         }
         for id in named.difference(&expected) {
             findings.push(format!("{tree}: [profile.{name}] names {id}, not a real-loop or end-to-end line"));
         }
-        real_packages(&name, &expected, &packages, findings);
+        real_packages(&name, &expected, packages, findings);
     }
-    Ok(())
+}
+
+fn campaign_packages(
+    name: &str,
+    scope: &str,
+    named: &BTreeSet<&str>,
+    packages: &toml::Table,
+    findings: &mut Vec<String>,
+) {
+    let expected: BTreeSet<&str> = named.iter().copied().map(package_of).collect();
+    match packages.get(name).and_then(toml::Value::as_array) {
+        None => findings.push(format!("{scope}: tools/tiers/packages.toml: no {name} list")),
+        Some(listed) if listed.iter().map(toml::Value::as_str).eq(expected.iter().copied().map(Some)) => {}
+        Some(_) => {
+            findings.push(format!("{scope}: tools/tiers/packages.toml: {name} list must hold exactly {expected:?}"));
+        }
+    }
+    if packages.get("binaries").and_then(|lists| lists.get(name)).and_then(toml::Value::as_array).is_none() {
+        findings.push(format!("{scope}: tools/tiers/packages.toml: no [binaries] {name} list"));
+    }
+}
+
+fn campaign_profiles(
+    table: &toml::Table,
+    layers: &BTreeSet<&str>,
+    binaries: &Binaries,
+    profiles: &toml::Table,
+    packages: &toml::Table,
+    findings: &mut Vec<String>,
+) {
+    for (name, profile) in profiles {
+        let Some(tree) = name.strip_prefix("campaign-") else { continue };
+        let scope = format!("{tree}: [profile.{name}]");
+        if !TREES.contains(&tree) {
+            findings.push(format!("{scope} is not a campaign of a known tree"));
+            continue;
+        }
+        let named = named_binary_ids(profile);
+        if named.is_empty() {
+            findings.push(format!("{scope} names no binary_id(=…)"));
+        }
+        let lines = table.get(tree).and_then(toml::Value::as_table);
+        for id in &named {
+            let Some((_, by_rule)) = binaries.get(*id).filter(|(owner, _)| owner.as_deref() == Some(tree)) else {
+                findings.push(format!("{scope} names {id}, not a test binary of {tree}"));
+                continue;
+            };
+            if *by_rule {
+                continue;
+            }
+            let layer = lines.and_then(|lines| lines.get(*id)).and_then(toml::Value::as_str);
+            match layer.filter(|layer| layers.contains(layer)) {
+                Some(layer) if NON_REPLAYING_LAYERS.contains(&layer) => {
+                    findings.push(format!("{scope} names {id}, at {layer}, a layer that doesn't replay"));
+                }
+                Some(_) => {}
+                None => findings.push(format!("{scope} names {id}, which has no layer")),
+            }
+        }
+        campaign_packages(name, &scope, &named, packages, findings);
+    }
 }
 
 fn findings(metadata: &str, table: &str, config: &str, packages: &str) -> Result<Vec<String>, String> {
@@ -216,7 +290,14 @@ fn findings(metadata: &str, table: &str, config: &str, packages: &str) -> Result
             findings.push(format!("{id}: missing line under [{}]", tree.as_deref().expect("a tree binary")));
         }
     }
-    real_profiles(&table, config, packages, &mut findings)?;
+    let config: toml::Table = toml::from_str(config).map_err(|why| format!("nextest configuration: {why}"))?;
+    let packages: toml::Table = toml::from_str(packages).map_err(|why| format!("package map: {why}"))?;
+    binary_lists(&packages, &mut findings);
+    let profiles = config.get("profile").and_then(toml::Value::as_table);
+    real_profiles(&table, profiles, &packages, &mut findings);
+    if let Some(profiles) = profiles {
+        campaign_profiles(&table, &layers, &binaries, profiles, &packages, &mut findings);
+    }
     findings.sort();
     Ok(findings)
 }
@@ -377,6 +458,105 @@ fn real_pair_rules_on_fixtures() {
         let found = findings(&world, browser, both, packages).expect("fixture texts read");
         let found: Vec<_> = found.into_iter().filter(|finding| finding.contains("[binaries]")).collect();
         assert_eq!(found, expected, "{packages}");
+    }
+}
+
+const CAMPAIGN_PROFILE: &str = "[profile.campaign-temper]\ndefault-filter = 'binary_id(=demo::world)'";
+const CAMPAIGN_LAYERS: &str = "layers = ['step', 'domain', 'real-loop', 'end-to-end']";
+const CAMPAIGN_DOMAIN: &str = "[temper]\n\"demo::world\" = 'domain'";
+const CAMPAIGN_PACKAGES: &str = "campaign-temper = ['demo']\n[binaries]\ncampaign-temper = []";
+const CAMPAIGN_EMPTY_PACKAGES: &str = "campaign-temper = []\n[binaries]\ncampaign-temper = []";
+
+#[test]
+fn campaign_filters_name_only_binaries_that_replay() {
+    let world = fixture("temper/crates/demo", "world", &["test"], true);
+    let library = fixture("temper/crates/demo", "demo", &["lib"], true);
+    let other = fixture("skein/crates/demo", "world", &["test"], true);
+    // When a campaign world has a slow layer, a real pair is also required.
+    let real_profile = "[profile.real-temper]\ndefault-filter = 'binary_id(=demo::world)'";
+    let packages = format!("real-temper = ['demo']\n{CAMPAIGN_PACKAGES}");
+    let both_profiles = format!("{CAMPAIGN_PROFILE}\n{real_profile}");
+    for (metadata, lines, config, expected) in [
+        (&world, CAMPAIGN_DOMAIN, CAMPAIGN_PROFILE, vec![]),
+        (&library, "", "[profile.campaign-temper]\ndefault-filter = 'binary_id(=demo)'", vec![]),
+        (
+            &world,
+            "[temper]\n\"demo::world\" = 'real-loop'",
+            both_profiles.as_str(),
+            vec!["temper: [profile.campaign-temper] names demo::world, at real-loop, a layer that doesn't replay"],
+        ),
+        (
+            &world,
+            "[temper]\n\"demo::world\" = 'end-to-end'",
+            both_profiles.as_str(),
+            vec!["temper: [profile.campaign-temper] names demo::world, at end-to-end, a layer that doesn't replay"],
+        ),
+        (
+            &world,
+            "",
+            CAMPAIGN_PROFILE,
+            vec![
+                "demo::world: missing line under [temper]",
+                "temper: [profile.campaign-temper] names demo::world, which has no layer",
+            ],
+        ),
+        (
+            &other,
+            "[skein]\n\"demo::world\" = 'domain'",
+            CAMPAIGN_PROFILE,
+            vec!["temper: [profile.campaign-temper] names demo::world, not a test binary of temper"],
+        ),
+        (
+            &world,
+            CAMPAIGN_DOMAIN,
+            "[profile.campaign-temper]\ndefault-filter = 'binary_id(=demo::gone)'",
+            vec!["temper: [profile.campaign-temper] names demo::gone, not a test binary of temper"],
+        ),
+        (
+            &world,
+            CAMPAIGN_DOMAIN,
+            "[profile.campaign-nosuchtree]\ndefault-filter = 'binary_id(=demo::world)'",
+            vec!["nosuchtree: [profile.campaign-nosuchtree] is not a campaign of a known tree"],
+        ),
+    ] {
+        let table = format!("{CAMPAIGN_LAYERS}\n{lines}");
+        assert_eq!(
+            findings(metadata, &table, config, &packages).expect("fixture texts read"),
+            expected,
+            "{table}\n{config}"
+        );
+    }
+    let table = format!("{CAMPAIGN_LAYERS}\n{CAMPAIGN_DOMAIN}");
+    let config = "[profile.campaign-temper]\ndefault-filter = 'all()'";
+    assert_eq!(
+        findings(&world, &table, config, CAMPAIGN_EMPTY_PACKAGES).expect("fixture texts read"),
+        ["temper: [profile.campaign-temper] names no binary_id(=…)"]
+    );
+}
+
+#[test]
+fn campaign_package_lists_match_filter_ids() {
+    let world = fixture("temper/crates/demo", "world", &["test"], true);
+    let table = format!("{CAMPAIGN_LAYERS}\n{CAMPAIGN_DOMAIN}");
+    let wrong_list = "temper: [profile.campaign-temper]: tools/tiers/packages.toml: campaign-temper list must hold exactly {\"demo\"}";
+    for (packages, expected) in [
+        (CAMPAIGN_PACKAGES, vec![]),
+        (CAMPAIGN_EMPTY_PACKAGES, vec![wrong_list]),
+        ("campaign-temper = ['demo', 'extra']\n[binaries]\ncampaign-temper = []", vec![wrong_list]),
+        (
+            "[binaries]\ncampaign-temper = []",
+            vec!["temper: [profile.campaign-temper]: tools/tiers/packages.toml: no campaign-temper list"],
+        ),
+        (
+            "campaign-temper = ['demo']",
+            vec!["temper: [profile.campaign-temper]: tools/tiers/packages.toml: no [binaries] campaign-temper list"],
+        ),
+    ] {
+        assert_eq!(
+            findings(&world, &table, CAMPAIGN_PROFILE, packages).expect("fixture texts read"),
+            expected,
+            "{packages}"
+        );
     }
 }
 
