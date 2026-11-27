@@ -46,6 +46,7 @@ pub const GATE_KINDS: &[Kind] = &[
 pub const CAMPAIGN_KINDS: &[Kind] = &[
     // busy
     forge_faults::UNAVAILABLE,
+    forge_faults::LIMITED,
     // lagging
     // bounds
     // refusing
@@ -78,6 +79,7 @@ pub(in crate::composed) struct Faults {
     ledger: FaultLedger,
     last: Time,
     unavailable_until: Option<Time>,
+    limited_until: Option<Time>,
     lag_until: Option<Time>,
     log_restore: Option<(u64, u32, Box<[u8]>, Injection)>,
     closed: Option<(u64, Injection, Time)>,
@@ -133,6 +135,7 @@ impl Faults {
             ledger,
             last: Time::ZERO,
             unavailable_until: None,
+            limited_until: None,
             lag_until: None,
             log_restore: None,
             closed: None,

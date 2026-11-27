@@ -197,51 +197,51 @@ fn settled_mid_turn_draws_its_own_coin_goal_and_held_query() {
 }
 
 #[test]
-fn unavailable_draws_its_own_coin_target_and_moment() {
-    use forge_faults::UNAVAILABLE;
-
+fn busy_catalogue_kinds_draw_their_own_coins_targets_and_moments() {
     let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
-    assert!(CAMPAIGN_KINDS.contains(&UNAVAILABLE));
-    assert!(!GATE_KINDS.contains(&UNAVAILABLE));
-    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != UNAVAILABLE).collect();
-    let mut targets = BTreeSet::new();
-    let mut skipped = false;
-    for seed in (0..64).chain([u64::MAX]) {
-        let streams = Streams::new(seed);
-        let workload = Workload::draw(&streams, &COMPOSED);
-        let draw = FaultDraw::new(seed, &kinds);
-        let baseline = FaultDraw::new(seed, &without);
-        assert_eq!(
-            draw.plans.iter().filter(|plan| plan.kind != UNAVAILABLE).collect::<Vec<_>>(),
-            baseline.plans.iter().collect::<Vec<_>>(),
-            "seed {seed}"
-        );
-        assert_eq!(
-            draw.planned().into_iter().filter(|(kind, _)| *kind != UNAVAILABLE).collect::<Vec<_>>(),
-            baseline.planned(),
-            "seed {seed}"
-        );
-        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}");
-        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}");
+    for (kind, part) in [(forge_faults::UNAVAILABLE, "busy/unavailable"), (forge_faults::LIMITED, "busy/limited")] {
+        assert!(CAMPAIGN_KINDS.contains(&kind), "{part} is configured outside the gate");
+        assert!(!GATE_KINDS.contains(&kind), "{part} is not configured at the gate");
+        let without: Vec<_> = kinds.iter().copied().filter(|&other| other != kind).collect();
+        let mut targets = BTreeSet::new();
+        let mut skipped = false;
+        for seed in (0..64).chain([u64::MAX]) {
+            let streams = Streams::new(seed);
+            let workload = Workload::draw(&streams, &COMPOSED);
+            let draw = FaultDraw::new(seed, &kinds);
+            let baseline = FaultDraw::new(seed, &without);
+            assert_eq!(
+                draw.plans.iter().filter(|plan| plan.kind != kind).collect::<Vec<_>>(),
+                baseline.plans.iter().collect::<Vec<_>>(),
+                "seed {seed}: adding {part} keeps the other injection plans"
+            );
+            assert_eq!(
+                draw.planned().into_iter().filter(|(other, _)| *other != kind).collect::<Vec<_>>(),
+                baseline.planned(),
+                "seed {seed}: adding {part} keeps the other planned goals"
+            );
+            assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}: {part}");
+            assert_eq!(draw.acts(), baseline.acts(), "seed {seed}: {part}");
 
-        let mut rng = streams.rng(Stream::Faults, "busy/unavailable");
-        let expected = (rng.below(2) != 0).then(|| {
-            let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
-                .expect("goal index");
-            targets.insert(index);
-            (workload.goals[index].name.as_str(), rng.below(16))
-        });
-        skipped |= expected.is_none();
-        let plans: Vec<_> = draw
-            .plans
-            .iter()
-            .filter(|plan| plan.kind == UNAVAILABLE)
-            .map(|plan| (plan.goal.as_str(), plan.after))
-            .collect();
-        assert_eq!(plans, expected.as_slice(), "seed {seed}: unavailable coin, target and moment");
+            let mut rng = streams.rng(Stream::Faults, part);
+            let expected = (rng.below(2) != 0).then(|| {
+                let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
+                    .expect("goal index");
+                targets.insert(index);
+                (workload.goals[index].name.as_str(), rng.below(16))
+            });
+            skipped |= expected.is_none();
+            let plans: Vec<_> = draw
+                .plans
+                .iter()
+                .filter(|plan| plan.kind == kind)
+                .map(|plan| (plan.goal.as_str(), plan.after))
+                .collect();
+            assert_eq!(plans, expected.as_slice(), "seed {seed}: {part} coin, target and moment");
+        }
+        assert!(skipped, "{part} is skipped on a losing coin");
+        assert_eq!(targets.len(), usize::from(COMPOSED.goals.most), "{part} can strike any goal");
     }
-    assert!(skipped);
-    assert_eq!(targets.len(), usize::from(COMPOSED.goals.most));
 }
 
 #[test]

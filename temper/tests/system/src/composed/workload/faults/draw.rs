@@ -19,6 +19,7 @@ type Eligible = fn(&Goal) -> bool;
 const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     // busy
     (forge_faults::UNAVAILABLE, |_| true),
+    (forge_faults::LIMITED, |_| true),
     // restarts
     (restarts::ENGINE_RESTART_MID_TURN, |_| true),
 ];

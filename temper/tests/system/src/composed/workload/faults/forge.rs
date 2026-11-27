@@ -3,12 +3,13 @@ use super::{Faults, World, forge_faults as kinds, stale};
 use crate::composed::{engine, people, tasks};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
-use skein_lib::Duration;
+use skein_lib::{Duration, Env, Wall};
 use skein_world::faults::{Kind, Struck};
 use temper_blame::{Observed, Reaction};
 
 const REMOTE: &[u8] = b"org/repo";
 const UNAVAILABLE_SPAN: Duration = Duration::from_secs(2);
+const LIMITED_SPAN: Duration = Duration::from_secs(2);
 
 fn hex(commit: u64) -> String {
     String::from_utf8(
@@ -92,6 +93,26 @@ impl World {
                 f.unavailable_until = Some(self.env.now.saturating_add(UNAVAILABLE_SPAN));
             }
             config.unavailable = 1000;
+        } else if let api::Op::Read(api::Read::Pull { number, .. }) = op
+            && (f.limited_until.is_some_and(|until| self.env.now < until) || f.due(kinds::LIMITED))
+            && self.pull_goal(*number) == f.target(kinds::LIMITED)
+        {
+            config.rate_limit = 1;
+            config.rate_window = LIMITED_SPAN;
+            if f.limited_until.is_none() {
+                // Spend the quota so the first struck read gets the fake's rate-limit reply.
+                let env = Env { now: self.env.now, wall: Wall::EPOCH, limits: config.clone() };
+                fake::rate(
+                    self.forge.domain_mut(),
+                    &env,
+                    fake::RateKey::User(self.forge_binding.user),
+                    env.limits.rate_limit,
+                    env.limits.rate_window,
+                )
+                .expect("the limit starts with a fresh quota");
+                f.fire(kinds::LIMITED);
+                f.limited_until = Some(self.env.now.saturating_add(LIMITED_SPAN));
+            }
         }
         if f.due(temper_blame::LOST)
             && let api::Op::Write(api::Write::Dispatch { branch, .. }) = op
@@ -230,9 +251,12 @@ impl World {
                     ..Struck::default()
                 },
             );
-            let until = fell.until.unwrap_or_else(|| {
-                if kind == kinds::UNAVAILABLE { f.unavailable_until.unwrap_or(fell.at) } else { fell.at }
+            let until = fell.until.or(match kind {
+                kinds::UNAVAILABLE => f.unavailable_until,
+                kinds::LIMITED => f.limited_until,
+                _ => None,
             });
+            let until = until.unwrap_or(fell.at);
             f.ledger.stop(entry, until).expect("fake forge interval");
             f.stopped(until);
         }
