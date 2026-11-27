@@ -345,6 +345,8 @@ pub fn long_resource_world(seed: u64) -> (crate::world::World, u64, jig_test_con
     }
     let path = jig_test_connector::Path::new(path, 128).expect("bounded resource");
     configuration.first.resources[0].path = path.clone();
+    configuration.resource_kinds[0] =
+        Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } }]);
     crate::peers::journal(&mut limits);
     let mut world =
         crate::world::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
