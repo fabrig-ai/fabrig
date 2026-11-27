@@ -427,6 +427,7 @@ class Delivery(unittest.TestCase):
                 with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
                     out = stack.enter_context(redirect_stdout(io.StringIO()))
                     stack.enter_context(redirect_stderr(io.StringIO()))
+                    stack.enter_context(mock.patch.dict(os.environ, self.env, clear=True))
                     stack.enter_context(mock.patch.object(Path, 'cwd', return_value=self.root))
                     stack.enter_context(mock.patch.object(PRE, 'checked_git', return_value=b''))
                     stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
