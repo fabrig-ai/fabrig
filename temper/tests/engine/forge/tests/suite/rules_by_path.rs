@@ -111,7 +111,7 @@ fn a_new_head_newly_touching_the_set_asks_its_gate() {
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     assert_eq!(
         change_step(&mut world, 2, change::Status::Passed, Box::new([])),
-        change::Decision::Hold(change::Hold::BranchMoved)
+        change::Decision::Hold(change::Cause::BranchMoved)
     );
     let head = translate::commit(world.branch(b"temper/51"));
     assert_eq!(

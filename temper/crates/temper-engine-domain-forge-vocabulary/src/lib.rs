@@ -1207,9 +1207,10 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         change::State::Gating { asked, .. } => {
             skein_lib::len_u64(asked.len()).checked_mul(u64::try_from(size_of::<u64>()).ok()?)
         }
-        change::State::Held { was, .. } => {
-            u64::try_from(size_of::<change::State>()).ok()?.checked_add(change_state_bytes(was, depth.checked_add(1)?)?)
-        }
+        change::State::Held { was, hold } => u64::try_from(size_of::<change::State>())
+            .ok()?
+            .checked_add(skein_lib::len_u64(hold.words.len()))?
+            .checked_add(change_state_bytes(was, depth.checked_add(1)?)?),
         change::State::Taking { .. }
         | change::State::Producing { .. }
         | change::State::Opening { .. }

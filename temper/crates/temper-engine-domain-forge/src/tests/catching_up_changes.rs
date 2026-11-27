@@ -162,7 +162,7 @@ fn taking_read_stalls_count_from_the_fresh_reads_not_the_restored_since() {
         assert!(
             !requests(waiting)
                 .iter()
-                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }))
+                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. }))
         );
         assert!(!matches!(d.change(CHANGE).unwrap().change.state, c::State::Held { .. }));
         let fresh = answered(&mut d, &e, call, HEAD);
@@ -179,13 +179,13 @@ fn taking_read_stalls_count_from_the_fresh_reads_not_the_restored_since() {
         assert!(
             !requests(almost)
                 .iter()
-                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }))
+                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. }))
         );
         let expired = requests(fixtures::advance(&mut d, &mut e, Duration::from_secs(1)));
         assert!(
             expired
                 .iter()
-                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. })),
+                .any(|r| matches!(r, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. })),
             "{expired:?}"
         );
     }
@@ -552,7 +552,7 @@ fn moved_branch_facts_wait_and_compare_against_the_fresh_confirmed_head() {
         let fresh = answered(&mut d, &env(), fresh_call, HEAD);
         assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
         assert!(!fresh.contains(&Request::WakeProcedure { task: CHANGE }), "the completed gather resumes in place");
-        assert_eq!(decisions(&fresh).contains(&c::Decision::Hold(c::Hold::BranchMoved)), still_moved, "{fresh:?}");
+        assert_eq!(decisions(&fresh).contains(&c::Decision::Hold(c::Cause::BranchMoved)), still_moved, "{fresh:?}");
         if !still_moved {
             assert_eq!(d.change(CHANGE).unwrap().change.last_head, Some(FRESH));
         }

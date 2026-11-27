@@ -2,7 +2,7 @@
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use skein_world::inspect::{Inspection, Moment};
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_forge_change::{Hold, State};
+use temper_engine_domain_forge_change::{Cause, State};
 use temper_engine_domain_forge_landing::{Leave, Phase};
 use temper_engine_forge_world::{LIMITS, changes, landings};
 
@@ -54,7 +54,13 @@ fn a_landing_cannot_keep_an_unavailable_member() {
     for (state, why) in [
         (None, "missing"),
         (Some(State::Ended), "ended"),
-        (Some(State::Held { was: Box::new(READY), why: Hold::Failed }), "held"),
+        (
+            Some(State::Held {
+                was: Box::new(READY),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, Wall::EPOCH),
+            }),
+            "held",
+        ),
     ] {
         let member = change(51, READY);
         let landing = landings::landing_row(&member);

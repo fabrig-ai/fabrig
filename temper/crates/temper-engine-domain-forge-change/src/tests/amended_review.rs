@@ -30,7 +30,7 @@ fn only_agent_verdicts_expire_at_an_amended_spec() {
                     } else if status == Status::Passed {
                         assert_eq!(next.decision, Decision::Ready);
                     } else if kind == GateKind::Person {
-                        assert_eq!(next.decision, Decision::Hold(Hold::Rejected));
+                        assert_eq!(next.decision, Decision::Hold(Cause::Rejected));
                     } else {
                         assert_eq!(next.decision, Decision::Delegate(Delegate::Repair(Repair::Gate(9))));
                     }

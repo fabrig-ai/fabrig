@@ -380,21 +380,21 @@ impl Referee {
             // The client can report a made merge as Raced when its verifying
             // pull still reads open. This hold is not drift; the turn and
             // keep must still explain the merge from the forge.
-            if *why == change::Hold::Failed && lane.merge == Merge::Disputed {
+            if *why == change::Cause::Failed && lane.merge == Merge::Disputed {
                 lane.stage = Stage::Done;
                 return Ok(());
             }
             let wants = match (lane.role, lane.outside.is_some()) {
-                (Role::Outside(Outside::Push | Outside::Reset { hinted: true }), true) => change::Hold::BranchMoved,
-                (Role::Outside(Outside::Reset { hinted: false }), true) => change::Hold::Stalled,
-                (Role::Outside(Outside::Close), true) => change::Hold::PullClosed,
-                (Role::Outside(Outside::Retarget), true) => change::Hold::Retargeted,
+                (Role::Outside(Outside::Push | Outside::Reset { hinted: true }), true) => change::Cause::BranchMoved,
+                (Role::Outside(Outside::Reset { hinted: false }), true) => change::Cause::Stalled,
+                (Role::Outside(Outside::Close), true) => change::Cause::PullClosed,
+                (Role::Outside(Outside::Retarget), true) => change::Cause::Retargeted,
                 _ => return Err(format!("unexplained hold of {}: {why:?}; {evidence:?}", lane.task)),
             };
             if *why != wants {
                 return Err(format!("outside write {:?}: wanted {wants:?}, got {why:?}; {evidence:?}", lane.role));
             }
-            if *why == change::Hold::Stalled {
+            if *why == change::Cause::Stalled {
                 let Some(bound) = lane.bound else { return Err("reset held without waiting for its bound".into()) };
                 let Some(top::DriftChange::Branch { expected, observed }) = lane.outside.as_ref() else {
                     return Err("can't tell without a known outside reset".into());

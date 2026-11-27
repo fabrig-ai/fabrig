@@ -268,8 +268,10 @@ fn releasing_a_restored_close_change_cancels_its_held_job() {
     let mut row = repair();
     row.task = change_task;
     row.change.task = change_task;
-    row.change.state =
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed };
+    row.change.state = change::State::Held {
+        was: Box::new(change::State::Producing { requested: true }),
+        hold: change::Hold::new(change::Cause::Failed, skein_lib::Wall::EPOCH),
+    };
     row.close = Some(b"close request".as_slice().into());
     row.delegate = Some((child_number, change::Delegate::Close));
     row.delegate_status = change::Status::Failed;

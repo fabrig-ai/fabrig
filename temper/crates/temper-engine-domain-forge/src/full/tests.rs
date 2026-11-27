@@ -215,7 +215,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
         waiting_change(&mut d, 23, 5);
         d.changes.get_mut(&23).unwrap().change.state = change::State::Held {
             was: Box::new(change::State::Opening { requested: false }),
-            why: change::Hold::Failed,
+            hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
         };
         waiting_change(&mut d, 30, 6);
         d.releases

@@ -3,7 +3,7 @@ use super::questions::row as change_row;
 use super::*;
 use jig_domain_core::reads;
 use jig_domain_link::EndpointBound;
-use temper_engine_domain_forge_change::{Hold, State};
+use temper_engine_domain_forge_change::{Cause, State};
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
@@ -255,8 +255,10 @@ fn a_failed_producers_words_reach_its_hold_and_its_chats_reply() {
     let (mut world, chat, change) = failed_production(REASON);
     assert_eq!(account(&world, change), REASON);
     let Some(row) = world.store.change(change) else { panic!("durable change") };
-    assert!(matches!(&row.change.state, State::Held { was, why: Hold::Failed }
-        if matches!(was.as_ref(), State::Producing { .. })));
+    assert!(
+        matches!(&row.change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } }
+        if matches!(was.as_ref(), State::Producing { .. }))
+    );
     assert!(row.pull.is_none());
     assert_eq!(world.merges, 0);
     let resumed = super::reviews::next_assignment(&mut world, 2);
@@ -318,7 +320,10 @@ fn a_refused_failure_notice_still_holds_and_escalates_the_change() {
         }
     }
     assert_eq!(account(&world, change), REASON);
-    assert!(matches!(change_row(&world, change).change.state, State::Held { why: Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(&world, change).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+    ));
     assert!(
         std::iter::from_fn(|| world.root.pop_fact())
             .any(|fact| matches!(fact, engine::Fact::StepRefused { task, .. } if task == change)),
@@ -377,7 +382,10 @@ fn a_restored_held_row_holds_its_idle_task_again() {
         }
     }
     assert_eq!(account(&world, change), REASON);
-    assert!(matches!(change_row(&world, change).change.state, State::Held { why: Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(&world, change).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+    ));
     world.close();
 }
 
@@ -465,7 +473,7 @@ fn assert_production_hold(world: &mut World, task: u64, reason: &[u8], head: Opt
         if matches!(live_task(world, task).phase, tasks::Phase::Held { .. }) {
             assert_eq!(account(world, task), reason);
             assert!(matches!(&change_row(world, task).change.state,
-                State::Held { was, why: Hold::Failed } if matches!(was.as_ref(), State::Producing { .. })));
+                State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } } if matches!(was.as_ref(), State::Producing { .. })));
             assert!(change_row(world, task).delegate.is_none());
             assert_eq!(
                 change_row(world, task).change.last_head,

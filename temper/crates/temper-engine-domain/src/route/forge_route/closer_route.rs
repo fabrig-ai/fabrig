@@ -448,20 +448,25 @@ fn child(domain: &Domain, task: u64, step: c::Step) -> c::Child {
 }
 
 fn close_child(domain: &Domain, task: &tasks::TaskRecord) -> c::Child {
-    use super::forge_change::{Hold, State};
+    use super::forge_change::{Cause, State};
     let Some(row) = domain.forge.change(task.number) else { return c::Child::Pending };
     if row.close.is_none() {
         return c::Child::Pending;
     }
     match &row.change.state {
-        State::Held { was, why: Hold::Failed } if **was == (State::Producing { requested: true }) => {
-            c::Child::Idle { held: true }
+        State::Held {
+            was,
+            hold: temper_engine_domain_forge_change::Hold { cause: cause @ (Cause::Failed | Cause::CloseRefused), .. },
+        } if **was == (State::Producing { requested: true }) => {
+            // A released refusal keeps its judgement until fresh reads arrive.
+            // While its task waits for work, the closer must still wake it.
+            if row.change.released == Some(*cause) {
+                idle_close(domain, task, row)
+            } else {
+                c::Child::Idle { held: true }
+            }
         }
-        State::Producing { requested: false }
-            if task.phase == tasks::Phase::Active(tasks::Active::Idle) && !live_delegate(domain, row) =>
-        {
-            c::Child::Idle { held: false }
-        }
+        State::Producing { requested: false } => idle_close(domain, task, row),
         State::Taking { .. }
         | State::Producing { .. }
         | State::Opening { .. }
@@ -487,6 +492,14 @@ fn close_child(domain: &Domain, task: &tasks::TaskRecord) -> c::Child {
         | State::Uncleared { .. }
         | State::NoChange { .. }
         | State::Ended => c::Child::Pending,
+    }
+}
+
+fn idle_close(domain: &Domain, task: &tasks::TaskRecord, row: &forge::ChangeRow) -> c::Child {
+    if task.phase == tasks::Phase::Active(tasks::Active::Idle) && !live_delegate(domain, row) {
+        c::Child::Idle { held: false }
+    } else {
+        c::Child::Pending
     }
 }
 
@@ -527,26 +540,25 @@ fn ended_count(domain: &Domain, row: &forge::CloserRow, kind: c::Step) -> u32 {
     count
 }
 
-fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8]> {
-    use super::forge_change::Hold;
+fn branch_reason(held: Option<super::forge_change::Cause>) -> Option<&'static [u8]> {
+    use super::forge_change::Cause;
     match held {
-        Some(Hold::Repairs) => Some(b"repairs"),
-        Some(Hold::Runner) => Some(b"its CI runner's re-runs"),
-        Some(Hold::Resolutions) => Some(b"conflict resolutions"),
-        Some(Hold::Rejected) => Some(b"a rejection"),
-        Some(Hold::PullClosed) => Some(b"its pull request closed"),
-        Some(Hold::BranchMissing) => Some(b"its branch missing"),
+        Some(Cause::Repairs) => Some(b"repairs"),
+        Some(Cause::Runner) => Some(b"its CI runner's re-runs"),
+        Some(Cause::Resolutions) => Some(b"conflict resolutions"),
+        Some(Cause::Rejected) => Some(b"a rejection"),
+        Some(Cause::PullClosed) => Some(b"its pull request closed"),
+        Some(Cause::BranchMissing) => Some(b"its branch missing"),
         Some(
-            Hold::Stalled
-            | Hold::Updates
-            | Hold::BranchMoved
-            | Hold::Retargeted
-            | Hold::Failed
-            | Hold::RedStands
-            | Hold::Flake
-            | Hold::NoTest
-            | Hold::Authority(_)
-            | Hold::Questions,
+            Cause::Stalled
+            | Cause::Updates
+            | Cause::BranchMoved
+            | Cause::Retargeted
+            | Cause::Failed
+            | Cause::RedStands
+            | Cause::CloseRefused
+            | Cause::Authority(_)
+            | Cause::Questions,
         )
         | None => None,
     }

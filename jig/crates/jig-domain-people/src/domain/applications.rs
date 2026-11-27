@@ -127,6 +127,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. } => None,
     }
 }

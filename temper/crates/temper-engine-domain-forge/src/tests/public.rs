@@ -605,14 +605,16 @@ fn each_repair_reason_projects_to_the_public_step() {
 }
 
 #[test]
-fn red_stands_projects_to_the_public_failed_hold() {
+fn a_judged_hold_projects_to_the_public_failed_hold() {
     let mut d = setup();
-    let row = d.changes.get_mut(&CHANGE).expect("change");
-    row.change.state = c::State::Held {
-        was: Box::new(c::State::Repairing { requested: false, why: c::Repair::Landing { gate: 0 } }),
-        why: c::Hold::RedStands,
-    };
-    assert_eq!(change(&d, &handed()).hold, Some(w::PublicHold::Failed));
+    for (cause, was) in [
+        (c::Cause::RedStands, c::State::Repairing { requested: false, why: c::Repair::Landing { gate: 0 } }),
+        (c::Cause::CloseRefused, c::State::Producing { requested: true }),
+    ] {
+        let row = d.changes.get_mut(&CHANGE).expect("change");
+        row.change.state = c::State::Held { was: Box::new(was), hold: c::Hold::new(cause, Wall::EPOCH) };
+        assert_eq!(change(&d, &handed()).hold, Some(w::PublicHold::Failed));
+    }
 }
 
 #[test]
@@ -665,12 +667,15 @@ fn forbidden_sources_never_reach_the_bytes() {
     }]);
     row.change.state = c::State::Held {
         was: Box::new(c::State::Red { merge: MERGE, since: env().wall }),
-        why: c::Hold::Authority(c::AuthorityHold {
-            recovery: c::AuthorityRecovery { task: CHANGE, spec: SECOND, hold: GOAL, tasks: QUEUED },
-            lack: c::AuthorityLack::Tasks,
-            had: LANDING,
-            released: false,
-        }),
+        hold: c::Hold::new(
+            c::Cause::Authority(c::AuthorityHold {
+                recovery: c::AuthorityRecovery { task: CHANGE, spec: SECOND, hold: GOAL, tasks: QUEUED },
+                lack: c::AuthorityLack::Tasks,
+                had: LANDING,
+                released: false,
+            }),
+            Wall::EPOCH,
+        ),
     };
     d.verifications
         .insert(

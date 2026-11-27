@@ -145,6 +145,12 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
       (`accounts-words.md`, 1). The TUI gone, `lendable` false and the end
       `NotFinished` with no exit, the cards stand in their form with no
       terminal, with the same line.
+    - *Signed in, not usable:* a `SignedIn` whose check says the source
+      signed in but held, by its usage limit or any hold, finished its
+      sign-in, and is never *Not finished*: the cards stand, its card
+      "✓ Connected", nothing under the lead, and Model's line says why
+      it can't run (`../../domain/trial.md`, 6.1, *A source held is signed
+      in*). Signed in is the check's answer, never the source's `usable`.
     - *Refused at the press:* `NoTerminal`, the TUI gone meanwhile, the
       cards in their form with no terminal; `LoginUnderWay`, the note of
       the login under way; any other, its words under the lead, as a
@@ -215,8 +221,9 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
     . It is not a chat: it lists nowhere, adds nothing to Home's counts and
     writes no project's document. One short turn is paid by the person, as
     for a chat: included usage on a plan, or the key's price. Its first
-    committed turn answers it; a run ending otherwise or a minute ends it
-    failed, cancelling the task so that no second turn is spent. It is
+    committed turn answers it; its account's usage limit ends it limited;
+    a run ending otherwise or a minute ends it failed, each cancelling the
+    task so that no second turn is spent. It is
     Model's line in the pane, on the Model step and on Ready (*Ready,* below), the same parts as Forge's
     line, drawn by one function. Its steps are the list Forge's has, "Each step" its name, each with its state in
     words: for a Claude subscription "Signed in to your subscription",
@@ -239,7 +246,8 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
       terms (`../../domain/trial.md`, 6.4), a paragraph,
       `temper-welcome-status-why`; `temper-welcome-status-acts`, "Try again",
       outlined, and the act that answers the reason, quiet, "Sign in again", a
-      link to the way's page, or, with none, "All ways"; then the list, folded
+      link to the way's page, where the reason is the source's sign-in
+      (`../../domain/trial.md`, 6.4), or, with none, "All ways"; then the list, folded
       under "Each step", the step that stopped "✕" and in that colour, those
       before it ticked. Where the account is not usable, the page is Almost
       ready and its act disabled, as for any model not usable. Where only the
@@ -248,6 +256,18 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
       at a host's stop; past that, it runs another trial. A wait that won't
       settle in a moment says why at once, while its trial still runs; no
       "Try again" is offered until the trial ends.
+    - *Limited:* Stopped's parts, but that the muted line under ACCOUNT is
+      "Limited", in the signal's colour, and its why the limit's words
+      (`../../domain/trial.md`, 6.4): "Claude subscription is at its 5-hour
+      limit until 09:30."; its acts "Try again", outlined, and "All ways",
+      quiet, never "Sign in again"; in the list the last step "✕", every
+      step before it ticked, since the model answered with its limit. The
+      way's card stays "✓ Connected", and nothing is under the lead. At the
+      reset, by the page's clock, the muted line reads "Limit passed", in
+      no signal's colour, and the why "Claude subscription's limit has
+      passed."; the rest stands, and nothing tries again until "Try again"
+      is pressed. The account is not usable while it is held, so Ready is
+      Almost ready, as for any model not usable.
 
     An account just declared counts as usable for Ready's heading and act, and
     the steps' tick, from "I’ve signed in" until its host's check says
@@ -256,13 +276,15 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
     not the page. Removing its account cancels it; a restart cancels live
     trials and loses their lines, starting nothing (`../../domain/trial.md`, 5).
     Home's line under its intro says "WHO didn’t answer when tried", with
-    "Try again", while a trial is failed (`../../domain/trial.md`, 6.3); answered
+    "Try again", while a trial is failed, and the limit's words, with "Try
+    again", while it is limited (`../../domain/trial.md`, 6.3); answered
     or running, it says nothing. The accounts page holds the same lines under
     the account the run took, or, until then, the account that started it
     (`../../domain/trial.md`, 6.2). The terminal says the same lines as text,
     indented under the pane's name, with no bar: "ACCOUNT · Trying: STEP",
     for a key "ACCOUNT · Trying: STEP · one short message",
-    "✓ ACCOUNT · WHO IT IS · answered in N s", "ACCOUNT · WHO didn’t answer".
+    "✓ ACCOUNT · WHO IT IS · answered in N s", "ACCOUNT · WHO didn’t answer",
+    "ACCOUNT · Limited", "ACCOUNT · Limit passed", each stop's why under it.
 
 ## 2. Open questions
 

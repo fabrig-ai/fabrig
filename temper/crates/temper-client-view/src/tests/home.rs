@@ -196,6 +196,30 @@ fn home_says_a_try_that_stopped() {
     }
 }
 
+#[test]
+fn home_says_the_limit_before_and_after_its_reset() {
+    let reset = skein_lib::Wall::from_nanos(34_200_000_000_000);
+    for beginning in [true, false] {
+        let mut root = trial_home(beginning);
+        trial_rows(&mut root, Some(d::forge::trials::State::Limited { reset: Some(reset) }));
+        let mut view = f::browser_page_view(&root);
+        for why in [
+            b"Claude subscription is at its usage limit until 09:30.".as_slice(),
+            b"Claude subscription's limit has passed.",
+        ] {
+            let intro = styled(view.tree(), crate::look::HOME_INTRO);
+            let direct = children(subtree(view.tree(), intro.id));
+            let mut last = direct.iter().rev();
+            assert_eq!(last.next().unwrap().name.as_deref(), Some(b"Try again".as_slice()));
+            let line = last.next().unwrap();
+            assert_eq!(line.name.as_deref(), Some(why));
+            assert!(line.styles.as_slice().contains(&crate::look::HOME_BYLINE));
+            let patches = view.limits().tree.patches;
+            crate::build(&mut view, &root, reset, &mut Queue::with_capacity(patches));
+        }
+    }
+}
+
 fn silent_trial(state: d::forge::trials::State) {
     for beginning in [false, true] {
         let mut root = trial_home(beginning);

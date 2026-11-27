@@ -727,7 +727,10 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
 
 /// Settle the host check and advance a held sign-in or added key once usable (client/pages/README.md).
 pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>) {
-    use crate::pages::{accounts::SignInState, connect_model::ProgramCheck};
+    use crate::pages::{
+        accounts::{self, ProgramSignIn, SignInState},
+        connect_model::ProgramCheck,
+    };
     if let Address::ConnectModel { .. } = root.pages.address() {
         return;
     }
@@ -773,12 +776,13 @@ pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>
     if let ProgramCheck::Checking { source } = page.check
         && let Some(pending) = &page.request.pending
         && pending.outcome.is_some()
-        && let Some(accounts) = crate::pages::accounts::document(&root.client)
-        && accounts.settled
-        && !accounts.cut
-        && crate::pages::accounts::program_settled(accounts, source)
+        && let Some(doc) = accounts::document(&root.client)
     {
-        page.check = ProgramCheck::NotYet;
+        match accounts::program_sign_in(doc, source) {
+            ProgramSignIn::Waiting => {}
+            ProgramSignIn::SignedIn { .. } => page.check = ProgramCheck::Idle,
+            ProgramSignIn::NotSignedIn => page.check = ProgramCheck::NotYet,
+        }
     }
 }
 

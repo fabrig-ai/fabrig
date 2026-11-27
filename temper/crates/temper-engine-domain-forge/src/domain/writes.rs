@@ -14,6 +14,18 @@ pub(crate) fn branch(limits: &Limits, repository: Repository, branch: &[u8]) -> 
     from_client(&Resource { repository, what: ClientWhat::Branch(Box::from(branch)) }, limits)
 }
 
+/// A release must keep the predecessor until a write can be read back.
+pub(super) fn release_readback(d: &Domain, limits: &Limits, row: &crate::ChangeRow) -> bool {
+    let Some(name) = branch(limits, row.repository, &row.branch) else { return false };
+    let Some(writes) = d.writes.get(&name) else { return false };
+    for entry in &writes.entries {
+        if entry.state == WriteState::Uncertain {
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn known_head(d: &Domain, name: &Name) -> Option<Commit> {
     match d.writes.get(name) {
         Some(row) => row.head,

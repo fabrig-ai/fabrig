@@ -167,7 +167,7 @@ enum Freshness { exact, clean }
 enum GateKind { agent, person, check, follow }
 enum AuthorityLack { tasks, depth, spend }
 record AuthorityHold { lack: AuthorityLack had: u64 released: bool task: u64 spec: u64 hold: u64 tasks: u64 }
-enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake, no_test, runner, red_stands }
+enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake, no_test, runner, red_stands, close_refused }
 enum EffectResult { none, pending, made, conflict, failed, stale }
 record LandingRepair { gate: u16 }
 record LandedBelow { change: u64 pull: u64 }
@@ -195,7 +195,8 @@ record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
 record Judgement { landing: u64 round: u16 pull: u64 branch: bytes 4096 base: bytes 4096 prefix: fixed 32 }
 record Judging { head: fixed 32 ready_since: u64 target: Judgement asked: list 1024 u64 }
 enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer, judging: Judging, taking: Producing }
-record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
+record ChangeJudged { head: fixed 32 spec: u64 }
+record ChangeState { live: ChangeLive holds: list 8 ChangeHold since: option u64 = none words: option bytes 512 = none judged: option ChangeJudged = none }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
 record GateReport { number: u64 head: fixed 32 status: ChangeStatus revision: u64 = 0 }
 record GateFailure { number: u64 count: u32 }
@@ -577,7 +578,7 @@ record HistoryChange { project: u32 change: u64 number: u64 landing: option u64 
 record HistoryLanding { project: u32 landing: u64 number: u64 change: u64 }
 record HistoryLast { project: u32 number: u64 change: u64 at: u64 }
 
-record TaskRelease { revision: u64 at: u64 }
+record TaskRelease { revision: u64 at: u64 measured: bool = false }
 
 record FindingsTopic { project: u32 }
 enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participation: NumberTopic, findings: FindingsTopic }
@@ -593,7 +594,7 @@ record RunnerHold { words: bytes 512 }
 # One attempt per check: forge.client.rows is bounded by CompareAnswer.files.
 record RunnerBaseline { attempts: list 1024 JobAttempt }
 enum RunnerCi { held: RunnerHold, released, counting: RunnerBaseline }
-record CiRecheck { job: JobAttempt taken: option u32 = none }
+record CiRecheck { job: JobAttempt taken: option u32 = none semantic: bool = false }
 record ChangeHot { behind_wait: option BehindWait = none runner_ci: option RunnerCi = none settling: bool = false close_at: option CloseAt = none room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false delegate_words: option ResultText = none regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus spec_revision: u64 = 0 gate_revision: u64 = 0 verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory asks: list 16 LandingHanded = [] handed: u32 = 0 ci_recheck: option CiRecheck = none }
 
 record Subscriber { task: u64 number: u64 topic: Topic own_change: option u64 goal_tasks: option list 65536 u64 paths: list 1024 bytes 4096 }

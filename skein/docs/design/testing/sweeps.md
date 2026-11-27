@@ -7,7 +7,7 @@ Provisional, 2026-11-26. What a world's sweep is made of: the independent stream
 - **The seed's streams** (section 2): the workload, the faults, the parties' actions and the scheduling each draw from their own stream of the seed, and each part of a stream (an injector, a party) from its own part, so that a change to one leaves the others' draws as they were (the draft, 3.5 and 5).
 - **The fault ledger** (section 3): every fault a world or a fake injects, with its kind, its interval and the identities it strikes, and beside each the counters of the draft's 3.3, so that a check can judge blame and tries against the cause.
 - **A sweep** (section 4) names the faults it configures, folds each case's ledger, counting the cases each kind fell in, and fails when a fault it configures never fell in any of the gate's seeds.
-- **Its cases** (4.2 to 4.5) come through one seam, `cases`, which takes the test's identity, its seeds and a check: at the gate it yields the seeds as given, in a campaign fresh ones derived from the campaign's seed, the test and the case's number, and under a replay one seed. A failing case names its test and seed, whether its check returns a finding or panics. A check over the gate's seeds holds only at the gate (`gate()`).
+- **Its cases** (4.2 to 4.5) come through one seam, `cases`, which takes the test's identity, its seeds and a check: at the gate it yields the seeds as given, in a campaign fresh ones derived from the campaign's seed, the test and the case's number, and under a replay one seed. A failing case names its test and seed, whether its check returns a finding or panics. A check over the gate's seeds holds only at the gate (`gate()`). A sweep that plays a fake model counts the shapes its cases reached, in its tree's vocabulary (4.6).
 - **Exclusions** (section 5): an exclusion names its ignored scenario and the work that fixes it, and leaves out one fault in one combination of state the world names; it acts before a fault is injected, never on a finding, and nothing is matched by category. One that names no ignored scenario is refused.
 
 ## 2. The seed's streams
@@ -233,6 +233,40 @@ They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 - **A fixed scenario keeps its seed.** A test that asserts what its seed was chosen to show (a pinned seed's named outcome, a golden, a digest) takes no case from the seam, and a campaign runs it as the gate does.
 - **The gate's counts stay:** a sweep that adopts `cases` keeps its binary's checks counts as they were, and its instructions within the growth allowance (`tools/tiers/budgets.md`, 8).
 
+### 4.6 The shapes it reached
+
+A sweep that plays a fake model counts the shapes its cases reached, in a vocabulary its tree names, beside its sample's size, so that a reader of a deployment's runs can name the shapes the worlds missed (`temper/docs/design/draft/misbehaving-agents.md`, 8). The vocabulary's words are its tree's (smith's in `smith/docs/design/shapes.md`); the count and its lines are skein's, so that every tree's sweeps write one form.
+
+```rust
+/// The shapes a sweep's cases reached: each shape with the cases that reached it,
+/// and the cases folded.
+pub struct Shapes { /* sweep, vocabulary, cases, each kept shape's cases, beyond */ }
+
+impl Shapes {
+    /// At most `SHAPES_KEPT` distinct shapes are kept.
+    pub fn new(sweep: &'static str, vocabulary: &'static str) -> Shapes;
+    /// Folds one case: one more case, and one more case for each distinct shape in `case`.
+    /// A text outside a shape's form is refused, folding nothing.
+    pub fn ran(&mut self, case: &[&str]) -> Result<(), String>;
+    /// The cases folded.
+    pub fn cases(&self) -> u64;
+    /// The cases that reached `shape`.
+    pub fn reached(&self, shape: &str) -> u64;
+    /// Writes the lines below to stderr.
+    pub fn write(&self);
+}
+
+pub const SHAPES_KEPT: usize = 4096;
+```
+
+It is `skein_world::sweep`'s.
+
+- **A shape is a text** its world writes from its vocabulary's words, 1 to 1024 bytes of printable ASCII with no line feed; the count reads nothing in it. A text outside that form is the world's bug: `ran` returns `sweep SWEEP: shape not in form: WHY`, WHY saying which rule it broke and never the text, and the sweep fails on it as on any finding.
+- **Counted by case,** as `ran` counts faults (4.1): a shape a case reached twice counts it once.
+- **Bounded:** at most `SHAPES_KEPT` distinct shapes, the first reached kept. A case holding a shape past them counts once in `beyond`, and its kept shapes count as any case's.
+- **Its lines,** written by `write` in every mode, after the sweep's last case: `fuzzy shapes: SWEEP VOCABULARY cases N distinct D beyond B`, then one `fuzzy shape: SWEEP VOCABULARY N SHAPE` for each kept shape, N the cases that reached it, by N from the most, then by SHAPE's bytes. They are the contract a reader of the worlds' samples reads.
+- **The loop is the test's,** as with `Sweep`: it folds each case's shapes with `ran` and calls `write` after the last case, in a loop of its own or in `cases`'s check. A check over the gate's seeds that reads `reached` holds at the gate alone (4.5).
+
 ## 5. Exclusions
 
 ```rust
@@ -272,6 +306,7 @@ Step tests in the crate's own `src/tests/`, with no world:
 - **A sweep:** a sweep whose configured fault never falls in any seed fails `check_fell` at the gate, naming the fault and the seeds; one where it falls in one seed of several passes; `ran` counts each kind's cases, once a case however often it fell in it; outside the gate's mode, `check_fell` passes and writes one reach line for each configured kind, in `Kind`'s order, nought included; `ran` counts a kind's ineligible cases, once a case however often its ledger records it; outside the gate's mode, an ineligible line follows the reach lines for each kind ineligible in a case, in `Kind`'s order, and none for a kind ineligible in none; at the gate, no line, and a kind ineligible in one seed that fell in another passes `check_fell`.
 - **Cases,** each mode given to the seam directly, so that no test sets or depends on the process's environment: at the gate, the seeds as given, in order; in a campaign, as many fresh seeds as given, their values pinned for a campaign seed and a test with and without a part, and the same whatever other tests derived before; under a replay, the one seed once, whatever the seeds given; the first finding ends the sweep with its test and seed; `gate()` in each mode; the lines' format; `this_test!`'s identity.
 - **The variables:** read from captured pairs, empty is unset; a value of other than sixteen hex digits (fifteen, seventeen, a `0x` prefix, a byte that isn't a hex digit, bytes that aren't UTF-8) and both set at once are setup errors naming the variable; either case reads.
+- **Shapes:** a shape reached twice in one case counts that case once; `cases` counts the cases folded, a case with no shape among them; past `SHAPES_KEPT` distinct shapes, a case holding a new one counts in `beyond` and its kept shapes still count; the lines' format, their order by count then by bytes, and nought `beyond` written; a text that is empty, longer than 1024 bytes, or holds a line feed or a byte that isn't printable ASCII is refused, folding nothing of its case.
 - **The input line,** each mode given to the seam directly: under a replay, written for the case its thread holds, in its format, its digest's bytes in order; none at the gate, none in a campaign, none outside a case's check.
 - **The hook,** with no panic, since no test catches or expects one (`tools/lints/panics.py`): it writes its line for the case its thread holds and then calls the hook before it, writes none when its thread holds no case, and a case is let go of once its check returns.
 - **The test table:** its names, each `Set::Test`, in order, and its document, byte for byte, rewritten under the rewrite switch.
