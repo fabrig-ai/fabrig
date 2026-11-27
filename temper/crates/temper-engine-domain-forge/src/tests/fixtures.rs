@@ -369,6 +369,32 @@ pub fn repository_heard(d: &mut Domain, clock: &Env<Limits>, repository: skein_f
     d.reclaim();
 }
 
+// Deliberately differs from the stock second used for Busy admission.
+pub const GATHER_BACKOFF: Duration = Duration::from_secs(3);
+
+pub fn gather_clock() -> Env<Limits> {
+    let mut clock = env();
+    clock.limits.client.backoff = GATHER_BACKOFF;
+    clock.limits.client.read_attempts = 1;
+    clock
+}
+
+pub fn wall_after(clock: &Env<Limits>, span: Duration) -> Wall {
+    Wall::from_nanos(clock.wall.as_nanos().saturating_add(span.as_nanos()))
+}
+
+pub fn assert_gather_wait(out: &[Request], until: Wall) {
+    use temper_engine_domain_forge_change::Decision;
+    for request in out {
+        if let Request::ChangeDecision { task: CHANGE, decision: Decision::Wait { until: Some(at) }, .. } = request
+            && *at == until
+        {
+            return;
+        }
+    }
+    panic!("expected a wait until {until:?}: {out:?}");
+}
+
 /// One terminal read, without the client's transient retries, for reader tables.
 pub fn answer_once(
     d: &mut Domain,

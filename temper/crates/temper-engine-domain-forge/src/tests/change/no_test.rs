@@ -48,7 +48,10 @@ fn repairing_no_test() -> (Domain, ReceiptKey, api::Run) {
     assert!(skein_lib::bytes::find(&words, b"Failed tests: not known (the gate names no report)").is_some());
     assert!(skein_lib::bytes::find(&words, b"\nNo test: if no test failed in the run below").is_some());
     assert!(change_words::repair_no_test(why(), Some(&failure)));
-    outputs(&mut d, Event::Delegated { task: fixtures::CHANGE, child: 52, kind: change::Delegate::Repair(why()) });
+    outputs(
+        &mut d,
+        Event::Delegated { task: fixtures::CHANGE, child: 52, kind: change::Delegate::Repair(why()), close_at: None },
+    );
     run.id = 57;
     run.number = 58;
     run.created = env().now.saturating_add(Duration::from_secs(1));

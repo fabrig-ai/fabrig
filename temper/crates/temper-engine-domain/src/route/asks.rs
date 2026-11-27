@@ -730,11 +730,7 @@ fn step_made(
             && let Some(child) = child
         {
             // Jobs prepare at activation, after their parent row names them.
-            let event = match close_at {
-                Some(at) => forge::Event::CloseDelegated { task, child, at },
-                None => forge::Event::Delegated { task, child, kind },
-            };
-            super::forge_event(domain, env, decision, event);
+            super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind, close_at });
         }
         if let Some(relayed) = pending.relayed {
             let event = match pending.refusal {

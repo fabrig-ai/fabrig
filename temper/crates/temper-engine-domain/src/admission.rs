@@ -150,7 +150,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
-            | forge::Event::CloseDelegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::WaitsRefused { .. }
