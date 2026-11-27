@@ -1,13 +1,17 @@
-use skein_lib::Rng;
+//! Walking cases use their shard's identity (skein/docs/design/testing/sweeps.md, 4).
+
+use skein_lib::{Rng, StateHasher};
+use skein_world::sweep::{Test, cases};
 use std::collections::BTreeSet;
+use std::hash::Hasher;
 use std::ops::Range;
-use temper_engine_domain_world::walking::{Settings, run_replayed};
+use temper_engine_domain_world::walking::{Settings, World, run_replayed};
 
 /// The seeds the walk draws; the shards below cover `0..SEEDS`, eight each.
 const SEEDS: u64 = 64;
 
 fn drawn(seed: u64) -> Settings {
-    let mut random = Rng::new(seed + 7100);
+    let mut random = Rng::new(seed.wrapping_add(7100));
     Settings {
         seed,
         restart: random.below(2) == 0,
@@ -21,13 +25,39 @@ fn drawn(seed: u64) -> Settings {
 /// Walks both worlds in lockstep, comparing their state digests and exact traces
 /// at every iteration, then their complete text when settled (`run_replayed`).
 /// Eight shards share the fuzzy suite's threads (testing-strategy.md, section 8).
-fn shard(seeds: Range<u64>) {
-    skein_world::sweep::each_seed(seeds, |seed| {
+fn shard(test: Test, seeds: Range<u64>) {
+    cases(test, seeds, |seed| -> Result<(), String> {
         let settings = drawn(seed);
         let world = run_replayed(settings);
-        assert!(world.referee.done(), "seed {seed}");
-        assert_eq!(world.restarts, u32::from(settings.restart), "seed {seed}");
-    });
+        if !world.referee.done() {
+            return Err("walking referee did not finish".into());
+        }
+        let expected = u32::from(settings.restart);
+        if world.restarts != expected {
+            return Err(format!("expected {expected} restarts, observed {}", world.restarts));
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+#[test]
+fn fuzzy_walking_draws_keep_gate_settings_and_accept_full_width_seeds() {
+    let mut digest = StateHasher::new();
+    for seed in 0..SEEDS {
+        let settings = drawn(seed);
+        digest.write_u64(settings.seed);
+        digest.write_u8(u8::from(settings.restart));
+        digest.write_u8(u8::from(settings.terminal_restart));
+        digest.write_u32(settings.commit_delay);
+        digest.write_u32(settings.page_delay);
+        digest.write_u8(u8::from(settings.facts));
+    }
+    assert_eq!(digest.finish(), 0xb489_d0ac_fd69_c0aa, "settings in gate seed order");
+
+    let settings = drawn(u64::MAX);
+    assert_eq!(settings.seed, u64::MAX, "the world takes the full case seed");
+    let _world = World::new(settings);
 }
 
 /// The 64 seeds draw both commit cuts across a delayed and an immediate store
@@ -42,49 +72,49 @@ fn fuzzy_walking_seeds_cover_every_commit_cut() {
 /// Seeds 0 to 7 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_0() {
-    shard(0..8);
+    shard(skein_world::this_test!("fuzzy_walking_shard_0"), 0..8);
 }
 
 /// Seeds 8 to 15 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_1() {
-    shard(8..16);
+    shard(skein_world::this_test!("fuzzy_walking_shard_1"), 8..16);
 }
 
 /// Seeds 16 to 23 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_2() {
-    shard(16..24);
+    shard(skein_world::this_test!("fuzzy_walking_shard_2"), 16..24);
 }
 
 /// Seeds 24 to 31 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_3() {
-    shard(24..32);
+    shard(skein_world::this_test!("fuzzy_walking_shard_3"), 24..32);
 }
 
 /// Seeds 32 to 39 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_4() {
-    shard(32..40);
+    shard(skein_world::this_test!("fuzzy_walking_shard_4"), 32..40);
 }
 
 /// Seeds 40 to 47 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_5() {
-    shard(40..48);
+    shard(skein_world::this_test!("fuzzy_walking_shard_5"), 40..48);
 }
 
 /// Seeds 48 to 55 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_6() {
-    shard(48..56);
+    shard(skein_world::this_test!("fuzzy_walking_shard_6"), 48..56);
 }
 
 /// Seeds 56 to 63 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_7() {
-    shard(56..64);
+    shard(skein_world::this_test!("fuzzy_walking_shard_7"), 56..64);
 }
 
 #[test]
