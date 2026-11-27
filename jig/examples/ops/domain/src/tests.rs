@@ -974,13 +974,13 @@ fn declarations_follow_the_connectors_vocabulary_and_backend() {
         (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
     ] {
         let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
-        assert_eq!(observability.connector, 1);
+        assert_eq!(observability.connector, jig_domain_contract::Connector(1));
         assert!(observability.resources.is_empty());
         assert_eq!(
             observability.effects.as_ref(),
             &[EffectKind { kind: 46, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false },]
         );
-        assert_eq!(infrastructure.connector, 2);
+        assert_eq!(infrastructure.connector, jig_domain_contract::Connector(2));
         assert_eq!(
             infrastructure.resources.as_ref(),
             &[

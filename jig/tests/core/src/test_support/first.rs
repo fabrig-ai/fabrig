@@ -1,6 +1,6 @@
 //! Direct Core starts shared by step inputs and domain fixtures (jig/docs/design/domain/testing.md, 9).
 use jig_domain_contract::{
-    Declaration,
+    Connector, Declaration,
     effects::{EffectForm, EffectKind, Recovery},
 };
 use jig_domain_core::{
@@ -49,7 +49,7 @@ pub fn with_effects(config: core::Config, limits: &core::Limits, effects: &[Effe
         .iter()
         .copied()
         .map(|connector| {
-            let mut declaration = Declaration::empty(connector);
+            let mut declaration = Declaration::empty(Connector(connector));
             if connector == crate::fixtures::CONNECTOR {
                 declaration.effects = Box::from(effects);
             }

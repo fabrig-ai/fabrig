@@ -201,10 +201,10 @@ pub fn landing_stock(
     crate::route::policy_translate::landing_stock(deployment, projects, change, review)
 }
 
-/// The forge's connector kinds, in the engine's vocabulary.
+/// The forge's connector capabilities, in the engine's vocabulary.
 pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declaration {
     use jig_domain_contract::{
-        Declaration,
+        Connector, Declaration,
         effects::{EffectForm, EffectKind, Recovery},
         resources::{ResourceKind, Rule, Taken},
     };
@@ -233,7 +233,12 @@ pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declarat
             .push(EffectKind { kind: row.kind, form, recovery, waits_for_dependencies: row.waits_for_dependencies })
             .expect("one declaration per forge write kind");
     }
-    Declaration { connector, resources: Box::new([ResourceKind { kind: 1, hold }]), effects: effects.into_boxed() }
+    Declaration {
+        connector: Connector(connector),
+        resources: Box::new([ResourceKind { kind: 1, hold }]),
+        effects: effects.into_boxed(),
+        projects_goals: true,
+    }
 }
 
 #[cfg(test)]

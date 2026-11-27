@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_contract::{
-    Declaration,
+    Connector as ContractConnector, Declaration,
     effects::{self, EffectKind},
     resources::{ResourceKind, Rule, Taken},
 };
@@ -263,7 +263,7 @@ pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Lim
     let infrastructure = &limits.infrastructure.vocabulary;
     [
         Declaration {
-            connector: number(Connector::Observability),
+            connector: ContractConnector(number(Connector::Observability)),
             resources: Box::new([]),
             effects: Box::new([EffectKind {
                 kind: limits.observability.vocabulary.silence_effect,
@@ -271,11 +271,13 @@ pub(crate) fn declarations(backend: infrastructure::Backend, limits: &crate::Lim
                 recovery: effects::Recovery::Keyed,
                 waits_for_dependencies: false,
             }]),
+            projects_goals: false,
         },
         Declaration {
-            connector: number(Connector::Infrastructure),
+            connector: ContractConnector(number(Connector::Infrastructure)),
             resources: hold_kinds(infrastructure),
             effects: effect_kinds(infrastructure, backend),
+            projects_goals: false,
         },
     ]
 }

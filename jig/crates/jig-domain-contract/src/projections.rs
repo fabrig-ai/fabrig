@@ -1,5 +1,6 @@
 //! Goal projection feeds and durable rows (jig/docs/design/domain/connectors.md, 2).
 
+use crate::effects::OutboxOutcome;
 use crate::ops::{Change, Party, Phase};
 use alloc::boxed::Box;
 
@@ -171,4 +172,22 @@ pub fn milestone_key(goal: u64, identity: MilestoneId) -> ProjectionKey {
         MilestoneId::Lifecycle { task, position } => ProjectionKey::Lifecycle { goal, task, position },
         MilestoneId::Revision { task, revision } => ProjectionKey::Revision { goal, task, revision },
     }
+}
+
+/// What the engine asks of a connector that projects goals.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Ask {
+    /// Operation that ends later: project the goal's state, plan and milestones, answered by `Up::Settled`.
+    Project { feed: Box<ProjectionFeed> },
+    /// Notification: forget the goal's projection after its closing writes settled; no answer.
+    Forget { goal: u64 },
+}
+
+/// A projection connector's settlements and outbox outcomes.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Up {
+    /// The goal's final projection write settled, or the project has no home here.
+    Settled { goal: u64 },
+    /// Unasked: a projection's outbox outcome, independent of any task or call.
+    Outbox { entry: u64, outcome: OutboxOutcome },
 }

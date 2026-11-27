@@ -1,7 +1,9 @@
 //! Connector restart and adoption values (jig/docs/design/domain/connectors.md, 2).
 
 use crate::ops::Role;
+use crate::resources::Name;
 use alloc::boxed::Box;
+use skein_lib::Token;
 
 /// Restoration and the two halves of a connector's catching up.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -50,4 +52,27 @@ pub struct Adoption {
     pub role: ResourceRole,
     /// Bounded connector-specific fields, interpreted by the application's root.
     pub options: Box<[Box<[u8]>]>,
+}
+
+/// Lifecycle asks of every connector.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Ask {
+    /// Operation that ends later: catch up from opening, answered by `Up::Done` once per stage.
+    CatchUp,
+    /// Notification: adopt this resource into the project; no answer.
+    Adopt { request: Token, project: u32, adoption: Adoption },
+    /// Operation that ends later: release a deleted project's adoptions and settings,
+    /// answered by `Up::Released` after commit or at once if none are kept. Asked again at each start.
+    ReleaseProject { project: u32 },
+}
+
+/// A connector's lifecycle answers and adoptions.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Up {
+    /// One catch-up stage is done.
+    Done { stage: RestartStage },
+    /// A deleted project's release is durable, or the connector held nothing for it.
+    Released { project: u32 },
+    /// Unasked: a resource's adoption, its role and whether it is the project's home.
+    Adopted { project: u32, name: Name, role: AdoptionRole, home: bool },
 }

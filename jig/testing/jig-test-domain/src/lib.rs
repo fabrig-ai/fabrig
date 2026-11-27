@@ -15,7 +15,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use jig_domain_contract::{Declaration, resources::ResourceKind};
+use jig_domain_contract::{Connector, Declaration, resources::ResourceKind};
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
@@ -346,7 +346,7 @@ impl Config {
                 _ => continue,
             };
             declarations
-                .push(routes::declaration(*number, config, resources))
+                .push(routes::declaration(Connector(*number), config, resources))
                 .expect("the testing application has two connectors");
         }
         declarations.into_boxed()

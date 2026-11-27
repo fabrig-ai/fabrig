@@ -42,7 +42,7 @@ use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     let mut declarations = List::with_capacity(u32::try_from(config.connectors.len()).unwrap());
     for connector in &config.connectors {
-        declarations.push(Declaration::empty(*connector)).unwrap();
+        declarations.push(Declaration::empty(jig_domain_contract::Connector(*connector))).unwrap();
     }
     declarations.into_boxed()
 }
@@ -1105,10 +1105,10 @@ fn tree_core_with_kinds(
     set_seed_role_authority(&mut config, given);
     let mut connectors = empty_declarations(&config);
     let first = connectors.first_mut().expect("first connector");
-    assert_eq!(first.connector, 1);
+    assert_eq!(first.connector, jig_domain_contract::Connector(1));
     first.effects = effects;
     let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
-    assert_eq!(declaration.connector, 2);
+    assert_eq!(declaration.connector, jig_domain_contract::Connector(2));
     declaration.resources = resources;
     let mut core = seeded_core_with_declarations(config, &connectors, &limits).expect("fixture core configuration");
     core.counters.deployment.projects = 1;

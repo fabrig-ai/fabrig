@@ -1075,7 +1075,7 @@ fn name(path: connector::Path) -> authority::Name {
 }
 
 pub(crate) fn declaration(
-    connector: u16,
+    connector: jig_domain_contract::Connector,
     config: &connector::Config,
     resources: &[tasks::ResourceKind],
 ) -> jig_domain_contract::Declaration {
@@ -1097,7 +1097,12 @@ pub(crate) fn declaration(
             .push(EffectKind { kind: kind.kind, form, recovery, waits_for_dependencies: kind.waits_for_dependencies })
             .expect("one declaration per configured effect kind");
     }
-    jig_domain_contract::Declaration { connector, resources: Box::from(resources), effects: effects.into_boxed() }
+    jig_domain_contract::Declaration {
+        connector,
+        resources: Box::from(resources),
+        effects: effects.into_boxed(),
+        projects_goals: true,
+    }
 }
 
 fn describe(number: u16, description: connector::Description) -> core::effects::connector::EffectDescription {

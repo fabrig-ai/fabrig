@@ -1,7 +1,7 @@
 //! References to connector-owned values (jig/docs/design/domain/connectors.md, 2).
 
 use alloc::boxed::Box;
-use skein_lib::{List, Token, Wall};
+use skein_lib::{List, ReplyTo, Token, Wall};
 
 mod lines;
 pub use lines::{
@@ -11,6 +11,7 @@ pub use lines::{
 };
 
 use crate::ops::party::Proposer;
+use crate::requests::ApplicationScope;
 
 /// Connector-owned value's kind, carried only as a reference.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -140,4 +141,32 @@ pub struct PartsAsk {
     pub party: u64,
     pub kinds: List<PartAsk>,
     pub rows: List<TaskLine>,
+}
+
+/// What the engine asks of a document and parts connector.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum Ask {
+    /// Judgement: make the party's document, answered by `Up::Made`.
+    Document { watcher: Token, scope: ApplicationScope, subject: Token, party: u64, window: Window },
+    /// Notification: drop the subject's binding; no answer.
+    DropDocument { subject: Token },
+    /// Notification: answer the party's read with the connector's own held output, not an `Up`.
+    Read { reply: ReplyTo, scope: ApplicationScope, read: Token, party: u64, window: Window },
+    /// Judgement: make application parts for task lines, answered by `Up::Lines`.
+    Lines(PartsAsk),
+    /// Judgement: make a public document, answered by `Up::Public`.
+    Public { reply: ReplyTo, kind: u16, version: u16, project: u32, task: Option<u64>, public: Box<[u64]> },
+}
+
+/// A parts connector's answers and change marks.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum Up {
+    /// The document was made, or no visible document remains.
+    Made { watcher: Token, outcome: Made },
+    /// Row-major parts, each row in the ask's kind order.
+    Lines { token: Token, parts: List<MadePart> },
+    /// A public document, if available.
+    Public { reply: ReplyTo, answer: Option<PublicApplication> },
+    /// Unasked: the tasks whose parts changed.
+    Marked { tasks: List<u64> },
 }
