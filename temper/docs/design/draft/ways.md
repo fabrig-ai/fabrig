@@ -211,7 +211,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 - **It can only add.** Rules combine as today: any refusal wins, else any wait wins (`../domain/forge/change/gates.md`, section 2). The work's rule adds a gate, a wait or an approval, and never removes one the floor asks for.
 - **A floor's review is the owners':** an agent review a floor rule requires runs kind 3's reviewer, with no project charter of `replaces` (6.2), whatever the way's `charters` say. A way's own reviewer judges only the review the way adds.
 - **A goal's direct writes:** the goal's agent writes its design straight into the goal's branch, outside any change (`../domain/forge/branches.md`, section 3). `landing.goal` covers the changes into that branch. The floor judges what the branch brings at its landing whole.
-- **Who may set a work's value:** its requester, for its own work. By default a person may set any value the floor leaves free (section 13). A standing role may set only what its grant allows (section 7). An amendment re-steps a change that is queued or being proved, and the evidence it had counts only where it was gathered for the same criteria at the same head.
+- **Who may set a work's value:** its requester, for its own work. A person may set any value the floor leaves free, lower than the way's included (the user, 2026-11-27). A standing role may set only what its grant allows (section 7). An amendment re-steps a change that is queued or being proved, and the evidence it had counts only where it was gathered for the same criteria at the same head.
 
 ### 5.5 The stock floor, and upgrades of it
 
@@ -374,7 +374,7 @@ up_to_date = false
 - **Every format shipped keeps reading:** a build reads each format temper has released, converting it as it reads. A file lives in a repository temper doesn't control, so this is longer than the store's rule, which keeps no code for a layout older than the deployment runs ([layouts-both-ways.md](layouts-both-ways.md)).
 - **A newer format than the build knows** fails the read, naming the file and the format, and the last good revision holds (8.5).
 - **Rewriting a file to the newest format** is a change a person asks for, or Ask temper proposes (section 11); nothing rewrites it by itself.
-- **temper.toml and the other files a person writes,** the workers' among them, take the same rule in a draft of their own: today they name no format ([../protocol/configuration/file.md](../protocol/configuration/file.md), section 9).
+- **temper.toml and the other files a person writes** take the same rule, by [formats.md](formats.md).
 
 ## 9. Names
 
@@ -432,9 +432,9 @@ What this pass leaves to the pages, the terminal and the words:
 
 ## 13. Open questions
 
-- **Lowering a way's value for one piece of work:** its requester may set any value the floor leaves free, lower than its way's included, as no approval for one milestone whose way asks for one, the default, since the floor is what owners protect; or a piece of work may only tighten its way, as an approval for one milestone whose way asks for none, and lowering needs an owner.
+None left from the second pass.
 
-**Settled by the user, 2026-11-27:** the sign-off on `.temper/` is off by default (8.6); the stock ways a repository without `ways.toml` runs are Pair, once its draft lands, Hand it over and Milestone (3.4); a deployment's own ways, a milestone across repositories and a hotfix cancelling a turn wait (section 14). A change first in line waits for a turn in progress.
+**Settled by the user, 2026-11-27:** whoever starts a piece of work may set any value the floor leaves free, lower than its way's included, as no approval for one milestone whose way asks for one (5.4); `ways.toml` is the all-or-nothing switch (8.1); the sign-off on `.temper/` is off by default (8.6); the stock ways a repository without `ways.toml` runs are Pair, once its draft lands, Hand it over and Milestone (3.4); a deployment's own ways, a milestone across repositories and a hotfix cancelling a turn wait (section 14). A change first in line waits for a turn in progress.
 
 ## 14. Later
 
